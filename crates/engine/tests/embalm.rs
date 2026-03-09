@@ -16,6 +16,7 @@
 //! - Embalm is NOT a cast: no SpellCast event (ruling 2017-04-18).
 //! - Requires mana payment; error on insufficient mana (CR 602.2b).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
     Command, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId,
@@ -91,7 +92,7 @@ fn sacred_cat_def() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Embalm),
-            AbilityDefinition::Embalm {
+            AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, details: None,
                 cost: ManaCost {
                     white: 1,
                     ..Default::default()

@@ -19,6 +19,7 @@
 //! - Card must have the Encore keyword (CR 702.141a).
 //! - Encore is NOT a cast: no SpellCast event (ruling).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId,
@@ -97,7 +98,7 @@ fn encore_test_card() -> CardDefinition {
         oracle_text: "Encore {2}{B}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Encore),
-            AbilityDefinition::Encore {
+            AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, details: None,
                 cost: ManaCost {
                     black: 1,
                     generic: 2,
@@ -579,20 +580,11 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(fake_stack_obj);
 

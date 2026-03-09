@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_196",
+    "name": "Craft — Braided Net activates Craft with Sol Ring as material; returns transformed as Braided Quipu",
+    "description": "P1 controls Braided Net ({2} Artifact) and Sol Ring ({1} Artifact) on the battlefield with {2}{U} in the mana pool. P1 activates Braided Net's Craft ability by paying {2}{U}, exiling Braided Net (the source) and Sol Ring (the material artifact). The craft ability resolves: Braided Net returns to the battlefield transformed as Braided Quipu. Sol Ring remains in exile. This script tests CR 702.167 (Craft): activating the ability as a sorcery, exiling the source + materials as the cost, and the source returning transformed on resolution. The script includes a dispute noting that the replay harness does not yet implement the 'activate_craft' action type — the Command::ActivateCraft handler exists in the engine (rules/engine.rs handle_activate_craft) but translate_player_action() in replay_harness.rs has no arm for 'activate_craft', so the action is silently skipped and the script cannot currently be validated end-to-end.",
+    "cr_sections_tested": ["702.167", "702.167a", "702.167b", "406.2", "701.10a", "602.2", "116.3", "608.2"],
+    "corner_case_ref": null,
+    "tags": ["stack", "craft", "double-faced-card", "transform", "exile", "artifact"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Braided Net card definition at crates/engine/src/cards/defs/braided_net.rs: card_id 'braided-net-braided-quipu', {2} Artifact, AbilityDefinition::Craft { cost: ManaCost { generic: 2, blue: 1 }, materials: CraftMaterials::Artifacts(1) }, back_face = Braided Quipu (Artifact, blue color indicator). Sol Ring ({1} Artifact from Available Cards list) used as the material artifact because it is a simple non-creature artifact with no battlefield effects that complicate the test. Mana pool pre-loaded with {2}{U} = 2 colorless + 1 blue to pay the craft cost. CR 702.167a: Craft is activated only as a sorcery (main phase, empty stack, active player). CR 702.167b: as the cost, exile the source and the material(s); on resolution, the source card returns to the battlefield transformed. The material (Sol Ring) stays in exile. Command::ActivateCraft fields: player, source (ObjectId of Braided Net), material_ids (vec![ObjectId of Sol Ring]). HARNESS GAP: translate_player_action() in replay_harness.rs falls through to the wildcard arm ('_') returning None for 'activate_craft', so the command is never issued and engine state does not change. Harness validation (SCRIPT_FILTER run) fails because Sol Ring and Braided Net remain on the battlefield and Braided Quipu never appears. The script is documented with a dispute and left pending_review. Once the harness adds an 'activate_craft' arm that resolves card names to ObjectIds and emits Command::ActivateCraft { player, source, material_ids }, this script will validate correctly. Note: Craft is NOT placed on the stack as a spell — it is an activated ability (CR 602.2). The ability goes on the stack; both source and materials are exiled as part of paying the activation cost (CR 702.167a), before the ability resolves.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "game-script-generator",
+        "description": "Harness error: the replay harness (crates/engine/src/testing/replay_harness.rs translate_player_action()) does not have an arm for the 'activate_craft' action string. The function's wildcard arm returns None, so the Command::ActivateCraft is never issued and the engine state is never advanced through the craft sequence. The engine itself does implement craft via handle_activate_craft() in rules/engine.rs and the Command::ActivateCraft variant in rules/command.rs. Harness validation (SCRIPT_FILTER=196_craft_braided_net_transforms) fails with: path='zones.battlefield.p1' expected={excludes:[{card:Sol Ring}]} but Sol Ring is still on battlefield because activate_craft was silently skipped. To enable harness validation, an 'activate_craft' arm must be added to translate_player_action() that resolves the source and material card names to ObjectIds and emits Command::ActivateCraft { player, source, material_ids }. The script assertions correctly represent CR 702.167 behavior and should not be changed to match the broken engine state.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Braided Net", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "Verify initial state: Braided Net and Sol Ring on battlefield, stack empty",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Braided Net on p1 battlefield, Sol Ring on p1 battlefield, stack empty, exile empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 2,
+            "zones.stack": { "is_empty": true },
+            "zones.exile": { "is_empty": true }
+          },
+          "note": "Braided Net ({2} Artifact) and Sol Ring ({1} Artifact) both on p1 battlefield (count 2). P1 has {2}{U} in pool to pay craft cost {2}{U}."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "P1 activates Braided Net's Craft ability, paying {2}{U} and exiling Braided Net + Sol Ring as cost",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_craft",
+          "card": "Braided Net",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "702.167a",
+          "note": "CR 702.167a: P1 activates Craft by paying {2}{U}, exiling Braided Net (source) and Sol Ring (material artifact) as part of the cost. Craft can only be activated as a sorcery. The craft ability goes on the stack as an activated ability (CR 602.2). Source and materials are exiled when the cost is paid — before the ability resolves. NOTE: 'activate_craft' is not recognized by the harness — this action is silently skipped (see disputes)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority. The craft activated ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Braided Net",
+          "resolution": [
+            {
+              "effect": "transform",
+              "target": { "type": "permanent", "card": "Braided Net", "controller": "p1" },
+              "amount": null,
+              "card": "Braided Quipu",
+              "owner": "p1",
+              "cr_ref": "702.167b",
+              "note": "CR 702.167b: The craft ability resolves. Braided Net (already in exile as cost) is returned to the battlefield transformed as Braided Quipu under its owner's (p1's) control. Sol Ring remains in exile as a consumed material."
+            }
+          ],
+          "note": "CR 608.2: Craft ability resolves. Braided Net returns to battlefield as Braided Quipu (back face). CR 702.167b: materials are not returned — Sol Ring stays in exile."
+        },
+        {
+          "type": "assert_state",
+          "description": "After craft resolves: Braided Quipu on p1 battlefield, Sol Ring in exile, Braided Net gone, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Braided Quipu" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Braided Net" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Sol Ring" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Braided Quipu (back face of Braided Net) is now on the battlefield. Sol Ring was consumed as craft material and remains in exile. Braided Net's front face is gone — the transformed permanent is Braided Quipu. These assertions represent correct CR 702.167 behavior and will pass once the harness supports 'activate_craft'."
+        }
+      ]
+    }
+  ]
+}

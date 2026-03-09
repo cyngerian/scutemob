@@ -16,13 +16,13 @@ use im::OrdSet;
 
 use crate::effects::{execute_effect, EffectContext};
 use crate::state::error::GameStateError;
-use crate::state::game_object::{MergedComponent, ObjectId};
+use crate::state::game_object::{Designations, MergedComponent, ObjectId};
 use crate::state::stack::StackObjectKind;
 use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{
-    AltCostKind, CardType, ChampionFilter, Color, CounterType, EnchantTarget, KeywordAbility,
-    SubType,
+    AdditionalCost, AltCostKind, CardType, ChampionFilter, Color, CounterType, EnchantTarget,
+    KeywordAbility, SubType,
 };
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -165,7 +165,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // first, then the right half, in order. Targets for the left half
                         // come from the full target list; targets for the right half also
                         // use the same list (since we don't split targets in this impl).
-                        if stack_obj.was_fused {
+                        if stack_obj
+                            .additional_costs
+                            .iter()
+                            .any(|c| matches!(c, AdditionalCost::Fuse))
+                        {
                             let left_effect = def.abilities.iter().find_map(|a| {
                                 if let crate::cards::card_definition::AbilityDefinition::Spell {
                                     effect,
@@ -284,7 +288,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 // If no modes, execute the spell's main effect as before.
                                 let effects_to_run: Vec<crate::cards::card_definition::Effect> =
                                     if let Some(modes) = spell_modes {
-                                        if stack_obj.was_entwined {
+                                        if stack_obj
+                                            .additional_costs
+                                            .iter()
+                                            .any(|c| matches!(c, AdditionalCost::Entwine))
+                                        {
                                             // CR 702.42b: "follow the text of each of the modes in
                                             // the order written on the card"
                                             modes.modes.clone()
@@ -297,10 +305,31 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                 .iter()
                                                 .filter_map(|&idx| modes.modes.get(idx).cloned())
                                                 .collect()
-                                        } else if stack_obj.escalate_modes_paid > 0 {
+                                        } else if stack_obj
+                                            .additional_costs
+                                            .iter()
+                                            .find_map(|c| match c {
+                                                AdditionalCost::EscalateModes { count } => {
+                                                    Some(*count)
+                                                }
+                                                _ => None,
+                                            })
+                                            .unwrap_or(0)
+                                            > 0
+                                        {
                                             // CR 702.120a: backward compat — escalate without explicit
                                             // modes_chosen executes modes 0..=escalate_modes_paid.
-                                            let count = (stack_obj.escalate_modes_paid as usize
+                                            let count = (stack_obj
+                                                .additional_costs
+                                                .iter()
+                                                .find_map(|c| match c {
+                                                    AdditionalCost::EscalateModes { count } => {
+                                                        Some(*count)
+                                                    }
+                                                    _ => None,
+                                                })
+                                                .unwrap_or(0)
+                                                as usize
                                                 + 1)
                                             .min(modes.modes.len());
                                             modes.modes[..count].to_vec()
@@ -330,15 +359,22 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 ctx.evidence_collected = stack_obj.evidence_collected;
                                 // CR 107.3m: Propagate X value to effect context.
                                 ctx.x_value = stack_obj.x_value;
+                                // RC-1: Extract gift status from additional_costs.
+                                let ac_gift_opponent: Option<crate::state::PlayerId> =
+                                    stack_obj.additional_costs.iter().find_map(|c| match c {
+                                        AdditionalCost::Gift { opponent } => Some(*opponent),
+                                        _ => None,
+                                    });
+                                let ac_gift_was_given = ac_gift_opponent.is_some();
                                 // CR 702.174b: Pass gift status so Condition::GiftWasGiven works.
-                                ctx.gift_was_given = stack_obj.gift_was_given;
-                                ctx.gift_opponent = stack_obj.gift_opponent;
+                                ctx.gift_was_given = ac_gift_was_given;
+                                ctx.gift_opponent = ac_gift_opponent;
 
                                 // CR 702.174j: For instant/sorcery spells, the gift effect always
                                 // happens BEFORE any other spell abilities of the card.
                                 // Only execute if gift cost was paid AND it's an instant/sorcery.
-                                if stack_obj.gift_was_given && !is_permanent {
-                                    if let Some(opponent) = stack_obj.gift_opponent {
+                                if ac_gift_was_given && !is_permanent {
+                                    if let Some(opponent) = ac_gift_opponent {
                                         // Look up the gift type from the card definition.
                                         // `def` is already in scope from the enclosing
                                         // `if let Some(def) = registry.get(cid)` block.
@@ -487,16 +523,28 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 107.3m: Transfer X value from stack to permanent for ETB replacement
                     // effects and triggers that reference X (e.g., Ravenous CR 702.156a).
                     obj.x_value = stack_obj.x_value;
-                    // CR 702.157a: Transfer squad count from stack to permanent for the
-                    // SquadETB trigger to read at trigger-collection time.
-                    obj.squad_count = stack_obj.squad_count;
-                    // CR 702.175a: Transfer offspring_paid from stack to permanent for the
-                    // OffspringETB trigger to read at trigger-collection time.
-                    obj.offspring_paid = stack_obj.offspring_paid;
-                    // CR 702.174a: Transfer gift status from stack to permanent for the
-                    // GiftETB trigger to read at trigger-collection time.
-                    obj.gift_was_given = stack_obj.gift_was_given;
-                    obj.gift_opponent = stack_obj.gift_opponent;
+                    // CR 702.157a: Transfer squad count from stack to permanent.
+                    obj.squad_count = stack_obj
+                        .additional_costs
+                        .iter()
+                        .find_map(|c| match c {
+                            AdditionalCost::Squad { count } => Some(*count),
+                            _ => None,
+                        })
+                        .unwrap_or(0);
+                    // CR 702.175a: Transfer offspring_paid from stack to permanent.
+                    obj.offspring_paid = stack_obj
+                        .additional_costs
+                        .iter()
+                        .any(|c| matches!(c, AdditionalCost::Offspring));
+                    // CR 702.174a: Transfer gift status from stack to permanent.
+                    let gift_opp_for_obj: Option<crate::state::PlayerId> =
+                        stack_obj.additional_costs.iter().find_map(|c| match c {
+                            AdditionalCost::Gift { opponent } => Some(*opponent),
+                            _ => None,
+                        });
+                    obj.gift_was_given = gift_opp_for_obj.is_some();
+                    obj.gift_opponent = gift_opp_for_obj;
                     // CR 702.74a: Transfer evoked status from stack to permanent so the
                     // ETB sacrifice trigger can check cast_alt_cost.
                     // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
@@ -521,7 +569,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.103b: Transfer bestowed status from stack to permanent.
                     // If bestow_fallback is true, the spell reverted to creature mode;
                     // the permanent enters as a creature (not as a bestowed Aura).
-                    obj.is_bestowed = stack_obj.was_bestowed && !bestow_fallback;
+                    if stack_obj.was_bestowed && !bestow_fallback {
+                        obj.designations.insert(Designations::BESTOWED);
+                    }
                     // CR 702.146a / CR 712.11a: Transfer disturb/transform status from stack to permanent.
                     // When a card was cast with disturb, it enters transformed (back face up).
                     // The was_cast_disturbed flag enables the graveyard→exile replacement effect
@@ -686,7 +736,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .iter()
                         .any(|kw| matches!(kw, crate::state::types::KeywordAbility::Echo(_)))
                     {
-                        obj.echo_pending = true;
+                        obj.designations.insert(Designations::ECHO_PENDING);
                     }
                 }
 
@@ -1042,7 +1092,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                         .unwrap_or_default();
 
-                    if !devour_instances.is_empty() && !stack_obj.devour_sacrifices.is_empty() {
+                    // RC-1: Extract devour sacrifices from additional_costs.
+                    let devour_sacrifice_ids: Vec<ObjectId> = stack_obj
+                        .additional_costs
+                        .iter()
+                        .find_map(|c| {
+                            if let crate::state::types::AdditionalCost::Sacrifice(ids) = c {
+                                Some(ids.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_default();
+                    if !devour_instances.is_empty() && !devour_sacrifice_ids.is_empty() {
                         let entering_controller = state
                             .objects
                             .get(&new_id)
@@ -1053,7 +1115,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
                         // Sacrifice each creature. Re-validate at resolution time since
                         // state may have changed since cast time (CR 608.3b).
-                        for sac_id in &stack_obj.devour_sacrifices {
+                        for sac_id in &devour_sacrifice_ids {
                             let sac_id = *sac_id;
                             // Validate: still on battlefield, still controlled by caster, still creature.
                             let still_valid = state
@@ -1983,9 +2045,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         }
 
         // CR 702.85a: Cascade trigger resolves — run the cascade procedure.
-        StackObjectKind::CascadeTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            spell_mana_value,
+            keyword: KeywordAbility::Cascade,
+            data: crate::state::stack::TriggerData::CascadeExile { spell_mana_value },
         } => {
             let controller = stack_obj.controller;
             let (cascade_events, _cast_id) =
@@ -1999,10 +2062,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         }
 
         // CR 702.40a: Storm trigger resolves — create copies of the original spell.
-        StackObjectKind::StormTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            original_stack_id,
-            storm_count,
+            keyword: KeywordAbility::Storm,
+            data: crate::state::stack::TriggerData::SpellCopy { original_stack_id, copy_count: storm_count },
         } => {
             let controller = stack_obj.controller;
             let copy_events = crate::rules::copy::create_storm_copies(
@@ -2028,9 +2091,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // The copy is pushed onto the stack above the original and resolves first (LIFO).
         // If the original spell is no longer on the stack at resolution time (was countered,
         // etc.), `copy_spell_on_stack` returns Err and no copy is created (graceful no-op).
-        StackObjectKind::CasualtyTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            original_stack_id,
+            keyword: KeywordAbility::Casualty(_),
+            data: crate::state::stack::TriggerData::CasualtyCopy { original_stack_id },
         } => {
             let controller = stack_obj.controller;
             match crate::rules::copy::copy_spell_on_stack(
@@ -2066,10 +2130,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // returns no events (graceful no-op). This is a known LOW gap — the 2024-01-12
         // ruling states copies should still be created even if the original is gone, but
         // the current copy infrastructure does not support this edge case.
-        StackObjectKind::ReplicateTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            original_stack_id,
-            replicate_count,
+            keyword: KeywordAbility::Replicate,
+            data: crate::state::stack::TriggerData::SpellCopy { original_stack_id, copy_count: replicate_count },
         } => {
             let controller = stack_obj.controller;
             let copy_events = crate::rules::copy::create_storm_copies(
@@ -2096,10 +2160,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Reuses `create_storm_copies` which calls `copy_spell_on_stack` N times.
         // If the original spell is no longer on the stack (was countered), `create_storm_copies`
         // returns no events (graceful no-op).
-        StackObjectKind::GravestormTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            original_stack_id,
-            gravestorm_count,
+            keyword: KeywordAbility::Gravestorm,
+            data: crate::state::stack::TriggerData::SpellCopy { original_stack_id, copy_count: gravestorm_count },
         } => {
             let controller = stack_obj.controller;
             let copy_events = crate::rules::copy::create_storm_copies(
@@ -2123,9 +2187,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         //
         // Intervening-if re-check (CR 603.4): permanent must still be on the battlefield
         // AND have at least one time counter. If either fails, the trigger does nothing.
-        StackObjectKind::VanishingCounterTrigger {
-            source_object: _,
-            vanishing_permanent,
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Vanishing(_),
+            data:
+                crate::state::stack::TriggerData::CounterRemoval {
+                    permanent: vanishing_permanent,
+                },
+            ..
         } => {
             let controller = stack_obj.controller;
 
@@ -2168,7 +2236,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 source: vanishing_permanent,
                                 ability_index: 0,
                                 controller: owner,
-                                kind: PendingTriggerKind::VanishingSacrifice,
+                                kind: PendingTriggerKind::KeywordTrigger {
+                                    keyword: crate::state::types::KeywordAbility::Vanishing(0),
+                                    data: crate::state::stack::TriggerData::CounterSacrifice {
+                                        permanent: vanishing_permanent,
+                                    },
+                                },
                                 triggering_event: None,
                                 entering_object_id: None,
                                 targeting_stack_id: None,
@@ -2229,9 +2302,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // CR 702.63a ruling (Dreamtide Whale): If the sacrifice trigger is countered
         // (e.g., Stifle), the permanent stays on the battlefield with 0 time counters
         // and neither trigger can fire again (both have intervening-if for time counters).
-        StackObjectKind::VanishingSacrificeTrigger {
-            source_object: _,
-            vanishing_permanent,
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Vanishing(_),
+            data:
+                crate::state::stack::TriggerData::CounterSacrifice {
+                    permanent: vanishing_permanent,
+                },
+            ..
         } => {
             let controller = stack_obj.controller;
 
@@ -2340,9 +2417,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // two-trigger approach). If fade counters > 0, remove one. If 0, sacrifice.
         // No intervening-if condition -- the trigger fires unconditionally.
         // If the permanent has left the battlefield (CR 400.7), trigger does nothing.
-        StackObjectKind::FadingTrigger {
-            source_object: _,
-            fading_permanent,
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Fading(_),
+            data:
+                crate::state::stack::TriggerData::CounterRemoval {
+                    permanent: fading_permanent,
+                },
+            ..
         } => {
             let controller = stack_obj.controller;
 
@@ -2476,10 +2557,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // If the permanent has left the battlefield (CR 400.7), trigger does nothing.
         // echo_pending is cleared only in the PayEcho handler (not here), so that if
         // the trigger is countered (Stifle), it fires again on the next upkeep.
-        StackObjectKind::EchoTrigger {
-            source_object: _,
-            echo_permanent,
-            echo_cost,
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Echo(_),
+            data:
+                crate::state::stack::TriggerData::UpkeepCost {
+                    permanent: echo_permanent,
+                    cost: crate::state::stack::UpkeepCostKind::Echo(echo_cost),
+                },
+            ..
         } => {
             let controller = stack_obj.controller;
 
@@ -2523,10 +2608,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // 4. Add to pending_cumulative_upkeep_payments.
         // If countered (Stifle), no age counter is added -- the trigger fires again
         // next upkeep with the same counter count.
-        StackObjectKind::CumulativeUpkeepTrigger {
-            source_object: _,
-            cu_permanent,
-            per_counter_cost,
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::CumulativeUpkeep(_),
+            data:
+                crate::state::stack::TriggerData::UpkeepCost {
+                    permanent: cu_permanent,
+                    cost: crate::state::stack::UpkeepCostKind::CumulativeUpkeep(per_counter_cost),
+                },
+            ..
         } => {
             let controller = stack_obj.controller;
 
@@ -2583,10 +2672,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // On resolution: check if recover_card is still in the graveyard (CR 400.7).
         // If yes, emit RecoverPaymentRequired and add to pending_recover_payments.
         // If not, do nothing (card is a new object elsewhere).
-        StackObjectKind::RecoverTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            recover_card,
-            recover_cost,
+            keyword: KeywordAbility::Recover,
+            data: crate::state::stack::TriggerData::DeathRecover { recover_card, recover_cost },
         } => {
             let controller = stack_obj.controller;
 
@@ -2623,7 +2712,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // sacrifices it." If the source has left the battlefield by resolution time
         // (blinked, bounced, etc.), the sacrifice does nothing — CR 400.7 ensures
         // the source is now a new object and is no longer the evoked permanent.
-        StackObjectKind::EvokeSacrificeTrigger { source_object } => {
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Evoke,
+            data: crate::state::stack::TriggerData::DelayedZoneChange,
+        } => {
             let controller = stack_obj.controller;
 
             // Check if the source is still on the battlefield (CR 400.7).
@@ -2886,7 +2979,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // This is a delayed triggered ability created when the unearthed permanent
         // entered the battlefield. If countered (e.g., by Stifle), the permanent
         // stays on the battlefield, but the replacement effect still applies (per ruling).
-        StackObjectKind::UnearthTrigger { source_object } => {
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Unearth,
+            data: crate::state::stack::TriggerData::DelayedZoneChange,
+        } => {
             let controller = stack_obj.controller;
 
             // Check if the source is still on the battlefield (CR 400.7).
@@ -2922,7 +3019,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // beginning of the next end step."
         // If the source has left the battlefield by resolution time (CR 400.7),
         // the trigger does nothing -- the creature is a new object elsewhere.
-        StackObjectKind::DashReturnTrigger { source_object } => {
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Dash,
+            data: crate::state::stack::TriggerData::DelayedZoneChange,
+        } => {
             let controller = stack_obj.controller;
 
             // Check if the source is still on the battlefield (CR 400.7).
@@ -2960,7 +3061,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Ruling 2022-04-29: "if it's still on the battlefield when that triggered
         // ability resolves. If it dies or goes to another zone before then, it will
         // stay where it is."
-        StackObjectKind::BlitzSacrificeTrigger { source_object } => {
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Blitz,
+            data: crate::state::stack::TriggerData::DelayedZoneChange,
+        } => {
             let controller = stack_obj.controller;
 
             // Check if the source is still on the battlefield (CR 400.7).
@@ -3066,9 +3171,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Intervening-if re-check (CR 603.4): permanent must still be on the
         // battlefield, must have cast_alt_cost == Impending, and must have at
         // least one time counter.
-        StackObjectKind::ImpendingCounterTrigger {
-            source_object: _,
-            impending_permanent,
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Impending,
+            data:
+                crate::state::stack::TriggerData::CounterRemoval {
+                    permanent: impending_permanent,
+                },
+            ..
         } => {
             let controller = stack_obj.controller;
 
@@ -3113,6 +3222,246 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // --- Group 1: Combat triggers (migrated to KeywordTrigger) ---
+
+        // CR 702.25a: Flanking -- blocker gets -1/-1 until end of turn.
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Flanking,
+            data: crate::state::stack::TriggerData::CombatFlanking { blocker },
+            ..
+        } => {
+            let controller = stack_obj.controller;
+            let blocker_alive = state
+                .objects
+                .get(&blocker)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+            if blocker_alive {
+                let eff_id = state.next_object_id().0;
+                let ts = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                state.continuous_effects.push_back(
+                    crate::state::continuous_effect::ContinuousEffect {
+                        id: crate::state::continuous_effect::EffectId(eff_id),
+                        source: None,
+                        timestamp: ts,
+                        layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                        duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                        filter: crate::state::continuous_effect::EffectFilter::SingleObject(blocker),
+                        modification: crate::state::continuous_effect::LayerModification::ModifyBoth(-1),
+                        is_cda: false,
+                    },
+                );
+            }
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
+        // CR 702.23a: Rampage N -- +N/+N for each blocker beyond the first.
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Rampage(_),
+            data: crate::state::stack::TriggerData::CombatRampage { n: rampage_n },
+        } => {
+            let controller = stack_obj.controller;
+            let blocker_count = state
+                .combat
+                .as_ref()
+                .map(|c| c.blockers_for(source_object).len())
+                .unwrap_or(0);
+            let beyond_first = blocker_count.saturating_sub(1);
+            let bonus = (beyond_first as i32) * (rampage_n as i32);
+            if bonus > 0 {
+                let source_alive = state
+                    .objects
+                    .get(&source_object)
+                    .map(|obj| obj.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+                if source_alive {
+                    let eff_id = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(
+                        crate::state::continuous_effect::ContinuousEffect {
+                            id: crate::state::continuous_effect::EffectId(eff_id),
+                            source: None,
+                            timestamp: ts,
+                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                            duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(source_object),
+                            modification: crate::state::continuous_effect::LayerModification::ModifyBoth(bonus),
+                            is_cda: false,
+                        },
+                    );
+                }
+            }
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
+        // CR 702.39a: Provoke -- untap provoked creature, add forced-block requirement.
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Provoke,
+            data: crate::state::stack::TriggerData::CombatProvoke { target: provoked_creature },
+        } => {
+            let controller = stack_obj.controller;
+            let target_valid = state
+                .objects
+                .get(&provoked_creature)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+            if target_valid {
+                if let Some(obj) = state.objects.get(&provoked_creature) {
+                    if obj.status.tapped {
+                        let provoked_controller = obj.controller;
+                        if let Some(obj_mut) = state.objects.get_mut(&provoked_creature) {
+                            obj_mut.status.tapped = false;
+                        }
+                        events.push(GameEvent::PermanentUntapped {
+                            player: provoked_controller,
+                            object_id: provoked_creature,
+                        });
+                    }
+                }
+                if let Some(combat) = state.combat.as_mut() {
+                    combat.forced_blocks.insert(provoked_creature, source_object);
+                }
+            }
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
+        // CR 702.112a: Renown N -- place N +1/+1 counters and set renowned.
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Renown(_),
+            data: crate::state::stack::TriggerData::RenownDamage { n: renown_n },
+        } => {
+            let controller = stack_obj.controller;
+            let should_resolve = state
+                .objects
+                .get(&source_object)
+                .map(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && !obj.designations.contains(Designations::RENOWNED)
+                })
+                .unwrap_or(false);
+            if should_resolve {
+                if let Some(obj) = state.objects.get_mut(&source_object) {
+                    let current = obj.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0);
+                    obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, current + renown_n);
+                    obj.designations.insert(Designations::RENOWNED);
+                }
+            }
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
+        // CR 702.121a: Melee -- +count/+count for each opponent attacked.
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Melee,
+            data: crate::state::stack::TriggerData::Simple,
+        } => {
+            let controller = stack_obj.controller;
+            let opponents_attacked = state
+                .combat
+                .as_ref()
+                .map(|c| {
+                    c.attackers
+                        .values()
+                        .filter_map(|target| {
+                            if let crate::state::combat::AttackTarget::Player(pid) = target {
+                                Some(*pid)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<OrdSet<crate::state::player::PlayerId>>()
+                        .len()
+                })
+                .unwrap_or(0);
+            let bonus = opponents_attacked as i32;
+            if bonus > 0 {
+                let source_alive = state
+                    .objects
+                    .get(&source_object)
+                    .map(|obj| obj.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+                if source_alive {
+                    let eff_id = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(
+                        crate::state::continuous_effect::ContinuousEffect {
+                            id: crate::state::continuous_effect::EffectId(eff_id),
+                            source: None,
+                            timestamp: ts,
+                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                            duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(source_object),
+                            modification: crate::state::continuous_effect::LayerModification::ModifyBoth(bonus),
+                            is_cda: false,
+                        },
+                    );
+                }
+            }
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
+        // CR 702.70a: Poisonous N -- give target player N poison counters.
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Poisonous(_),
+            data: crate::state::stack::TriggerData::CombatPoisonous { target_player, n: poisonous_n },
+        } => {
+            let controller = stack_obj.controller;
+            if let Some(player) = state.players.get_mut(&target_player) {
+                player.poison_counters += poisonous_n;
+            }
+            events.push(GameEvent::PoisonCountersGiven {
+                player: target_player,
+                amount: poisonous_n,
+                source: source_object,
+            });
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
+        // CR 702.154a: Enlist -- source gets +X/+0 where X is enlisted creature's power.
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Enlist,
+            data: crate::state::stack::TriggerData::CombatEnlist { enlisted },
+        } => {
+            let controller = stack_obj.controller;
+            let source_alive = state
+                .objects
+                .get(&source_object)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+            if source_alive {
+                let enlisted_power =
+                    crate::rules::layers::calculate_characteristics(state, enlisted)
+                        .and_then(|c| c.power)
+                        .unwrap_or(0);
+                if enlisted_power != 0 {
+                    let eff_id = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(
+                        crate::state::continuous_effect::ContinuousEffect {
+                            id: crate::state::continuous_effect::EffectId(eff_id),
+                            source: None,
+                            timestamp: ts,
+                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                            duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(source_object),
+                            modification: crate::state::continuous_effect::LayerModification::ModifyPower(enlisted_power),
+                            is_cda: false,
+                        },
+                    );
+                }
+            }
+            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+        }
+
         // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
         // a creature. Default (deterministic, no interactive choice): decline.
         //
@@ -3120,7 +3469,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // When interactive choice is added, the trigger would pause and emit an
         // ExploitChoiceRequired event; the player responds with ExploitCreature
         // (naming the creature to sacrifice) or DeclineExploit.
-        StackObjectKind::ExploitTrigger { source_object } => {
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Exploit,
+            data: crate::state::stack::TriggerData::Simple,
+        } => {
             let controller = stack_obj.controller;
 
             // CR 400.7: Check if the source is still on the battlefield.
@@ -3147,9 +3500,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // CR 702.43a: Modular trigger resolves -- put +1/+1 counters on target
         // artifact creature equal to counter_count (last-known information from
         // pre_death_counters, Arcbound Worker ruling 2006-09-25).
-        StackObjectKind::ModularTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            counter_count,
+            keyword: KeywordAbility::Modular(_),
+            data: crate::state::stack::TriggerData::DeathModular { counter_count },
         } => {
             let controller = stack_obj.controller;
 
@@ -3201,9 +3555,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // CR 702.100a: Evolve trigger resolves -- re-check the intervening-if
         // condition (CR 603.4) and place a +1/+1 counter on the source creature
         // if the entering creature still has greater P and/or T.
-        StackObjectKind::EvolveTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            entering_creature,
+            keyword: KeywordAbility::Evolve,
+            data: crate::state::stack::TriggerData::EvolveTrigger { entering_creature },
         } => {
             let controller = stack_obj.controller;
 
@@ -3283,9 +3638,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // CR 702.58a: Graft trigger resolves -- re-check the intervening-if condition
         // (CR 603.4) and move one +1/+1 counter from the graft source to the entering
         // creature if both conditions still hold.
-        StackObjectKind::GraftTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            entering_creature,
+            keyword: KeywordAbility::Graft(_),
+            data: crate::state::stack::TriggerData::ETBGraft { entering_creature },
         } => {
             let controller = stack_obj.controller;
 
@@ -3450,9 +3806,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // CR 702.72a: Champion ETB trigger resolves -- "sacrifice it unless you exile
         // another [object] you control." Auto-selects first qualifying permanent to exile.
         // If no qualifying permanent exists, sacrifice the champion instead.
-        StackObjectKind::ChampionETBTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            champion_filter,
+            keyword: KeywordAbility::Champion,
+            data: crate::state::stack::TriggerData::ETBChampion { filter: champion_filter },
         } => {
             let controller = stack_obj.controller;
 
@@ -3629,9 +3986,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
         // CR 702.72a: Champion LTB trigger resolves -- "return the exiled card to the
         // battlefield under its owner's control." Checks if the exiled card is still in exile.
-        StackObjectKind::ChampionLTBTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            exiled_card,
+            keyword: KeywordAbility::Champion,
+            data: crate::state::stack::TriggerData::LTBChampion { exiled_card },
         } => {
             let controller = stack_obj.controller;
 
@@ -3705,9 +4063,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         }
 
         // CR 702.95a/702.95c: Soulbond ETB trigger resolution.
-        StackObjectKind::SoulbondTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            pair_target,
+            keyword: KeywordAbility::Soulbond,
+            data: crate::state::stack::TriggerData::ETBSoulbond { pair_target },
         } => {
             use crate::state::continuous_effect::{
                 ContinuousEffect, EffectDuration, EffectFilter, EffectId,
@@ -3818,9 +4177,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
-        StackObjectKind::RavenousDrawTrigger {
-            ravenous_permanent: _,
-            x_value,
+        StackObjectKind::KeywordTrigger {
+            source_object: _,
+            keyword: KeywordAbility::Ravenous,
+            data: crate::state::stack::TriggerData::ETBRavenousDraw { permanent: _, x_value },
         } => {
             let controller = stack_obj.controller;
 
@@ -3861,9 +4221,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Tokens are NOT cast (ruling 2022-10-07) and do NOT have summoning sickness
         // prevented (they enter normally with summoning sickness, unlike Myriad which
         // enters tapped and attacking).
-        StackObjectKind::SquadTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            squad_count,
+            keyword: KeywordAbility::Squad,
+            data: crate::state::stack::TriggerData::ETBSquad { count: squad_count },
         } => {
             let controller = stack_obj.controller;
 
@@ -3909,16 +4270,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         goaded_by: im::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
-                        is_bestowed: false,
-                        is_foretold: false,
                         foretold_turn: 0,
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,
-                        is_suspended: false,
                         exiled_by_hideaway: None,
-                        is_renowned: false,
-                        is_suspected: false,
                         encore_sacrifice_at_end_step: false,
                         encore_must_attack: None,
                         encore_activated_by: None,
@@ -3927,7 +4283,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_prototyped: false,
                         was_bargained: false,
                         evidence_collected: false,
-                        echo_pending: false,
                         phased_out_indirectly: false,
                         phased_out_controller: None,
                         creatures_devoured: 0,
@@ -3944,11 +4299,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         gift_was_given: false,
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
-                        is_saddled: false,
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
-                        is_reconfigured: false,
                         // CR 729.2: tokens are not part of a merged permanent by default.
                         merged_components: im::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
@@ -3957,6 +4310,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         was_cast_disturbed: false,
                         craft_exiled_cards: im::Vector::new(),
                         face_down_as: None,
+                        designations: Designations::default(),
                     };
 
                     // Add the token to the battlefield.
@@ -4005,9 +4359,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         //
         // CR 707.9d: "except it's 1/1" -- the copy instruction modifies base P/T to 1/1.
         // Implemented as: CopyOf effect (Layer 1) + SetPowerToughness {1, 1} (Layer 7b).
-        StackObjectKind::OffspringTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            source_card_id,
+            keyword: KeywordAbility::Offspring,
+            data: crate::state::stack::TriggerData::ETBOffspring { source_card_id },
         } => {
             use crate::state::continuous_effect::{
                 ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
@@ -4109,16 +4464,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
-                is_bestowed: false,
-                is_foretold: false,
                 foretold_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
-                is_suspended: false,
                 exiled_by_hideaway: None,
-                is_renowned: false,
-                is_suspected: false,
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,
@@ -4127,7 +4477,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 is_prototyped: false,
                 was_bargained: false,
                 evidence_collected: false,
-                echo_pending: false,
                 phased_out_indirectly: false,
                 phased_out_controller: None,
                 creatures_devoured: 0,
@@ -4144,11 +4493,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 gift_was_given: false,
                 gift_opponent: None,
                 // CR 702.171b: tokens are not saddled by default.
-                is_saddled: false,
                 encoded_cards: im::Vector::new(),
                 haunting_target: None,
                 // CR 702.151b: tokens are not reconfigured by default.
-                is_reconfigured: false,
                 // CR 729.2: tokens are not part of a merged permanent by default.
                 merged_components: im::Vector::new(),
                 // CR 712.8a: DFC state is reset for all new permanents.
@@ -4157,6 +4504,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 was_cast_disturbed: false,
                 craft_exiled_cards: im::Vector::new(),
                 face_down_as: None,
+                designations: Designations::default(),
             };
 
             // Add the token to the battlefield.
@@ -4253,10 +4601,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         //   Card     (702.174e): chosen player draws a card
         //   Treasure (702.174h): chosen player creates a Treasure token
         //   TappedFish/Octopus/ExtraTurn: other effects (partially deferred)
-        StackObjectKind::GiftETBTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            source_card_id,
-            gift_opponent,
+            keyword: KeywordAbility::Gift,
+            data: crate::state::stack::TriggerData::ETBGift { source_card_id, gift_opponent },
         } => {
             let controller = stack_obj.controller;
 
@@ -4330,7 +4678,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // the battlefield." Only set if Mount is still on the battlefield.
             if let Some(obj) = state.objects.get_mut(&source_object) {
                 if obj.zone == ZoneId::Battlefield {
-                    obj.is_saddled = true;
+                    obj.designations.insert(Designations::SADDLED);
                 }
             }
 
@@ -4349,10 +4697,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Ruling 2013-04-15: Cast during trigger resolution ignoring timing restrictions.
         //
         // MVP: Auto-cast the copy (deterministic). Interactive choice deferred.
-        StackObjectKind::CipherTrigger {
-            source_creature: _,
-            encoded_card_id: _,
-            encoded_object_id,
+        StackObjectKind::KeywordTrigger {
+            source_object: _,
+            keyword: KeywordAbility::Cipher,
+            data: crate::state::stack::TriggerData::CipherDamage { source_creature: _, encoded_card_id: _, encoded_object_id },
         } => {
             let controller = stack_obj.controller;
 
@@ -4408,21 +4756,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     was_surged: false,
                     was_casualty_paid: false,
                     was_cleaved: false,
-                    was_entwined: false,
-                    escalate_modes_paid: 0,
                     spliced_effects: vec![],
                     spliced_card_ids: vec![],
-                    devour_sacrifices: vec![],
                     modes_chosen: vec![],
-                    was_fused: false,
                     x_value: 0,
-                    squad_count: 0,
-                    offspring_paid: false,
-                    gift_was_given: false,
-                    gift_opponent: None,
-                    mutate_target: None,
-                    mutate_on_top: false,
                     is_cast_transformed: false,
+                    additional_costs: vec![],
                 };
 
                 state.stack_objects.push_back(copy_stack_obj);
@@ -4464,9 +4803,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // 3. Move the haunt card from graveyard to exile (new ObjectId, CR 400.7).
         // 4. Set haunting_target on the new exiled object to the target creature's ObjectId.
         // 5. Emit HauntExiled event.
-        StackObjectKind::HauntExileTrigger {
-            haunt_card,
-            haunt_card_id: _,
+        StackObjectKind::KeywordTrigger {
+            source_object: _,
+            keyword: KeywordAbility::Haunt,
+            data: crate::state::stack::TriggerData::DeathHauntExile { haunt_card, haunt_card_id: _ },
         } => {
             let controller = stack_obj.controller;
 
@@ -4533,9 +4873,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // 2. Look up the card's haunt effect from the card registry.
         // 3. Execute the effect on behalf of the haunt card's controller.
         // 4. The haunt card stays in exile (does NOT leave exile or lose haunting status).
-        StackObjectKind::HauntedCreatureDiesTrigger {
-            haunt_source,
-            haunt_card_id,
+        StackObjectKind::KeywordTrigger {
+            source_object: _,
+            keyword: KeywordAbility::Haunt,
+            data: crate::state::stack::TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id },
         } => {
             let controller = stack_obj.controller;
 
@@ -4718,11 +5059,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
-        StackObjectKind::BackupTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            target_creature,
-            counter_count,
-            abilities_to_grant,
+            keyword: KeywordAbility::Backup(_),
+            data: crate::state::stack::TriggerData::ETBBackup { target: target_creature, count: counter_count, abilities: abilities_to_grant },
         } => {
             let controller = stack_obj.controller;
 
@@ -4803,9 +5143,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         //
         // CR 707.2: Tokens that are copies of a permanent use Layer 1 (CopyOf) to
         // reflect copiable values of the source at resolution time.
-        StackObjectKind::MyriadTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            defending_player,
+            keyword: KeywordAbility::Myriad,
+            data: crate::state::stack::TriggerData::MyriadAttack { defending_player },
         } => {
             let controller = stack_obj.controller;
 
@@ -4867,19 +5208,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
-                    is_bestowed: false,
-                    is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
                     // CR 702.116a: "exile the tokens at end of combat"
                     // Tagged here so end_combat() in turn_actions.rs can find them.
                     myriad_exile_at_eoc: true,
                     decayed_sacrifice_at_eoc: false,
-                    is_suspended: false,
                     exiled_by_hideaway: None,
-                    is_renowned: false,
                     // CR 701.60b: tokens are not suspected by default.
-                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -4888,7 +5224,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_prototyped: false,
                     was_bargained: false,
                     evidence_collected: false,
-                    echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
@@ -4905,11 +5240,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_was_given: false,
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
-                    is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
-                    is_reconfigured: false,
                     // CR 729.2: tokens are not part of a merged permanent by default.
                     merged_components: im::Vector::new(),
                     // CR 712.8a: DFC state is reset for all new permanents.
@@ -4918,6 +5251,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
                     face_down_as: None,
+                    designations: Designations::default(),
                 };
 
                 // Add the token to the battlefield.
@@ -4982,7 +5316,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let current_counters = state
                 .objects
                 .get(&suspended_card)
-                .filter(|obj| obj.zone == ZoneId::Exile && obj.is_suspended)
+                .filter(|obj| {
+                    obj.zone == ZoneId::Exile && obj.designations.contains(Designations::SUSPENDED)
+                })
                 .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
 
             if let Some(count) = current_counters {
@@ -5154,30 +5490,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_casualty_paid: false,
                             // CR 702.148a: suspend casts are not cleave casts.
                             was_cleaved: false,
-                            // CR 702.42a: suspend casts are not entwine casts.
-                            was_entwined: false,
-                            // CR 702.120a: suspend casts have no escalate modes paid.
-                            escalate_modes_paid: 0,
                             // CR 702.47a: suspend free-casts have no spliced effects.
                             spliced_effects: vec![],
                             spliced_card_ids: vec![],
-                            devour_sacrifices: vec![],
                             // CR 700.2a: suspend free-casts have no explicit mode choices.
                             modes_chosen: vec![],
-                            // CR 702.102a: suspend free-casts are not fused spells.
-                            was_fused: false,
                             x_value: 0,
                             // CR 701.59c: suspend free-casts are not collect evidence casts.
                             evidence_collected: false,
-                            // CR 702.157a: suspend free-casts have no squad cost payments.
-                            squad_count: 0,
-                            offspring_paid: false,
-                            // CR 702.174a: tokens/copies are never gift casts.
-                            gift_was_given: false,
-                            gift_opponent: None,
-                            mutate_target: None,
-                            mutate_on_top: false,
                             is_cast_transformed: false,
+                            additional_costs: vec![],
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -5224,9 +5546,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Deterministic fallback: exile the top card; put the rest on the
         // bottom in seeded-shuffle order (using `timestamp_counter` as seed).
         // CR 603.3: Trigger resolves even if source left the battlefield (CR 400.7).
-        StackObjectKind::HideawayTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            hideaway_count,
+            keyword: KeywordAbility::Hideaway(_),
+            data: crate::state::stack::TriggerData::ETBHideaway { count: hideaway_count },
         } => {
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(controller);
@@ -5318,10 +5641,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // and the library is shuffled anyway.
         //
         // CR 603.3: Trigger resolves even if source left the battlefield (CR 400.7).
-        StackObjectKind::PartnerWithTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            partner_name,
-            target_player,
+            keyword: KeywordAbility::PartnerWith(_),
+            data: crate::state::stack::TriggerData::ETBPartnerWith { partner_name, target_player },
         } => {
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(target_player);
@@ -5382,9 +5705,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // The exile is face-up (ruling 2015-08-25: "The card exiled by the
         // ingest ability is exiled face up."). The engine's default exile
         // behavior is face-up, so no special handling needed.
-        StackObjectKind::IngestTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object: _,
-            target_player,
+            keyword: KeywordAbility::Ingest,
+            data: crate::state::stack::TriggerData::IngestExile { target_player },
         } => {
             let controller = stack_obj.controller;
             let lib_id = ZoneId::Library(target_player);
@@ -5418,381 +5742,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // The -1/-1 is a continuous effect in Layer 7c (PtModify) with
         // UntilEndOfTurn duration. If the blocker has left the battlefield
         // by resolution time (CR 400.7), the trigger does nothing.
-        StackObjectKind::FlankingTrigger {
-            source_object: _,
-            blocker_id,
-        } => {
-            let controller = stack_obj.controller;
-
-            // Check if the blocker is still on the battlefield.
-            let blocker_alive = state
-                .objects
-                .get(&blocker_id)
-                .map(|obj| obj.zone == ZoneId::Battlefield)
-                .unwrap_or(false);
-
-            if blocker_alive {
-                // Register the -1/-1 continuous effect (Layer 7c, UntilEndOfTurn).
-                let eff_id = state.next_object_id().0;
-                let ts = state.timestamp_counter;
-                state.timestamp_counter += 1;
-                let effect = crate::state::continuous_effect::ContinuousEffect {
-                    id: crate::state::continuous_effect::EffectId(eff_id),
-                    source: None, // spell/trigger-based effect, not from a permanent
-                    timestamp: ts,
-                    layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                    duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                    filter: crate::state::continuous_effect::EffectFilter::SingleObject(blocker_id),
-                    modification: crate::state::continuous_effect::LayerModification::ModifyBoth(
-                        -1,
-                    ),
-                    is_cda: false,
-                };
-                state.continuous_effects.push_back(effect);
-            }
-            // If blocker left the battlefield, do nothing (CR 400.7).
-
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
-
-        // CR 702.23a: Rampage N -- "Whenever this creature becomes blocked, it
-        // gets +N/+N until end of turn for each creature blocking it beyond
-        // the first."
-        // CR 702.23b: Bonus calculated once at resolution time (not trigger time).
-        StackObjectKind::RampageTrigger {
-            source_object,
-            rampage_n,
-        } => {
-            let controller = stack_obj.controller;
-
-            // Count blockers for this attacker from combat state.
-            // CR 702.23b: Snapshot count at resolution; changes after don't matter.
-            let blocker_count = state
-                .combat
-                .as_ref()
-                .map(|c| c.blockers_for(source_object).len())
-                .unwrap_or(0);
-
-            // CR 702.23a: "for each creature blocking it beyond the first"
-            let beyond_first = blocker_count.saturating_sub(1);
-            let bonus = (beyond_first as i32) * (rampage_n as i32);
-
-            if bonus > 0 {
-                // Only apply if the source is still on the battlefield.
-                let source_alive = state
-                    .objects
-                    .get(&source_object)
-                    .map(|obj| obj.zone == ZoneId::Battlefield)
-                    .unwrap_or(false);
-
-                if source_alive {
-                    // Register the +N/+N continuous effect (Layer 7c, UntilEndOfTurn).
-                    // Uses ModifyBoth matching the Flanking pattern (CR 702.45a).
-                    let eff_id = state.next_object_id().0;
-                    let ts = state.timestamp_counter;
-                    state.timestamp_counter += 1;
-                    state.continuous_effects.push_back(
-                        crate::state::continuous_effect::ContinuousEffect {
-                            id: crate::state::continuous_effect::EffectId(eff_id),
-                            source: None,
-                            timestamp: ts,
-                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                            duration:
-                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
-                                source_object,
-                            ),
-                            modification:
-                                crate::state::continuous_effect::LayerModification::ModifyBoth(
-                                    bonus,
-                                ),
-                            is_cda: false,
-                        },
-                    );
-                }
-            }
-
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
-
-        // CR 702.39a: Provoke trigger resolves -- untap the provoked creature
-        // and create a forced-block requirement in CombatState.
-        //
-        // "Whenever this creature attacks, you may have target creature defending
-        // player controls untap and block this creature this combat if able."
-        // 1. If the provoked creature is no longer on the battlefield, fizzle.
-        // 2. Untap the provoked creature (CR 702.39a: "untap that creature").
-        // 3. Add a forced-block entry to CombatState::forced_blocks (CR 509.1c).
-        StackObjectKind::ProvokeTrigger {
-            source_object,
-            provoked_creature,
-        } => {
-            let controller = stack_obj.controller;
-
-            // Target legality: provoked creature must still be on the battlefield.
-            let target_valid = state
-                .objects
-                .get(&provoked_creature)
-                .map(|obj| obj.zone == ZoneId::Battlefield)
-                .unwrap_or(false);
-
-            if target_valid {
-                // 1. Untap the provoked creature (CR 702.39a: "untap that creature").
-                if let Some(obj) = state.objects.get(&provoked_creature) {
-                    if obj.status.tapped {
-                        // Need to clone the controller before borrowing state mutably
-                        let provoked_controller = obj.controller;
-                        if let Some(obj_mut) = state.objects.get_mut(&provoked_creature) {
-                            obj_mut.status.tapped = false;
-                        }
-                        events.push(GameEvent::PermanentUntapped {
-                            player: provoked_controller,
-                            object_id: provoked_creature,
-                        });
-                    }
-                }
-
-                // 2. Add forced-block requirement to CombatState (CR 509.1c).
-                if let Some(combat) = state.combat.as_mut() {
-                    combat
-                        .forced_blocks
-                        .insert(provoked_creature, source_object);
-                }
-            }
-            // If target invalid, trigger fizzles -- do nothing (CR 608.2b).
-
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
-        // CR 702.112a: Renown trigger resolves -- re-check the intervening-if
-        // (CR 603.4) and place N +1/+1 counters on the source creature, then
-        // set it as renowned (CR 702.112b).
-        //
-        // Ruling 2015-06-22: "If a renown ability triggers, but the creature
-        // leaves the battlefield before that ability resolves, the creature
-        // doesn't become renowned."
-        StackObjectKind::RenownTrigger {
-            source_object,
-            renown_n,
-        } => {
-            let controller = stack_obj.controller;
-
-            // CR 603.4: Re-check intervening-if at resolution time.
-            // Source must still be on the battlefield AND not yet renowned.
-            let should_resolve = state
-                .objects
-                .get(&source_object)
-                .map(|obj| obj.zone == ZoneId::Battlefield && !obj.is_renowned)
-                .unwrap_or(false);
-
-            if should_resolve {
-                // CR 702.112a: Place N +1/+1 counters on the source creature.
-                if let Some(obj) = state.objects.get_mut(&source_object) {
-                    let current = obj
-                        .counters
-                        .get(&CounterType::PlusOnePlusOne)
-                        .copied()
-                        .unwrap_or(0);
-                    obj.counters = obj
-                        .counters
-                        .update(CounterType::PlusOnePlusOne, current + renown_n);
-                    // CR 702.112b: Set the renowned designation.
-                    obj.is_renowned = true;
-                }
-            }
-            // CR 603.4: Whether the intervening-if passed or failed,
-            // the ability always emits AbilityResolved (it "resolves" even if it
-            // does nothing because the intervening-if failed at resolution).
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
-
-        // CR 702.121a: Melee trigger resolves -- count distinct opponents attacked
-        // with creatures, then apply +count/+count until end of turn if source is
-        // still on the battlefield.
-        //
-        // Ruling 2016-08-23: "You determine the size of the bonus as the melee
-        // ability resolves. Count each opponent that you attacked with one or more
-        // creatures."
-        // Ruling 2016-08-23: Only opponents (players) count, NOT planeswalkers.
-        // Only `AttackTarget::Player(pid)` entries in state.combat.attackers count.
-        StackObjectKind::MeleeTrigger { source_object } => {
-            let controller = stack_obj.controller;
-
-            // Count distinct opponents attacked with creatures (players only).
-            // CR 702.121a: "for each opponent you attacked with a creature"
-            // Ruling: "It doesn't matter how many creatures you attacked a player
-            // with, only that you attacked a player with at least one creature."
-            let opponents_attacked = state
-                .combat
-                .as_ref()
-                .map(|c| {
-                    c.attackers
-                        .values()
-                        .filter_map(|target| {
-                            if let crate::state::combat::AttackTarget::Player(pid) = target {
-                                Some(*pid)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<OrdSet<crate::state::player::PlayerId>>()
-                        .len()
-                })
-                .unwrap_or(0);
-
-            let bonus = opponents_attacked as i32;
-
-            if bonus > 0 {
-                // Only apply if the source is still on the battlefield.
-                let source_alive = state
-                    .objects
-                    .get(&source_object)
-                    .map(|obj| obj.zone == ZoneId::Battlefield)
-                    .unwrap_or(false);
-
-                if source_alive {
-                    // Register the +bonus/+bonus continuous effect (Layer 7c, UntilEndOfTurn).
-                    let eff_id = state.next_object_id().0;
-                    let ts = state.timestamp_counter;
-                    state.timestamp_counter += 1;
-                    state.continuous_effects.push_back(
-                        crate::state::continuous_effect::ContinuousEffect {
-                            id: crate::state::continuous_effect::EffectId(eff_id),
-                            source: None,
-                            timestamp: ts,
-                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                            duration:
-                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
-                                source_object,
-                            ),
-                            modification:
-                                crate::state::continuous_effect::LayerModification::ModifyBoth(
-                                    bonus,
-                                ),
-                            is_cda: false,
-                        },
-                    );
-                }
-            }
-
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
-
-        // CR 702.70a: Poisonous trigger resolves -- give the damaged player
-        // N poison counters.
-        //
-        // CR 603.10: The source creature does NOT need to be on the battlefield
-        // at resolution time (the trigger is already on the stack).
-        // The poison counters are given regardless of the source's current state.
-        //
-        // Ruling (Virulent Sliver 2021-03-19): "Poisonous 1 causes the player to
-        // get just one poison counter when a Sliver deals combat damage to them,
-        // no matter how much damage that Sliver dealt." The N value is fixed.
-        StackObjectKind::PoisonousTrigger {
-            source_object,
-            target_player,
-            poisonous_n,
-        } => {
-            let controller = stack_obj.controller;
-
-            // Give target_player exactly poisonous_n poison counters.
-            if let Some(player) = state.players.get_mut(&target_player) {
-                player.poison_counters += poisonous_n;
-            }
-
-            // Reuse the existing PoisonCountersGiven event from Infect infrastructure.
-            // The event semantics are identical: a player received poison counters from
-            // a source object. The origin (Poisonous trigger vs. Infect damage
-            // replacement) is transparent to downstream consumers.
-            events.push(GameEvent::PoisonCountersGiven {
-                player: target_player,
-                amount: poisonous_n,
-                source: source_object,
-            });
-
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
-        // CR 702.154a: Enlist trigger resolves -- the enlisting creature gets
-        // +X/+0 until end of turn, where X is the tapped creature's power.
-        //
-        // The +X/+0 is a continuous effect in Layer 7c (PtModify) with
-        // UntilEndOfTurn duration. If the source (enlisting) creature has
-        // left the battlefield by resolution time (CR 400.7), the trigger
-        // does nothing.
-        //
-        // Power of the enlisted creature: use calculate_characteristics if
-        // the creature is still on the battlefield or in any zone. If the
-        // object no longer exists at all, use 0.
-        StackObjectKind::EnlistTrigger {
-            source_object,
-            enlisted_creature,
-        } => {
-            let controller = stack_obj.controller;
-
-            // Check if the source (enlisting) creature is still on the battlefield.
-            let source_alive = state
-                .objects
-                .get(&source_object)
-                .map(|obj| obj.zone == ZoneId::Battlefield)
-                .unwrap_or(false);
-
-            if source_alive {
-                // Read the enlisted creature's power (layer-aware).
-                // calculate_characteristics works regardless of zone.
-                let enlisted_power =
-                    crate::rules::layers::calculate_characteristics(state, enlisted_creature)
-                        .and_then(|c| c.power)
-                        .unwrap_or(0);
-
-                if enlisted_power != 0 {
-                    // Register the +X/+0 continuous effect.
-                    let eff_id = state.next_object_id().0;
-                    let ts = state.timestamp_counter;
-                    state.timestamp_counter += 1;
-                    let effect = crate::state::continuous_effect::ContinuousEffect {
-                        id: crate::state::continuous_effect::EffectId(eff_id),
-                        source: None, // trigger-based effect, not from a permanent
-                        timestamp: ts,
-                        layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                        duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                        filter: crate::state::continuous_effect::EffectFilter::SingleObject(
-                            source_object,
-                        ),
-                        modification:
-                            crate::state::continuous_effect::LayerModification::ModifyPower(
-                                enlisted_power,
-                            ),
-                        is_cda: false,
-                    };
-                    state.continuous_effects.push_back(effect);
-                }
-                // If enlisted_power == 0, still resolve successfully (no buff applied).
-            }
-            // If source left the battlefield, do nothing (CR 400.7).
-
-            events.push(GameEvent::AbilityResolved {
-                controller,
-                stack_object_id: stack_obj.id,
-            });
-        }
+        // Combat triggers (Flanking, Rampage, Provoke, Renown, Melee, Poisonous, Enlist)
+        // are now dispatched via KeywordTrigger -- see the KeywordTrigger match arm below.
 
         // CR 702.49a: Ninjutsu activated ability resolves -- put the ninja card from
         // hand (or command zone for commander ninjutsu, CR 702.49d) onto the battlefield
@@ -6031,17 +5982,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
-                    is_bestowed: false,
-                    is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
-                    is_suspended: false,
                     exiled_by_hideaway: None,
-                    is_renowned: false,
                     // CR 701.60b: tokens are not suspected by default.
-                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -6050,7 +5996,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_prototyped: false,
                     was_bargained: false,
                     evidence_collected: false,
-                    echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
@@ -6067,11 +6012,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_was_given: false,
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
-                    is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
-                    is_reconfigured: false,
                     // CR 729.2: tokens are not part of a merged permanent by default.
                     merged_components: im::Vector::new(),
                     // CR 712.8a: DFC state is reset for all new permanents.
@@ -6080,6 +6023,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
                     face_down_as: None,
+                    designations: Designations::default(),
                 };
 
                 // Add the token to the battlefield.
@@ -6250,17 +6194,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
-                    is_bestowed: false,
-                    is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
-                    is_suspended: false,
                     exiled_by_hideaway: None,
-                    is_renowned: false,
                     // CR 701.60b: tokens are not suspected by default.
-                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -6269,7 +6208,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_prototyped: false,
                     was_bargained: false,
                     evidence_collected: false,
-                    echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
@@ -6286,11 +6224,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_was_given: false,
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
-                    is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
-                    is_reconfigured: false,
                     // CR 729.2: tokens are not part of a merged permanent by default.
                     merged_components: im::Vector::new(),
                     // CR 712.8a: DFC state is reset for all new permanents.
@@ -6299,6 +6235,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
                     face_down_as: None,
+                    designations: Designations::default(),
                 };
 
                 // Add the token to the battlefield.
@@ -6486,17 +6423,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         goaded_by: im::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
-                        is_bestowed: false,
-                        is_foretold: false,
                         foretold_turn: 0,
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,
-                        is_suspended: false,
                         exiled_by_hideaway: None,
-                        is_renowned: false,
                         // CR 701.60b: tokens are not suspected by default.
-                        is_suspected: false,
                         encore_sacrifice_at_end_step: true, // sacrificed at end step
                         encore_must_attack: Some(opponent_id), // must attack this opponent
                         // Ruling 2020-11-10: track the original activator so the end-step
@@ -6507,7 +6439,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_prototyped: false,
                         was_bargained: false,
                         evidence_collected: false,
-                        echo_pending: false,
                         phased_out_indirectly: false,
                         phased_out_controller: None,
                         creatures_devoured: 0,
@@ -6523,11 +6454,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         gift_was_given: false,
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
-                        is_saddled: false,
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
-                        is_reconfigured: false,
                         // CR 729.2: tokens are not part of a merged permanent by default.
                         merged_components: im::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
@@ -6536,6 +6465,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         was_cast_disturbed: false,
                         craft_exiled_cards: im::Vector::new(),
                         face_down_as: None,
+                        designations: Designations::default(),
                     };
 
                     // Add the token to the battlefield.
@@ -6611,9 +6541,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // 2. Check the token is still controlled by the encore activator
         //    (ruling 2020-11-10: can't sacrifice if under another player's control).
         // 3. If both checks pass, sacrifice the token.
-        StackObjectKind::EncoreSacrificeTrigger {
+        StackObjectKind::KeywordTrigger {
             source_object,
-            activator,
+            keyword: KeywordAbility::Encore,
+            data: crate::state::stack::TriggerData::EncoreSacrifice { activator },
         } => {
             let controller = stack_obj.controller;
 
@@ -6730,7 +6661,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             target,
         } => {
             let controller = stack_obj.controller;
-            let mutate_on_top = stack_obj.mutate_on_top;
+            let mutate_on_top = stack_obj
+                .additional_costs
+                .iter()
+                .find_map(|c| match c {
+                    AdditionalCost::Mutate { on_top, .. } => Some(*on_top),
+                    _ => None,
+                })
+                .unwrap_or(false);
 
             // CR 702.140b: Check if the target is still legal at resolution time.
             let target_still_legal = {
@@ -7076,6 +7014,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
         }
+        // Consolidated keyword trigger resolution dispatch.
+        // Each keyword+data combination delegates to the same logic as the
+        // original one-off SOK variant it replaced.
+        StackObjectKind::KeywordTrigger {
+            ref keyword,
+            ref data,
+            ..
+        } => {
+            unreachable!("Unhandled KeywordTrigger: keyword={:?}, data={:?}", keyword, data);
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -7242,68 +7190,27 @@ pub fn counter_stack_object(
         }
         StackObjectKind::ActivatedAbility { .. }
         | StackObjectKind::TriggeredAbility { .. }
-        | StackObjectKind::CascadeTrigger { .. }
-        | StackObjectKind::StormTrigger { .. }
-        | StackObjectKind::EvokeSacrificeTrigger { .. }
         | StackObjectKind::MadnessTrigger { .. }
         | StackObjectKind::MiracleTrigger { .. }
         | StackObjectKind::UnearthAbility { .. }
-        | StackObjectKind::UnearthTrigger { .. }
-        | StackObjectKind::ExploitTrigger { .. }
-        | StackObjectKind::ModularTrigger { .. }
-        | StackObjectKind::EvolveTrigger { .. }
-        | StackObjectKind::MyriadTrigger { .. }
         | StackObjectKind::SuspendCounterTrigger { .. }
         | StackObjectKind::SuspendCastTrigger { .. }
-        | StackObjectKind::HideawayTrigger { .. }
-        | StackObjectKind::PartnerWithTrigger { .. }
-        | StackObjectKind::IngestTrigger { .. }
-        | StackObjectKind::FlankingTrigger { .. }
-        | StackObjectKind::RampageTrigger { .. }
-        | StackObjectKind::ProvokeTrigger { .. }
-        | StackObjectKind::RenownTrigger { .. }
-        | StackObjectKind::MeleeTrigger { .. }
-        | StackObjectKind::PoisonousTrigger { .. }
-        | StackObjectKind::EnlistTrigger { .. }
         | StackObjectKind::NinjutsuAbility { .. }
         | StackObjectKind::EmbalmAbility { .. }
         | StackObjectKind::EternalizeAbility { .. }
         | StackObjectKind::EncoreAbility { .. }
-        | StackObjectKind::EncoreSacrificeTrigger { .. }
-        | StackObjectKind::DashReturnTrigger { .. }
-        | StackObjectKind::BlitzSacrificeTrigger { .. }
-        | StackObjectKind::ImpendingCounterTrigger { .. }
-        | StackObjectKind::CasualtyTrigger { .. }
-        | StackObjectKind::ReplicateTrigger { .. }
-        | StackObjectKind::GravestormTrigger { .. }
-        | StackObjectKind::VanishingCounterTrigger { .. }
-        | StackObjectKind::VanishingSacrificeTrigger { .. }
-        | StackObjectKind::FadingTrigger { .. }
-        | StackObjectKind::EchoTrigger { .. }
-        | StackObjectKind::CumulativeUpkeepTrigger { .. }
-        | StackObjectKind::RecoverTrigger { .. }
         | StackObjectKind::ForecastAbility { .. }
-        | StackObjectKind::GraftTrigger { .. }
         | StackObjectKind::ScavengeAbility { .. }
-        | StackObjectKind::BackupTrigger { .. }
-        | StackObjectKind::ChampionETBTrigger { .. }
-        | StackObjectKind::ChampionLTBTrigger { .. }
-        | StackObjectKind::SoulbondTrigger { .. }
-        | StackObjectKind::RavenousDrawTrigger { .. }
         | StackObjectKind::BloodrushAbility { .. }
-        | StackObjectKind::SquadTrigger { .. }
-        | StackObjectKind::OffspringTrigger { .. }
-        | StackObjectKind::GiftETBTrigger { .. }
         | StackObjectKind::SaddleAbility { .. }
-        | StackObjectKind::CipherTrigger { .. }
-        | StackObjectKind::HauntExileTrigger { .. }
-        | StackObjectKind::HauntedCreatureDiesTrigger { .. }
         // CR 701.28 / CR 712: Transform triggers and Craft abilities countered — no effect.
         | StackObjectKind::TransformTrigger { .. }
         | StackObjectKind::CraftAbility { .. }
         | StackObjectKind::DayboundTransformTrigger { .. }
         // CR 708.8: TurnFaceUpTrigger countered — no effect; permanent remains face-up.
-        | StackObjectKind::TurnFaceUpTrigger { .. } => {
+        | StackObjectKind::TurnFaceUpTrigger { .. }
+        // All migrated triggers now consolidated under KeywordTrigger.
+        | StackObjectKind::KeywordTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.
@@ -7320,9 +7227,9 @@ pub fn counter_stack_object(
             // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
             // activation is already consumed (once-per-turn tracked) and the card
             // remains in hand (CR 702.57a).
-            // Note: For EchoTrigger, if countered (e.g. by Stifle), echo_pending
+            // Note: For Echo KeywordTrigger, if countered (e.g. by Stifle), echo_pending
             // remains set so the trigger fires again on the next upkeep (CR 702.30a).
-            // Note: For CumulativeUpkeepTrigger, if countered (e.g. by Stifle), no
+            // Note: For CumulativeUpkeep KeywordTrigger, if countered (e.g. by Stifle), no
             // age counter is added (counter addition happens at resolution, not queueing).
             // The trigger fires again next upkeep with the same counter count (CR 702.24a).
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
@@ -7331,18 +7238,18 @@ pub fn counter_stack_object(
             // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
             // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
             // with haste and the draw-on-death trigger intact (CR 702.152a).
-            // Note: For ImpendingCounterTrigger, if countered (e.g. by Stifle), the
-            // permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
+            // Note: For Impending KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
+            // the permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
             // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
             // spell stays on the stack but no copy is made (CR 702.153a).
             // Note: For ReplicateTrigger, if countered (e.g. by Stifle), no copies are
             // made but the original spell stays on the stack (CR 702.56a).
             // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
             // made but the original spell stays on the stack (CR 702.69a).
-            // Note: For VanishingCounterTrigger, if countered (e.g. by Stifle), the
-            // permanent retains its time counter(s) (CR 702.63a).
-            // Note: For VanishingSacrificeTrigger, if countered (e.g. by Stifle), the
-            // permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
+            // Note: For Vanishing KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
+            // the permanent retains its time counter(s) (CR 702.63a).
+            // Note: For Vanishing KeywordTrigger (CounterSacrifice), if countered (e.g. by Stifle),
+            // the permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
         }
     }
 

@@ -28,7 +28,7 @@ use std::collections::HashMap;
 
 use im::OrdMap;
 
-use crate::state::game_object::{Characteristics, ObjectId};
+use crate::state::game_object::{Characteristics, Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::PendingZoneChange;
 use crate::state::types::{
@@ -870,7 +870,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             state
                 .objects
                 .get(id)
-                .map(|obj| obj.is_bestowed)
+                .map(|obj| obj.designations.contains(Designations::BESTOWED))
                 .unwrap_or(false)
         });
 
@@ -887,7 +887,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
         // Revert the bestowed Aura to an enchantment creature.
         if let Some(obj) = state.objects.get_mut(&aura_id) {
             obj.attached_to = None;
-            obj.is_bestowed = false;
+            obj.designations.remove(Designations::BESTOWED);
             // Remove Aura subtype and enchant creature keyword.
             obj.characteristics.subtypes.remove(&subtype_aura);
             obj.characteristics
@@ -1009,7 +1009,7 @@ fn check_equipment_sbas(
         .iter()
         .filter(|(id, obj)| {
             obj.zone == crate::state::zone::ZoneId::Battlefield
-                && obj.is_reconfigured
+                && obj.designations.contains(Designations::RECONFIGURED)
                 && obj.attached_to.is_some()
                 && !illegal_equip.contains(id)
         })
@@ -1041,7 +1041,7 @@ fn check_equipment_sbas(
         if let Some(obj) = state.objects.get_mut(&id) {
             obj.attached_to = None;
             // CR 702.151b: clear reconfigure flag when SBA unattaches the Equipment.
-            obj.is_reconfigured = false;
+            obj.designations.remove(Designations::RECONFIGURED);
         }
 
         if let Some(target_id) = target_id {

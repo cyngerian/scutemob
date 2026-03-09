@@ -16,7 +16,7 @@ use crate::state::{
     continuous_effect::{
         ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
     },
-    game_object::{Characteristics, ObjectId},
+    game_object::{Characteristics, Designations, ObjectId},
     types::{CardType, CounterType, KeywordAbility, SubType, SuperType},
     zone::ZoneId,
     GameState,
@@ -68,7 +68,7 @@ pub fn calculate_characteristics(
     // "Can't block" is enforced separately in combat.rs (like Decayed) by checking
     // `obj.is_suspected` directly. The designation persists through ability-removal;
     // only the GRANTS (menace, can't-block) are affected by ability removal.
-    if obj.is_suspected && obj.zone == ZoneId::Battlefield {
+    if obj.designations.contains(Designations::SUSPECTED) && obj.zone == ZoneId::Battlefield {
         chars.keywords.insert(KeywordAbility::Menace);
     }
 
@@ -232,7 +232,9 @@ pub fn calculate_characteristics(
         // The flag is cleared only when the Equipment becomes unattached.
         if layer == EffectLayer::TypeChange {
             if let Some(obj_ref) = state.objects.get(&object_id) {
-                if obj_ref.zone == ZoneId::Battlefield && obj_ref.is_reconfigured {
+                if obj_ref.zone == ZoneId::Battlefield
+                    && obj_ref.designations.contains(Designations::RECONFIGURED)
+                {
                     chars.card_types.remove(&CardType::Creature);
                     // CR 702.151b + ruling 2022-02-18: "It also loses any creature subtypes
                     // it had." Retain non-creature subtypes (Equipment, Fortification, etc.).

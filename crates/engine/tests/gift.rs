@@ -17,9 +17,10 @@
 
 use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::{
-    process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Condition, Effect, EffectAmount, GameEvent, GameStateBuilder, KeywordAbility, ManaColor,
-    ManaCost, ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
+    process_command, AbilityDefinition, AdditionalCost, CardDefinition, CardId, CardRegistry,
+    CardType, Command, Condition, Effect, EffectAmount, GameEvent, GameStateBuilder,
+    KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine,
+    ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -346,30 +347,15 @@ fn cast_spell_with_gift(
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: if let Some(opp) = gift_opponent {
+                vec![AdditionalCost::Gift { opponent: opp }]
+            } else {
+                vec![]
+            },
         },
     )
 }
@@ -393,8 +379,11 @@ fn test_gift_not_paid_instant() {
     // gift_was_given should be false on the StackObject.
     let stack_obj = &state.stack_objects[0];
     assert!(
-        !stack_obj.gift_was_given,
-        "CR 702.174a: gift_was_given should be false when no opponent was chosen"
+        !stack_obj
+            .additional_costs
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::Gift { .. })),
+        "CR 702.174a: gift should not be in additional_costs when no opponent was chosen"
     );
 
     // Resolve the spell.
@@ -436,11 +425,21 @@ fn test_gift_basic_instant_card_draw() {
     assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
     let stack_obj = &state.stack_objects[0];
     assert!(
-        stack_obj.gift_was_given,
-        "CR 702.174a: gift_was_given should be true when opponent was chosen"
+        stack_obj
+            .additional_costs
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::Gift { .. })),
+        "CR 702.174a: Gift should be in additional_costs when opponent was chosen"
     );
     assert_eq!(
-        stack_obj.gift_opponent,
+        stack_obj
+            .additional_costs
+            .iter()
+            .find_map(|c| match c {
+                AdditionalCost::Gift { opponent } => Some(Some(*opponent)),
+                _ => None,
+            })
+            .flatten(),
         Some(p2),
         "CR 702.174a: gift_opponent should be p2"
     );

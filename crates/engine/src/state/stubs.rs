@@ -19,7 +19,7 @@ pub struct DelayedTrigger {
 // ReplacementEffect has moved to `state/replacement_effect.rs` (M8).
 
 /// Discriminant for PendingTrigger — replaces per-trigger boolean fields.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PendingTriggerKind {
     /// Normal triggered ability — dispatched by ability_index on the source.
     Normal,
@@ -69,18 +69,11 @@ pub enum PendingTriggerKind {
     DashReturn,
     /// CR 702.152a: Blitz delayed sacrifice trigger.
     BlitzSacrifice,
-    /// CR 702.176a: Impending end-step counter-removal trigger.
-    ImpendingCounter,
-    /// CR 702.63a: Vanishing upkeep counter-removal trigger.
-    VanishingCounter,
-    /// CR 702.63a: Vanishing last-counter sacrifice trigger.
-    VanishingSacrifice,
-    /// CR 702.32a: Fading upkeep trigger -- remove a fade counter or sacrifice.
-    FadingUpkeep,
-    /// CR 702.30a: Echo upkeep trigger -- sacrifice unless you pay [cost].
-    EchoUpkeep,
-    /// CR 702.24a: Cumulative upkeep trigger -- add age counter, then pay or sacrifice.
-    CumulativeUpkeep,
+    // ImpendingCounter: migrated to KeywordTrigger
+    // VanishingCounter and VanishingSacrifice: migrated to KeywordTrigger
+    // FadingUpkeep: migrated to KeywordTrigger
+    // EchoUpkeep: migrated to KeywordTrigger
+    // CumulativeUpkeep: migrated to KeywordTrigger
     /// CR 702.59a: Recover trigger -- fired when a creature enters the card owner's
     /// graveyard from the battlefield. Carries recover_cost and recover_card for
     /// flush_pending_triggers to build the RecoverTrigger stack entry.
@@ -162,6 +155,11 @@ pub enum PendingTriggerKind {
     /// The source is the permanent itself; `source_card_id` is looked up at flush time.
     /// Resolves as `TurnFaceUpTrigger` SOK.
     TurnFaceUp,
+    /// Consolidated keyword trigger (replaces many one-off trigger variants).
+    KeywordTrigger {
+        keyword: crate::state::types::KeywordAbility,
+        data: crate::state::stack::TriggerData,
+    },
     // Add new trigger kinds here as abilities are implemented
 }
 

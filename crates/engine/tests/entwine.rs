@@ -13,6 +13,7 @@
 //! - Entwine cost stacks with commander tax (CR 601.2f + CR 903.8).
 
 use mtg_engine::state::CardType;
+use mtg_engine::AdditionalCost;
 use mtg_engine::Effect;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command,
@@ -221,29 +222,10 @@ fn test_entwine_basic_both_modes_execute() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: true,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::Entwine],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
@@ -252,7 +234,10 @@ fn test_entwine_basic_both_modes_execute() {
     // Spell is on the stack with was_entwined = true.
     assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert!(
-        state.stack_objects[0].was_entwined,
+        state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::Entwine)),
         "CR 702.42a: was_entwined should be true when entwine cost was paid"
     );
 
@@ -352,36 +337,20 @@ fn test_entwine_not_paid_only_first_mode() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
 
     assert!(
-        !state.stack_objects[0].was_entwined,
+        !state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::Entwine)),
         "was_entwined should be false when entwine not paid"
     );
 
@@ -467,29 +436,10 @@ fn test_entwine_insufficient_mana_rejected() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: true,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::Entwine],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     );
@@ -548,29 +498,10 @@ fn test_entwine_no_keyword_rejected() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: true,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::Entwine],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     );
@@ -663,29 +594,10 @@ fn test_entwine_modes_in_printed_order() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: true,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::Entwine],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
@@ -766,36 +678,20 @@ fn test_entwine_was_entwined_flag_on_stack() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: true,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::Entwine],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
 
     assert!(
-        state.stack_objects[0].was_entwined,
+        state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::Entwine)),
         "CR 702.42a: was_entwined must be true when entwine cost was paid"
     );
     assert_eq!(

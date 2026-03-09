@@ -17,6 +17,7 @@
 //! - Eternalize is NOT a cast: no SpellCast event (ruling 2017-07-14).
 //! - Requires mana payment; error on insufficient mana (CR 602.2b).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
     Command, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId,
@@ -93,7 +94,7 @@ fn proven_combatant_def() -> CardDefinition {
         oracle_text: "Eternalize {4}{U}{U}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Eternalize),
-            AbilityDefinition::Eternalize {
+            AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, details: None,
                 cost: ManaCost {
                     generic: 4,
                     blue: 2,
@@ -128,7 +129,7 @@ fn haste_warrior_def() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Keyword(KeywordAbility::Eternalize),
-            AbilityDefinition::Eternalize {
+            AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, details: None,
                 cost: ManaCost {
                     generic: 4,
                     red: 2,
@@ -986,20 +987,11 @@ fn test_eternalize_split_second_blocks() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

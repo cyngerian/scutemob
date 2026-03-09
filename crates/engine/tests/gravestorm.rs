@@ -65,30 +65,11 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
@@ -194,16 +175,18 @@ fn test_gravestorm_basic_creates_copies() {
     // Verify the trigger has the correct gravestorm_count.
     let trigger = state.stack_objects.back().expect("trigger expected");
     match &trigger.kind {
-        StackObjectKind::GravestormTrigger {
-            gravestorm_count, ..
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Gravestorm,
+            data: mtg_engine::state::stack::TriggerData::SpellCopy { copy_count, .. },
+            ..
         } => {
             assert_eq!(
-                *gravestorm_count, 3,
-                "GravestormTrigger should capture count 3; got {}",
-                gravestorm_count
+                *copy_count, 3,
+                "Gravestorm KeywordTrigger should capture copy_count 3; got {}",
+                copy_count
             );
         }
-        other => panic!("Expected GravestormTrigger, got {:?}", other),
+        other => panic!("Expected Gravestorm KeywordTrigger, got {:?}", other),
     }
 
     // SpellCast events: exactly 1 SpellCast (the original), 0 SpellCopied at cast time.
@@ -316,13 +299,15 @@ fn test_gravestorm_zero_count_no_copies() {
 
     let trigger = state.stack_objects.back().expect("trigger");
     match &trigger.kind {
-        StackObjectKind::GravestormTrigger {
-            gravestorm_count, ..
+        StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Gravestorm,
+            data: mtg_engine::state::stack::TriggerData::SpellCopy { copy_count, .. },
+            ..
         } => {
             assert_eq!(
-                *gravestorm_count, 0,
-                "GravestormTrigger count should be 0; got {}",
-                gravestorm_count
+                *copy_count, 0,
+                "Gravestorm KeywordTrigger copy_count should be 0; got {}",
+                copy_count
             );
         }
         other => panic!("Expected GravestormTrigger, got {:?}", other),

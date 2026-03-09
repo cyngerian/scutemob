@@ -247,7 +247,9 @@ fn test_suspend_basic_exile_from_hand() {
         .find(|o| o.zone == ZoneId::Exile && o.characteristics.name == "Rift Bolt")
         .expect("Rift Bolt should exist in exile");
     assert!(
-        exile_obj.is_suspended,
+        exile_obj
+            .designations
+            .contains(mtg_engine::Designations::SUSPENDED),
         "CR 702.62b: exile object should have is_suspended=true"
     );
     assert!(
@@ -299,7 +301,7 @@ fn test_suspend_counter_removal_on_upkeep() {
     // Manually set is_suspended and time counters (simulating a previously suspended card).
     let card_id = find_object(&state, "Rift Bolt");
     if let Some(obj) = state.objects.get_mut(&card_id) {
-        obj.is_suspended = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 2);
     }
 
@@ -370,7 +372,7 @@ fn test_suspend_last_counter_triggers_cast() {
 
     let card_id = find_object(&state, "Rift Bolt");
     if let Some(obj) = state.objects.get_mut(&card_id) {
-        obj.is_suspended = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
 
@@ -444,7 +446,7 @@ fn test_suspend_creature_gains_haste() {
 
     let dragon_id = find_object(&state, "Rorix Bladewing");
     if let Some(obj) = state.objects.get_mut(&dragon_id) {
-        obj.is_suspended = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
 
@@ -503,7 +505,7 @@ fn test_suspend_cast_without_paying_mana_cost() {
 
     let card_id = find_object(&state, "Rift Bolt");
     if let Some(obj) = state.objects.get_mut(&card_id) {
-        obj.is_suspended = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
 
@@ -682,7 +684,7 @@ fn test_suspend_no_longer_suspended_after_cast() {
 
     let card_id = find_object(&state, "Rift Bolt");
     if let Some(obj) = state.objects.get_mut(&card_id) {
-        obj.is_suspended = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
     state.turn.priority_holder = Some(p1);
@@ -748,7 +750,7 @@ fn test_suspend_not_active_player_upkeep_no_trigger() {
 
     let card_id = find_object(&state, "Rift Bolt");
     if let Some(obj) = state.objects.get_mut(&card_id) {
-        obj.is_suspended = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 2);
     }
 

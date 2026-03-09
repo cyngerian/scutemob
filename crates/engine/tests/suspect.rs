@@ -31,14 +31,14 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// This simulates Effect::Suspect resolution without going through the full engine.
 fn suspect_creature(state: &mut GameState, id: ObjectId) {
     if let Some(obj) = state.objects.get_mut(&id) {
-        obj.is_suspected = true;
+        obj.designations.insert(mtg_engine::Designations::SUSPECTED);
     }
 }
 
 /// Directly unsuspect a creature in state by clearing the is_suspected flag.
 fn unsuspect_creature(state: &mut GameState, id: ObjectId) {
     if let Some(obj) = state.objects.get_mut(&id) {
-        obj.is_suspected = false;
+        obj.designations.remove(mtg_engine::Designations::SUSPECTED);
     }
 }
 
@@ -231,14 +231,24 @@ fn test_suspect_idempotent() {
     // Suspect the creature once.
     suspect_creature(&mut state, id);
     assert!(
-        state.objects.get(&id).unwrap().is_suspected,
+        state
+            .objects
+            .get(&id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "Creature should be suspected after first suspect"
     );
 
     // Suspect again (should be idempotent per CR 701.60d).
     suspect_creature(&mut state, id);
     assert!(
-        state.objects.get(&id).unwrap().is_suspected,
+        state
+            .objects
+            .get(&id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "CR 701.60d: Creature should still be suspected (idempotent)"
     );
 
@@ -272,7 +282,12 @@ fn test_suspect_zone_change_clears() {
     // Suspect the creature.
     suspect_creature(&mut state, id);
     assert!(
-        state.objects.get(&id).unwrap().is_suspected,
+        state
+            .objects
+            .get(&id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "Creature should be suspected before zone change"
     );
 
@@ -289,7 +304,9 @@ fn test_suspect_zone_change_clears() {
         .expect("Bounce Target should be in hand after bounce");
 
     assert!(
-        !in_hand.is_suspected,
+        !in_hand
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "CR 701.60a + CR 400.7: Suspected designation should be cleared on zone change"
     );
 }
@@ -319,13 +336,23 @@ fn test_unsuspect_removes_menace_and_blocking_restriction() {
     // Suspect and then unsuspect the creature.
     suspect_creature(&mut state, target_id);
     assert!(
-        state.objects.get(&target_id).unwrap().is_suspected,
+        state
+            .objects
+            .get(&target_id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "Creature should be suspected"
     );
 
     unsuspect_creature(&mut state, target_id);
     assert!(
-        !state.objects.get(&target_id).unwrap().is_suspected,
+        !state
+            .objects
+            .get(&target_id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "CR 701.60a: Creature should no longer be suspected after unsuspect"
     );
 
@@ -377,7 +404,12 @@ fn test_suspect_not_copiable() {
     // Suspect the original.
     suspect_creature(&mut state, original_id);
     assert!(
-        state.objects.get(&original_id).unwrap().is_suspected,
+        state
+            .objects
+            .get(&original_id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "Original should be suspected"
     );
 
@@ -398,7 +430,8 @@ fn test_suspect_not_copiable() {
     // is_suspected is set only on the raw object, not propagated to characteristics.
     let obj = state.objects.get(&original_id).unwrap();
     assert!(
-        obj.is_suspected,
+        obj.designations
+            .contains(mtg_engine::Designations::SUSPECTED),
         "CR 701.60b: is_suspected is on GameObject, not in copiable characteristics"
     );
     assert!(

@@ -170,7 +170,9 @@ fn test_reconfigure_attach_removes_creature_type() {
         "Equipment should be attached to the bear"
     );
     assert!(
-        blades_obj.is_reconfigured,
+        blades_obj
+            .designations
+            .contains(mtg_engine::Designations::RECONFIGURED),
         "is_reconfigured should be true after attaching via Reconfigure"
     );
 
@@ -255,7 +257,12 @@ fn test_reconfigure_unattach_restores_creature_type() {
 
     // Sanity: is_reconfigured = true after attach.
     assert!(
-        state.objects.get(&blades_id).unwrap().is_reconfigured,
+        state
+            .objects
+            .get(&blades_id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::RECONFIGURED),
         "should be reconfigured after attach"
     );
 
@@ -289,7 +296,9 @@ fn test_reconfigure_unattach_restores_creature_type() {
         "Equipment should be unattached"
     );
     assert!(
-        !blades_obj.is_reconfigured,
+        !blades_obj
+            .designations
+            .contains(mtg_engine::Designations::RECONFIGURED),
         "is_reconfigured should be false after unattaching"
     );
 
@@ -492,7 +501,12 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
     let (mut state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
-        state.objects.get(&blades_id).unwrap().is_reconfigured,
+        state
+            .objects
+            .get(&blades_id)
+            .unwrap()
+            .designations
+            .contains(mtg_engine::Designations::RECONFIGURED),
         "sanity: is_reconfigured should be true"
     );
 
@@ -515,7 +529,9 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
         "SBA should unattach Equipment when creature leaves"
     );
     assert!(
-        !blades_obj.is_reconfigured,
+        !blades_obj
+            .designations
+            .contains(mtg_engine::Designations::RECONFIGURED),
         "is_reconfigured should be cleared by SBA unattach"
     );
 

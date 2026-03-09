@@ -98,7 +98,9 @@ fn test_saddle_basic_mount_becomes_saddled() {
 
     // Mount should not be saddled initially.
     assert!(
-        !state.objects[&mount_id].is_saddled,
+        !state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should not be saddled initially"
     );
 
@@ -127,7 +129,9 @@ fn test_saddle_basic_mount_becomes_saddled() {
 
     // Mount is not yet saddled (ability is on the stack).
     assert!(
-        !state.objects[&mount_id].is_saddled,
+        !state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should not be saddled until ability resolves"
     );
 
@@ -136,7 +140,9 @@ fn test_saddle_basic_mount_becomes_saddled() {
 
     // Mount should now be saddled.
     assert!(
-        state.objects[&mount_id].is_saddled,
+        state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled after ability resolves (CR 702.171a)"
     );
 }
@@ -249,7 +255,9 @@ fn test_saddle_multiple_creatures() {
     // Resolve and verify saddled.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id].is_saddled,
+        state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled (CR 702.171a)"
     );
 }
@@ -488,7 +496,9 @@ fn test_saddle_already_saddled_is_legal() {
     // Resolve.
     let (mut state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id].is_saddled,
+        state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled after first activation"
     );
 
@@ -550,7 +560,9 @@ fn test_saddle_expires_at_end_of_turn() {
     // Resolve.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id].is_saddled,
+        state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled before cleanup"
     );
 
@@ -566,7 +578,7 @@ fn test_saddle_expires_at_end_of_turn() {
         if !current
             .objects
             .get(&mount_id)
-            .map(|o| o.is_saddled)
+            .map(|o| o.designations.contains(mtg_engine::Designations::SADDLED))
             .unwrap_or(false)
         {
             break;
@@ -586,7 +598,7 @@ fn test_saddle_expires_at_end_of_turn() {
         !current
             .objects
             .get(&mount_id)
-            .map(|o| o.is_saddled)
+            .map(|o| o.designations.contains(mtg_engine::Designations::SADDLED))
             .unwrap_or(true),
         "mount should not be saddled after cleanup (CR 702.171b)"
     );
@@ -835,7 +847,9 @@ fn test_saddle_cleared_on_zone_change() {
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id].is_saddled,
+        state.objects[&mount_id]
+            .designations
+            .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled"
     );
 
@@ -856,7 +870,7 @@ fn test_saddle_cleared_on_zone_change() {
 
     if let Some(obj) = new_mount {
         assert!(
-            !obj.is_saddled,
+            !obj.designations.contains(mtg_engine::Designations::SADDLED),
             "is_saddled should be false after zone change (CR 702.171b / CR 400.7)"
         );
     }

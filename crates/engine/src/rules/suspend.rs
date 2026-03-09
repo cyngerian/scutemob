@@ -23,7 +23,7 @@ use crate::cards::card_definition::AbilityDefinition;
 use crate::rules::casting;
 use crate::rules::events::GameEvent;
 use crate::state::error::GameStateError;
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::turn::Step;
 use crate::state::types::{CardType, CounterType, KeywordAbility};
@@ -172,7 +172,7 @@ pub fn handle_suspend_card(
     // - face_down: false (suspended cards are exiled FACE UP, unlike foretell)
     // - Add N time counters (CR 702.62a: "with N time counters on it")
     if let Some(exile_obj) = state.objects.get_mut(&new_exile_id) {
-        exile_obj.is_suspended = true;
+        exile_obj.designations.insert(Designations::SUSPENDED);
         // Suspended cards are face up per rulings (not face down like foretell).
         // exile_obj.status.face_down = false; // already false by default
         let current = exile_obj

@@ -312,3 +312,33 @@ Address when touching the relevant subsystem for other reasons:
 **LOW CLOSED**: 36 (was 6) — 30 new closures + 6 pre-existing
 **Bonus**: 5 real targeting.rs bugs found by debug_assert. 1 new LOW (MR-W3-01) found.
 **Next**: T3 (ManaPool::spend) — defer until M10 networking context; T4 opportunistic.
+
+---
+
+## P1 Ability Sanity Reviews (2026-03-09)
+
+Findings from post-Morph sanity reviews of early P1 abilities. HIGHs and MEDIUMs were fixed immediately. LOWs deferred here.
+
+### Trample (combat.rs)
+
+| ID | Severity | Description | Location |
+|----|----------|-------------|----------|
+| SR-TRM-01 | LOW | Planeswalker combat damage marks damage on PW object instead of removing loyalty counters (CR 120.3c). Pre-existing, not trample-specific. | `rules/combat.rs:1527-1531` |
+| SR-TRM-02 | LOW | Dead code removed by the `blocked_attackers` fix — old `is_blocked()` scan branch should be cleaned up if any residual dead branches remain. | `rules/combat.rs` |
+
+### Protection (protection.rs / casting.rs)
+
+| ID | Severity | Description | Location |
+|----|----------|-------------|----------|
+| SR-PRO-01 | LOW | `ProtectionQuality` missing `FromSuperType` and `FromName` variants (e.g. "protection from Wizards", "protection from Nicol Bolas"). No current cards need these. | `state/types.rs` |
+| SR-PRO-02 | LOW | No `FromPlayer` variant for CR 702.16k (protection from a player — rare but rules-legal). | `state/types.rs` |
+| SR-PRO-03 | LOW | No test for protection vs. multicolor source (source must share *any* color). | `tests/protection.rs` |
+| SR-PRO-04 | LOW | No test for subtype-based protection (e.g. "protection from Goblins"). | `tests/protection.rs` |
+
+### First Strike / Double Strike (combat.rs)
+
+| ID | Severity | Description | Location |
+|----|----------|-------------|----------|
+| SR-FS-01 | LOW | `first_strike_damage_resolved` field on `CombatState` is written but never read — dead field left over from an incomplete snapshot plan. | `state/combat.rs` |
+| SR-FS-02 | LOW | No test for a creature gaining first strike between the two combat damage steps (CR 702.7c). Low impact today — no cards trigger this — but structural gap. | `tests/combat.rs` |
+| SR-FS-03 | LOW | No test for first-strike attacker vs. first-strike blocker (both deal damage simultaneously in first-strike step; neither should appear in regular step). | `tests/combat.rs` |

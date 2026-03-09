@@ -218,30 +218,11 @@ fn test_echo_etb_sets_pending() {
             convoke_creatures: vec![],
             improvise_artifacts: vec![],
             delve_cards: vec![],
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .expect("CastSpell should succeed");
@@ -258,7 +239,9 @@ fn test_echo_etb_sets_pending() {
     let obj_id =
         find_in_zone(&state, "Test Echo RR Creature", ZoneId::Battlefield).expect("on battlefield");
     assert!(
-        state.objects[&obj_id].echo_pending,
+        state.objects[&obj_id]
+            .designations
+            .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending should be true after the permanent enters the battlefield"
     );
 }
@@ -282,7 +265,9 @@ fn test_echo_pending_false_without_echo() {
 
     let obj_id = find_object(&state, "Vanilla Bear");
     assert!(
-        !state.objects[&obj_id].echo_pending,
+        !state.objects[&obj_id]
+            .designations
+            .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending must be false for a permanent without Echo"
     );
 }
@@ -310,7 +295,8 @@ fn test_echo_upkeep_trigger_fires() {
     // Manually set echo_pending = true (simulating ETB from spell resolution).
     let obj_id = find_object(&state, "Test Echo RR Creature");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p1);
 
@@ -324,10 +310,14 @@ fn test_echo_upkeep_trigger_fires() {
 
     // EchoTrigger should be on the stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Echo(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "CR 702.30a: EchoTrigger should be on the stack at controller's upkeep"
     );
 }
@@ -355,7 +345,8 @@ fn test_echo_pay_cost_keeps_permanent() {
     // Set echo_pending.
     let obj_id = find_object(&state, "Test Echo RR Creature");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p1);
 
@@ -411,7 +402,9 @@ fn test_echo_pay_cost_keeps_permanent() {
     let obj_id_after =
         find_in_zone(&state, "Test Echo RR Creature", ZoneId::Battlefield).expect("on battlefield");
     assert!(
-        !state.objects[&obj_id_after].echo_pending,
+        !state.objects[&obj_id_after]
+            .designations
+            .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending should be false after paying echo cost"
     );
 
@@ -447,7 +440,8 @@ fn test_echo_decline_payment_sacrifices() {
     // Set echo_pending = true but give NO mana (can't pay, will decline).
     let obj_id = find_object(&state, "Test Echo RR Creature");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p1);
 
@@ -516,7 +510,8 @@ fn test_echo_no_trigger_after_paid() {
     // Set echo_pending = true.
     let obj_id = find_object(&state, "Test Echo RR Creature");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p1);
 
@@ -557,7 +552,9 @@ fn test_echo_no_trigger_after_paid() {
     let obj_id_after =
         find_in_zone(&state, "Test Echo RR Creature", ZoneId::Battlefield).expect("on battlefield");
     assert!(
-        !state.objects[&obj_id_after].echo_pending,
+        !state.objects[&obj_id_after]
+            .designations
+            .contains(mtg_engine::Designations::ECHO_PENDING),
         "echo_pending should be false after paying"
     );
 
@@ -571,10 +568,14 @@ fn test_echo_no_trigger_after_paid() {
 
     // No EchoTrigger on stack this time.
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. })),
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Echo(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "CR 702.30a: EchoTrigger must NOT fire on second upkeep after echo was paid"
     );
 }
@@ -611,7 +612,8 @@ fn test_echo_different_cost() {
 
     let obj_id = find_object(&state, "Test Echo Different Cost");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p1);
 
@@ -621,10 +623,14 @@ fn test_echo_different_cost() {
 
     // EchoTrigger should be on the stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Echo(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "CR 702.30b: EchoTrigger should fire for card with different echo cost"
     );
 
@@ -632,10 +638,27 @@ fn test_echo_different_cost() {
     let echo_trigger = state
         .stack_objects
         .iter()
-        .find(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. }))
+        .find(|so| {
+            matches!(
+                &so.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Echo(_),
+                    data: mtg_engine::TriggerData::UpkeepCost { .. },
+                    ..
+                }
+            )
+        })
         .expect("EchoTrigger must be on stack");
 
-    if let StackObjectKind::EchoTrigger { echo_cost, .. } = &echo_trigger.kind {
+    if let StackObjectKind::KeywordTrigger {
+        data:
+            mtg_engine::TriggerData::UpkeepCost {
+                cost: mtg_engine::UpkeepCostKind::Echo(echo_cost),
+                ..
+            },
+        ..
+    } = &echo_trigger.kind
+    {
         assert_eq!(
             echo_cost.generic, 3,
             "CR 702.30b: echo cost generic should be 3 (not 1)"
@@ -645,7 +668,7 @@ fn test_echo_different_cost() {
             "CR 702.30b: echo cost white should be 2 (not 1)"
         );
     } else {
-        panic!("expected EchoTrigger");
+        panic!("expected Echo KeywordTrigger");
     }
 }
 
@@ -672,7 +695,8 @@ fn test_echo_multiplayer_only_controller_upkeep() {
     // Set echo_pending = true for p1's creature.
     let obj_id = find_object(&state, "Test Echo RR Creature");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p2);
 
@@ -682,17 +706,23 @@ fn test_echo_multiplayer_only_controller_upkeep() {
 
     // No EchoTrigger for p1's permanent during p2's upkeep.
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. })),
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Echo(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "CR 702.30a: EchoTrigger must not fire on a non-controller's upkeep"
     );
 
     // echo_pending still true (hasn't been consumed).
     let obj_id_check = find_object(&state, "Test Echo RR Creature");
     assert!(
-        state.objects[&obj_id_check].echo_pending,
+        state.objects[&obj_id_check]
+            .designations
+            .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending should remain true during a non-controller's upkeep"
     );
 }
@@ -720,7 +750,8 @@ fn test_echo_permanent_left_battlefield() {
     // Set echo_pending = true.
     let obj_id = find_object(&state, "Test Echo RR Creature");
     if let Some(obj) = state.objects.get_mut(&obj_id) {
-        obj.echo_pending = true;
+        obj.designations
+            .insert(mtg_engine::Designations::ECHO_PENDING);
     }
     state.turn.priority_holder = Some(p1);
 
@@ -730,10 +761,14 @@ fn test_echo_permanent_left_battlefield() {
 
     // Verify EchoTrigger is on stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Echo(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "EchoTrigger should be on stack"
     );
 
@@ -742,13 +777,26 @@ fn test_echo_permanent_left_battlefield() {
     let echo_trigger = state
         .stack_objects
         .iter()
-        .find(|so| matches!(&so.kind, StackObjectKind::EchoTrigger { .. }))
+        .find(|so| {
+            matches!(
+                &so.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Echo(_),
+                    data: mtg_engine::TriggerData::UpkeepCost { .. },
+                    ..
+                }
+            )
+        })
         .expect("EchoTrigger must be on stack");
 
-    let perm_id = if let StackObjectKind::EchoTrigger { echo_permanent, .. } = &echo_trigger.kind {
-        *echo_permanent
+    let perm_id = if let StackObjectKind::KeywordTrigger {
+        data: mtg_engine::TriggerData::UpkeepCost { permanent, .. },
+        ..
+    } = &echo_trigger.kind
+    {
+        *permanent
     } else {
-        panic!("expected EchoTrigger");
+        panic!("expected Echo KeywordTrigger");
     };
 
     // Move the permanent to its graveyard to simulate it leaving.

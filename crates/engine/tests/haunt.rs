@@ -156,7 +156,7 @@ fn test_haunt_creature_dies_puts_haunt_exile_trigger_on_stack() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::HauntExileTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Haunt, .. }
         ),
         "CR 702.55a: stack object should be HauntExileTrigger"
     );
@@ -318,7 +318,7 @@ fn test_haunt_haunted_creature_dies_fires_trigger_from_exile() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::HauntedCreatureDiesTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Haunt, .. }
         ),
         "CR 702.55c: stack object should be HauntedCreatureDiesTrigger"
     );
@@ -579,7 +579,7 @@ fn test_haunt_full_lifecycle() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::HauntedCreatureDiesTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Haunt, .. }
         ),
         "lifecycle step 3: correct trigger kind"
     );
@@ -654,7 +654,7 @@ fn test_haunt_multiplayer_controller_of_trigger() {
     assert!(
         matches!(
             haunted_dies_trigger.kind,
-            StackObjectKind::HauntedCreatureDiesTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Haunt, .. }
         ),
         "CR 702.55c: HauntedCreatureDiesTrigger should be on stack"
     );

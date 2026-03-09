@@ -29,7 +29,9 @@ use crate::cards::card_definition::{
     TargetFilter, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
-use crate::state::game_object::{Characteristics, GameObject, ObjectId, ObjectStatus};
+use crate::state::game_object::{
+    Characteristics, Designations, GameObject, ObjectId, ObjectStatus,
+};
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::targeting::{SpellTarget, Target};
@@ -1744,8 +1746,8 @@ fn execute_effect_inner(
                 if let ResolvedTarget::Object(id) = resolved {
                     if let Some(obj) = state.objects.get_mut(&id) {
                         // CR 701.60d: A suspected permanent can't become suspected again.
-                        if !obj.is_suspected {
-                            obj.is_suspected = true;
+                        if !obj.designations.contains(Designations::SUSPECTED) {
+                            obj.designations.insert(Designations::SUSPECTED);
                             events.push(GameEvent::CreatureSuspected {
                                 object_id: id,
                                 controller: ctx.controller,
@@ -1764,8 +1766,8 @@ fn execute_effect_inner(
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
                     if let Some(obj) = state.objects.get_mut(&id) {
-                        if obj.is_suspected {
-                            obj.is_suspected = false;
+                        if obj.designations.contains(Designations::SUSPECTED) {
+                            obj.designations.remove(Designations::SUSPECTED);
                             events.push(GameEvent::CreatureUnsuspected {
                                 object_id: id,
                                 controller: ctx.controller,
@@ -2263,7 +2265,7 @@ fn execute_effect_inner(
                             .unwrap_or(false);
                     if has_reconfigure {
                         if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
-                            equip_obj.is_reconfigured = true;
+                            equip_obj.designations.insert(Designations::RECONFIGURED);
                         }
                     }
                 }
@@ -2440,7 +2442,7 @@ fn execute_effect_inner(
                 if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
                     equip_obj.attached_to = None;
                     // CR 702.151b: Clear the reconfigure flag; creature type is restored.
-                    equip_obj.is_reconfigured = false;
+                    equip_obj.designations.remove(Designations::RECONFIGURED);
                 }
 
                 // Remove equipment from target's attachments.
@@ -3053,17 +3055,12 @@ pub fn make_token(
         goaded_by: im::Vector::new(),
         kicker_times_paid: 0,
         cast_alt_cost: None,
-        is_bestowed: false,
-        is_foretold: false,
         foretold_turn: 0,
         was_unearthed: false,
         myriad_exile_at_eoc: false,
         decayed_sacrifice_at_eoc: false,
-        is_suspended: false,
         exiled_by_hideaway: None,
-        is_renowned: false,
         // CR 701.60b: tokens are not suspected by default.
-        is_suspected: false,
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
@@ -3072,7 +3069,6 @@ pub fn make_token(
         is_prototyped: false,
         was_bargained: false,
         evidence_collected: false,
-        echo_pending: false,
         phased_out_indirectly: false,
         phased_out_controller: None,
         creatures_devoured: 0,
@@ -3088,12 +3084,10 @@ pub fn make_token(
         gift_was_given: false,
         gift_opponent: None,
         // CR 702.171b: Tokens are not saddled by default.
-        is_saddled: false,
         encoded_cards: im::Vector::new(),
         // CR 702.55b: Tokens have no haunting relationship.
         haunting_target: None,
         // CR 702.151b: Tokens are not reconfigured by default.
-        is_reconfigured: false,
         // CR 729.2: Tokens are not part of a merged permanent by default.
         merged_components: im::Vector::new(),
         // CR 712.8a: Tokens and new permanents start untransformed.
@@ -3102,6 +3096,7 @@ pub fn make_token(
         was_cast_disturbed: false,
         craft_exiled_cards: im::Vector::new(),
         face_down_as: None,
+        designations: Designations::default(),
     }
 }
 

@@ -699,22 +699,13 @@ fn test_forecast_blocked_by_split_second() {
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     });
 
     state

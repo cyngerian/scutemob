@@ -15,7 +15,7 @@ pub mod registry;
 pub use card_definition::Effect;
 pub use card_definition::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
-    zombie_decayed_token_spec, AbilityDefinition, CardDefinition, CardFace, Condition,
+    zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace, Condition,
     ContinuousEffectDef, Cost, CraftMaterials, EffectAmount, EffectTarget, ForEachTarget,
     LibraryPosition, ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter,
     TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,

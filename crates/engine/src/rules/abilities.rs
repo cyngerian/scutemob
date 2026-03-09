@@ -24,14 +24,13 @@ use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
 use crate::state::player::{CardId, PlayerId};
-use crate::state::stack::{StackObject, StackObjectKind};
+use crate::state::types::AltCostKind;
+use crate::state::stack::{StackObject, StackObjectKind, TriggerData};
 use crate::state::stubs::{
     PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter,
 };
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{
-    CardType, ChampionFilter, CounterType, CumulativeUpkeepCost, KeywordAbility,
-};
+use crate::state::types::{CardType, ChampionFilter, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -553,28 +552,19 @@ pub fn handle_activate_ability(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -823,28 +813,19 @@ pub fn handle_cycle_card(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1087,26 +1068,17 @@ pub fn handle_activate_forecast(
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
-        was_entwined: false,
-        escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: forecast abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: forecast abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: forecast abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1393,24 +1365,15 @@ pub fn handle_activate_bloodrush(
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
-        was_entwined: false,
-        escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1586,28 +1549,19 @@ pub fn handle_unearth_card(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1628,8 +1582,8 @@ pub fn handle_unearth_card(
 
 /// CR 702.84a: Look up the unearth cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Unearth { cost }`, or `None`
-/// if the card has no definition or no unearth ability defined.
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Unearth, .. }`,
+/// or `None` if the card has no definition or no unearth ability defined.
 fn get_unearth_cost(
     card_id: &Option<CardId>,
     registry: &crate::cards::CardRegistry,
@@ -1637,7 +1591,7 @@ fn get_unearth_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Unearth { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Unearth, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -1873,28 +1827,19 @@ pub fn handle_ninjutsu(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2097,28 +2042,19 @@ pub fn handle_embalm_card(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2139,8 +2075,8 @@ pub fn handle_embalm_card(
 
 /// CR 702.128a: Look up the embalm cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Embalm { cost }`, or `None`
-/// if the card has no definition or no embalm ability defined.
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, .. }`,
+/// or `None` if the card has no definition or no embalm ability defined.
 fn get_embalm_cost(
     card_id: &Option<CardId>,
     registry: &crate::cards::CardRegistry,
@@ -2148,7 +2084,7 @@ fn get_embalm_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Embalm { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -2330,28 +2266,19 @@ pub fn handle_eternalize_card(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2372,8 +2299,8 @@ pub fn handle_eternalize_card(
 
 /// CR 702.129a: Look up the eternalize cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Eternalize { cost }`, or `None`
-/// if the card has no definition or no eternalize ability defined.
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, .. }`,
+/// or `None` if the card has no definition or no eternalize ability defined.
 fn get_eternalize_cost(
     card_id: &Option<CardId>,
     registry: &crate::cards::CardRegistry,
@@ -2381,7 +2308,7 @@ fn get_eternalize_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Eternalize { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -2562,28 +2489,19 @@ pub fn handle_encore_card(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2604,8 +2522,8 @@ pub fn handle_encore_card(
 
 /// CR 702.141a: Look up the encore cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Encore { cost }`, or `None`
-/// if the card has no definition or no encore ability defined.
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, .. }`,
+/// or `None` if the card has no definition or no encore ability defined.
 fn get_encore_cost(
     card_id: &Option<CardId>,
     registry: &crate::cards::CardRegistry,
@@ -2613,7 +2531,7 @@ fn get_encore_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Encore { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -4953,7 +4871,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         if let Some(obj) = state.objects.get(&assignment.source) {
                             if obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
-                                && !obj.is_renowned
+                                && !obj
+                                    .designations
+                                    .contains(crate::state::game_object::Designations::RENOWNED)
                             // CR 603.4: intervening-if at trigger time
                             {
                                 // Collect Renown N values from card definition.
@@ -5814,8 +5734,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             // CR 702.35a: Madness triggers use MadnessTrigger kind to carry
             // the exiled card ObjectId and madness cost for resolution.
             let kind = match trigger.kind {
-                PendingTriggerKind::Evoke => StackObjectKind::EvokeSacrificeTrigger {
+                PendingTriggerKind::Evoke => StackObjectKind::KeywordTrigger {
                     source_object: trigger.source,
+                    keyword: KeywordAbility::Evoke,
+                    data: TriggerData::DelayedZoneChange,
                 },
                 PendingTriggerKind::Madness => StackObjectKind::MadnessTrigger {
                     source_object: trigger.source,
@@ -5835,15 +5757,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 PendingTriggerKind::Unearth => {
                     // CR 702.84a: Unearth delayed exile trigger -- "Exile [this permanent]
                     // at the beginning of the next end step."
-                    StackObjectKind::UnearthTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
+                        keyword: KeywordAbility::Unearth,
+                        data: TriggerData::DelayedZoneChange,
                     }
                 }
                 PendingTriggerKind::Exploit => {
                     // CR 702.110a: Exploit ETB trigger -- "When this creature enters,
                     // you may sacrifice a creature."
-                    StackObjectKind::ExploitTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
+                        keyword: KeywordAbility::Exploit,
+                        data: TriggerData::Simple,
                     }
                 }
                 PendingTriggerKind::Modular => {
@@ -5881,9 +5807,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     let stack_obj = StackObject {
                         id: stack_id,
                         controller: trigger.controller,
-                        kind: StackObjectKind::ModularTrigger {
+                        kind: StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
-                            counter_count,
+                            keyword: KeywordAbility::Modular(counter_count),
+                            data: TriggerData::DeathModular { counter_count },
                         },
                         targets: modular_targets,
                         cant_be_countered: false,
@@ -5912,30 +5839,21 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         // CR 702.148a: storm copies are not cleave casts.
                         was_cleaved: false,
                         // CR 702.42a: storm copies are not entwine casts.
-                        was_entwined: false,
                         // CR 702.120a: storm copies have no escalate modes paid.
-                        escalate_modes_paid: 0,
                         // CR 702.47a: storm copies have no spliced effects.
                         spliced_effects: vec![],
                         spliced_card_ids: vec![],
-                        devour_sacrifices: vec![],
                         // CR 700.2g: storm copies inherit modes_chosen from the original.
                         // (Storm copies are handled via copy_spell_on_stack in copy.rs
                         //  which propagates modes_chosen; this site is a fallback stub.)
                         modes_chosen: vec![],
                         // CR 702.102a: storm copies are never fused spells.
-                        was_fused: false,
                         x_value: 0,
                         // CR 701.59c: storm copies are never collect evidence casts.
                         evidence_collected: false,
-                        squad_count: 0,
-                        offspring_paid: false,
                         // CR 702.174a: triggered ability stack objects are never gift casts.
-                        gift_was_given: false,
-                        gift_opponent: None,
-                        mutate_target: None,
-                        mutate_on_top: false,
                         is_cast_transformed: false,
+                        additional_costs: vec![],
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5961,11 +5879,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // enters, if that creature's P > this creature's P and/or that creature's
                     // T > this creature's T, put a +1/+1 counter on this creature."
                     // The resolution handler re-checks the intervening-if (CR 603.4).
-                    StackObjectKind::EvolveTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        entering_creature: trigger
-                            .evolve_entering_creature
-                            .unwrap_or(trigger.source),
+                        keyword: KeywordAbility::Evolve,
+                        data: TriggerData::EvolveTrigger {
+                            entering_creature: trigger
+                                .evolve_entering_creature
+                                .unwrap_or(trigger.source),
+                        },
                     }
                 }
                 PendingTriggerKind::Myriad => {
@@ -5977,9 +5898,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     let defending = trigger
                         .defending_player_id
                         .unwrap_or(state.turn.active_player);
-                    StackObjectKind::MyriadTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        defending_player: defending,
+                        keyword: KeywordAbility::Myriad,
+                        data: TriggerData::MyriadAttack {
+                            defending_player: defending,
+                        },
                     }
                 }
                 PendingTriggerKind::SuspendCounter => {
@@ -6006,9 +5930,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // CR 702.75a: Hideaway ETB trigger — "When this permanent enters,
                     // look at the top N cards of your library. Exile one of them face
                     // down and put the rest on the bottom of your library in a random order."
-                    StackObjectKind::HideawayTrigger {
+                    let hide_count = trigger.hideaway_count.unwrap_or(4);
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        hideaway_count: trigger.hideaway_count.unwrap_or(4),
+                        keyword: KeywordAbility::Hideaway(hide_count),
+                        data: TriggerData::ETBHideaway {
+                            count: hide_count,
+                        },
                     }
                 }
                 PendingTriggerKind::PartnerWith => {
@@ -6016,10 +5944,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // target player may search their library for a card named [name], reveal
                     // it, put it into their hand, then shuffle."
                     // Target player: deterministic fallback = the trigger controller (owner).
-                    StackObjectKind::PartnerWithTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
-                        target_player: trigger.controller,
+                        keyword: KeywordAbility::PartnerWith(trigger.partner_with_name.clone().unwrap_or_default()),
+                        data: TriggerData::ETBPartnerWith {
+                            partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
+                            target_player: trigger.controller,
+                        },
                     }
                 }
                 PendingTriggerKind::Ingest => {
@@ -6027,180 +5958,127 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // deals combat damage to a player, that player exiles the top card of
                     // their library."
                     // `ingest_target_player` carries the damaged player's ID.
-                    StackObjectKind::IngestTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
+                        keyword: KeywordAbility::Ingest,
+                        data: TriggerData::IngestExile {
+                            target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
+                        },
                     }
                 }
                 PendingTriggerKind::Flanking => {
-                    // CR 702.25a: Flanking trigger -- "the blocking creature gets -1/-1
-                    // until end of turn."
-                    // `flanking_blocker_id` carries the blocking creature's ObjectId.
-                    StackObjectKind::FlankingTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        blocker_id: trigger.flanking_blocker_id.unwrap_or(trigger.source),
+                        keyword: KeywordAbility::Flanking,
+                        data: TriggerData::CombatFlanking {
+                            blocker: trigger.flanking_blocker_id.unwrap_or(trigger.source),
+                        },
                     }
                 }
                 PendingTriggerKind::Rampage => {
-                    // CR 702.23a: Rampage N "becomes blocked" trigger.
-                    // `rampage_n` was tagged by the BlockersDeclared handler.
-                    // Bonus is computed at resolution time from combat state (CR 702.23b).
-                    StackObjectKind::RampageTrigger {
+                    let n = trigger.rampage_n.unwrap_or(1);
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        rampage_n: trigger.rampage_n.unwrap_or(1),
+                        keyword: KeywordAbility::Rampage(n),
+                        data: TriggerData::CombatRampage { n },
                     }
                 }
                 PendingTriggerKind::Provoke => {
-                    // CR 702.39a: Provoke SelfAttacks trigger -- "Whenever this creature
-                    // attacks, you may have target creature defending player controls
-                    // untap and block this creature this combat if able."
-                    //
-                    // If no valid target was found at trigger-collection time, skip
-                    // placing this trigger on the stack (CR 603.3d -- triggered ability
-                    // with no legal targets is not placed on the stack).
                     if let Some(provoked) = trigger.provoke_target_creature {
-                        StackObjectKind::ProvokeTrigger {
+                        StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
-                            provoked_creature: provoked,
+                            keyword: KeywordAbility::Provoke,
+                            data: TriggerData::CombatProvoke { target: provoked },
                         }
                     } else {
-                        // No valid target -- trigger is not placed on the stack.
                         continue;
                     }
                 }
                 PendingTriggerKind::Renown => {
-                    // CR 702.112a: Renown N combat damage trigger -- "When this creature
-                    // deals combat damage to a player, if it isn't renowned, put N +1/+1
-                    // counters on it and it becomes renowned."
-                    // CR 603.4: The intervening-if is re-checked at resolution time
-                    // in StackObjectKind::RenownTrigger resolution in resolution.rs.
-                    StackObjectKind::RenownTrigger {
+                    let n = trigger.renown_n.unwrap_or(1);
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        renown_n: trigger.renown_n.unwrap_or(1),
+                        keyword: KeywordAbility::Renown(n),
+                        data: TriggerData::RenownDamage { n },
                     }
                 }
                 PendingTriggerKind::Melee => {
-                    // CR 702.121a: Melee SelfAttacks trigger.
-                    // Bonus computed at resolution time from state.combat (ruling 2016-08-23).
-                    StackObjectKind::MeleeTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
+                        keyword: KeywordAbility::Melee,
+                        data: TriggerData::Simple,
                     }
                 }
                 PendingTriggerKind::Poisonous => {
-                    // CR 702.70a: Poisonous N combat damage trigger -- "Whenever this creature
-                    // deals combat damage to a player, that player gets N poison counters."
-                    StackObjectKind::PoisonousTrigger {
+                    let n = trigger.poisonous_n.unwrap_or(1);
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        target_player: trigger
-                            .poisonous_target_player
-                            .unwrap_or(trigger.controller),
-                        poisonous_n: trigger.poisonous_n.unwrap_or(1),
+                        keyword: KeywordAbility::Poisonous(n),
+                        data: TriggerData::CombatPoisonous {
+                            target_player: trigger
+                                .poisonous_target_player
+                                .unwrap_or(trigger.controller),
+                            n,
+                        },
                     }
                 }
                 PendingTriggerKind::Enlist => {
-                    // CR 702.154a: Enlist trigger -- "this creature gets +X/+0 until
-                    // end of turn, where X is the tapped creature's power."
-                    // `enlist_enlisted_creature` carries the tapped creature's ObjectId.
-                    StackObjectKind::EnlistTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        enlisted_creature: trigger
-                            .enlist_enlisted_creature
-                            .unwrap_or(trigger.source),
+                        keyword: KeywordAbility::Enlist,
+                        data: TriggerData::CombatEnlist {
+                            enlisted: trigger
+                                .enlist_enlisted_creature
+                                .unwrap_or(trigger.source),
+                        },
                     }
                 }
                 PendingTriggerKind::EncoreSacrifice => {
                     // CR 702.141a: Encore delayed sacrifice trigger -- "Sacrifice them
                     // at the beginning of the next end step."
-                    StackObjectKind::EncoreSacrificeTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        activator: trigger.encore_activator.unwrap_or(trigger.controller),
+                        keyword: KeywordAbility::Encore,
+                        data: TriggerData::EncoreSacrifice {
+                            activator: trigger.encore_activator.unwrap_or(trigger.controller),
+                        },
                     }
                 }
                 PendingTriggerKind::DashReturn => {
                     // CR 702.109a: Dash delayed return trigger -- "return the permanent to
                     // its owner's hand at the beginning of the next end step."
-                    StackObjectKind::DashReturnTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
+                        keyword: KeywordAbility::Dash,
+                        data: TriggerData::DelayedZoneChange,
                     }
                 }
                 PendingTriggerKind::BlitzSacrifice => {
                     // CR 702.152a: Blitz delayed sacrifice trigger -- "sacrifice the
                     // permanent at the beginning of the next end step."
-                    StackObjectKind::BlitzSacrificeTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
+                        keyword: KeywordAbility::Blitz,
+                        data: TriggerData::DelayedZoneChange,
                     }
                 }
-                PendingTriggerKind::ImpendingCounter => {
-                    // CR 702.176a: Impending end-step counter-removal trigger.
-                    // "At the beginning of your end step, if this permanent's impending
-                    // cost was paid and it has a time counter on it, remove a time
-                    // counter from it."
-                    StackObjectKind::ImpendingCounterTrigger {
-                        source_object: trigger.source,
-                        impending_permanent: trigger.source,
-                    }
-                }
-                PendingTriggerKind::VanishingCounter => {
-                    // CR 702.63a: Vanishing upkeep counter-removal trigger.
-                    // "At the beginning of your upkeep, if this permanent has a time
-                    // counter on it, remove a time counter from it."
-                    StackObjectKind::VanishingCounterTrigger {
-                        source_object: trigger.source,
-                        vanishing_permanent: trigger.source,
-                    }
-                }
-                PendingTriggerKind::VanishingSacrifice => {
-                    // CR 702.63a: Vanishing last-counter sacrifice trigger.
-                    // "When the last time counter is removed from this permanent,
-                    // sacrifice it."
-                    StackObjectKind::VanishingSacrificeTrigger {
-                        source_object: trigger.source,
-                        vanishing_permanent: trigger.source,
-                    }
-                }
-                PendingTriggerKind::FadingUpkeep => {
-                    // CR 702.32a: Fading upkeep trigger.
-                    // "At the beginning of your upkeep, remove a fade counter from
-                    // this permanent. If you can't, sacrifice the permanent."
-                    StackObjectKind::FadingTrigger {
-                        source_object: trigger.source,
-                        fading_permanent: trigger.source,
-                    }
-                }
-                PendingTriggerKind::EchoUpkeep => {
-                    // CR 702.30a: Echo upkeep trigger.
-                    // "At the beginning of your upkeep, if this permanent came under
-                    // your control since the beginning of your last upkeep, sacrifice
-                    // it unless you pay [cost]."
-                    StackObjectKind::EchoTrigger {
-                        source_object: trigger.source,
-                        echo_permanent: trigger.source,
-                        echo_cost: trigger.echo_cost.clone().unwrap_or_default(),
-                    }
-                }
-                PendingTriggerKind::CumulativeUpkeep => {
-                    // CR 702.24a: Cumulative upkeep trigger.
-                    // "At the beginning of your upkeep, if this permanent is on the
-                    // battlefield, put an age counter on this permanent. Then you may
-                    // pay [cost] for each age counter on it. If you don't, sacrifice it."
-                    StackObjectKind::CumulativeUpkeepTrigger {
-                        source_object: trigger.source,
-                        cu_permanent: trigger.source,
-                        per_counter_cost: trigger
-                            .cumulative_upkeep_cost
-                            .clone()
-                            .unwrap_or(CumulativeUpkeepCost::Mana(ManaCost::default())),
-                    }
-                }
+                // ImpendingCounter: migrated to KeywordTrigger
+                // VanishingCounter and VanishingSacrifice: migrated to KeywordTrigger
+                // FadingUpkeep: migrated to KeywordTrigger
+                // EchoUpkeep: migrated to KeywordTrigger
+                // CumulativeUpkeep: migrated to KeywordTrigger
                 PendingTriggerKind::Recover => {
                     // CR 702.59a: Recover trigger.
                     // "When a creature is put into your graveyard from the battlefield,
                     // you may pay [cost]. If you do, return this card from your graveyard
                     // to your hand. Otherwise, exile this card."
-                    StackObjectKind::RecoverTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        recover_card: trigger.recover_card.unwrap_or(trigger.source),
-                        recover_cost: trigger.recover_cost.clone().unwrap_or_default(),
+                        keyword: KeywordAbility::Recover,
+                        data: TriggerData::DeathRecover {
+                            recover_card: trigger.recover_card.unwrap_or(trigger.source),
+                            recover_cost: trigger.recover_cost.clone().unwrap_or_default(),
+                        },
                     }
                 }
                 PendingTriggerKind::Graft => {
@@ -6208,11 +6086,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // "Whenever another creature enters, if this permanent has a +1/+1
                     // counter on it, you may move a +1/+1 counter from this permanent
                     // onto that creature."
-                    StackObjectKind::GraftTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        entering_creature: trigger
-                            .graft_entering_creature
-                            .unwrap_or(trigger.source),
+                        keyword: KeywordAbility::Graft(0),
+                        data: TriggerData::ETBGraft {
+                            entering_creature: trigger
+                                .graft_entering_creature
+                                .unwrap_or(trigger.source),
+                        },
                     }
                 }
                 PendingTriggerKind::Backup => {
@@ -6222,64 +6103,83 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     let target = trigger.source;
                     let n = trigger.backup_n.unwrap_or(1);
                     let abilities = trigger.backup_abilities.clone().unwrap_or_default();
-                    StackObjectKind::BackupTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        target_creature: target,
-                        counter_count: n,
-                        // Self-targeting: no abilities granted (CR 702.165a "if that's another creature").
-                        abilities_to_grant: if target == trigger.source {
-                            vec![]
-                        } else {
-                            abilities
+                        keyword: KeywordAbility::Backup(n),
+                        data: TriggerData::ETBBackup {
+                            target,
+                            count: n,
+                            // Self-targeting: no abilities granted (CR 702.165a "if that's another creature").
+                            abilities: if target == trigger.source {
+                                vec![]
+                            } else {
+                                abilities
+                            },
                         },
                     }
                 }
                 PendingTriggerKind::ChampionETB => {
                     // CR 702.72a: Champion ETB trigger.
-                    StackObjectKind::ChampionETBTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        champion_filter: trigger
-                            .champion_filter
-                            .clone()
-                            .unwrap_or(ChampionFilter::AnyCreature),
+                        keyword: KeywordAbility::Champion,
+                        data: TriggerData::ETBChampion {
+                            filter: trigger
+                                .champion_filter
+                                .clone()
+                                .unwrap_or(ChampionFilter::AnyCreature),
+                        },
                     }
                 }
                 PendingTriggerKind::ChampionLTB => {
                     // CR 702.72a: Champion LTB trigger.
-                    StackObjectKind::ChampionLTBTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        exiled_card: trigger.champion_exiled_card.unwrap_or(trigger.source),
+                        keyword: KeywordAbility::Champion,
+                        data: TriggerData::LTBChampion {
+                            exiled_card: trigger.champion_exiled_card.unwrap_or(trigger.source),
+                        },
                     }
                 }
                 PendingTriggerKind::SoulbondSelfETB | PendingTriggerKind::SoulbondOtherETB => {
                     // CR 702.95a: Soulbond ETB triggers (self-ETB and other-ETB).
                     // source = soulbond creature; pair_target = the creature to pair with.
-                    StackObjectKind::SoulbondTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        pair_target: trigger.soulbond_pair_target.unwrap_or(trigger.source),
+                        keyword: KeywordAbility::Soulbond,
+                        data: TriggerData::ETBSoulbond {
+                            pair_target: trigger.soulbond_pair_target.unwrap_or(trigger.source),
+                        },
                     }
                 }
                 PendingTriggerKind::RavenousDraw => {
                     // CR 702.156a: Ravenous draw trigger. Read x_value from the GameObject
                     // (stored at ETB time per CR 107.3m). Intervening-if re-check happens
-                    // at resolution (in the RavenousDrawTrigger SOK arm).
+                    // at resolution.
                     let x_value = state
                         .objects
                         .get(&trigger.source)
                         .map(|o| o.x_value)
                         .unwrap_or(0);
-                    StackObjectKind::RavenousDrawTrigger {
-                        ravenous_permanent: trigger.source,
-                        x_value,
+                    StackObjectKind::KeywordTrigger {
+                        source_object: trigger.source,
+                        keyword: KeywordAbility::Ravenous,
+                        data: TriggerData::ETBRavenousDraw {
+                            permanent: trigger.source,
+                            x_value,
+                        },
                     }
                 }
                 PendingTriggerKind::SquadETB => {
                     // CR 702.157a: Squad ETB trigger. Read squad_count from the trigger
                     // (stored at trigger-queue time from the permanent's squad_count field).
                     // At resolution, creates squad_count token copies of the source creature.
-                    StackObjectKind::SquadTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        squad_count: trigger.squad_count.unwrap_or(0),
+                        keyword: KeywordAbility::Squad,
+                        data: TriggerData::ETBSquad {
+                            count: trigger.squad_count.unwrap_or(0),
+                        },
                     }
                 }
                 PendingTriggerKind::OffspringETB => {
@@ -6292,9 +6192,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         .objects
                         .get(&trigger.source)
                         .and_then(|o| o.card_id.clone());
-                    StackObjectKind::OffspringTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        source_card_id,
+                        keyword: KeywordAbility::Offspring,
+                        data: TriggerData::ETBOffspring {
+                            source_card_id,
+                        },
                     }
                 }
                 PendingTriggerKind::GiftETB => {
@@ -6313,10 +6216,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             continue;
                         }
                     };
-                    StackObjectKind::GiftETBTrigger {
+                    StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        source_card_id,
-                        gift_opponent,
+                        keyword: KeywordAbility::Gift,
+                        data: TriggerData::ETBGift {
+                            source_card_id,
+                            gift_opponent,
+                        },
                     }
                 }
                 PendingTriggerKind::CipherCombatDamage => {
@@ -6334,28 +6240,40 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         Some(id) => id,
                         None => continue, // Missing object id — skip (should not happen).
                     };
-                    StackObjectKind::CipherTrigger {
-                        source_creature: trigger.source,
-                        encoded_card_id,
-                        encoded_object_id,
+                    StackObjectKind::KeywordTrigger {
+                        source_object: trigger.source,
+                        keyword: KeywordAbility::Cipher,
+                        data: TriggerData::CipherDamage {
+                            source_creature: trigger.source,
+                            encoded_card_id,
+                            encoded_object_id,
+                        },
                     }
                 }
                 PendingTriggerKind::HauntExile => {
                     // CR 702.55a: Haunt exile trigger -- "When this creature dies / this spell
                     // is put into a graveyard during its resolution, exile it haunting target
                     // creature." The haunt_source_object_id is the graveyard ObjectId.
-                    StackObjectKind::HauntExileTrigger {
-                        haunt_card: trigger.haunt_source_object_id.unwrap_or(trigger.source),
-                        haunt_card_id: trigger.haunt_source_card_id.clone(),
+                    StackObjectKind::KeywordTrigger {
+                        source_object: trigger.source,
+                        keyword: KeywordAbility::Haunt,
+                        data: TriggerData::DeathHauntExile {
+                            haunt_card: trigger.haunt_source_object_id.unwrap_or(trigger.source),
+                            haunt_card_id: trigger.haunt_source_card_id.clone(),
+                        },
                     }
                 }
                 PendingTriggerKind::HauntedCreatureDies => {
                     // CR 702.55c: Haunted creature dies trigger -- fires the haunt card's
                     // effect from exile when the creature it haunts dies.
                     // The haunt_source_object_id is the exiled haunt card's ObjectId.
-                    StackObjectKind::HauntedCreatureDiesTrigger {
-                        haunt_source: trigger.haunt_source_object_id.unwrap_or(trigger.source),
-                        haunt_card_id: trigger.haunt_source_card_id.clone(),
+                    StackObjectKind::KeywordTrigger {
+                        source_object: trigger.source,
+                        keyword: KeywordAbility::Haunt,
+                        data: TriggerData::DeathHauntedCreatureDies {
+                            haunt_source: trigger.haunt_source_object_id.unwrap_or(trigger.source),
+                            haunt_card_id: trigger.haunt_source_card_id.clone(),
+                        },
                     }
                 }
                 // CR 708.8 / CR 702.37e: "When this permanent is turned face up" trigger.
@@ -6374,6 +6292,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
+                },
+                PendingTriggerKind::KeywordTrigger {
+                    ref keyword,
+                    ref data,
+                } => StackObjectKind::KeywordTrigger {
+                    source_object: trigger.source,
+                    keyword: keyword.clone(),
+                    data: data.clone(),
                 },
             };
             let stack_obj = StackObject {
@@ -6407,29 +6333,20 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // CR 702.148a: myriad copies are not cleave casts.
                 was_cleaved: false,
                 // CR 702.42a: myriad copies are not entwine casts.
-                was_entwined: false,
                 // CR 702.120a: myriad copies have no escalate modes paid.
-                escalate_modes_paid: 0,
                 // CR 702.47a: myriad copies have no spliced effects.
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
-                devour_sacrifices: vec![],
                 // CR 700.2a: myriad attack copies are not modal spells; no modes chosen.
                 modes_chosen: vec![],
                 // CR 702.102a: myriad attack copies are never fused spells.
-                was_fused: false,
                 x_value: 0,
                 // CR 701.59c: myriad attack copies are never collect evidence casts.
                 evidence_collected: false,
                 // CR 702.157a: triggered ability stack objects have no squad cost payments.
-                squad_count: 0,
-                offspring_paid: false,
                 // CR 702.174a: triggered ability stack objects are never gift casts.
-                gift_was_given: false,
-                gift_opponent: None,
-                mutate_target: None,
-                mutate_on_top: false,
                 is_cast_transformed: false,
+                additional_costs: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -6803,28 +6720,19 @@ pub fn handle_crew_vehicle(
         // CR 702.148a: triggered abilities are not cleave casts.
         was_cleaved: false,
         // CR 702.42a: triggered/copy abilities are not entwine casts.
-        was_entwined: false,
         // CR 702.120a: triggered abilities have no escalate modes paid.
-        escalate_modes_paid: 0,
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -7080,22 +6988,13 @@ pub fn handle_saddle_mount(
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
-        was_entwined: false,
-        escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -7337,26 +7236,17 @@ pub fn handle_scavenge_card(
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
-        was_entwined: false,
-        escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2a: scavenge abilities are not modal spells; no modes chosen.
         modes_chosen: vec![],
         // CR 702.102a: scavenge abilities are never fused spells.
-        was_fused: false,
         x_value: 0,
         // CR 701.59c: scavenge abilities are never collect evidence casts.
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
         // CR 702.174a: triggered ability stack objects are never gift casts.
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 

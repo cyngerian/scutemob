@@ -15,8 +15,10 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Attack trigger omitted — targeted_trigger DSL gap; see TODO above.
             AbilityDefinition::Keyword(KeywordAbility::Encore),
-            AbilityDefinition::Encore {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Encore,
                 cost: ManaCost { generic: 3, black: 1, ..Default::default() },
+                details: None,
             },
         ],
         power: Some(3),

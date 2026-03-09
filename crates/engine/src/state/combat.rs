@@ -44,10 +44,15 @@ pub struct CombatState {
     /// (front = first to receive damage; must receive lethal before next).
     pub damage_assignment_order: OrdMap<ObjectId, Vec<ObjectId>>,
 
-    /// Whether the first-strike damage step has already resolved this combat.
-    /// Set to `true` after `Step::FirstStrikeDamage` executes. Used so that
-    /// double-strike creatures deal damage in both steps.
-    pub first_strike_damage_resolved: bool,
+    /// Snapshot of creatures that had FirstStrike or DoubleStrike at the start
+    /// of the first-strike damage step (CR 702.7b).
+    ///
+    /// Populated when `Step::FirstStrikeDamage` begins (before damage is applied).
+    /// Used by `deals_damage_in_step` to determine regular-step eligibility based
+    /// on keywords at snapshot time, not current keywords (CR 702.7c, 702.4c/d).
+    ///
+    /// Empty set = first-strike step has not yet occurred this combat.
+    pub first_strike_participants: OrdSet<ObjectId>,
 
     /// Defending players who have already declared blockers this step.
     /// In multiplayer, each defending player declares independently (CR 509.1).
@@ -68,6 +73,16 @@ pub struct CombatState {
     /// Used by abilities.rs to fire EnlistTrigger for each pairing.
     /// Cleared naturally when CombatState is dropped at end of combat.
     pub enlist_pairings: Vec<(ObjectId, ObjectId)>,
+
+    /// CR 509.1h: Attackers that had at least one blocker declared against them.
+    ///
+    /// Populated during `handle_declare_blockers()` and never modified afterward
+    /// (entries are not removed when blockers leave the battlefield). This is
+    /// distinct from `blockers`, which shrinks as blockers die/leave.
+    ///
+    /// `is_blocked()` checks this set so that a creature remains "blocked" even
+    /// after all its blockers are removed from combat (CR 509.1h).
+    pub blocked_attackers: OrdSet<ObjectId>,
 }
 
 impl CombatState {
@@ -78,10 +93,11 @@ impl CombatState {
             attackers: OrdMap::new(),
             blockers: OrdMap::new(),
             damage_assignment_order: OrdMap::new(),
-            first_strike_damage_resolved: false,
+            first_strike_participants: OrdSet::new(),
             defenders_declared: OrdSet::new(),
             forced_blocks: OrdMap::new(),
             enlist_pairings: Vec::new(),
+            blocked_attackers: OrdSet::new(),
         }
     }
 
@@ -101,13 +117,14 @@ impl CombatState {
         }
     }
 
-    /// Returns `true` if the attacker has at least one declared blocker.
+    /// Returns `true` if the attacker had at least one blocker declared against it.
     ///
     /// A creature remains "blocked" even if all its blockers are later removed
-    /// from combat or destroyed (CR 509.1h). This tracks declaration, not
-    /// current battlefield presence.
+    /// from combat or destroyed (CR 509.1h). This checks `blocked_attackers`,
+    /// which is set at declare-blockers time and never cleared (even when
+    /// blockers die), not the live `blockers` map.
     pub fn is_blocked(&self, attacker: ObjectId) -> bool {
-        self.blockers.values().any(|&a| a == attacker)
+        self.blocked_attackers.contains(&attacker)
     }
 
     /// Returns the set of players being attacked directly (not via a planeswalker).

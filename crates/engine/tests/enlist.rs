@@ -168,14 +168,22 @@ fn test_702_154a_enlist_no_choice_no_trigger() {
     )
     .expect("DeclareAttackers with no enlist should succeed");
 
-    // No EnlistTrigger on the stack (there may be other triggers, but no enlist ones).
+    // No Enlist KeywordTrigger on the stack (there may be other triggers, but no enlist ones).
     use mtg_engine::state::stack::StackObjectKind;
     assert!(
         !state
             .stack_objects
             .iter()
-            .any(|obj| { matches!(obj.kind, StackObjectKind::EnlistTrigger { .. }) }),
-        "CR 702.154a: no EnlistTrigger should be on stack when enlist choice not made"
+            .any(|obj| {
+                matches!(
+                    obj.kind,
+                    StackObjectKind::KeywordTrigger {
+                        keyword: mtg_engine::KeywordAbility::Enlist,
+                        ..
+                    }
+                )
+            }),
+        "CR 702.154a: no Enlist KeywordTrigger should be on stack when enlist choice not made"
     );
 
     // Vanilla creature is NOT tapped.

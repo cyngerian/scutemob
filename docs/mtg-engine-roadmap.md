@@ -536,7 +536,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 
 **Goal**: Close all correctness gaps discovered during the Engine Core Complete audit. Fix existing card definition simplifications, close partial test coverage, and implement core mechanics needed for Commander play. This milestone gates the Engine Core Complete checkpoint.
 
-**Audit reference**: `docs/mtg-engine-corner-case-audit.md` — living correctness ledger tracking all 35 corner cases and 12 card definition gaps.
+**Audit reference**: `docs/mtg-engine-corner-case-audit.md` — living correctness ledger tracking all 36 corner cases and 12 card definition gaps.
 
 **Phase 1 — Card Definition Correctness** (fix what's broken in the existing 54 cards):
 - [x] Equipment static ability granting: Lightning Greaves (shroud + haste), Swiftfoot Boots (hexproof + haste) via continuous effects
@@ -584,7 +584,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Acceptance Criteria**:
 - All 54 existing card definitions behave correctly (no simplifications or no-op placeholders)
 - Protection, copy effects, storm, cascade, trigger-doubling, infinite loop detection implemented
-- All 35 corner cases are COVERED (except 3 deferred: phasing, morph, mutate)
+- All 36 corner cases: 32 COVERED, 4 GAP (phasing/morph/mutate now covered as of Batch 8 + mini-milestones)
 - Corner case audit doc updated with final status
 - All tests pass, clippy clean, fmt clean
 

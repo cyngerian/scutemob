@@ -4,6 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
+bitflags = { version = "2", features = ["serde"] }
 blake3 = "1"
 im = { version = "15", features = ["serde"] }
 rand = "0.8"

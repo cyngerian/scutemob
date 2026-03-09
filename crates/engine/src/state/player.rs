@@ -3,7 +3,7 @@
 use im::{OrdMap, Vector};
 use serde::{Deserialize, Serialize};
 
-use super::types::ManaColor;
+use super::types::{ManaColor, ProtectionQuality};
 
 /// Identifies a player in the game. Unique within a game instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -138,4 +138,14 @@ pub struct PlayerState {
     /// and by Bloodthirst X to determine the total.
     #[serde(default)]
     pub damage_received_this_turn: u32,
+    /// CR 702.16b/e: Protection qualities granted to this player by continuous effects.
+    ///
+    /// Most cards grant protection to permanents, not players. However, some effects
+    /// (e.g., Teferi's Protection) can grant a player protection from everything.
+    /// When non-empty, spells/abilities from matching sources cannot target this player
+    /// (CR 702.16b) and damage from matching sources is prevented (CR 702.16e).
+    ///
+    /// Populated by continuous effects; empty by default.
+    #[serde(default)]
+    pub protection_qualities: Vec<ProtectionQuality>,
 }

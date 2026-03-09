@@ -12,8 +12,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Eternalize),
-            AbilityDefinition::Eternalize {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Eternalize,
                 cost: ManaCost { generic: 4, blue: 2, ..Default::default() },
+                details: None,
             },
         ],
         back_face: None,

@@ -11,24 +11,25 @@
 
 ## Current State
 
-- **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
-- **Status**: ~1925 tests passing; ~184 validated; 40/42 P1; 17/17 P2 (all done!); 40/40 P3 (all done!); 88/88 P4 (all done!); Batch 0-15 complete; Mutate + Transform + Morph mini-milestones complete; LegalActionProvider updated; 0 HIGH/MEDIUM; ~42 LOW deferred
-- **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-08
+- **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION IN PROGRESS** (all other work paused)
+- **Status**: 1934 tests passing; ~187 validated; 42/42 P1; 17/17 P2; 40/40 P3; 88/88 P4; Batch 0-15 + Mutate + Transform + Morph complete; Type consolidation Sessions 1-6 complete (RC-4 + RC-1 + RC-2 + RC-3 done; S7 docs next); CastSpell 32→13 fields; SOK ~62→~20 variants; AbilDef 64→55 variants; 0 HIGH/MEDIUM open; ~76 LOW deferred
+- **Active Plan**: `docs/mtg-engine-type-consolidation.md` — Sessions 1-6 of 8 complete; Session 7 (docs cleanup) next
+- **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
+- **Last Updated**: 2026-03-09
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 125 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, PlayExiledCard, DetachEquipment, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution (card registry fallback for CardDef triggers via PendingTriggerKind::Normal — B14 fix), ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion, Friends Forever/ChooseABackground/DoctorsCompanion partner variants — B15), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste); end_step_actions() generic CardDef sweep (B14 fix); Mutate (CR 702.140): merged_cards/MergedComponent on GameObject, CastWithMutate command, resolution merge (over/under), zone-change splitting (CR 729.5), mutate trigger; Transform/DFC (CR 701.28, 712): CardFace struct on CardDefinition, is_transformed on GameObject, layer system face resolution, Command::Transform; Daybound/Nightbound (CR 702.146): DayNight enum on GameState, automatic transform triggers; Disturb (CR 702.145): AltCostKind::Disturb graveyard casting, exile replacement; Craft (CR 702.167): activated ability with material validation; Morph/Megamorph (CR 702.37): FaceDownKind enum on GameObject, AltCostKind::Morph casting, Command::TurnFaceUp + TurnFaceUpMethod, face-down layer override (2/2 colorless no abilities), FaceDownRevealed event (CR 708.9), Manifest (CR 701.40) + Cloak (CR 701.58) Effect variants, Disguise (CR 702.162) ward-2 face-down
-- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~103 approved game scripts (187/190/191/195/196/197/198 pending_review), ~1925 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card`/`cast_spell_modal`/`cast_spell_fuse`/`cast_spell_spree`/`cast_with_mutate`/`turn_face_up` action types; `activate_ability` with `discard_card_name` (Blood tokens, B14)
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution (card registry fallback for CardDef triggers via PendingTriggerKind::Normal — B14 fix), ETB trigger queueing via queue_carddef_etb_triggers() (CR 603.3 — replaces inline execute, triggers properly queue and resolve from stack; CR 603.4 intervening-if re-evaluated at resolution), ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion, Friends Forever/ChooseABackground/DoctorsCompanion partner variants — B15), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste); end_step_actions() generic CardDef sweep (B14 fix); Mutate (CR 702.140): merged_cards/MergedComponent on GameObject, CastWithMutate command, resolution merge (over/under), zone-change splitting (CR 729.5), mutate trigger; Transform/DFC (CR 701.28, 712): CardFace struct on CardDefinition, is_transformed on GameObject, layer system face resolution, Command::Transform; Daybound/Nightbound (CR 702.146): DayNight enum on GameState, automatic transform triggers; Disturb (CR 702.145): AltCostKind::Disturb graveyard casting, exile replacement; Craft (CR 702.167): activated ability with material validation; Morph/Megamorph (CR 702.37): FaceDownKind enum on GameObject, AltCostKind::Morph casting, Command::TurnFaceUp + TurnFaceUpMethod, face-down layer override (2/2 colorless no abilities), FaceDownRevealed event (CR 708.9), Manifest (CR 701.40) + Cloak (CR 701.58) Effect variants, Disguise (CR 702.162) ward-2 face-down; Type Consolidation (RC-1 through RC-3): CastSpell 32→13 fields (AdditionalCost vec), SOK 62→~20 (KeywordTrigger), AbilDef 64→55 (AltCastAbility), Designations bitfield
+- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~105 approved game scripts (187/190/191/195/196/197/198 pending_review; 199 approved), ~1898 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card`/`cast_spell_modal`/`cast_spell_fuse`/`cast_spell_spree`/`cast_with_mutate`/`turn_face_up`/`search_library` action types; `activate_ability` with `discard_card_name` (Blood tokens, B14)
 - `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
 - `tools/replay-viewer/`: axum HTTP server + Svelte 5 frontend; 5 API endpoints; full StateViewModel serialization; 12 Svelte components (PlayerPanel, ZoneBattlefield, ZoneStack, ZoneHand, ZoneGraveyard, ZoneExile, PhaseIndicator, EventTimeline, ScriptPicker, CombatView, CardDisplay, AssertionBadges); diff highlighting; keyboard nav
 - All 36 corner cases: 32 COVERED, 4 GAP, 0 DEFERRED — Morph/Manifest face-down (case 30) promoted from DEFERRED to COVERED (Morph mini-milestone)
 
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved through M9.4
-- **MEDIUM open**: 0 — all resolved through M9.4
-- **~40 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage — deferred, address opportunistically
+- **MEDIUM open**: 2 — pre-M8 deferred to M10+ (MR-M7-09, MR-M7-12)
+- **~76 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage, ~22 type consolidation stale doc comments — deferred, address opportunistically
 - **Full details**: `docs/mtg-engine-milestone-reviews.md`
 
 ---
@@ -49,7 +50,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Architecture & Testing Strategy | `docs/mtg-engine-architecture.md` | Why decisions were made; system design; testing approach |
 | Development Roadmap | `docs/mtg-engine-roadmap.md` | What to build and in what order; milestone definitions |
 | Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
-| Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
+| Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 36 known difficult interactions the engine must handle correctly |
 | Corner Case Audit | `docs/mtg-engine-corner-case-audit.md` | Living correctness ledger: coverage status, card def gaps, deferred items |
 | Network Security Strategy | `docs/mtg-engine-network-security.md` | **Deferred P2P upgrade path** — not the active M10 plan. M10 uses a centralized server. |
 | Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
@@ -60,6 +61,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Ability Batch Plan | `docs/ability-batch-plan.md` | 16 batches covering all ~75 implementable abilities (P3+P4) with dependency map |
 | Card Pipeline & Scaling | `docs/mtg-engine-card-pipeline.md` | Card definition organization, Rust DSL rationale, scaling strategy (112 → 27k), authoring pipeline |
 | Strategic Review | `docs/mtg-engine-strategic-review.md` | 2026-03-07 project review: path-to-playable compression, M10/M11/M12 restructuring, action items |
+| Type Consolidation Plan | `docs/mtg-engine-type-consolidation.md` | Pre-M10 refactoring: CastSpell, SOK triggers, AbilityDef, Designations — 8 sessions |
 | Codebase Analysis | `codebase_analysis_220260228.md` | Comprehensive codebase snapshot (2026-02-28): architecture, file inventory, stats |
 | This file | `CLAUDE.md` | Current project state; session context |
 
@@ -89,6 +91,7 @@ Before starting work, check which files apply to your task:
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
 | Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
 | Authoring card definitions | `docs/mtg-engine-card-pipeline.md`; worklist at `test-data/test-decks/PLAN.md` |
+| Type consolidation refactoring | `docs/mtg-engine-type-consolidation.md` (must read — this is the active plan) |
 | Planning M10, M11, or M12 | `docs/mtg-engine-strategic-review.md` (must read before starting) |
 | Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |
 

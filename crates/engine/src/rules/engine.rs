@@ -5,6 +5,7 @@
 //! State module = data, rules module = behavior.
 
 use crate::state::error::GameStateError;
+use crate::state::game_object::Designations;
 use crate::state::player::PlayerId;
 use crate::state::GameState;
 
@@ -88,30 +89,11 @@ pub fn process_command(
             delve_cards,
             kicker_times,
             alt_cost,
-            escape_exile_cards,
-            retrace_discard_land,
-            jump_start_discard,
             prototype,
-            bargain_sacrifice,
-            emerge_sacrifice,
-            casualty_sacrifice,
-            assist_player,
-            assist_amount,
-            replicate_count,
-            splice_cards,
-            entwine_paid,
-            escalate_modes,
-            devour_sacrifices,
             modes_chosen,
-            fuse,
             x_value,
-            collect_evidence_cards,
-            squad_count,
-            offspring_paid,
-            gift_opponent,
-            mutate_target,
-            mutate_on_top,
             face_down_kind,
+            additional_costs,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -126,30 +108,11 @@ pub fn process_command(
                 delve_cards,
                 kicker_times,
                 alt_cost,
-                escape_exile_cards,
-                retrace_discard_land,
-                jump_start_discard,
                 prototype,
-                bargain_sacrifice,
-                emerge_sacrifice,
-                casualty_sacrifice,
-                assist_player,
-                assist_amount,
-                replicate_count,
-                splice_cards,
-                entwine_paid,
-                escalate_modes,
-                devour_sacrifices,
                 modes_chosen,
-                fuse,
                 x_value,
-                collect_evidence_cards,
-                squad_count,
-                offspring_paid,
-                gift_opponent,
-                mutate_target,
-                mutate_on_top,
                 face_down_kind,
+                additional_costs,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
@@ -714,7 +677,7 @@ fn handle_pay_echo(
 
     // CR 702.30a: Clear the echo_pending flag regardless of pay/sacrifice.
     if let Some(obj) = state.objects.get_mut(&permanent) {
-        obj.echo_pending = false;
+        obj.designations.remove(Designations::ECHO_PENDING);
     }
 
     if pay {

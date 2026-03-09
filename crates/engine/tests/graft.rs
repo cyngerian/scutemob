@@ -79,30 +79,11 @@ fn cast_and_resolve(
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -365,7 +346,7 @@ fn test_graft_trigger_moves_counter() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::GraftTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. }
         ),
         "CR 702.58a: stack entry should be GraftTrigger"
     );
@@ -503,7 +484,7 @@ fn test_graft_trigger_does_not_fire_for_self() {
         !state
             .stack_objects
             .iter()
-            .any(|so| matches!(so.kind, StackObjectKind::GraftTrigger { .. })),
+            .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. })),
         "CR 702.58a: Graft should NOT trigger from its own ETB ('another creature')"
     );
 
@@ -585,7 +566,7 @@ fn test_graft_trigger_fires_for_opponents_creatures() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::GraftTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. }
         ),
         "CR 702.58a: stack entry should be GraftTrigger"
     );
@@ -744,7 +725,7 @@ fn test_graft_multiple_instances() {
     let graft_triggers = state
         .stack_objects
         .iter()
-        .filter(|so| matches!(so.kind, StackObjectKind::GraftTrigger { .. }))
+        .filter(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. }))
         .count();
     assert_eq!(
         graft_triggers, 2,

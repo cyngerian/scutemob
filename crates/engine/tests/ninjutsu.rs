@@ -547,8 +547,10 @@ fn test_ninjutsu_blocked_attacker_rejected() {
     state.combat = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
-        // Add a blocker for Attacker.
+        // Add a blocker for Attacker. Also record in blocked_attackers so
+        // is_blocked() returns true (CR 509.1h — checked by ninjutsu enforcement).
         cs.blockers.insert(blocker_id, attacker_id);
+        cs.blocked_attackers.insert(attacker_id);
         cs
     });
 
@@ -909,20 +911,11 @@ fn test_ninjutsu_split_second_blocks() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 

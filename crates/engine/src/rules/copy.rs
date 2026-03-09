@@ -220,35 +220,35 @@ pub fn copy_spell_on_stack(
         was_casualty_paid: false,
         // CR 702.148a: copies are not cleave casts.
         was_cleaved: false,
-        // CR 702.42a: Copies of entwined spells are also entwined (CR 707.2 --
-        // copies copy choices made during casting). Propagate from original.
-        was_entwined: original.was_entwined,
-        // CR 702.120a: Copies of escalated spells copy the escalate mode count (CR 707.2 --
-        // copies copy choices made during casting). Propagate from original.
-        escalate_modes_paid: original.escalate_modes_paid,
+        // was_entwined, escalate_modes_paid: REMOVED — propagated via additional_costs
         // CR 702.47a: copies do not inherit spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         // CR 700.2g / 707.10: Copies of modal spells copy the mode(s) chosen for the original.
         // The controller of the copy cannot choose a different mode.
         modes_chosen: original.modes_chosen.clone(),
-        // CR 707.2: Copies copy choices made during casting, including the fuse choice.
-        // A copy of a fused split spell also resolves both halves (left then right).
-        was_fused: original.was_fused,
+        // was_fused: REMOVED — propagated via additional_costs
         // CR 107.3m: Copies inherit the same X value as the original (ruling 2022-10-07).
         x_value: original.x_value,
         // CR 701.59c: Copies of a spell with evidence collected are also considered to have
         // had the collect evidence cost paid (CR 707.2 — copies copy choices made during casting).
         evidence_collected: original.evidence_collected,
-        squad_count: 0,
-        offspring_paid: false,
-        // CR 702.174a: copies are never gift casts (CR 707.10).
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        // CR 707.2: Copies copy choices (entwine, escalate, fuse) but not one-shot
+        // additional costs (sacrifice, discard, squad, offspring, gift, mutate).
+        additional_costs: original
+            .additional_costs
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c,
+                    crate::state::types::AdditionalCost::Entwine
+                        | crate::state::types::AdditionalCost::Fuse
+                        | crate::state::types::AdditionalCost::EscalateModes { .. }
+                )
+            })
+            .cloned()
+            .collect(),
     };
 
     // Push the copy onto the stack (above the original).
@@ -446,29 +446,16 @@ pub fn resolve_cascade(
                 was_casualty_paid: false,
                 // CR 702.148a: cascade free-cast spells are not cleave casts.
                 was_cleaved: false,
-                // CR 702.42a: cascade free-cast spells are not entwine casts.
-                was_entwined: false,
-                // CR 702.120a: cascade free-cast spells have no escalate modes paid.
-                escalate_modes_paid: 0,
                 // CR 702.47a: cascade free-cast spells have no spliced effects.
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
-                devour_sacrifices: vec![],
                 // CR 700.2a: cascade free-casts have no explicit mode choices (auto-mode[0]).
                 modes_chosen: vec![],
-                // CR 702.102a: cascade free-cast spells are not fused (requires hand — CR 702.102a).
-                was_fused: false,
                 x_value: 0,
                 // CR 701.59c: cascade free-cast spells are not collect evidence casts.
                 evidence_collected: false,
-                squad_count: 0,
-                offspring_paid: false,
-                // CR 702.174a: cascade/discover free-casts are never gift casts.
-                gift_was_given: false,
-                gift_opponent: None,
-                mutate_target: None,
-                mutate_on_top: false,
                 is_cast_transformed: false,
+                additional_costs: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -691,24 +678,14 @@ pub fn resolve_discover(
                 was_surged: false,
                 was_casualty_paid: false,
                 was_cleaved: false,
-                was_entwined: false,
-                escalate_modes_paid: 0,
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
-                devour_sacrifices: vec![],
                 modes_chosen: vec![],
-                was_fused: false,
                 x_value: 0,
                 // CR 701.59c: discover free-cast spells are not collect evidence casts.
                 evidence_collected: false,
-                squad_count: 0,
-                offspring_paid: false,
-                // CR 702.174a: cascade/discover free-casts are never gift casts.
-                gift_was_given: false,
-                gift_opponent: None,
-                mutate_target: None,
-                mutate_on_top: false,
                 is_cast_transformed: false,
+                additional_costs: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 

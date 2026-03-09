@@ -1539,16 +1539,33 @@ pub fn apply_damage_prevention(
     amount: u32,
 ) -> (u32, Vec<GameEvent>) {
     // CR 702.16e: protection is a static prevention — checked BEFORE dynamic shields.
-    if let CombatDamageTarget::Creature(target_id) | CombatDamageTarget::Planeswalker(target_id) =
-        target
-    {
-        let target_keywords = crate::rules::layers::calculate_characteristics(state, *target_id)
-            .map(|c| c.keywords)
-            .unwrap_or_default();
-        let source_chars = crate::rules::protection::source_characteristics(state, source);
-        if let Some(sc) = &source_chars {
-            if crate::rules::protection::protection_prevents_damage(&target_keywords, sc) {
-                return (0, Vec::new());
+    match target {
+        CombatDamageTarget::Creature(target_id) | CombatDamageTarget::Planeswalker(target_id) => {
+            let target_keywords =
+                crate::rules::layers::calculate_characteristics(state, *target_id)
+                    .map(|c| c.keywords)
+                    .unwrap_or_default();
+            let source_chars = crate::rules::protection::source_characteristics(state, source);
+            if let Some(sc) = &source_chars {
+                if crate::rules::protection::protection_prevents_damage(&target_keywords, sc) {
+                    return (0, Vec::new());
+                }
+            }
+        }
+        CombatDamageTarget::Player(player_id) => {
+            // CR 702.16e: damage from a source with the stated quality to a player
+            // with protection from that quality is prevented.
+            let source_chars = crate::rules::protection::source_characteristics(state, source);
+            if let Some(sc) = &source_chars {
+                if let Some(player) = state.players.get(player_id) {
+                    let qualities = player.protection_qualities.clone();
+                    for quality in &qualities {
+                        if crate::rules::protection::has_protection_from_source_quality(quality, sc)
+                        {
+                            return (0, Vec::new());
+                        }
+                    }
+                }
             }
         }
     }

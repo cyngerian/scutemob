@@ -17,7 +17,7 @@
 use crate::rules::casting;
 use crate::rules::events::GameEvent;
 use crate::state::error::GameStateError;
-use crate::state::game_object::{ManaCost, ObjectId};
+use crate::state::game_object::{Designations, ManaCost, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
@@ -118,7 +118,7 @@ pub fn handle_foretell_card(
     // - foretold_turn: current turn number (cannot cast until a later turn)
     if let Some(exile_obj) = state.objects.get_mut(&new_exile_id) {
         exile_obj.status.face_down = true;
-        exile_obj.is_foretold = true;
+        exile_obj.designations.insert(Designations::FORETOLD);
         exile_obj.foretold_turn = current_turn;
     }
 

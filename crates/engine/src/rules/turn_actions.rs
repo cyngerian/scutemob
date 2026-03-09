@@ -1,9 +1,11 @@
 //! Turn-based actions: untap, draw, cleanup, mana pool emptying, combat (CR 500-514).
 
+use im::OrdSet;
+
 use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
 use crate::state::combat::CombatState;
 use crate::state::error::GameStateError;
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::turn::Step;
@@ -56,7 +58,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         .filter(|obj| {
             obj.zone == ZoneId::Exile
                 && obj.owner == active
-                && obj.is_suspended
+                && obj.designations.contains(Designations::SUSPENDED)
                 && obj.counters.get(&CounterType::Time).copied().unwrap_or(0) > 0
         })
         .map(|obj| obj.id)
@@ -152,7 +154,10 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 source: obj_id,
                 ability_index: 0, // unused for vanishing counter triggers
                 controller: active,
-                kind: PendingTriggerKind::VanishingCounter,
+                kind: PendingTriggerKind::KeywordTrigger {
+                    keyword: KeywordAbility::Vanishing(0),
+                    data: crate::state::stack::TriggerData::CounterRemoval { permanent: obj_id },
+                },
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
@@ -236,7 +241,10 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 source: obj_id,
                 ability_index: 0, // unused for fading triggers
                 controller: active,
-                kind: PendingTriggerKind::FadingUpkeep,
+                kind: PendingTriggerKind::KeywordTrigger {
+                    keyword: KeywordAbility::Fading(0),
+                    data: crate::state::stack::TriggerData::CounterRemoval { permanent: obj_id },
+                },
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
@@ -295,7 +303,9 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         .objects
         .values()
         .filter(|obj| {
-            obj.zone == ZoneId::Battlefield && obj.controller == active && obj.echo_pending
+            obj.zone == ZoneId::Battlefield
+                && obj.controller == active
+                && obj.designations.contains(Designations::ECHO_PENDING)
         })
         .map(|obj| {
             let echo_costs: Vec<crate::state::game_object::ManaCost> = obj
@@ -321,7 +331,13 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 source: obj_id,
                 ability_index: 0, // unused for echo triggers
                 controller: active,
-                kind: PendingTriggerKind::EchoUpkeep,
+                kind: PendingTriggerKind::KeywordTrigger {
+                    keyword: KeywordAbility::Echo(cost.clone()),
+                    data: crate::state::stack::TriggerData::UpkeepCost {
+                        permanent: obj_id,
+                        cost: crate::state::stack::UpkeepCostKind::Echo(cost.clone()),
+                    },
+                },
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
@@ -346,7 +362,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 poisonous_target_player: None,
                 enlist_enlisted_creature: None,
                 encore_activator: None,
-                echo_cost: Some(cost),
+                echo_cost: None,
                 cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
@@ -403,7 +419,13 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 source: obj_id,
                 ability_index: 0, // unused for CU triggers
                 controller: active,
-                kind: PendingTriggerKind::CumulativeUpkeep,
+                kind: PendingTriggerKind::KeywordTrigger {
+                    keyword: KeywordAbility::CumulativeUpkeep(cost.clone()),
+                    data: crate::state::stack::TriggerData::UpkeepCost {
+                        permanent: obj_id,
+                        cost: crate::state::stack::UpkeepCostKind::CumulativeUpkeep(cost.clone()),
+                    },
+                },
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
@@ -429,7 +451,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 enlist_enlisted_creature: None,
                 encore_activator: None,
                 echo_cost: None,
-                cumulative_upkeep_cost: Some(cost),
+                cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
@@ -845,7 +867,10 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             source: obj_id,
             ability_index: 0, // unused for impending counter triggers
             controller: active,
-            kind: PendingTriggerKind::ImpendingCounter,
+            kind: PendingTriggerKind::KeywordTrigger {
+                keyword: KeywordAbility::Impending,
+                data: crate::state::stack::TriggerData::CounterRemoval { permanent: obj_id },
+            },
             triggering_event: None,
             entering_object_id: None,
             targeting_stack_id: None,
@@ -1448,13 +1473,14 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
             .objects
             .iter()
             .filter(|(_, obj)| {
-                obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_saddled
+                obj.zone == crate::state::zone::ZoneId::Battlefield
+                    && obj.designations.contains(Designations::SADDLED)
             })
             .map(|(id, _)| *id)
             .collect();
         for id in saddled_ids {
             if let Some(obj) = state.objects.get_mut(&id) {
-                obj.is_saddled = false;
+                obj.designations.remove(Designations::SADDLED);
             }
         }
     }
@@ -1720,13 +1746,38 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
 
 /// CR 510: Apply first-strike combat damage (creatures with FirstStrike or DoubleStrike).
 ///
+/// CR 702.7b: The determination of which creatures deal damage in the REGULAR step is
+/// based on which creatures **had** FirstStrike or DoubleStrike at the start of the
+/// first-strike step — not their current keywords at the time the regular step runs.
+///
 /// Called as a turn-based action in `Step::FirstStrikeDamage`.
 fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
-    let events = super::combat::apply_combat_damage(state, true);
-    if let Some(c) = state.combat.as_mut() {
-        c.first_strike_damage_resolved = true;
+    // Snapshot which creatures have FirstStrike or DoubleStrike RIGHT NOW,
+    // before any damage is applied (CR 702.7b). This set is consulted during
+    // the regular damage step to decide exclusion (CR 702.7c, 702.4c/d).
+    if let Some(combat) = state.combat.as_ref() {
+        let mut participants = OrdSet::new();
+        // Check all attackers and blockers currently in combat.
+        let all_ids: Vec<ObjectId> = combat
+            .attackers
+            .keys()
+            .chain(combat.blockers.keys())
+            .copied()
+            .collect();
+        for id in all_ids {
+            let chars = super::layers::calculate_characteristics(state, id);
+            if let Some(c) = chars {
+                if c.keywords.contains(&KeywordAbility::FirstStrike)
+                    || c.keywords.contains(&KeywordAbility::DoubleStrike)
+                {
+                    participants.insert(id);
+                }
+            }
+        }
+        state.combat.as_mut().unwrap().first_strike_participants = participants;
     }
-    events
+
+    super::combat::apply_combat_damage(state, true)
 }
 
 /// CR 510: Apply regular combat damage (creatures without exclusive FirstStrike).

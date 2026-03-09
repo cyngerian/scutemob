@@ -175,7 +175,7 @@ fn test_recover_basic_creature_dies_triggers_recover() {
         state
             .stack_objects
             .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::RecoverTrigger { .. })),
+            .any(|so| matches!(&so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Recover, .. })),
         "CR 702.59a: RecoverTrigger should be on the stack after creature dies"
     );
 
@@ -218,7 +218,7 @@ fn test_recover_pay_returns_to_hand() {
     let trigger_on_stack = state
         .stack_objects
         .iter()
-        .any(|so| matches!(&so.kind, StackObjectKind::RecoverTrigger { .. }));
+        .any(|so| matches!(&so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Recover, .. }));
     assert!(trigger_on_stack, "RecoverTrigger should be on the stack");
 
     // Confirm card is still in graveyard.
@@ -459,7 +459,7 @@ fn test_recover_creature_with_recover_dies_triggers_self() {
     let has_recover_trigger = state
         .stack_objects
         .iter()
-        .any(|so| matches!(&so.kind, StackObjectKind::RecoverTrigger { .. }));
+        .any(|so| matches!(&so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Recover, .. }));
     assert!(
         has_recover_trigger,
         "CR 702.59a: RecoverTrigger should be on the stack when creature with Recover dies"
@@ -494,7 +494,7 @@ fn test_recover_no_recover_card_in_graveyard_no_trigger() {
         !state
             .stack_objects
             .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::RecoverTrigger { .. })),
+            .any(|so| matches!(&so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Recover, .. })),
         "CR 702.59a: no RecoverTrigger when there is no Recover card in graveyard"
     );
 }
@@ -539,7 +539,7 @@ fn test_recover_opponents_creature_death_no_trigger() {
         !state
             .stack_objects
             .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::RecoverTrigger { .. })),
+            .any(|so| matches!(&so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Recover, .. })),
         "CR 702.59a: Recover should not trigger when opponent's creature dies into opponent's graveyard"
     );
 }

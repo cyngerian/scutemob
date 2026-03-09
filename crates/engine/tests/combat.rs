@@ -749,6 +749,231 @@ fn test_509_2_multiple_blockers_damage_order() {
 }
 
 // ---------------------------------------------------------------------------
+// Test 9a: Trample + multiple blockers — excess goes to player (CR 702.19b)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 702.19b — the controller of a creature with trample assigns lethal damage
+/// to each blocker in order, then any excess goes to the defending player.
+/// A 6/6 trampler blocked by two 2/2s assigns 2 lethal to each blocker and
+/// 2 excess to the defending player.
+fn test_702_19b_trample_multiple_blockers_excess_to_player() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Trampler", 6, 6).with_keyword(KeywordAbility::Trample))
+        .object(ObjectSpec::creature(p2, "Blocker1", 2, 2))
+        .object(ObjectSpec::creature(p2, "Blocker2", 2, 2))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1)
+        .unwrap()
+        .id;
+    let blocker1_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p2 && o.characteristics.name == "Blocker1")
+        .unwrap()
+        .id;
+    let blocker2_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p2 && o.characteristics.name == "Blocker2")
+        .unwrap()
+        .id;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker1_id, attacker_id), (blocker2_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // p1 orders blockers: blocker1 first, then blocker2.
+    let (state, _) = process_command(
+        state,
+        Command::OrderBlockers {
+            player: p1,
+            attacker: attacker_id,
+            order: vec![blocker1_id, blocker2_id],
+        },
+    )
+    .unwrap();
+
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // 2 lethal to each blocker, 2 excess trample to p2.
+    let b1_damage: u32 = events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(
+                    assignments
+                        .iter()
+                        .filter(|a| {
+                            matches!(a.target, CombatDamageTarget::Creature(id) if id == blocker1_id)
+                        })
+                        .map(|a| a.amount)
+                        .sum::<u32>(),
+                )
+            } else {
+                None
+            }
+        })
+        .sum();
+    let b2_damage: u32 = events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(
+                    assignments
+                        .iter()
+                        .filter(|a| {
+                            matches!(a.target, CombatDamageTarget::Creature(id) if id == blocker2_id)
+                        })
+                        .map(|a| a.amount)
+                        .sum::<u32>(),
+                )
+            } else {
+                None
+            }
+        })
+        .sum();
+
+    assert_eq!(b1_damage, 2, "Blocker1 should receive exactly lethal (2)");
+    assert_eq!(b2_damage, 2, "Blocker2 should receive exactly lethal (2)");
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        38,
+        "p2 should take 2 excess trample damage (6 power - 2 - 2 = 2)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 9b: Trample when all blockers die before damage step (CR 702.19d)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 702.19d — if a trample creature is blocked but all blockers are removed
+/// before the combat damage step, the trample creature assigns its full power
+/// to the defending player as though all blockers had been assigned lethal damage.
+/// Scenario: 4/4 double strike + trample vs a 1/1 blocker.
+/// In the first-strike step the blocker dies (1 lethal + 3 trample to player).
+/// In the regular damage step there are no blockers remaining — the 702.19d code
+/// path fires and the double-striker deals its full 4 power to the player again.
+/// p2 ends up at 40 - 3 - 4 = 33.
+fn test_702_19d_trample_blockers_removed_before_damage() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "TrampleDoubleStriker", 4, 4)
+                .with_keyword(KeywordAbility::Trample)
+                .with_keyword(KeywordAbility::DoubleStrike),
+        )
+        .object(ObjectSpec::creature(p2, "TinyBlocker", 1, 1))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1)
+        .unwrap()
+        .id;
+    let blocker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p2)
+        .unwrap()
+        .id;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Both pass → FirstStrikeDamage step entered. The 4/4 first striker kills the 1/1 blocker.
+    let (state, fs_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::FirstStrikeDamage,
+        "Should be in FirstStrikeDamage step"
+    );
+    let blocker_died = fs_events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(blocker_died, "TinyBlocker should die in first-strike step");
+
+    // The blocker is gone from the battlefield.
+    let blocker_on_field = state.objects.values().any(|o| o.id == blocker_id);
+    assert!(
+        !blocker_on_field,
+        "TinyBlocker should no longer be on the battlefield"
+    );
+
+    // Trample dealt 3 excess in the first-strike step (4 power - 1 lethal = 3).
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        37,
+        "p2 should take 3 trample damage in first-strike step"
+    );
+
+    // Pass through FirstStrikeDamage → CombatDamage. The trample creature was blocked
+    // but no blockers remain — the CR 702.19d code path fires. The double-striker deals
+    // its full 4 power to the defending player a second time.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        33,
+        "p2 should take 4 more damage in regular step (702.19d: blocked but all blockers gone)"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Test 9: SelfAttacks trigger fires when creature attacks (CR 508.3a)
 // ---------------------------------------------------------------------------
 
@@ -1960,5 +2185,231 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
         state.players.get(&p1).unwrap().life_total,
         40,
         "p1 (the attacker) should be untouched"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Tests: First-strike keyword snapshot (CR 702.7b, 702.7c, 702.4c/d)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 702.7b — At the start of the first-strike damage step, the engine snapshots
+/// which creatures have FirstStrike or DoubleStrike. This snapshot (stored in
+/// `CombatState::first_strike_participants`) is used to determine regular-step
+/// eligibility — not the creatures' current keywords.
+///
+/// Scenario: p1 attacks with a 2/1 FirstStrike creature, unblocked.
+/// - First-strike step: the FS creature deals 2 damage to p2.
+/// - After the step, `first_strike_participants` must contain the attacker's id.
+/// - Regular step: the FS creature was in the snapshot → excluded from regular step.
+/// - p2 should take exactly 2 damage total (not 4).
+fn test_702_7b_first_strike_snapshot_populated_and_excludes_regular_step() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "FSAttacker", 2, 1).with_keyword(KeywordAbility::FirstStrike),
+        )
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "FSAttacker")
+        .unwrap()
+        .id;
+
+    // Declare the attacker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    // Pass through DeclareAttackers → DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // Pass through DeclareBlockers → FirstStrikeDamage step.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::FirstStrikeDamage,
+        "should be in FirstStrikeDamage step"
+    );
+
+    // CR 702.7b: After the first-strike step fires, the snapshot must be populated.
+    let snapshot = &state.combat.as_ref().unwrap().first_strike_participants;
+    assert!(
+        snapshot.contains(&attacker_id),
+        "CR 702.7b: attacker with FirstStrike must appear in first_strike_participants snapshot"
+    );
+
+    // p2 should have taken 2 damage from the first-strike step.
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        38,
+        "p2 should have taken 2 damage in the first-strike step"
+    );
+
+    // Pass through FirstStrikeDamage → CombatDamage step.
+    let (state, regular_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.turn.step, Step::CombatDamage);
+
+    // CR 702.7b/702.7c: FS attacker was in snapshot → excluded from regular step.
+    // No damage should be dealt in the regular step.
+    let regular_damage: u32 = regular_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+
+    assert_eq!(
+        regular_damage, 0,
+        "CR 702.7b: FS attacker (in snapshot) must not deal damage in the regular step; \
+         got {} damage",
+        regular_damage
+    );
+
+    // p2 should still have exactly 38 life (2 damage total, not 4).
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        38,
+        "p2 should have taken exactly 2 total damage (FS step only, not regular step)"
+    );
+}
+
+#[test]
+/// CR 702.7c — A creature that does NOT have first strike or double strike at the
+/// start of the first-strike step deals damage in the regular step normally,
+/// even if it gains first strike after the snapshot was taken.
+///
+/// Scenario: p1 attacks with a 3/3 normal creature (no FS) vs. a 2/1 FirstStrike blocker.
+/// - First-strike step: blocker (FS, in snapshot) deals 2 to attacker. Attacker not in snapshot.
+/// - The blocker's 2 damage is lethal to the 3/3 attacker? No — 3/3 has 3 toughness. Survives.
+/// - Regular step: attacker (NOT in snapshot) deals 3 to blocker. Blocker (in snapshot,
+///   only FS not DS) does NOT deal damage again.
+/// - Result: blocker takes 3 lethal damage; attacker took 2 from FS step.
+fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "NormalAttacker", 3, 3))
+        .object(
+            ObjectSpec::creature(p2, "FSBlocker", 2, 1).with_keyword(KeywordAbility::FirstStrike),
+        )
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "NormalAttacker")
+        .unwrap()
+        .id;
+    let blocker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "FSBlocker")
+        .unwrap()
+        .id;
+
+    // Declare attackers.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    // Pass through DeclareAttackers → DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // p2 declares the blocker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Pass through DeclareBlockers → FirstStrikeDamage step.
+    let (state, fs_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.turn.step, Step::FirstStrikeDamage);
+
+    // CR 702.7b: blocker (FS) must be in snapshot; attacker (normal) must NOT be.
+    let snapshot = &state.combat.as_ref().unwrap().first_strike_participants;
+    assert!(
+        snapshot.contains(&blocker_id),
+        "CR 702.7b: FS blocker must appear in snapshot"
+    );
+    assert!(
+        !snapshot.contains(&attacker_id),
+        "CR 702.7b: normal attacker (no FS/DS) must NOT appear in snapshot"
+    );
+
+    // First-strike step: only the blocker deals damage (2 to attacker).
+    let fs_damage: u32 = fs_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+    assert_eq!(fs_damage, 2, "only FS blocker deals 2 in first-strike step");
+
+    // Pass through FirstStrikeDamage → CombatDamage step.
+    let (state, regular_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.turn.step, Step::CombatDamage);
+
+    // CR 702.7c: normal attacker (NOT in snapshot) deals 3 in regular step.
+    // FS blocker (in snapshot, no DS) does NOT deal damage again.
+    let regular_damage: u32 = regular_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+    assert_eq!(
+        regular_damage, 3,
+        "CR 702.7c: normal attacker (not in snapshot) deals 3 in regular step; \
+         FS blocker (in snapshot) does not deal again"
+    );
+
+    // FSBlocker should be dead (took 3, toughness 1).
+    let blocker_alive = state.objects.values().any(|o| {
+        o.characteristics.name == "FSBlocker" && o.zone == mtg_engine::ZoneId::Battlefield
+    });
+    assert!(
+        !blocker_alive,
+        "CR 702.7c: FSBlocker (1 toughness) should be dead after taking 3 regular damage"
     );
 }

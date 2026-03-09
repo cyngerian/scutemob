@@ -283,20 +283,11 @@ fn test_play_land_stack_nonempty_fails() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     });
 
     let result = mtg_engine::process_command(

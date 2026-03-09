@@ -77,30 +77,11 @@ fn cast_and_resolve(
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -377,7 +358,7 @@ fn test_evolve_basic_greater_power() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::EvolveTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }
         ),
         "CR 702.100a: stack entry should be EvolveTrigger"
     );
@@ -475,7 +456,7 @@ fn test_evolve_basic_greater_toughness() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::EvolveTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }
         ),
         "CR 702.100a: stack entry should be EvolveTrigger"
     );
@@ -637,7 +618,7 @@ fn test_evolve_no_trigger_equal_stats() {
     let evolve_on_stack = state
         .stack_objects
         .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::EvolveTrigger { .. }));
+        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
     assert!(
         !evolve_on_stack,
         "CR 702.100a: evolve does NOT trigger when entering P/T is equal to evolve P/T"
@@ -705,7 +686,7 @@ fn test_evolve_no_trigger_smaller_creature() {
     let evolve_on_stack = state
         .stack_objects
         .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::EvolveTrigger { .. }));
+        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
     assert!(
         !evolve_on_stack,
         "CR 702.100a: evolve does NOT trigger when entering creature is smaller"
@@ -770,7 +751,7 @@ fn test_evolve_noncreature_does_not_trigger() {
     let evolve_on_stack = state
         .stack_objects
         .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::EvolveTrigger { .. }));
+        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
     assert!(
         !evolve_on_stack,
         "CR 702.100c: noncreature permanent entering does NOT trigger evolve"
@@ -836,30 +817,11 @@ fn test_evolve_opponents_creature_does_not_trigger() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -877,7 +839,7 @@ fn test_evolve_opponents_creature_does_not_trigger() {
     let evolve_on_stack = state
         .stack_objects
         .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::EvolveTrigger { .. }));
+        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
     assert!(
         !evolve_on_stack,
         "CR 702.100a: P2's creature entering does NOT trigger P1's evolve"
@@ -941,7 +903,7 @@ fn test_evolve_multiple_instances() {
     let evolve_count = state
         .stack_objects
         .iter()
-        .filter(|s| matches!(s.kind, StackObjectKind::EvolveTrigger { .. }))
+        .filter(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }))
         .count();
     assert_eq!(
         evolve_count, 2,
@@ -1053,7 +1015,7 @@ fn test_evolve_intervening_if_fails_at_resolution() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::EvolveTrigger { .. }
+            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }
         ),
         "CR 603.4: stack entry should be EvolveTrigger"
     );
@@ -1184,30 +1146,11 @@ fn test_evolve_multiplayer_only_same_controller() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -1225,7 +1168,7 @@ fn test_evolve_multiplayer_only_same_controller() {
     let evolve_on_stack = state
         .stack_objects
         .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::EvolveTrigger { .. }));
+        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
     assert!(
         !evolve_on_stack,
         "CR 702.100a: P2's 3/3 entering does NOT trigger P1's evolve (different controller)"

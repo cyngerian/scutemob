@@ -425,15 +425,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::TriggeredAbility { source_object, .. } => {
             ("triggered_ability", Some(*source_object))
         }
-        StackObjectKind::CascadeTrigger { source_object, .. } => {
-            ("cascade_trigger", Some(*source_object))
-        }
-        StackObjectKind::StormTrigger { source_object, .. } => {
-            ("storm_trigger", Some(*source_object))
-        }
-        StackObjectKind::EvokeSacrificeTrigger { source_object } => {
-            ("evoke_sacrifice_trigger", Some(*source_object))
-        }
+                // CascadeTrigger: migrated to KeywordTrigger
+                // StormTrigger: migrated to KeywordTrigger
+                // EvokeSacrificeTrigger: migrated to KeywordTrigger
         StackObjectKind::MadnessTrigger { source_object, .. } => {
             ("madness_trigger", Some(*source_object))
         }
@@ -443,57 +437,22 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::UnearthAbility { source_object } => {
             ("unearth_ability", Some(*source_object))
         }
-        StackObjectKind::UnearthTrigger { source_object } => {
-            ("unearth_trigger", Some(*source_object))
-        }
-        StackObjectKind::ExploitTrigger { source_object } => {
-            ("exploit_trigger", Some(*source_object))
-        }
-        StackObjectKind::ModularTrigger { source_object, .. } => {
-            ("modular_trigger", Some(*source_object))
-        }
-        StackObjectKind::EvolveTrigger { source_object, .. } => {
-            ("evolve_trigger", Some(*source_object))
-        }
-        StackObjectKind::MyriadTrigger { source_object, .. } => {
-            ("myriad_trigger", Some(*source_object))
-        }
+                // UnearthTrigger: migrated to KeywordTrigger
+                // ExploitTrigger: migrated to KeywordTrigger
+                // ModularTrigger: migrated to KeywordTrigger
+                // EvolveTrigger: migrated to KeywordTrigger
+                // MyriadTrigger: migrated to KeywordTrigger
         StackObjectKind::SuspendCounterTrigger { source_object, .. } => {
             ("suspend_counter_trigger", Some(*source_object))
         }
         StackObjectKind::SuspendCastTrigger { source_object, .. } => {
             ("suspend_cast_trigger", Some(*source_object))
         }
-        StackObjectKind::HideawayTrigger { source_object, .. } => {
-            ("hideaway_trigger", Some(*source_object))
-        }
-        StackObjectKind::PartnerWithTrigger { source_object, .. } => {
-            ("partner_with_trigger", Some(*source_object))
-        }
-        StackObjectKind::IngestTrigger { source_object, .. } => {
-            ("ingest_trigger", Some(*source_object))
-        }
-        StackObjectKind::FlankingTrigger { source_object, .. } => {
-            ("flanking_trigger", Some(*source_object))
-        }
-        StackObjectKind::RampageTrigger { source_object, .. } => {
-            ("rampage_trigger", Some(*source_object))
-        }
-        StackObjectKind::ProvokeTrigger { source_object, .. } => {
-            ("provoke_trigger", Some(*source_object))
-        }
-        StackObjectKind::RenownTrigger { source_object, .. } => {
-            ("renown_trigger", Some(*source_object))
-        }
-        StackObjectKind::MeleeTrigger { source_object, .. } => {
-            ("melee_trigger", Some(*source_object))
-        }
-        StackObjectKind::PoisonousTrigger { source_object, .. } => {
-            ("poisonous_trigger", Some(*source_object))
-        }
-        StackObjectKind::EnlistTrigger { source_object, .. } => {
-            ("enlist_trigger", Some(*source_object))
-        }
+                // HideawayTrigger: migrated to KeywordTrigger
+                // PartnerWithTrigger: migrated to KeywordTrigger
+                // IngestTrigger: migrated to KeywordTrigger
+        // FlankingTrigger, RampageTrigger, ProvokeTrigger, RenownTrigger,
+        // MeleeTrigger, PoisonousTrigger, EnlistTrigger: migrated to KeywordTrigger
         StackObjectKind::NinjutsuAbility { source_object, .. } => {
             ("ninjutsu_ability", Some(*source_object))
         }
@@ -509,98 +468,44 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             // No source_object -- card was already exiled as cost (CR 702.141a, CR 400.7).
             ("encore_ability", None)
         }
-        StackObjectKind::EncoreSacrificeTrigger { source_object, .. } => {
-            ("encore_sacrifice_trigger", Some(*source_object))
-        }
-        StackObjectKind::DashReturnTrigger { source_object } => {
-            ("dash_return_trigger", Some(*source_object))
-        }
-        StackObjectKind::BlitzSacrificeTrigger { source_object } => {
-            ("blitz_sacrifice_trigger", Some(*source_object))
-        }
-        StackObjectKind::ImpendingCounterTrigger {
-            impending_permanent,
-            ..
-        } => ("impending_counter_trigger", Some(*impending_permanent)),
-        StackObjectKind::CasualtyTrigger { source_object, .. } => {
-            ("casualty_trigger", Some(*source_object))
-        }
-        StackObjectKind::ReplicateTrigger { source_object, .. } => {
-            ("replicate_trigger", Some(*source_object))
-        }
-        StackObjectKind::GravestormTrigger { source_object, .. } => {
-            ("gravestorm_trigger", Some(*source_object))
-        }
-        StackObjectKind::VanishingCounterTrigger {
-            vanishing_permanent,
-            ..
-        } => ("vanishing_counter_trigger", Some(*vanishing_permanent)),
-        StackObjectKind::VanishingSacrificeTrigger {
-            vanishing_permanent,
-            ..
-        } => ("vanishing_sacrifice_trigger", Some(*vanishing_permanent)),
-        StackObjectKind::FadingTrigger {
-            fading_permanent, ..
-        } => ("fading_trigger", Some(*fading_permanent)),
-        StackObjectKind::EchoTrigger { echo_permanent, .. } => {
-            ("echo_trigger", Some(*echo_permanent))
-        }
-        StackObjectKind::CumulativeUpkeepTrigger { cu_permanent, .. } => {
-            ("cumulative_upkeep_trigger", Some(*cu_permanent))
-        }
-        StackObjectKind::RecoverTrigger { recover_card, .. } => {
-            ("recover_trigger", Some(*recover_card))
-        }
+                // EncoreSacrificeTrigger: migrated to KeywordTrigger
+                // DashReturnTrigger: migrated to KeywordTrigger
+                // BlitzSacrificeTrigger: migrated to KeywordTrigger
+        // ImpendingCounterTrigger: migrated to KeywordTrigger
+                // CasualtyTrigger: migrated to KeywordTrigger
+                // ReplicateTrigger: migrated to KeywordTrigger
+                // GravestormTrigger: migrated to KeywordTrigger
+        // VanishingCounterTrigger and VanishingSacrificeTrigger: migrated to KeywordTrigger
+        // FadingTrigger: migrated to KeywordTrigger
+        // EchoTrigger: migrated to KeywordTrigger
+        // CumulativeUpkeepTrigger: migrated to KeywordTrigger
+                // RecoverTrigger: migrated to KeywordTrigger
         StackObjectKind::ForecastAbility { source_object, .. } => {
             ("forecast_ability", Some(*source_object))
         }
-        StackObjectKind::GraftTrigger { source_object, .. } => {
-            ("graft_trigger", Some(*source_object))
-        }
+                // GraftTrigger: migrated to KeywordTrigger
         StackObjectKind::ScavengeAbility { .. } => {
             // No source_object -- card was already exiled as cost (CR 702.97a, CR 400.7).
             ("scavenge_ability", None)
         }
-        StackObjectKind::BackupTrigger { source_object, .. } => {
-            ("backup_trigger", Some(*source_object))
-        }
-        StackObjectKind::ChampionETBTrigger { source_object, .. } => {
-            ("champion_etb_trigger", Some(*source_object))
-        }
-        StackObjectKind::ChampionLTBTrigger { source_object, .. } => {
-            ("champion_ltb_trigger", Some(*source_object))
-        }
-        StackObjectKind::SoulbondTrigger { source_object, .. } => {
-            ("soulbond_trigger", Some(*source_object))
-        }
-        StackObjectKind::RavenousDrawTrigger {
-            ravenous_permanent, ..
-        } => ("ravenous_draw_trigger", Some(*ravenous_permanent)),
+                // BackupTrigger: migrated to KeywordTrigger
+                // ChampionETBTrigger: migrated to KeywordTrigger
+                // ChampionLTBTrigger: migrated to KeywordTrigger
+                // SoulbondTrigger: migrated to KeywordTrigger
+                // RavenousDrawTrigger: migrated to KeywordTrigger
         StackObjectKind::BloodrushAbility { source_object, .. } => {
             // source_object is the pre-discard card ID (already in graveyard as cost).
             ("bloodrush_ability", Some(*source_object))
         }
-        StackObjectKind::SquadTrigger { source_object, .. } => {
-            ("squad_trigger", Some(*source_object))
-        }
-        StackObjectKind::OffspringTrigger { source_object, .. } => {
-            ("offspring_trigger", Some(*source_object))
-        }
-        StackObjectKind::GiftETBTrigger { source_object, .. } => {
-            ("gift_etb_trigger", Some(*source_object))
-        }
+                // SquadTrigger: migrated to KeywordTrigger
+                // OffspringTrigger: migrated to KeywordTrigger
+                // GiftETBTrigger: migrated to KeywordTrigger
         StackObjectKind::SaddleAbility { source_object } => {
             ("saddle_ability", Some(*source_object))
         }
-        StackObjectKind::CipherTrigger {
-            source_creature, ..
-        } => ("cipher_trigger", Some(*source_creature)),
-        StackObjectKind::HauntExileTrigger { haunt_card, .. } => {
-            ("haunt_exile_trigger", Some(*haunt_card))
-        }
-        StackObjectKind::HauntedCreatureDiesTrigger { haunt_source, .. } => {
-            ("haunted_creature_dies_trigger", Some(*haunt_source))
-        }
+                // CipherTrigger: migrated to KeywordTrigger
+                // HauntExileTrigger: migrated to KeywordTrigger
+                // HauntedCreatureDiesTrigger: migrated to KeywordTrigger
         StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
             ("mutating_creature_spell", Some(*source_object))
         }
@@ -615,6 +520,21 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         }
         StackObjectKind::TurnFaceUpTrigger { permanent, .. } => {
             ("turn_face_up_trigger", Some(*permanent))
+        }
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            data,
+            ..
+        } => {
+            let permanent = match data {
+                mtg_engine::state::stack::TriggerData::CounterRemoval { permanent }
+                | mtg_engine::state::stack::TriggerData::CounterSacrifice { permanent }
+                | mtg_engine::state::stack::TriggerData::UpkeepCost { permanent, .. } => {
+                    Some(*permanent)
+                }
+                _ => Some(*source_object),
+            };
+            ("keyword_trigger", permanent)
         }
     }
 }

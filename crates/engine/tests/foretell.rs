@@ -277,7 +277,9 @@ fn test_foretell_basic_exile_face_down() {
         "foretold card should be face-down (CR 702.143a)"
     );
     assert!(
-        exile_obj.is_foretold,
+        exile_obj
+            .designations
+            .contains(mtg_engine::Designations::FORETOLD),
         "foretold card should have is_foretold=true (CR 702.143a)"
     );
     assert_eq!(
@@ -403,7 +405,9 @@ fn test_foretell_cannot_cast_same_turn() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -419,30 +423,11 @@ fn test_foretell_cannot_cast_same_turn() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Foretell),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -523,7 +508,9 @@ fn test_foretell_cast_from_exile_on_later_turn() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -539,30 +526,11 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Foretell),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -908,7 +876,9 @@ fn test_foretell_mutual_exclusion_with_escape() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -926,30 +896,11 @@ fn test_foretell_mutual_exclusion_with_escape() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Escape), // wrong alt cost — card has Foretell, not Escape
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -1025,7 +976,9 @@ fn test_foretell_mutual_exclusion_with_evoke() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -1043,30 +996,11 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             // from exile fails (card has Foretell not Evoke, and is in exile not hand).
             // CR 118.9a: only one alternative cost may be applied.
             alt_cost: Some(AltCostKind::Evoke),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -1140,7 +1074,9 @@ fn test_foretell_sorcery_timing_restriction() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -1156,30 +1092,11 @@ fn test_foretell_sorcery_timing_restriction() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Foretell),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -1253,7 +1170,9 @@ fn test_foretell_instant_timing() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -1269,30 +1188,11 @@ fn test_foretell_instant_timing() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Foretell),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -1492,7 +1392,9 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
     let exile_id = state
         .objects
         .iter()
-        .find(|(_, o)| o.zone == ZoneId::Exile && o.is_foretold)
+        .find(|(_, o)| {
+            o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
+        })
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
@@ -1508,30 +1410,11 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None, // NOT requesting foretell cast (no alt cost)
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -1635,7 +1518,9 @@ fn test_foretell_requires_is_foretold_flag() {
 
     // is_foretold should be false by default.
     assert!(
-        !state.objects[&card_id].is_foretold,
+        !state.objects[&card_id]
+            .designations
+            .contains(mtg_engine::Designations::FORETOLD),
         "card placed directly in exile should not be foretold"
     );
 
@@ -1650,30 +1535,11 @@ fn test_foretell_requires_is_foretold_flag() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Foretell),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 

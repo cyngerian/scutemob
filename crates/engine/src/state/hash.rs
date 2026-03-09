@@ -26,13 +26,14 @@ use super::replacement_effect::{
     DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
-use super::stack::{StackObject, StackObjectKind};
+use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    AffinityTarget, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost,
-    EnchantTarget, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
+    AdditionalCost, AffinityTarget, CardType, ChampionFilter, Color, CounterType,
+    CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
+    ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -866,10 +867,9 @@ impl HashInto for GameObject {
         self.kicker_times_paid.hash_into(hasher);
         // Alt cost (CR 702.74a / CR 702.138b / CR 702.109a) — which alternative cost was paid
         self.cast_alt_cost.map(|k| k as u8).hash_into(hasher);
-        // Bestow (CR 702.103b) — permanent is currently bestowed as an Aura
-        self.is_bestowed.hash_into(hasher);
-        // Foretell (CR 702.143a) — card was foretold (exiled face-down from hand)
-        self.is_foretold.hash_into(hasher);
+        // Designations bitfield (Renowned, Suspected, Saddled, Echo, Bestow, Foretold, Suspended, Reconfigured)
+        (self.designations.bits() as u32).hash_into(hasher);
+        // Foretell turn number
         self.foretold_turn.hash_into(hasher);
         // Unearth (CR 702.84a) — permanent was returned to battlefield via unearth
         self.was_unearthed.hash_into(hasher);
@@ -877,14 +877,8 @@ impl HashInto for GameObject {
         self.myriad_exile_at_eoc.hash_into(hasher);
         // Decayed (CR 702.147a) — creature must be sacrificed at end of combat
         self.decayed_sacrifice_at_eoc.hash_into(hasher);
-        // Suspend (CR 702.62b) — card was exiled from hand via suspend special action
-        self.is_suspended.hash_into(hasher);
         // Hideaway (CR 702.75a / CR 607.2a) — card was exiled face-down by a Hideaway trigger
         self.exiled_by_hideaway.hash_into(hasher);
-        // Renowned (CR 702.112b) — designation flag
-        self.is_renowned.hash_into(hasher);
-        // Suspect (CR 701.60b) — designation flag
-        self.is_suspected.hash_into(hasher);
         // Encore (CR 702.141a) — token must be sacrificed at beginning of next end step
         self.encore_sacrifice_at_end_step.hash_into(hasher);
         // Encore (CR 702.141a) — mandatory attack target for this turn
@@ -902,8 +896,6 @@ impl HashInto for GameObject {
         self.evidence_collected.hash_into(hasher);
         // Note: Surge's "was_surged" is tracked via cast_alt_cost == Some(AltCostKind::Surge),
         // which is already hashed as part of cast_alt_cost above.
-        // Echo (CR 702.30a) — permanent has echo pending (echo trigger not yet resolved)
-        self.echo_pending.hash_into(hasher);
         // Phasing (CR 702.26g) — permanent phased out indirectly via a host
         self.phased_out_indirectly.hash_into(hasher);
         // Phasing (CR 702.26a) — player who controlled this permanent when it phased out
@@ -925,8 +917,6 @@ impl HashInto for GameObject {
         // Gift (CR 702.174a) — whether gift cost was paid and who was chosen
         self.gift_was_given.hash_into(hasher);
         self.gift_opponent.hash_into(hasher);
-        // Saddle (CR 702.171b) — saddled designation
-        self.is_saddled.hash_into(hasher);
         // Cipher (CR 702.99b) — exiled cipher cards encoded on this permanent
         for (obj_id, card_id) in self.encoded_cards.iter() {
             obj_id.hash_into(hasher);
@@ -934,8 +924,6 @@ impl HashInto for GameObject {
         }
         // Haunt (CR 702.55b) — creature this exiled card is haunting
         self.haunting_target.hash_into(hasher);
-        // Reconfigure (CR 702.151b) — whether this Equipment is currently reconfigured
-        self.is_reconfigured.hash_into(hasher);
         // Mutate (CR 729.2) — merged components (empty for unmerged permanents)
         (self.merged_components.len() as u64).hash_into(hasher);
         for component in self.merged_components.iter() {
@@ -998,6 +986,10 @@ impl HashInto for PlayerState {
         self.life_lost_this_turn.hash_into(hasher);
         // CR 702.54a: per-turn damage-received counter for Bloodthirst eligibility.
         self.damage_received_this_turn.hash_into(hasher);
+        // CR 702.16b/e: player protection qualities.
+        for q in &self.protection_qualities {
+            q.hash_into(hasher);
+        }
     }
 }
 
@@ -1390,13 +1382,70 @@ impl HashInto for PendingZoneChange {
     }
 }
 
+impl HashInto for crate::state::stubs::PendingTriggerKind {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::stubs::PendingTriggerKind;
+        match self {
+            PendingTriggerKind::Normal => 0u8.hash_into(hasher),
+            PendingTriggerKind::Evoke => 1u8.hash_into(hasher),
+            PendingTriggerKind::Madness => 2u8.hash_into(hasher),
+            PendingTriggerKind::Miracle => 3u8.hash_into(hasher),
+            PendingTriggerKind::Unearth => 4u8.hash_into(hasher),
+            PendingTriggerKind::Exploit => 5u8.hash_into(hasher),
+            PendingTriggerKind::Modular => 6u8.hash_into(hasher),
+            PendingTriggerKind::Evolve => 7u8.hash_into(hasher),
+            PendingTriggerKind::Myriad => 8u8.hash_into(hasher),
+            PendingTriggerKind::SuspendCounter => 9u8.hash_into(hasher),
+            PendingTriggerKind::SuspendCast => 10u8.hash_into(hasher),
+            PendingTriggerKind::Hideaway => 11u8.hash_into(hasher),
+            PendingTriggerKind::PartnerWith => 12u8.hash_into(hasher),
+            PendingTriggerKind::Ingest => 13u8.hash_into(hasher),
+            PendingTriggerKind::Flanking => 14u8.hash_into(hasher),
+            PendingTriggerKind::Rampage => 15u8.hash_into(hasher),
+            PendingTriggerKind::Provoke => 16u8.hash_into(hasher),
+            PendingTriggerKind::Renown => 17u8.hash_into(hasher),
+            PendingTriggerKind::Melee => 18u8.hash_into(hasher),
+            PendingTriggerKind::Poisonous => 19u8.hash_into(hasher),
+            PendingTriggerKind::Enlist => 20u8.hash_into(hasher),
+            PendingTriggerKind::EncoreSacrifice => 21u8.hash_into(hasher),
+            PendingTriggerKind::DashReturn => 22u8.hash_into(hasher),
+            PendingTriggerKind::BlitzSacrifice => 23u8.hash_into(hasher),
+            // ImpendingCounter (24): migrated to KeywordTrigger
+            // VanishingCounter (25) and VanishingSacrifice (26): migrated to KeywordTrigger
+            // FadingUpkeep (27): migrated to KeywordTrigger
+            // EchoUpkeep (28): migrated to KeywordTrigger
+            // CumulativeUpkeep (29): migrated to KeywordTrigger
+            PendingTriggerKind::Recover => 30u8.hash_into(hasher),
+            PendingTriggerKind::Graft => 31u8.hash_into(hasher),
+            PendingTriggerKind::Backup => 32u8.hash_into(hasher),
+            PendingTriggerKind::ChampionETB => 33u8.hash_into(hasher),
+            PendingTriggerKind::ChampionLTB => 34u8.hash_into(hasher),
+            PendingTriggerKind::SoulbondSelfETB => 35u8.hash_into(hasher),
+            PendingTriggerKind::SoulbondOtherETB => 36u8.hash_into(hasher),
+            PendingTriggerKind::RavenousDraw => 37u8.hash_into(hasher),
+            PendingTriggerKind::SquadETB => 38u8.hash_into(hasher),
+            PendingTriggerKind::OffspringETB => 39u8.hash_into(hasher),
+            PendingTriggerKind::GiftETB => 40u8.hash_into(hasher),
+            PendingTriggerKind::CipherCombatDamage => 41u8.hash_into(hasher),
+            PendingTriggerKind::HauntExile => 42u8.hash_into(hasher),
+            PendingTriggerKind::HauntedCreatureDies => 43u8.hash_into(hasher),
+            PendingTriggerKind::TurnFaceUp => 44u8.hash_into(hasher),
+            PendingTriggerKind::KeywordTrigger { keyword, data } => {
+                45u8.hash_into(hasher);
+                keyword.hash_into(hasher);
+                data.hash_into(hasher);
+            }
+        }
+    }
+}
+
 impl HashInto for PendingTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
         self.ability_index.hash_into(hasher);
         self.controller.hash_into(hasher);
         // kind discriminant replaces all is_X_trigger boolean fields
-        (self.kind as u8).hash_into(hasher);
+        self.kind.hash_into(hasher);
         // M9.4: triggering_event (CR 603.2d) — used for Panharmonicon doubling
         self.triggering_event.hash_into(hasher);
         // M9.4 fix session 3: entering_object_id — used by ArtifactOrCreatureETB filter
@@ -1606,6 +1655,171 @@ impl HashInto for TriggeredAbilityDef {
     }
 }
 
+impl HashInto for TriggerData {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TriggerData::Simple => 0u8.hash_into(hasher),
+            TriggerData::CounterRemoval { permanent } => {
+                1u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+            }
+            TriggerData::CounterSacrifice { permanent } => {
+                2u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+            }
+            TriggerData::UpkeepCost { permanent, cost } => {
+                3u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            TriggerData::CombatFlanking { blocker } => {
+                4u8.hash_into(hasher);
+                blocker.hash_into(hasher);
+            }
+            TriggerData::CombatRampage { n } => {
+                5u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            TriggerData::CombatProvoke { target } => {
+                6u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            TriggerData::CombatPoisonous { target_player, n } => {
+                7u8.hash_into(hasher);
+                target_player.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            TriggerData::CombatEnlist { enlisted } => {
+                8u8.hash_into(hasher);
+                enlisted.hash_into(hasher);
+            }
+            TriggerData::ETBBackup { target, count, abilities } => {
+                9u8.hash_into(hasher);
+                target.hash_into(hasher);
+                count.hash_into(hasher);
+                abilities.hash_into(hasher);
+            }
+            TriggerData::ETBGraft { entering_creature } => {
+                10u8.hash_into(hasher);
+                entering_creature.hash_into(hasher);
+            }
+            TriggerData::ETBChampion { filter } => {
+                11u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TriggerData::ETBSoulbond { pair_target } => {
+                12u8.hash_into(hasher);
+                pair_target.hash_into(hasher);
+            }
+            TriggerData::ETBRavenousDraw { permanent, x_value } => {
+                13u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+                x_value.hash_into(hasher);
+            }
+            TriggerData::ETBSquad { count } => {
+                14u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            TriggerData::ETBOffspring { source_card_id } => {
+                15u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+            }
+            TriggerData::ETBGift { source_card_id, gift_opponent } => {
+                16u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+                gift_opponent.hash_into(hasher);
+            }
+            TriggerData::ETBHideaway { count } => {
+                17u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            TriggerData::ETBPartnerWith { partner_name, target_player } => {
+                18u8.hash_into(hasher);
+                partner_name.hash_into(hasher);
+                target_player.hash_into(hasher);
+            }
+            TriggerData::SpellCopy { original_stack_id, copy_count } => {
+                19u8.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+                copy_count.hash_into(hasher);
+            }
+            TriggerData::CascadeExile { spell_mana_value } => {
+                20u8.hash_into(hasher);
+                spell_mana_value.hash_into(hasher);
+            }
+            TriggerData::CasualtyCopy { original_stack_id } => {
+                21u8.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+            }
+            TriggerData::DelayedZoneChange => 22u8.hash_into(hasher),
+            TriggerData::EncoreSacrifice { activator } => {
+                23u8.hash_into(hasher);
+                activator.hash_into(hasher);
+            }
+            TriggerData::DeathModular { counter_count } => {
+                24u8.hash_into(hasher);
+                counter_count.hash_into(hasher);
+            }
+            TriggerData::DeathHauntExile { haunt_card, haunt_card_id } => {
+                25u8.hash_into(hasher);
+                haunt_card.hash_into(hasher);
+                haunt_card_id.hash_into(hasher);
+            }
+            TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id } => {
+                26u8.hash_into(hasher);
+                haunt_source.hash_into(hasher);
+                haunt_card_id.hash_into(hasher);
+            }
+            TriggerData::LTBChampion { exiled_card } => {
+                27u8.hash_into(hasher);
+                exiled_card.hash_into(hasher);
+            }
+            TriggerData::DeathRecover { recover_card, recover_cost } => {
+                28u8.hash_into(hasher);
+                recover_card.hash_into(hasher);
+                recover_cost.hash_into(hasher);
+            }
+            TriggerData::CipherDamage { source_creature, encoded_card_id, encoded_object_id } => {
+                29u8.hash_into(hasher);
+                source_creature.hash_into(hasher);
+                encoded_card_id.hash_into(hasher);
+                encoded_object_id.hash_into(hasher);
+            }
+            TriggerData::IngestExile { target_player } => {
+                30u8.hash_into(hasher);
+                target_player.hash_into(hasher);
+            }
+            TriggerData::RenownDamage { n } => {
+                31u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            TriggerData::EvolveTrigger { entering_creature } => {
+                32u8.hash_into(hasher);
+                entering_creature.hash_into(hasher);
+            }
+            TriggerData::MyriadAttack { defending_player } => {
+                33u8.hash_into(hasher);
+                defending_player.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for UpkeepCostKind {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            UpkeepCostKind::Echo(mana_cost) => {
+                0u8.hash_into(hasher);
+                mana_cost.hash_into(hasher);
+            }
+            UpkeepCostKind::CumulativeUpkeep(cu_cost) => {
+                1u8.hash_into(hasher);
+                cu_cost.hash_into(hasher);
+            }
+        }
+    }
+}
+
 impl HashInto for StackObjectKind {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1630,29 +1844,6 @@ impl HashInto for StackObjectKind {
                 2u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
-            }
-            StackObjectKind::CascadeTrigger {
-                source_object,
-                spell_mana_value,
-            } => {
-                3u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                spell_mana_value.hash_into(hasher);
-            }
-            StackObjectKind::StormTrigger {
-                source_object,
-                original_stack_id,
-                storm_count,
-            } => {
-                4u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                original_stack_id.hash_into(hasher);
-                storm_count.hash_into(hasher);
-            }
-            // EvokeSacrificeTrigger (discriminant 5) — CR 702.74a
-            StackObjectKind::EvokeSacrificeTrigger { source_object } => {
-                5u8.hash_into(hasher);
-                source_object.hash_into(hasher);
             }
             // MadnessTrigger (discriminant 6) — CR 702.35a
             StackObjectKind::MadnessTrigger {
@@ -1685,43 +1876,6 @@ impl HashInto for StackObjectKind {
                 8u8.hash_into(hasher);
                 source_object.hash_into(hasher);
             }
-            // UnearthTrigger (discriminant 9) — CR 702.84a
-            StackObjectKind::UnearthTrigger { source_object } => {
-                9u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-            }
-            // ExploitTrigger (discriminant 10) — CR 702.110a
-            StackObjectKind::ExploitTrigger { source_object } => {
-                10u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-            }
-            // ModularTrigger (discriminant 11) — CR 702.43a
-            StackObjectKind::ModularTrigger {
-                source_object,
-                counter_count,
-            } => {
-                11u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                counter_count.hash_into(hasher);
-            }
-            // EvolveTrigger (discriminant 12) — CR 702.100a
-            StackObjectKind::EvolveTrigger {
-                source_object,
-                entering_creature,
-            } => {
-                12u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                entering_creature.hash_into(hasher);
-            }
-            // MyriadTrigger (discriminant 13) — CR 702.116a
-            StackObjectKind::MyriadTrigger {
-                source_object,
-                defending_player,
-            } => {
-                13u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                defending_player.hash_into(hasher);
-            }
             // SuspendCounterTrigger (discriminant 14) — CR 702.62a
             StackObjectKind::SuspendCounterTrigger {
                 source_object,
@@ -1742,96 +1896,8 @@ impl HashInto for StackObjectKind {
                 suspended_card.hash_into(hasher);
                 owner.hash_into(hasher);
             }
-            // HideawayTrigger (discriminant 16) — CR 702.75a
-            StackObjectKind::HideawayTrigger {
-                source_object,
-                hideaway_count,
-            } => {
-                16u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                hideaway_count.hash_into(hasher);
-            }
-            // PartnerWithTrigger (discriminant 17) — CR 702.124j
-            StackObjectKind::PartnerWithTrigger {
-                source_object,
-                partner_name,
-                target_player,
-            } => {
-                17u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                partner_name.hash_into(hasher);
-                target_player.hash_into(hasher);
-            }
-            // IngestTrigger (discriminant 18) -- CR 702.115a
-            StackObjectKind::IngestTrigger {
-                source_object,
-                target_player,
-            } => {
-                18u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                target_player.hash_into(hasher);
-            }
-            // FlankingTrigger (discriminant 19) -- CR 702.25a
-            StackObjectKind::FlankingTrigger {
-                source_object,
-                blocker_id,
-            } => {
-                19u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                blocker_id.hash_into(hasher);
-            }
-            // RampageTrigger (discriminant 20) -- CR 702.23a
-            StackObjectKind::RampageTrigger {
-                source_object,
-                rampage_n,
-            } => {
-                20u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                rampage_n.hash_into(hasher);
-            }
-            // ProvokeTrigger (discriminant 21) -- CR 702.39a
-            StackObjectKind::ProvokeTrigger {
-                source_object,
-                provoked_creature,
-            } => {
-                21u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                provoked_creature.hash_into(hasher);
-            }
-            // RenownTrigger (discriminant 22) -- CR 702.112a
-            StackObjectKind::RenownTrigger {
-                source_object,
-                renown_n,
-            } => {
-                22u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                renown_n.hash_into(hasher);
-            }
-            // MeleeTrigger (discriminant 23) -- CR 702.121a
-            StackObjectKind::MeleeTrigger { source_object } => {
-                23u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-            }
-            // PoisonousTrigger (discriminant 24) -- CR 702.70a
-            StackObjectKind::PoisonousTrigger {
-                source_object,
-                target_player,
-                poisonous_n,
-            } => {
-                24u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                target_player.hash_into(hasher);
-                poisonous_n.hash_into(hasher);
-            }
-            // EnlistTrigger (discriminant 25) -- CR 702.154a
-            StackObjectKind::EnlistTrigger {
-                source_object,
-                enlisted_creature,
-            } => {
-                25u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                enlisted_creature.hash_into(hasher);
-            }
+            // FlankingTrigger, RampageTrigger, ProvokeTrigger, RenownTrigger,
+            // MeleeTrigger, PoisonousTrigger, EnlistTrigger: migrated to KeywordTrigger
             // NinjutsuAbility (discriminant 26) -- CR 702.49a
             StackObjectKind::NinjutsuAbility {
                 source_object,
@@ -1868,125 +1934,6 @@ impl HashInto for StackObjectKind {
                 source_card_id.hash_into(hasher);
                 activator.hash_into(hasher);
             }
-            // EncoreSacrificeTrigger (discriminant 30) -- CR 702.141a
-            StackObjectKind::EncoreSacrificeTrigger {
-                source_object,
-                activator,
-            } => {
-                30u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                activator.hash_into(hasher);
-            }
-            // DashReturnTrigger (discriminant 31) -- CR 702.109a
-            StackObjectKind::DashReturnTrigger { source_object } => {
-                31u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-            }
-            // BlitzSacrificeTrigger (discriminant 32) -- CR 702.152a
-            StackObjectKind::BlitzSacrificeTrigger { source_object } => {
-                32u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-            }
-            // ImpendingCounterTrigger (discriminant 33) -- CR 702.176a
-            StackObjectKind::ImpendingCounterTrigger {
-                source_object,
-                impending_permanent,
-            } => {
-                33u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                impending_permanent.hash_into(hasher);
-            }
-            // CasualtyTrigger (discriminant 34) -- CR 702.153a
-            StackObjectKind::CasualtyTrigger {
-                source_object,
-                original_stack_id,
-            } => {
-                34u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                original_stack_id.hash_into(hasher);
-            }
-            // ReplicateTrigger (discriminant 35) -- CR 702.56a
-            StackObjectKind::ReplicateTrigger {
-                source_object,
-                original_stack_id,
-                replicate_count,
-            } => {
-                35u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                original_stack_id.hash_into(hasher);
-                replicate_count.hash_into(hasher);
-            }
-            // GravestormTrigger (discriminant 36) -- CR 702.69a
-            StackObjectKind::GravestormTrigger {
-                source_object,
-                original_stack_id,
-                gravestorm_count,
-            } => {
-                36u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                original_stack_id.hash_into(hasher);
-                gravestorm_count.hash_into(hasher);
-            }
-            // VanishingCounterTrigger (discriminant 37) -- CR 702.63a
-            StackObjectKind::VanishingCounterTrigger {
-                source_object,
-                vanishing_permanent,
-            } => {
-                37u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                vanishing_permanent.hash_into(hasher);
-            }
-            // VanishingSacrificeTrigger (discriminant 38) -- CR 702.63a
-            StackObjectKind::VanishingSacrificeTrigger {
-                source_object,
-                vanishing_permanent,
-            } => {
-                38u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                vanishing_permanent.hash_into(hasher);
-            }
-            // FadingTrigger (discriminant 39) -- CR 702.32a
-            StackObjectKind::FadingTrigger {
-                source_object,
-                fading_permanent,
-            } => {
-                39u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                fading_permanent.hash_into(hasher);
-            }
-            // EchoTrigger (discriminant 40) -- CR 702.30a
-            StackObjectKind::EchoTrigger {
-                source_object,
-                echo_permanent,
-                echo_cost,
-            } => {
-                40u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                echo_permanent.hash_into(hasher);
-                echo_cost.hash_into(hasher);
-            }
-            // CumulativeUpkeepTrigger (discriminant 41) -- CR 702.24a
-            StackObjectKind::CumulativeUpkeepTrigger {
-                source_object,
-                cu_permanent,
-                per_counter_cost,
-            } => {
-                41u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                cu_permanent.hash_into(hasher);
-                per_counter_cost.hash_into(hasher);
-            }
-            // RecoverTrigger (discriminant 42) -- CR 702.59a
-            StackObjectKind::RecoverTrigger {
-                source_object,
-                recover_card,
-                recover_cost,
-            } => {
-                42u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                recover_card.hash_into(hasher);
-                recover_cost.hash_into(hasher);
-            }
             // ForecastAbility (discriminant 43) -- CR 702.57a
             StackObjectKind::ForecastAbility {
                 source_object,
@@ -1996,15 +1943,6 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 embedded_effect.hash_into(hasher);
             }
-            // GraftTrigger (discriminant 44) -- CR 702.58a
-            StackObjectKind::GraftTrigger {
-                source_object,
-                entering_creature,
-            } => {
-                44u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                entering_creature.hash_into(hasher);
-            }
             // ScavengeAbility (discriminant 45) -- CR 702.97a
             StackObjectKind::ScavengeAbility {
                 source_card_id,
@@ -2013,57 +1951,6 @@ impl HashInto for StackObjectKind {
                 45u8.hash_into(hasher);
                 source_card_id.hash_into(hasher);
                 power_snapshot.hash_into(hasher);
-            }
-            // BackupTrigger (discriminant 46) -- CR 702.165a
-            StackObjectKind::BackupTrigger {
-                source_object,
-                target_creature,
-                counter_count,
-                abilities_to_grant,
-            } => {
-                46u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                target_creature.hash_into(hasher);
-                counter_count.hash_into(hasher);
-                for kw in abilities_to_grant {
-                    kw.hash_into(hasher);
-                }
-            }
-            // ChampionETBTrigger (discriminant 47) -- CR 702.72a
-            StackObjectKind::ChampionETBTrigger {
-                source_object,
-                champion_filter,
-            } => {
-                47u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                champion_filter.hash_into(hasher);
-            }
-            // ChampionLTBTrigger (discriminant 48) -- CR 702.72a
-            StackObjectKind::ChampionLTBTrigger {
-                source_object,
-                exiled_card,
-            } => {
-                48u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                exiled_card.hash_into(hasher);
-            }
-            // SoulbondTrigger (discriminant 49) -- CR 702.95a
-            StackObjectKind::SoulbondTrigger {
-                source_object,
-                pair_target,
-            } => {
-                49u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                pair_target.hash_into(hasher);
-            }
-            // RavenousDrawTrigger (discriminant 50) -- CR 702.156a
-            StackObjectKind::RavenousDrawTrigger {
-                ravenous_permanent,
-                x_value,
-            } => {
-                50u8.hash_into(hasher);
-                ravenous_permanent.hash_into(hasher);
-                x_value.hash_into(hasher);
             }
             // BloodrushAbility (discriminant 51) -- CR 207.2c
             StackObjectKind::BloodrushAbility {
@@ -2085,68 +1972,10 @@ impl HashInto for StackObjectKind {
                     0u8.hash_into(hasher);
                 }
             }
-            // SquadTrigger (discriminant 52) -- CR 702.157a
-            StackObjectKind::SquadTrigger {
-                source_object,
-                squad_count,
-            } => {
-                52u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                squad_count.hash_into(hasher);
-            }
-            // OffspringTrigger (discriminant 53) -- CR 702.175a
-            StackObjectKind::OffspringTrigger {
-                source_object,
-                source_card_id,
-            } => {
-                53u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                source_card_id.hash_into(hasher);
-            }
-            // GiftETBTrigger (discriminant 54) -- CR 702.174b
-            StackObjectKind::GiftETBTrigger {
-                source_object,
-                source_card_id,
-                gift_opponent,
-            } => {
-                54u8.hash_into(hasher);
-                source_object.hash_into(hasher);
-                source_card_id.hash_into(hasher);
-                gift_opponent.hash_into(hasher);
-            }
             // SaddleAbility (discriminant 55) -- CR 702.171a
             StackObjectKind::SaddleAbility { source_object } => {
                 55u8.hash_into(hasher);
                 source_object.hash_into(hasher);
-            }
-            // CipherTrigger (discriminant 56) -- CR 702.99a
-            StackObjectKind::CipherTrigger {
-                source_creature,
-                encoded_card_id,
-                encoded_object_id,
-            } => {
-                56u8.hash_into(hasher);
-                source_creature.hash_into(hasher);
-                encoded_card_id.hash_into(hasher);
-                encoded_object_id.hash_into(hasher);
-            }
-            // HauntExileTrigger (discriminant 57) -- CR 702.55a
-            StackObjectKind::HauntExileTrigger {
-                haunt_card,
-                haunt_card_id,
-            } => {
-                57u8.hash_into(hasher);
-                haunt_card.hash_into(hasher);
-                haunt_card_id.hash_into(hasher);
-            }
-            // HauntedCreatureDiesTrigger (discriminant 58) -- CR 702.55c
-            StackObjectKind::HauntedCreatureDiesTrigger {
-                haunt_source,
-                haunt_card_id,
-            } => {
-                58u8.hash_into(hasher);
-                haunt_source.hash_into(hasher);
-                haunt_card_id.hash_into(hasher);
             }
             // MutatingCreatureSpell (discriminant 59) -- CR 702.140a / CR 729.2
             StackObjectKind::MutatingCreatureSpell {
@@ -2202,6 +2031,17 @@ impl HashInto for StackObjectKind {
                     }
                 }
                 (*ability_index as u32).hash_into(hasher);
+            }
+            // KeywordTrigger (discriminant 64) -- consolidated keyword triggers
+            StackObjectKind::KeywordTrigger {
+                source_object,
+                keyword,
+                data,
+            } => {
+                64u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                keyword.hash_into(hasher);
+                data.hash_into(hasher);
             }
         }
     }
@@ -2282,10 +2122,7 @@ impl HashInto for StackObject {
         self.was_casualty_paid.hash_into(hasher);
         // Cleave (CR 702.148a) — spell was cast by paying its cleave cost
         self.was_cleaved.hash_into(hasher);
-        // Entwine (CR 702.42a) — spell was cast with entwine cost paid
-        self.was_entwined.hash_into(hasher);
-        // Escalate (CR 702.120a) — number of extra modes paid for via escalate
-        self.escalate_modes_paid.hash_into(hasher);
+        // was_entwined, escalate_modes_paid: REMOVED — now in additional_costs (hashed below)
         // Splice (CR 702.47a) — spliced effects attached to this spell
         for effect in &self.spliced_effects {
             effect.hash_into(hasher);
@@ -2293,32 +2130,24 @@ impl HashInto for StackObject {
         for id in &self.spliced_card_ids {
             id.hash_into(hasher);
         }
-        // Devour (CR 702.82a) — creatures to sacrifice at ETB time
-        for id in &self.devour_sacrifices {
-            id.hash_into(hasher);
-        }
+        // devour_sacrifices: REMOVED — now in additional_costs (hashed below)
         // Modal choice (CR 700.2a) — explicit mode indices chosen at cast time
         for idx in &self.modes_chosen {
             idx.hash_into(hasher);
         }
-        // Fuse (CR 702.102a) — spell was cast as a fused split spell (both halves from hand)
-        self.was_fused.hash_into(hasher);
+        // was_fused: REMOVED — now in additional_costs (hashed below)
         // X value (CR 107.3m) — the value of X chosen at cast time
         self.x_value.hash_into(hasher);
         // Collect Evidence (CR 701.59c) — additional cost paid; graveyard cards were exiled
         self.evidence_collected.hash_into(hasher);
-        // Squad (CR 702.157a) — number of times squad cost was paid
-        self.squad_count.hash_into(hasher);
-        // Offspring (CR 702.175a) — whether offspring cost was paid
-        self.offspring_paid.hash_into(hasher);
-        // Gift (CR 702.174a) — whether gift cost was paid and who was chosen as opponent
-        self.gift_was_given.hash_into(hasher);
-        self.gift_opponent.hash_into(hasher);
-        // Mutate (CR 702.140a) — target non-Human creature for mutating spells
-        self.mutate_target.hash_into(hasher);
-        self.mutate_on_top.hash_into(hasher);
+        // squad_count, offspring_paid, gift_*, mutate_*: REMOVED — now in additional_costs (hashed below)
         // Disturb (CR 702.146a / CR 712.11a) — spell was cast transformed (back face up)
         self.is_cast_transformed.hash_into(hasher);
+        // RC-1: Consolidated additional costs
+        (self.additional_costs.len() as u64).hash_into(hasher);
+        for cost in &self.additional_costs {
+            cost.hash_into(hasher);
+        }
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -2330,7 +2159,8 @@ impl HashInto for CombatState {
         self.attackers.hash_into(hasher);
         self.blockers.hash_into(hasher);
         self.damage_assignment_order.hash_into(hasher);
-        self.first_strike_damage_resolved.hash_into(hasher);
+        // CR 702.7b: first-strike participant snapshot -- populated at start of first-strike step
+        self.first_strike_participants.hash_into(hasher);
         self.defenders_declared.hash_into(hasher);
         // CR 702.39a / CR 509.1c: forced_blocks -- provoke blocking requirements
         self.forced_blocks.hash_into(hasher);
@@ -2339,6 +2169,79 @@ impl HashInto for CombatState {
         for (a, b) in &self.enlist_pairings {
             a.hash_into(hasher);
             b.hash_into(hasher);
+        }
+        // CR 509.1h: blocked_attackers -- set at declare-blockers, never cleared
+        self.blocked_attackers.hash_into(hasher);
+    }
+}
+
+impl HashInto for AdditionalCost {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            AdditionalCost::Sacrifice(ids) => {
+                0u8.hash_into(hasher);
+                (ids.len() as u64).hash_into(hasher);
+                for id in ids {
+                    id.hash_into(hasher);
+                }
+            }
+            AdditionalCost::Discard(ids) => {
+                1u8.hash_into(hasher);
+                (ids.len() as u64).hash_into(hasher);
+                for id in ids {
+                    id.hash_into(hasher);
+                }
+            }
+            AdditionalCost::EscapeExile { cards } => {
+                2u8.hash_into(hasher);
+                (cards.len() as u64).hash_into(hasher);
+                for id in cards {
+                    id.hash_into(hasher);
+                }
+            }
+            AdditionalCost::CollectEvidenceExile { cards } => {
+                13u8.hash_into(hasher);
+                (cards.len() as u64).hash_into(hasher);
+                for id in cards {
+                    id.hash_into(hasher);
+                }
+            }
+            AdditionalCost::Assist { player, amount } => {
+                3u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            AdditionalCost::Replicate { count } => {
+                4u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            AdditionalCost::Squad { count } => {
+                12u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            AdditionalCost::EscalateModes { count } => {
+                5u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            AdditionalCost::Splice { cards } => {
+                6u8.hash_into(hasher);
+                (cards.len() as u64).hash_into(hasher);
+                for id in cards {
+                    id.hash_into(hasher);
+                }
+            }
+            AdditionalCost::Entwine => 7u8.hash_into(hasher),
+            AdditionalCost::Fuse => 8u8.hash_into(hasher),
+            AdditionalCost::Offspring => 9u8.hash_into(hasher),
+            AdditionalCost::Gift { opponent } => {
+                10u8.hash_into(hasher);
+                opponent.hash_into(hasher);
+            }
+            AdditionalCost::Mutate { target, on_top } => {
+                11u8.hash_into(hasher);
+                target.hash_into(hasher);
+                on_top.hash_into(hasher);
+            }
         }
     }
 }
@@ -4041,10 +3944,32 @@ impl HashInto for AbilityDefinition {
                 filter.hash_into(hasher);
                 additional_triggers.hash_into(hasher);
             }
-            // Flashback (discriminant 8) — CR 702.34
-            AbilityDefinition::Flashback { cost } => {
+            // AltCastAbility (discriminant 8) — RC-3 consolidation
+            AbilityDefinition::AltCastAbility {
+                kind,
+                cost,
+                details,
+            } => {
                 8u8.hash_into(hasher);
+                (*kind as u8).hash_into(hasher);
                 cost.hash_into(hasher);
+                match details {
+                    Some(crate::cards::card_definition::AltCastDetails::Escape { exile_count }) => {
+                        1u8.hash_into(hasher);
+                        exile_count.hash_into(hasher);
+                    }
+                    Some(crate::cards::card_definition::AltCastDetails::Prototype {
+                        power,
+                        toughness,
+                    }) => {
+                        2u8.hash_into(hasher);
+                        power.hash_into(hasher);
+                        toughness.hash_into(hasher);
+                    }
+                    None => {
+                        0u8.hash_into(hasher);
+                    }
+                }
             }
             // Cycling (discriminant 9) — CR 702.29
             AbilityDefinition::Cycling { cost } => {
@@ -4080,12 +4005,6 @@ impl HashInto for AbilityDefinition {
                 14u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
-            // Escape (discriminant 15) -- CR 702.138
-            AbilityDefinition::Escape { cost, exile_count } => {
-                15u8.hash_into(hasher);
-                cost.hash_into(hasher);
-                exile_count.hash_into(hasher);
-            }
             // EscapeWithCounter (discriminant 16) -- CR 702.138c
             AbilityDefinition::EscapeWithCounter {
                 counter_type,
@@ -4098,11 +4017,6 @@ impl HashInto for AbilityDefinition {
             // Foretell (discriminant 17) -- CR 702.143
             AbilityDefinition::Foretell { cost } => {
                 17u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Unearth (discriminant 18) -- CR 702.84
-            AbilityDefinition::Unearth { cost } => {
-                18u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
             // Buyback (discriminant 19) -- CR 702.27
@@ -4148,47 +4062,6 @@ impl HashInto for AbilityDefinition {
                 card_type.hash_into(hasher);
                 effect.hash_into(hasher);
                 targets.hash_into(hasher);
-            }
-            // Embalm (discriminant 25) -- CR 702.128
-            AbilityDefinition::Embalm { cost } => {
-                25u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Eternalize (discriminant 26) -- CR 702.129
-            AbilityDefinition::Eternalize { cost } => {
-                26u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Encore (discriminant 27) -- CR 702.141
-            AbilityDefinition::Encore { cost } => {
-                27u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Dash (discriminant 28) -- CR 702.109
-            AbilityDefinition::Dash { cost } => {
-                28u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Blitz (discriminant 29) -- CR 702.152
-            AbilityDefinition::Blitz { cost } => {
-                29u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Plot (discriminant 30) -- CR 702.170
-            AbilityDefinition::Plot { cost } => {
-                30u8.hash_into(hasher);
-                cost.hash_into(hasher);
-            }
-            // Prototype (discriminant 31) -- CR 702.160 / CR 718
-            AbilityDefinition::Prototype {
-                cost,
-                power,
-                toughness,
-            } => {
-                31u8.hash_into(hasher);
-                cost.hash_into(hasher);
-                power.hash_into(hasher);
-                toughness.hash_into(hasher);
             }
             // Impending (discriminant 32) -- CR 702.176
             AbilityDefinition::Impending { cost, count } => {

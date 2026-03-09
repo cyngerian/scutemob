@@ -26,8 +26,10 @@ pub fn card() -> CardDefinition {
             // WheneverYouCastSpell (or a dedicated TriggerCondition variant). Omitted
             // until DSL supports noncreature-spell filtering.
             AbilityDefinition::Keyword(KeywordAbility::Plot),
-            AbilityDefinition::Plot {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Plot,
                 cost: ManaCost { generic: 1, red: 1, ..Default::default() },
+                details: None,
             },
         ],
         back_face: None,

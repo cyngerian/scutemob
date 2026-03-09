@@ -1777,6 +1777,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.5-11 | M9.5 | Player list order non-deterministic in SessionResponse (HashMap iteration) | OPEN |
 | MR-M9.5-12 | M9.5 | Battlefield iteration order by ObjectId, not zone entry order | OPEN |
 | MR-M9.5-13 | M9.5 | `PlayerId(i as u64 + 1)` cast without bounds check (safe in practice) | OPEN |
+| MR-TC-23 | TC | AltCostKind hash relies on implicit discriminants -- reordering silently changes hashes | OPEN |
+| MR-TC-24 | TC | AdditionalCost extraction allocates on every CastSpell (iterator scans + clone) | OPEN |
+| MR-TC-25 | TC | Boilerplate StackObject construction for triggers (~400 lines of identical false fields) | OPEN |
 
 ### INFO
 
@@ -1786,6 +1789,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M0-12 | M0 | rules_db.rs good test coverage | — |
 | MR-M0-17 | M0 | Engine state module type design strong (ZoneId, Zone enum, OrdMap/OrdSet) | — |
 | MR-M0-18 | M0 | State hashing framework well-designed (length-prefix, discriminants, public/private split) | — |
+| MR-TC-26 | TC | Clear separation of AltCostKind usage domains (ability definition vs command path) | -- |
 | MR-M1-08 | M1 | object_identity.rs exemplary CR citation | — |
 | MR-M1-09 | M1 | state_invariants.rs good property-based foundation | — |
 | MR-M1-10 | M1 | Commander format compliance verified | — |
@@ -2016,22 +2020,205 @@ Mutate (CR 702.140) implemented as a dedicated mini-milestone. Core model: `merg
 
 ---
 
+## Type Consolidation: RC-4 Session 1 + RC-1 Session 2 Review (2026-03-09)
+
+RC-4: Designations bitfield migration (8 bools → u16). RC-1 Session 2: CastSpell sacrifice field consolidation (4 fields → `AdditionalCost::Sacrifice`). 1 MEDIUM found and fixed inline (devour extraction heuristic). 7 LOW deferred.
+
+### Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-TC-01 | **MEDIUM** | `casting.rs:3415` | Devour extraction used `ids.len() > 1` heuristic to disambiguate from bargain/casualty — fragile for future multi-target sacrifice abilities. Fixed: check only Devour keyword presence. | **CLOSED (inline)** |
+| MR-TC-02 | **LOW** | `command.rs:217-225` | Orphaned doc comment for removed `devour_sacrifices` field now attaches to `modes_chosen`, giving misleading documentation. | **OPEN** |
+| MR-TC-03 | **LOW** | `types.rs:1010,1020,1039` | Three KeywordAbility doc comments reference removed field names (`CastSpell.bargain_sacrifice`, `.emerge_sacrifice`, `.casualty_sacrifice`). Should reference `additional_costs`. | **OPEN** |
+| MR-TC-04 | **LOW** | `legal_actions.rs:103` | Doc comment references removed field names `bargain_sacrifice/emerge_sacrifice/etc`. | **OPEN** |
+| MR-TC-05 | **LOW** | `cards/helpers.rs` | `AdditionalCost` not exported from helpers.rs prelude (only from lib.rs). Card authors won't find it in `use crate::cards::helpers::*`. | **OPEN** |
+| MR-TC-06 | **LOW** | `casting.rs:138-147` | Bargain and Casualty both extract same sacrifice ID from first `Sacrifice` entry. Safe (mutually exclusive in practice) but undocumented limitation. | **OPEN** |
+| MR-TC-07 | **LOW** | `layers.rs:69` | Stale comment references `obj.is_suspected` (old boolean field name, code is correct). | **OPEN** |
+| MR-TC-08 | **LOW** | `cards/helpers.rs` | `Designations` not exported from helpers.rs prelude (only from lib.rs). | **OPEN** |
+| MR-TC-09 | **LOW** | `types.rs:1056-1057` | Stale doc references `CastSpell.assist_player` and `CastSpell.assist_amount` (now `AdditionalCost::Assist`). | **OPEN** |
+| MR-TC-10 | **LOW** | `types.rs:1375` | Stale doc references `CastSpell.gift_opponent` (now `AdditionalCost::Gift`). | **OPEN** |
+| MR-TC-11 | **LOW** | `card_definition.rs:637,673` | Stale doc references `CastSpell.squad_count` and `CastSpell.offspring_paid` (now `AdditionalCost::Squad`/`Offspring`). | **OPEN** |
+| MR-TC-12 | **LOW** | `game_object.rs:640,646` | Stale doc references `StackObject.squad_count` and `StackObject.offspring_paid` (removed, read from `additional_costs`). | **OPEN** |
+| MR-TC-13 | **LOW** | `effects/mod.rs:91` | Stale doc references `StackObject.gift_opponent` (now `AdditionalCost::Gift`). | **OPEN** |
+| MR-TC-14 | **LOW** | `types.rs:1106` | Stale doc references `escalate_modes` in `Command::CastSpell` (now `AdditionalCost::EscalateModes`). | **OPEN** |
+| MR-TC-15 | **LOW** | `stubs.rs:342,348` | Stale doc comments reference removed PTK variant names `EchoUpkeep`/`CumulativeUpkeep`. | **OPEN** |
+| MR-TC-16 | **LOW** | `state/mod.rs` | Dead fields `echo_cost` and `cumulative_upkeep_cost` on `PendingTrigger` — never set, data now in `TriggerData::UpkeepCost`. ~100 lines of boilerplate. | **OPEN** |
+| MR-TC-17 | **LOW** | `state/mod.rs:138,148` | Stale comments reference old SOK variant names `EchoTrigger`/`CumulativeUpkeepTrigger`. | **OPEN** |
+
+---
+
+## Type Consolidation: RC-2 Session 5 Review (2026-03-09)
+
+**Review Status**: REVIEWED (2026-03-09)
+
+RC-2 Session 5: Migration of ~30 remaining one-off trigger SOK/PTK variants into unified `StackObjectKind::KeywordTrigger { source_object, keyword, data: TriggerData }` pattern. This is the largest session in the type consolidation plan, touching resolution dispatch (~1100 lines changed), trigger creation (abilities.rs, casting.rs, turn_actions.rs), display (view_model.rs, stack_view.rs), and hash (hash.rs). 1934 tests pass, clippy clean, workspace builds.
+
+### Key Changes
+
+| Area | Before | After |
+|------|--------|-------|
+| StackObjectKind variants | ~62 | ~19 (42 migrated, 1 KeywordTrigger absorbs all) |
+| PendingTriggerKind variants | ~45 | ~32 (13 moved to PTK::KeywordTrigger; ~19 retained as data shuttles) |
+| TriggerData enum | 7 variants (S4) | 34 variants (S5 added 27) |
+| resolution.rs KeywordTrigger arms | ~6 (S4) | 42+ |
+
+### Groups Migrated (verified)
+
+1. **Combat triggers (6)**: Flanking, Rampage, Provoke, Melee, Poisonous, Enlist -- all create PTK variants in abilities.rs, flush to `KeywordTrigger { data: CombatFlanking/CombatRampage/CombatProvoke/Simple/CombatPoisonous/CombatEnlist }`
+2. **ETB triggers (12)**: Exploit, Backup, Graft, ChampionETB, SoulbondSelfETB/OtherETB, RavenousDraw, SquadETB, OffspringETB, GiftETB, Hideaway, PartnerWith -- all flush to `KeywordTrigger { data: Simple/ETBBackup/ETBGraft/ETBChampion/ETBSoulbond/ETBRavenousDraw/ETBSquad/ETBOffspring/ETBGift/ETBHideaway/ETBPartnerWith }`
+3. **Spell-copy triggers (5)**: Storm, Cascade, Casualty, Replicate, Gravestorm -- created directly as SOK::KeywordTrigger in casting.rs, with `data: SpellCopy/CascadeExile/CasualtyCopy`
+4. **EOT triggers (5)**: Evoke, Unearth, Dash, Blitz, EncoreSacrifice -- flush to `KeywordTrigger { data: DelayedZoneChange/EncoreSacrifice }`
+5. **Death/LTB triggers (5)**: Modular, HauntExile, HauntedCreatureDies, ChampionLTB, Recover -- flush to `KeywordTrigger { data: DeathModular/DeathHauntExile/DeathHauntedCreatureDies/LTBChampion/DeathRecover }`
+6. **Remaining (5)**: Cipher, Ingest, Renown, Evolve, Myriad -- flush to `KeywordTrigger { data: CipherDamage/IngestExile/RenownDamage/EvolveTrigger/MyriadAttack }`
+
+### Variants Kept (NOT migrated, verified correct)
+
+- **Core**: Spell, ActivatedAbility, TriggeredAbility, MutatingCreatureSpell
+- **Activated abilities**: NinjutsuAbility, UnearthAbility, EmbalmAbility, EternalizeAbility, EncoreAbility, ForecastAbility, ScavengeAbility, BloodrushAbility, SaddleAbility, CraftAbility
+- **Special triggers**: MadnessTrigger, MiracleTrigger, SuspendCounterTrigger, SuspendCastTrigger, TransformTrigger, DayboundTransformTrigger, TurnFaceUpTrigger
+
+### Correctness Verification
+
+| Check | Result |
+|-------|--------|
+| Old SOK variants removed from enum | PASS -- no old variant names in `StackObjectKind` enum (only in comments) |
+| Stale code references to old variants | PASS -- 10 references found, all in comments/doc strings |
+| TriggerData variant count matches hash arms | PASS -- 34 variants, 34 hash arms (discriminants 0-33) |
+| Resolution dispatch covers all created TriggerData variants | PASS -- all 34 variants have explicit match arms |
+| flush_pending_triggers correct for all PTK kinds | PASS -- each PTK variant maps to correct SOK::KeywordTrigger |
+| Hash implementations complete | PASS -- TriggerData, UpkeepCostKind, StackObjectKind::KeywordTrigger all hashed |
+| Display code (view_model.rs, stack_view.rs) handles KeywordTrigger | PASS -- catch-all arm extracts source_object with permanent override |
+| Tests pass | PASS -- 1934 tests, 0 failures |
+| Clippy clean | PASS |
+| Workspace builds | PASS |
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-TC-18 | **MEDIUM** | `resolution.rs:7020-7032` | Silent catch-all for unhandled KeywordTrigger combinations replaced with `unreachable!()`. | **CLOSED (inline)** |
+| MR-TC-19 | **LOW** | `state/stack.rs:113` | **Naming inconsistency: `TriggerData::EvolveTrigger`.** This variant has a redundant "Trigger" suffix unlike all other TriggerData variants (e.g., `ETBGraft`, `DeathModular`, `CombatFlanking`). Should be `ETBEvolve { entering_creature }` for consistency with the ETB naming pattern. | OPEN |
+| MR-TC-20 | **LOW** | `state/stubs.rs:342,348` | **Dead fields still hashed: `echo_cost` and `cumulative_upkeep_cost` on PendingTrigger.** These fields are always `None` (never set to `Some`) since Session 4 migrated Echo/CumulativeUpkeep to `PTK::KeywordTrigger`. The fields and their ~50+ `echo_cost: None, cumulative_upkeep_cost: None` construction sites remain as dead code. Already tracked as MR-TC-16; this finding notes the ~50+ construction-site boilerplate that should also be cleaned up in the same pass. | OPEN |
+| MR-TC-21 | **LOW** | `state/stubs.rs` | **PendingTrigger has ~25 Option fields used only by specific PTK variants.** Most PTK variants that were migrated to `PTK::KeywordTrigger` (e.g., Echo, CumulativeUpkeep) no longer use per-field data shuttle. However, ~19 remaining PTK variants (Flanking, Rampage, Provoke, Renown, Poisonous, Enlist, etc.) still use per-field data shuttle rather than embedding data in `PTK::KeywordTrigger { data }`. This is a partial migration -- the PTK variants were left intact, and data still flows through `Option<T>` fields on PendingTrigger rather than through TriggerData. Consider completing the migration by moving these PTK variants into `PTK::KeywordTrigger { keyword, data }` to eliminate ~25 dead-for-most-triggers fields per PendingTrigger instance. | OPEN |
+| MR-TC-22 | **LOW** | `state/combat.rs:65`, `state/types.rs:702,794,803,827,844`, `state/builder.rs:777,798,880`, `rules/events.rs:961` | **Stale doc comments reference removed SOK variant names.** 10 occurrences across 4 files reference old variant names like `StackObjectKind::ProvokeTrigger`, `StackObjectKind::HideawayTrigger`, `StackObjectKind::RampageTrigger`, `StackObjectKind::MyriadTrigger`, `StackObjectKind::ModularTrigger`, `StackObjectKind::MeleeTrigger`, `StackObjectKind::RenownTrigger`. Should reference `StackObjectKind::KeywordTrigger` with appropriate keyword. | OPEN |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| Combat triggers (Flanking/Rampage/Provoke/Melee/Poisonous/Enlist) | Full | Pre-existing tests in combat.rs, renown.rs unchanged; all pass |
+| ETB triggers (Exploit/Backup/Graft/Champion/Soulbond/Ravenous/Squad/Offspring/Gift/Hideaway/PartnerWith) | Full | Pre-existing tests unchanged; all pass |
+| Spell-copy triggers (Storm/Cascade/Casualty/Replicate/Gravestorm) | Full | Pre-existing tests unchanged; all pass |
+| EOT triggers (Evoke/Unearth/Dash/Blitz/Encore) | Full | Pre-existing tests unchanged; all pass |
+| Death/LTB triggers (Modular/Haunt/ChampionLTB/Recover) | Full | Pre-existing tests unchanged; all pass |
+| Remaining triggers (Cipher/Ingest/Renown/Evolve/Myriad) | Full | Pre-existing tests unchanged; all pass |
+| Hash determinism for TriggerData | Covered | Hash implementation complete with unique discriminants |
+| Catch-all resolution path | Not tested | No test verifies that an unmatched KeywordTrigger combo raises an error |
+
+### Notes
+
+- The migration is structurally sound. All 42+ resolution arms correctly handle their keyword+data combinations. The catch-all arm (MR-TC-18) is the only correctness concern, and it's defensive -- currently unreachable because all variants have explicit arms.
+- The PendingTrigger struct remains bloated (~25 Option fields as data shuttle), which is a known incomplete migration (MR-TC-21). The plan doc acknowledges this as out-of-scope for Session 5, deferring to a future cleanup pass.
+- The display code in view_model.rs and stack_view.rs correctly handles KeywordTrigger with a catch-all that extracts `source_object` and formats `{:?} trigger:` -- adequate for debugging but not user-friendly for all 34 trigger types.
+- No HIGH findings. 1 MEDIUM (silent catch-all). 4 LOW (naming inconsistency, dead fields/boilerplate, incomplete PTK migration, stale doc comments).
+
+---
+
+## Type Consolidation: Gate Review (Sessions 1-6, RC-1 through RC-4) (2026-03-09)
+
+**Review Status**: REVIEWED (2026-03-09)
+
+This is the final gate review for the Type Consolidation refactoring, covering all 6 implementation sessions across 4 refactoring clusters. It validates correctness, exhaustiveness, hash consistency, serialization, and documentation across 169 changed files (+4659/-15688 lines, net -11029). 1934 tests pass, clippy clean, workspace builds.
+
+### Summary of Changes
+
+| Cluster | Sessions | Before | After | Key Type |
+|---------|----------|--------|-------|----------|
+| RC-4: Designations | S1 | 8 bool fields on GameObject | 1 `Designations` bitflags u16 | `Designations` |
+| RC-1: AdditionalCost | S2-S3 | ~20 fields on CastSpell (32 total) | 13 fields + `additional_costs: Vec<AdditionalCost>` (14 variants) | `AdditionalCost` |
+| RC-2: KeywordTrigger | S4-S5 | ~62 SOK variants, ~45 PTK variants | ~20 SOK + `KeywordTrigger { keyword, data: TriggerData }` (34 variants) | `TriggerData`, `UpkeepCostKind` |
+| RC-3: AltCastAbility | S6 | ~64 AbilityDefinition variants (10 alt-cost) | ~55 variants + `AltCastAbility { kind, cost, details }` | `AltCastDetails`, 5 new `AltCostKind` variants |
+
+### Correctness Verification Matrix
+
+| Check | RC-4 | RC-1 | RC-2 | RC-3 | Notes |
+|-------|------|------|------|------|-------|
+| All old fields/variants removed from structs | PASS | PASS | PASS | PASS | No stale enum variants remain in production code |
+| New types derive Serialize/Deserialize | PASS | PASS | PASS | PASS | All 4 new types + AltCastDetails derive serde traits |
+| Hash implementations complete | PASS | PASS | PASS | PASS | All variants have HashInto arms with unique discriminants |
+| Resolution dispatch exhaustive | N/A | N/A | PASS | N/A | 42+ KeywordTrigger arms + unreachable! catch-all |
+| Display code (TUI + replay-viewer) | N/A | N/A | PASS | N/A | Both handle KeywordTrigger variant |
+| Command → engine → StackObject pipeline | N/A | PASS | N/A | N/A | CastSpell 13 fields flow correctly through engine.rs → casting.rs |
+| Replay harness constructs all variants | N/A | PASS | N/A | N/A | All harness action types use AdditionalCost correctly |
+| Cost-lookup functions use AltCastAbility | N/A | N/A | N/A | PASS | All get_X_cost() functions match on AltCastAbility { kind: X, .. } |
+| Random bot uses new API | N/A | PASS | N/A | N/A | random_bot.rs uses AdditionalCost, 13-field CastSpell |
+| Builder uses Designations::default() | PASS | N/A | N/A | N/A | GameStateBuilder creates objects with default designations |
+| lib.rs exports all new types | PASS | PASS | PASS | PASS | All types in public API |
+| Tests pass (1934) | PASS | PASS | PASS | PASS | All 1934 tests pass, 0 failures |
+| Clippy clean | PASS | PASS | PASS | PASS | No warnings |
+| Workspace builds | PASS | PASS | PASS | PASS | Engine, simulator, TUI, replay-viewer all compile |
+
+### RC-3 Session 6 Review (new -- not previously reviewed)
+
+Session 6 consolidated 10 AbilityDefinition variants (Flashback, Embalm, Eternalize, Encore, Unearth, Dash, Blitz, Plot, Escape, Prototype) into `AltCastAbility { kind: AltCostKind, cost: ManaCost, details: Option<AltCastDetails> }`. Five new AltCostKind variants were added (Embalm, Eternalize, Encore, Unearth, Prototype) with doc comments correctly noting they are "Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost" -- these are graveyard-activated abilities, not casting alternative costs.
+
+**Not consolidated (correctly excluded)**: `AbilityDefinition::Disturb` (has back-face semantics, checking `back_face.is_some()`), `AbilityDefinition::Craft` (has `CraftMaterials` enum with material validation), `AbilityDefinition::MutateCost` (has target/merge semantics). These three have structurally different behavior from the simple `{ cost: ManaCost }` pattern.
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-TC-23 | **LOW** | `hash.rs:3954` | **AltCostKind hash relies on implicit discriminants.** The expression `(*kind as u8).hash_into(hasher)` casts `AltCostKind` to `u8` using Rust's default sequential discriminant assignment (Flashback=0, ..., Prototype=26). Reordering or inserting variants would silently change hash values, breaking distributed verification (Architecture Invariant 7). Safe currently since all additions are appended, but fragile for future maintenance. **Fix:** Add explicit discriminant values to `AltCostKind` enum variants (e.g., `Flashback = 0, Buyback = 1, ...`) or use a match-based hash like TriggerData does. | OPEN |
+| MR-TC-24 | **LOW** | `casting.rs:71-162` | **AdditionalCost extraction allocates on every CastSpell.** `handle_cast_spell` extracts ~12 local variables from `additional_costs` via iterator scans and `clone()` calls on every spell cast. Most spells have `additional_costs: vec![]`, making all scans no-ops. Not a correctness issue, but the extraction pattern could be replaced with a single-pass match for performance. | OPEN |
+| MR-TC-25 | **LOW** | `casting.rs:3647-4200` | **Boilerplate StackObject construction for triggers.** Storm, Gravestorm, Cascade, Casualty, and Replicate trigger StackObject constructors each set ~30 boolean fields to false and `additional_costs: vec![]`. A `StackObject::trigger_default()` constructor would eliminate ~400 lines of identical boilerplate. | OPEN |
+| MR-TC-26 | **INFO** | `types.rs:145-159` | **Clear separation of AltCostKind usage domains.** The 5 new AltCostKind variants (Embalm, Eternalize, Encore, Unearth, Prototype) are documented as "Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost." This is a well-designed separation between ability definition (what the card can do) and command path (what the player chose to do). |  -- |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| RC-4: Designations bitfield | Full | All 8 flags tested via existing tests (foretell, suspend, combat/suspected, echo, bestow, saddled, reconfigured, renowned) |
+| RC-1: AdditionalCost construction | Full | All 14 variants constructed in replay harness and/or test files |
+| RC-1: AdditionalCost extraction in casting.rs | Full | Existing tests exercise sacrifice, discard, escape-exile, assist, replicate, splice, entwine, escalate, fuse, squad, offspring, gift, mutate, collect-evidence paths |
+| RC-2: KeywordTrigger creation | Full | All 34 TriggerData variants created in abilities.rs, casting.rs, or turn_actions.rs; exercised by pre-existing tests |
+| RC-2: KeywordTrigger resolution | Full | All 42+ resolution arms exercised by pre-existing tests |
+| RC-3: AltCastAbility cost lookup | Full | get_flashback_cost, get_dash_cost, get_blitz_cost, etc. all use AltCastAbility pattern; exercised by existing casting tests |
+| RC-3: AltCastAbility hash | Partial | Hash implementation exists with discriminants, but no dedicated test verifying hash stability across AltCostKind variants |
+| Regression: 1934 tests | Full | All pre-existing tests pass without modification (beyond mechanical field changes) |
+
+### Cross-Milestone Observations
+
+- **Previous TC findings confirmed**: All 22 TC findings from Sessions 1-5 reviews (MR-TC-01 through MR-TC-22) remain valid and correctly classified. The 2 MEDIUM findings were fixed inline.
+- **StackObject boolean field proliferation**: StackObject still retains ~20 individual boolean cast-tracking fields (`was_dashed`, `was_blitzed`, `was_plotted`, etc.) that were NOT part of the consolidation scope. These are the _record_ of which alternative cost was used (on the stack object), distinct from the _declaration_ (on CastSpell via `alt_cost: Option<AltCostKind>`). A future consolidation could replace these with `cast_alt_cost: Option<AltCostKind>` on StackObject, mirroring the CastSpell pattern.
+- **PendingTrigger remains bloated**: As noted in MR-TC-21, PendingTrigger has ~25 Option fields used as data shuttle for PTK variants that were NOT migrated to `PTK::KeywordTrigger`. This is a known deferred cleanup.
+- **No regressions in any subsystem**: The consolidation is purely structural -- no game logic behavior changed. The 1934 test count includes tests across combat, casting, resolution, SBA, layers, and all ~90 ability keywords.
+
+### Notes
+
+- **Net code reduction**: -11,029 lines across 169 files. The consolidation achieved its primary goal of reducing type surface area while maintaining full behavioral compatibility.
+- **Architecture Invariant 7 (hash determinism)**: All new types have complete HashInto implementations. The only concern is MR-TC-23 (implicit discriminants for AltCostKind), which is safe for now but should be hardened before distributed verification is deployed.
+- **No HIGH or MEDIUM findings in this gate review.** The 2 MEDIUMs from earlier session reviews (MR-TC-01, MR-TC-18) were both fixed inline. The gate review found 3 LOW and 1 INFO -- all deferred.
+- **Consolidation is structurally complete.** All 4 refactoring clusters are done. The remaining work is documentation cleanup (~22 stale doc comments tracked as LOWs) and the optional PendingTrigger/StackObject further consolidation.
+
+---
+
 ## Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 284 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate) |
+| Total unique issue IDs | 310 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate + 26 TC) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 36 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03 + 1 B10 inline: MR-B10-01 + 2 B11 inline: MR-B11-01, MR-B11-02) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
-| MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 — deferred to M10+) |
-| MEDIUM (CLOSED) | 65 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02 + 2 B14 inline: MR-B14-01, MR-B14-02 + 1 B14 inline: MR-B14-04) |
+| MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 -- deferred to M10+) |
+| MEDIUM (CLOSED) | 66 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02 + 2 B14 inline: MR-B14-01, MR-B14-02 + 1 B14 inline: MR-B14-04 + 2 TC inline: MR-TC-01, MR-TC-18) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 59 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10 + 2 B13: MR-B13-01, MR-B13-02 + 1 B14: MR-B14-03 + 2 B15: MR-B15-01, MR-B15-02 + 2 Mutate: MR-Mutate-01, MR-Mutate-02) |
+| LOW (OPEN) | 79 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10 + 2 B13: MR-B13-01, MR-B13-02 + 1 B14: MR-B14-03 + 2 B15: MR-B15-01, MR-B15-02 + 2 Mutate: MR-Mutate-01, MR-Mutate-02 + 23 TC: MR-TC-02 through MR-TC-25, excluding MR-TC-18 MEDIUM) |
 | LOW (CLOSED) | 39 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03 + 1 B9 MR-B9-01 closed by B10 + 2 B10 inline: MR-B10-07, MR-B10-08) |
 | LOW (DEFERRED) | 5 |
-| INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
+| INFO | 68 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19 + 1 TC: MR-TC-26) |
 | Milestones reviewed | 18 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5, W1-B10, W1-B11, W1-B12, W1-B13, W1-B14, W1-B15, W1-Mutate) |
 | Milestones not started | 0 |
 | Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B10 complete (2026-03-07)**: Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify — 1 HIGH + 5 MEDIUM + 2 LOW found, all fixed inline; 1706 tests; 155 validated; P4 64/88; **W1-B11 complete (2026-03-07)**: Modal Choice, Tribute, Fabricate, Fuse, Spree — 2 HIGH + 6 MEDIUM found, all fixed inline; 2 LOW deferred; 1754 tests; 160 validated; P4 66/88; P2 17/17 (all P2 complete); **W1-B12 complete (2026-03-07)**: Enrage, Alliance, Corrupted, Ravenous, Bloodrush — 2 MEDIUM + 8 LOW found; 2 MEDIUM fixed inline; 8 LOW deferred; 1784 tests; 165 validated; P4 71/88; **W1-B13 complete (2026-03-07)**: Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle — 0 HIGH/MEDIUM; 2 LOW deferred; 1792 tests; 171 validated; P4 77/88; **W1-B14 complete (2026-03-08)**: Cipher, Haunt, Reconfigure, Blood Tokens, Decayed Tokens — 2 MEDIUM + 2 LOW found; 3 MEDIUM/LOW fixed inline; 1 LOW deferred; 1829 tests; 175 validated; P4 82/88; **W1-B15 complete (2026-03-08)**: Friends Forever, Choose a Background, Doctor's Companion — 0 HIGH/MEDIUM; 2 LOW deferred; 1889 tests (with Mutate); P4 84/88; **W1-Mutate complete (2026-03-08)**: Mutate mini-milestone — 0 HIGH/MEDIUM; 2 LOW deferred; all 78 implementable abilities done |

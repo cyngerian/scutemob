@@ -16,8 +16,10 @@ pub fn card() -> CardDefinition {
             // sacrifice at end step, and draw-on-death trigger.
             // The Keyword marker is required for quick presence-checking.
             AbilityDefinition::Keyword(KeywordAbility::Blitz),
-            AbilityDefinition::Blitz {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Blitz,
                 cost: ManaCost { generic: 2, red: 1, ..Default::default() },
+                details: None,
             },
             // CR 603.1: When Riveteers Requisitioner dies, create a Treasure token.
             AbilityDefinition::Triggered {

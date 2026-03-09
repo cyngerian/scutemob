@@ -173,30 +173,11 @@ fn test_bestow_cast_as_aura_basic() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Bestow),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -268,7 +249,9 @@ fn test_bestow_cast_as_aura_basic() {
         .expect("Satyr should be on battlefield after resolution");
 
     assert!(
-        satyr_bf.is_bestowed,
+        satyr_bf
+            .designations
+            .contains(mtg_engine::Designations::BESTOWED),
         "CR 702.103b: is_bestowed should be true on battlefield permanent"
     );
     assert_eq!(
@@ -378,30 +361,11 @@ fn test_bestow_cast_normally_as_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -446,7 +410,9 @@ fn test_bestow_cast_normally_as_creature() {
         .expect("Satyr should be on battlefield");
 
     assert!(
-        !satyr_bf.is_bestowed,
+        !satyr_bf
+            .designations
+            .contains(mtg_engine::Designations::BESTOWED),
         "Normal cast: is_bestowed should be false on battlefield"
     );
     assert_eq!(
@@ -537,30 +503,11 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Bestow),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -590,7 +537,9 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
         .expect("CR 702.103e: Satyr should be on battlefield as creature");
 
     assert!(
-        !satyr_bf.is_bestowed,
+        !satyr_bf
+            .designations
+            .contains(mtg_engine::Designations::BESTOWED),
         "CR 702.103e: Fallback creature should have is_bestowed=false"
     );
     assert_eq!(
@@ -650,7 +599,9 @@ fn test_bestow_unattach_reverts_to_creature() {
 
     // Manually set up the bestowed attachment state.
     if let Some(satyr_obj) = state.objects.get_mut(&satyr_id) {
-        satyr_obj.is_bestowed = true;
+        satyr_obj
+            .designations
+            .insert(mtg_engine::Designations::BESTOWED);
         satyr_obj.attached_to = Some(bear_id);
     }
     if let Some(bear_obj) = state.objects.get_mut(&bear_id) {
@@ -659,7 +610,9 @@ fn test_bestow_unattach_reverts_to_creature() {
 
     // Verify setup.
     assert!(
-        state.objects[&satyr_id].is_bestowed,
+        state.objects[&satyr_id]
+            .designations
+            .contains(mtg_engine::Designations::BESTOWED),
         "Setup: satyr should be bestowed"
     );
     assert_eq!(
@@ -703,7 +656,9 @@ fn test_bestow_unattach_reverts_to_creature() {
 
     // CR 702.103f: is_bestowed should be false now.
     assert!(
-        !state.objects[&satyr_id].is_bestowed,
+        !state.objects[&satyr_id]
+            .designations
+            .contains(mtg_engine::Designations::BESTOWED),
         "CR 702.103f: is_bestowed should be false after revert"
     );
 
@@ -797,30 +752,11 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 delve_cards: vec![],
                 kicker_times: 0,
                 alt_cost: Some(AltCostKind::Bestow),
-                escape_exile_cards: vec![],
-                retrace_discard_land: None,
-                jump_start_discard: None,
                 prototype: false,
-                bargain_sacrifice: None,
-                emerge_sacrifice: None,
-                casualty_sacrifice: None,
-                assist_player: None,
-                assist_amount: 0,
-                replicate_count: 0,
-                splice_cards: vec![],
-                entwine_paid: false,
-                escalate_modes: 0,
-                devour_sacrifices: vec![],
                 modes_chosen: vec![],
-                fuse: false,
                 x_value: 0,
-                collect_evidence_cards: vec![],
-                squad_count: 0,
-                offspring_paid: false,
-                gift_opponent: None,
-                mutate_target: None,
-                mutate_on_top: false,
                 face_down_kind: None,
+                additional_costs: vec![],
             },
         );
         assert!(
@@ -883,30 +819,11 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 delve_cards: vec![],
                 kicker_times: 0,
                 alt_cost: Some(AltCostKind::Bestow),
-                escape_exile_cards: vec![],
-                retrace_discard_land: None,
-                jump_start_discard: None,
                 prototype: false,
-                bargain_sacrifice: None,
-                emerge_sacrifice: None,
-                casualty_sacrifice: None,
-                assist_player: None,
-                assist_amount: 0,
-                replicate_count: 0,
-                splice_cards: vec![],
-                entwine_paid: false,
-                escalate_modes: 0,
-                devour_sacrifices: vec![],
                 modes_chosen: vec![],
-                fuse: false,
                 x_value: 0,
-                collect_evidence_cards: vec![],
-                squad_count: 0,
-                offspring_paid: false,
-                gift_opponent: None,
-                mutate_target: None,
-                mutate_on_top: false,
                 face_down_kind: None,
+                additional_costs: vec![],
             },
         );
         assert!(
@@ -987,30 +904,11 @@ fn test_bestow_cannot_combine_with_flashback() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Bestow),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
     assert!(
@@ -1114,30 +1012,11 @@ fn test_bestow_cannot_combine_with_evoke() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Evoke),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
@@ -1199,30 +1078,11 @@ fn test_bestow_non_bestow_spell_rejected() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Bestow),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
     assert!(
@@ -1276,7 +1136,9 @@ fn test_bestow_enters_without_casting_is_creature() {
 
     // is_bestowed should be false (not cast bestowed).
     assert!(
-        !satyr_obj.is_bestowed,
+        !satyr_obj
+            .designations
+            .contains(mtg_engine::Designations::BESTOWED),
         "Satyr placed directly on battlefield should have is_bestowed=false"
     );
 

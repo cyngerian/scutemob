@@ -4,6 +4,7 @@
 //! keyword. Protection blocks Damage, Enchanting, Blocking, and Targeting (DEBT).
 //! Session 5 covers Targeting (T); Session 6 covers Damage (D), Enchanting (E), Blocking (B).
 
+use mtg_engine::CombatDamageTarget;
 use mtg_engine::{
     process_command, start_game, AttackTarget, CardType, Color, Command, GameEvent,
     GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId,
@@ -78,30 +79,11 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -172,30 +154,11 @@ fn test_protection_from_red_allows_green_spell() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -276,30 +239,11 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -363,30 +307,11 @@ fn test_protection_from_all_blocks_all_targeting() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -679,5 +604,247 @@ fn test_protection_global_effect_still_works() {
         goblin_destroyed,
         "Goblin Token should also be destroyed by the global effect; events: {:?}",
         events
+    );
+}
+
+// ── CR 702.16b: Player targets skip protection check (Finding 1 fix) ──────────
+
+#[test]
+/// CR 702.16b — A player with protection from red cannot be targeted by a red spell.
+///
+/// Players can gain protection qualities (e.g., from continuous effects). When a player
+/// has `protection_qualities` containing `FromColor(Red)`, a red spell must not be able
+/// to target that player.
+fn test_protection_player_target_blocked_by_red_spell() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p2 is protected from red (simulating e.g. Teferi's Protection granting protection
+    // from the player's own color). We set protection_qualities directly on PlayerState.
+    let bolt_spec = ObjectSpec::card(p1, "Lightning Bolt")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            red: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Red])
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(bolt_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    // Grant p2 protection from red via the PlayerState field.
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .protection_qualities
+        .push(ProtectionQuality::FromColor(Color::Red));
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let bolt_id = find_object(&state, "Lightning Bolt");
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: bolt_id,
+            targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "CR 702.16b: a red spell should not be able to target a player with protection from red"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("protection"),
+        "Error should mention protection, got: {}",
+        err_msg
+    );
+}
+
+#[test]
+/// CR 702.16b — A player without protection CAN be targeted by any spell.
+///
+/// Positive case: without `protection_qualities`, player targeting proceeds normally.
+fn test_protection_player_target_allowed_without_protection() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let bolt_spec = ObjectSpec::card(p1, "Lightning Bolt")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            red: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Red])
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(bolt_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let bolt_id = find_object(&state, "Lightning Bolt");
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: bolt_id,
+            targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "CR 702.16b: a player without protection can be targeted by any spell; got: {:?}",
+        result.unwrap_err()
+    );
+}
+
+// ── CR 702.16e: Player damage skips protection check (Finding 2 fix) ──────────
+
+#[test]
+/// CR 702.16e — Damage from a red source to a player with protection from red is prevented.
+///
+/// Uses `apply_damage_prevention` directly (same as the creature damage test above).
+/// A red source dealing damage to a player with `protection_qualities: [FromColor(Red)]`
+/// should return 0 damage.
+fn test_protection_player_damage_prevented() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Place a red source on the battlefield so `source_characteristics` can resolve it.
+    let attacker_spec =
+        ObjectSpec::creature(p1, "Goblin Guide", 2, 2).with_colors(vec![Color::Red]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(attacker_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Goblin Guide");
+
+    let mut state = state;
+    // Grant p2 protection from red.
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .protection_qualities
+        .push(ProtectionQuality::FromColor(Color::Red));
+
+    let (amount, _events) = mtg_engine::rules::replacement::apply_damage_prevention(
+        &mut state,
+        source_id,
+        &CombatDamageTarget::Player(p2),
+        3,
+    );
+
+    assert_eq!(
+        amount, 0,
+        "CR 702.16e: damage from a red source to a player with protection from red \
+         must be prevented (amount must be 0, got {})",
+        amount
+    );
+}
+
+#[test]
+/// CR 702.16e — Damage from a green source to a player with protection from red is NOT prevented.
+///
+/// Protection from red only prevents damage from red sources (CR 702.16a).
+fn test_protection_player_damage_not_prevented_wrong_color() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Place a green source on the battlefield.
+    let attacker_spec =
+        ObjectSpec::creature(p1, "Llanowar Elves", 1, 1).with_colors(vec![Color::Green]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(attacker_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Llanowar Elves");
+
+    let mut state = state;
+    // Grant p2 protection from red (not green).
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .protection_qualities
+        .push(ProtectionQuality::FromColor(Color::Red));
+
+    let (amount, _events) = mtg_engine::rules::replacement::apply_damage_prevention(
+        &mut state,
+        source_id,
+        &CombatDamageTarget::Player(p2),
+        3,
+    );
+
+    assert_eq!(
+        amount, 3,
+        "CR 702.16e: damage from a green source to a player with protection from red \
+         must NOT be prevented (amount must be 3, got {})",
+        amount
     );
 }

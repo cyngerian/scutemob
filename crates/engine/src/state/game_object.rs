@@ -1,5 +1,6 @@
 //! Game object types: ObjectId, characteristics, status, and the GameObject struct.
 
+use bitflags::bitflags;
 use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,33 @@ use super::types::{
     SuperType,
 };
 use super::zone::ZoneId;
+
+bitflags! {
+    /// Packed boolean designations on a GameObject. Replaces individual `is_*` fields
+    /// to reduce struct size and simplify initialization.
+    ///
+    /// Each flag is a non-copiable, non-ability designation that persists until the
+    /// permanent leaves the battlefield (CR 400.7 resets all).
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct Designations: u16 {
+        /// CR 702.112b: Renowned designation (set by Renown trigger).
+        const RENOWNED       = 1 << 0;
+        /// CR 701.60b: Suspected designation (grants Menace + can't block).
+        const SUSPECTED      = 1 << 1;
+        /// CR 702.171b: Saddled designation (set by Saddle activation, until EOT).
+        const SADDLED        = 1 << 2;
+        /// CR 702.30a: Echo payment pending (ETB flag, cleared on trigger resolution).
+        const ECHO_PENDING   = 1 << 3;
+        /// CR 702.103b: Currently bestowed (Aura, not creature).
+        const BESTOWED       = 1 << 4;
+        /// CR 702.143a: Foretold (exiled face-down via foretell action).
+        const FORETOLD       = 1 << 5;
+        /// CR 702.62b: Suspended (in exile with time counters).
+        const SUSPENDED      = 1 << 6;
+        /// CR 702.151b: Reconfigured (attached Equipment is not a creature).
+        const RECONFIGURED   = 1 << 7;
+    }
+}
 
 /// Identifies a game object instance. Per CR 400.7, when an object changes
 /// zones it becomes a new object with a new ObjectId.
@@ -372,6 +400,10 @@ pub struct GameObject {
     pub attachments: Vector<ObjectId>,
     pub attached_to: Option<ObjectId>,
     pub damage_marked: u32,
+    /// Packed boolean designations (Renowned, Suspected, Saddled, etc.).
+    /// See `Designations` bitflags type for individual flags.
+    #[serde(default)]
+    pub designations: Designations,
     /// True if any damage dealt to this permanent was from a source with deathtouch (CR 704.5h).
     /// Set during combat damage assignment (M6+). Cleared with other damage in cleanup (CR 514.1).
     pub deathtouch_damage: bool,
@@ -418,26 +450,6 @@ pub struct GameObject {
     /// Reset to `None` on zone changes (CR 400.7).
     #[serde(default)]
     pub cast_alt_cost: Option<AltCostKind>,
-    /// CR 702.103b: If true, this permanent is currently bestowed. While bestowed,
-    /// it is an Aura enchantment (NOT a creature) with enchant creature.
-    /// CR 702.103f: When it becomes unattached, it ceases to be bestowed and
-    /// reverts to an enchantment creature -- this is an exception to CR 704.5m
-    /// (normal Auras go to graveyard when unattached; bestowed Auras become creatures).
-    ///
-    /// Set during spell resolution when the permanent enters the battlefield
-    /// as a bestowed Aura. Reset to false when unattached (SBA) or on zone
-    /// changes (CR 400.7).
-    #[serde(default)]
-    pub is_bestowed: bool,
-    /// CR 702.143a: If true, this object in exile was foretold (exiled face-down
-    /// via the foretell special action). Used to determine whether the card can be
-    /// cast from exile for its foretell cost.
-    ///
-    /// Set when the ForetellCard command is processed. Reset to false on zone
-    /// changes (CR 400.7) -- but since foretold cards are already in exile,
-    /// any zone change from exile clears this.
-    #[serde(default)]
-    pub is_foretold: bool,
     /// CR 702.143a: The turn number when this card was foretold.
     ///
     /// The card can only be cast for its foretell cost "after the current turn
@@ -475,15 +487,6 @@ pub struct GameObject {
     /// the attack declaration.
     #[serde(default)]
     pub decayed_sacrifice_at_eoc: bool,
-    /// CR 702.62b: If true, this object in exile was suspended (exiled via the
-    /// suspend special action from hand with time counters). Used to identify
-    /// suspended cards for the upkeep counter-removal trigger.
-    ///
-    /// A card is "suspended" (CR 702.62b) if it's in exile, has suspend, AND
-    /// has a time counter on it. This flag is set when the suspend special action
-    /// exiles the card. Unlike foretell, suspended cards are exiled face up.
-    #[serde(default)]
-    pub is_suspended: bool,
     /// CR 702.75a / CR 607.2a: If set, this object in exile was exiled face-down
     /// by a Hideaway ETB trigger from the permanent with this ObjectId.
     ///
@@ -496,24 +499,6 @@ pub struct GameObject {
     /// battlefield at the time the trigger resolved (CR 607.2a).
     #[serde(default)]
     pub exiled_by_hideaway: Option<ObjectId>,
-    /// CR 702.112b: Renowned designation. Tracked as a boolean flag on the
-    /// permanent. Once set by a resolved Renown trigger, stays true until
-    /// the permanent leaves the battlefield (CR 400.7 resets it).
-    ///
-    /// NOT a copiable value (CR 702.112b) -- copies start non-renowned.
-    /// NOT an ability -- persists even if abilities are removed (e.g., Humility).
-    #[serde(default)]
-    pub is_renowned: bool,
-    /// CR 701.60b: Suspected designation. Set by the keyword action Suspect
-    /// (CR 701.60a). Lasts until the permanent leaves the battlefield or a spell
-    /// or ability causes it to no longer be suspected.
-    ///
-    /// NOT a copiable value (CR 701.60b) -- copies of suspected permanents are
-    /// NOT suspected. NOT an ability -- the designation persists even if the
-    /// permanent loses abilities (e.g., Humility), though the granted Menace and
-    /// can't-block ability would be removed by ability-removal effects.
-    #[serde(default)]
-    pub is_suspected: bool,
     /// CR 702.141a: If true, this token was created by an encore ability and
     /// must be sacrificed at the beginning of the next end step.
     ///
@@ -593,16 +578,6 @@ pub struct GameObject {
     /// Used by ETB triggers that check `Condition::EvidenceWasCollected`.
     #[serde(default)]
     pub evidence_collected: bool,
-    /// CR 702.30a: If true, this permanent has Echo and has not yet had its echo
-    /// trigger resolve. Set to true when the permanent enters the battlefield with
-    /// the Echo keyword. Cleared when the echo trigger resolves (either paid or
-    /// sacrificed). If the trigger is countered (e.g., Stifle), the flag remains
-    /// set so the trigger fires again on the next upkeep.
-    ///
-    /// Models the "came under your control since the beginning of your last
-    /// upkeep" condition from CR 702.30a.
-    #[serde(default)]
-    pub echo_pending: bool,
     /// CR 702.26g: If true, this permanent phased out indirectly -- it was attached
     /// to another permanent that phased out directly. Indirectly-phased permanents
     /// do NOT phase in independently; they phase in only when their host phases in.
@@ -681,15 +656,6 @@ pub struct GameObject {
     /// Reset to None on zone changes (CR 400.7).
     #[serde(default)]
     pub gift_opponent: Option<crate::state::PlayerId>,
-    /// CR 702.171b: Saddled designation. Set to true when the Mount's saddle ability
-    /// resolves. "Stays saddled until the end of the turn or it leaves the battlefield."
-    ///
-    /// NOT a copiable value (CR 702.171b) -- copies of saddled Mounts are NOT saddled.
-    /// NOT an ability -- persists even if the permanent loses its Saddle keyword.
-    /// Cleared to false at cleanup (CR 702.171b: "until end of turn") and on zone changes
-    /// (CR 702.171b: "or it leaves the battlefield", enforced via CR 400.7 new-object rule).
-    #[serde(default)]
-    pub is_saddled: bool,
     /// CR 702.99b: Cipher encoded cards.
     ///
     /// Each entry is `(exiled_object_id, card_id)` where `exiled_object_id` is the
@@ -716,20 +682,6 @@ pub struct GameObject {
     /// the engine scans exile for haunt cards with a matching haunting_target.
     #[serde(default)]
     pub haunting_target: Option<ObjectId>,
-    /// CR 702.151b: If true, this Equipment is attached via reconfigure (or was attached
-    /// by any means to a creature while it has the Reconfigure keyword). While true, the
-    /// permanent is not a creature and loses creature subtypes (ruling 2022-02-18).
-    ///
-    /// This flag persists even if the Reconfigure keyword is subsequently removed
-    /// (e.g., by Humility or Dress Down) -- the "not a creature" effect continues
-    /// until the permanent becomes unattached (CR 702.151b; ruling 2022-02-18:
-    /// "if an Equipment with reconfigure loses its abilities while attached, the
-    /// effect causing it to not be a creature continues to apply").
-    ///
-    /// Set by `Effect::AttachEquipment` when the equipment has Reconfigure.
-    /// Cleared by `Effect::DetachEquipment`, SBA unattach, and zone changes (CR 400.7).
-    #[serde(default)]
-    pub is_reconfigured: bool,
     /// CR 729.2: Components of a merged permanent (Mutate, CR 702.140).
     ///
     /// Empty for unmerged permanents (the common case — NOT a vec of one).

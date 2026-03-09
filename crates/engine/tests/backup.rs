@@ -76,30 +76,11 @@ fn cast_and_resolve(
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -274,7 +255,7 @@ fn test_backup_etb_generates_trigger() {
     assert!(
         matches!(
             state.stack_objects.back().map(|s| &s.kind),
-            Some(StackObjectKind::BackupTrigger { .. })
+            Some(StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Backup(_), .. })
         ),
         "CR 702.165a: Stack object should be BackupTrigger kind"
     );
@@ -448,7 +429,7 @@ fn test_backup_multiple_instances_trigger_separately() {
     let backup_triggers: Vec<_> = state
         .stack_objects
         .iter()
-        .filter(|s| matches!(&s.kind, StackObjectKind::BackupTrigger { .. }))
+        .filter(|s| matches!(&s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Backup(_), .. }))
         .collect();
     assert_eq!(
         backup_triggers.len(),
@@ -704,17 +685,20 @@ fn test_backup_trigger_stack_object_structure() {
     let trigger = state
         .stack_objects
         .iter()
-        .find(|s| matches!(&s.kind, StackObjectKind::BackupTrigger { .. }))
+        .find(|s| matches!(&s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Backup(_), .. }))
         .expect("BackupTrigger should be on stack");
 
     let valkyrie_id = find_object_in_zone(&state, "Backup Valkyrie", ZoneId::Battlefield)
         .expect("Valkyrie should be on battlefield");
 
-    if let StackObjectKind::BackupTrigger {
+    if let StackObjectKind::KeywordTrigger {
         source_object,
-        target_creature,
-        counter_count,
-        abilities_to_grant,
+        keyword: KeywordAbility::Backup(_),
+        data: mtg_engine::state::stack::TriggerData::ETBBackup {
+            target,
+            count,
+            abilities,
+        },
     } = &trigger.kind
     {
         // Source is the Backup Valkyrie.
@@ -724,17 +708,17 @@ fn test_backup_trigger_stack_object_structure() {
         );
         // Default target is self (deterministic bot behavior).
         assert_eq!(
-            *target_creature, valkyrie_id,
+            *target, valkyrie_id,
             "CR 702.165a: Default target should be self (deterministic)"
         );
         // Counter count should be 1 (Backup 1).
         assert_eq!(
-            *counter_count, 1,
+            *count, 1,
             "CR 702.165a: counter_count should be N from Backup N"
         );
         // Self-targeting: abilities_to_grant should be EMPTY (CR 702.165a "if that's another creature").
         assert!(
-            abilities_to_grant.is_empty(),
+            abilities.is_empty(),
             "CR 702.165a: Self-targeting BackupTrigger must have empty abilities_to_grant"
         );
     } else {
@@ -843,11 +827,14 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
     let backup_trigger = StackObject {
         id: trigger_id,
         controller: p1,
-        kind: StackObjectKind::BackupTrigger {
+        kind: StackObjectKind::KeywordTrigger {
             source_object: source_id,
-            target_creature: bear_id,
-            counter_count: 1,
-            abilities_to_grant: vec![KeywordAbility::Flying, KeywordAbility::FirstStrike],
+            keyword: KeywordAbility::Backup(1),
+            data: mtg_engine::state::stack::TriggerData::ETBBackup {
+                target: bear_id,
+                count: 1,
+                abilities: vec![KeywordAbility::Flying, KeywordAbility::FirstStrike],
+            },
         },
         targets: vec![],
         cant_be_countered: false,
@@ -874,22 +861,13 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     };
     state.stack_objects.push_back(backup_trigger);
 

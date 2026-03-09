@@ -25,9 +25,9 @@ use crate::cards::card_definition::{AbilityDefinition, TargetController, TargetR
 use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::error::GameStateError;
-use crate::state::game_object::{Characteristics, ManaCost, ObjectId};
+use crate::state::game_object::{Characteristics, Designations, ManaCost, ObjectId};
 use crate::state::player::PlayerId;
-use crate::state::stack::{StackObject, StackObjectKind};
+use crate::state::stack::{StackObject, StackObjectKind, TriggerData};
 use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
@@ -62,31 +62,105 @@ pub fn handle_cast_spell(
     delve_cards: Vec<ObjectId>,
     kicker_times: u32,
     alt_cost: Option<AltCostKind>,
-    escape_exile_cards: Vec<ObjectId>,
-    retrace_discard_land: Option<ObjectId>,
-    jump_start_discard: Option<ObjectId>,
     prototype: bool,
-    bargain_sacrifice: Option<ObjectId>,
-    emerge_sacrifice: Option<ObjectId>,
-    casualty_sacrifice: Option<ObjectId>,
-    assist_player: Option<PlayerId>,
-    assist_amount: u32,
-    replicate_count: u32,
-    splice_cards: Vec<ObjectId>,
-    entwine_paid: bool,
-    escalate_modes: u32,
-    devour_sacrifices: Vec<ObjectId>,
     mut modes_chosen: Vec<usize>,
-    fuse: bool,
     x_value: u32,
-    collect_evidence_cards: Vec<ObjectId>,
-    squad_count: u32,
-    offspring_paid: bool,
-    gift_opponent: Option<crate::state::PlayerId>,
-    mutate_target: Option<ObjectId>,
-    mutate_on_top: bool,
     _face_down_kind: Option<crate::state::types::FaceDownKind>,
+    additional_costs: Vec<crate::state::types::AdditionalCost>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
+    // RC-1 Session 3: Extract individual additional-cost values from the consolidated vec.
+    // These local variables replace the old individual parameters.
+    use crate::state::types::AdditionalCost;
+
+    let retrace_discard_land: Option<ObjectId> = additional_costs.iter().find_map(|c| match c {
+        AdditionalCost::Discard(ids) => ids.first().copied(),
+        _ => None,
+    });
+    // Jump-start discard: same Discard variant. Retrace and Jump-Start are mutually exclusive
+    // (retrace requires AltCostKind::Retrace, jump-start requires AltCostKind::JumpStart).
+    let jump_start_discard: Option<ObjectId> = retrace_discard_land;
+
+    let escape_exile_cards: Vec<ObjectId> = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::EscapeExile { cards } => Some(cards.clone()),
+            _ => None,
+        })
+        .unwrap_or_default();
+    let collect_evidence_cards: Vec<ObjectId> = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::CollectEvidenceExile { cards } => Some(cards.clone()),
+            _ => None,
+        })
+        .unwrap_or_default();
+
+    let (assist_player, assist_amount): (Option<PlayerId>, u32) = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::Assist { player, amount } => Some((Some(*player), *amount)),
+            _ => None,
+        })
+        .unwrap_or((None, 0));
+
+    let replicate_count: u32 = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::Replicate { count } => Some(*count),
+            _ => None,
+        })
+        .unwrap_or(0);
+
+    let squad_count: u32 = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::Squad { count } => Some(*count),
+            _ => None,
+        })
+        .unwrap_or(0);
+
+    let escalate_modes: u32 = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::EscalateModes { count } => Some(*count),
+            _ => None,
+        })
+        .unwrap_or(0);
+
+    let splice_cards: Vec<ObjectId> = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::Splice { cards } => Some(cards.clone()),
+            _ => None,
+        })
+        .unwrap_or_default();
+
+    let entwine_paid: bool = additional_costs
+        .iter()
+        .any(|c| matches!(c, AdditionalCost::Entwine));
+
+    let fuse: bool = additional_costs
+        .iter()
+        .any(|c| matches!(c, AdditionalCost::Fuse));
+
+    let offspring_paid: bool = additional_costs
+        .iter()
+        .any(|c| matches!(c, AdditionalCost::Offspring));
+
+    let gift_opponent: Option<crate::state::PlayerId> =
+        additional_costs.iter().find_map(|c| match c {
+            AdditionalCost::Gift { opponent } => Some(*opponent),
+            _ => None,
+        });
+
+    let (mutate_target, _mutate_on_top): (Option<ObjectId>, bool) = additional_costs
+        .iter()
+        .find_map(|c| match c {
+            AdditionalCost::Mutate { target, on_top } => Some((Some(*target), *on_top)),
+            _ => None,
+        })
+        .unwrap_or((None, false));
+
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
     let cast_with_mutate = alt_cost == Some(AltCostKind::Mutate);
@@ -111,6 +185,42 @@ pub fn handle_cast_spell(
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
+
+    // RC-1: Extract sacrifice ObjectIds from additional_costs.
+    // A single helper extracts the first Sacrifice entry.
+    // Disambiguation: emerge uses alt_cost == Emerge; bargain/casualty/devour are
+    // determined by the spell's keywords (checked at each usage site below).
+    let sacrifice_from_additional_costs: Option<ObjectId> = additional_costs.iter().find_map(|c| {
+        if let crate::state::types::AdditionalCost::Sacrifice(ids) = c {
+            ids.first().copied()
+        } else {
+            None
+        }
+    });
+
+    // For emerge, the sacrifice is only valid when alt_cost is Emerge.
+    let emerge_sacrifice: Option<ObjectId> = if cast_with_emerge {
+        sacrifice_from_additional_costs
+    } else {
+        None
+    };
+
+    // For bargain/casualty, the sacrifice is the same ID (from additional_costs)
+    // but only used when the spell has the respective keyword. The validation code
+    // below checks the keyword before consuming the sacrifice. Both bargain and
+    // casualty reference the same field, but they're mutually exclusive in practice
+    // (no card has both Bargain and Casualty keywords).
+    let bargain_sacrifice: Option<ObjectId> = if !cast_with_emerge {
+        sacrifice_from_additional_costs
+    } else {
+        None
+    };
+    let casualty_sacrifice: Option<ObjectId> = if !cast_with_emerge {
+        sacrifice_from_additional_costs
+    } else {
+        None
+    };
+
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -220,7 +330,7 @@ pub fn handle_cast_spell(
                     "foretell: card must be in exile (CR 702.143a)".into(),
                 ));
             }
-            if !card_obj.is_foretold {
+            if !card_obj.designations.contains(Designations::FORETOLD) {
                 return Err(GameStateError::InvalidCommand(
                     "foretell: card was not foretold (CR 702.143a)".into(),
                 ));
@@ -2261,30 +2371,30 @@ pub fn handle_cast_spell(
     // Gift is an optional additional cost: the player MAY choose an opponent as an additional
     // cost to cast this spell. Unlike most additional costs, Gift has no mana component --
     // choosing an opponent IS the cost (CR 702.174a). The gift effect fires at resolution.
-    let gift_chosen_opponent: Option<crate::state::PlayerId> = if let Some(opponent) = gift_opponent
-    {
-        // Validate the spell has Gift keyword.
-        if !chars.keywords.contains(&KeywordAbility::Gift) {
-            return Err(GameStateError::InvalidCommand(
-                "spell does not have gift (CR 702.174a)".into(),
-            ));
-        }
-        // Validate the chosen player is not the caster (must be an opponent).
-        if opponent == player {
-            return Err(GameStateError::InvalidCommand(
-                "gift: must choose an opponent, not yourself (CR 702.174a)".into(),
-            ));
-        }
-        // Validate the chosen player is in the game (not eliminated).
-        if !state.active_players().contains(&opponent) {
-            return Err(GameStateError::InvalidCommand(
-                "gift: chosen opponent is not in the game (CR 702.174a)".into(),
-            ));
-        }
-        Some(opponent)
-    } else {
-        None
-    };
+    let _gift_chosen_opponent: Option<crate::state::PlayerId> =
+        if let Some(opponent) = gift_opponent {
+            // Validate the spell has Gift keyword.
+            if !chars.keywords.contains(&KeywordAbility::Gift) {
+                return Err(GameStateError::InvalidCommand(
+                    "spell does not have gift (CR 702.174a)".into(),
+                ));
+            }
+            // Validate the chosen player is not the caster (must be an opponent).
+            if opponent == player {
+                return Err(GameStateError::InvalidCommand(
+                    "gift: must choose an opponent, not yourself (CR 702.174a)".into(),
+                ));
+            }
+            // Validate the chosen player is in the game (not eliminated).
+            if !state.active_players().contains(&opponent) {
+                return Err(GameStateError::InvalidCommand(
+                    "gift: chosen opponent is not in the game (CR 702.174a)".into(),
+                ));
+            }
+            Some(opponent)
+        } else {
+            None
+        };
 
     // CR 702.42a / 601.2b / 601.2f-h: Entwine -- if the player declared intent to pay the entwine
     // cost, validate the spell has KeywordAbility::Entwine and add the entwine cost to the total.
@@ -2653,44 +2763,46 @@ pub fn handle_cast_spell(
     // enchantment, or token as an additional cost to cast this spell. The sacrifice
     // is paid during cost payment (CR 601.2h), after mana payment.
     let bargain_sacrifice_id: Option<ObjectId> = if let Some(sac_id) = bargain_sacrifice {
-        // Validate the spell has Bargain keyword.
+        // RC-1: After consolidation, a Sacrifice in additional_costs may be for
+        // casualty or devour, not bargain. Skip silently when the spell lacks
+        // the Bargain keyword instead of returning an error.
         if !chars.keywords.contains(&KeywordAbility::Bargain) {
-            return Err(GameStateError::InvalidCommand(
-                "spell does not have bargain (CR 702.166a)".into(),
-            ));
+            None
+        } else {
+            // Validate the sacrifice target is on the battlefield.
+            let (sac_zone, sac_controller, sac_is_token) = {
+                let sac_obj = state.object(sac_id)?;
+                (sac_obj.zone, sac_obj.controller, sac_obj.is_token)
+            };
+            if sac_zone != ZoneId::Battlefield {
+                return Err(GameStateError::InvalidCommand(
+                    "bargain: sacrifice target must be on the battlefield (CR 702.166a)".into(),
+                ));
+            }
+            if sac_controller != player {
+                return Err(GameStateError::InvalidCommand(
+                    "bargain: sacrifice target must be controlled by the caster (CR 702.166a)"
+                        .into(),
+                ));
+            }
+            // Must be an artifact, enchantment, or token.
+            let sac_chars = calculate_characteristics(state, sac_id)
+                .or_else(|| {
+                    state
+                        .objects
+                        .get(&sac_id)
+                        .map(|o| o.characteristics.clone())
+                })
+                .unwrap_or_default();
+            let is_artifact = sac_chars.card_types.contains(&CardType::Artifact);
+            let is_enchantment = sac_chars.card_types.contains(&CardType::Enchantment);
+            if !is_artifact && !is_enchantment && !sac_is_token {
+                return Err(GameStateError::InvalidCommand(
+                    "bargain: sacrifice target must be an artifact, enchantment, or token (CR 702.166a)".into(),
+                ));
+            }
+            Some(sac_id)
         }
-        // Validate the sacrifice target is on the battlefield.
-        let (sac_zone, sac_controller, sac_is_token) = {
-            let sac_obj = state.object(sac_id)?;
-            (sac_obj.zone, sac_obj.controller, sac_obj.is_token)
-        };
-        if sac_zone != ZoneId::Battlefield {
-            return Err(GameStateError::InvalidCommand(
-                "bargain: sacrifice target must be on the battlefield (CR 702.166a)".into(),
-            ));
-        }
-        if sac_controller != player {
-            return Err(GameStateError::InvalidCommand(
-                "bargain: sacrifice target must be controlled by the caster (CR 702.166a)".into(),
-            ));
-        }
-        // Must be an artifact, enchantment, or token.
-        let sac_chars = calculate_characteristics(state, sac_id)
-            .or_else(|| {
-                state
-                    .objects
-                    .get(&sac_id)
-                    .map(|o| o.characteristics.clone())
-            })
-            .unwrap_or_default();
-        let is_artifact = sac_chars.card_types.contains(&CardType::Artifact);
-        let is_enchantment = sac_chars.card_types.contains(&CardType::Enchantment);
-        if !is_artifact && !is_enchantment && !sac_is_token {
-            return Err(GameStateError::InvalidCommand(
-                "bargain: sacrifice target must be an artifact, enchantment, or token (CR 702.166a)".into(),
-            ));
-        }
-        Some(sac_id)
     } else {
         None
     };
@@ -2700,7 +2812,9 @@ pub fn handle_cast_spell(
     // with power N or greater as an additional cost to cast this spell.
     // The sacrifice is paid during cost payment (CR 601.2h), after mana payment.
     let casualty_sacrifice_id: Option<ObjectId> = if let Some(sac_id) = casualty_sacrifice {
-        // Validate the spell has Casualty keyword (any N value).
+        // RC-1: After consolidation, a Sacrifice in additional_costs may be for
+        // bargain or devour, not casualty. Skip silently when the spell lacks
+        // the Casualty keyword.
         let casualty_n = chars.keywords.iter().find_map(|kw| {
             if let KeywordAbility::Casualty(n) = kw {
                 Some(*n)
@@ -2708,52 +2822,49 @@ pub fn handle_cast_spell(
                 None
             }
         });
-        let casualty_n = match casualty_n {
-            Some(n) => n,
-            None => {
+        if let Some(casualty_n) = casualty_n {
+            // Validate the sacrifice target is on the battlefield.
+            let (sac_zone, sac_controller) = {
+                let sac_obj = state.object(sac_id)?;
+                (sac_obj.zone, sac_obj.controller)
+            };
+            if sac_zone != ZoneId::Battlefield {
                 return Err(GameStateError::InvalidCommand(
-                    "spell does not have casualty (CR 702.153a)".into(),
+                    "casualty: sacrifice target must be on the battlefield (CR 702.153a)".into(),
                 ));
             }
-        };
-        // Validate the sacrifice target is on the battlefield.
-        let (sac_zone, sac_controller) = {
-            let sac_obj = state.object(sac_id)?;
-            (sac_obj.zone, sac_obj.controller)
-        };
-        if sac_zone != ZoneId::Battlefield {
-            return Err(GameStateError::InvalidCommand(
-                "casualty: sacrifice target must be on the battlefield (CR 702.153a)".into(),
-            ));
+            if sac_controller != player {
+                return Err(GameStateError::InvalidCommand(
+                    "casualty: sacrifice target must be controlled by the caster (CR 702.153a)"
+                        .into(),
+                ));
+            }
+            // Must be a creature (by layer-resolved characteristics).
+            let sac_chars = calculate_characteristics(state, sac_id)
+                .or_else(|| {
+                    state
+                        .objects
+                        .get(&sac_id)
+                        .map(|o| o.characteristics.clone())
+                })
+                .unwrap_or_default();
+            if !sac_chars.card_types.contains(&CardType::Creature) {
+                return Err(GameStateError::InvalidCommand(
+                    "casualty: sacrifice target must be a creature (CR 702.153a)".into(),
+                ));
+            }
+            // Must have power >= N (use layer-resolved power, not raw).
+            let sac_power = sac_chars.power.unwrap_or(0);
+            if sac_power < casualty_n as i32 {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "casualty: sacrificed creature power {} is less than required {} (CR 702.153a)",
+                    sac_power, casualty_n
+                )));
+            }
+            Some(sac_id)
+        } else {
+            None
         }
-        if sac_controller != player {
-            return Err(GameStateError::InvalidCommand(
-                "casualty: sacrifice target must be controlled by the caster (CR 702.153a)".into(),
-            ));
-        }
-        // Must be a creature (by layer-resolved characteristics).
-        let sac_chars = calculate_characteristics(state, sac_id)
-            .or_else(|| {
-                state
-                    .objects
-                    .get(&sac_id)
-                    .map(|o| o.characteristics.clone())
-            })
-            .unwrap_or_default();
-        if !sac_chars.card_types.contains(&CardType::Creature) {
-            return Err(GameStateError::InvalidCommand(
-                "casualty: sacrifice target must be a creature (CR 702.153a)".into(),
-            ));
-        }
-        // Must have power >= N (use layer-resolved power, not raw).
-        let sac_power = sac_chars.power.unwrap_or(0);
-        if sac_power < casualty_n as i32 {
-            return Err(GameStateError::InvalidCommand(format!(
-                "casualty: sacrificed creature power {} is less than required {} (CR 702.153a)",
-                sac_power, casualty_n
-            )));
-        }
-        Some(sac_id)
     } else {
         None
     };
@@ -3364,15 +3475,35 @@ pub fn handle_cast_spell(
         })
         .collect();
 
-    // CR 702.82a: Validate devour_sacrifices -- each ObjectId must be:
+    // CR 702.82a: Validate devour sacrifices from additional_costs -- each ObjectId must be:
     // - On the battlefield, controlled by the caster
     // - A creature (by current characteristics)
     // - Not duplicated (no ObjectId appears twice)
     // - Not the card being cast (new_card_id is now on the stack, but card is the original)
     //
+    // RC-1: Devour sacrifices are extracted from AdditionalCost::Sacrifice in additional_costs.
+    // The spell must have the Devour keyword; otherwise the Sacrifice is for bargain/casualty.
     // The actual sacrifice and counter placement happen at resolution (ETB replacement),
     // not here. We validate at cast time for early error detection.
-    let validated_devour_sacrifices: Vec<ObjectId> = if !devour_sacrifices.is_empty() {
+    let devour_sacrifices: Vec<ObjectId> = additional_costs
+        .iter()
+        .find_map(|c| {
+            if let crate::state::types::AdditionalCost::Sacrifice(ids) = c {
+                if chars
+                    .keywords
+                    .iter()
+                    .any(|kw| matches!(kw, KeywordAbility::Devour(_)))
+                {
+                    Some(ids.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
+    let _validated_devour_sacrifices: Vec<ObjectId> = if !devour_sacrifices.is_empty() {
         // Check for duplicates.
         let mut seen = std::collections::HashSet::new();
         for &id in &devour_sacrifices {
@@ -3566,53 +3697,29 @@ pub fn handle_cast_spell(
         was_casualty_paid: casualty_sacrifice_id.is_some(),
         // CR 702.148a: Record whether this spell was cast by paying its cleave cost.
         was_cleaved: casting_with_cleave,
-        // CR 702.42a: Record whether this spell was cast with its entwine cost paid.
-        was_entwined: entwine_paid,
-        // CR 702.120a: Record how many extra modes were paid for via escalate.
-        escalate_modes_paid: escalate_modes,
+        // was_entwined: REMOVED — read from AdditionalCost::Entwine in additional_costs
+        // escalate_modes_paid: REMOVED — read from AdditionalCost::EscalateModes in additional_costs
         // CR 702.47a: Spliced effects collected during splice validation above.
         // These are executed after the main spell effect at resolution (CR 702.47b).
         spliced_effects: collected_spliced_effects,
         // CR 702.47a: ObjectIds of cards spliced onto this spell (for display/validation).
         spliced_card_ids: collected_spliced_ids,
-        // CR 702.82a: Creatures to sacrifice at ETB time (validated below).
-        devour_sacrifices: validated_devour_sacrifices,
+        // devour_sacrifices: REMOVED — devour IDs read from additional_costs at resolution
         // CR 700.2a / 601.2b: Mode indices chosen at cast time. Validated below.
         // Empty = auto-select mode[0] (backward compatible).
         modes_chosen: validated_modes_chosen,
-        // CR 702.102a: Whether this spell was cast as a fused split spell (both halves from hand).
-        was_fused: casting_with_fuse,
+        // was_fused: REMOVED — read from AdditionalCost::Fuse in additional_costs
         // CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
         x_value,
         // CR 701.59c: Record whether this spell was cast with collect evidence cost paid.
         // Used by Condition::EvidenceWasCollected at resolution time (linked ability, CR 607).
         evidence_collected: evidence_was_collected,
-        // CR 702.157a: Number of times the squad cost was paid as an additional cost.
-        // 0 = not paid. N = paid N times -> N token copies created on ETB by SquadTrigger.
-        squad_count,
-        // CR 702.175a: Whether the offspring cost was paid as an additional cost.
-        // false = not paid. true = paid -> 1 token copy (except 1/1) created on ETB by OffspringTrigger.
-        offspring_paid,
-        // CR 702.174a: Whether the gift cost was paid (gift_opponent was chosen at cast time).
-        gift_was_given: gift_chosen_opponent.is_some(),
-        gift_opponent: gift_chosen_opponent,
-        // CR 702.140a / CR 729.2: Mutate target and over/under choice.
-        // Propagated from the CastSpell command. Non-None only when cast_with_mutate is true.
-        // `mutate_on_top: true` means the mutating spell's card goes on top (its characteristics
-        // become the merged permanent's characteristics, per CR 729.2a).
-        mutate_target: if cast_with_mutate {
-            mutate_target
-        } else {
-            None
-        },
-        mutate_on_top: if cast_with_mutate {
-            mutate_on_top
-        } else {
-            false
-        },
+        // squad_count, offspring_paid, gift_was_given, gift_opponent, mutate_target,
+        // mutate_on_top: ALL REMOVED — read from additional_costs at resolution
         // CR 702.146a / CR 712.11a: When cast with disturb, the spell has its back face up.
         // This flag propagates to the permanent when it enters the battlefield.
         is_cast_transformed: cast_with_disturb,
+        additional_costs,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3752,10 +3859,13 @@ pub fn handle_cast_spell(
         let trigger_obj = StackObject {
             id: trigger_id,
             controller: player,
-            kind: StackObjectKind::StormTrigger {
+            kind: StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
-                original_stack_id: stack_entry_id,
-                storm_count: count,
+                keyword: KeywordAbility::Storm,
+                data: TriggerData::SpellCopy {
+                    original_stack_id: stack_entry_id,
+                    copy_count: count,
+                },
             },
             targets: vec![],
             cant_be_countered: false,
@@ -3784,29 +3894,20 @@ pub fn handle_cast_spell(
             // CR 702.148a: trigger/copy stack objects are not cleave casts.
             was_cleaved: false,
             // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            was_entwined: false,
             // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            escalate_modes_paid: 0,
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
-            devour_sacrifices: vec![],
             // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
-            was_fused: false,
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            squad_count: 0,
-            offspring_paid: false,
             // CR 702.174a: trigger/copy stack objects are never gift casts.
-            gift_was_given: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             is_cast_transformed: false,
+            additional_costs: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3830,10 +3931,13 @@ pub fn handle_cast_spell(
         let trigger_obj = StackObject {
             id: trigger_id,
             controller: player,
-            kind: StackObjectKind::GravestormTrigger {
+            kind: StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
-                original_stack_id: stack_entry_id,
-                gravestorm_count: count,
+                keyword: KeywordAbility::Gravestorm,
+                data: TriggerData::SpellCopy {
+                    original_stack_id: stack_entry_id,
+                    copy_count: count,
+                },
             },
             targets: vec![],
             cant_be_countered: false,
@@ -3862,29 +3966,20 @@ pub fn handle_cast_spell(
             // CR 702.148a: trigger/copy stack objects are not cleave casts.
             was_cleaved: false,
             // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            was_entwined: false,
             // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            escalate_modes_paid: 0,
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
-            devour_sacrifices: vec![],
             // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
-            was_fused: false,
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            squad_count: 0,
-            offspring_paid: false,
             // CR 702.174a: trigger/copy stack objects are never gift casts.
-            gift_was_given: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             is_cast_transformed: false,
+            additional_costs: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3910,9 +4005,12 @@ pub fn handle_cast_spell(
         let trigger_obj = StackObject {
             id: trigger_id,
             controller: player,
-            kind: StackObjectKind::CascadeTrigger {
+            kind: StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
-                spell_mana_value: spell_mv,
+                keyword: KeywordAbility::Cascade,
+                data: TriggerData::CascadeExile {
+                    spell_mana_value: spell_mv,
+                },
             },
             targets: vec![],
             cant_be_countered: false,
@@ -3941,29 +4039,20 @@ pub fn handle_cast_spell(
             // CR 702.148a: trigger/copy stack objects are not cleave casts.
             was_cleaved: false,
             // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            was_entwined: false,
             // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            escalate_modes_paid: 0,
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
-            devour_sacrifices: vec![],
             // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
-            was_fused: false,
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            squad_count: 0,
-            offspring_paid: false,
             // CR 702.174a: trigger/copy stack objects are never gift casts.
-            gift_was_given: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             is_cast_transformed: false,
+            additional_costs: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3983,9 +4072,12 @@ pub fn handle_cast_spell(
         let trigger_obj = StackObject {
             id: trigger_id,
             controller: player,
-            kind: StackObjectKind::CasualtyTrigger {
+            kind: StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
-                original_stack_id: stack_entry_id,
+                keyword: KeywordAbility::Casualty(0),
+                data: TriggerData::CasualtyCopy {
+                    original_stack_id: stack_entry_id,
+                },
             },
             targets: vec![],
             cant_be_countered: false,
@@ -4014,29 +4106,20 @@ pub fn handle_cast_spell(
             // CR 702.148a: trigger/copy stack objects are not cleave casts.
             was_cleaved: false,
             // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            was_entwined: false,
             // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            escalate_modes_paid: 0,
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
-            devour_sacrifices: vec![],
             // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
-            was_fused: false,
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            squad_count: 0,
-            offspring_paid: false,
             // CR 702.174a: trigger/copy stack objects are never gift casts.
-            gift_was_given: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             is_cast_transformed: false,
+            additional_costs: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -4057,10 +4140,13 @@ pub fn handle_cast_spell(
         let trigger_obj = StackObject {
             id: trigger_id,
             controller: player,
-            kind: StackObjectKind::ReplicateTrigger {
+            kind: StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
-                original_stack_id: stack_entry_id,
-                replicate_count,
+                keyword: KeywordAbility::Replicate,
+                data: TriggerData::SpellCopy {
+                    original_stack_id: stack_entry_id,
+                    copy_count: replicate_count,
+                },
             },
             targets: vec![],
             cant_be_countered: false,
@@ -4089,29 +4175,20 @@ pub fn handle_cast_spell(
             // CR 702.148a: trigger/copy stack objects are not cleave casts.
             was_cleaved: false,
             // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            was_entwined: false,
             // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            escalate_modes_paid: 0,
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
-            devour_sacrifices: vec![],
             // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
-            was_fused: false,
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            squad_count: 0,
-            offspring_paid: false,
             // CR 702.174a: trigger/copy stack objects are never gift casts.
-            gift_was_given: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             is_cast_transformed: false,
+            additional_costs: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -4141,9 +4218,8 @@ pub fn handle_cast_spell(
 
 /// CR 702.34a / CR 118.9: Look up the flashback cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Flashback { cost }`, or `None`
-/// if the card has no definition or no flashback ability defined. When `None` is returned,
-/// no mana payment is required (free flashback — rare, but correct per CR 118.9).
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, .. }`,
+/// or `None` if the card has no definition or no flashback ability defined.
 fn get_flashback_cost(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
@@ -4151,7 +4227,7 @@ fn get_flashback_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Flashback { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -4354,7 +4430,7 @@ fn get_miracle_cost(
 
 /// CR 702.138a / CR 118.9: Look up the escape cost from the card's `AbilityDefinition`.
 ///
-/// Returns `Some((ManaCost, exile_count))` from `AbilityDefinition::Escape { cost, exile_count }`,
+/// Returns `Some((ManaCost, exile_count))` from `AbilityDefinition::AltCastAbility { kind: AltCostKind::Escape, .. }`,
 /// or `None` if the card has no escape ability definition.
 fn get_escape_cost(
     card_id: &Option<crate::state::CardId>,
@@ -4363,7 +4439,12 @@ fn get_escape_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Escape { cost, exile_count } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Escape,
+                    cost,
+                    details: Some(crate::cards::card_definition::AltCastDetails::Escape { exile_count }),
+                } = a
+                {
                     Some((cost.clone(), *exile_count))
                 } else {
                     None
@@ -4441,8 +4522,8 @@ fn get_aftermath_card_type(
 
 /// CR 702.152a: Look up the blitz cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Blitz { cost }`, or `None`
-/// if the card has no definition or no blitz ability defined.
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Blitz, .. }`,
+/// or `None` if the card has no definition or no blitz ability defined.
 fn get_blitz_cost(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
@@ -4450,7 +4531,7 @@ fn get_blitz_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Blitz { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Blitz, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -4462,8 +4543,8 @@ fn get_blitz_cost(
 
 /// CR 702.109a: Look up the dash cost from the card's `AbilityDefinition`.
 ///
-/// Returns the `ManaCost` stored in `AbilityDefinition::Dash { cost }`, or `None`
-/// if the card has no definition or no dash ability defined.
+/// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Dash, .. }`,
+/// or `None` if the card has no definition or no dash ability defined.
 fn get_dash_cost(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
@@ -4471,7 +4552,7 @@ fn get_dash_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Dash { cost } = a {
+                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Dash, cost, .. } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -4941,6 +5022,19 @@ fn validate_targets(
                         id
                     )));
                 }
+                // CR 702.16b: a player with protection from a quality cannot be targeted
+                // by sources that match that quality.
+                if let Some(sc) = source_chars {
+                    for quality in &player.protection_qualities {
+                        if crate::rules::protection::has_protection_from_source_quality(quality, sc)
+                        {
+                            return Err(GameStateError::InvalidTarget(format!(
+                                "player {:?} has protection from the source and cannot be targeted",
+                                id
+                            )));
+                        }
+                    }
+                }
                 // CR 601.2c: Validate the target satisfies the declared requirement.
                 if let Some(req) = req {
                     validate_player_satisfies_requirement(*id, req)?;
@@ -5348,7 +5442,7 @@ fn apply_undaunted_reduction(
 
 /// CR 702.160a: Extract prototype data (cost, power, toughness) from a card definition.
 ///
-/// Returns `Some((cost, power, toughness))` if the card has `AbilityDefinition::Prototype`,
+/// Returns `Some((cost, power, toughness))` if the card has `AbilityDefinition::AltCastAbility { kind: AltCostKind::Prototype, .. }`,
 /// or `None` if the card has no definition or no prototype ability defined.
 pub(crate) fn get_prototype_data(
     card_id: &Option<crate::state::CardId>,
@@ -5357,10 +5451,10 @@ pub(crate) fn get_prototype_data(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::Prototype {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Prototype,
                     cost,
-                    power,
-                    toughness,
+                    details: Some(crate::cards::card_definition::AltCastDetails::Prototype { power, toughness }),
                 } = a
                 {
                     Some((cost.clone(), *power, *toughness))

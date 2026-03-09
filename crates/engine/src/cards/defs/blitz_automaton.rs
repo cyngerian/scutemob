@@ -16,10 +16,10 @@ pub fn card() -> CardDefinition {
             // CR 702.160: Keyword marker for quick presence-checking
             AbilityDefinition::Keyword(KeywordAbility::Prototype),
             // CR 702.160 / CR 718: Full Prototype data — prototype cost and P/T
-            AbilityDefinition::Prototype {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Prototype,
                 cost: ManaCost { generic: 2, red: 1, ..Default::default() },
-                power: 3,
-                toughness: 2,
+                details: Some(AltCastDetails::Prototype { power: 3, toughness: 2 }),
             },
             AbilityDefinition::Keyword(KeywordAbility::Haste),
         ],

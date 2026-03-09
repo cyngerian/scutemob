@@ -95,6 +95,17 @@ pub fn attachment_is_illegal_due_to_protection(
     has_protection_from_source(target_keywords, attachment_chars)
 }
 
+/// CR 702.16b/e: Check if a single `ProtectionQuality` matches a source's characteristics.
+///
+/// Convenience helper for player protection checks, where protection qualities are stored
+/// as a `Vec<ProtectionQuality>` on `PlayerState` rather than inside `KeywordAbility` entries.
+pub fn has_protection_from_source_quality(
+    quality: &ProtectionQuality,
+    source_chars: &Characteristics,
+) -> bool {
+    matches_quality(quality, source_chars)
+}
+
 /// Retrieve the computed characteristics of the source object, if available.
 ///
 /// Convenience wrapper for callers that need source characteristics for protection

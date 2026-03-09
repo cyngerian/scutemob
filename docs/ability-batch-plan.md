@@ -6,7 +6,7 @@
 >
 > **Companion doc**: `docs/workstream-coordination.md` (cross-workstream coordination)
 >
-> **Last updated**: 2026-02-28
+> **Last updated**: 2026-03-09
 
 ---
 
@@ -35,37 +35,34 @@ batches, **1 batch per session** for complex ones. ~12-15 sessions total.
 
 ---
 
-## Blocked Abilities (implement later when subsystems are built)
+## Previously Blocked Abilities (NOW COMPLETE)
 
-### Morph/Face-Down Subsystem (5 abilities)
+### Morph/Face-Down Subsystem (5 abilities) — COMPLETE (2026-03-08)
 
-Needs: face-down casting path, characteristic suppression in layers, turn-face-up
-special action, face-down battlefield state management.
+Implemented as Morph mini-milestone: FaceDownKind enum, AltCostKind::Morph, Command::TurnFaceUp,
+face-down layer override, FaceDownRevealed event, Effect::Manifest/Cloak, Disguise ward-2.
 
-| Ability | CR | Depends on |
-|---------|-----|-----------|
-| Morph | 702.37 | Face-down subsystem |
-| Megamorph | 702.37 | Morph + counter |
-| Disguise | 702.162 | Morph + Ward {2} |
-| Manifest | 701.34 | Face-down subsystem |
-| Cloak | 701.56 | Manifest + Ward {2} |
+| Ability | CR | Status |
+|---------|-----|--------|
+| Morph | 702.37 | **Complete** |
+| Megamorph | 702.37 | **Complete** |
+| Disguise | 702.162 | **Complete** |
+| Manifest | 701.40 | **Complete** |
+| Cloak | 701.58 | **Complete** |
 
-### Transform/DFC Subsystem (4 abilities)
+### Transform/DFC Subsystem (4 abilities) — COMPLETE (2026-03-08)
 
-Needs: second face on CardDefinition, `transformed: bool` on GameObject,
-Transform keyword action, day/night global state.
+Implemented as Transform mini-milestone: CardFace struct, is_transformed on GameObject,
+DayNight enum, layer system DFC face resolution, AltCostKind::Disturb, Craft activation.
 
-| Ability | CR | Depends on |
-|---------|-----|-----------|
-| Transform | 701.28 | DFC second face |
-| Disturb | 702.146 | Transform |
-| Daybound/Nightbound | 702.145 | Transform + day/night cycle |
-| Craft | 702.158 | Transform |
+| Ability | CR | Status |
+|---------|-----|--------|
+| Transform | 701.28 | **Complete** |
+| Disturb | 702.145 | **Complete** |
+| Daybound/Nightbound | 702.146 | **Complete** |
+| Craft | 702.167 | **Complete** |
 
-**Total blocked: 9 abilities. Defer to a dedicated "face-down & DFC" milestone.**
-
-> **Note**: Phasing was moved to Batch 8 (implementable — `phased_out` field already exists).
-> Mutate has its own mini-milestone after the main batches (see below).
+> **Note**: Phasing was implemented in Batch 8. Mutate completed as its own mini-milestone.
 
 ---
 
@@ -439,15 +436,19 @@ Batches 1-6, 8-10, 12-15 ── all independent, any order
     │   Batch 7.6, 7.7 (Entwine, Escalate)
     │
     ▼
-All batches complete
+All batches complete ✓
     │
     ▼
-Mutate Mini-Milestone (~2-3 sessions)
+Mutate Mini-Milestone ✓
     │
     ▼
-Blocked subsystems (optional dedicated milestone):
-    ├── Face-Down/Morph (5 abilities)
-    └── Transform/DFC (4 abilities)
+Transform/DFC Mini-Milestone ✓
+    │
+    ▼
+Morph/Face-Down Mini-Milestone ✓
+    │
+    ▼
+ALL ABILITIES COMPLETE (93 total)
 ```
 
 Most batches are independent. The only hard dependency is:

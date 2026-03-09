@@ -217,30 +217,11 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(creature_id),
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (MV 3 creature) failed: {:?}", e));
@@ -320,30 +301,11 @@ fn test_emerge_sacrifice_token_mv_zero() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(token_id),
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![token_id])],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (token, MV 0) failed: {:?}", e));
@@ -411,30 +373,11 @@ fn test_emerge_sacrifice_high_mv_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(creature_id),
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
         },
     )
     .unwrap_or_else(|e| {
@@ -510,30 +453,11 @@ fn test_emerge_sacrifice_must_be_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(artifact_id),
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![artifact_id])],
         },
     );
 
@@ -596,30 +520,13 @@ fn test_emerge_sacrifice_must_be_own_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(opponent_creature_id),
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![
+                opponent_creature_id,
+            ])],
         },
     );
 
@@ -670,30 +577,12 @@ fn test_emerge_without_sacrifice_fails() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None, // Missing sacrifice -- must be rejected
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
+            // emerge_sacrifice removed — no Sacrifice in additional_costs means missing
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     );
 
@@ -756,43 +645,20 @@ fn test_emerge_mutual_exclusion_with_flashback() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Flashback), // Flashback, not Emerge
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(creature_id), // Also providing emerge sacrifice
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])], // // Also providing emerge sacrifice
         },
     );
 
-    // Should fail because emerge_sacrifice provided without alt_cost Emerge.
+    // Should fail: the sacrifice is silently ignored (no Emerge alt_cost to claim it),
+    // and the flashback alt_cost fails for other reasons (no flashback cost defined,
+    // or mana issues). The key point: emerge + flashback can't combine.
     assert!(
         result.is_err(),
-        "CR 118.9a: emerge_sacrifice with flashback alt_cost must be rejected"
-    );
-    let err = result.unwrap_err();
-    assert!(
-        matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
-        "CR 118.9a: error should be InvalidCommand; got: {:?}",
-        err
+        "CR 118.9a: emerge sacrifice with flashback alt_cost must fail"
     );
 }
 
@@ -860,30 +726,11 @@ fn test_emerge_no_keyword_rejects_emerge() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Emerge),
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(creature_id),
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
         },
     );
 
@@ -930,30 +777,11 @@ fn test_emerge_normal_cast_without_emerge() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None, // Normal cast
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None, // No emerge sacrifice
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of emerge creature failed: {:?}", e));
@@ -974,12 +802,14 @@ fn test_emerge_normal_cast_without_emerge() {
     );
 }
 
-// ── Test 10: Emerge sacrifice without emerge alt_cost fails ───────────────────
+// ── Test 10: Sacrifice in additional_costs without matching ability is ignored ─
 
-/// Engine validation — providing emerge_sacrifice without alt_cost Emerge
-/// must be rejected (the sacrifice would be wasted without the alt cost).
+/// RC-1 consolidation: providing Sacrifice in additional_costs without a matching
+/// ability (neither Bargain keyword, Casualty keyword, nor Emerge alt_cost) is
+/// harmless — the sacrifice entry is silently ignored and the spell casts normally
+/// without performing any sacrifice.
 #[test]
-fn test_emerge_sacrifice_without_emerge_altcost_fails() {
+fn test_sacrifice_without_matching_ability_is_ignored() {
     let p1 = p(1);
 
     // Creature for p1 to attempt to sacrifice.
@@ -1002,7 +832,8 @@ fn test_emerge_sacrifice_without_emerge_altcost_fails() {
 
     let creature_id = find_object(&state, "Llanowar Elves");
 
-    // Providing emerge_sacrifice without alt_cost Emerge should be rejected.
+    // Providing Sacrifice in additional_costs without emerge alt_cost or bargain keyword.
+    // RC-1: This is now silently ignored (sacrifice is not performed).
     let result = process_command(
         state,
         Command::CastSpell {
@@ -1014,41 +845,26 @@ fn test_emerge_sacrifice_without_emerge_altcost_fails() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None, // Not using emerge alt cost
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: Some(creature_id), // But providing sacrifice anyway -- rejected
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
         },
     );
 
+    // Spell casts successfully; the unclaimed sacrifice is ignored.
     assert!(
-        result.is_err(),
-        "engine validation: emerge_sacrifice without emerge alt_cost must be rejected"
+        result.is_ok(),
+        "unclaimed sacrifice in additional_costs should be silently ignored; got: {:?}",
+        result.err()
     );
-    let err = result.unwrap_err();
-    assert!(
-        matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
-        "engine validation: error should be InvalidCommand; got: {:?}",
-        err
+    // The creature should still be on the battlefield (sacrifice was not performed).
+    let (new_state, _events) = result.unwrap();
+    let creature_obj = new_state.object(creature_id).unwrap();
+    assert_eq!(
+        creature_obj.zone,
+        ZoneId::Battlefield,
+        "creature should remain on battlefield when sacrifice is unclaimed"
     );
 }

@@ -188,30 +188,11 @@ fn test_modular_etb_counters() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -303,30 +284,11 @@ fn test_modular_etb_counters_n() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -415,7 +377,7 @@ fn test_modular_dies_transfers_counters() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            mtg_engine::StackObjectKind::ModularTrigger { .. }
+            mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Modular(_), .. }
         ),
         "stack object should be a ModularTrigger"
     );
@@ -505,16 +467,19 @@ fn test_modular_dies_extra_counters() {
         state.stack_objects.len() == 1,
         "Modular trigger should be on the stack"
     );
-    if let mtg_engine::StackObjectKind::ModularTrigger { counter_count, .. } =
-        state.stack_objects[0].kind
+    if let mtg_engine::StackObjectKind::KeywordTrigger {
+        keyword: KeywordAbility::Modular(_),
+        data: mtg_engine::state::stack::TriggerData::DeathModular { counter_count },
+        ..
+    } = &state.stack_objects[0].kind
     {
         assert_eq!(
-            counter_count, 3,
-            "CR 702.43a: ModularTrigger should carry 3 (the pre-death counter count, \
+            *counter_count, 3,
+            "CR 702.43a: Modular KeywordTrigger should carry 3 (the pre-death counter count, \
              not the static Modular 1 value)"
         );
     } else {
-        panic!("Expected ModularTrigger on stack");
+        panic!("Expected Modular KeywordTrigger on stack");
     }
 
     let target_id =
@@ -714,30 +679,11 @@ fn test_modular_multiple_instances_etb() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -811,30 +757,11 @@ fn test_modular_0_0_base_stats_survives_etb() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -934,7 +861,7 @@ fn test_modular_multiple_instances_death_triggers() {
         assert!(
             matches!(
                 stack_obj.kind,
-                mtg_engine::StackObjectKind::ModularTrigger { .. }
+                mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Modular(_), .. }
             ),
             "CR 702.43b: stack object {} should be a ModularTrigger",
             i
@@ -944,9 +871,9 @@ fn test_modular_multiple_instances_death_triggers() {
     // Each trigger should carry counter_count = 3 (full pre-death counter count, not
     // the individual N value of 1 or 2).
     for (i, stack_obj) in state.stack_objects.iter().enumerate() {
-        if let mtg_engine::StackObjectKind::ModularTrigger { counter_count, .. } = stack_obj.kind {
+        if let mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Modular(_), data: mtg_engine::state::stack::TriggerData::DeathModular { counter_count }, .. } = &stack_obj.kind {
             assert_eq!(
-                counter_count, 3,
+                *counter_count, 3,
                 "CR 702.43b: ModularTrigger {} should carry counter_count=3 (all pre-death \
                  counters, not just the individual Modular N value)",
                 i

@@ -289,30 +289,11 @@ fn test_fading_etb_counters_on_cast() {
             convoke_creatures: vec![],
             improvise_artifacts: vec![],
             delve_cards: vec![],
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .expect("CastSpell should succeed");
@@ -379,10 +360,14 @@ fn test_fading_upkeep_removes_counter() {
 
     // FadingTrigger should be on the stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::FadingTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Fading(_),
+                data: mtg_engine::TriggerData::CounterRemoval { .. },
+                ..
+            }
+        )),
         "CR 702.32a: FadingTrigger should be on the stack at upkeep"
     );
 
@@ -470,10 +455,14 @@ fn test_fading_sacrifice_when_no_counters() {
 
     // FadingTrigger on stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::FadingTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Fading(_),
+                data: mtg_engine::TriggerData::CounterRemoval { .. },
+                ..
+            }
+        )),
         "CR 702.32a: FadingTrigger should be on the stack at second upkeep"
     );
 
@@ -615,10 +604,14 @@ fn test_fading_multiplayer_only_active_player() {
 
     // No FadingTrigger for p1's permanent during p2's upkeep.
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::FadingTrigger { .. })),
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Fading(_),
+                data: mtg_engine::TriggerData::CounterRemoval { .. },
+                ..
+            }
+        )),
         "CR 702.32a: FadingTrigger must not fire on a non-controller's upkeep"
     );
     assert_eq!(
@@ -658,10 +651,14 @@ fn test_fading_non_creature_sacrifice() {
 
     // Trigger on stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::FadingTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Fading(_),
+                data: mtg_engine::TriggerData::CounterRemoval { .. },
+                ..
+            }
+        )),
         "CR 702.32a: FadingTrigger should be on stack for enchantment"
     );
 

@@ -18,9 +18,10 @@ pub fn card() -> CardDefinition {
             // CR 702.138a: Escape keyword marker for quick presence-check.
             AbilityDefinition::Keyword(KeywordAbility::Escape),
             // CR 702.138a: Escape cost ({R}{R}) and exile count (8).
-            AbilityDefinition::Escape {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Escape,
                 cost: ManaCost { red: 2, ..Default::default() },
-                exile_count: 8,
+                details: Some(AltCastDetails::Escape { exile_count: 8 }),
             },
             // ETB: discard hand then draw 3.
             AbilityDefinition::Triggered {

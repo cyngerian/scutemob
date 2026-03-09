@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::state::continuous_effect::{EffectLayer, LayerModification};
 use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
+use crate::state::types::AltCostKind;
 use crate::state::{
     CardId, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost, KeywordAbility,
     ManaColor, ManaCost, ManaPool, SubType, SuperType,
@@ -170,14 +171,17 @@ pub enum AbilityDefinition {
         filter: crate::state::stubs::TriggerDoublerFilter,
         additional_triggers: u32,
     },
-    /// CR 702.34: Flashback [cost]. The card may be cast from its owner's graveyard
-    /// by paying this cost instead of its mana cost. If cast via flashback, the card
-    /// is exiled instead of going anywhere else when it leaves the stack.
+    /// Consolidated alternative-cost/graveyard-cast ability (RC-3 consolidation).
+    /// Replaces individual Flashback/Embalm/Eternalize/Encore/Unearth/Dash/Blitz/Plot/Escape/Prototype variants.
+    /// The `kind` discriminant (AltCostKind) determines resolution behavior.
     ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Flashback)` for quick
-    /// presence-checking without scanning all abilities.
-    Flashback { cost: ManaCost },
+    /// Cards with this ability should also include the corresponding
+    /// `AbilityDefinition::Keyword(KeywordAbility::*)` for quick presence-checking.
+    AltCastAbility {
+        kind: AltCostKind,
+        cost: ManaCost,
+        details: Option<AltCastDetails>,
+    },
     /// CR 702.29: Cycling [cost]. The card may be activated from hand by paying
     /// [cost] and discarding itself. The effect is "draw a card."
     ///
@@ -234,17 +238,6 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Miracle)` for quick
     /// presence-checking without scanning all abilities.
     Miracle { cost: ManaCost },
-    /// CR 702.138: Escape [mana cost], Exile [N] other cards from your graveyard.
-    /// The card may be cast from its owner's graveyard by paying this alternative cost.
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Escape)` for quick
-    /// presence-checking without scanning all abilities.
-    ///
-    /// `exile_count` is the number of OTHER cards that must be exiled from the
-    /// graveyard as part of the escape cost. These are exiled during cost payment
-    /// (CR 601.2h), similar to how delve exiles cards for cost reduction.
-    Escape { cost: ManaCost, exile_count: u32 },
     /// CR 702.138c: "This permanent escapes with [N] [counter type] counter(s) on it."
     /// If the permanent escaped, it enters the battlefield with the specified counters.
     /// This is a replacement effect on the ETB event.
@@ -260,16 +253,6 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Foretell)` for quick
     /// presence-checking without scanning all abilities.
     Foretell { cost: ManaCost },
-    /// CR 702.84: Unearth [cost]. The card's unearth ability can be activated
-    /// from its owner's graveyard by paying this cost. When the ability resolves,
-    /// the card returns to the battlefield with haste, a delayed exile trigger
-    /// at the next end step, and a replacement effect that exiles it if it
-    /// would leave the battlefield for any non-exile zone.
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Unearth)` for quick
-    /// presence-checking without scanning all abilities.
-    Unearth { cost: ManaCost },
     /// CR 702.27: Buyback [cost]. You may pay an additional [cost] as you cast
     /// this spell. If you do, put this spell into its owner's hand instead of
     /// into that player's graveyard as it resolves.
@@ -311,34 +294,6 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::CommanderNinjutsu)` for
     /// quick presence-checking.
     CommanderNinjutsu { cost: ManaCost },
-    /// CR 702.128: Embalm [cost]. The card's embalm ability can be activated from
-    /// its owner's graveyard by paying this cost plus exiling the card. When the
-    /// ability resolves, create a token copy of the card that is white, has no
-    /// mana cost, and is a Zombie in addition to its other types.
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Embalm)` for quick
-    /// presence-checking without scanning all abilities.
-    Embalm { cost: ManaCost },
-    /// CR 702.129: Eternalize [cost]. The card's eternalize ability can be activated
-    /// from its owner's graveyard by paying this cost plus exiling the card. When the
-    /// ability resolves, create a token copy of the card that is black, 4/4, has no
-    /// mana cost, and is a Zombie in addition to its other types.
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Eternalize)` for quick
-    /// presence-checking without scanning all abilities.
-    Eternalize { cost: ManaCost },
-    /// CR 702.141: Encore [cost]. The card's encore ability can be activated
-    /// from its owner's graveyard by paying this cost and exiling the card.
-    /// When the ability resolves, for each opponent, create a token copy of
-    /// this card that attacks that opponent this turn if able. Tokens gain
-    /// haste. Sacrifice them at the beginning of the next end step.
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Encore)` for quick
-    /// presence-checking without scanning all abilities.
-    Encore { cost: ManaCost },
     /// CR 702.127: Aftermath. The second half of a split card. Can only be cast
     /// from the graveyard. When it leaves the stack after being cast from graveyard,
     /// it is exiled instead of going anywhere else.
@@ -365,55 +320,6 @@ pub enum AbilityDefinition {
         effect: Effect,
         /// Target requirements for the aftermath half's spell.
         targets: Vec<TargetRequirement>,
-    },
-    /// CR 702.109: Dash [cost]. You may cast this card by paying [cost] rather
-    /// than its mana cost. If you do, the permanent gains haste and is returned
-    /// to its owner's hand at the beginning of the next end step.
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Dash)` for quick
-    /// presence-checking without scanning all abilities.
-    Dash { cost: ManaCost },
-    /// CR 702.152: Blitz [cost]. You may cast this card by paying [cost] rather
-    /// than its mana cost. If you do, the permanent gains haste, is sacrificed
-    /// at the beginning of the next end step, and gains "When this permanent is
-    /// put into a graveyard from the battlefield, draw a card."
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Blitz)` for quick
-    /// presence-checking without scanning all abilities.
-    Blitz { cost: ManaCost },
-    /// CR 702.170: Plot [cost]. During your main phase with empty stack, pay [cost]
-    /// and exile this card from your hand face up. On a later turn, during your main
-    /// phase with empty stack, cast it without paying its mana cost (CR 702.170d).
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Plot)` for quick
-    /// presence-checking without scanning all abilities.
-    Plot { cost: ManaCost },
-    /// CR 702.160 / CR 718: Prototype [cost] -- [power]/[toughness].
-    ///
-    /// The player may cast this spell with the prototype mana cost, power, and
-    /// toughness instead of the card's normal values (CR 718.3). When prototyped,
-    /// the spell and the permanent it becomes have only the alternative P/T, color
-    /// (derived from prototype mana cost, CR 718.3b / CR 105.2), and mana cost.
-    ///
-    /// IMPORTANT: This is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
-    /// Prototype changes the spell's characteristics, not just the payment. It can
-    /// be combined with alternative costs (Flashback, Escape, etc.).
-    ///
-    /// Cards with this ability should also include
-    /// `AbilityDefinition::Keyword(KeywordAbility::Prototype)` for quick
-    /// presence-checking without scanning all abilities.
-    Prototype {
-        /// The prototype mana cost (paid instead of the card's normal cost when
-        /// choosing to cast prototyped). Also determines the prototyped permanent's
-        /// color (CR 718.3b / CR 105.2).
-        cost: ManaCost,
-        /// The prototype power (replaces the card's printed power while prototyped).
-        power: i32,
-        /// The prototype toughness (replaces the card's printed toughness while prototyped).
-        toughness: i32,
     },
     /// CR 702.176: Impending N--[cost]. You may cast this spell by paying [cost]
     /// rather than its mana cost. If you do, it enters with N time counters and
@@ -770,6 +676,19 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 64.
     Disguise { cost: ManaCost },
+}
+
+/// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
+///
+/// Most alt-cast abilities (Flashback, Dash, etc.) only need a cost. Escape additionally
+/// needs an exile count, and Prototype additionally needs power/toughness overrides.
+/// This enum captures those extra fields without bloating the common case.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AltCastDetails {
+    /// CR 702.138: Escape requires exiling N other cards from graveyard.
+    Escape { exile_count: u32 },
+    /// CR 702.160 / CR 718: Prototype overrides power and toughness.
+    Prototype { power: i32, toughness: i32 },
 }
 
 /// CR 702.167b: Describes what can be exiled as materials for a Craft activated ability.

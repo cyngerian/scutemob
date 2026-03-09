@@ -17,8 +17,10 @@ pub fn card() -> CardDefinition {
             // CR 702.84a: Unearth keyword marker for quick presence-check.
             AbilityDefinition::Keyword(KeywordAbility::Unearth),
             // CR 702.84a: Unearth cost ({B}).
-            AbilityDefinition::Unearth {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Unearth,
                 cost: ManaCost { black: 1, ..Default::default() },
+                details: None,
             },
         ],
         back_face: None,

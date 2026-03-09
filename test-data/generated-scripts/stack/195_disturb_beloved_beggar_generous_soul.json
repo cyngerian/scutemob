@@ -1,0 +1,308 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_195",
+    "name": "Disturb — Beloved Beggar cast from graveyard as Generous Soul, exiled on death",
+    "description": "Beloved Beggar is in p1's graveyard. P1 casts it for its Disturb cost {4}{W}{W} (CR 702.146a: alternative cost, cast transformed from graveyard). Beloved Beggar enters the battlefield as Generous Soul — a 3/4 flying Spirit — with is_transformed = true and was_cast_disturbed = true. P2 then casts Lightning Bolt targeting Generous Soul (3 damage — not lethal vs 4 toughness). Then a second Lightning Bolt brings total damage to 6 >= 4 toughness. SBA checks trigger lethal damage — but because was_cast_disturbed = true, the Disturb replacement effect fires (CR 702.146b): Generous Soul is exiled instead of going to the graveyard.",
+    "cr_sections_tested": [
+      "702.146a",
+      "702.146b",
+      "601.2",
+      "601.2b",
+      "118.9",
+      "608.2",
+      "704.3",
+      "704.5g",
+      "120.3",
+      "120.3e",
+      "614.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "disturb",
+      "alternative-cost",
+      "graveyard-cast",
+      "transformed",
+      "dfc",
+      "replacement-effect",
+      "exile-instead",
+      "beloved-beggar",
+      "generous-soul"
+    ],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Beloved Beggar // Generous Soul (card_id: beloved-beggar-generous-soul) defined at crates/engine/src/cards/defs/beloved_beggar.rs. Front: {1}{W} Human Peasant 0/4; Disturb {4}{W}{W}. Back: Generous Soul 3/4 Flying Vigilance Spirit. Engine supports AltCostKind::Disturb in casting.rs: zone guard is bypassed for graveyard when cast_with_disturb is true, the StackObject sets is_cast_transformed = true (stack.rs line 331-332), and resolution.rs sets obj.is_transformed = true and obj.was_cast_disturbed = true. Replacement effect in replacement.rs lines 618-633: when was_cast_disturbed and the permanent would go to graveyard, exile it instead (CR 702.146b). Harness gap: the replay harness (replay_harness.rs) does not have a 'cast_spell_disturb' action string. The cast_spell_disturb action would need to call find_in_graveyard + AltCostKind::Disturb analogously to 'cast_spell_aftermath'. A dispute has been filed. Damage scenario: two Lightning Bolts deal 3+3=6 damage to Generous Soul (3/4). After the second bolt, 6 >= 4 toughness triggers the lethal damage SBA. The Disturb exile replacement fires instead of going to graveyard. Mana pool: generic 4, white 2 to pay Disturb cost exactly. P2 has {R} mana pre-loaded for each Lightning Bolt. Two separate turns are modeled: p1's turn for Disturb cast, then p2 acts in p2's turn postcombat main for the two bolts (mana reset avoided by giving p2 two red mana sources). For simplicity, both bolts are cast sequentially in the same phase with mana pre-loaded.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "game-script-generator",
+        "description": "Harness gap: replay_harness.rs has no 'cast_spell_disturb' action string. The action would need find_in_graveyard() + AltCostKind::Disturb analogously to 'cast_spell_aftermath'. Until this action is added, the Disturb cast step cannot be executed by the harness. Engine implementation is complete (AltCostKind::Disturb, is_cast_transformed, was_cast_disturbed, exile replacement in replacement.rs). Script is correct per CR 702.146a/b — this is a harness infrastructure gap, not a rules error.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 2, "colorless": 4 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {
+        "p1": [
+          { "card": "Beloved Beggar", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Beloved Beggar from the graveyard for its Disturb cost {4}{W}{W}. The card enters the battlefield transformed as Generous Soul (3/4 Flying Spirit) with was_cast_disturbed = true.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Beloved Beggar in p1 graveyard; p1 has {4}{W}{W} in pool; p2 has 2 Lightning Bolts in hand",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Beloved Beggar" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Beloved Beggar" }] },
+            "zones.hand.p2.count": 2,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Beloved Beggar is in p1's graveyard. P1 has {4}{W}{W} mana to pay the Disturb cost. P2 has two Lightning Bolts in hand for later."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_disturb",
+          "card": "Beloved Beggar",
+          "targets": [],
+          "mana_paid": { "white": 2, "colorless": 4 },
+          "mana_source": [],
+          "cr_ref": "702.146a",
+          "note": "CR 702.146a: P1 casts Beloved Beggar from the graveyard by paying its Disturb cost {4}{W}{W} (an alternative cost per CR 118.9). The spell is placed on the stack with is_cast_transformed = true — it will enter the battlefield as its back face, Generous Soul. CR 601.2: card moves from graveyard to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Disturb cast: Beloved Beggar on stack (count 1); no longer in p1 graveyard",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1": { "excludes": ["Beloved Beggar"] }
+          },
+          "note": "Beloved Beggar is on the stack with is_cast_transformed = true. It is no longer in the graveyard. CR 601.2b: only one alternative cost may be applied."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Disturb spell resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Beloved Beggar",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "permanent", "card": "Beloved Beggar", "controller": "p1" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.146b",
+              "note": "CR 702.146b: Because is_cast_transformed = true (Disturb cost was paid), the permanent enters the battlefield with its back face up as Generous Soul (3/4 Flying Vigilance Spirit). is_transformed = true and was_cast_disturbed = true are set on the entering object."
+            }
+          ],
+          "note": "CR 608.2: Disturb spell resolves. CR 702.146b: Permanent enters transformed — back face characteristics apply (Generous Soul: 3/4, Flying, Vigilance, Spirit). The was_cast_disturbed flag enables the exile-instead-of-graveyard replacement effect (CR 702.146b)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Generous Soul (Beloved Beggar transformed) on p1 battlefield; p1 graveyard empty; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Beloved Beggar" }] },
+            "zones.graveyard.p1": { "excludes": ["Beloved Beggar"] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Generous Soul is on the battlefield under p1's control with is_transformed = true and was_cast_disturbed = true. It has 3/4 base P/T from the back face. Flying and Vigilance are active. The exile replacement effect is armed per CR 702.146b."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to end step and then p2's turn."
+        }
+      ]
+    },
+    {
+      "step": "end",
+      "step_note": "P1's end step. No triggers. Both players pass priority — advance to cleanup then p2's turn.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in end step — advance to cleanup and then p2's untap step."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "P2's turn, precombat main phase. P2 has {R} mana. P2 casts first Lightning Bolt targeting Generous Soul (3 damage). Generous Soul (3/4) takes 3 damage — not lethal (3 < 4 toughness). Then P2 casts second Lightning Bolt, bringing total to 6 damage >= 4 toughness. SBA fires: Disturb replacement exiles Generous Soul instead of going to graveyard.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "creature", "card": "Beloved Beggar", "controller": "p1" }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts Lightning Bolt targeting Generous Soul (engine refers to it as Beloved Beggar). P2 pays {R} from pool. The stack has 1 object."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — first Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "creature", "card": "Beloved Beggar", "controller": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to Generous Soul. CR 120.3e: Damage is marked on the creature (non-wither, non-infect). Total damage marked: 3. Toughness: 4. 3 < 4 — not lethal. Generous Soul survives."
+            }
+          ],
+          "note": "CR 608.2: First Lightning Bolt resolves. 3 damage marked on Generous Soul. Not lethal vs 4 toughness."
+        },
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.3: SBAs checked. Generous Soul has 3 damage marked — 3 < 4 toughness — NOT lethal. No SBAs trigger. Generous Soul remains on the battlefield."
+        },
+        {
+          "type": "assert_state",
+          "description": "After first Lightning Bolt: Generous Soul still on p1 battlefield (3 damage marked, not lethal); first Lightning Bolt in p2 graveyard",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Beloved Beggar" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Generous Soul (3/4) has 3 damage marked — survived the first bolt. Lightning Bolt is in p2's graveyard."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "creature", "card": "Beloved Beggar", "controller": "p1" }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts second Lightning Bolt targeting Generous Soul. P2 pays {R}. After this resolves, Generous Soul will have 6 total damage marked."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — second Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "creature", "card": "Beloved Beggar", "controller": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Second Lightning Bolt deals 3 more damage to Generous Soul. CR 120.3e: Damage is marked (non-wither, non-infect). Total damage marked: 3 + 3 = 6. Toughness: 4. 6 >= 4 — lethal damage."
+            }
+          ],
+          "note": "CR 608.2: Second Lightning Bolt resolves. Total damage on Generous Soul: 6. Toughness: 4. Lethal damage — SBA will fire."
+        },
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Generous Soul (Beloved Beggar, transformed via Disturb) has 6 damage marked >= 4 toughness. Lethal damage SBA fires. Disturb replacement effect (CR 702.146b) intercepts: card is exiled instead of going to graveyard.",
+              "object": "Beloved Beggar",
+              "controller": "p1",
+              "result": "exiled",
+              "cr_ref": "702.146b"
+            }
+          ],
+          "note": "CR 704.3: SBAs checked after second Lightning Bolt resolves. CR 704.5g: Generous Soul has lethal damage (6 >= 4). Would be destroyed and go to graveyard. CR 702.146b + CR 614.1: Disturb replacement effect fires because was_cast_disturbed = true on the permanent. Event is replaced: instead of going to the graveyard, Generous Soul is exiled."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Generous Soul exiled (NOT in graveyard); p1 battlefield empty; stack empty; both players at 40 life",
+          "assertions": {
+            "zones.exile": { "includes": ["Beloved Beggar"] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Beloved Beggar" }] },
+            "zones.graveyard.p1": { "excludes": ["Beloved Beggar"] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.146b: Generous Soul (Beloved Beggar transformed via Disturb) is in exile — NOT in p1's graveyard. The Disturb replacement effect fired correctly. P1 cannot recast it from the graveyard because it is no longer there. Life totals: both at 40 (Lightning Bolts targeted the creature, not players)."
+        }
+      ]
+    }
+  ]
+}

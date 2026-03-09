@@ -70,7 +70,10 @@ fn is_renowned(state: &mtg_engine::GameState, name: &str) -> bool {
     state
         .objects
         .get(&id)
-        .map(|obj| obj.is_renowned)
+        .map(|obj| {
+            obj.designations
+                .contains(mtg_engine::Designations::RENOWNED)
+        })
         .unwrap_or(false)
 }
 
@@ -292,7 +295,7 @@ fn test_702_112a_renown_no_trigger_when_already_renowned() {
     let attacker_id = find_object(&state, "Already Renowned");
     let mut state = state;
     if let Some(obj) = state.objects.get_mut(&attacker_id) {
-        obj.is_renowned = true;
+        obj.designations.insert(mtg_engine::Designations::RENOWNED);
     }
 
     assert!(
@@ -391,7 +394,7 @@ fn test_702_112b_renown_resets_on_zone_change() {
     let creature_id = find_object(&state, "Zone Change Renown");
     let mut state = state;
     if let Some(obj) = state.objects.get_mut(&creature_id) {
-        obj.is_renowned = true;
+        obj.designations.insert(mtg_engine::Designations::RENOWNED);
         obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, 1);
     }
 
@@ -414,7 +417,9 @@ fn test_702_112b_renown_resets_on_zone_change() {
     // The new object (in hand) should NOT be renowned (CR 400.7 reset).
     let new_obj = state.objects.get(&new_id).expect("new object not found");
     assert!(
-        !new_obj.is_renowned,
+        !new_obj
+            .designations
+            .contains(mtg_engine::Designations::RENOWNED),
         "CR 702.112b + CR 400.7: renowned designation should reset on zone change"
     );
 
@@ -440,7 +445,9 @@ fn test_702_112b_renown_resets_on_zone_change() {
         .get(&bf_id)
         .expect("battlefield object not found");
     assert!(
-        !bf_obj.is_renowned,
+        !bf_obj
+            .designations
+            .contains(mtg_engine::Designations::RENOWNED),
         "CR 702.112b: creature re-entering the battlefield should not be renowned"
     );
 }
@@ -677,7 +684,9 @@ fn test_702_112_renown_creature_leaves_before_resolution() {
         .expect("creature should be in graveyard");
 
     assert!(
-        !graveyard_obj.is_renowned,
+        !graveyard_obj
+            .designations
+            .contains(mtg_engine::Designations::RENOWNED),
         "ruling 2015-06-22: creature should NOT be renowned (was off battlefield at resolution)"
     );
     assert_eq!(

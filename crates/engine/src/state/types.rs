@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::game_object::ManaCost;
+use super::game_object::{ManaCost, ObjectId};
+use super::player::PlayerId;
 
 /// The five colors of Magic (CR 105.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -141,6 +142,65 @@ pub enum AltCostKind {
     /// When `alt_cost == Some(AltCostKind::Morph)`, the actual face-down variant
     /// (Morph/Megamorph/Disguise) is stored in `CastSpell.face_down_kind`.
     Morph,
+    /// CR 702.128: Embalm — activated from graveyard, creates white Zombie token copy.
+    /// Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost.
+    Embalm,
+    /// CR 702.129: Eternalize — activated from graveyard, creates black 4/4 Zombie token copy.
+    /// Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost.
+    Eternalize,
+    /// CR 702.141: Encore — activated from graveyard, creates token copies for each opponent.
+    /// Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost.
+    Encore,
+    /// CR 702.84: Unearth — activated from graveyard, returns to battlefield with haste.
+    /// Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost.
+    Unearth,
+    /// CR 702.160 / CR 718: Prototype — NOT an alternative cost (ruling 2022-10-14).
+    /// Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost.
+    Prototype,
+}
+
+/// Consolidated additional costs for spell casting (CR 601.2b, 601.2f-h).
+///
+/// Replaces ~20 one-off fields on CastSpell/StackObject. Each variant represents
+/// a distinct category of additional cost that a spell may require or optionally
+/// accept. Multiple variants can coexist in the same `additional_costs: Vec<AdditionalCost>`.
+///
+/// **Disambiguation**: When multiple abilities use the same cost category (e.g.,
+/// Bargain, Emerge, Casualty, and Devour all sacrifice permanents), the ability
+/// context is determined by other fields — `alt_cost` for Emerge, `was_bargained`
+/// for Bargain, `was_casualty_paid` for Casualty, and `Devour(N)` keyword presence.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AdditionalCost {
+    /// Sacrifice permanents as part of the cost (Bargain, Emerge, Casualty, Devour).
+    /// Which ability the sacrifice is for is determined by context (alt_cost, was_bargained, etc.).
+    Sacrifice(Vec<ObjectId>),
+    /// Discard cards as part of the cost (Retrace land discard, Jump-Start discard).
+    Discard(Vec<ObjectId>),
+    /// Exile cards from graveyard as Escape's additional cost (CR 702.138).
+    EscapeExile { cards: Vec<ObjectId> },
+    /// Exile cards from graveyard as Collect Evidence additional cost (CR 701.59).
+    CollectEvidenceExile { cards: Vec<ObjectId> },
+    /// Another player assists with generic mana payment (Assist — CR 702.132).
+    Assist { player: PlayerId, amount: u32 },
+    /// Pay the replicate cost N times (Replicate — CR 702.56).
+    Replicate { count: u32 },
+    /// Pay the squad cost N times (Squad — CR 702.157). Distinct from Replicate:
+    /// Replicate copies the spell on the stack, Squad creates token copies on ETB.
+    Squad { count: u32 },
+    /// Pay for N additional modes beyond the first (Escalate — CR 702.120).
+    EscalateModes { count: u32 },
+    /// Splice cards from hand onto this spell (Splice — CR 702.47).
+    Splice { cards: Vec<ObjectId> },
+    /// Pay the entwine cost to choose all modes (Entwine — CR 702.42).
+    Entwine,
+    /// Cast both halves of a split card (Fuse — CR 702.102).
+    Fuse,
+    /// Pay the offspring cost to create a 1/1 token copy (Offspring — CR 702.175).
+    Offspring,
+    /// Choose an opponent to receive a gift (Gift — CR 702.174).
+    Gift { opponent: PlayerId },
+    /// Target a non-Human creature to mutate onto (Mutate — CR 702.140).
+    Mutate { target: ObjectId, on_top: bool },
 }
 
 /// Counter types that can be placed on objects or players (CR 122).

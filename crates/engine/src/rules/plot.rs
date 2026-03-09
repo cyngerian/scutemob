@@ -107,7 +107,7 @@ pub fn handle_plot_card(
         let cost = card_obj.card_id.as_ref().and_then(|cid| {
             registry.get(cid.clone()).and_then(|def| {
                 def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Plot { cost } = a {
+                    if let AbilityDefinition::AltCastAbility { kind: crate::state::types::AltCostKind::Plot, cost, .. } = a {
                         Some(cost.clone())
                     } else {
                         None

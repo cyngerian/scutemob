@@ -79,9 +79,10 @@ fn make_hideaway_trigger_stack_obj(
     StackObject {
         id,
         controller,
-        kind: StackObjectKind::HideawayTrigger {
+        kind: StackObjectKind::KeywordTrigger {
             source_object,
-            hideaway_count,
+            keyword: KeywordAbility::Hideaway(hideaway_count),
+            data: mtg_engine::state::stack::TriggerData::ETBHideaway { count: hideaway_count },
         },
         targets: vec![],
         cant_be_countered: false,
@@ -112,20 +113,11 @@ fn make_hideaway_trigger_stack_obj(
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
-        devour_sacrifices: vec![],
         modes_chosen: vec![],
-        was_entwined: false,
-        escalate_modes_paid: 0,
-        was_fused: false,
         x_value: 0,
         evidence_collected: false,
-        squad_count: 0,
-        offspring_paid: false,
-        gift_was_given: false,
-        gift_opponent: None,
-        mutate_target: None,
-        mutate_on_top: false,
         is_cast_transformed: false,
+        additional_costs: vec![],
     }
 }
 
@@ -249,7 +241,7 @@ fn test_hideaway_etb_trigger_fires() {
     let has_trigger = state
         .stack_objects
         .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::HideawayTrigger { .. }));
+        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Hideaway(_), .. }));
     assert!(
         has_trigger,
         "CR 702.75a: HideawayTrigger should be on the stack after ETB"
@@ -692,7 +684,7 @@ fn test_hideaway_negative_no_keyword() {
     let has_hideaway_trigger = state
         .stack_objects
         .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::HideawayTrigger { .. }));
+        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Hideaway(_), .. }));
 
     assert!(
         !has_hideaway_trigger,

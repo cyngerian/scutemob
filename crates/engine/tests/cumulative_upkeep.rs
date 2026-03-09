@@ -179,10 +179,14 @@ fn test_cumulative_upkeep_basic_age_counter_added() {
 
     // CumulativeUpkeepTrigger should be on the stack.
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::CumulativeUpkeepTrigger { .. })),
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::CumulativeUpkeep(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "CR 702.24a: CumulativeUpkeepTrigger should be on the stack at controller's upkeep"
     );
 
@@ -594,10 +598,14 @@ fn test_cumulative_upkeep_multiplayer_only_controller_upkeep() {
 
     // No CumulativeUpkeepTrigger should be on the stack (it's p2's upkeep, not p1's).
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::CumulativeUpkeepTrigger { .. })),
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::CumulativeUpkeep(_),
+                data: mtg_engine::TriggerData::UpkeepCost { .. },
+                ..
+            }
+        )),
         "CR 702.24a: CumulativeUpkeepTrigger should NOT fire on a non-controller's upkeep"
     );
 
@@ -605,7 +613,10 @@ fn test_cumulative_upkeep_multiplayer_only_controller_upkeep() {
     assert!(
         state.pending_triggers.iter().all(|t| !matches!(
             t.kind,
-            mtg_engine::state::stubs::PendingTriggerKind::CumulativeUpkeep
+            mtg_engine::state::stubs::PendingTriggerKind::KeywordTrigger {
+                keyword: KeywordAbility::CumulativeUpkeep(_),
+                ..
+            }
         )),
         "CR 702.24a: no CumulativeUpkeep trigger pending on non-controller's upkeep"
     );
@@ -661,7 +672,16 @@ fn test_cumulative_upkeep_multiple_instances_share_counters() {
     let cu_trigger_count = state
         .stack_objects
         .iter()
-        .filter(|so| matches!(&so.kind, StackObjectKind::CumulativeUpkeepTrigger { .. }))
+        .filter(|so| {
+            matches!(
+                &so.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::CumulativeUpkeep(_),
+                    data: mtg_engine::TriggerData::UpkeepCost { .. },
+                    ..
+                }
+            )
+        })
         .count();
 
     assert_eq!(

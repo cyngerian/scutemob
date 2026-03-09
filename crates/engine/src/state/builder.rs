@@ -13,8 +13,8 @@ use crate::cards::CardRegistry;
 use super::continuous_effect::ContinuousEffect;
 use super::error::GameStateError;
 use super::game_object::{
-    ActivatedAbility, Characteristics, GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId,
-    ObjectStatus, TriggerEvent, TriggeredAbilityDef,
+    ActivatedAbility, Characteristics, Designations, GameObject, InterveningIf, ManaAbility,
+    ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
@@ -287,6 +287,7 @@ impl GameStateBuilder {
                 has_citys_blessing: false,
                 life_lost_this_turn: 0,
                 damage_received_this_turn: 0,
+                protection_qualities: vec![],
             };
             players.insert(config.id, player_state);
         }
@@ -966,17 +967,11 @@ impl GameStateBuilder {
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
-                is_bestowed: false,
-                is_foretold: false,
                 foretold_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
-                is_suspended: false,
                 exiled_by_hideaway: None,
-                is_renowned: false,
-                // CR 701.60b: suspected designation starts false.
-                is_suspected: false,
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,
@@ -985,7 +980,6 @@ impl GameStateBuilder {
                 is_prototyped: false,
                 was_bargained: false,
                 evidence_collected: false,
-                echo_pending: false,
                 phased_out_indirectly: false,
                 phased_out_controller: None,
                 creatures_devoured: 0,
@@ -1003,14 +997,10 @@ impl GameStateBuilder {
                 // CR 702.174a: test-placed objects are not cast spells; gift fields are false/None.
                 gift_was_given: false,
                 gift_opponent: None,
-                // CR 702.171b: test-placed objects start unsaddled.
-                is_saddled: false,
                 // CR 702.99b: test-placed objects have no encoded cipher cards.
                 encoded_cards: im::Vector::new(),
                 // CR 702.55b: test-placed objects have no haunting relationship.
                 haunting_target: None,
-                // CR 702.151b: test-placed objects are not reconfigured.
-                is_reconfigured: false,
                 // CR 729.2: test-placed objects are not part of a merged permanent.
                 merged_components: im::Vector::new(),
                 // CR 712.8d: test-placed objects start with front face up.
@@ -1023,6 +1013,7 @@ impl GameStateBuilder {
                 craft_exiled_cards: im::Vector::new(),
                 // CR 708.2: test-placed objects are not morph/manifest/cloak face-down.
                 face_down_as: None,
+                designations: Designations::default(),
             };
 
             state.add_object(object, zone)?;

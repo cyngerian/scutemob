@@ -17,6 +17,7 @@
 //! - If the source leaves the battlefield before the trigger resolves, the token IS still
 //!   created (ruling 2024-07-26 LKI -- different from Squad's skip behavior).
 
+use mtg_engine::AdditionalCost;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, CardType, Command, GameEvent, GameStateBuilder, KeywordAbility, ManaColor,
@@ -204,30 +205,15 @@ fn cast_offspring(
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: if offspring_paid {
+                vec![AdditionalCost::Offspring]
+            } else {
+                vec![]
+            },
         },
     )
     .unwrap_or_else(|e| {
@@ -437,29 +423,10 @@ fn test_offspring_rejected_without_keyword() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: true, // trying to pay offspring cost on non-offspring creature
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
+            additional_costs: vec![AdditionalCost::Offspring], // trying to pay offspring cost on non-offspring creature
             face_down_kind: None,
         },
     );

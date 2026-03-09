@@ -457,17 +457,19 @@ fn test_702_39b_provoke_multiple_instances_trigger_separately() {
     let targets: Vec<ObjectId> = state
         .stack_objects
         .iter()
-        .filter_map(|so| match so.kind {
-            mtg_engine::StackObjectKind::ProvokeTrigger {
-                provoked_creature, ..
-            } => Some(provoked_creature),
+        .filter_map(|so| match &so.kind {
+            mtg_engine::StackObjectKind::KeywordTrigger {
+                keyword: mtg_engine::KeywordAbility::Provoke,
+                data: mtg_engine::state::stack::TriggerData::CombatProvoke { target },
+                ..
+            } => Some(*target),
             _ => None,
         })
         .collect();
     assert_eq!(
         targets.len(),
         2,
-        "CR 702.39b: Both stack objects should be ProvokeTrigger variants"
+        "CR 702.39b: Both stack objects should be Provoke KeywordTrigger variants"
     );
     assert_ne!(
         targets[0], targets[1],
@@ -588,17 +590,19 @@ fn test_702_39a_provoke_multiplayer_correct_defender() {
         "CR 508.5a: Exactly one provoke trigger should be on the stack"
     );
 
-    // The trigger's provoked_creature should be P2's creature, not P3's.
+    // The trigger's target should be P2's creature, not P3's.
     let trigger = &state.stack_objects[0];
-    if let mtg_engine::StackObjectKind::ProvokeTrigger {
-        provoked_creature, ..
-    } = trigger.kind
+    if let mtg_engine::StackObjectKind::KeywordTrigger {
+        keyword: mtg_engine::KeywordAbility::Provoke,
+        data: mtg_engine::state::stack::TriggerData::CombatProvoke { target },
+        ..
+    } = &trigger.kind
     {
         assert_eq!(
-            provoked_creature, p2_creature_id,
+            *target, p2_creature_id,
             "CR 508.5a: Provoke must target P2's creature (the defending player's creature)"
         );
     } else {
-        panic!("Expected ProvokeTrigger on the stack");
+        panic!("Expected Provoke KeywordTrigger on the stack");
     }
 }

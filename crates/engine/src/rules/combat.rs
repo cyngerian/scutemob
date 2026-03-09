@@ -11,7 +11,7 @@ use im::{OrdMap, OrdSet};
 
 use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::turn::Step;
 use crate::state::types::{CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType};
@@ -556,7 +556,7 @@ pub fn handle_declare_blockers(
         // the designation and can't-block restriction remain).
         // TODO: Under true Humility, can't-block should also be removed; this is a
         // known minor inaccuracy deferred to a future session.
-        if obj.is_suspected {
+        if obj.designations.contains(Designations::SUSPECTED) {
             return Err(GameStateError::InvalidCommand(format!(
                 "Object {:?} is suspected and cannot block (CR 701.60c)",
                 blocker_id
@@ -852,7 +852,7 @@ pub fn handle_declare_blockers(
             }
 
             // CR 701.60c: Suspected creatures can't block.
-            if provoked_obj.is_suspected {
+            if provoked_obj.designations.contains(Designations::SUSPECTED) {
                 continue; // Requirement impossible -- skip
             }
 
@@ -972,6 +972,9 @@ pub fn handle_declare_blockers(
     if let Some(combat) = state.combat.as_mut() {
         for (blocker_id, attacker_id) in &blockers {
             combat.blockers.insert(*blocker_id, *attacker_id);
+            // CR 509.1h: track which attackers were declared blocked; this set is
+            // never cleared even if blockers die, so is_blocked() remains correct.
+            combat.blocked_attackers.insert(*attacker_id);
         }
         combat.defenders_declared.insert(player);
     }
@@ -1103,12 +1106,20 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     let attackers = combat.attackers.clone();
     let blockers_map = combat.blockers.clone();
     let damage_order = combat.damage_assignment_order.clone();
+    // CR 702.7b: snapshot of creatures with FS/DS at start of first-strike step.
+    // Used by deals_damage_in_step to determine regular-step eligibility.
+    let first_strike_snapshot = combat.first_strike_participants.clone();
 
     let mut assignments: Vec<CombatDamageAssignment> = Vec::new();
 
     // --- Attacker damage ---
     for (attacker_id, attack_target) in &attackers {
-        if !deals_damage_in_step(state, *attacker_id, first_strike_step) {
+        if !deals_damage_in_step(
+            state,
+            *attacker_id,
+            first_strike_step,
+            &first_strike_snapshot,
+        ) {
             continue;
         }
 
@@ -1165,7 +1176,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                     power as u32,
                 );
             } else if has_trample {
-                // Was blocked but all blockers gone: trample goes to player (CR 702.19b).
+                // Was blocked but all blockers gone: trample goes to player (CR 702.19d).
                 push_player_or_pw_damage(
                     &mut assignments,
                     *attacker_id,
@@ -1258,7 +1269,12 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             continue;
         }
 
-        if !deals_damage_in_step(state, *blocker_id, first_strike_step) {
+        if !deals_damage_in_step(
+            state,
+            *blocker_id,
+            first_strike_step,
+            &first_strike_snapshot,
+        ) {
             continue;
         }
 
@@ -1617,16 +1633,55 @@ fn has_keyword(state: &GameState, id: ObjectId, keyword: KeywordAbility) -> bool
 
 /// Returns true if this creature deals damage in the given step.
 ///
-/// CR 702.7: First-strike creatures deal damage only in the first-strike step.
-/// CR 702.4: Double-strike creatures deal damage in BOTH steps.
-/// Normal creatures deal damage only in the regular step.
-fn deals_damage_in_step(state: &GameState, id: ObjectId, first_strike_step: bool) -> bool {
+/// CR 702.7b: First-strike creatures deal damage only in the first-strike step.
+/// CR 702.4b: Double-strike creatures deal damage in BOTH steps.
+/// CR 702.7b: Normal creatures deal damage only in the regular step.
+///
+/// For the regular step, eligibility is based on `first_strike_snapshot` —
+/// the set of creatures that had FirstStrike or DoubleStrike at the START of
+/// the first-strike step (CR 702.7b). This implements the CR 702.7c/702.4c/702.4d
+/// edge cases:
+/// - Gained FS after first step: not in snapshot → dealt damage in regular step (CR 702.7c).
+/// - Lost FS after first step: in snapshot → excluded from regular step (CR 702.7c).
+/// - Lost DS after first step: in snapshot → excluded from regular step (CR 702.4c).
+/// - FS creature gained DS after first step: in snapshot → still excluded (CR 702.4d
+///   says "will allow" regular damage — but FS-only creatures in snapshot are excluded;
+///   the creature must have been DS at snapshot time to deal regular damage).
+///
+/// If `first_strike_snapshot` is empty (first-strike step never occurred), we fall back
+/// to current keywords (correct for the no-FS-step case where everything deals in one step).
+fn deals_damage_in_step(
+    state: &GameState,
+    id: ObjectId,
+    first_strike_step: bool,
+    first_strike_snapshot: &OrdSet<ObjectId>,
+) -> bool {
     let has_first = has_keyword(state, id, KeywordAbility::FirstStrike);
     let has_double = has_keyword(state, id, KeywordAbility::DoubleStrike);
 
     if first_strike_step {
+        // First-strike step: deal damage iff currently has FS or DS.
         has_first || has_double
+    } else if !first_strike_snapshot.is_empty() {
+        // Regular step, after a first-strike step occurred.
+        // CR 702.7b: exclude creatures that had FS or DS at the start of the first step
+        // (they already dealt damage then), unless they have DS (deal in both).
+        // Use snapshot for "had first strike" determination, current keywords for DS.
+        let was_in_first_step = first_strike_snapshot.contains(&id);
+        // A creature in the snapshot had FS or DS. If it had DS then, it deals in both.
+        // If it had only FS (no DS now), it is excluded. DS gained later still allows
+        // regular step per CR 702.4d, but FS gained later doesn't exclude per CR 702.7c.
+        if was_in_first_step {
+            // Had FS or DS at snapshot time → only deal regular damage if has DS NOW.
+            has_double
+        } else {
+            // Was NOT in snapshot (no FS or DS at step start) → deals regular damage
+            // (even if it gained FS after: CR 702.7c says gaining FS after won't preclude
+            // regular damage, but it also won't add it to the first step).
+            true
+        }
     } else {
+        // No first-strike step occurred (snapshot empty) — use current keywords.
         has_double || !has_first
     }
 }

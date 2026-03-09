@@ -83,30 +83,11 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
@@ -380,7 +361,7 @@ fn test_cipher_combat_damage_triggers_copy() {
     // Verify it's a CipherTrigger.
     let trigger = state.stack_objects.back().expect("trigger expected");
     assert!(
-        matches!(trigger.kind, StackObjectKind::CipherTrigger { .. }),
+        matches!(trigger.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Cipher, .. }),
         "CR 702.99a: the trigger on the stack should be a CipherTrigger; got {:?}",
         trigger.kind
     );
@@ -1013,7 +994,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
     // Both stack objects should be CipherTriggers.
     for obj in state.stack_objects.iter() {
         assert!(
-            matches!(obj.kind, StackObjectKind::CipherTrigger { .. }),
+            matches!(obj.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Cipher, .. }),
             "both stack objects should be CipherTriggers"
         );
     }

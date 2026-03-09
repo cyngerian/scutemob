@@ -17,8 +17,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Dash),
-            AbilityDefinition::Dash {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Dash,
                 cost: ManaCost { generic: 1, red: 1, ..Default::default() },
+                details: None,
             },
             // TODO: static ability "can't block creatures with power 2 or greater" —
             // no CantBlock { filter: PowerGTE(2) } variant exists yet in the DSL.

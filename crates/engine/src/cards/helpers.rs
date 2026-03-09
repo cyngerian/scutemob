@@ -7,7 +7,7 @@ pub use im::OrdSet;
 
 pub use crate::state::game_object::ManaAbility;
 pub use crate::state::player::PlayerId;
-pub use crate::state::types::{FaceDownKind, TurnFaceUpMethod};
+pub use crate::state::types::{AltCostKind, FaceDownKind, TurnFaceUpMethod};
 pub use crate::state::{
     AffinityTarget, CardId, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost,
     EnchantTarget, KeywordAbility, LandwalkType, ManaColor, ManaCost, ManaPool, SubType, SuperType,
@@ -16,7 +16,7 @@ pub use crate::state::{
 pub use super::card_definition::{
     blood_token_spec, food_token_spec, treasure_token_spec, zombie_decayed_token_spec,
     AbilityDefinition, CardDefinition, CardFace, Condition, ContinuousEffectDef, Cost,
-    CraftMaterials, Effect, EffectAmount, EffectTarget, ForEachTarget, GiftType, LibraryPosition,
+    AltCastDetails, CraftMaterials, Effect, EffectAmount, EffectTarget, ForEachTarget, GiftType, LibraryPosition,
     ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
     TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };

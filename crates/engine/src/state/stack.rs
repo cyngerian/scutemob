@@ -11,9 +11,116 @@
 use serde::{Deserialize, Serialize};
 
 use super::game_object::{ManaCost, ObjectId};
-use super::player::PlayerId;
+use super::player::{CardId, PlayerId};
 use super::targeting::SpellTarget;
-use super::types::KeywordAbility;
+use super::types::{AdditionalCost, ChampionFilter, CumulativeUpkeepCost, KeywordAbility};
+
+/// Captured data for triggered abilities on the stack.
+/// Replaces per-trigger StackObjectKind variants with a unified payload.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TriggerData {
+    /// No extra data needed (Melee, Exploit, Training, Hideaway-simple, etc.).
+    Simple,
+    /// Counter-removal upkeep triggers (Vanishing, Fading, Impending).
+    CounterRemoval { permanent: ObjectId },
+    /// Vanishing/Fading/Impending sacrifice (counter reached 0).
+    CounterSacrifice { permanent: ObjectId },
+    /// Echo/CumulativeUpkeep (cost-based upkeep).
+    UpkeepCost {
+        permanent: ObjectId,
+        cost: UpkeepCostKind,
+    },
+
+    // --- Group 1: Combat triggers ---
+    /// Flanking: blocker gets -1/-1.
+    CombatFlanking { blocker: ObjectId },
+    /// Rampage N: +N/+N for each blocker beyond the first.
+    CombatRampage { n: u32 },
+    /// Provoke: target creature must block if able.
+    CombatProvoke { target: ObjectId },
+    /// Poisonous N: target player gets N poison counters.
+    CombatPoisonous { target_player: PlayerId, n: u32 },
+    /// Enlist: source gets +X/+0 where X is enlisted creature's power.
+    CombatEnlist { enlisted: ObjectId },
+
+    // --- Group 2: ETB triggers ---
+    /// Backup N: place counters on target, optionally grant abilities.
+    ETBBackup {
+        target: ObjectId,
+        count: u32,
+        abilities: Vec<KeywordAbility>,
+    },
+    /// Graft: move a +1/+1 counter to entering creature.
+    ETBGraft { entering_creature: ObjectId },
+    /// Champion ETB: exile another permanent or sacrifice self.
+    ETBChampion { filter: ChampionFilter },
+    /// Soulbond: pair with target creature.
+    ETBSoulbond { pair_target: ObjectId },
+    /// Ravenous draw: draw a card if X >= 5.
+    ETBRavenousDraw { permanent: ObjectId, x_value: u32 },
+    /// Squad: create N token copies.
+    ETBSquad { count: u32 },
+    /// Offspring: create 1/1 token copy; source_card_id for LKI.
+    ETBOffspring { source_card_id: Option<CardId> },
+    /// Gift: give gift to chosen opponent.
+    ETBGift {
+        source_card_id: Option<CardId>,
+        gift_opponent: PlayerId,
+    },
+    /// Hideaway N: look at top N cards, exile one face down.
+    ETBHideaway { count: u32 },
+    /// PartnerWith: search library for partner card.
+    ETBPartnerWith { partner_name: String, target_player: PlayerId },
+
+    // --- Group 3: Spell-copy triggers ---
+    /// Storm/Replicate/Gravestorm: create N copies of original spell.
+    SpellCopy { original_stack_id: ObjectId, copy_count: u32 },
+    /// Cascade: exile cards until finding one with lower mana value.
+    CascadeExile { spell_mana_value: u32 },
+    /// Casualty: create one copy of the original spell.
+    CasualtyCopy { original_stack_id: ObjectId },
+
+    // --- Group 4: EOT/delayed zone-change triggers ---
+    /// Delayed zone change (Dash return, Blitz sacrifice, Unearth exile, Evoke sacrifice).
+    DelayedZoneChange,
+    /// Encore sacrifice: delayed sacrifice with activator tracking.
+    EncoreSacrifice { activator: PlayerId },
+
+    // --- Group 5: Death/LTB triggers ---
+    /// Modular: move N +1/+1 counters to target artifact creature.
+    DeathModular { counter_count: u32 },
+    /// Haunt exile: move haunt card from graveyard to exile targeting a creature.
+    DeathHauntExile { haunt_card: ObjectId, haunt_card_id: Option<CardId> },
+    /// Haunted creature dies: fire haunt effect from exile.
+    DeathHauntedCreatureDies { haunt_source: ObjectId, haunt_card_id: Option<CardId> },
+    /// Champion LTB: return exiled card to battlefield.
+    LTBChampion { exiled_card: ObjectId },
+    /// Recover: pay cost or exile card.
+    DeathRecover { recover_card: ObjectId, recover_cost: ManaCost },
+
+    // --- Group 6: Remaining triggers ---
+    /// Cipher: copy encoded spell on combat damage.
+    CipherDamage {
+        source_creature: ObjectId,
+        encoded_card_id: CardId,
+        encoded_object_id: ObjectId,
+    },
+    /// Ingest: exile top card of damaged player's library.
+    IngestExile { target_player: PlayerId },
+    /// Renown N: place N +1/+1 counters and become renowned.
+    RenownDamage { n: u32 },
+    /// Evolve: put +1/+1 counter if entering creature has greater P or T.
+    EvolveTrigger { entering_creature: ObjectId },
+    /// Myriad: create token copies attacking each other opponent.
+    MyriadAttack { defending_player: PlayerId },
+}
+
+/// Cost payload for upkeep-cost triggers.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UpkeepCostKind {
+    Echo(ManaCost),
+    CumulativeUpkeep(CumulativeUpkeepCost),
+}
 
 /// An object on the stack: a spell, activated ability, or triggered ability
 /// (CR 405.1).
@@ -231,20 +338,8 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_cleaved: bool,
-    /// CR 702.42a: If true, this spell was cast with its entwine cost paid.
-    /// At resolution, all modes of the modal spell execute in printed order (CR 702.42b).
-    ///
-    /// Propagated to copies per CR 707.10 (copies copy all decisions including modes and
-    /// additional costs).
-    #[serde(default)]
-    pub was_entwined: bool,
-    /// CR 702.120a: Number of additional modes paid for via escalate. 0 = only mode[0]
-    /// executes at resolution. N = modes 0..=N execute. Escalate cost was paid N times.
-    ///
-    /// Propagated to copies per CR 707.10 (copies copy all decisions including modes and
-    /// additional costs).
-    #[serde(default)]
-    pub escalate_modes_paid: u32,
+    // was_entwined: REMOVED — read from AdditionalCost::Entwine in additional_costs
+    // escalate_modes_paid: REMOVED — read from AdditionalCost::EscalateModes in additional_costs
     /// CR 702.47a: Effects from cards spliced onto this spell.
     ///
     /// Each entry is an `Effect` from a spliced card's `AbilityDefinition::Splice.effect`.
@@ -264,67 +359,24 @@ pub struct StackObject {
     /// in hand regardless of what happens to the spell).
     #[serde(default)]
     pub spliced_card_ids: Vec<ObjectId>,
-    /// CR 702.82a: Creatures to sacrifice when this permanent enters the battlefield.
-    /// Populated from CastSpell.devour_sacrifices at cast time; consumed at resolution
-    /// time in resolution.rs for the Devour ETB replacement.
-    ///
-    /// Empty vec = player chose not to sacrifice (zero devour). The sacrifice and
-    /// counter placement happen during ETB resolution, not at cast time.
-    #[serde(default)]
-    pub devour_sacrifices: Vec<ObjectId>,
+    // devour_sacrifices: REMOVED — use AdditionalCost::Sacrifice in additional_costs
     /// CR 700.2a / 601.2b: Mode indices chosen at cast time for a modal spell.
     /// Empty for non-modal spells or when mode[0] is auto-selected (backward compatible).
     /// Propagated to copies per CR 700.2g / 707.10.
     #[serde(default)]
     pub modes_chosen: Vec<usize>,
-    /// CR 702.102a: If true, this spell was cast as a fused split spell
-    /// (both halves from hand). At resolution, both halves' effects execute
-    /// in order (left first, then right — CR 702.102d). The spell has
-    /// combined characteristics of both halves (CR 702.102b, 709.4d).
-    ///
-    /// Propagated to copies per CR 707.2 (copies copy choices made during casting).
-    #[serde(default)]
-    pub was_fused: bool,
+    // was_fused: REMOVED — read from AdditionalCost::Fuse in additional_costs
     /// CR 107.3m: The value of X chosen when this spell was cast. 0 for non-X spells.
     /// Propagated from CastSpell.x_value at cast time and copied to GameObject.x_value
     /// at resolution so ETB replacement effects and triggers can read it.
     #[serde(default)]
     pub x_value: u32,
-    /// CR 702.157a: Number of times the squad cost was paid. 0 = no squad.
-    /// Propagated from CastSpell.squad_count at cast time; read at resolution for
-    /// the ETB trigger that creates N token copies of the creature.
-    #[serde(default)]
-    pub squad_count: u32,
-    /// CR 702.175a: Whether the offspring cost was paid. false = not paid (no token).
-    /// Propagated from CastSpell.offspring_paid at cast time; read at resolution for
-    /// the ETB trigger that creates 1 token copy (except 1/1) of the creature.
-    #[serde(default)]
-    pub offspring_paid: bool,
-    /// CR 702.174a: Whether the gift cost was paid (an opponent was chosen).
-    /// Propagated from CastSpell.gift_opponent at cast time; read at resolution for
-    /// the gift effect (instants/sorceries) or GiftETB trigger (permanents).
-    #[serde(default)]
-    pub gift_was_given: bool,
-    /// CR 702.174a: The opponent chosen to receive the gift.
-    /// Set at cast time; used at resolution to determine who receives the gift.
-    #[serde(default)]
-    pub gift_opponent: Option<crate::state::PlayerId>,
-    /// CR 702.140a: The ObjectId of the non-Human creature this mutating spell
-    /// is targeting. `None` for non-mutating spells.
-    ///
-    /// Propagated from `Command::CastSpell.mutate_target` at cast time.
-    /// Read at resolution to validate the target is still legal (CR 702.140b)
-    /// and to perform the merge (CR 729.2).
-    #[serde(default)]
-    pub mutate_target: Option<ObjectId>,
-    /// CR 702.140c / CR 729.2: If true, the mutating card goes on top of the
-    /// target permanent (the merged permanent uses the spell's characteristics).
-    /// If false, the mutating card goes underneath (uses the target's characteristics).
-    ///
-    /// Set at cast time by the caster's choice. Defaults to true (on top).
-    /// Only meaningful when `mutate_target` is `Some`.
-    #[serde(default)]
-    pub mutate_on_top: bool,
+    // squad_count: REMOVED — read from AdditionalCost::Squad in additional_costs
+    // offspring_paid: REMOVED — read from AdditionalCost::Offspring in additional_costs
+    // gift_was_given: REMOVED — read from AdditionalCost::Gift in additional_costs
+    // gift_opponent: REMOVED — read from AdditionalCost::Gift in additional_costs
+    // mutate_target: REMOVED — read from AdditionalCost::Mutate in additional_costs
+    // mutate_on_top: REMOVED — read from AdditionalCost::Mutate in additional_costs
     /// CR 712.11a / CR 702.146a: If true, this spell was cast "transformed" — that is,
     /// it was placed on the stack with its back face up.
     ///
@@ -337,6 +389,10 @@ pub struct StackObject {
     /// Must always be false for copies unless explicitly copied as transformed.
     #[serde(default)]
     pub is_cast_transformed: bool,
+    /// Consolidated additional costs (RC-1 type consolidation).
+    /// Mirrors `CastSpell.additional_costs`. Populated during cast-to-stack transfer.
+    #[serde(default)]
+    pub additional_costs: Vec<AdditionalCost>,
 }
 
 /// The kind of object on the stack.
@@ -373,47 +429,6 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         ability_index: usize,
     },
-
-    /// CR 702.85a: Cascade triggered ability on the stack.
-    ///
-    /// Cascade is a triggered ability that triggers when the cascade spell is
-    /// cast. When this trigger resolves, the cascade procedure runs: exile
-    /// cards until a qualifying nonland card with mana value strictly less than
-    /// `spell_mana_value` is found, cast it for free, put the rest on the
-    /// bottom of the library.
-    ///
-    /// `spell_mana_value` is captured at trigger time (when the cascade spell
-    /// is cast) because continuous effects could change the mana value later.
-    CascadeTrigger {
-        source_object: ObjectId,
-        spell_mana_value: u32,
-    },
-
-    /// CR 702.40a: Storm triggered ability on the stack.
-    ///
-    /// Storm is a triggered ability that triggers when the storm spell is cast.
-    /// When this trigger resolves, `storm_count` copies of the original spell
-    /// are created on the stack. Storm copies are NOT cast (CR 702.40c) —
-    /// they do not trigger "whenever you cast a spell."
-    ///
-    /// `storm_count` and `original_stack_id` are captured at trigger time
-    /// (when the storm spell is cast).
-    StormTrigger {
-        source_object: ObjectId,
-        original_stack_id: ObjectId,
-        storm_count: u32,
-    },
-
-    /// CR 702.74a: Evoke sacrifice trigger on the stack.
-    ///
-    /// When an evoked permanent enters the battlefield, this trigger fires:
-    /// "When this permanent enters, if its evoke cost was paid, its controller
-    /// sacrifices it." Resolves to sacrifice the source permanent.
-    ///
-    /// If the source has left the battlefield by resolution time (blinked,
-    /// bounced, etc.), the trigger does nothing per CR 400.7 — the source
-    /// is a new object and is no longer the evoked permanent.
-    EvokeSacrificeTrigger { source_object: ObjectId },
     /// CR 702.35a: Madness triggered ability on the stack.
     ///
     /// When a card with madness is discarded and exiled by the madness static
@@ -455,78 +470,11 @@ pub enum StackObjectKind {
     /// If the source card is no longer in the graveyard at resolution time,
     /// the ability does nothing (card was exiled, shuffled, etc.) -- CR 400.7.
     UnearthAbility { source_object: ObjectId },
-    /// CR 702.84a: Unearth delayed triggered ability on the stack.
-    ///
-    /// "Exile [this permanent] at the beginning of the next end step."
-    /// This is a delayed triggered ability created when the unearthed permanent
-    /// enters the battlefield. It fires at the beginning of the next end step.
-    ///
-    /// If the source has left the battlefield by resolution time (CR 400.7),
-    /// the trigger does nothing. If countered (e.g., by Stifle), the permanent
-    /// stays on the battlefield but the replacement effect still applies.
-    UnearthTrigger { source_object: ObjectId },
-    /// CR 702.110a: Exploit triggered ability on the stack.
-    ///
-    /// "When this creature enters, you may sacrifice a creature."
-    /// When this trigger resolves, the controller may sacrifice a creature they
-    /// control. The default (deterministic, no interactive choice) is to decline.
-    ///
-    /// If the source has left the battlefield by resolution time (CR 400.7),
-    /// the trigger does nothing (no creature to exploit with).
-    ExploitTrigger { source_object: ObjectId },
-    /// CR 702.43a: Modular triggered ability on the stack.
-    ///
-    /// "When this permanent is put into a graveyard from the battlefield,
-    /// you may put a +1/+1 counter on target artifact creature for each
-    /// +1/+1 counter on this permanent."
-    ///
-    /// `counter_count` is the number of +1/+1 counters on the creature at
-    /// death time (last-known information from pre_death_counters — Arcbound
-    /// Worker ruling 2006-09-25). The target artifact creature is in
-    /// `StackObject.targets[0]`.
-    ///
-    /// If no legal artifact creature target exists at trigger time,
-    /// the trigger is not placed on the stack (CR 603.3d).
-    ModularTrigger {
-        source_object: ObjectId,
-        counter_count: u32,
-    },
 
     /// CR 702.100a: Evolve trigger on the stack.
     ///
     /// When a creature with evolve sees another creature its controller controls
-    /// enter the battlefield with greater power and/or toughness, this trigger
-    /// fires. The `entering_creature` field carries the ObjectId of the creature
-    /// that entered, needed for the resolution-time intervening-if re-check
-    /// (CR 603.4 — compare entering creature P/T vs source P/T at resolution).
-    ///
-    /// If the entering creature left the battlefield before resolution, use
-    /// last-known information for the P/T comparison (ruling 2013-04-15).
-    EvolveTrigger {
-        source_object: ObjectId,
-        entering_creature: ObjectId,
-    },
-
-    /// CR 702.116a: Myriad triggered ability on the stack.
-    ///
-    /// "Whenever this creature attacks, for each opponent other than defending
-    /// player, you may create a token that's a copy of this creature that's
-    /// tapped and attacking that player."
-    ///
-    /// `source_object` is the attacking creature (the one with myriad).
-    /// `defending_player` is the player being attacked (the one NOT to copy for).
-    ///
-    /// When this trigger resolves: for each opponent of the source's controller
-    /// who is NOT `defending_player`, create a token copy of the source that is
-    /// tapped, attacking that opponent, and tagged `myriad_exile_at_eoc = true`.
-    /// Tokens are exiled at end of combat by `end_combat()` in turn_actions.rs.
-    ///
-    /// CR 702.116b: Multiple instances trigger separately (each creates its own
-    /// set of copies).
-    MyriadTrigger {
-        source_object: ObjectId,
-        defending_player: crate::state::player::PlayerId,
-    },
+    // EvolveTrigger: migrated to KeywordTrigger
 
     /// CR 702.62a: Suspend upkeep counter-removal trigger.
     ///
@@ -562,229 +510,8 @@ pub enum StackObjectKind {
         suspended_card: ObjectId,
         owner: crate::state::player::PlayerId,
     },
-    /// CR 702.75a: Hideaway ETB triggered ability on the stack.
-    ///
-    /// "When this permanent enters, look at the top N cards of your library.
-    /// Exile one of them face down and put the rest on the bottom of your
-    /// library in a random order."
-    ///
-    /// `source_object` is the Hideaway permanent's ObjectId on the battlefield.
-    /// `hideaway_count` is N (how many cards to look at).
-    ///
-    /// When this trigger resolves:
-    /// 1. Take the top N cards from the controller's library.
-    /// 2. Exile one face-down (deterministic: exile the top card).
-    /// 3. Set `exiled_by_hideaway = Some(source_object)` on the exiled card.
-    /// 4. Put the rest on the bottom in a random order (seeded shuffle).
-    ///
-    /// CR 603.3: The trigger goes on the stack and can be countered.
-    /// If the source has left the battlefield by resolution time (CR 400.7),
-    /// the trigger still resolves (it is already on the stack).
-    HideawayTrigger {
-        source_object: ObjectId,
-        hideaway_count: u32,
-    },
-    /// CR 702.124j: Partner With ETB triggered ability on the stack.
-    ///
-    /// "When this permanent enters, target player may search their library
-    /// for a card named [name], reveal it, put it into their hand, then
-    /// shuffle."
-    ///
-    /// `source_object` is the permanent with "Partner with [name]" on the
-    /// battlefield.
-    /// `partner_name` is the exact name of the card to search for.
-    /// `target_player` is the targeted player who will search their library.
-    ///
-    /// When this trigger resolves:
-    /// 1. The target player searches their library for a card with the exact
-    ///    name `partner_name`.
-    /// 2. If found, reveal it and put it into their hand.
-    /// 3. Shuffle the target player's library.
-    ///
-    /// CR 603.3: The trigger goes on the stack and can be countered.
-    /// If the source has left the battlefield by resolution time (CR 400.7),
-    /// the trigger still resolves (it is already on the stack).
-    PartnerWithTrigger {
-        source_object: ObjectId,
-        partner_name: String,
-        target_player: crate::state::player::PlayerId,
-    },
-    /// CR 702.115a: Ingest triggered ability on the stack.
-    ///
-    /// "Whenever this creature deals combat damage to a player, that player
-    /// exiles the top card of their library."
-    ///
-    /// `source_object` is the creature with ingest on the battlefield.
-    /// `target_player` is the player who was dealt combat damage (whose library
-    /// will be exiled from).
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the target player has cards in their library.
-    /// 2. If yes, exile the top card face-up.
-    /// 3. If no, do nothing (ruling 2015-08-25).
-    ///
-    /// CR 603.10: The source creature must be on the battlefield when the trigger
-    /// fires, but does NOT need to be on the battlefield at resolution time
-    /// (the trigger is already on the stack).
-    IngestTrigger {
-        source_object: ObjectId,
-        target_player: crate::state::player::PlayerId,
-    },
-    /// CR 702.25a: Flanking triggered ability on the stack.
-    ///
-    /// "Whenever this creature becomes blocked by a creature without flanking,
-    /// the blocking creature gets -1/-1 until end of turn."
-    ///
-    /// `source_object` is the creature with flanking (the attacker).
-    /// `blocker_id` is the blocking creature that will receive -1/-1.
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the blocker is still on the battlefield (CR 400.7).
-    /// 2. If yes, register a ContinuousEffect with ModifyBoth(-1) in Layer 7c
-    ///    (PtModify) targeting SingleObject(blocker_id) with UntilEndOfTurn duration.
-    /// 3. If the blocker left the battlefield, do nothing (trigger fizzles).
-    ///
-    /// CR 702.25b: Multiple instances trigger separately (each creates its own
-    /// trigger with the same blocker_id).
-    FlankingTrigger {
-        source_object: ObjectId,
-        blocker_id: ObjectId,
-    },
-    /// CR 702.23a: Rampage N triggered ability on the stack.
-    ///
-    /// "Whenever this creature becomes blocked, it gets +N/+N until end of
-    /// turn for each creature blocking it beyond the first."
-    ///
-    /// When this trigger resolves:
-    /// 1. Count blockers for the source attacker from `state.combat`.
-    /// 2. Compute bonus = (blocker_count - 1) * rampage_n.
-    /// 3. If bonus > 0 and source is on the battlefield, apply +bonus/+bonus as
-    ///    two ContinuousEffects (UntilEndOfTurn) in Layer 7c (PtModify).
-    ///
-    /// CR 702.23b: Bonus calculated once at resolution. Later blocker
-    /// changes do not affect it.
-    /// CR 603.10: Source need not be on battlefield at resolution time
-    /// (trigger is already on the stack), but bonus only applies if source
-    /// is still on the battlefield.
-    /// CR 702.23c: Multiple instances trigger separately.
-    RampageTrigger {
-        source_object: ObjectId,
-        rampage_n: u32,
-    },
-    /// CR 702.39a: Provoke triggered ability on the stack.
-    ///
-    /// "Whenever this creature attacks, you may have target creature defending
-    /// player controls untap and block this creature this combat if able."
-    ///
-    /// `source_object` is the creature with provoke (the attacker).
-    /// `provoked_creature` is the target creature (defending player controls).
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the provoked creature is still on the battlefield
-    ///    (target legality, CR 608.2b).
-    /// 2. Untap the provoked creature (CR 702.39a: "untap that creature").
-    /// 3. Add a forced-block requirement to `CombatState::forced_blocks`:
-    ///    provoked_creature must block source_object "if able" (CR 509.1c).
-    ///
-    /// If the provoked creature has left the battlefield, the trigger fizzles.
-    ///
-    /// CR 702.39b: Multiple instances each trigger separately, each with their
-    /// own `ProvokeTrigger` stack object.
-    ProvokeTrigger {
-        source_object: ObjectId,
-        provoked_creature: ObjectId,
-    },
-    /// CR 702.112a: Renown N triggered ability on the stack.
-    ///
-    /// "When this creature deals combat damage to a player, if it isn't renowned,
-    /// put N +1/+1 counters on it and it becomes renowned."
-    ///
-    /// `source_object` is the creature with renown.
-    /// `renown_n` is the number of +1/+1 counters to place.
-    ///
-    /// When this trigger resolves:
-    /// 1. Re-check the intervening-if (CR 603.4): source must still be on the
-    ///    battlefield AND not yet renowned.
-    /// 2. If check passes: place N +1/+1 counters on source and set is_renowned.
-    /// 3. If source left the battlefield before resolution, do nothing
-    ///    (Ruling 2015-06-22).
-    ///
-    /// CR 702.112c: Multiple instances each create their own RenownTrigger.
-    /// The first to resolve sets is_renowned; subsequent triggers fail the
-    /// intervening-if (CR 603.4) and do nothing.
-    RenownTrigger {
-        source_object: ObjectId,
-        renown_n: u32,
-    },
-    /// CR 702.121a: Melee triggered ability on the stack.
-    ///
-    /// "Whenever this creature attacks, it gets +1/+1 until end of turn for
-    /// each opponent you attacked with a creature this combat."
-    ///
-    /// When this trigger resolves:
-    /// 1. Count distinct opponents (players) targeted by any attacker in
-    ///    `state.combat.attackers` (only `AttackTarget::Player` entries count,
-    ///    NOT planeswalkers -- ruling 2016-08-23).
-    /// 2. If count > 0 and source is on the battlefield, apply +count/+count
-    ///    as a ContinuousEffect (UntilEndOfTurn) in Layer 7c (PtModify).
-    ///
-    /// CR 702.121b: Multiple instances trigger separately (each creates its
-    /// own MeleeTrigger; each computes the bonus independently).
-    ///
-    /// The bonus is computed at resolution time (ruling 2016-08-23: "You
-    /// determine the size of the bonus as the melee ability resolves").
-    /// `state.combat.attackers` retains all declared attackers even if they
-    /// leave the battlefield, so the count is stable.
-    MeleeTrigger { source_object: ObjectId },
-    /// CR 702.70a: Poisonous N triggered ability on the stack.
-    ///
-    /// "Whenever this creature deals combat damage to a player, that player
-    /// gets N poison counters."
-    ///
-    /// `source_object` is the creature with poisonous on the battlefield.
-    /// `target_player` is the player who was dealt combat damage (who receives
-    /// the poison counters).
-    /// `poisonous_n` is the number of poison counters to give.
-    ///
-    /// When this trigger resolves:
-    /// 1. Give `target_player` exactly `poisonous_n` poison counters.
-    /// 2. Emit `PoisonCountersGiven` event (reusing the existing Infect event).
-    ///
-    /// CR 702.70b: Multiple instances trigger separately (each creates its own
-    /// trigger with its own N value).
-    ///
-    /// CR 603.10: The source creature does NOT need to be on the battlefield
-    /// at resolution time (the trigger is already on the stack). The poison
-    /// counters are given regardless of the source's current state.
-    PoisonousTrigger {
-        source_object: ObjectId,
-        target_player: crate::state::player::PlayerId,
-        poisonous_n: u32,
-    },
-    /// CR 702.154a: Enlist triggered ability on the stack.
-    ///
-    /// "When you [tap a creature for enlist], this creature gets +X/+0 until
-    /// end of turn, where X is the tapped creature's power."
-    ///
-    /// `source_object` is the attacking creature with Enlist.
-    /// `enlisted_creature` is the creature that was tapped to pay the
-    /// enlist cost.
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the source (enlisting) creature is still on the battlefield.
-    /// 2. Read the enlisted creature's power via calculate_characteristics
-    ///    (if still on battlefield) or raw characteristics (if departed).
-    /// 3. If the source creature is alive and power != 0, register a
-    ///    ContinuousEffect with ModifyPower(X) in Layer 7c (PtModify)
-    ///    targeting SingleObject(source_object) with UntilEndOfTurn duration.
-    /// 4. If the source left the battlefield, do nothing (CR 400.7).
-    ///
-    /// CR 702.154d: Multiple instances each create their own EnlistTrigger
-    /// with different `enlisted_creature` values.
-    EnlistTrigger {
-        source_object: ObjectId,
-        enlisted_creature: ObjectId,
-    },
+    // FlankingTrigger, RampageTrigger, ProvokeTrigger, RenownTrigger,
+    // MeleeTrigger, PoisonousTrigger, EnlistTrigger: migrated to KeywordTrigger
     /// CR 702.49a: Ninjutsu activated ability on the stack.
     ///
     /// When this ability resolves: put the ninja card from hand (or command
@@ -848,181 +575,13 @@ pub enum StackObjectKind {
         source_card_id: Option<crate::state::player::CardId>,
         activator: crate::state::player::PlayerId,
     },
-    /// CR 702.141a: Encore delayed triggered ability on the stack.
-    ///
-    /// "Sacrifice them at the beginning of the next end step."
-    /// This is a delayed triggered ability created when the encore tokens
-    /// are created. Each token gets its own sacrifice trigger.
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the token is still on the battlefield (CR 400.7).
-    /// 2. Check if the token is still controlled by the encore activator
-    ///    (ruling 2020-11-10: can't sacrifice if under another player's control).
-    /// 3. If both checks pass, sacrifice the token (move to graveyard via
-    ///    replacement effects).
-    ///
-    /// If countered (e.g., by Stifle), the token stays on the battlefield.
-    EncoreSacrificeTrigger {
-        source_object: ObjectId,
-        activator: crate::state::player::PlayerId,
-    },
-    /// CR 702.109a: Dash delayed triggered ability on the stack.
-    ///
-    /// "Return the permanent this spell becomes to its owner's hand at the
-    /// beginning of the next end step."
-    /// This is a delayed triggered ability created when the dash spell resolves
-    /// and the permanent enters the battlefield.
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the source is still on the battlefield (CR 400.7).
-    /// 2. If yes, return it to its owner's hand.
-    /// 3. If no (died, blinked, bounced), do nothing.
-    ///
-    /// If countered (e.g., by Stifle), the permanent stays on the battlefield
-    /// but retains haste (the haste is a static ability linked to was_dashed,
-    /// not to this trigger).
-    DashReturnTrigger { source_object: ObjectId },
-    /// CR 702.152a: Blitz delayed triggered ability on the stack.
-    ///
-    /// "Sacrifice the permanent this spell becomes at the beginning of the
-    /// next end step."
-    /// This is a delayed triggered ability created when the blitz spell resolves
-    /// and the permanent enters the battlefield.
-    ///
-    /// When this trigger resolves:
-    /// 1. Check if the source is still on the battlefield (CR 400.7).
-    /// 2. If yes, sacrifice it (move to graveyard, which fires CreatureDied).
-    /// 3. If no (already died, blinked, bounced), do nothing.
-    ///
-    /// If countered (e.g., by Stifle), the permanent stays on the battlefield
-    /// but retains haste and the draw-on-death trigger (those are static
-    /// abilities linked to cast_alt_cost, not to this trigger -- CR 702.152a).
-    BlitzSacrificeTrigger { source_object: ObjectId },
-    /// CR 702.153a: Casualty triggered ability on the stack.
-    ///
-    /// "When you cast this spell, if a casualty cost was paid for it, copy it."
-    /// This trigger fires after the casualty cost has been paid and the spell
-    /// is on the stack. When this trigger resolves, one copy of the original
-    /// spell is created on the stack above the original (LIFO order means the
-    /// copy resolves first).
-    ///
-    /// `source_object` is the ObjectId of the card now in ZoneId::Stack.
-    /// `original_stack_id` is the id of the spell StackObject to copy.
-    ///
-    /// The copy is NOT cast (CR 707.10 / ruling 2022-04-29) — it does not
-    /// trigger "whenever you cast a spell" abilities, and it does not
-    /// increment `spells_cast_this_turn`.
-    ///
-    /// CR 702.153b: Multiple instances of casualty each trigger separately
-    /// and produce their own copy. (Not yet supported — no cards have multiple
-    /// instances in initial implementation.)
-    CasualtyTrigger {
-        source_object: ObjectId,
-        original_stack_id: ObjectId,
-    },
 
-    /// CR 702.176a: Impending end-step counter-removal trigger.
-    ///
-    /// "At the beginning of your end step, if this permanent's impending cost
-    /// was paid and it has a time counter on it, remove a time counter from it."
-    ///
-    /// When this trigger resolves:
-    /// 1. Re-check intervening-if: permanent must still be on battlefield,
-    ///    must have `cast_alt_cost == Some(AltCostKind::Impending)`, and must
-    ///    have at least one time counter (CR 603.4).
-    /// 2. If yes, remove one time counter.
-    /// 3. If no (conditions no longer met), do nothing.
-    ///
-    /// Unlike Suspend, there is no follow-up trigger when the last counter is
-    /// removed -- the permanent simply becomes a creature because the Layer 4
-    /// type-removal effect in calculate_characteristics stops applying.
-    ImpendingCounterTrigger {
-        source_object: ObjectId,
-        impending_permanent: ObjectId,
-    },
-
-    /// CR 702.56a: Replicate trigger — "When you cast this spell, if a replicate cost
-    /// was paid for it, copy it for each time its replicate cost was paid."
-    ///
-    /// This is a triggered ability (CR 702.56a). It goes on the stack above the original
-    /// spell and resolves through normal priority.
-    ///
-    /// Copies created by replicate are NOT cast (ruling 2024-01-12 for Shattering Spree)
-    /// — they do not trigger "whenever you cast a spell" abilities and do not increment
-    /// `spells_cast_this_turn`.
-    ///
-    /// `replicate_count` stores the number of times the replicate cost was paid, which
-    /// determines the number of copies created on resolution.
-    ReplicateTrigger {
-        source_object: ObjectId,
-        original_stack_id: ObjectId,
-        replicate_count: u32,
-    },
-    /// CR 702.69a: Gravestorm triggered ability — fires when the spell with gravestorm
-    /// is cast. Resolves to create `gravestorm_count` copies of `original_stack_id`.
-    ///
-    /// Copies created by gravestorm are NOT cast (CR 702.69a / CR 707.10) — they do not
-    /// trigger "whenever you cast a spell" abilities and do not increment
-    /// `spells_cast_this_turn`.
-    ///
-    /// `gravestorm_count` is captured at trigger-creation time (at cast) from
-    /// `GameState::permanents_put_into_graveyard_this_turn` to prevent changes
-    /// between cast and resolution from affecting the count.
-    GravestormTrigger {
-        source_object: ObjectId,
-        original_stack_id: ObjectId,
-        gravestorm_count: u32,
-    },
-    /// CR 702.63a: "At the beginning of your upkeep, if this permanent has a time counter
-    /// on it, remove a time counter from it." Discriminant 37.
-    VanishingCounterTrigger {
-        source_object: ObjectId,
-        vanishing_permanent: ObjectId,
-    },
-    /// CR 702.63a: "When the last time counter is removed from this permanent, sacrifice it."
-    /// Discriminant 38.
-    VanishingSacrificeTrigger {
-        source_object: ObjectId,
-        vanishing_permanent: ObjectId,
-    },
-    /// CR 702.32a: "At the beginning of your upkeep, remove a fade counter from
-    /// this permanent. If you can't, sacrifice the permanent." Discriminant 39.
-    FadingTrigger {
-        source_object: ObjectId,
-        fading_permanent: ObjectId,
-    },
-    /// CR 702.30a: "At the beginning of your upkeep, if this permanent came under
-    /// your control since the beginning of your last upkeep, sacrifice it unless
-    /// you pay [cost]." Discriminant 40.
-    EchoTrigger {
-        source_object: ObjectId,
-        echo_permanent: ObjectId,
-        echo_cost: ManaCost,
-    },
-    /// CR 702.24a: "At the beginning of your upkeep, if this permanent is on the
-    /// battlefield, put an age counter on this permanent. Then you may pay [cost]
-    /// for each age counter on it. If you don't, sacrifice it."
-    /// Discriminant 41.
-    CumulativeUpkeepTrigger {
-        source_object: ObjectId,
-        cu_permanent: ObjectId,
-        per_counter_cost: crate::state::types::CumulativeUpkeepCost,
-    },
-    /// CR 702.59a: Recover trigger. Fires when a creature enters the card owner's
-    /// graveyard from the battlefield and the Recover card is also in that graveyard.
-    ///
-    /// On resolution: check if recover_card is still in the graveyard (CR 400.7).
-    /// If yes, emit RecoverPaymentRequired and add to pending_recover_payments.
-    /// The game pauses until a Command::PayRecover is received.
-    ///
-    /// Discriminant 42.
-    RecoverTrigger {
-        source_object: ObjectId,
-        /// The ObjectId of the Recover card in the graveyard (the trigger source).
-        recover_card: ObjectId,
-        /// The mana cost to pay for Recover.
-        recover_cost: ManaCost,
-    },
+    // ImpendingCounterTrigger (disc 33): migrated to KeywordTrigger { keyword: Impending, data: CounterRemoval }
+    // VanishingCounterTrigger (disc 37) and VanishingSacrificeTrigger (disc 38):
+    // migrated to KeywordTrigger { keyword: Vanishing, data: CounterRemoval/CounterSacrifice }
+    // FadingTrigger (disc 39): migrated to KeywordTrigger { keyword: Fading, data: CounterRemoval }
+    // EchoTrigger (disc 40): migrated to KeywordTrigger { keyword: Echo, data: UpkeepCost }
+    // CumulativeUpkeepTrigger (disc 41): migrated to KeywordTrigger { keyword: CumulativeUpkeep, data: UpkeepCost }
     /// CR 702.57a: Forecast activated ability on the stack.
     ///
     /// The source card remains in the player's hand. The effect is captured
@@ -1036,18 +595,6 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         embedded_effect: Box<crate::cards::card_definition::Effect>,
     },
-    /// CR 702.58a: Graft triggered ability on the stack.
-    /// "Whenever another creature enters, if this permanent has a +1/+1 counter
-    /// on it, you may move a +1/+1 counter from this permanent onto that creature."
-    ///
-    /// At resolution: re-check intervening-if (source has +1/+1 counter, CR 603.4),
-    /// then move one counter from source to entering creature.
-    ///
-    /// Discriminant 44.
-    GraftTrigger {
-        source_object: ObjectId,
-        entering_creature: ObjectId,
-    },
     /// CR 702.97a: Scavenge activated ability on the stack.
     ///
     /// When this ability resolves: put `power_snapshot` +1/+1 counters on the
@@ -1060,81 +607,6 @@ pub enum StackObjectKind {
     ScavengeAbility {
         source_card_id: Option<crate::state::player::CardId>,
         power_snapshot: u32,
-    },
-    /// CR 702.165a: Backup triggered ability on the stack.
-    ///
-    /// "When this creature enters, put N +1/+1 counters on target creature.
-    /// If that's another creature, it also gains the non-backup abilities of
-    /// this creature printed below this one until end of turn."
-    ///
-    /// At resolution: place N +1/+1 counters on the target creature. If the
-    /// target is a different creature from the source, register a Layer 6
-    /// UntilEndOfTurn continuous effect granting the stored keyword abilities.
-    ///
-    /// Discriminant 46.
-    BackupTrigger {
-        source_object: ObjectId,
-        target_creature: ObjectId,
-        counter_count: u32,
-        /// Keyword abilities to grant (determined at trigger time per CR 702.165d).
-        /// Empty if targeting self (CR 702.165a: "if that's another creature").
-        abilities_to_grant: Vec<crate::state::types::KeywordAbility>,
-    },
-    /// CR 702.72a: Champion ETB trigger on the stack.
-    ///
-    /// "When this permanent enters, sacrifice it unless you exile another
-    /// [object] you control." When this resolves, the engine auto-selects
-    /// the first qualifying permanent to exile (simplified -- no player choice
-    /// for now). If none exists, the champion is sacrificed.
-    ///
-    /// Discriminant 47.
-    ChampionETBTrigger {
-        source_object: ObjectId,
-        champion_filter: crate::state::types::ChampionFilter,
-    },
-    /// CR 702.72a: Champion LTB trigger on the stack.
-    ///
-    /// "When this permanent leaves the battlefield, return the exiled card
-    /// to the battlefield under its owner's control." When this resolves,
-    /// the engine checks if the exiled card is still in exile; if so, it
-    /// moves it to the battlefield under its owner's control.
-    ///
-    /// Discriminant 48.
-    ChampionLTBTrigger {
-        source_object: ObjectId,
-        exiled_card: ObjectId,
-    },
-    /// CR 702.95a: Soulbond ETB trigger on the stack.
-    ///
-    /// Fired when a creature with soulbond enters (SelfETB) OR when another
-    /// creature enters while an unpaired soulbond creature is on the battlefield
-    /// (OtherETB). In both cases, source_object is the soulbond creature.
-    ///
-    /// At resolution (CR 702.95c): both source_object and pair_target must still
-    /// be on the battlefield as creatures controlled by the same player and both
-    /// unpaired, otherwise fizzle.
-    ///
-    /// Discriminant 49.
-    SoulbondTrigger {
-        /// The creature with the soulbond ability.
-        source_object: ObjectId,
-        /// The creature to pair with (auto-selected at trigger time).
-        pair_target: ObjectId,
-    },
-    /// CR 702.156a: Ravenous draw trigger on the stack.
-    ///
-    /// "When this permanent enters, if X is 5 or more, draw a card."
-    /// X is the value chosen at cast time (CR 107.3m). The intervening-if
-    /// condition is checked both when the trigger would go on the stack
-    /// and when it resolves (CR 603.4).
-    ///
-    /// Discriminant 50.
-    RavenousDrawTrigger {
-        /// The Ravenous permanent that entered the battlefield.
-        ravenous_permanent: ObjectId,
-        /// The value of X chosen at cast time. Used for the intervening-if
-        /// re-check at resolution (CR 603.4).
-        x_value: u32,
     },
 
     /// CR 207.2c: Bloodrush activated ability on the stack.
@@ -1162,61 +634,6 @@ pub enum StackObjectKind {
         /// Optional keyword to grant until end of turn (Layer 6).
         grants_keyword: Option<KeywordAbility>,
     },
-    /// CR 702.157a: Squad triggered ability -- fires when the creature with Squad
-    /// enters the battlefield, if its squad cost was paid at least once.
-    /// Resolves to create `squad_count` token copies of the source creature.
-    ///
-    /// Intervening-if (CR 603.4): the trigger only fires if `squad_count > 0` AND the
-    /// permanent has `KeywordAbility::Squad` in layer-resolved characteristics.
-    /// (Ruling 2022-10-07: if Squad is lost before the trigger fires, no tokens.)
-    ///
-    /// Tokens are NOT cast (ruling 2022-10-07) -- no "cast" triggers fire for them.
-    ///
-    /// Discriminant 52.
-    SquadTrigger {
-        /// The ObjectId of the creature that entered the battlefield with Squad.
-        source_object: ObjectId,
-        /// How many times the squad cost was paid at cast time (immutable after cast).
-        squad_count: u32,
-    },
-    /// CR 702.175a: Offspring triggered ability -- fires when the creature with Offspring
-    /// enters the battlefield, if its offspring cost was paid.
-    /// Resolves to create 1 token that's a copy of the source creature, except it's 1/1.
-    ///
-    /// Intervening-if (CR 603.4): the trigger only fires if `offspring_paid == true` AND the
-    /// permanent has `KeywordAbility::Offspring` in layer-resolved characteristics.
-    /// (Ruling 2024-07-26: if the creature leaves before the trigger resolves, the token
-    /// IS still created using last-known information from the card registry.)
-    ///
-    /// Tokens are NOT cast (ruling 2024-07-26) -- no "cast" triggers fire for them.
-    ///
-    /// Discriminant 53.
-    OffspringTrigger {
-        /// The ObjectId of the creature that entered the battlefield with Offspring.
-        /// May be gone by resolution time (LKI applies).
-        source_object: ObjectId,
-        /// The CardId of the source creature, captured at trigger-queue time for LKI.
-        /// Used to look up the card registry when the source has left the battlefield
-        /// before the trigger resolves (ruling 2024-07-26).
-        #[serde(default)]
-        source_card_id: Option<crate::state::CardId>,
-    },
-    /// CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its gift cost
-    /// was paid, [gift effect for the chosen opponent]."
-    ///
-    /// Fired at ETB time when gift_was_given == true AND the permanent has
-    /// KeywordAbility::Gift in layer-resolved characteristics.
-    ///
-    /// Discriminant 54.
-    GiftETBTrigger {
-        /// The ObjectId of the permanent that entered.
-        source_object: ObjectId,
-        /// The card ID for registry lookup (LKI fallback).
-        #[serde(default)]
-        source_card_id: Option<crate::state::CardId>,
-        /// The opponent chosen at cast time to receive the gift.
-        gift_opponent: crate::state::PlayerId,
-    },
     /// CR 702.171a: Saddle activated ability on the stack.
     ///
     /// The saddle cost has already been paid (saddling creatures tapped at activation
@@ -1230,63 +647,6 @@ pub enum StackObjectKind {
     SaddleAbility {
         /// The ObjectId of the Mount being saddled.
         source_object: ObjectId,
-    },
-    /// CR 702.99a: CipherTrigger -- "Whenever [encoded creature] deals combat damage
-    /// to a player, you may copy the encoded card and you may cast the copy without
-    /// paying its mana cost."
-    ///
-    /// The trigger is controlled by the current controller of the creature (ruling
-    /// 2013-04-15: if another player gains control of the creature, THAT player
-    /// controls the trigger). The copy is cast (so "whenever you cast" triggers fire).
-    ///
-    /// At resolution: verify the encoded card still exists in exile (CR 702.99c —
-    /// if not, the trigger fizzles). Create a copy of the spell and auto-cast it
-    /// for free (MVP -- interactive choice deferred).
-    ///
-    /// Discriminant 56.
-    CipherTrigger {
-        /// The ObjectId of the creature that dealt combat damage (the encoded creature).
-        source_creature: ObjectId,
-        /// The CardId of the card definition to copy (the cipher spell's card id).
-        encoded_card_id: crate::state::player::CardId,
-        /// The ObjectId of the exiled card encoding (used to verify it still exists in exile).
-        encoded_object_id: ObjectId,
-    },
-    /// CR 702.55a: Haunt exile trigger -- "When this creature dies / this spell is
-    /// put into a graveyard during its resolution, exile it haunting target creature."
-    ///
-    /// At resolution: find the haunt card in the graveyard (must still be there),
-    /// auto-select the first legal creature on the battlefield as the target (MVP --
-    /// interactive target selection deferred), move the haunt card from the graveyard
-    /// to exile, set `haunting_target` on the new exiled object, and emit HauntExiled.
-    ///
-    /// If the haunt card is no longer in the graveyard or no legal creature target
-    /// exists, the trigger fizzles.
-    ///
-    /// Discriminant 57.
-    HauntExileTrigger {
-        /// The ObjectId of the haunt card in the graveyard (about to be exiled).
-        haunt_card: ObjectId,
-        /// The CardId of the haunt card (for registry lookup / card name for events).
-        #[serde(default)]
-        haunt_card_id: Option<crate::state::player::CardId>,
-    },
-    /// CR 702.55c: Haunted creature dies trigger -- "When the creature [this card] haunts
-    /// dies, [effect]." Fires from exile when the creature this card is haunting dies.
-    ///
-    /// At resolution: look up the haunt card in exile (verify it still exists with
-    /// a haunting_target), execute the card's haunt effect from the card registry.
-    /// The haunt card stays in exile after resolution (it does NOT leave exile).
-    ///
-    /// If the haunt card is no longer in exile, the trigger fizzles.
-    ///
-    /// Discriminant 58.
-    HauntedCreatureDiesTrigger {
-        /// The ObjectId of the exiled haunt card (the card whose effect fires).
-        haunt_source: ObjectId,
-        /// The CardId of the haunt card (for registry lookup of the haunt effect).
-        #[serde(default)]
-        haunt_card_id: Option<crate::state::player::CardId>,
     },
 
     /// CR 702.140a / CR 729.2: A mutating creature spell on the stack.
@@ -1382,5 +742,14 @@ pub enum StackObjectKind {
         /// ability that triggered. Cards may have multiple WhenTurnedFaceUp abilities
         /// (rare but rules-legal); each gets its own TurnFaceUpTrigger SOK.
         ability_index: usize,
+    },
+
+    /// Consolidated keyword trigger (replaces many one-off trigger variants).
+    ///
+    /// Discriminant 64.
+    KeywordTrigger {
+        source_object: ObjectId,
+        keyword: KeywordAbility,
+        data: TriggerData,
     },
 }

@@ -12,7 +12,7 @@
 //! Test setup note: Tests that verify the upkeep trigger start at Step::Untap with
 //! priority manually set. Passing priority for all players at Untap causes the engine
 //! to advance to Upkeep via handle_all_passed -> enter_step, which calls upkeep_actions
-//! and queues the VanishingCounterTrigger. This avoids the need to pass through Draw
+//! and queues the Vanishing counter-removal trigger. This avoids the need to pass through Draw
 //! (which would fail with an empty library).
 
 use mtg_engine::{
@@ -276,30 +276,11 @@ fn test_vanishing_etb_counters_on_cast() {
             convoke_creatures: vec![],
             improvise_artifacts: vec![],
             delve_cards: vec![],
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .expect("CastSpell should succeed");
@@ -327,7 +308,7 @@ fn test_vanishing_etb_counters_on_cast() {
 ///
 /// Test setup: Start at Step::Untap with priority manually set. Passing priority for all
 /// players at Untap advances to Upkeep via enter_step, which calls upkeep_actions and
-/// queues the VanishingCounterTrigger.
+/// queues the Vanishing counter-removal trigger.
 fn test_vanishing_upkeep_removes_counter() {
     let p1 = p(1);
     let p2 = p(2);
@@ -350,7 +331,7 @@ fn test_vanishing_upkeep_removes_counter() {
     }
     state.turn.priority_holder = Some(p1);
 
-    // Advance Untap -> Upkeep (enter_step queues VanishingCounterTrigger).
+    // Advance Untap -> Upkeep (enter_step queues Vanishing counter-removal trigger).
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
         state.turn.step,
@@ -385,7 +366,7 @@ fn test_vanishing_upkeep_removes_counter() {
     );
 }
 
-// ── Test 3: VanishingSacrificeTrigger on last counter ─────────────────────────
+// ── Test 3: Vanishing sacrifice trigger on last counter ─────────────────────────
 
 #[test]
 /// CR 702.63a (third ability) — When the last time counter is removed from this
@@ -412,24 +393,28 @@ fn test_vanishing_sacrifice_on_last_counter() {
     }
     state.turn.priority_holder = Some(p1);
 
-    // Advance Untap -> Upkeep (queues VanishingCounterTrigger).
+    // Advance Untap -> Upkeep (queues Vanishing counter-removal trigger).
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    // Resolve VanishingCounterTrigger -> removes last counter -> queues VanishingSacrificeTrigger.
+    // Resolve Vanishing counter-removal trigger -> removes last counter -> queues Vanishing sacrifice trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    // After counter removal: 0 counters, VanishingSacrificeTrigger on stack.
+    // After counter removal: 0 counters, Vanishing sacrifice trigger on stack.
     assert_eq!(
         time_counters(&state, "Test Vanishing 3 Creature"),
         0,
         "CR 702.63a: last counter removed, should have 0 counters"
     );
     assert!(
-        state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::VanishingSacrificeTrigger { .. })),
-        "CR 702.63a: VanishingSacrificeTrigger should be on the stack"
+        state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Vanishing(_),
+                data: mtg_engine::TriggerData::CounterSacrifice { .. },
+                ..
+            }
+        )),
+        "CR 702.63a: Vanishing sacrifice trigger should be on the stack"
     );
 
     // Resolve the sacrifice trigger -> creature sacrificed.
@@ -496,10 +481,14 @@ fn test_vanishing_full_lifecycle() {
     );
     // No sacrifice trigger yet.
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::VanishingSacrificeTrigger { .. })),
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Vanishing(_),
+                data: mtg_engine::TriggerData::CounterSacrifice { .. },
+                ..
+            }
+        )),
         "No sacrifice trigger yet -- creature has 1 counter remaining"
     );
 
@@ -515,7 +504,7 @@ fn test_vanishing_full_lifecycle() {
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(state.turn.step, Step::Upkeep);
 
-    // Resolve VanishingCounterTrigger -> removes last counter -> queues VanishingSacrificeTrigger.
+    // Resolve Vanishing counter-removal trigger -> removes last counter -> queues Vanishing sacrifice trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
         time_counters(&state, "Test Vanishing 2 Creature"),
@@ -523,7 +512,7 @@ fn test_vanishing_full_lifecycle() {
         "CR 702.63a: no counters after second upkeep"
     );
 
-    // Resolve VanishingSacrificeTrigger.
+    // Resolve Vanishing sacrifice trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
@@ -565,11 +554,15 @@ fn test_vanishing_without_number_no_etb_counters() {
 
     // CR 702.63b: No upkeep trigger should fire (intervening-if: no time counter present).
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::VanishingCounterTrigger { .. })),
-        "CR 702.63b: No VanishingCounterTrigger without time counters"
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Vanishing(_),
+                data: mtg_engine::TriggerData::CounterRemoval { .. },
+                ..
+            }
+        )),
+        "CR 702.63b: No Vanishing counter-removal trigger without time counters"
     );
 
     // Permanent still on battlefield.
@@ -615,13 +608,17 @@ fn test_vanishing_multiplayer_only_active_player() {
     let (state, _) = pass_all(state, &[p2, p1]);
     assert_eq!(state.turn.step, Step::Upkeep);
 
-    // No VanishingCounterTrigger for p1's permanent during p2's upkeep.
+    // No Vanishing counter-removal trigger for p1's permanent during p2's upkeep.
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(&so.kind, StackObjectKind::VanishingCounterTrigger { .. })),
-        "CR 702.63a: VanishingCounterTrigger must not fire on a non-controller's upkeep"
+        !state.stack_objects.iter().any(|so| matches!(
+            &so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Vanishing(_),
+                data: mtg_engine::TriggerData::CounterRemoval { .. },
+                ..
+            }
+        )),
+        "CR 702.63a: Vanishing counter-removal trigger must not fire on a non-controller's upkeep"
     );
     assert_eq!(
         time_counters(&state, "Test Vanishing 3 Creature"),
@@ -666,7 +663,7 @@ fn test_vanishing_multiple_instances() {
     }
     state.turn.priority_holder = Some(p1);
 
-    // Advance Untap -> Upkeep -> two VanishingCounterTriggers queued.
+    // Advance Untap -> Upkeep -> two Vanishing counter-removal triggers queued.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(state.turn.step, Step::Upkeep);
 
@@ -674,7 +671,16 @@ fn test_vanishing_multiple_instances() {
     let vanishing_counter_triggers = state
         .stack_objects
         .iter()
-        .filter(|so| matches!(&so.kind, StackObjectKind::VanishingCounterTrigger { .. }))
+        .filter(|so| {
+            matches!(
+                &so.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Vanishing(_),
+                    data: mtg_engine::TriggerData::CounterRemoval { .. },
+                    ..
+                }
+            )
+        })
         .count();
     assert_eq!(
         vanishing_counter_triggers, 2,

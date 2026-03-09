@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 15 + Mutate + Transform (2026-03-08)
+# Infra & Testing Gotchas — Last verified: M9.5 + Type Consolidation S1-S5 (2026-03-09)
 
 ## Rust / im-rs Gotchas
 
@@ -140,7 +140,7 @@
   This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
-- **Discriminant chain after Batch 14**: KW 143 (Reconfigure), AbilDef 58 (Reconfigure), SOK 58 (HauntedCreatureDiesTrigger). Batch 15 needs no new discriminants (Commander partner abilities are deck-validation only). Full B14 chain: KW 141-143 (Cipher, Haunt, Reconfigure); AbilDef 57-58 (Cipher, Reconfigure); SOK 56-58 (CipherTrigger, HauntExileTrigger, HauntedCreatureDiesTrigger).
+- **Discriminant chains after Type Consolidation**: AbilityDefinition has ~55 variants (down from 64 — old per-ability alt-cost variants like Flashback, Embalm, Eternalize, etc. are now `AltCastAbility`). StackObjectKind has ~20 variants (down from 62 — most trigger variants are now `KeywordTrigger`). New abilities should add `TriggerData` variants (not SOK variants) and `AltCastAbility` entries (not AbilDef variants). **Still verify discriminant chains from previous batch before implementing** — the planner gets these wrong ~every batch.
   **Escalate CR is 702.120** (not 702.121 = Melee — a common confusion).
 - **`tools/replay-viewer/src/view_model.rs` has TWO exhaustive matches** that need updating for every new ability: (1) `StackObjectKind` match in `stack_kind_info()` — add arm for every new SOK variant; (2) `KeywordAbility` match in the keyword display function — add arm for every new KW variant. The `ability-impl-runner` misses the `KeywordAbility` match ~50% of the time. Always run `cargo build --workspace` (not just `-p mtg-engine`) after implement/fix phases to catch compile errors in the replay-viewer. Confirmed pattern from Outlast (B9).
 - **HAZARD: `ability-impl-planner` generates wrong discriminants.** The planner (Opus) sometimes
@@ -230,12 +230,13 @@
   `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
   **B13 additions**: `cast_spell_squad` (squad_count: u32), `cast_spell_offspring` (offspring_paid: bool),
   `saddle_mount` (mount_id + saddling_creature_ids). **Gift gap**: `cast_spell` does not wire
-  `gift_opponent: Option<u32>` — the `PlayerAction` struct in `script_schema.rs` and
-  `translate_player_action()` in `replay_harness.rs` need this field before Gift scripts can validate.
+  `gift_opponent` — the `PlayerAction` struct in `script_schema.rs` and
+  `translate_player_action()` in `replay_harness.rs` need this field (mapped to `AdditionalCost::Gift`) before Gift scripts can validate.
   Script 185 is `pending_review` as a result.
   **B14 additions**: `activate_ability` with `discard_card_name: Option<String>` (Blood Token discard-as-cost). **Cipher gap**: `cast_spell_cipher` action not yet wired — encoding choice (which creature to encode on) is unrepresentable. Script 187 is `pending_review`.
-- **`cast_spell` hard-codes `replicate_count: 0`** — scripts for Replicate spells MUST use
-  `cast_spell_replicate`. Similarly, `cast_spell` does not set entwine/escalate/splice fields.
+- **`cast_spell` does not populate `additional_costs`** — scripts for Replicate, Entwine,
+  Escalate, Splice, etc. MUST use the ability-specific action type (e.g., `cast_spell_replicate`,
+  `cast_spell_entwine`). The harness translates these into the appropriate `AdditionalCost` variants.
   Always use the ability-specific action type for alt-cost/additional-cost spells.
 - **Card definition `modes` field is `Option<ModeSelection>`, NOT `Vec`** — `card-definition-author`
   repeatedly writes `modes: vec![]` which causes a type error. Correct value: `modes: None` for
@@ -258,18 +259,63 @@
   If you add a new initial_state field that affects pre-game setup, add it to `build_initial_state`
   in `tests/script_replay.rs`.
 
+## Designations Bitfield (Type Consolidation RC-4)
+
+Boolean designation fields on `GameObject` use the `Designations` bitflags type (u16).
+Do NOT add new `bool` fields for designations. Instead add a flag to `Designations`:
+
+```rust
+// In game_object.rs Designations bitflags:
+const NEW_FLAG = 1 << N;  // next available bit
+
+// Read:  obj.designations.contains(Designations::NEW_FLAG)
+// Set:   obj.designations.insert(Designations::NEW_FLAG);
+// Clear: obj.designations.remove(Designations::NEW_FLAG);
+```
+
+Current flags: RENOWNED, SUSPECTED, SADDLED, ECHO_PENDING, BESTOWED, FORETOLD, SUSPENDED, RECONFIGURED.
+Hashed as single `u16` in `hash.rs`. Default is all-zero (no init needed in struct literals beyond
+`designations: Designations::default()`).
+
+## AdditionalCost Extraction (Type Consolidation RC-1)
+
+CastSpell additional costs are in `additional_costs: Vec<AdditionalCost>`. To check if a
+specific cost was paid, use iterator patterns:
+
+- `cast.additional_costs.iter().find_map(|c| match c { AdditionalCost::Sacrifice(ids) => Some(ids), _ => None })`
+- `cast.additional_costs.iter().any(|c| matches!(c, AdditionalCost::Entwine))`
+
+Do NOT add new fields to CastSpell for ability-specific costs. Add an AdditionalCost variant.
+
+## KeywordTrigger Dispatch (Type Consolidation RC-2)
+
+Keyword triggers use `StackObjectKind::KeywordTrigger { source_object, keyword, data }`.
+Resolution in `resolution.rs` dispatches on `(keyword, data)` pairs. Do NOT add new
+StackObjectKind variants for triggers — add a TriggerData variant and a match arm in the
+KeywordTrigger resolution block.
+
+Parallel change: PendingTriggerKind::KeywordTrigger { keyword, data } mirrors the SOK variant.
+
+## AltCastAbility Pattern (Type Consolidation RC-3)
+
+Alt-cost AbilityDefinition variants (Flashback, Embalm, Eternalize, Encore, Unearth, Dash,
+Blitz, Plot, Escape, Prototype) are consolidated into `AbilityDefinition::AltCastAbility { kind, cost, details }`.
+Cost extraction helpers (e.g., `get_flashback_cost()`) match on `AltCastAbility { kind: AltCostKind::Flashback, cost, .. }`.
+Do NOT add new AbilityDefinition variants for alt-cost abilities — add an AltCostKind variant.
+
 ## EOC Flag Pattern (Decayed, Myriad)
 
 For "sacrifice/exile at end of combat" effects where the trigger is locked in at attack
 declaration (even if the ability is later removed):
-1. Add a `bool` flag to `GameObject` (e.g., `decayed_sacrifice_at_eoc`)
+1. Add a `bool` flag to `GameObject` (e.g., `decayed_sacrifice_at_eoc`) — these are NOT
+   designations, they're per-combat tracking flags, so they remain as individual bools
 2. Set the flag in `handle_declare_attackers()` in `combat.rs` — ONLY here has mutable state
 3. Check the flag in `end_combat()` in `turn_actions.rs` — collect flagged creatures, sacrifice
 4. Reset the flag in BOTH `move_object_to_zone()` sites in `state/mod.rs`
 5. Initialize to `false` in: `builder.rs`, `effects/mod.rs` (token creation), `resolution.rs`
 6. Hash the new field in `hash.rs`
 
-This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs:399-408` (Decayed).
+This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed).
 
 ## Turn Structure Gotchas
 
@@ -335,9 +381,9 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs:399-408` 
 ## Mutate Gotchas (B15 + Mutate session, 2026-03-08)
 
 - **Mutate preserves the target's ObjectId (CR 400.7).** The merging spell is absorbed into the target permanent — do NOT create a new ObjectId. The source spell's card data goes into `merged_components`; the target permanent object is updated in place.
-- **`mutate_on_top` choice is made at cast time** (on `CastSpell`), not at resolution. CR 702.140c says "at resolution", but cast-time annotation is simpler and produces equivalent results for engine replay/determinism. If interactive over/under choice is ever needed, a `ChooseMutatePosition` command would be required.
+- **Mutate over/under choice is made at cast time** (via `AdditionalCost::Mutate` in `additional_costs`), not at resolution. CR 702.140c says "at resolution", but cast-time annotation is simpler and produces equivalent results for engine replay/determinism. If interactive over/under choice is ever needed, a `ChooseMutatePosition` command would be required.
 - **Zone-change splitting must create NEW ObjectIds** for each component when the merged permanent leaves the battlefield. Each component becomes a fresh object in the destination zone — the merged permanent's ObjectId is not recycled.
-- **`mutate_on_top` required adding `false` to all `CastSpell` construction sites.** When B15/Mutate added this field, ~95 test files needed patching. Use a Python script (or `sed`) to add `, mutate_on_top: false, mutate_target: None` to all `Command::CastSpell {` construction sites.
+- **CastSpell now has only 13 fields (was 32).** After Type Consolidation RC-1, ability-specific cost fields (bargain_sacrifice, emerge_sacrifice, casualty_sacrifice, devour_sacrifices, retrace_discard_land, jump_start_discard, replicate_count, squad_count, entwine_paid, offspring_paid, gift_opponent, mutate_target, mutate_on_top, etc.) are consolidated into `additional_costs: vec![]`. See the "AdditionalCost Extraction" section below for access patterns. Adding a new field to CastSpell should be a last resort — prefer an `AdditionalCost` variant.
 - **Partner variant planner discriminant bug**: B15 planner assigned KW 144 to Mutate. Correct value was 147 (after FriendsForever=144, ChooseABackground=145, DoctorsCompanion=146 from B15). Always verify discriminant chain end from the *previous batch's actual code* before implementing — do not trust the session plan's stated values.
 - **Background enchantment commander exemption** is conditional: the "must be legendary creature" check must only be skipped when the other commander has `ChooseABackground`. Unconditional exemption would allow any legendary enchantment as a commander.
 - **`metadata.id` must be unique across all scripts.** Copy-pasted scripts inherit the source's `id` — always update it. Pattern: `script_<subdir>_<NNN>` matching the filename number (e.g., `054_mind_stone...json` → `id: "script_stack_054"`).

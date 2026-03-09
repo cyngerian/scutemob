@@ -4,15 +4,19 @@
 > to the roadmap that shorten the time-to-playable. These changes should be implemented
 > before M10 begins.
 >
-> **Status**: ACTIVE — items here gate M10 start.
+> **Status**: HISTORICAL SNAPSHOT (2026-03-07). Metrics below reflect state at time of writing.
+> For live metrics see `CLAUDE.md` "Current State" section.
+> **Updated 2026-03-09**: Type consolidation complete; metrics refreshed below.
 
 ---
 
 ## Context
 
-The engine core (M0-M9.5) is complete and well-tested: ~52k lines of engine code, ~131k
-lines of tests, 1641 tests, 193 card definitions, 229 game scripts, 153 validated abilities,
-29/36 corner cases covered. The architecture is sound.
+The engine core (M0-M9.5) is complete and well-tested. As of 2026-03-07: ~52k lines of
+engine code, ~131k lines of tests, 1641 tests, 193 card definitions, 229 game scripts,
+153 validated abilities, 29/36 corner cases covered. *(As of 2026-03-09: 1934 tests, 125 hand-authored cards,
+~105 approved scripts, ~187 validated abilities, 32/36 corner cases covered — see
+CLAUDE.md for current numbers.)* The architecture is sound.
 
 The problem is the **critical path from here to a human-playable game**:
 
@@ -86,7 +90,7 @@ whether to pursue web-only, Tauri-only, or web-first-then-Tauri.
 **Problem**: M12 envisions a three-stage pipeline (scripted converter -> LLM fallback ->
 human review) for bulk card generation. But the project is already scaling card authoring
 via Claude agents without this infrastructure:
-- 193 card definitions authored manually
+- 125 hand-authored card definitions
 - `card-definition-author` agent generates definitions
 - `generate_skeleton.py` creates starting points
 - W5 workstream has a worklist of ~941 ready cards
@@ -110,23 +114,16 @@ generation proves too slow or expensive at scale.
 
 ---
 
-## Finding 4: Prioritize Morph/Transform (Unblock 9 Ability Batches)
+## Finding 4: Prioritize Morph/Transform (Unblock 9 Ability Batches) — DONE
 
-**Problem**: Morph (5 batches blocked) and Transform (4 batches blocked) are unimplemented,
-which blocks 9 ability batches in `docs/ability-batch-plan.md`. These are common Commander
-mechanics — Transform especially (Werewolves, MDFCs, DFCs appear in many decks).
+**Problem**: Morph (5 batches blocked) and Transform (4 batches blocked) were unimplemented,
+blocking 9 ability batches in `docs/ability-batch-plan.md`.
 
-**Change**: Implement Transform and Morph as priority work items before M10, not deferred
-indefinitely. Transform is higher priority (more Commander-relevant cards).
+**Resolution (2026-03-08)**: Both implemented as pre-M10 mini-milestones:
+1. Transform/DFC (CR 712) — complete: Daybound/Nightbound, Disturb, Craft
+2. Morph/Manifest (CR 702.37/701.40) — complete: Morph, Megamorph, Disguise, Manifest, Cloak
 
-**Suggested order**:
-1. Transform/DFC (CR 712) — unblocks 4 batches
-2. Morph/Manifest (CR 702.36/701.34) — unblocks 5 batches
-
-**Files to update**:
-- `docs/ability-batch-plan.md` — move Transform/Morph to immediate priority
-- `docs/mtg-engine-ability-coverage.md` — update status when implemented
-- `CLAUDE.md` — update deferred items list
+All 9 previously-blocked batches are now unblocked. See CLAUDE.md for details.
 
 ---
 
@@ -192,6 +189,24 @@ the `paired_with` field, but these changes are not committed.
 
 ---
 
+## Pre-M10 Type Consolidation — COMPLETE (2026-03-09)
+
+A pre-M10 refactoring effort (`docs/mtg-engine-type-consolidation.md`) consolidated
+sprawling engine types before networking work begins. Results:
+
+| Type | Before | After | Method |
+|------|--------|-------|--------|
+| `CastSpell` fields | 32 | 13 | `AdditionalCost` vec replaces ~20 one-off fields |
+| `StackObjectKind` variants | ~62 | ~20 | `KeywordTrigger` absorbs ~25 trigger variants |
+| `AbilityDefinition` variants | 64 | 55 | `AltCastAbility` replaces 10 alt-cost variants |
+| `Designations` | 8 booleans | 1 u16 bitfield | `bitflags` crate |
+
+All 1934 tests passing throughout. 0 HIGH/MEDIUM issues from consolidation (~22 LOW
+stale doc comments deferred). See `docs/mtg-engine-type-consolidation.md` for session
+details.
+
+---
+
 ## Revised Critical Path
 
 ```
@@ -199,8 +214,8 @@ Before (serial):
   M10 ---------> M11 ---------> M12 ---------> M13 ---------> M14 -> M15
 
 After (parallel, compressed):
-  Fix compile error (immediate)
-  Transform/Morph (W1, unblocks 9 batches)
+  Transform/Morph (W1)            -- DONE (2026-03-08)
+  Type consolidation (pre-M10)    -- DONE (2026-03-09)
   |
   +-- M11-local (web UI + bots, no networking)     -- humans can play here
   |
@@ -217,6 +232,7 @@ After (parallel, compressed):
 
 **Key difference**: Humans can play (against bots, locally) after M11-local, which has
 no dependency on networking. Multiplayer arrives when M10a finishes, in parallel.
+Transform/Morph and type consolidation are complete — M10a/M11-local are ready to start.
 
 ---
 
@@ -230,6 +246,6 @@ no dependency on networking. Multiplayer arrives when M10a finishes, in parallel
 | 4 | Update roadmap: downscope M12 | Medium | M12 planning |
 | 5 | Record decisions in `memory/decisions.md` | High | Future sessions |
 | 6 | Decide: web-first vs Tauri-first vs both | High | M11 architecture |
-| 7 | Schedule Transform/Morph in ability plan | Medium | 9 ability batches |
+| 7 | ~~Schedule Transform/Morph in ability plan~~ DONE | Medium | 9 ability batches |
 | 8 | Update CLAUDE.md current state and milestone | Medium | Session orientation |
 | 9 | Update workstream-coordination.md | Medium | Parallel work |

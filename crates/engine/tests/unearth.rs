@@ -17,6 +17,7 @@
 //! - Unearth is NOT a cast: no cast triggers, spells_cast_this_turn unchanged (ruling 2008-10-01).
 //! - Exile effects are not abilities on the creature: persist even if creature loses all abilities (ruling).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId,
@@ -90,11 +91,13 @@ fn dregscape_zombie_def() -> CardDefinition {
         oracle_text: "Unearth {B}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Unearth),
-            AbilityDefinition::Unearth {
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Unearth,
                 cost: ManaCost {
                     black: 1,
                     ..Default::default()
                 },
+                details: None,
             },
         ],
         ..Default::default()

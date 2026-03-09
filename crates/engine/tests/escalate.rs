@@ -13,6 +13,7 @@
 
 use mtg_engine::cards::card_definition::EffectTarget;
 use mtg_engine::state::CardType;
+use mtg_engine::AdditionalCost;
 use mtg_engine::Effect;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command,
@@ -236,37 +237,26 @@ fn test_escalate_single_mode_no_extra_cost() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=0 failed: {:?}", e));
 
     assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert_eq!(
-        state.stack_objects[0].escalate_modes_paid, 0,
+        state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .find_map(|c| match c {
+                AdditionalCost::EscalateModes { count } => Some(*count),
+                _ => None,
+            })
+            .unwrap_or(0),
+        0,
         "CR 702.120a: escalate_modes_paid should be 0 when no extra modes chosen"
     );
 
@@ -338,36 +328,25 @@ fn test_escalate_two_modes_one_extra_cost() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 1,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 1 }],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=1 failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects[0].escalate_modes_paid, 1,
+        state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .find_map(|c| match c {
+                AdditionalCost::EscalateModes { count } => Some(*count),
+                _ => None,
+            })
+            .unwrap_or(0),
+        1,
         "CR 702.120a: escalate_modes_paid should be 1"
     );
 
@@ -439,36 +418,25 @@ fn test_escalate_all_three_modes() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 2,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 2 }],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=2 failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects[0].escalate_modes_paid, 2,
+        state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .find_map(|c| match c {
+                AdditionalCost::EscalateModes { count } => Some(*count),
+                _ => None,
+            })
+            .unwrap_or(0),
+        2,
         "CR 702.120a: escalate_modes_paid should be 2"
     );
 
@@ -553,29 +521,10 @@ fn test_escalate_insufficient_mana_rejected() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 2, // requires 2× escalate cost but only 1× provided
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 2 }], // requires 2× escalate cost but only 1× provided
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     );
@@ -634,29 +583,10 @@ fn test_escalate_no_keyword_rejected() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 1,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 1 }],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     );
@@ -712,29 +642,10 @@ fn test_escalate_modes_paid_on_stack() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 1,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 1 }],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
@@ -746,11 +657,22 @@ fn test_escalate_modes_paid_on_stack() {
         "exactly one object should be on the stack"
     );
     assert_eq!(
-        state.stack_objects[0].escalate_modes_paid, 1,
+        state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .find_map(|c| match c {
+                AdditionalCost::EscalateModes { count } => Some(*count),
+                _ => None,
+            })
+            .unwrap_or(0),
+        1,
         "CR 702.120a: escalate_modes_paid must equal the escalate_modes requested during casting"
     );
     assert!(
-        !state.stack_objects[0].was_entwined,
+        !state.stack_objects[0]
+            .additional_costs
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::Entwine)),
         "escalate_modes_paid and was_entwined are independent — entwine should be false"
     );
 }
@@ -804,29 +726,10 @@ fn test_escalate_modes_exceed_available_clamped() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 5, // exceeds 3 available modes
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 5 }], // exceeds 3 available modes
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
@@ -902,29 +805,10 @@ fn test_escalate_modes_execute_in_printed_order() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 2,
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 2 }],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     )
@@ -1042,29 +926,10 @@ fn test_escalate_rejected_on_non_modal_spell() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 1, // Requesting escalate on a non-modal spell
-            devour_sacrifices: vec![],
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 1 }], // Requesting escalate on a non-modal spell
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 0,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
         },
     );

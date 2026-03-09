@@ -11,7 +11,7 @@
 //! - The card is a land in the player's hand
 
 use crate::state::error::GameStateError;
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::turn::Step;
 use crate::state::types::{CardType, CounterType, KeywordAbility, SubType};
@@ -383,7 +383,7 @@ pub fn handle_play_land(
             .iter()
             .any(|kw| matches!(kw, KeywordAbility::Echo(_)))
         {
-            obj.echo_pending = true;
+            obj.designations.insert(Designations::ECHO_PENDING);
         }
     }
 

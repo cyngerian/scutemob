@@ -18,6 +18,7 @@
 //! - If the permanent loses the Squad keyword before the trigger fires, no tokens are
 //!   created (ruling 2022-10-07 intervening-if check on battlefield).
 
+use mtg_engine::AdditionalCost;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, CardType, Command, GameEvent, GameStateBuilder, KeywordAbility, ManaColor,
@@ -205,30 +206,15 @@ fn cast_squad(
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count,
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: if squad_count > 0 {
+                vec![AdditionalCost::Squad { count: squad_count }]
+            } else {
+                vec![]
+            },
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell(squad_count={}) failed: {:?}", squad_count, e))
@@ -446,30 +432,11 @@ fn test_squad_rejected_without_keyword() {
             delve_cards: vec![],
             kicker_times: 0,
             alt_cost: None,
-            escape_exile_cards: vec![],
-            retrace_discard_land: None,
-            jump_start_discard: None,
             prototype: false,
-            bargain_sacrifice: None,
-            emerge_sacrifice: None,
-            casualty_sacrifice: None,
-            assist_player: None,
-            assist_amount: 0,
-            replicate_count: 0,
-            splice_cards: vec![],
-            entwine_paid: false,
-            escalate_modes: 0,
-            devour_sacrifices: vec![],
             modes_chosen: vec![],
-            fuse: false,
             x_value: 0,
-            collect_evidence_cards: vec![],
-            squad_count: 1, // trying to pay squad cost on non-squad creature
-            offspring_paid: false,
-            gift_opponent: None,
-            mutate_target: None,
-            mutate_on_top: false,
             face_down_kind: None,
+            additional_costs: vec![AdditionalCost::Squad { count: 1 }], // trying to pay squad cost on non-squad creature
         },
     );
 

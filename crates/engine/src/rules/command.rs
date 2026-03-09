@@ -11,7 +11,7 @@ use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::targeting::Target;
-use crate::state::types::{AltCostKind, FaceDownKind, TurnFaceUpMethod};
+use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 
 /// A player action submitted to the engine.
 ///
@@ -65,282 +65,36 @@ pub enum Command {
         /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
         targets: Vec<Target>,
         /// CR 702.51: Creatures to tap for convoke cost reduction.
-        /// Empty vec for non-convoke spells. Each creature must be:
-        /// - Untapped, on the battlefield, controlled by the caster
-        /// - A creature (by current characteristics)
-        /// - Not duplicated (no ObjectId appears twice)
-        ///
-        /// Colored creatures pay for one colored mana of their color;
-        /// any creature pays for {1} generic. Validated in handle_cast_spell.
         convoke_creatures: Vec<ObjectId>,
         /// CR 702.126: Artifacts to tap for improvise cost reduction.
-        /// Empty vec for non-improvise spells. Each artifact must be:
-        /// - Untapped, on the battlefield, controlled by the caster
-        /// - An artifact (by current characteristics)
-        /// - Not duplicated (no ObjectId appears twice)
-        ///
-        /// Each artifact pays for {1} generic mana. Cannot exceed the generic
-        /// mana component of the spell's total cost (after convoke reduction).
-        /// Validated in handle_cast_spell -> apply_improvise_reduction.
         #[serde(default)]
         improvise_artifacts: Vec<ObjectId>,
         /// CR 702.66: Cards in the caster's graveyard to exile for delve cost reduction.
-        /// Empty vec for non-delve spells. Each card must be:
-        /// - In the caster's graveyard (not opponent's)
-        /// - Not duplicated (no ObjectId appears twice)
-        ///
-        /// Each exiled card pays for {1} generic mana. Cannot exceed the generic
-        /// mana component of the spell's total cost.
-        /// Validated in handle_cast_spell -> apply_delve_reduction.
         delve_cards: Vec<ObjectId>,
         /// CR 702.33d: Number of times to pay the kicker cost.
-        ///
-        /// 0 = not kicked. 1 = kicked once (standard kicker). N > 1 = multikicker
-        /// paid N times (CR 702.33c). Validated against the spell's kicker definition:
-        /// standard kicker rejects values > 1; multikicker accepts any N >= 0.
-        /// Ignored for spells without kicker.
         #[serde(default)]
         kicker_times: u32,
         /// CR 118.9 / CR 702: Which alternative casting cost is being used, if any.
-        ///
-        /// - `None` — pay the printed mana cost (normal cast).
-        /// - `Some(AltCostKind::Evoke)` — CR 702.74a: pay evoke cost instead of mana cost.
-        /// - `Some(AltCostKind::Bestow)` — CR 702.103a: pay bestow cost instead of mana cost.
-        /// - `Some(AltCostKind::Miracle)` — CR 702.94a: pay miracle cost; card must be in hand
-        ///   with MiracleTrigger on the stack.
-        /// - `Some(AltCostKind::Escape)` — CR 702.138a: pay escape cost; `escape_exile_cards`
-        ///   must contain the required number of cards to exile.
-        /// - `Some(AltCostKind::Foretell)` — CR 702.143a: pay foretell cost; card must be in
-        ///   exile with `is_foretold == true` and foretold on a prior turn.
-        /// - `Some(AltCostKind::Buyback)` — CR 702.27a: pay buyback as an ADDITIONAL cost;
-        ///   card returns to hand on resolution instead of graveyard.
-        /// - `Some(AltCostKind::Overload)` — CR 702.96a: pay overload cost; spell affects all
-        ///   valid objects. Do NOT pass any `targets` when overloading.
-        /// - `Some(AltCostKind::Retrace)` — CR 702.81a: cast from graveyard; `retrace_discard_land`
-        ///   must identify a land in hand to discard as an additional cost.
-        /// - `Some(AltCostKind::JumpStart)` — CR 702.133a: cast from graveyard; `jump_start_discard`
-        ///   must identify a card in hand to discard. Spell exiled on stack departure.
-        /// - `Some(AltCostKind::Aftermath)` — CR 702.127a: cast aftermath half from graveyard;
-        ///   uses aftermath half's cost and effect. Spell exiled on stack departure.
-        /// - `Some(AltCostKind::Dash)` — CR 702.109a: pay dash cost; permanent enters with haste
-        ///   and returns to hand at beginning of next end step.
-        ///
-        /// Only one alternative cost may be applied (CR 118.9a: cannot combine two alternative costs).
-        /// Buyback and Retrace are additional costs (CR 118.8); Flashback is always auto-detected
-        /// from zone + keyword and does NOT appear here.
         #[serde(default)]
         alt_cost: Option<AltCostKind>,
-        /// CR 702.138a: Cards in the caster's graveyard to exile as part of the
-        /// escape cost. Must be exactly `exile_count` cards (from AbilityDefinition::Escape).
-        /// Each card must be in the caster's graveyard, must not be the card being
-        /// cast (the spell itself), and must not be duplicated.
-        ///
-        /// Empty vec when `alt_cost != Some(AltCostKind::Escape)`.
-        #[serde(default)]
-        escape_exile_cards: Vec<ObjectId>,
-        /// CR 702.81a: If using retrace, the ObjectId of a land card in the player's
-        /// hand to discard as an additional cost. Must be a card with `CardType::Land`
-        /// in the player's hand. `None` if not using retrace.
-        ///
-        /// Required when `alt_cost == Some(AltCostKind::Retrace)`.
-        #[serde(default)]
-        retrace_discard_land: Option<ObjectId>,
-        /// CR 702.133a: The card to discard as the jump-start additional cost.
-        /// Must be a card in the caster's hand (not the jump-start card itself,
-        /// which is in the graveyard). Required when `alt_cost == Some(AltCostKind::JumpStart)`.
-        #[serde(default)]
-        jump_start_discard: Option<ObjectId>,
         /// CR 702.160 / CR 718.3: If true, the spell is cast as a prototyped spell.
-        ///
-        /// When prototyped, the prototype mana cost (from `AbilityDefinition::Prototype`)
-        /// is used for payment instead of the card's normal mana cost, and the
-        /// spell and the permanent it becomes have only the alternative P/T, color,
-        /// and mana cost (CR 718.3b).
-        ///
         /// IMPORTANT: Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
-        /// It can be combined with `alt_cost` (e.g., prototype + flashback). The `prototype`
-        /// flag is orthogonal to `alt_cost`.
-        ///
-        /// Validation: card must have `AbilityDefinition::Prototype` in its definition.
         #[serde(default)]
         prototype: bool,
-        /// CR 702.166a: The ObjectId of an artifact, enchantment, or token on the
-        /// battlefield to sacrifice as the bargain additional cost.
-        /// `None` means the player chose not to bargain (bargain is optional).
-        ///
-        /// When `Some`, the identified permanent must be:
-        /// - On the battlefield, controlled by the caster
-        /// - An artifact OR an enchantment OR a token
-        ///
-        /// Validated in `handle_cast_spell`. Ignored for spells without bargain.
-        #[serde(default)]
-        bargain_sacrifice: Option<ObjectId>,
-        /// CR 702.119a: The ObjectId of a creature on the battlefield to sacrifice
-        /// as part of the emerge alternative cost. `None` means not using emerge.
-        ///
-        /// When `Some`, the identified creature must be:
-        /// - On the battlefield, controlled by the caster
-        /// - A creature (by current characteristics)
-        ///
-        /// The spell's total cost is reduced by the sacrificed creature's mana value.
-        /// `alt_cost` must be `Some(AltCostKind::Emerge)` when this is `Some`.
-        #[serde(default)]
-        emerge_sacrifice: Option<ObjectId>,
-        /// CR 702.153a: The ObjectId of a creature on the battlefield to sacrifice
-        /// as the casualty additional cost. `None` means the player chose not to pay
-        /// the casualty cost (casualty is optional).
-        ///
-        /// When `Some`, the identified permanent must be:
-        /// - On the battlefield, controlled by the caster
-        /// - A creature (by current characteristics)
-        /// - Have power >= N (where N is from `KeywordAbility::Casualty(N)`)
-        ///
-        /// Unlike Emerge, Casualty is an additional cost — the normal mana cost is
-        /// still paid. Validated in `handle_cast_spell`.
-        #[serde(default)]
-        casualty_sacrifice: Option<ObjectId>,
-        /// CR 702.132a: The player who assists with the generic mana cost.
-        /// `None` means no assist (either the spell lacks Assist or the caster
-        /// chose not to use it). Must be a non-eliminated player other than
-        /// the caster (CR 702.132a: "another player").
-        #[serde(default)]
-        assist_player: Option<PlayerId>,
-        /// CR 702.132a: The amount of generic mana the assisting player pays.
-        /// Must be <= the generic component of the spell's total cost (after all
-        /// cost modifications: commander tax, kicker, affinity, undaunted, convoke,
-        /// improvise, delve). 0 is valid (no-op assist). Ignored when
-        /// `assist_player` is `None`.
-        #[serde(default)]
-        assist_amount: u32,
-        /// CR 702.56a: Number of times the replicate cost was paid as an additional
-        /// cost during casting.
-        /// 0 = not paid (no copies). N = paid N times → N copies created by trigger.
-        /// Each payment adds the replicate cost to the total mana cost paid for the spell
-        /// (CR 601.2f-h). Validated against the spell having `KeywordAbility::Replicate`.
-        /// Ignored for spells without replicate.
-        #[serde(default)]
-        replicate_count: u32,
-        /// CR 702.47a: Cards in the caster's hand to splice onto this spell.
-        /// Each ObjectId must be a card in the caster's hand that has
-        /// `KeywordAbility::Splice` and whose `AbilityDefinition::Splice.onto_subtype`
-        /// matches a subtype of the spell being cast (e.g., "Arcane").
-        /// Each splice adds its cost as an additional cost (CR 601.2f-h) and appends
-        /// its effect to the spell's resolution (CR 702.47b).
-        /// Empty vec = no splice. CR 702.47b: each card can only be spliced once per spell.
-        #[serde(default)]
-        splice_cards: Vec<ObjectId>,
-        /// CR 702.42a: If true, the entwine additional cost was paid. When true, all modes
-        /// of the modal spell are chosen instead of just one.
-        ///
-        /// Validated in `handle_cast_spell`: spell must have `KeywordAbility::Entwine` and
-        /// `AbilityDefinition::Spell.modes` must be `Some(...)`. Ignored for non-modal spells.
-        #[serde(default)]
-        entwine_paid: bool,
-        /// CR 702.120a: Number of additional modes beyond the first for which the escalate
-        /// cost is paid. 0 = single mode (no extra cost). N = pay escalate cost N times and
-        /// execute modes 0..=N at resolution.
-        ///
-        /// Validated in `handle_cast_spell`: spell must have `KeywordAbility::Escalate` and
-        /// `AbilityDefinition::Spell.modes` must be `Some(...)`. N must be < modes.len().
-        #[serde(default)]
-        escalate_modes: u32,
-        /// CR 702.82a: Creatures on the battlefield to sacrifice as the devour
-        /// ETB replacement effect resolves. Empty vec = no sacrifice (devour 0).
-        ///
-        /// When non-empty, each ObjectId must be:
-        /// - On the battlefield, controlled by the caster
-        /// - A creature (by current characteristics)
-        /// - Not duplicated (no ObjectId appears twice)
-        /// - Not the card being cast (can't devour itself)
-        ///
-        /// The sacrifice happens at resolution time as an ETB replacement effect,
-        /// not at cast time. Validated at cast time for early error detection.
-        #[serde(default)]
-        devour_sacrifices: Vec<ObjectId>,
         /// CR 700.2a / 601.2b: Mode indices chosen for a modal spell.
-        /// Empty vec = non-modal spell or auto-select mode[0] (backward compatible).
-        /// For "choose one" spells: exactly 1 index (e.g., [0], [1], [2]).
-        /// For "choose two" spells: exactly 2 indices (e.g., [0, 2]).
-        /// For "choose up to N" spells: 1..=N indices.
-        ///
-        /// Validated in `handle_cast_spell`: each index must be < modes.len(),
-        /// no duplicates (unless allow_duplicate_modes is set on ModeSelection),
-        /// and count must be between min_modes and max_modes.
-        ///
-        /// When `entwine_paid` is true, this field is ignored (all modes are chosen).
-        /// When `escalate_modes` > 0 and this field is empty, falls back to 0..=escalate_modes.
         #[serde(default)]
         modes_chosen: Vec<usize>,
-        /// CR 702.102a: If true, the player is casting both halves of a split card
-        /// with fuse from their hand. The total cost is the sum of both halves'
-        /// mana costs (CR 702.102c). At resolution, both halves execute in order
-        /// (left first, then right — CR 702.102d).
-        ///
-        /// Validated in `handle_cast_spell`: card must be in hand, must have
-        /// `KeywordAbility::Fuse`, and `AbilityDefinition::Fuse` must exist.
-        #[serde(default)]
-        fuse: bool,
         /// CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
-        /// Stored on the StackObject and propagated to the GameObject at resolution so ETB
-        /// replacement effects and triggers that reference X (e.g., Ravenous) can read it.
         #[serde(default)]
         x_value: u32,
-        /// CR 701.59a: Cards in the caster's graveyard to exile as the collect evidence
-        /// additional cost. Empty vec = not collecting evidence (either the spell lacks
-        /// collect evidence, or the player chose not to pay the optional cost).
-        ///
-        /// The total mana value of the exiled cards must be >= N where N is the collect
-        /// evidence threshold from `AbilityDefinition::CollectEvidence { threshold }`.
-        /// Unlike Delve, these cards do NOT reduce mana cost — the normal mana cost is
-        /// still paid in full. Validated in `handle_cast_spell`.
-        #[serde(default)]
-        collect_evidence_cards: Vec<ObjectId>,
-        /// CR 702.157a: Number of times the squad cost was paid as an additional cost.
-        /// 0 = not paid (no tokens). N = paid N times -> N token copies created on ETB.
-        /// Each payment adds the squad cost (from `AbilityDefinition::Squad { cost }`)
-        /// to the total mana cost paid for the spell (CR 601.2b, 601.2f-h).
-        /// Validated against the spell having `KeywordAbility::Squad` in casting.rs.
-        #[serde(default)]
-        squad_count: u32,
-        /// CR 702.175a: Whether the offspring cost was paid as an additional cost.
-        /// false = not paid (no token). true = paid once -> 1 token copy (except 1/1) on ETB.
-        /// Adds the offspring cost (from `AbilityDefinition::Offspring { cost }`) to the
-        /// total mana cost paid for the spell (CR 601.2b, 601.2f-h).
-        /// Validated against the spell having `KeywordAbility::Offspring` in casting.rs.
-        #[serde(default)]
-        offspring_paid: bool,
-        /// CR 702.174a: The opponent chosen to receive the gift as an additional cost.
-        /// None = gift cost not paid (no gift effect). Some(player) = gift cost paid,
-        /// the chosen opponent will receive the gift defined in `AbilityDefinition::Gift`.
-        /// The chosen player must be an opponent of the caster (not the caster themselves).
-        /// For permanents: triggers a GiftETBTrigger on ETB.
-        /// For instants/sorceries: executes gift effect before main effect (CR 702.174j).
-        /// Validated against the spell having `KeywordAbility::Gift` in casting.rs.
-        #[serde(default)]
-        gift_opponent: Option<crate::state::PlayerId>,
-        /// CR 702.140a: The target non-Human creature the caster owns to mutate onto.
-        /// `None` for non-mutating casts. `Some(target_id)` when casting via mutate cost.
-        ///
-        /// The target must be on the battlefield, be a creature, NOT be a Human (no
-        /// "Human" subtype), and must be owned by the caster (CR 702.140a).
-        /// Validated in `handle_cast_spell` when `alt_cost == Some(AltCostKind::Mutate)`.
-        #[serde(default)]
-        mutate_target: Option<ObjectId>,
-        /// CR 702.140c: Whether the mutating card goes on top (true) or underneath (false)
-        /// the target permanent. The controller chooses at cast time.
-        /// Defaults to true (on top) which gives the spell's characteristics to the merged permanent.
-        /// Only meaningful when `mutate_target` is `Some`.
-        #[serde(default)]
-        mutate_on_top: bool,
-        /// CR 702.37c / 702.168b: Which face-down variant is being used when casting
-        /// face-down (morph, megamorph, or disguise). Required when
-        /// `alt_cost == Some(AltCostKind::Morph)`.
-        ///
-        /// `None` for non-morph casts. `Some(FaceDownKind::Morph)` for morph,
-        /// `Some(FaceDownKind::Megamorph)` for megamorph, `Some(FaceDownKind::Disguise)`
-        /// for disguise. Determines `face_down_as` on the resulting `GameObject`.
+        /// CR 702.37c / 702.168b: Which face-down variant is being used when casting face-down.
         #[serde(default)]
         face_down_kind: Option<FaceDownKind>,
+        /// Consolidated additional costs (RC-1 type consolidation).
+        /// All additional-cost data (sacrifice, discard, exile-from-zone, assist,
+        /// replicate, squad, escalate, splice, entwine, fuse, offspring, gift, mutate).
+        #[serde(default)]
+        additional_costs: Vec<AdditionalCost>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

@@ -28,21 +28,21 @@ pub use continuous_effect::{
 };
 pub use error::GameStateError;
 pub use game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
-    GameObject, InterveningIf, ManaAbility, ManaCost, MergedComponent, ObjectId, ObjectStatus,
-    TriggerEvent, TriggeredAbilityDef,
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, Designations,
+    ETBTriggerFilter, GameObject, InterveningIf, ManaAbility, ManaCost, MergedComponent, ObjectId,
+    ObjectStatus, TriggerEvent, TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{
     DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
-pub use stack::{StackObject, StackObjectKind};
+pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    AffinityTarget, AltCostKind, CardType, ChampionFilter, Color, CounterType,
+    AdditionalCost, AffinityTarget, AltCostKind, CardType, ChampionFilter, Color, CounterType,
     CumulativeUpkeepCost, DayNight, EnchantTarget, FaceDownKind, KeywordAbility, LandwalkType,
     ManaColor, ProtectionQuality, SubType, SuperType, TurnFaceUpMethod,
 };
@@ -352,10 +352,6 @@ impl GameState {
             kicker_times_paid: 0,
             // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
             cast_alt_cost: None,
-            // CR 400.7: bestow status is not preserved across zone changes.
-            is_bestowed: false,
-            // CR 400.7: foretold status is not preserved across zone changes.
-            is_foretold: false,
             foretold_turn: 0,
             // CR 400.7: unearth status is not preserved across zone changes.
             was_unearthed: false,
@@ -363,14 +359,8 @@ impl GameState {
             myriad_exile_at_eoc: false,
             // CR 400.7: decayed sacrifice flag is not preserved across zone changes.
             decayed_sacrifice_at_eoc: false,
-            // CR 400.7: suspend status is not preserved across zone changes.
-            is_suspended: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
             exiled_by_hideaway: None,
-            // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
-            is_renowned: false,
-            // CR 701.60a / CR 400.7: suspected designation is cleared on zone change.
-            is_suspected: false,
             // CR 400.7: encore sacrifice flag is not preserved across zone changes.
             encore_sacrifice_at_end_step: false,
             // CR 400.7: encore mandatory attack target is not preserved across zone changes.
@@ -385,8 +375,6 @@ impl GameState {
             was_bargained: false,
             // CR 400.7: collect evidence status is not preserved across zone changes.
             evidence_collected: false,
-            // CR 400.7: echo pending flag is not preserved across zone changes.
-            echo_pending: false,
             // CR 400.7: phasing flags are not preserved across zone changes.
             phased_out_indirectly: false,
             phased_out_controller: None,
@@ -408,8 +396,6 @@ impl GameState {
             // CR 702.174a / CR 400.7: gift status is not preserved across zone changes.
             gift_was_given: false,
             gift_opponent: None,
-            // CR 702.171b / CR 400.7: saddled designation is cleared on zone change.
-            is_saddled: false,
             // CR 702.99b / CR 400.7: encoded cipher cards are cleared on zone change.
             // The exiled cards remain in exile but are no longer encoded on anything.
             // CR 702.99c: encoding is broken when the creature leaves the battlefield.
@@ -417,8 +403,6 @@ impl GameState {
             // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
             // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
             haunting_target: None,
-            // CR 702.151b / CR 400.7: reconfigure flag is cleared on zone change.
-            is_reconfigured: false,
             // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
             // When a merged permanent leaves the battlefield, components are split into
             // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
@@ -435,6 +419,7 @@ impl GameState {
             // A face-down permanent leaving the battlefield is revealed (CR 708.9),
             // and the new object in the destination zone is no longer face-down.
             face_down_as: None,
+            designations: Designations::default(),
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -530,16 +515,11 @@ impl GameState {
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
-                    is_bestowed: false,
-                    is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
-                    is_suspended: false,
                     exiled_by_hideaway: None,
-                    is_renowned: false,
-                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -548,7 +528,6 @@ impl GameState {
                     is_prototyped: false,
                     was_bargained: false,
                     evidence_collected: false,
-                    echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
@@ -560,10 +539,8 @@ impl GameState {
                     offspring_paid: false,
                     gift_was_given: false,
                     gift_opponent: None,
-                    is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
-                    is_reconfigured: false,
                     // CR 729.3 / CR 400.7: Each split component starts with empty merged_components.
                     merged_components: im::Vector::new(),
                     // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
@@ -573,6 +550,7 @@ impl GameState {
                     craft_exiled_cards: im::Vector::new(),
                     // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
                     face_down_as: None,
+                    designations: Designations::default(),
                 };
                 // Add component to destination zone and objects map.
                 if let Some(zone_set) = self.zones.get_mut(&to) {
@@ -691,10 +669,6 @@ impl GameState {
             kicker_times_paid: 0,
             // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
             cast_alt_cost: None,
-            // CR 400.7: bestow status is not preserved across zone changes.
-            is_bestowed: false,
-            // CR 400.7: foretold status is not preserved across zone changes.
-            is_foretold: false,
             foretold_turn: 0,
             // CR 400.7: unearth status is not preserved across zone changes.
             was_unearthed: false,
@@ -702,14 +676,8 @@ impl GameState {
             myriad_exile_at_eoc: false,
             // CR 400.7: decayed sacrifice flag is not preserved across zone changes.
             decayed_sacrifice_at_eoc: false,
-            // CR 400.7: suspend status is not preserved across zone changes.
-            is_suspended: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
             exiled_by_hideaway: None,
-            // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
-            is_renowned: false,
-            // CR 701.60a / CR 400.7: suspected designation is cleared on zone change.
-            is_suspected: false,
             // CR 400.7: encore sacrifice flag is not preserved across zone changes.
             encore_sacrifice_at_end_step: false,
             // CR 400.7: encore mandatory attack target is not preserved across zone changes.
@@ -724,8 +692,6 @@ impl GameState {
             was_bargained: false,
             // CR 400.7: collect evidence status is not preserved across zone changes.
             evidence_collected: false,
-            // CR 400.7: echo pending flag is not preserved across zone changes.
-            echo_pending: false,
             // CR 400.7: phasing flags are not preserved across zone changes.
             phased_out_indirectly: false,
             phased_out_controller: None,
@@ -747,8 +713,6 @@ impl GameState {
             // CR 702.174a / CR 400.7: gift status is not preserved across zone changes.
             gift_was_given: false,
             gift_opponent: None,
-            // CR 702.171b / CR 400.7: saddled designation is cleared on zone change.
-            is_saddled: false,
             // CR 702.99b / CR 400.7: encoded cipher cards are cleared on zone change.
             // The exiled cards remain in exile but are no longer encoded on anything.
             // CR 702.99c: encoding is broken when the creature leaves the battlefield.
@@ -756,8 +720,6 @@ impl GameState {
             // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
             // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
             haunting_target: None,
-            // CR 702.151b / CR 400.7: reconfigure flag is cleared on zone change.
-            is_reconfigured: false,
             // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
             // When a merged permanent leaves the battlefield, components are split into
             // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
@@ -772,6 +734,7 @@ impl GameState {
             craft_exiled_cards: im::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
             face_down_as: None,
+            designations: Designations::default(),
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
