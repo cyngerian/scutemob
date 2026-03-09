@@ -367,6 +367,9 @@ fn cast_spell_with_gift(
             squad_count: 0,
             offspring_paid: false,
             gift_opponent,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
 }

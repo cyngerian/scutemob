@@ -283,6 +283,9 @@ fn test_jump_start_basic_cast_from_graveyard() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -420,6 +423,9 @@ fn test_jump_start_exile_on_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -550,6 +556,9 @@ fn test_jump_start_exile_on_counter() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -605,6 +614,9 @@ fn test_jump_start_exile_on_counter() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -719,6 +731,9 @@ fn test_jump_start_sorcery_timing() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -809,6 +824,9 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -912,6 +930,9 @@ fn test_jump_start_pays_normal_mana_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1011,6 +1032,9 @@ fn test_jump_start_discard_required() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1108,6 +1132,9 @@ fn test_jump_start_discard_must_be_in_hand() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1211,6 +1238,9 @@ fn test_jump_start_discard_any_card() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1308,6 +1338,9 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1422,6 +1455,9 @@ fn test_jump_start_flag_set_on_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1521,6 +1557,9 @@ fn test_jump_start_insufficient_mana_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 

@@ -18,5 +18,6 @@ pub fn card() -> CardDefinition {
             // enforcement effect (no DSL variant exists yet). CR 508.1f covers must-attack
             // requirements. Add when the engine supports mandatory-attack static effects.
         ],
+        back_face: None,
     }
 }

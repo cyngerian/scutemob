@@ -3208,6 +3208,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         }],
         power: Some(2),
         toughness: Some(2),
+        back_face: None,
     };
 
     let registry = CardRegistry::new(vec![def]);

@@ -78,6 +78,7 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         ],
         power: Some(2),
         toughness: Some(2),
+        back_face: None,
     }
 }
 
@@ -106,6 +107,7 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         }],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -123,6 +125,7 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         abilities: vec![],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -168,6 +171,9 @@ fn cast_discover_creature(state: GameState, name: &str) -> (GameState, Vec<GameE
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", name, e))
@@ -242,11 +248,13 @@ fn test_discover_basic_finds_and_casts_card() {
     // Cast the discover creature.
     let (state, _) = cast_discover_creature(state, "Disc Creature 1");
 
-    // After casting: creature spell on stack, ETB trigger queued on top.
-    // Pass priority for both players to let the ETB trigger resolve.
+    // Both players pass priority → creature spell resolves → ETB trigger queued on stack.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // CR 603.3: ETB trigger is on the stack. Both players pass priority again to resolve it.
+    // Discover 3 executes: Forest exiled, Small Sorcery discovered and cast.
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
-    // The ETB trigger resolves, performing discover 3.
     // DiscoverExiled should fire (Forest exiled), DiscoverCast should fire (Small Sorcery cast).
     let exiled_count = resolve_events
         .iter()
@@ -346,6 +354,9 @@ fn test_discover_mv_equal_to_n_is_valid() {
     state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Eq");
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the ETB discover trigger.
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // MV=3 <= Discover 3: the card should be cast, not skipped.
@@ -491,6 +502,9 @@ fn test_discover_all_lands_in_library() {
     state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Lands");
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the ETB discover trigger.
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // No cast, no hand — all lands skipped.
@@ -618,6 +632,9 @@ fn test_discover_remaining_cards_go_to_library_bottom() {
     state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Rem");
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the ETB discover trigger.
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Mid Sorcery (MV=2) should have been discovered and cast.
@@ -710,6 +727,9 @@ fn test_discover_vs_cascade_mv_threshold() {
     state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Thr");
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the ETB discover trigger.
     let (_state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Discover 3 MUST find a MV=3 card (3 <= 3).

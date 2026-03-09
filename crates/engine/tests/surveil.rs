@@ -216,6 +216,9 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -333,6 +336,9 @@ fn test_surveil_zero_no_event() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -444,6 +450,9 @@ fn test_surveil_empty_library_still_emits_event() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -543,6 +552,9 @@ fn test_surveil_library_fewer_than_n() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -664,6 +676,9 @@ fn test_surveil_then_draw_sequence() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -811,6 +826,9 @@ fn test_whenever_you_surveil_trigger() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -931,6 +949,9 @@ fn test_surveil_zero_does_not_fire_trigger() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

@@ -21,5 +21,6 @@ pub fn card() -> CardDefinition {
             // ContinuousEffectDef) to enforce the compelled-attack rule (CR 508.1d).
             // Until then the "attacks each combat if able" text is cosmetic only.
         ],
+        back_face: None,
     }
 }

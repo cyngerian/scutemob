@@ -166,6 +166,9 @@ fn cast_creature(
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CastSpell failed")
@@ -529,6 +532,9 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CastSpell (Sol Ring) failed");

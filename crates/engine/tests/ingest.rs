@@ -526,6 +526,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
         ],
         power: Some(1),
         toughness: Some(1),
+        back_face: None,
     };
 
     let registry = CardRegistry::new(vec![double_ingest_def]);

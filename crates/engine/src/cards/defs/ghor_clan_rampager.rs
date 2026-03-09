@@ -19,5 +19,6 @@ pub fn card() -> CardDefinition {
                 grants_keyword: Some(KeywordAbility::Trample),
             },
         ],
+        back_face: None,
     }
 }

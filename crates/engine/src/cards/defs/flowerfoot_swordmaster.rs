@@ -22,5 +22,6 @@ pub fn card() -> CardDefinition {
             // Requires TriggerCondition::WhenBecomesTargetOfYourSpellOrAbility (first time per turn)
             // and an Effect that buffs all creatures of subtype Mouse you control. Not yet in DSL.
         ],
+        back_face: None,
     }
 }

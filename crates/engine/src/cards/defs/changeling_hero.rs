@@ -17,5 +17,6 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Champion { filter: ChampionFilter::AnyCreature },
         ],
+        back_face: None,
     }
 }

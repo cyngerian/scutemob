@@ -273,6 +273,9 @@ fn test_bargain_basic_instant_with_sacrifice() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bargain (token) failed: {:?}", e));
@@ -356,6 +359,9 @@ fn test_bargain_basic_instant_without_sacrifice() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));
@@ -446,6 +452,9 @@ fn test_bargain_sacrifice_artifact() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with artifact failed: {:?}", e));
@@ -513,6 +522,9 @@ fn test_bargain_sacrifice_enchantment() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with enchantment failed: {:?}", e));
@@ -582,6 +594,9 @@ fn test_bargain_sacrifice_creature_token() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with creature token failed: {:?}", e));
@@ -644,6 +659,9 @@ fn test_bargain_sacrifice_invalid_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -710,6 +728,9 @@ fn test_bargain_sacrifice_opponent_permanent() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -806,6 +827,9 @@ fn test_bargain_no_keyword_rejects_sacrifice() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -905,6 +929,9 @@ fn test_bargain_permanent_etb_was_bargained() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargain artifact failed: {:?}", e));
@@ -1013,6 +1040,9 @@ fn test_bargain_permanent_etb_not_bargained() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));

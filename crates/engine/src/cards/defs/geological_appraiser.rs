@@ -25,5 +25,6 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        back_face: None,
     }
 }

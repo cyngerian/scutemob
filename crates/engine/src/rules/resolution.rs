@@ -1227,7 +1227,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Bot play: opponent does not pay tribute.
                         // tribute_was_paid remains false (default).
                         // The "if tribute wasn't paid" triggered ability will fire
-                        // via fire_when_enters_triggered_effects with TributeNotPaid condition.
+                        // via queue_carddef_etb_triggers with TributeNotPaid condition.
                         //
                         // (No counters are placed; no state mutation needed here.)
                         let _ = tribute_instances; // explicitly consumed; no-op in bot play
@@ -1665,21 +1665,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let db_evts = crate::rules::turn_actions::enforce_daybound_nightbound(state);
                 events.extend(db_evts);
 
-                // CR 603.2: Fire mandatory WhenEntersBattlefield triggered effects
-                // from card definition inline (Rest in Peace ETB exile, etc.).
-                // Interactive/stackable ETB triggers are handled via PendingTrigger.
-                let etb_trigger_evts = if is_face_down_entering {
-                    // CR 708.3: No ETB abilities from the card itself fire face-down.
-                    vec![]
-                } else {
-                    super::replacement::fire_when_enters_triggered_effects(
-                        state,
-                        new_id,
-                        controller,
-                        card_id.as_ref(),
-                        &registry,
-                    )
-                };
+                // CR 603.3, 603.6a: Queue WhenEntersBattlefield triggered abilities from
+                // card definition as PendingTrigger (goes on stack at next priority window).
+                // CR 708.3: face-down guard is handled inside queue_carddef_etb_triggers.
+                // Returns events only for Fabricate inline bot-play approximation.
+                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
                 events.extend(etb_trigger_evts);
 
                 events.push(GameEvent::SpellResolved {
@@ -1845,7 +1841,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Plain AbilityDefinition::Triggered entries (e.g. upkeep/end-step CardDef triggers
             // pushed via PendingTriggerKind::Normal) are looked up from the card registry
             // using ability_index into the CardDef's abilities Vec.
-            let (triggered_effect_opt, _carddef_intervening_if) = {
+            let (triggered_effect_opt, triggered_carddef_iif) = {
                 let obj = state.objects.get(&source_object);
                 if let Some(obj) = obj {
                     if let Some(_ab) = obj.characteristics.triggered_abilities.get(ability_index) {
@@ -1873,8 +1869,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     None
                                 }
                             });
-                        if let Some((eff, _iif)) = result {
-                            (Some(eff), None::<crate::cards::card_definition::Condition>)
+                        if let Some((eff, iif)) = result {
+                            (Some(eff), iif)
                         } else {
                             (None, None)
                         }
@@ -1885,17 +1881,41 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             };
 
             // If we got a CardDef-registry effect, execute it directly.
-            // intervening_if conditions on CardDef triggers are evaluated at trigger time
-            // (the normal resolution path); at resolution they are treated as satisfied.
-            // (None is the common case for end-step/upkeep CardDef triggers like Jadar's.)
+            // CR 603.4: intervening-if conditions must be checked both when the trigger fires
+            // AND when it resolves. If the condition no longer holds at resolution, the
+            // triggered ability is removed from the stack without effect.
             if triggered_effect_opt.is_some() {
-                let condition_holds = true; // CardDef intervening_if evaluated at trigger time
+                let condition_holds = triggered_carddef_iif
+                    .as_ref()
+                    .map(|cond| {
+                        use crate::cards::card_definition::Condition;
+                        match cond {
+                            Condition::OpponentHasPoisonCounters(n) => {
+                                state.players.iter().any(|(pid, ps)| {
+                                    *pid != stack_obj.controller
+                                        && !ps.has_lost
+                                        && ps.poison_counters >= *n
+                                })
+                            }
+                            // Other conditions: treat as satisfied (safe default for rare cases).
+                            _ => true,
+                        }
+                    })
+                    .unwrap_or(true);
                 if condition_holds {
                     if let Some(effect) = triggered_effect_opt {
-                        let mut ctx = EffectContext::new(
+                        // CR 702.33d: Propagate kicker_times_paid from the source permanent so
+                        // kicker-conditional ETB effects (e.g., Torch Slinger) work correctly.
+                        let kicker_times_paid = state
+                            .objects
+                            .get(&source_object)
+                            .map(|o| o.kicker_times_paid)
+                            .unwrap_or(0);
+                        let mut ctx = EffectContext::new_with_kicker(
                             stack_obj.controller,
                             source_object,
                             stack_obj.targets.clone(),
+                            kicker_times_paid,
                         );
                         let effect_events = execute_effect(state, &effect, &mut ctx);
                         events.extend(effect_events);
@@ -2842,8 +2862,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: new_id,
                 });
 
-                // 6. Fire WhenEntersBattlefield triggered effects from card definition.
-                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                // 6. Queue WhenEntersBattlefield triggered abilities from card definition.
+                // CR 603.3: goes on stack at next priority window.
+                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                     state,
                     new_id,
                     controller,
@@ -3665,7 +3686,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         object_id: new_id,
                     });
 
-                    let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                    let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                         state,
                         new_id,
                         owner,
@@ -5888,9 +5909,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: new_id,
                 });
 
-                // 9. Fire WhenEntersBattlefield triggered effects from card definition.
-                //    CR 603.2: ETB triggers on the ninja's own definition must fire.
-                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                // 9. Queue WhenEntersBattlefield triggered abilities from card definition.
+                //    CR 603.3: ETB triggers on the ninja's own definition go on the stack.
+                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                     state,
                     new_id,
                     controller,
@@ -6106,8 +6127,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: token_id,
                 });
 
-                // Fire WhenEntersBattlefield triggered effects from card definition.
-                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                // Queue WhenEntersBattlefield triggered abilities from card definition.
+                // CR 603.3: goes on stack at next priority window.
+                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                     state,
                     token_id,
                     controller,
@@ -6324,8 +6346,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: token_id,
                 });
 
-                // Fire WhenEntersBattlefield triggered effects from card definition.
-                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                // Queue WhenEntersBattlefield triggered abilities from card definition.
+                // CR 603.3: goes on stack at next priority window.
+                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                     state,
                     token_id,
                     controller,
@@ -6559,8 +6582,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         object_id: token_id,
                     });
 
-                    // Fire WhenEntersBattlefield triggered effects from card definition.
-                    let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                    // Queue WhenEntersBattlefield triggered abilities from card definition.
+                    // CR 603.3: goes on stack at next priority window.
+                    let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                         state,
                         token_id,
                         controller,

@@ -23,5 +23,6 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Persist),
         ],
+        back_face: None,
     }
 }

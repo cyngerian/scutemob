@@ -320,6 +320,9 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -395,6 +398,9 @@ fn test_collect_evidence_over_threshold_allowed() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -446,6 +452,9 @@ fn test_collect_evidence_under_threshold_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -500,6 +509,9 @@ fn test_collect_evidence_not_collected_optional() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -565,6 +577,9 @@ fn test_collect_evidence_insufficient_single_card_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -648,6 +663,9 @@ fn test_collect_evidence_mandatory_without_cards_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -698,6 +716,9 @@ fn test_collect_evidence_duplicate_card_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -758,6 +779,9 @@ fn test_collect_evidence_card_not_in_graveyard_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -810,6 +834,9 @@ fn test_collect_evidence_opponents_graveyard_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -889,6 +916,9 @@ fn test_collect_evidence_spell_without_ability_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -972,6 +1002,9 @@ fn test_collect_evidence_mana_not_reduced() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(

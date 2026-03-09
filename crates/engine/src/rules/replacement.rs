@@ -913,19 +913,21 @@ pub fn apply_self_etb_from_definition(
     evts
 }
 
-/// CR 603.2 / CR 614: Fire "When ~ enters the battlefield" triggered ability effects
-/// inline for a permanent entering the battlefield.
+/// CR 603.3, 603.6a: Queue "When ~ enters the battlefield" triggered abilities from a
+/// card definition as `PendingTrigger` entries so they go on the stack the next time a
+/// player would receive priority (CR 603.3).
 ///
-/// This executes `AbilityDefinition::Triggered { trigger_condition: WhenEntersBattlefield }`
-/// effects immediately at ETB time, without going through the stack. Used for cards
-/// whose ETB effect is mandatory and non-interactive (e.g., Rest in Peace: "exile all
-/// cards from all graveyards").
+/// `queue_carddef_etb_triggers` supersedes the old inline-execution approach.
+/// `AbilityDefinition::Triggered { trigger_condition: WhenEntersBattlefield }` entries
+/// and `TributeNotPaid` entries are queued as `PendingTrigger`. Fabricate stays inline
+/// (bot approximation, TODO). The existing `flush_pending_triggers` + `TriggeredAbility`
+/// SOK resolution path (with CardDef registry fallback from B14) handles resolution.
 ///
-/// Note: Most ETB triggered abilities should go on the stack via the trigger dispatch
-/// system (`PendingTrigger` → `flush_pending_triggers`). This function is for the
-/// specific case where the card-def trigger dispatch is not yet wired to the runtime,
-/// and the effect is non-interactive and deterministic.
-pub fn fire_when_enters_triggered_effects(
+/// CR 708.3: Face-down permanents have no triggered abilities — checked at entry.
+///
+/// Returns `Vec<GameEvent>` for Fabricate inline events only (bot approximation).
+/// All other ETB triggers are queued — no events returned for them.
+pub fn queue_carddef_etb_triggers(
     state: &mut GameState,
     new_id: ObjectId,
     controller: PlayerId,
@@ -934,7 +936,15 @@ pub fn fire_when_enters_triggered_effects(
 ) -> Vec<GameEvent> {
     use crate::cards::card_definition::{AbilityDefinition, Effect, TokenSpec, TriggerCondition};
     use crate::effects::{execute_effect, EffectContext};
+    use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};
+
+    // CR 708.3: Face-down permanents have no triggered abilities.
+    if let Some(obj) = state.objects.get(&new_id) {
+        if obj.status.face_down && obj.face_down_as.is_some() {
+            return Vec::new();
+        }
+    }
 
     let Some(cid) = card_id else {
         return Vec::new();
@@ -943,14 +953,7 @@ pub fn fire_when_enters_triggered_effects(
         return Vec::new();
     };
 
-    // CR 702.33d: Retrieve kicked status from the permanent for ETB trigger context.
-    let kicker_times_paid = state
-        .objects
-        .get(&new_id)
-        .map(|o| o.kicker_times_paid)
-        .unwrap_or(0);
-
-    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for ETB trigger context.
+    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for trigger condition check.
     let tribute_was_paid = state
         .objects
         .get(&new_id)
@@ -958,14 +961,14 @@ pub fn fire_when_enters_triggered_effects(
         .unwrap_or(false);
 
     let mut evts = Vec::new();
-    for ability in &def.abilities {
+    for (idx, ability) in def.abilities.iter().enumerate() {
         match ability {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect,
                 intervening_if,
+                ..
             } => {
-                // CR 603.4: Check intervening-if condition before executing.
+                // CR 603.4: Check intervening-if condition at trigger time.
                 // CR 207.2c (Corrupted): "if an opponent has N or more poison counters."
                 if let Some(cond) = intervening_if {
                     use crate::cards::card_definition::Condition;
@@ -975,33 +978,118 @@ pub fn fire_when_enters_triggered_effects(
                                 *pid != controller && !ps.has_lost && ps.poison_counters >= *n
                             })
                         }
-                        // Other conditions are not yet wired into the inline ETB path.
-                        // Treat unrecognized conditions as always true (safe default: fires).
+                        // Other conditions: treat as satisfied at trigger time (safe default).
                         _ => true,
                     };
                     if !condition_met {
                         continue;
                     }
                 }
-                let mut ctx =
-                    EffectContext::new_with_kicker(controller, new_id, vec![], kicker_times_paid);
-                evts.extend(execute_effect(state, effect, &mut ctx));
+                // CR 603.3: Queue as PendingTrigger; flush_pending_triggers places it on the stack.
+                state.pending_triggers.push_back(PendingTrigger {
+                    source: new_id,
+                    ability_index: idx,
+                    controller,
+                    kind: PendingTriggerKind::Normal,
+                    triggering_event: Some(
+                        crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
+                    ),
+                    entering_object_id: None,
+                    targeting_stack_id: None,
+                    triggering_player: None,
+                    exalted_attacker_id: None,
+                    defending_player_id: None,
+                    madness_exiled_card: None,
+                    madness_cost: None,
+                    miracle_revealed_card: None,
+                    miracle_cost: None,
+                    modular_counter_count: None,
+                    evolve_entering_creature: None,
+                    suspend_card_id: None,
+                    hideaway_count: None,
+                    partner_with_name: None,
+                    ingest_target_player: None,
+                    flanking_blocker_id: None,
+                    rampage_n: None,
+                    provoke_target_creature: None,
+                    renown_n: None,
+                    poisonous_n: None,
+                    poisonous_target_player: None,
+                    enlist_enlisted_creature: None,
+                    encore_activator: None,
+                    echo_cost: None,
+                    cumulative_upkeep_cost: None,
+                    recover_cost: None,
+                    recover_card: None,
+                    graft_entering_creature: None,
+                    backup_abilities: None,
+                    backup_n: None,
+                    champion_filter: None,
+                    champion_exiled_card: None,
+                    soulbond_pair_target: None,
+                    squad_count: None,
+                    gift_opponent: None,
+                    cipher_encoded_card_id: None,
+                    cipher_encoded_object_id: None,
+                    haunt_source_object_id: None,
+                    haunt_source_card_id: None,
+                });
             }
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::TributeNotPaid,
-                effect,
                 ..
             } => {
                 // CR 702.104b: "When ~ enters, if tribute wasn't paid, ..."
-                // Intervening-if condition (CR 603.4): only fire if tribute was not paid.
+                // CR 603.4: Intervening-if — only queue trigger if tribute was not paid.
                 if !tribute_was_paid {
-                    let mut ctx = EffectContext::new_with_kicker(
+                    state.pending_triggers.push_back(PendingTrigger {
+                        source: new_id,
+                        ability_index: idx,
                         controller,
-                        new_id,
-                        vec![],
-                        kicker_times_paid,
-                    );
-                    evts.extend(execute_effect(state, effect, &mut ctx));
+                        kind: PendingTriggerKind::Normal,
+                        triggering_event: Some(
+                            crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
+                        ),
+                        entering_object_id: None,
+                        targeting_stack_id: None,
+                        triggering_player: None,
+                        exalted_attacker_id: None,
+                        defending_player_id: None,
+                        madness_exiled_card: None,
+                        madness_cost: None,
+                        miracle_revealed_card: None,
+                        miracle_cost: None,
+                        modular_counter_count: None,
+                        evolve_entering_creature: None,
+                        suspend_card_id: None,
+                        hideaway_count: None,
+                        partner_with_name: None,
+                        ingest_target_player: None,
+                        flanking_blocker_id: None,
+                        rampage_n: None,
+                        provoke_target_creature: None,
+                        renown_n: None,
+                        poisonous_n: None,
+                        poisonous_target_player: None,
+                        enlist_enlisted_creature: None,
+                        encore_activator: None,
+                        echo_cost: None,
+                        cumulative_upkeep_cost: None,
+                        recover_cost: None,
+                        recover_card: None,
+                        graft_entering_creature: None,
+                        backup_abilities: None,
+                        backup_n: None,
+                        champion_filter: None,
+                        champion_exiled_card: None,
+                        soulbond_pair_target: None,
+                        squad_count: None,
+                        gift_opponent: None,
+                        cipher_encoded_card_id: None,
+                        cipher_encoded_object_id: None,
+                        haunt_source_object_id: None,
+                        haunt_source_card_id: None,
+                    });
                 }
             }
             _ => {}

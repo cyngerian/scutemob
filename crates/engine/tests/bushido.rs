@@ -334,6 +334,7 @@ fn test_702_45b_bushido_multiple_instances() {
         ],
         power: Some(1),
         toughness: Some(1),
+        back_face: None,
     };
 
     let registry = CardRegistry::new(vec![double_bushido_def]);

@@ -167,6 +167,9 @@ fn test_assist_basic_another_player_pays_generic() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("assist cast failed: {:?}", e));
@@ -252,6 +255,9 @@ fn test_assist_no_assist_player_pays_full_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("non-assist cast failed: {:?}", e));
@@ -319,6 +325,9 @@ fn test_assist_cannot_assist_self() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -393,6 +402,9 @@ fn test_assist_exceeds_generic_mana_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -463,6 +475,9 @@ fn test_assist_eliminated_player_cannot_assist() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -542,6 +557,9 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("assist all-generic cast failed: {:?}", e));
@@ -639,6 +657,9 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("convoke+assist cast failed: {:?}", e));
@@ -713,6 +734,9 @@ fn test_assist_amount_zero_is_noop() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("zero-assist cast failed: {:?}", e));
@@ -787,6 +811,9 @@ fn test_assist_insufficient_mana_assisting_player() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -860,6 +887,9 @@ fn test_assist_spell_without_keyword_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -928,6 +958,9 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("P3 assist failed: {:?}", e));

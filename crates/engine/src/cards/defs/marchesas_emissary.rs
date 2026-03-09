@@ -16,5 +16,6 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Hexproof),
             AbilityDefinition::Keyword(KeywordAbility::Dethrone),
         ],
+        back_face: None,
     }
 }

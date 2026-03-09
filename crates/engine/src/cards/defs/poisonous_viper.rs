@@ -17,5 +17,6 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Poisonous(1)),
         ],
+        back_face: None,
     }
 }

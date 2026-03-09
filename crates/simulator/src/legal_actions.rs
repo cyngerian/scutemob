@@ -6,8 +6,8 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, GameState, KeywordAbility, ObjectId, PlayerId, Step,
-    ZoneId,
+    AbilityDefinition, AttackTarget, CardType, FaceDownKind, GameState, KeywordAbility, ManaCost,
+    ObjectId, PlayerId, Step, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -69,6 +69,23 @@ pub enum LegalAction {
         card: ObjectId,
         /// A non-Human creature the caster owns on the battlefield.
         mutate_target: ObjectId,
+    },
+    /// CR 702.37e / CR 702.168b / CR 701.40b / CR 701.58b: Turn a face-down permanent
+    /// face up. This is a special action (no stack, no priority needed beyond having it).
+    /// Valid at any time the player has priority.
+    TurnFaceUp {
+        /// The face-down permanent to turn face up.
+        permanent: ObjectId,
+        /// The method to use for paying the face-up cost.
+        method: TurnFaceUpMethod,
+    },
+    /// CR 702.37a / CR 702.37b / CR 702.168b: Cast a card with Morph/Megamorph/Disguise
+    /// face-down for {3} (or disguise cost) as a 2/2 creature with no name/text/subtypes.
+    CastMorphFaceDown {
+        /// The card in hand to cast face-down.
+        card: ObjectId,
+        /// The alt-cost kind to use (always AltCostKind::Morph).
+        face_down_kind: FaceDownKind,
     },
 }
 
@@ -506,6 +523,199 @@ impl LegalActionProvider for StubProvider {
                             card: obj.id,
                             mutate_target: target,
                         });
+                    }
+                }
+            }
+        }
+
+        // ── TurnFaceUp (CR 702.37e) ──────────────────────────────────────────────
+        // Special action: turn a face-down permanent face up at any time the player
+        // has priority (no sorcery restriction — CR 116.2b). The player must control
+        // the permanent and be able to pay the turn-face-up cost.
+        for obj in state.objects_in_zone(&ZoneId::Battlefield) {
+            if obj.controller != player {
+                continue;
+            }
+            if !obj.status.face_down {
+                continue;
+            }
+            let face_down_kind = match &obj.face_down_as {
+                Some(k) => k.clone(),
+                None => continue,
+            };
+
+            let card_def = obj
+                .card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry.get(cid.clone()));
+
+            match face_down_kind {
+                FaceDownKind::Morph | FaceDownKind::Megamorph => {
+                    // Check for Morph or Megamorph ability in the card definition.
+                    if let Some(def) = &card_def {
+                        for ability in &def.abilities {
+                            match ability {
+                                AbilityDefinition::Morph { cost } => {
+                                    if can_afford(state, player, cost) {
+                                        actions.push(LegalAction::TurnFaceUp {
+                                            permanent: obj.id,
+                                            method: TurnFaceUpMethod::MorphCost,
+                                        });
+                                    }
+                                    break;
+                                }
+                                AbilityDefinition::Megamorph { cost } => {
+                                    if can_afford(state, player, cost) {
+                                        actions.push(LegalAction::TurnFaceUp {
+                                            permanent: obj.id,
+                                            method: TurnFaceUpMethod::MorphCost,
+                                        });
+                                    }
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                FaceDownKind::Disguise => {
+                    // Disguise turn-face-up cost is in the Disguise ability.
+                    if let Some(def) = &card_def {
+                        for ability in &def.abilities {
+                            if let AbilityDefinition::Disguise { cost } = ability {
+                                if can_afford(state, player, cost) {
+                                    actions.push(LegalAction::TurnFaceUp {
+                                        permanent: obj.id,
+                                        method: TurnFaceUpMethod::DisguiseCost,
+                                    });
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                FaceDownKind::Manifest | FaceDownKind::Cloak => {
+                    // Manifest/Cloak: turn face up by paying printed mana cost, but only
+                    // if the card is a creature card (CR 701.40b, CR 701.58b).
+                    let is_creature = obj.characteristics.card_types.contains(&CardType::Creature);
+                    // For Manifest/Cloak the raw card_types reflect the real card — check
+                    // the card registry for the actual type line.
+                    let def_is_creature = card_def
+                        .as_ref()
+                        .map(|def| def.types.card_types.contains(&CardType::Creature))
+                        .unwrap_or(false);
+
+                    if is_creature || def_is_creature {
+                        let mana_cost = card_def
+                            .as_ref()
+                            .and_then(|def| def.mana_cost.clone())
+                            .or_else(|| obj.characteristics.mana_cost.clone());
+                        if let Some(cost) = mana_cost {
+                            if can_afford(state, player, &cost) {
+                                actions.push(LegalAction::TurnFaceUp {
+                                    permanent: obj.id,
+                                    method: TurnFaceUpMethod::ManaCost,
+                                });
+                            }
+                        }
+                    }
+
+                    // Manifested/cloaked card with Morph/Megamorph can also use morph cost
+                    // (CR 701.40c, CR 701.58c).
+                    if let Some(def) = &card_def {
+                        for ability in &def.abilities {
+                            match ability {
+                                AbilityDefinition::Morph { cost }
+                                | AbilityDefinition::Megamorph { cost } => {
+                                    if can_afford(state, player, cost) {
+                                        actions.push(LegalAction::TurnFaceUp {
+                                            permanent: obj.id,
+                                            method: TurnFaceUpMethod::MorphCost,
+                                        });
+                                    }
+                                    break;
+                                }
+                                AbilityDefinition::Disguise { cost } => {
+                                    if can_afford(state, player, cost) {
+                                        actions.push(LegalAction::TurnFaceUp {
+                                            permanent: obj.id,
+                                            method: TurnFaceUpMethod::DisguiseCost,
+                                        });
+                                    }
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Morph/Megamorph/Disguise face-down cast (CR 702.37a / CR 702.168b) ──
+        // Sorcery-speed only: active player, main phase, empty stack. The player may
+        // cast a card with Morph/Megamorph/Disguise face-down for {3} (morph) or the
+        // disguise cost. StubProvider conservatively emits sorcery-speed only.
+        if is_main_phase && stack_empty && is_active {
+            let morph_base_cost = ManaCost {
+                generic: 3,
+                ..Default::default()
+            };
+            let hand = ZoneId::Hand(player);
+            for obj in state.objects_in_zone(&hand) {
+                let is_land = obj.characteristics.card_types.contains(&CardType::Land);
+                if is_land {
+                    continue;
+                }
+
+                let card_def = obj
+                    .card_id
+                    .as_ref()
+                    .and_then(|cid| state.card_registry.get(cid.clone()));
+
+                let has_morph = card_def.as_ref().map(|def| {
+                    def.abilities.iter().any(|a| {
+                        matches!(
+                            a,
+                            AbilityDefinition::Morph { .. }
+                                | AbilityDefinition::Megamorph { .. }
+                                | AbilityDefinition::Disguise { .. }
+                        )
+                    })
+                });
+
+                if has_morph != Some(true) {
+                    continue;
+                }
+
+                // Morph/Megamorph cast face-down costs {3}.
+                let has_morph_or_mega = card_def.as_ref().map(|def| {
+                    def.abilities.iter().any(|a| {
+                        matches!(
+                            a,
+                            AbilityDefinition::Morph { .. } | AbilityDefinition::Megamorph { .. }
+                        )
+                    })
+                });
+                if has_morph_or_mega == Some(true) && can_afford(state, player, &morph_base_cost) {
+                    actions.push(LegalAction::CastMorphFaceDown {
+                        card: obj.id,
+                        face_down_kind: FaceDownKind::Morph,
+                    });
+                }
+
+                // Disguise cast costs its disguise cost.
+                if let Some(def) = &card_def {
+                    for ability in &def.abilities {
+                        if let AbilityDefinition::Disguise { cost } = ability {
+                            if can_afford(state, player, cost) {
+                                actions.push(LegalAction::CastMorphFaceDown {
+                                    card: obj.id,
+                                    face_down_kind: FaceDownKind::Disguise,
+                                });
+                            }
+                            break;
+                        }
                     }
                 }
             }

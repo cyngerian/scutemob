@@ -75,6 +75,9 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -158,6 +161,9 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(result.is_ok());
@@ -228,6 +234,9 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -297,6 +306,9 @@ fn test_cast_spell_flash_at_instant_speed() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -369,6 +381,9 @@ fn test_cast_spell_lifo_stack_order() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -414,6 +429,9 @@ fn test_cast_spell_lifo_stack_order() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -485,6 +503,9 @@ fn test_cast_spell_not_priority_holder_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(matches!(
@@ -551,6 +572,9 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -611,6 +635,9 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -688,6 +715,9 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -732,6 +762,9 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -790,6 +823,9 @@ fn test_cast_spell_land_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -851,6 +887,9 @@ fn test_cast_spell_card_not_in_hand_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -916,6 +955,9 @@ fn test_cast_spell_priority_resets_to_active_player() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

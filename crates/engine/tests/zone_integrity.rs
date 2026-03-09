@@ -223,6 +223,12 @@ fn test_add_object_to_state() {
         encoded_cards: im::Vector::new(),
         haunting_target: None,
         is_reconfigured: false,
+        merged_components: im::Vector::new(),
+        is_transformed: false,
+        last_transform_timestamp: 0,
+        was_cast_disturbed: false,
+        craft_exiled_cards: im::Vector::new(),
+        face_down_as: None,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

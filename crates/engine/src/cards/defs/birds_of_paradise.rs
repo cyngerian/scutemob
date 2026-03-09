@@ -19,5 +19,6 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
             },
         ],
+        back_face: None,
     }
 }

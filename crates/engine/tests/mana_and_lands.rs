@@ -294,6 +294,9 @@ fn test_play_land_stack_nonempty_fails() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     });
 
     let result = mtg_engine::process_command(

@@ -97,6 +97,9 @@ fn cast_and_resolve(
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -884,6 +887,9 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(backup_trigger);
 

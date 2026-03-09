@@ -16,5 +16,6 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::BattleCry),
             // TODO: blocking restriction ("can't be blocked except by flying/reach") deferred
         ],
+        back_face: None,
     }
 }

@@ -265,6 +265,9 @@ fn test_flashback_basic_cast_from_graveyard() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -380,6 +383,9 @@ fn test_flashback_exile_on_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -512,6 +518,9 @@ fn test_flashback_exile_on_counter() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -570,6 +579,9 @@ fn test_flashback_exile_on_counter() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -685,6 +697,9 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -767,6 +782,9 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -865,6 +883,9 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -968,6 +989,9 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1082,6 +1106,9 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1179,6 +1206,9 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1269,6 +1299,9 @@ fn test_flashback_mana_value_unchanged() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

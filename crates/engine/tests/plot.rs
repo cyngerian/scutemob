@@ -413,6 +413,9 @@ fn test_plot_cannot_cast_same_turn() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -492,6 +495,9 @@ fn test_plot_cast_from_exile_on_later_turn() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -581,6 +587,9 @@ fn test_plot_free_cast_costs_zero() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -713,6 +722,9 @@ fn test_plot_requires_main_phase_empty_stack() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     });
 
     let result = process_command(
@@ -798,6 +810,9 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1059,6 +1074,9 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1210,6 +1228,9 @@ fn test_plot_mana_value_unchanged_on_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1318,6 +1339,9 @@ fn test_plot_free_cast_requires_empty_stack() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     });
 
     let result = process_command(
@@ -1352,6 +1376,9 @@ fn test_plot_free_cast_requires_empty_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1428,6 +1455,9 @@ fn test_plot_free_cast_requires_own_turn() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1511,6 +1541,9 @@ fn test_plot_normal_cast_still_works() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1587,6 +1620,9 @@ fn test_plot_cast_postcombat_main_phase() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1719,6 +1755,9 @@ fn test_plot_turn_tracking_boundary() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -1760,6 +1799,9 @@ fn test_plot_turn_tracking_boundary() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(

@@ -38,5 +38,6 @@ pub fn card() -> CardDefinition {
                 is_self: true,
             },
         ],
+        back_face: None,
     }
 }

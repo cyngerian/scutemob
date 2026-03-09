@@ -197,6 +197,9 @@ fn test_surge_basic_cast_with_surge_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -275,6 +278,9 @@ fn test_surge_rejected_no_prior_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -342,6 +348,9 @@ fn test_surge_optional_normal_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -405,6 +414,9 @@ fn test_surge_after_resolved_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -467,6 +479,9 @@ fn test_surge_after_countered_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -566,6 +581,9 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             },
         );
         assert!(
@@ -643,6 +661,9 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -730,6 +751,9 @@ fn test_surge_card_without_keyword_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -809,6 +833,9 @@ fn test_surge_reset_at_turn_start() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -891,6 +918,9 @@ fn test_surge_reset_at_turn_start() {
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             },
         );
         assert!(
@@ -1046,6 +1076,9 @@ fn test_surge_commander_tax_stacks() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1125,6 +1158,9 @@ fn test_surge_cast_alt_cost_tracked() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 

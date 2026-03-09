@@ -81,6 +81,12 @@ impl HeuristicBot {
             LegalAction::SaddleMount { .. } => 35,
             // Mutate: treat like casting a spell — good priority.
             LegalAction::CastWithMutate { .. } => 50,
+            // TurnFaceUp: reveal a face-down permanent (morph/disguise/manifest/cloak).
+            // Good priority — turning face up usually improves board state.
+            LegalAction::TurnFaceUp { .. } => 45,
+            // CastMorphFaceDown: cast a card face-down for {3}. Moderate priority —
+            // useful for bluffing but less impactful than casting normally.
+            LegalAction::CastMorphFaceDown { .. } => 30,
         }
     }
 }

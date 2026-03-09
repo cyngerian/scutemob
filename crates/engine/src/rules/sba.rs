@@ -436,6 +436,11 @@ fn check_creature_sbas(
             None => continue, // Already removed in a previous SBA this pass.
         };
 
+        // CR 708.9: A face-down permanent leaving the battlefield must be revealed to all
+        // players. Capture the reveal event BEFORE moving the object (after move, old ObjectId
+        // is dead and face_down_as has been cleared on the new object).
+        let face_down_reveal = state.face_down_reveal_for(id);
+
         // CR 614: Check replacement effects before moving to graveyard.
         let action = replacement::check_zone_change_replacement(
             state,
@@ -450,6 +455,10 @@ fn check_creature_sbas(
             replacement::ZoneChangeAction::Proceed => {
                 // No replacement — move to graveyard normally.
                 if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
+                    // CR 708.9: Emit reveal before CreatureDied.
+                    if let Some(reveal) = face_down_reveal.clone() {
+                        events.push(reveal);
+                    }
                     events.push(GameEvent::CreatureDied {
                         object_id: id,
                         new_grave_id: new_id,
@@ -468,6 +477,10 @@ fn check_creature_sbas(
                 // Single replacement auto-applied — redirect zone.
                 events.extend(repl_events);
                 if let Ok((new_id, _)) = state.move_object_to_zone(id, to) {
+                    // CR 708.9: Emit face-down reveal before the zone-change event.
+                    if let Some(reveal) = face_down_reveal.clone() {
+                        events.push(reveal);
+                    }
                     match to {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {

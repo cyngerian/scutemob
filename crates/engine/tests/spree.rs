@@ -266,6 +266,9 @@ fn test_spree_single_mode_adds_mode_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with mode 0 failed: {:?}", e));
@@ -340,6 +343,9 @@ fn test_spree_two_modes_adds_both_costs() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with modes [0,1] failed: {:?}", e));
@@ -417,6 +423,9 @@ fn test_spree_all_three_modes() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with all 3 modes failed: {:?}", e));
@@ -490,6 +499,9 @@ fn test_spree_zero_modes_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -554,6 +566,9 @@ fn test_spree_insufficient_mana_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -610,6 +625,9 @@ fn test_spree_duplicate_mode_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -670,6 +688,9 @@ fn test_spree_mode_order_ascending() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with modes [2,0] failed: {:?}", e));
@@ -780,6 +801,9 @@ fn test_spree_non_spree_spell_unchanged() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(

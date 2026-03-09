@@ -155,6 +155,13 @@ pub enum PendingTriggerKind {
     /// Fired in the CreatureDied handler when an exiled card has a matching haunting_target.
     /// Carries `haunt_source_object_id` for the HauntedCreatureDiesTrigger SOK.
     HauntedCreatureDies,
+    /// CR 708.8 / CR 702.37e: "When this permanent is turned face up" triggered ability.
+    ///
+    /// Fired in `check_triggers` when `GameEvent::PermanentTurnedFaceUp` fires and the
+    /// permanent has `TriggerCondition::WhenTurnedFaceUp` in its CardDefinition.
+    /// The source is the permanent itself; `source_card_id` is looked up at flush time.
+    /// Resolves as `TurnFaceUpTrigger` SOK.
+    TurnFaceUp,
     // Add new trigger kinds here as abilities are implemented
 }
 

@@ -29,5 +29,6 @@ pub fn card() -> CardDefinition {
         // trigger resolution time without a targets vec on Triggered. Mark as a known gap.
         power: Some(4),
         toughness: Some(4),
+        back_face: None,
     }
 }

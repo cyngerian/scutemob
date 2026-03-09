@@ -120,6 +120,7 @@ fn creature_spell_def() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![],
+        back_face: None,
     }
 }
 
@@ -142,6 +143,7 @@ fn artifact_creature_def() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![],
+        back_face: None,
     }
 }
 
@@ -225,6 +227,9 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -355,6 +360,9 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -452,6 +460,9 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -547,6 +558,9 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -643,6 +657,9 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -752,6 +769,9 @@ fn test_prowess_until_end_of_turn_expires() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -875,6 +895,9 @@ fn test_prowess_multiple_spells_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -929,6 +952,9 @@ fn test_prowess_multiple_spells_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1041,6 +1067,9 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

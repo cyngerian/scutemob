@@ -43,5 +43,6 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
             },
         ],
+        back_face: None,
     }
 }

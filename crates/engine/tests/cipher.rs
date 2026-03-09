@@ -104,6 +104,9 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
@@ -137,6 +140,7 @@ fn cipher_instant_def() -> CardDefinition {
         ],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -909,6 +913,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         ],
         power: None,
         toughness: None,
+        back_face: None,
     };
     let card_id2 = def2.card_id.clone();
     let registry = CardRegistry::new(vec![def, def2]);

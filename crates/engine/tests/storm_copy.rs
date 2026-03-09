@@ -64,6 +64,7 @@ fn storm_sorcery_def() -> CardDefinition {
         ],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -154,6 +155,9 @@ fn test_storm_creates_copies() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -286,6 +290,9 @@ fn test_storm_copies_resolve_independently() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -428,6 +435,9 @@ fn test_storm_count_resets_each_turn() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -542,6 +552,9 @@ fn test_spell_copy_is_not_cast() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

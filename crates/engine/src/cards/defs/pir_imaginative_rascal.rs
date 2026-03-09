@@ -33,5 +33,6 @@ pub fn card() -> CardDefinition {
             // ReplacementTrigger::WouldPutCountersOnPermanent and
             // ReplacementModification::AddOneToEachCounterKind (not yet in DSL).
         ],
+        back_face: None,
     }
 }

@@ -67,6 +67,7 @@ fn cascade_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         ],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -95,6 +96,7 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         }],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -112,6 +114,7 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         abilities: vec![],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -252,6 +255,9 @@ fn test_cascade_exiles_until_hit() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -430,6 +436,9 @@ fn test_cascade_skips_lands() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -610,6 +619,9 @@ fn test_cascade_combined_mana_value_skip() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

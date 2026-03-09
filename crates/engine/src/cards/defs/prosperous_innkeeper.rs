@@ -37,5 +37,6 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(1),
         toughness: Some(1),
+        back_face: None,
     }
 }

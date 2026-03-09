@@ -23,5 +23,6 @@ pub fn card() -> CardDefinition {
             // or a multi-target tap effect. Add when TriggerCondition::WhenCast and
             // multi-target tap support are implemented.
         ],
+        back_face: None,
     }
 }

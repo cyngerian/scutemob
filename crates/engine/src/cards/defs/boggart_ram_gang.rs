@@ -18,5 +18,6 @@ pub fn card() -> CardDefinition {
             // TODO: Add KeywordAbility::Wither variant (CR 702.77a): damage dealt to
             // creatures is in the form of -1/-1 counters instead of marked damage.
         ],
+        back_face: None,
     }
 }

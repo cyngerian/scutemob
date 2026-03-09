@@ -219,6 +219,9 @@ fn test_blitz_basic_cast_with_blitz_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -341,6 +344,9 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -441,6 +447,9 @@ fn test_blitz_sacrifice_at_end_step() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -554,6 +563,9 @@ fn test_blitz_draw_card_on_death() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -704,6 +716,9 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -836,6 +851,9 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -958,6 +976,9 @@ fn test_blitz_card_without_blitz_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1045,6 +1066,9 @@ fn test_blitz_alternative_cost_exclusivity() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1178,6 +1202,9 @@ fn test_blitz_commander_tax_applies() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -1224,6 +1251,9 @@ fn test_blitz_commander_tax_applies() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(

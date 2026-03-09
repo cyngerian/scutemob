@@ -38,5 +38,6 @@ pub fn card() -> CardDefinition {
             // draw-replacement option when this card is in its owner's graveyard.
             AbilityDefinition::Keyword(KeywordAbility::Dredge(6)),
         ],
+        back_face: None,
     }
 }

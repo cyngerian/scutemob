@@ -13,5 +13,6 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Afflict(1)),
         ],
+        back_face: None,
     }
 }

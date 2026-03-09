@@ -262,6 +262,9 @@ fn test_modal_choose_one_mode_zero() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -346,6 +349,9 @@ fn test_modal_choose_one_mode_one() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -422,6 +428,9 @@ fn test_modal_choose_one_mode_two() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -540,6 +549,9 @@ fn test_modal_choose_two_modes() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -611,6 +623,9 @@ fn test_modal_default_auto_selects_mode_zero() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with empty modes_chosen failed: {:?}", e));
@@ -670,6 +685,9 @@ fn test_modal_invalid_index_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -737,6 +755,9 @@ fn test_modal_duplicate_index_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -819,6 +840,9 @@ fn test_modal_too_few_modes_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -873,6 +897,9 @@ fn test_modal_too_many_modes_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1024,6 +1051,9 @@ fn test_modal_entwine_overrides_modes_chosen() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
@@ -1144,6 +1174,9 @@ fn test_modal_non_modal_spell_with_modes_chosen_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1199,6 +1232,9 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1267,6 +1303,9 @@ fn test_modal_copy_inherits_modes() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1456,6 +1495,9 @@ fn test_modal_allow_duplicate_modes() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with duplicate modes failed: {:?}", e));

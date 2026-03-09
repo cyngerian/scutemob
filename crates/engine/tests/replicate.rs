@@ -220,6 +220,9 @@ fn test_replicate_zero_copies() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without replicate should succeed: {:?}", e));
@@ -283,6 +286,9 @@ fn test_replicate_one_copy() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -383,6 +389,9 @@ fn test_replicate_basic_two_copies() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=2 failed: {:?}", e));
@@ -512,6 +521,9 @@ fn test_replicate_no_keyword_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -563,6 +575,9 @@ fn test_replicate_copies_not_cast() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -633,6 +648,9 @@ fn test_replicate_mana_cost_added() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 

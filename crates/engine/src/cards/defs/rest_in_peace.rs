@@ -3,8 +3,9 @@
 // graveyards. If a card would be put into a graveyard from anywhere,
 // exile it instead."
 //
-// ETB trigger: fires inline via fire_when_enters_triggered_effects at ETB
-// site (not via the stack), exiling all cards currently in all graveyards.
+// ETB trigger: queued via queue_carddef_etb_triggers as PendingTrigger, placed on
+// the stack at the next priority window (CR 603.3). Opponents may respond before
+// the exile effect resolves.
 // Ongoing replacement: registered via register_permanent_replacement_abilities.
 use crate::cards::helpers::*;
 
@@ -19,8 +20,8 @@ pub fn card() -> CardDefinition {
              If a card would be put into a graveyard from anywhere, exile it instead."
                 .to_string(),
         abilities: vec![
-            // CR 603.2: ETB triggered ability — exile all cards from all graveyards.
-            // Executed inline (non-interactively) via fire_when_enters_triggered_effects.
+            // CR 603.3, 603.6a: ETB triggered ability — exile all cards from all graveyards.
+            // Queued as PendingTrigger by queue_carddef_etb_triggers; resolves via stack.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ForEach {

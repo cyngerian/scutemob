@@ -297,6 +297,9 @@ fn test_vanishing_etb_counters_on_cast() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CastSpell should succeed");

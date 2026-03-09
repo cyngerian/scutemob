@@ -110,6 +110,9 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -178,6 +181,9 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -246,6 +252,9 @@ fn test_702_5_enchant_land_targets_land_valid() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -312,6 +321,9 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CastSpell should succeed");
@@ -505,6 +517,9 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             },
         );
         assert!(
@@ -564,6 +579,9 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             },
         );
         assert!(
@@ -628,6 +646,9 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -699,6 +720,9 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -769,6 +793,9 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CastSpell should succeed");

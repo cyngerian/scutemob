@@ -130,6 +130,9 @@ fn test_read_the_bones_scry_then_draw() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -321,6 +324,9 @@ fn test_path_to_exile_optional_search() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -830,16 +836,24 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("casting Rest in Peace failed");
 
-    // Both players pass priority to resolve.
-    let (_state, events) = pass_all(state, &[p1, p2]);
+    // Both players pass priority to resolve the Rest in Peace spell.
+    // CR 603.3: The ETB trigger is queued and placed on the stack after resolution.
+    let (state, _resolve_events) = pass_all(state, &[p1, p2]);
 
-    // CR 603.2: The ETB trigger fires inline at resolution.
-    // Two ObjectExiled events should appear (one for each graveyard card).
-    let exile_count = events
+    // The ETB trigger (exile all graveyard cards) is now on the stack.
+    // Both players pass priority again to resolve the ETB trigger.
+    let (_state, trigger_events) = pass_all(state, &[p1, p2]);
+
+    // CR 603.3: The ETB trigger resolves — two ObjectExiled events should appear
+    // (one for each graveyard card).
+    let exile_count = trigger_events
         .iter()
         .filter(|e| matches!(e, GameEvent::ObjectExiled { .. }))
         .count();
@@ -848,7 +862,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
         exile_count, 2,
         "Rest in Peace ETB should exile 2 graveyard cards (one per player); \
          got {} ObjectExiled events; events: {:?}",
-        exile_count, events
+        exile_count, trigger_events
     );
 }
 

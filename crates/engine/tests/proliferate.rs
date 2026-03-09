@@ -844,6 +844,9 @@ fn test_whenever_you_proliferate_trigger_fires() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

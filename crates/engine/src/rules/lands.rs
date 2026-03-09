@@ -417,10 +417,10 @@ pub fn handle_play_land(
         object_id: new_land_id,
     });
 
-    // CR 603.2: Fire mandatory WhenEntersBattlefield triggered effects from card
-    // definition inline (e.g., Rest in Peace ETB exile). Interactive ETB triggers
-    // are handled via PendingTrigger.
-    events.extend(super::replacement::fire_when_enters_triggered_effects(
+    // CR 603.3, 603.6a: Queue WhenEntersBattlefield triggered abilities from card
+    // definition as PendingTrigger (goes on stack at next priority window).
+    // Returns events only for Fabricate inline bot-play approximation.
+    events.extend(super::replacement::queue_carddef_etb_triggers(
         state,
         new_land_id,
         player,

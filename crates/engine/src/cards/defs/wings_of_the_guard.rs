@@ -14,5 +14,6 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Melee),
         ],
+        back_face: None,
     }
 }

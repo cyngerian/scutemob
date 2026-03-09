@@ -2,16 +2,29 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_etb_007",
-    "name": "Mulldrifter ETB — draw two cards when it enters the battlefield",
-    "description": "p1 casts Mulldrifter ({4}{U}). When Mulldrifter resolves and enters the battlefield, its ETB triggered ability fires (CR 603.2) and is placed on the stack (CR 603.3). Both players pass priority; the ETB trigger resolves (CR 608.2) and p1 draws two cards (CR 120.4). Tests the full cast-resolve-ETB-draw sequence for a creature with an enters-the-battlefield triggered ability.",
-    "cr_sections_tested": ["601.2", "603.2", "603.3", "603.6d", "608.2", "120.4"],
+    "name": "Mulldrifter ETB \u2014 draw two cards when it enters the battlefield",
+    "description": "p1 casts Mulldrifter ({4}{U}). When Mulldrifter resolves and enters the battlefield, its ETB triggered ability is queued as PendingTrigger (CR 603.3) and placed on the stack. Both players pass priority; the ETB trigger resolves (CR 608.2) and p1 draws two cards (CR 120.4). Tests the full cast-resolve-ETB-trigger-draw sequence for a creature with an enters-the-battlefield triggered ability.",
+    "cr_sections_tested": [
+      "601.2",
+      "603.2",
+      "603.3",
+      "603.6d",
+      "608.2",
+      "120.4"
+    ],
     "corner_case_ref": null,
-    "tags": ["etb-trigger", "mulldrifter", "draw", "creature", "flying"],
-    "confidence": "medium",
+    "tags": [
+      "etb-trigger",
+      "mulldrifter",
+      "draw",
+      "creature",
+      "flying"
+    ],
+    "confidence": "high",
     "review_status": "approved",
-    "reviewed_by": null,
-    "review_date": null,
-    "generation_notes": "Mulldrifter oracle: Flying; 'When this creature enters, draw two cards.'; Evoke {2}{U}. Cast for full cost {4}{U} (not evoked). SCOPE LIMITATION: This script validates that Mulldrifter's ETB draw-2 effect executes correctly, but does NOT validate CR 603.3 stack placement — the engine fires card-defined ETB triggered abilities synchronously during resolution rather than queuing them as a separate stack object requiring a priority pass. A full CR 603.3 validation would require a harness change to expose the intermediate state (trigger on stack, hand still empty). Library has exactly 2 cards (Plains, Island) — both drawn by the trigger, leaving library at 0. mana_paid uses colorless:4 for generic {4} and blue:1 for {U}.",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-08",
+    "generation_notes": "Mulldrifter oracle: Flying; 'When this creature enters, draw two cards.'; Evoke {2}{U}. Cast for full cost {4}{U} (not evoked). Per CR 603.3, ETB triggers go on the stack. First priority_round resolves the Mulldrifter spell; Mulldrifter enters the battlefield and ETB trigger is queued on the stack. Second priority_round resolves the ETB trigger; p1 draws 2 cards. Library has exactly 2 cards (Plains, Island) \u2014 both drawn by the trigger. mana_paid uses colorless:4 for generic {4} and blue:1 for {U}.",
     "disputes": []
   },
   "initial_state": {
@@ -24,7 +37,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 4, "blue": 1 },
+        "mana_pool": {
+          "colorless": 4,
+          "blue": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -45,7 +61,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Mulldrifter", "is_commander": false, "owner": null }
+          {
+            "card": "Mulldrifter",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -53,8 +73,16 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Plains", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null }
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -64,7 +92,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p1 casts Mulldrifter; it resolves onto the battlefield; ETB trigger fires and draws two cards.",
+      "step_note": "p1 casts Mulldrifter; it resolves onto the battlefield with ETB trigger queued on stack; ETB trigger resolves drawing two cards.",
       "actions": [
         {
           "type": "assert_state",
@@ -72,7 +100,9 @@
           "assertions": {
             "zones.hand.p1.count": 1,
             "zones.library.p1.count": 2,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -82,7 +112,10 @@
           "action": "cast_spell",
           "card": "Mulldrifter",
           "targets": [],
-          "mana_paid": { "colorless": 4, "blue": 1 },
+          "mana_paid": {
+            "colorless": 4,
+            "blue": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Mulldrifter for {4}{U}; card moves from hand to stack."
@@ -98,9 +131,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority — Mulldrifter resolves from the stack."
+          "note": "CR 116.3: Both players pass priority \u2014 Mulldrifter resolves from the stack. ETB trigger queued."
         },
         {
           "type": "stack_resolve",
@@ -111,23 +147,76 @@
               "card": "Mulldrifter",
               "controller": "p1",
               "cr_ref": "608.2",
-              "note": "CR 608.2: Mulldrifter resolves and enters the battlefield under p1's control. CR 603.2+603.3: ETB trigger 'draw two cards' fires and is placed on the stack. CR 603.6d: ETB trigger resolves — p1 draws 2 cards."
+              "note": "CR 608.2: Mulldrifter resolves and enters the battlefield under p1's control."
+            },
+            {
+              "effect": "etb_trigger_queued",
+              "source": "Mulldrifter",
+              "trigger_condition": "when_this_enters_battlefield",
+              "cr_ref": "603.3",
+              "note": "CR 603.3: ETB trigger 'draw two cards' queued as PendingTrigger and placed on the stack."
             }
           ],
-          "note": "Mulldrifter enters the battlefield; ETB trigger fires (CR 603.2), goes on stack (CR 603.3), and resolves drawing two cards (CR 120.4)."
+          "note": "Mulldrifter enters the battlefield; ETB trigger placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Mid-point: Mulldrifter on battlefield, ETB trigger on stack, hand still empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Mulldrifter"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 0,
+            "zones.library.p1.count": 2
+          },
+          "note": "CR 603.3: ETB trigger is on the stack. Draw has not happened yet. Library still has 2 cards."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 ETB trigger resolves. p1 draws 2 cards."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Mulldrifter ETB",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "count": 2,
+              "cr_ref": "120.4",
+              "note": "CR 120.4: p1 draws 2 cards from ETB trigger. Plains and Island move from library to hand."
+            }
+          ],
+          "note": "ETB trigger resolves; p1 draws two cards. Library becomes empty."
         },
         {
           "type": "assert_state",
           "description": "Final: Mulldrifter on battlefield, p1 drew 2 cards (hand=2), library empty, stack empty",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Mulldrifter" }]
+              "includes": [
+                {
+                  "card": "Mulldrifter"
+                }
+              ]
             },
             "zones.hand.p1.count": 2,
             "zones.library.p1.count": 0,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
-          "note": "CR 603.2+603.3+120.4: ETB trigger fired and resolved. p1 drew both library cards (Plains and Island). Library is now empty."
+          "note": "CR 603.3+120.4: ETB trigger fired and resolved. p1 drew both library cards (Plains and Island). Library is now empty."
         }
       ]
     }

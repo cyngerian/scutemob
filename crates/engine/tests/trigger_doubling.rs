@@ -70,6 +70,7 @@ fn panharmonicon_def(id: &str, name: &str) -> CardDefinition {
         }],
         power: None,
         toughness: None,
+        back_face: None,
     }
 }
 
@@ -122,6 +123,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
         abilities: vec![],
         power: Some(2),
         toughness: Some(2),
+        back_face: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -227,6 +229,9 @@ fn test_panharmonicon_doubles_etb_trigger() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -294,6 +299,7 @@ fn test_two_panharmonicons_triple_triggers() {
         abilities: vec![],
         power: Some(1),
         toughness: Some(1),
+        back_face: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -401,6 +407,9 @@ fn test_two_panharmonicons_triple_triggers() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -471,6 +480,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
         abilities: vec![],
         power: Some(1),
         toughness: Some(1),
+        back_face: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -557,6 +567,9 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -635,6 +648,7 @@ fn test_panharmonicon_registration_via_resolution() {
         abilities: vec![],
         power: Some(1),
         toughness: Some(1),
+        back_face: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -711,6 +725,9 @@ fn test_panharmonicon_registration_via_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -780,6 +797,9 @@ fn test_panharmonicon_registration_via_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

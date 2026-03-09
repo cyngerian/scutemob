@@ -14,5 +14,6 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Convoke),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
         ],
+        back_face: None,
     }
 }

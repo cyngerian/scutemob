@@ -180,6 +180,7 @@ fn test_harness_declare_attackers_basic() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     );
@@ -262,6 +263,7 @@ fn test_harness_declare_attackers_empty() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     );
@@ -382,6 +384,7 @@ fn test_harness_declare_blockers_basic() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     );
@@ -471,6 +474,7 @@ fn test_harness_declare_blockers_empty() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     );
@@ -543,6 +547,7 @@ fn test_harness_full_combat_unblocked_damage() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     )
@@ -587,6 +592,7 @@ fn test_harness_full_combat_unblocked_damage() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     )
@@ -655,6 +661,7 @@ fn test_harness_declare_attackers_default_target() {
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
         0,      // squad_count: not used for combat harness actions
+        false,  // mutate_on_top: not used for combat harness actions
         &state,
         &players,
     );

@@ -374,6 +374,7 @@ fn test_702_25b_flanking_multiple_instances() {
         ],
         power: Some(2),
         toughness: Some(2),
+        back_face: None,
     };
 
     let registry = CardRegistry::new(vec![double_flanking_def]);

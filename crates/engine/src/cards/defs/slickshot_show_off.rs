@@ -30,5 +30,6 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 1, red: 1, ..Default::default() },
             },
         ],
+        back_face: None,
     }
 }

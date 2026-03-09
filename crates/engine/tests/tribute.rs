@@ -110,6 +110,9 @@ fn cast_creature(
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -301,6 +304,9 @@ fn test_tribute_not_paid_trigger_fires() {
 
     let card_id = find_object(&state, "Tribute Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the TributeNotPaid ETB trigger (gain 3 life).
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Controller should have gained 3 life from "if tribute wasn't paid" trigger.
@@ -448,6 +454,9 @@ fn test_tribute_n_value_draw_card() {
 
     let card_id = find_object(&state, "Tribute Three Test");
     let state = cast_creature(state, p1, card_id, 3);
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the TributeNotPaid ETB trigger (draw a card).
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let bf_id = find_object_on_battlefield(&state, "Tribute Three Test")
@@ -630,6 +639,9 @@ fn test_tribute_multiplayer_fires() {
 
     let card_id = find_object(&state, "Tribute Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
+    // CR 603.3: Resolve the TributeNotPaid ETB trigger (gain 3 life).
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     let bf_id = find_object_on_battlefield(&state, "Tribute Test Creature")

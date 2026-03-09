@@ -17,5 +17,6 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ascend),
         ],
+        back_face: None,
     }
 }

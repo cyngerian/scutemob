@@ -21,5 +21,6 @@ pub fn card() -> CardDefinition {
             // CR 702.156a: If X >= 5, a triggered ability puts a draw on the stack.
             AbilityDefinition::Keyword(KeywordAbility::Ravenous),
         ],
+        back_face: None,
     }
 }

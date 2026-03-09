@@ -225,6 +225,9 @@ fn cast_offspring(
             squad_count: 0,
             offspring_paid,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| {
@@ -455,6 +458,9 @@ fn test_offspring_rejected_without_keyword() {
             squad_count: 0,
             offspring_paid: true, // trying to pay offspring cost on non-offspring creature
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 

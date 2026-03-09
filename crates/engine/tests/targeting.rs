@@ -92,6 +92,9 @@ fn test_601_2c_targeting_active_player_is_valid() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(result.is_ok(), "targeting an active player should succeed");
@@ -166,6 +169,9 @@ fn test_601_2c_targeting_object_is_valid() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(result.is_ok());
@@ -233,6 +239,9 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -315,6 +324,9 @@ fn test_601_2c_targeting_eliminated_player_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -385,6 +397,9 @@ fn test_608_2b_fizzle_player_target_concedes() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -480,6 +495,9 @@ fn test_608_2b_fizzle_all_targets_illegal() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -595,6 +613,9 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -708,6 +729,9 @@ fn test_601_mana_cost_deducted_on_cast() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -791,6 +815,9 @@ fn test_601_mana_cost_colored_and_generic() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -867,6 +894,9 @@ fn test_601_insufficient_mana_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(result.is_err(), "casting without enough mana should fail");
@@ -947,6 +977,9 @@ fn test_601_generic_paid_from_any_color() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1024,6 +1057,9 @@ fn test_601_colorless_requirement_must_use_colorless() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -1090,6 +1126,9 @@ fn test_601_no_mana_cost_casts_free() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1212,6 +1251,9 @@ fn test_601_2c_doom_blade_cannot_target_black_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1280,6 +1322,9 @@ fn test_601_2c_doom_blade_can_target_non_black_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1392,6 +1437,9 @@ fn test_601_2c_target_creature_rejects_non_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 

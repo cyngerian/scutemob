@@ -535,6 +535,9 @@ fn test_ascend_instant_sorcery_on_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("CastSpell should succeed");

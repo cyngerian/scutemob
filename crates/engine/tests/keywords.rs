@@ -444,6 +444,9 @@ fn test_702_18_shroud_prevents_targeting() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -527,6 +530,9 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1180,6 +1186,9 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("casting Wrath of God failed");

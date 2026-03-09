@@ -147,6 +147,9 @@ fn test_kicker_basic_cast_with_kicker() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with kicker failed: {:?}", e));
@@ -270,6 +273,9 @@ fn test_kicker_basic_cast_without_kicker() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without kicker failed: {:?}", e));
@@ -377,6 +383,9 @@ fn test_kicker_insufficient_mana_with_kicker() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -462,6 +471,9 @@ fn test_kicker_non_kicker_spell_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -551,6 +563,9 @@ fn test_kicker_standard_kicker_rejects_multiple() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -648,6 +663,9 @@ fn test_kicker_permanent_etb_kicked() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger kicked failed: {:?}", e));
@@ -758,6 +776,9 @@ fn test_kicker_permanent_etb_not_kicked() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger not kicked failed: {:?}", e));
@@ -860,6 +881,9 @@ fn test_kicker_does_not_change_mana_value() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Burst Lightning kicked failed: {:?}", e));
@@ -1006,6 +1030,9 @@ fn test_kicker_with_commander_tax() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Commander + kicker cast failed: {:?}", e));
@@ -1134,6 +1161,9 @@ fn test_kicker_spell_cast_event_emitted() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell kicked failed: {:?}", e));

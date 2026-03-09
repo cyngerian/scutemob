@@ -217,6 +217,9 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -331,6 +334,9 @@ fn test_convoke_colored_mana_match() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -438,6 +444,9 @@ fn test_convoke_generic_mana_any_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -530,6 +539,9 @@ fn test_convoke_reject_no_keyword() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -604,6 +616,9 @@ fn test_convoke_reject_tapped_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -677,6 +692,9 @@ fn test_convoke_reject_not_creature() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -751,6 +769,9 @@ fn test_convoke_reject_not_controlled() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -836,6 +857,9 @@ fn test_convoke_reject_too_many_creatures() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -961,6 +985,9 @@ fn test_convoke_with_commander_tax() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -1066,6 +1093,9 @@ fn test_convoke_no_summoning_sickness() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1146,6 +1176,9 @@ fn test_convoke_zero_creatures() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -1241,6 +1274,9 @@ fn test_convoke_multicolored_creature_pays_colored() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

@@ -28,5 +28,6 @@ pub fn card() -> CardDefinition {
             // you gain 2 life" cannot be expressed until TriggerCondition::WhenLeavesBattlefield
             // is added. Add a second Triggered ability here when that variant exists.
         ],
+        back_face: None,
     }
 }

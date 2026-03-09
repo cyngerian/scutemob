@@ -125,6 +125,9 @@ fn cast_creature(
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -633,11 +636,11 @@ fn test_fabricate_token_fallback() {
         "Object must be absent from state for the token fallback path to fire"
     );
 
-    // Call fire_when_enters_triggered_effects directly with the now-absent ID.
+    // Call queue_carddef_etb_triggers directly with the now-absent ID.
     // The fabricate block checks `state.objects.get(&new_id)` — because the
     // object is absent, `permanent_on_bf` is false → token path executes.
     let card_id = CardId("fabricate-2-test".to_string());
-    let evts = mtg_engine::rules::replacement::fire_when_enters_triggered_effects(
+    let evts = mtg_engine::rules::replacement::queue_carddef_etb_triggers(
         &mut state,
         fabricate_id,
         p1,

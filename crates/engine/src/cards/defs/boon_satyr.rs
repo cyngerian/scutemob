@@ -15,5 +15,6 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Bestow),
             AbilityDefinition::Bestow { cost: ManaCost { generic: 4, green: 2, ..Default::default() } },
         ],
+        back_face: None,
     }
 }

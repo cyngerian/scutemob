@@ -14,5 +14,6 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Riot),
         ],
+        back_face: None,
     }
 }

@@ -148,6 +148,9 @@ fn test_cast_commander_from_command_zone_first_time() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -259,6 +262,9 @@ fn test_cast_commander_from_command_zone_second_time() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -359,6 +365,9 @@ fn test_cast_commander_from_command_zone_third_time() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -457,6 +466,9 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -534,6 +546,9 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -606,6 +621,9 @@ fn test_cast_commander_sorcery_speed_enforced() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -1132,6 +1150,9 @@ fn test_partner_commanders_separate_tax_tracking() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1228,6 +1249,9 @@ fn test_partner_commanders_separate_tax_tracking() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1299,6 +1323,7 @@ fn test_partner_commanders_combined_color_identity() {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Partner)],
         power: Some(2),
         toughness: Some(2),
+        back_face: None,
     };
 
     // Partner commander B: legendary creature, blue
@@ -1315,6 +1340,7 @@ fn test_partner_commanders_combined_color_identity() {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Partner)],
         power: Some(2),
         toughness: Some(2),
+        back_face: None,
     };
 
     // A card with blue color identity (valid in white+blue deck).
@@ -2074,6 +2100,9 @@ fn test_companion_rejected_with_non_empty_stack() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     });
 
     assert_eq!(
@@ -2391,6 +2420,9 @@ fn test_full_four_player_commander_game() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

@@ -242,6 +242,9 @@ fn test_entwine_basic_both_modes_execute() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -370,6 +373,9 @@ fn test_entwine_not_paid_only_first_mode() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -482,6 +488,9 @@ fn test_entwine_insufficient_mana_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -560,6 +569,9 @@ fn test_entwine_no_keyword_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -672,6 +684,9 @@ fn test_entwine_modes_in_printed_order() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -772,6 +787,9 @@ fn test_entwine_was_entwined_flag_on_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

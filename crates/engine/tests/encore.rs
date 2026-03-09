@@ -590,6 +590,9 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(fake_stack_obj);
 

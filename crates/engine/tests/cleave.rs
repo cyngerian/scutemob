@@ -278,6 +278,9 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -373,6 +376,9 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -465,6 +471,9 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -550,6 +559,9 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -641,6 +653,9 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -739,6 +754,9 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -837,6 +855,9 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Cleave board-wipe CastSpell failed: {:?}", e));
@@ -951,6 +972,9 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal board-wipe CastSpell failed: {:?}", e));

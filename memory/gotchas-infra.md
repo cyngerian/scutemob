@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 15 + Mutate (2026-03-08)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 15 + Mutate + Transform (2026-03-08)
 
 ## Rust / im-rs Gotchas
 

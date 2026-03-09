@@ -920,6 +920,9 @@ fn test_ninjutsu_split_second_blocks() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 

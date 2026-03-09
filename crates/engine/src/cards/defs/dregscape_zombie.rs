@@ -21,5 +21,6 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { black: 1, ..Default::default() },
             },
         ],
+        back_face: None,
     }
 }

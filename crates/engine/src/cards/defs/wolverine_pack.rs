@@ -13,5 +13,6 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Rampage(2)),
         ],
+        back_face: None,
     }
 }

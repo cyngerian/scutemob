@@ -3,11 +3,12 @@
   "metadata": {
     "id": "script_stack_026",
     "name": "Rest in Peace ETB \u2014 exiles all graveyards",
-    "description": "p1 casts Rest in Peace ({1}{W}). When it enters the battlefield, all cards in all graveyards are exiled inline (WhenEntersBattlefield fires without going on the stack in this engine). Tests the ETB effect that exiles all graveyards.",
+    "description": "p1 casts Rest in Peace ({1}{W}). When it enters the battlefield, its ETB triggered ability is queued as PendingTrigger and placed on the stack (CR 603.3). Both players pass priority; the ETB trigger resolves and all cards in all graveyards are exiled. Tests the full cast-resolve-ETB-trigger-exile-graveyards sequence.",
     "cr_sections_tested": [
       "601.2",
+      "603.3",
+      "603.6a",
       "608.2",
-      "603.2",
       "614.6"
     ],
     "corner_case_ref": 14,
@@ -21,8 +22,8 @@
     "confidence": "high",
     "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
-    "review_date": "2026-02-23",
-    "generation_notes": "Rest in Peace oracle: 'When Rest in Peace enters the battlefield, exile all cards from all graveyards.' In this engine, WhenEntersBattlefield triggers fire inline (not via the stack). p1's graveyard has Lightning Bolt; p2's graveyard has Llanowar Elves. When RIP enters: both graveyards are exiled inline. The stack is empty after resolution.",
+    "review_date": "2026-03-08",
+    "generation_notes": "Rest in Peace oracle: 'When Rest in Peace enters the battlefield, exile all cards from all graveyards.' Per CR 603.3, ETB triggers go on the stack. p1's graveyard has Lightning Bolt; p2's graveyard has Llanowar Elves. First priority_round resolves RIP spell \u2014 RIP enters, ETB trigger queued on stack. Second priority_round resolves ETB trigger \u2014 both graveyards exiled.",
     "disputes": []
   },
   "initial_state": {
@@ -92,7 +93,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p1 casts Rest in Peace. Its ETB exiles all graveyards inline.",
+      "step_note": "p1 casts Rest in Peace; spell resolves placing RIP on battlefield; ETB trigger queued on stack; trigger resolves exiling all graveyard cards.",
       "actions": [
         {
           "type": "assert_state",
@@ -149,7 +150,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Rest in Peace resolves."
+          "note": "Both pass \u2014 Rest in Peace resolves. ETB trigger queued on stack."
         },
         {
           "type": "stack_resolve",
@@ -163,18 +164,68 @@
               "note": "Rest in Peace enters battlefield."
             },
             {
-              "effect": "etb_inline",
+              "effect": "etb_trigger_queued",
               "source": "Rest in Peace",
               "trigger_condition": "when_this_enters_battlefield",
-              "cr_ref": "603.2",
-              "note": "CR 603.2: ETB fires inline \u2014 exile all cards from all graveyards (WhenEntersBattlefield fires inline in this engine)."
+              "cr_ref": "603.3",
+              "note": "CR 603.3: ETB trigger 'exile all graveyard cards' queued as PendingTrigger and placed on the stack."
             }
           ],
-          "note": "Rest in Peace enters; ETB fires inline exiling all graveyard cards."
+          "note": "Rest in Peace enters; ETB trigger queued on stack."
         },
         {
           "type": "assert_state",
-          "description": "After RIP resolves: on battlefield, both graveyards empty, stack empty",
+          "description": "After spell resolves: RIP on battlefield, ETB trigger on stack, graveyards not yet exiled",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Rest in Peace"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": "ETB trigger is on the stack. Graveyards not yet exiled (trigger hasn't resolved)."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass priority \u2014 ETB trigger resolves. All graveyard cards exiled."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rest in Peace ETB",
+          "resolution": [
+            {
+              "effect": "exile_all_graveyards",
+              "cr_ref": "614.6",
+              "note": "CR 614.6: ETB trigger resolves \u2014 exile all cards from all graveyards."
+            }
+          ],
+          "note": "ETB trigger resolves; both graveyard cards exiled."
+        },
+        {
+          "type": "assert_state",
+          "description": "After RIP ETB resolves: on battlefield, both graveyards empty, stack empty",
           "assertions": {
             "zones.stack": {
               "is_empty": true
@@ -197,7 +248,7 @@
               ]
             }
           },
-          "note": "Both graveyard cards now in exile. Stack is empty (ETB fired inline)."
+          "note": "Both graveyard cards now in exile. Stack is empty (ETB trigger resolved)."
         }
       ]
     }

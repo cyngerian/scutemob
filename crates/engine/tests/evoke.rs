@@ -247,6 +247,9 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -409,6 +412,9 @@ fn test_evoke_basic_cast_without_evoke() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -525,6 +531,9 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -647,6 +656,9 @@ fn test_evoke_does_not_change_mana_value() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -801,6 +813,9 @@ fn test_evoke_cannot_combine_with_flashback() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -886,6 +901,9 @@ fn test_evoke_non_evoke_spell_rejected() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
 
@@ -981,6 +999,9 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     );
     assert!(
@@ -1085,6 +1106,9 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();

@@ -6,13 +6,14 @@
 //!
 //! The condition is modeled as `Condition::OpponentHasPoisonCounters(u32)` and
 //! used as an `intervening_if` guard on `AbilityDefinition::Triggered` in card
-//! definitions.  For WhenEntersBattlefield triggers, the engine fires effects
-//! inline via `fire_when_enters_triggered_effects` in `replacement.rs`, checking
-//! the `Condition::OpponentHasPoisonCounters` guard before executing.
+//! definitions.  For WhenEntersBattlefield triggers, the engine queues them as
+//! `PendingTrigger` via `queue_carddef_etb_triggers` in `replacement.rs`, checking
+//! the `Condition::OpponentHasPoisonCounters` guard at trigger time (CR 603.4) and
+//! again at resolution time (CR 603.4 — trigger fizzles if condition no longer holds).
 //!
 //! Key rules verified:
 //! - CR 207.2c: Corrupted is an ability word with no special rules meaning.
-//! - CR 603.4: Intervening-if conditions are checked at trigger time.
+//! - CR 603.4: Intervening-if conditions are checked at trigger time AND resolution time.
 //! - Multiplayer: "an opponent" means ANY living opponent has >= 3 poison.
 //! - Controller's own poison counters never satisfy the condition.
 //! - Eliminated opponents (has_lost == true) are excluded from the check.
@@ -122,6 +123,9 @@ fn cast_corrupted_creature(state: GameState, player: PlayerId, name: &str) -> Ga
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell ({}) failed: {:?}", name, e))
@@ -184,7 +188,11 @@ fn test_corrupted_etb_fires_when_opponent_has_3_poison() {
     // P1 casts the Corrupted creature — it moves from hand to stack.
     let state = cast_corrupted_creature(state, p1, "Corrupted T1");
 
-    // Both players pass priority → spell resolves → creature ETB → draw fires inline.
+    // Both players pass priority → spell resolves → ETB trigger queued on stack.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // CR 603.3: ETB trigger is now on the stack. Both players pass priority again
+    // to resolve the Corrupted draw trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Library should be 1 smaller (the drawn card moved to hand).
@@ -309,6 +317,9 @@ fn test_corrupted_condition_any_opponent_multiplayer() {
     let lib_before = library_count(&state, p1);
 
     let state = cast_corrupted_creature(state, p1, "Corrupted T3");
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
+    // CR 603.3: Resolve the ETB trigger (draw a card).
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     assert_eq!(
@@ -491,11 +502,97 @@ fn test_corrupted_boundary_exactly_3_poison_meets_threshold() {
     let lib_before = library_count(&state, p1);
 
     let state = cast_corrupted_creature(state, p1, "Corrupted T6");
+    // Resolve the creature spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 603.3: Resolve the ETB trigger (draw a card).
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
         library_count(&state, p1),
         lib_before - 1,
         "CR 207.2c: Corrupted threshold is >= 3 — exactly 3 poison should satisfy the condition"
+    );
+}
+
+// ── Test 7: CR 603.4 resolution-time check — trigger fizzles if condition
+//            no longer holds when the trigger resolves ─────────────────────────
+
+#[test]
+/// CR 603.4 — "If the ability triggers, it checks the stated condition again as
+/// it resolves. If the condition isn't true at that time, the ability is removed
+/// from the stack and does nothing."
+///
+/// Scenario: P2 has 3 poison at trigger time (Corrupted ETB trigger fires and
+/// goes on the stack). Before the trigger resolves, P2's poison drops to 2.
+/// The draw effect must NOT fire at resolution.
+///
+/// Note: The engine does not provide a "remove poison counter" command for bots,
+/// so we simulate the mid-stack drop by mutating the state directly between the
+/// two priority passes (after the creature ETB queues the trigger but before
+/// priority is passed to resolve it).
+fn test_corrupted_etb_fizzles_if_condition_drops_before_resolution() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let def = corrupted_etb_def("corrupted-t7", "Corrupted T7");
+    let registry = CardRegistry::new(vec![def]);
+
+    let creature_in_hand = ObjectSpec::card(p1, "Corrupted T7")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("corrupted-t7".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            ..Default::default()
+        });
+    // Two library cards so we can observe a draw if it happens.
+    let lib1 = ObjectSpec::creature(p1, "Library Card 7a", 1, 1).in_zone(ZoneId::Library(p1));
+    let lib2 = ObjectSpec::creature(p1, "Library Card 7b", 1, 1).in_zone(ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(creature_in_hand)
+        .object(lib1)
+        .object(lib2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // P2 starts with 3 poison — Corrupted condition met at trigger time.
+    state.players.get_mut(&p2).unwrap().poison_counters = 3;
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 3);
+    state.turn.priority_holder = Some(p1);
+
+    let lib_before = library_count(&state, p1);
+
+    // Cast Corrupted T7.
+    let state = cast_corrupted_creature(state, p1, "Corrupted T7");
+
+    // Both players pass priority → spell resolves → ETB trigger queued on stack.
+    // The Corrupted condition (3 poison) holds at trigger time, so the trigger fires.
+    let (mut state, _) = pass_all(state, &[p1, p2]);
+
+    // Simulate an effect that removes a poison counter from P2 before the trigger resolves.
+    // (e.g. Melira, Sylvok Outcast or Leeches — not implemented as commands, so direct mutation.)
+    // CR 603.4: The condition is re-checked at resolution; if it fails, the trigger does nothing.
+    state.players.get_mut(&p2).unwrap().poison_counters = 2;
+
+    // Both players pass priority → Corrupted ETB trigger resolves.
+    // At resolution time: P2 has only 2 poison → condition fails → trigger fizzles.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Library unchanged — the draw did NOT fire.
+    assert_eq!(
+        library_count(&state, p1),
+        lib_before,
+        "CR 603.4: Corrupted draw must NOT fire when opponent's poison drops below 3 before resolution"
     );
 }

@@ -11,5 +11,6 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Exalted)],
+        back_face: None,
     }
 }

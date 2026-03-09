@@ -20,5 +20,6 @@ pub fn card() -> CardDefinition {
             // CR 702.41a: Affinity for artifacts — costs {1} less for each artifact controlled.
             AbilityDefinition::Keyword(KeywordAbility::Affinity(AffinityTarget::Artifacts)),
         ],
+        back_face: None,
     }
 }

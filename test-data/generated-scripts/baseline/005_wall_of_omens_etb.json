@@ -3,9 +3,10 @@
   "metadata": {
     "id": "script_baseline_005",
     "name": "Wall of Omens ETB \u2014 draws a card",
-    "description": "p1 casts Wall of Omens ({1}{W}, 0/4 Defender). When it enters the battlefield, its ETB effect fires inline and p1 draws a card. Tests simple ETB draw effect for a white creature. Note: WhenEntersBattlefield triggers fire inline in this engine (not via the stack).",
+    "description": "p1 casts Wall of Omens ({1}{W}, 0/4 Defender). When it enters the battlefield, its ETB triggered ability is queued as PendingTrigger and placed on the stack (CR 603.3). Both players pass priority; the ETB trigger resolves and p1 draws a card. Tests the full cast-resolve-ETB-trigger-draw sequence.",
     "cr_sections_tested": [
-      "603.2",
+      "603.3",
+      "603.6a",
       "608.2",
       "120.2"
     ],
@@ -20,8 +21,8 @@
     "confidence": "high",
     "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
-    "review_date": "2026-02-23",
-    "generation_notes": "Wall of Omens ETB: 'When Wall of Omens enters the battlefield, draw a card.' In this engine, WhenEntersBattlefield triggers fire inline (not via the stack). p1 casts it paying {1}{W}. After it enters the battlefield the trigger fires immediately and p1 draws 1. Initial hand size: 2 (Wall of Omens + 1 other). After cast: hand = 1. After resolution: hand = 2 (drew 1 from ETB inline). Library must have at least 1 card.",
+    "review_date": "2026-03-08",
+    "generation_notes": "Wall of Omens ETB: 'When Wall of Omens enters the battlefield, draw a card.' Per CR 603.3, ETB triggers go on the stack. p1 casts Wall paying {1}{W}. First priority_round resolves the spell \u2014 Wall enters, ETB trigger queued on stack. Second priority_round resolves the ETB trigger \u2014 p1 draws 1. Library has 1 card (Plains).",
     "disputes": []
   },
   "initial_state": {
@@ -89,7 +90,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p1 casts Wall of Omens paying {1}{W}.",
+      "step_note": "p1 casts Wall of Omens; spell resolves placing Wall on battlefield; ETB trigger goes on stack; trigger resolves drawing p1 a card.",
       "actions": [
         {
           "type": "assert_state",
@@ -132,7 +133,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both pass priority \u2014 Wall of Omens resolves."
+          "note": "CR 116.3: Both pass priority \u2014 Wall of Omens resolves. ETB trigger queued on stack."
         },
         {
           "type": "stack_resolve",
@@ -146,18 +147,57 @@
               "note": "Wall of Omens enters battlefield under p1's control."
             },
             {
-              "effect": "etb_inline",
+              "effect": "etb_trigger_queued",
               "source": "Wall of Omens",
               "trigger_condition": "when_this_enters_battlefield",
-              "cr_ref": "603.2",
-              "note": "CR 603.2: ETB fires inline \u2014 draw a card (WhenEntersBattlefield fires without going on the stack in this engine)."
+              "cr_ref": "603.3",
+              "note": "CR 603.3: ETB trigger 'draw a card' queued as PendingTrigger and placed on the stack."
             }
           ],
-          "note": "Wall of Omens enters; ETB fires inline drawing p1 a card."
+          "note": "Wall of Omens enters; ETB trigger queued on stack."
         },
         {
           "type": "assert_state",
-          "description": "After Wall of Omens resolves: on battlefield, p1 drew a card (ETB inline), stack empty",
+          "description": "After spell resolves: Wall on battlefield, ETB trigger on stack, hand unchanged",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1
+          },
+          "note": "ETB trigger is on the stack. Draw has not happened yet."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass priority \u2014 ETB trigger resolves. p1 draws 1 card."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wall of Omens ETB",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "count": 1,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 1 card from ETB trigger."
+            }
+          ],
+          "note": "ETB trigger resolves; p1 draws a card."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Wall of Omens on battlefield, p1 drew a card (hand=2), stack empty",
           "assertions": {
             "zones.stack": {
               "is_empty": true
@@ -171,7 +211,7 @@
             },
             "zones.hand.p1.count": 2
           },
-          "note": "Started with 2 cards, cast Wall (-1 = 1), ETB drew inline (+1 = 2). Stack is empty (trigger fired inline)."
+          "note": "Started with 2 cards, cast Wall (-1=1), ETB trigger resolved drew 1 (+1=2). Stack empty."
         }
       ]
     }
