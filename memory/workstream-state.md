@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | ALL P3+P4 DONE. W1 complete. Post-consolidation: KW 157, AbilDef 55, SOK ~20. |
+| W1: Abilities | Batch 16: Venture/Dungeon + The Ring Tempts You | ACTIVE | 2026-03-09 | Dungeon zone infra + 4 dungeon defs + Ring Tempts You; full /implement-ability pipeline per ability |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

@@ -1,4 +1,4 @@
-# Conventions — Last verified: M9.5 + Type Consolidation Session 1
+# Conventions — Last verified: M9.5 + Type Consolidation Complete (S1-S8)
 
 ## Rust Style
 

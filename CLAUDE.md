@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
-- **Status**: 1934 tests passing; ~193 validated; 42/42 P1; 17/17 P2; 40/40 P3; 93/105 P4 (93/93 non-N/A — all implementable abilities validated); Batch 0-15 + Mutate + Transform + Morph complete; Type consolidation COMPLETE (8/8 sessions, RC-1 through RC-4); CastSpell 13 fields; SOK ~20 variants; AbilDef 55 variants; 0 HIGH/MEDIUM open; ~79 LOW deferred
+- **Status**: 1934 tests passing; ~193 validated; 42/42 P1; 17/17 P2; 40/40 P3; 93/105 P4 (93/93 implemented; 2 planned: Dungeon/Ring; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-15 + Mutate + Transform + Morph complete; Type consolidation COMPLETE (8/8 sessions, RC-1 through RC-4); CastSpell 13 fields; SOK ~20 variants; AbilDef 55 variants; 0 HIGH/MEDIUM open; ~79 LOW deferred
 - **Active Plan**: None — type consolidation done. Next: M10 networking, TUI hardening, or card authoring
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
 - **Last Updated**: 2026-03-09

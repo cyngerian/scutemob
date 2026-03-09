@@ -523,6 +523,53 @@ Recommended update points:
 | 15: Commander Variants | 3 | 0.5 | **Complete** |
 | Mutate Mini-Milestone | 1 | 2-3 | **Complete** |
 | **Total** | **~93** | **~23-28** | |
+| Batch 16: Dungeon + Ring | 2 | 2–3 | Planned |
+
+---
+
+## Batch 16: Venture/Dungeon + The Ring Tempts You
+
+**Status**: Planned (post-Phase-1; implement before or during M10)
+
+### Venture into the Dungeon / Dungeons (CR 309, 701.49)
+
+4 dungeon cards (outside the game, brought in on venture):
+- **Lost Mine of Phandelver** — 7 rooms, 2 branching paths; effects: scry/goblin token/treasure/+1+1/drain/debuff/draw
+- **Dungeon of the Mad Mage** — 9 rooms, deepest dungeon; effects escalate; ends with draw-3-cast-1-free
+- **Tomb of Annihilation** — 5 rooms, punishing; all rooms "each player pays or suffers"; bottommost room creates The Atropal (legendary 4/4 black God Horror token with deathtouch)
+- **The Undercity** (Streets of New Capenna) — targeted by `venture into the Undercity` (CR 701.49d); SNC cards that say "venture into the Undercity" bypass the normal dungeon choice to force this specific dungeon
+
+**New infra:**
+- Dungeon card type with room graph data structure (4 hardcoded dungeon definitions — not in CardRegistry; dungeons are "outside the game" per CR 309.2)
+- `current_dungeon: Option<DungeonId>` + `venture_marker: Option<RoomId>` on `PlayerState`
+- `Command::VentureIntoDungeon` + `Command::ChooseDungeonRoom` (for branching paths)
+- Room ability triggers: "when you move your venture marker into this room" fires on each advance (CR 309.4c)
+- SBA (CR 309.6): remove dungeon card from command zone when marker on bottommost room and no room ability on stack
+- CR 701.49d: "venture into the Undercity" forces The Undercity choice if no active dungeon; otherwise normal progression
+- `GameEvent::DungeonRoomEntered` + `GameEvent::DungeonCompleted`
+
+**Depends on**: None (command zone already exists)
+**Estimated**: 2 sessions (session A: infra + room graphs + venture handler + SBA; session B: triggers + 4 dungeon definitions + unit tests + game scripts)
+
+### The Ring Tempts You (Tales of Middle-earth)
+
+Cards say "the Ring tempts you" — choose a Ring bearer; advance that player's temptation level. Each level adds cumulative static abilities to the Ring bearer for as long as it's the Ring bearer.
+
+**Temptation levels (CR):**
+1. Ring bearer can't be blocked by creatures with greater power than it
+2. Ring bearer gets +1/+0 whenever it attacks
+3. Ring bearer gains deathtouch whenever it attacks
+4. Ring bearer: whenever it deals combat damage to a player, that player discards a card
+
+**New infra:**
+- `temptation_level: u8` + `ring_bearer: Option<ObjectId>` on `PlayerState`
+- `Command::TheRingTempts { bearer_id: ObjectId }` — player chooses or changes bearer
+- Temptation trigger: fires each time "the Ring tempts you" text resolves; increments level (max 4)
+- Static ability grants from Ring bearer: Layer 6 (deathtouch at level 3), Layer 7b (+1/+0 at level 2), combat blocker restriction at level 1, triggered discard at level 4
+- `GameEvent::RingTempted` + `GameEvent::RingBearerChanged`
+
+**Depends on**: None
+**Estimated**: 1 session (layer grants + triggered abilities + unit tests)
 
 ---
 

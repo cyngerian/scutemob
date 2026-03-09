@@ -2,6 +2,7 @@
 
 > Living document. Refresh with `/audit-abilities`.
 > Last audited: 2026-03-09 (Validation sprint: Disguise/Megamorph/Manifest/Cloak/Forage/Gift promoted complete→validated; 6 new card defs; 7 new scripts (200-204 + 185 unblocked + 182 approved); harness: gift_opponent field added to PlayerAction schema; P4 93/105 validated, 0 complete, 0 none)
+> Reclassified 2026-03-09: 9 digital-only abilities → `permanent-n/a`; Banding → `deferred` (post-alpha); Dungeon/Venture + The Ring Tempts You → `none` (planned for implementation)
 
 ---
 
@@ -12,8 +13,9 @@
 | `validated` | Engine implements it, has a card definition using it, has a passing game script |
 | `complete` | Engine implements the rules and has unit tests, but no game script yet |
 | `partial` | Some aspects work (e.g., static effect works but activation doesn't) |
-| `none` | Not implemented |
-| `n/a` | Not relevant to Commander or intentionally deferred (Un-sets, digital-only) |
+| `none` | Not implemented (but planned) |
+| `deferred` | Implementable but intentionally deferred to a specific future milestone |
+| `permanent-n/a` | Cannot be implemented — digital-only (MTG Arena/Alchemy) with no physical card printing or CR backing |
 
 ## Priority Definitions
 
@@ -28,13 +30,13 @@
 
 ## Summary
 
-| Priority | Total | Validated | Complete | Partial | None | N/A |
-|----------|-------|-----------|----------|---------|------|-----|
-| P1       | 42    | 42        | 0        | 0       | 0    | 0   |
-| P2       | 17    | 17        | 0        | 0       | 0    | 0   |
-| P3       | 40    | 40        | 0        | 0       | 0    | 0   |
-| P4       | 105   | 87        | 5        | 1       | 0    | 12  |
-| **Total**| **204**| **186**  | **5**    | **1**   | **0**| **12** |
+| Priority | Total | Validated | Complete | Partial | None | Perm-N/A | Deferred |
+|----------|-------|-----------|----------|---------|------|----------|---------|
+| P1       | 42    | 42        | 0        | 0       | 0    | 0        | 0       |
+| P2       | 17    | 17        | 0        | 0       | 0    | 0        | 0       |
+| P3       | 40    | 40        | 0        | 0       | 0    | 0        | 0       |
+| P4       | 105   | 93        | 0        | 0       | 2    | 9        | 1       |
+| **Total**| **204**| **192** | **0**    | **0**   | **2**| **9**    | **1**   |
 
 ---
 
@@ -180,7 +182,7 @@ Keywords that modify combat or trigger during combat.
 | Annihilator | 702.86 | P2 | `validated` | `state/types.rs:269`, `state/hash.rs:351+2223`, `state/stubs.rs:83`, `state/builder.rs:418-435`, `rules/abilities.rs:657-677,1000-1003`, `cards/card_definition.rs:349-354`, `effects/mod.rs:1034` | Ulamog's Crusher | `combat/068` | — | KeywordAbility::Annihilator(u32) enum + Effect::SacrificePermanents; defending_player_id on PendingTrigger; builder keyword-to-trigger translation (WhenAttacks + SacrificePermanents); check_triggers dispatch + flush_pending_triggers Target::Player wiring; 8 unit tests in `tests/annihilator.rs`; game script pending_review; TODO: "attacks each combat if able" static ability on Ulamog's Crusher is cosmetic only |
 | Dethrone | 702.105 | P3 | `validated` | `state/types.rs:372`, `state/game_object.rs:179`, `state/builder.rs:464`, `rules/abilities.rs:965` | Marchesa's Emissary | `tests/dethrone.rs` (8 tests) | `combat/081` | Life-total comparison; planeswalker exclusion; eliminated-player exclusion |
 | Rampage | 702.23 | P4 | `validated` | `state/types.rs:649-659`, `state/stack.rs:448-468`, `state/stubs.rs:256-268`, `state/hash.rs:476-477+1108-1110+1411-1418`, `state/builder.rs:724-743`, `rules/abilities.rs:1596-1616+2425-2431`, `rules/resolution.rs:1723-1743` | Wolverine Pack | `rampage.rs` (8 tests) | `combat/116` | KeywordAbility::Rampage(u32) enum; StackObjectKind::RampageTrigger with source_object+rampage_n; builder generates TriggeredAbilityDef(SelfBecomesBlocked) per Rampage instance; abilities.rs tags is_rampage_trigger+rampage_n on PendingTrigger at BlockersDeclared; resolution.rs computes bonus=(blocker_count-1)*N as +N/+N until EOT; CR 702.23c multiple instances trigger separately; 8 unit tests (blocked-by-2, blocked-by-1-no-bonus, blocked-by-3-scaled, multiple-instances, not-blocked, bonus-expires-EOT, bonus-at-resolution, rampage-3-by-4); card def wolverine_pack.rs; game script combat/116 |
-| Banding | 702.22 | P4 | `n/a` | — | — | — | — | Extremely complex, rarely used; intentionally deferred |
+| Banding | 702.22 | P4 | `deferred` | — | — | — | — | Post-alpha launch; ~20 CR subrules; requires deep combat damage assignment surgery; no Commander precon has ever included a banding card |
 | Renown | 702.112 | P4 | `validated` | `state/types.rs:683-692`, `state/game_object.rs:437-444`, `state/hash.rs:488-492+658-659+1449-1456`, `state/stack.rs:492-513`, `state/stubs.rs:287-298`, `rules/abilities.rs:2137-2178+2664-2673`, `rules/resolution.rs:1842-1874` | Topan Freeblade | `combat/119` | — | KeywordAbility::Renown(u32) enum (discriminant 81); `is_renowned` designation on GameObject (CR 702.112b); StackObjectKind::RenownTrigger (discriminant 22) with source_object+renown_n; CombatDamageDealt dispatch with intervening-if at trigger time (CR 603.4); resolution re-checks intervening-if + places N +1/+1 counters + sets is_renowned; CR 702.112c multiple instances trigger separately; CR 400.7 resets on zone change; Ruling 2015-06-22 source-left-battlefield; 7 unit tests in `tests/renown.rs`; card def topan_freeblade.rs; game script combat/119 pending_review |
 | Afflict | 702.130 | P4 | `validated` | `state/types.rs:674-682`, `state/hash.rs:483-486`, `state/builder.rs:764-782`, `rules/abilities.rs:1693-1703` | Khenra Eternal | `combat/118` | — | KeywordAbility::Afflict(u32) enum (discriminant 80); TriggeredAbilityDef via builder.rs using SelfBecomesBlocked + LoseLife with DeclaredTarget; defending_player_id tagging in abilities.rs BlockersDeclared handler (CR 508.5 multiplayer); 6 unit tests in `tests/afflict.rs` (basic life loss, not-blocked-no-trigger, multiple-blockers-single-trigger, multiple-instances-trigger-separately, multiplayer-correct-defending-player, life-loss-not-damage); card def khenra_eternal.rs; game script combat/118 |
 
@@ -292,15 +294,15 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Toxic | 702.164 | P4 | `validated` | state/types.rs:723-733 (KeywordAbility::Toxic(u32), discriminant 85), state/hash.rs:502-504, rules/combat.rs:1153-1318 (inline in apply_combat_damage_assignments: total toxic value summed from all Toxic N instances, poison counters given as additional result of combat damage to a player), tools/replay-viewer/src/view_model.rs:715 | Pestilent Syphoner (`defs/pestilent_syphoner.rs`) | `combat/123` | Infect poison infra | CR 702.164a+b+c fully enforced; static ability (NOT triggered -- no StackObjectKind variant); total toxic value = sum of all Toxic N values (CR 702.164b, cumulative); combat damage to player gives poison counters equal to total toxic value as additional result (CR 702.164c); does NOT replace damage (unlike Infect); does NOT apply to creature damage; zero-power creature deals 0 damage so Toxic does not apply (CR 120.3g); Toxic + Infect coexist independently; Toxic + Lifelink coexist independently; 10-poison SBA (704.5c) tested; multiplayer-correct (only attacked player gets poison); OrdSet dedup noted as LOW limitation; 8 unit tests in tests/toxic.rs; game script combat/123 pending_review |
 | Corrupted | — | P4 | `validated` | `cards/card_definition.rs` (Condition::OpponentHasPoisonCounters), `state/hash.rs`, `effects/mod.rs` (check_condition), `rules/replacement.rs` (fire_when_enters_triggered_effects) | Vivisection Evangelist | `etb-triggers/176` | — | Ability word; Condition::OpponentHasPoisonCounters(u32); 6 tests in `tests/corrupted.rs`; script approved |
 | Hideaway | 702.75 | P3 | `validated` | types.rs:544, stack.rs:370, stubs.rs:205, game_object.rs:409, abilities.rs:921, abilities.rs:2011, resolution.rs:1468, events.rs:843, effects/mod.rs:1593, lands.rs:136, engine.rs:72, hash.rs:439 | Windbrisk Heights (#112) | baseline/103 | 7 unit tests in hideaway.rs; ETB trigger, resolution, exile tracking, empty-library edge, face-down, PlayExiledCard, negative test |
-| Retrain | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
-| Perpetually | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
-| Conjure | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
-| Seek | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
-| Specialize | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
-| Intensity | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
-| Spellbook | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
-| Draft | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
-| Boon | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
+| Retrain | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (MTG Arena) — no physical printing, no CR rule number |
+| Perpetually | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (MTG Arena) — cross-zone persistent mutation incompatible with CR 400.7 object identity model |
+| Conjure | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (MTG Arena) — generates cards not in CardRegistry; violates architecture invariant #9 |
+| Seek | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (MTG Arena) — deterministic "random" selection relies on Arena server-side RNG |
+| Specialize | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (Alchemy) — 5+ runtime card faces with no physical equivalent |
+| Intensity | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (Alchemy) — cross-game persistent state incompatible with single-game state model |
+| Spellbook | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (Alchemy) — generates cards from a random pool; same Conjure problem |
+| Draft | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (Alchemy) — mid-game draft UI subsystem, not a game rules concept |
+| Boon | — | P4 | `permanent-n/a` | — | — | — | — | Digital-only (Alchemy) — cross-spell match tracking with no physical equivalent |
 | Craft | 702.167 | P4 | `validated` | `state/types.rs:1446` (KW 152), `cards/card_definition.rs:744` (AbilityDefinition::Craft{cost,materials} disc 61), `cards/card_definition.rs:756` (CraftMaterials enum), `rules/command.rs:777` (Command::ActivateCraft), `rules/engine.rs:616` (handle_activate_craft), `rules/resolution.rs` (CraftAbility resolution), `state/stack.rs:1339` (CraftAbility SOK 61), `state/game_object.rs` | Braided Net | `stack/196` | Transform | CR 702.167a: activated ability — pay cost, exile self + exile materials from battlefield/graveyard, return transformed; CraftMaterials enum (artifacts, creatures, lands, any); sorcery-speed only; 6 unit tests in craft.rs; script pending_review |
 | Connive | 701.50 | P3 | `validated` | effects/mod.rs:L1492; events.rs:L760; game_object.rs:L190; card_definition.rs:L699 | Raffine's Informant | stack/095 | 7 tests in connive.rs | CR 701.50a/e: Draw N, discard N, +1/+1 counter for each nonland discarded |
 | Casualty | 702.153 | P4 | `validated` | `rules/casting.rs`, `rules/resolution.rs`, `rules/command.rs`, `state/types.rs`, `state/stack.rs`, `state/hash.rs` | Make Disappear | `stack/141` | — | CR 702.153: Optional additional cost (CR 118.8); sacrifice creature with power >= N; CasualtyTrigger copies spell; KeywordAbility::Casualty(u32) disc 104 + StackObjectKind::CasualtyTrigger disc 34; was_casualty_paid + casualty_sacrifice on CastSpell; power-threshold validation; 9 unit tests in casualty.rs |
@@ -329,8 +331,8 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Suspect | 701.60 | P4 | `validated` | `cards/card_definition.rs:880-888` (Effect::Suspect/Unsuspect), `state/game_object.rs:486` (is_suspected), `rules/layers.rs:62-71` (menace grant), `rules/combat.rs:553-561,854-855` (can't-block enforcement), `effects/mod.rs:1715-1746` (execution + events) | Frantic Scapegoat | `etb-triggers/180` | — | CR 701.60a-d fully enforced; suspected designation grants menace (Layer 6) + can't block; persists through ability removal; no-op if already suspected; 9 unit tests in `tests/suspect.rs`; game script approved |
 | Surveil | 701.25 | P2 | `validated` | `cards/card_definition.rs:293-303` (Effect::Surveil), `rules/events.rs:678-684` (GameEvent::Surveilled), `state/game_object.rs:147-150` (TriggerEvent::ControllerSurveils), `cards/card_definition.rs:577-582` (TriggerCondition::WheneverYouSurveil), `effects/mod.rs:917-953` (execution), `rules/abilities.rs:846-865` (trigger dispatch), `testing/replay_harness.rs:635-651` (enrichment), `state/hash.rs:959,1736,1996,2259` (hash arms) | Consider | `stack/071` | — | CR 701.25a/c/d fully enforced; deterministic fallback (all surveilled cards go to graveyard); surveil 0 suppresses event (CR 701.25c); event fires even with empty/partial library (CR 701.25d); WheneverYouSurveil trigger pipeline complete; 7 unit tests in `tests/surveil.rs`; game script pending_review (all assertions pass) |
 | Adapt (keyword action) | 701.46 | P3 | `validated` | — | — | — | — | See Section 9 (primary row); implementation tracked there |
-| Venture/Dungeon | 309 | P4 | `n/a` | — | — | — | — | Dungeon cards not in Commander precons; very niche |
-| The Ring Tempts You | — | P4 | `n/a` | — | — | — | — | LotR-specific mechanic |
+| Venture/Dungeon | 309, 701.49 | P4 | `none` | — | — | — | — | **Planned.** 4 dungeons: Lost Mine of Phandelver (7 rooms, 2 paths), Dungeon of the Mad Mage (9 rooms, deepest), Tomb of Annihilation (5 rooms, punishing; creates The Atropal token), The Undercity (SNC, targeted by "venture into the Undercity" variant — CR 701.49d). New infra needed: dungeon card type with room graph, venture marker per player on PlayerState, Command::ChooseDungeonRoom (branching), room ability triggers (move-marker event → trigger), SBA per CR 309.6 (remove completed dungeon when marker on bottommost room and no room ability on stack), 701.49d forced-Undercity variant. Reuses existing command zone. Estimated 1–2 sessions. |
+| The Ring Tempts You | — | P4 | `none` | — | — | — | — | **Planned.** LotR-specific (Tales of Middle-earth). Tracks a Ring bearer designation on a creature and a 4-level temptation progression per player (1st: ring bearer can't be blocked by creatures with greater power; 2nd: ring bearer gets +1/+0 on attack; 3rd: ring bearer gains deathtouch on attack; 4th: ring bearer causes opponent to discard on combat damage). New infra: temptation_level: u8 on PlayerState, ring_bearer: Option<ObjectId> on PlayerState, temptation trigger on venture, static ability grants via layer system. Estimated 1 session. |
 
 ---
 
@@ -529,7 +531,7 @@ All P3 gaps resolved. 40/40 validated.
 
 ### P4 Gaps (niche / historical)
 
-12 remaining (none: 0, complete: 0, partial: 0), 12 n/a (digital-only + Banding + niche). **93/105 validated** (2026-03-09: +6 from Disguise, Megamorph, Manifest, Cloak, Forage, Gift validation work).
+2 planned (none), 9 permanent-n/a (digital-only Arena/Alchemy), 1 deferred (Banding — post-alpha). **93/105 validated** (93/93 implemented; 2026-03-09: +6 from Disguise, Megamorph, Manifest, Cloak, Forage, Gift). Planned: Venture/Dungeon (1–2 sessions) + The Ring Tempts You (1 session).
 
 **Resolved**: Daybound/Nightbound (CR 702.145) -- validated 2026-03-08 (Transform mini-milestone; DayNight designation on GameState; daybound/nightbound auto-transforms; DayboundTransformTrigger SOK 62; blocks Command::Transform; 6 unit tests in daybound.rs; card def: Brutal Cathar; script stack/194 PASS).
 
