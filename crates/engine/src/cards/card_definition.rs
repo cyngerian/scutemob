@@ -1137,6 +1137,22 @@ pub enum Effect {
     },
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
+
+    /// CR 701.49: Venture into the dungeon.
+    ///
+    /// The player ventures into the dungeon (CR 701.49a-c). Uses the standard
+    /// three-case logic: no dungeon in command zone (enter new dungeon), not on
+    /// bottommost room (advance marker), or on bottommost room (complete dungeon,
+    /// start new one). Deterministic fallback: enter LostMineOfPhandelver when
+    /// choosing a new dungeon. Room abilities push a RoomAbility SOK onto the stack.
+    VentureIntoDungeon,
+
+    /// CR 725.2: Take the initiative.
+    ///
+    /// Sets `has_initiative = Some(controller)` on GameState, emits `InitiativeTaken`,
+    /// and immediately ventures into the Undercity (CR 725.2: "that player ventures
+    /// into the Undercity" as an inherent triggered ability of taking the initiative).
+    TakeTheInitiative,
 }
 
 // ── Effect Targets ────────────────────────────────────────────────────────────
@@ -1453,6 +1469,21 @@ pub enum Condition {
     /// True when gift_opponent was chosen at cast time. Checked at resolution time
     /// for instants/sorceries; at ETB trigger resolution for permanents.
     GiftWasGiven,
+
+    /// CR 309.7: "as long as you've completed a dungeon" / "if you've completed a dungeon"
+    ///
+    /// True when the effect controller's `dungeons_completed > 0`. Used for permanents
+    /// like Nadaar, Selfless Paladin that gain abilities after completing any dungeon.
+    CompletedADungeon,
+
+    /// CR 309.7 (specific dungeon variant): "if you haven't completed [dungeon]"
+    ///
+    /// True when the controller has completed the specified dungeon. Used for
+    /// Acererak's intervening-if check ("if you haven't completed Tomb of Annihilation").
+    /// Note: the condition evaluates to "has NOT completed", so use negation in the
+    /// card definition (i.e., `Condition::Not(Box::new(CompletedSpecificDungeon(...)))`)
+    /// when the oracle text says "haven't".
+    CompletedSpecificDungeon(crate::state::dungeon::DungeonId),
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

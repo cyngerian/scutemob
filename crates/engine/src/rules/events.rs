@@ -1207,6 +1207,46 @@ pub enum GameEvent {
         /// The real name of the card revealed to all players.
         card_name: String,
     },
+
+    // ── Dungeon / Venture events (CR 309, CR 701.49, CR 725) ─────────────────
+    /// CR 309.5a / CR 701.49: A player's venture marker moved into a dungeon room.
+    ///
+    /// Emitted when a player ventures into the dungeon and the marker is placed on
+    /// a room (either entering a new dungeon at room 0, or advancing to the next room).
+    ///
+    /// Discriminant: 114.
+    VenturedIntoDungeon {
+        /// The player who ventured.
+        player: PlayerId,
+        /// Which dungeon the venture marker is now in.
+        dungeon: crate::state::dungeon::DungeonId,
+        /// The room index the venture marker moved to.
+        room: crate::state::dungeon::RoomIndex,
+    },
+
+    /// CR 309.7: A player completed a dungeon (the dungeon was removed from the game).
+    ///
+    /// Emitted when the venture marker was on the bottommost room, the dungeon is removed,
+    /// and `dungeons_completed` is incremented on the player's state.
+    ///
+    /// Discriminant: 115.
+    DungeonCompleted {
+        /// The player who completed the dungeon.
+        player: PlayerId,
+        /// Which dungeon was completed and removed.
+        dungeon: crate::state::dungeon::DungeonId,
+    },
+
+    /// CR 725.2: A player took the initiative.
+    ///
+    /// Emitted when `Effect::TakeTheInitiative` resolves. The player who took
+    /// the initiative also ventures into the Undercity (CR 725.2 inherent trigger).
+    ///
+    /// Discriminant: 116.
+    InitiativeTaken {
+        /// The player who now has the initiative.
+        player: PlayerId,
+    },
 }
 
 impl GameEvent {

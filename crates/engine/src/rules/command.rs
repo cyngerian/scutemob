@@ -545,6 +545,29 @@ pub enum Command {
         material_ids: Vec<ObjectId>,
     },
 
+    // ── Dungeon / Venture (CR 701.49, CR 725) ────────────────────────────────
+    /// Trigger a venture-into-the-dungeon action for the given player (CR 701.49).
+    ///
+    /// The engine applies deterministic dungeon/room selection:
+    /// - If the player has no dungeon in the command zone: enter LostMineOfPhandelver
+    ///   (or TheUndercity if `force_undercity` is set by the effect handler).
+    /// - If the player is not on the bottommost room: advance to the first exit.
+    /// - If the player is on the bottommost room: complete the dungeon and start a new one.
+    ///
+    /// After advancing the marker, a `StackObjectKind::RoomAbility` is pushed onto the
+    /// stack for the room the marker moved into (CR 309.4c).
+    VentureIntoDungeon { player: PlayerId },
+
+    /// Choose which room to advance to when a dungeon has branching paths (CR 309.5a).
+    ///
+    /// In the current deterministic implementation, this command is accepted but the
+    /// engine always advances to the first exit (index 0). Full interactive branching
+    /// is deferred to M10+.
+    ChooseDungeonRoom {
+        player: PlayerId,
+        room: crate::state::dungeon::RoomIndex,
+    },
+
     // ── Morph / Manifest / Cloak (CR 702.37, 701.40, 701.58) ─────────────────
     /// Turn a face-down permanent face up (CR 702.37e, 702.168d, 701.40b, 701.58b).
     ///

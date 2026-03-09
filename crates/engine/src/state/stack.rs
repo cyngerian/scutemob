@@ -767,4 +767,25 @@ pub enum StackObjectKind {
         keyword: KeywordAbility,
         data: TriggerData,
     },
+
+    /// CR 309.4c: A room ability triggered when the venture marker entered a room.
+    ///
+    /// Room abilities are triggered abilities of the form "When you move your venture
+    /// marker into this room, [effect]." They go on the stack and resolve through the
+    /// normal stack resolution path. The dungeon itself lives in the command zone —
+    /// there is no `source_object` in the traditional sense.
+    ///
+    /// At resolution (`resolution.rs`): look up the `DungeonDef` via `get_dungeon(dungeon)`,
+    /// get the `RoomDef` at `room` index, call `room.effect()` to get the `Effect`, and
+    /// execute it with `owner` as the controller.
+    ///
+    /// Discriminant 65.
+    RoomAbility {
+        /// The player who controls this room ability (the venturer).
+        owner: crate::state::player::PlayerId,
+        /// Which dungeon the room is in.
+        dungeon: crate::state::dungeon::DungeonId,
+        /// The room index in the dungeon's room list.
+        room: crate::state::dungeon::RoomIndex,
+    },
 }

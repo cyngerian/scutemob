@@ -7123,6 +7123,28 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
         }
+        // CR 309.4c: Room ability resolution — execute the room's effect.
+        // The dungeon is in the command zone; the owner is the venture controller.
+        StackObjectKind::RoomAbility {
+            owner,
+            dungeon,
+            room,
+        } => {
+            use crate::state::dungeon::get_dungeon;
+            let dungeon_def = get_dungeon(dungeon);
+            if let Some(room_def) = dungeon_def.rooms.get(room) {
+                let room_effect = (room_def.effect)();
+                // Use a sentinel ObjectId (0) since dungeons have no permanent source.
+                let mut ctx = crate::effects::EffectContext::new(
+                    owner,
+                    crate::state::game_object::ObjectId(0),
+                    vec![],
+                );
+                let effect_events = execute_effect(state, &room_effect, &mut ctx);
+                events.extend(effect_events);
+            }
+        }
+
         // Consolidated keyword trigger resolution dispatch.
         // Each keyword+data combination delegates to the same logic as the
         // original one-off SOK variant it replaced.
@@ -7322,7 +7344,10 @@ pub fn counter_stack_object(
         // CR 708.8: TurnFaceUpTrigger countered — no effect; permanent remains face-up.
         | StackObjectKind::TurnFaceUpTrigger { .. }
         // All migrated triggers now consolidated under KeywordTrigger.
-        | StackObjectKind::KeywordTrigger { .. } => {
+        | StackObjectKind::KeywordTrigger { .. }
+        // CR 309.4c: RoomAbility countered (e.g. by Stifle) — no room effect fires.
+        // The venture marker has already been advanced; only the room trigger is countered.
+        | StackObjectKind::RoomAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.

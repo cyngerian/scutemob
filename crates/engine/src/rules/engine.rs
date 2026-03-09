@@ -597,6 +597,25 @@ pub fn process_command(
             all_events.extend(events);
         }
 
+        // ── Dungeon / Venture (CR 701.49) ────────────────────────────────────
+        Command::VentureIntoDungeon { player } => {
+            let events = handle_venture_into_dungeon(&mut state, player, false)?;
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            let mut all = events;
+            all.extend(trigger_events);
+            all_events.extend(all);
+        }
+
+        Command::ChooseDungeonRoom { player: _, room: _ } => {
+            // CR 309.5a: Deterministic fallback — the engine already picked the first exit.
+            // This command is accepted but does nothing in the current implementation.
+            // Full interactive branching is deferred to M10+.
+        }
+
         // ── Morph / Manifest / Cloak: Turn Face Up (CR 702.37e, 701.40b, 701.58b) ─
         Command::TurnFaceUp {
             player,
@@ -2040,6 +2059,183 @@ fn place_opening_hand_permanents(
     }
 
     Ok(())
+}
+
+/// CR 701.49: Handle a venture-into-the-dungeon action.
+///
+/// Implements all three CR 701.49 cases:
+/// (a) Player has no dungeon in command zone → choose new dungeon, place marker on room 0.
+/// (b) Player is not on bottommost room → advance marker to next room (first exit).
+/// (c) Player is on bottommost room → complete dungeon, then start a new one (case a).
+///
+/// Deterministic fallback: enter LostMineOfPhandelver for regular venture,
+/// TheUndercity for force_undercity == true.
+///
+/// After advancing the marker, a `StackObjectKind::RoomAbility` is pushed onto the
+/// stack for the room just entered (CR 309.4c: room abilities are triggered abilities).
+pub fn handle_venture_into_dungeon(
+    state: &mut GameState,
+    player: PlayerId,
+    force_undercity: bool,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::dungeon::{get_dungeon, DungeonId, DungeonState};
+    use crate::state::stack::{StackObject, StackObjectKind};
+
+    let mut events = Vec::new();
+
+    // Determine the current dungeon state for this player.
+    let dungeon_state_opt = state.dungeon_state.get(&player).cloned();
+
+    match dungeon_state_opt {
+        None => {
+            // CR 701.49a: Player has no dungeon in command zone — choose a new dungeon.
+            let chosen_dungeon = if force_undercity {
+                DungeonId::TheUndercity
+            } else {
+                DungeonId::LostMineOfPhandelver
+            };
+            // Place marker on room 0 (topmost room, CR 309.4a).
+            state.dungeon_state.insert(
+                player,
+                DungeonState {
+                    dungeon: chosen_dungeon,
+                    current_room: 0,
+                },
+            );
+            events.push(GameEvent::VenturedIntoDungeon {
+                player,
+                dungeon: chosen_dungeon,
+                room: 0,
+            });
+            // CR 309.4c: Push room ability for room 0 onto the stack.
+            let room_ability_id = state.next_object_id();
+            let room_so = StackObject {
+                id: room_ability_id,
+                controller: player,
+                kind: StackObjectKind::RoomAbility {
+                    owner: player,
+                    dungeon: chosen_dungeon,
+                    room: 0,
+                },
+                targets: vec![],
+                cant_be_countered: false,
+                is_copy: false,
+                cast_with_flashback: false,
+                kicker_times_paid: 0,
+                was_evoked: false,
+                was_bestowed: false,
+                cast_with_madness: false,
+                cast_with_miracle: false,
+                was_escaped: false,
+                cast_with_foretell: false,
+                was_buyback_paid: false,
+                was_suspended: false,
+                was_overloaded: false,
+                cast_with_jump_start: false,
+                cast_with_aftermath: false,
+                was_dashed: false,
+                was_blitzed: false,
+                was_plotted: false,
+                was_prototyped: false,
+                was_impended: false,
+                was_bargained: false,
+                was_surged: false,
+                was_casualty_paid: false,
+                was_cleaved: false,
+                spliced_effects: vec![],
+                spliced_card_ids: vec![],
+                modes_chosen: vec![],
+                x_value: 0,
+                evidence_collected: false,
+                is_cast_transformed: false,
+                additional_costs: vec![],
+            };
+            state.stack_objects.push_back(room_so);
+        }
+        Some(ds) => {
+            let dungeon_def = get_dungeon(ds.dungeon);
+            let bottommost = dungeon_def.bottommost_room;
+
+            if ds.current_room == bottommost {
+                // CR 701.49c: On the bottommost room — complete the dungeon, then start new.
+                state.dungeon_state.remove(&player);
+                if let Some(ps) = state.players.get_mut(&player) {
+                    ps.dungeons_completed += 1;
+                }
+                events.push(GameEvent::DungeonCompleted {
+                    player,
+                    dungeon: ds.dungeon,
+                });
+                // Start a new dungeon (same as case a).
+                let new_events = handle_venture_into_dungeon(state, player, force_undercity)?;
+                events.extend(new_events);
+            } else {
+                // CR 701.49b: Not on bottommost room — advance to next room (first exit).
+                let current_room_def = &dungeon_def.rooms[ds.current_room];
+                if let Some(&next_room) = current_room_def.exits.first() {
+                    let dungeon_id = ds.dungeon;
+                    state.dungeon_state.insert(
+                        player,
+                        DungeonState {
+                            dungeon: dungeon_id,
+                            current_room: next_room,
+                        },
+                    );
+                    events.push(GameEvent::VenturedIntoDungeon {
+                        player,
+                        dungeon: dungeon_id,
+                        room: next_room,
+                    });
+                    // CR 309.4c: Push room ability for the new room onto the stack.
+                    let room_ability_id = state.next_object_id();
+                    let room_so = StackObject {
+                        id: room_ability_id,
+                        controller: player,
+                        kind: StackObjectKind::RoomAbility {
+                            owner: player,
+                            dungeon: dungeon_id,
+                            room: next_room,
+                        },
+                        targets: vec![],
+                        cant_be_countered: false,
+                        is_copy: false,
+                        cast_with_flashback: false,
+                        kicker_times_paid: 0,
+                        was_evoked: false,
+                        was_bestowed: false,
+                        cast_with_madness: false,
+                        cast_with_miracle: false,
+                        was_escaped: false,
+                        cast_with_foretell: false,
+                        was_buyback_paid: false,
+                        was_suspended: false,
+                        was_overloaded: false,
+                        cast_with_jump_start: false,
+                        cast_with_aftermath: false,
+                        was_dashed: false,
+                        was_blitzed: false,
+                        was_plotted: false,
+                        was_prototyped: false,
+                        was_impended: false,
+                        was_bargained: false,
+                        was_surged: false,
+                        was_casualty_paid: false,
+                        was_cleaved: false,
+                        spliced_effects: vec![],
+                        spliced_card_ids: vec![],
+                        modes_chosen: vec![],
+                        x_value: 0,
+                        evidence_collected: false,
+                        is_cast_transformed: false,
+                        additional_costs: vec![],
+                    };
+                    state.stack_objects.push_back(room_so);
+                }
+            }
+        }
+    }
+
+    Ok(events)
 }
 
 /// Start the game: set up the first turn and enter the first step.

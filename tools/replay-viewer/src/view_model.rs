@@ -536,6 +536,8 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             };
             ("keyword_trigger", permanent)
         }
+        // CR 309.4c: Room ability — no source_object (dungeon is in command zone).
+        StackObjectKind::RoomAbility { .. } => ("room_ability", None),
     }
 }
 

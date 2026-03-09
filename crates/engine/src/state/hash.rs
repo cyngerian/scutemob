@@ -2093,6 +2093,17 @@ impl HashInto for StackObjectKind {
                 keyword.hash_into(hasher);
                 data.hash_into(hasher);
             }
+            // RoomAbility (discriminant 65) -- CR 309.4c room triggered ability
+            StackObjectKind::RoomAbility {
+                owner,
+                dungeon,
+                room,
+            } => {
+                65u8.hash_into(hasher);
+                owner.hash_into(hasher);
+                dungeon.hash_into(hasher);
+                (*room as u32).hash_into(hasher);
+            }
         }
     }
 }
@@ -3267,6 +3278,28 @@ impl HashInto for GameEvent {
                 permanent.hash_into(hasher);
                 card_name.hash_into(hasher);
             }
+            // VenturedIntoDungeon -- CR 309.5a / CR 701.49 (discriminant 114)
+            GameEvent::VenturedIntoDungeon {
+                player,
+                dungeon,
+                room,
+            } => {
+                114u8.hash_into(hasher);
+                player.hash_into(hasher);
+                dungeon.hash_into(hasher);
+                (*room as u32).hash_into(hasher);
+            }
+            // DungeonCompleted -- CR 309.7 (discriminant 115)
+            GameEvent::DungeonCompleted { player, dungeon } => {
+                115u8.hash_into(hasher);
+                player.hash_into(hasher);
+                dungeon.hash_into(hasher);
+            }
+            // InitiativeTaken -- CR 725.2 (discriminant 116)
+            GameEvent::InitiativeTaken { player } => {
+                116u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
@@ -3594,6 +3627,13 @@ impl HashInto for Condition {
             Condition::EvidenceWasCollected => 13u8.hash_into(hasher),
             // GiftWasGiven condition (discriminant 14) — CR 702.174b
             Condition::GiftWasGiven => 14u8.hash_into(hasher),
+            // CompletedADungeon condition (discriminant 15) — CR 309.7
+            Condition::CompletedADungeon => 15u8.hash_into(hasher),
+            // CompletedSpecificDungeon condition (discriminant 16) — CR 309.7
+            Condition::CompletedSpecificDungeon(dungeon_id) => {
+                16u8.hash_into(hasher);
+                dungeon_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -3928,6 +3968,10 @@ impl HashInto for Effect {
                 48u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // VentureIntoDungeon effect (discriminant 49) — CR 701.49
+            Effect::VentureIntoDungeon => 49u8.hash_into(hasher),
+            // TakeTheInitiative effect (discriminant 50) — CR 725.2
+            Effect::TakeTheInitiative => 50u8.hash_into(hasher),
         }
     }
 }

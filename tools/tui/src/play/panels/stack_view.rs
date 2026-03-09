@@ -142,6 +142,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                     };
                     (format!("{:?} trigger: ", keyword), permanent)
                 }
+                // CR 309.4c: Room ability — no source_object (dungeon is in command zone).
+                StackObjectKind::RoomAbility { dungeon, room, .. } => {
+                    (format!("Room {:?}[{}]: ", dungeon, room), None)
+                }
             };
 
             let (name, name_color) = source_id
