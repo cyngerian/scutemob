@@ -833,6 +833,8 @@ pub enum Cost {
     PayLife(u32),
     /// Discard a card.
     DiscardCard,
+    /// CR 701.61: Sacrifice a Food you control OR exile three cards from your graveyard.
+    Forage,
     /// Multiple costs, all paid simultaneously (CR 601.2g).
     Sequence(Vec<Cost>),
 }

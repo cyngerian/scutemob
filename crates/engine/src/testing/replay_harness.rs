@@ -3122,6 +3122,7 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::Sacrifice(_) => ac.sacrifice_self = true,
         Cost::Sequence(costs) => costs.iter().for_each(|c| flatten_cost_into(c, ac)),
         Cost::DiscardCard => ac.discard_card = true,
+        Cost::Forage => ac.forage = true,
         Cost::PayLife(_) => {} // no ActivationCost representation yet
     }
 }

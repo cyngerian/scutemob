@@ -3674,6 +3674,7 @@ impl HashInto for Cost {
                 5u8.hash_into(hasher);
                 costs.hash_into(hasher);
             }
+            Cost::Forage => 6u8.hash_into(hasher),
         }
     }
 }

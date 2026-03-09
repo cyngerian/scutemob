@@ -1,7 +1,8 @@
 // Camellia, the Seedmiser — {1}{B}{G} Legendary Creature — Squirrel Warlock 3/3
 // Menace; other Squirrels get menace (TODO: continuous grant — needs exclude-source filter);
 // sacrifice-Food trigger creates Squirrel token (TODO: TriggerCondition::WhenSacrificeFood);
-// {2}, Forage ability: TODO — Cost enum has no Forage variant; DSL gap documented below.
+// {2}, Forage: implemented with Cost::Forage; targets all Squirrels you control (including
+// Camellia due to missing exclude-source in TargetFilter — deferred DSL gap).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,14 +27,26 @@ pub fn card() -> CardDefinition {
             // Requires TriggerCondition::WheneverYouSacrificeFood (not yet implemented).
             // Deferred until sacrifice-trigger infrastructure is added.
 
-            // TODO: "{2}, Forage: Put a +1/+1 counter on each other Squirrel you control."
-            // The Forage cost mechanic is implemented in ActivationCost (game_object.rs) and
-            // ActivatedAbility, but CardDefinition.abilities uses AbilityDefinition::Activated
-            // with Cost enum which has no Forage variant. To express Forage on a card definition,
-            // either add Cost::Forage or add AbilityDefinition::ForageActivated { mana_cost, effect }.
-            // The engine-side forage payment is tested via crates/engine/tests/forage.rs (7 tests
-            // using game states constructed directly with ActivationCost { forage: true }).
-            // Deferred until Cost enum gains a Forage variant.
+            // CR 701.61a: "{2}, Forage: Put a +1/+1 counter on each other Squirrel you control."
+            // Note: TargetFilter has no exclude_source field, so this also targets Camellia
+            // herself. This is a minor deviation; exclude-source filtering is a deferred DSL gap.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Forage,
+                ]),
+                effect: Effect::AddCounter {
+                    target: EffectTarget::AllPermanentsMatching(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        has_subtype: Some(SubType("Squirrel".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                timing_restriction: None,
+            },
         ],
         power: Some(3),
         toughness: Some(3),
