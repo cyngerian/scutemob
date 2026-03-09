@@ -2161,6 +2161,7 @@ pub fn handle_venture_into_dungeon(
                 state.dungeon_state.remove(&player);
                 if let Some(ps) = state.players.get_mut(&player) {
                     ps.dungeons_completed += 1;
+                    ps.dungeons_completed_set.insert(ds.dungeon);
                 }
                 events.push(GameEvent::DungeonCompleted {
                     player,

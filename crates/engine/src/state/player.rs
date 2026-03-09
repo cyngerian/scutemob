@@ -1,8 +1,9 @@
 //! Player identity and state types.
 
-use im::{OrdMap, Vector};
+use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
+use super::dungeon::DungeonId;
 use super::types::{ManaColor, ProtectionQuality};
 
 /// Identifies a player in the game. Unique within a game instance.
@@ -157,4 +158,10 @@ pub struct PlayerState {
     /// Never decreases during a game.
     #[serde(default)]
     pub dungeons_completed: u32,
+    /// Set of specific dungeon IDs this player has completed (CR 309.7).
+    ///
+    /// Used by `Condition::CompletedSpecificDungeon` for cards like Acererak
+    /// ("if you haven't completed Tomb of Annihilation").
+    #[serde(default)]
+    pub dungeons_completed_set: OrdSet<DungeonId>,
 }

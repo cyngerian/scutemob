@@ -289,6 +289,7 @@ impl GameStateBuilder {
                 damage_received_this_turn: 0,
                 protection_qualities: vec![],
                 dungeons_completed: 0,
+                dungeons_completed_set: im::OrdSet::new(),
             };
             players.insert(config.id, player_state);
         }

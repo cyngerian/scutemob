@@ -993,6 +993,10 @@ impl HashInto for PlayerState {
         }
         // CR 309.7: dungeons completed by this player.
         self.dungeons_completed.hash_into(hasher);
+        // CR 309.7: specific dungeons completed (for CompletedSpecificDungeon condition).
+        for dungeon_id in &self.dungeons_completed_set {
+            dungeon_id.hash_into(hasher);
+        }
     }
 }
 

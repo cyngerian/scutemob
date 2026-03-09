@@ -3469,24 +3469,13 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
             .get(&ctx.controller)
             .map(|ps| ps.dungeons_completed > 0)
             .unwrap_or(false),
-        // CR 309.7: "if you've completed [specific dungeon]" — checks dungeons_completed_list.
-        // Simplified: uses dungeons_completed count as a proxy (any dungeon completion).
-        // For Acererak's check, use `!CompletedSpecificDungeon(TombOfAnnihilation)`.
-        // Full per-dungeon tracking would require a Vec<DungeonId> on PlayerState.
-        Condition::CompletedSpecificDungeon(dungeon_id) => {
-            // Simplified: check if the player is currently in or has completed this dungeon.
-            // Full implementation would track which specific dungeons were completed.
-            // Deterministic fallback: treat as "completed any dungeon with this id" via count.
-            // Since we don't track per-dungeon completion counts, use a simple proxy:
-            // the condition is true only if the player has completed at least one dungeon
-            // AND their most recent dungeon (if any) was this dungeon.
-            let _ = dungeon_id; // suppress unused warning for now
-            state
-                .players
-                .get(&ctx.controller)
-                .map(|ps| ps.dungeons_completed > 0)
-                .unwrap_or(false)
-        }
+        // CR 309.7: "if you've completed [specific dungeon]" — checks dungeons_completed_set.
+        // Used by Acererak: `!CompletedSpecificDungeon(TombOfAnnihilation)`.
+        Condition::CompletedSpecificDungeon(dungeon_id) => state
+            .players
+            .get(&ctx.controller)
+            .map(|ps| ps.dungeons_completed_set.contains(dungeon_id))
+            .unwrap_or(false),
     }
 }
 
