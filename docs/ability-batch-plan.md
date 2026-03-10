@@ -523,13 +523,13 @@ Recommended update points:
 | 15: Commander Variants | 3 | 0.5 | **Complete** |
 | Mutate Mini-Milestone | 1 | 2-3 | **Complete** |
 | **Total** | **~93** | **~23-28** | |
-| Batch 16: Dungeon + Ring | 2 | 2–3 | Planned |
+| Batch 16: Dungeon + Ring | 2 | 2–3 | **Complete** |
 
 ---
 
 ## Batch 16: Venture/Dungeon + The Ring Tempts You
 
-**Status**: Planned (post-Phase-1; implement before or during M10)
+**Status**: **Complete** (2026-03-09; 4 sessions Dungeon + 1 session Ring; 36 tests; 5 card defs; 2 scripts)
 
 ### Venture into the Dungeon / Dungeons (CR 309, 701.49)
 
