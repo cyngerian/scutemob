@@ -14,7 +14,7 @@
 
 use im::OrdSet;
 
-use crate::effects::{execute_effect, EffectContext};
+use crate::effects::{check_condition, execute_effect, EffectContext};
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, MergedComponent, ObjectId};
 use crate::state::stack::StackObjectKind;
@@ -1895,6 +1895,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::TriggeredAbility {
             source_object,
             ability_index,
+            is_carddef_etb,
         } => {
             // CR 603.4: Check intervening-if condition at resolution time.
             // If the condition is false, the ability has no effect (but still resolves).
@@ -1903,17 +1904,51 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Plain AbilityDefinition::Triggered entries (e.g. upkeep/end-step CardDef triggers
             // pushed via PendingTriggerKind::Normal) are looked up from the card registry
             // using ability_index into the CardDef's abilities Vec.
+            //
+            // When is_carddef_etb is true, ability_index is into CardDef::abilities (not
+            // runtime triggered_abilities). Always use the card registry path to avoid
+            // index-namespace collisions when the card also has runtime triggers at the
+            // same index position (e.g. Acererak: ETB at def[0], WhenAttacks at runtime[0]).
             let (triggered_effect_opt, triggered_carddef_iif) = {
                 let obj = state.objects.get(&source_object);
                 if let Some(obj) = obj {
-                    if let Some(_ab) = obj.characteristics.triggered_abilities.get(ability_index) {
-                        // Characteristics path — intervening_if handled below via original code.
-                        (
-                            None::<crate::cards::card_definition::Effect>,
-                            None::<crate::cards::card_definition::Condition>,
-                        )
+                    if !is_carddef_etb {
+                        if let Some(_ab) =
+                            obj.characteristics.triggered_abilities.get(ability_index)
+                        {
+                            // Characteristics path — intervening_if handled below via original code.
+                            (
+                                None::<crate::cards::card_definition::Effect>,
+                                None::<crate::cards::card_definition::Condition>,
+                            )
+                        } else {
+                            // Card registry fallback for plain AbilityDefinition::Triggered.
+                            let result = obj
+                                .card_id
+                                .as_ref()
+                                .and_then(|cid| state.card_registry.get(cid.clone()))
+                                .and_then(|def| def.abilities.get(ability_index))
+                                .and_then(|abil| {
+                                    if let crate::cards::card_definition::AbilityDefinition::Triggered {
+                                        effect,
+                                        intervening_if,
+                                        ..
+                                    } = abil
+                                    {
+                                        Some((effect.clone(), intervening_if.clone()))
+                                    } else {
+                                        None
+                                    }
+                                });
+                            if let Some((eff, iif)) = result {
+                                (Some(eff), iif)
+                            } else {
+                                (None, None)
+                            }
+                        }
                     } else {
-                        // Card registry fallback for plain AbilityDefinition::Triggered.
+                        // CardDefETB path: ability_index is into CardDef::abilities.
+                        // Always use the card registry — never runtime triggered_abilities.
                         let result = obj
                             .card_id
                             .as_ref()
@@ -1947,21 +1982,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // AND when it resolves. If the condition no longer holds at resolution, the
             // triggered ability is removed from the stack without effect.
             if triggered_effect_opt.is_some() {
+                // CR 603.4: Re-evaluate the intervening-if condition at resolution.
+                // If the condition no longer holds, the triggered ability is removed
+                // from the stack without effect.
+                // Use check_condition() from effects/mod.rs which correctly handles
+                // all Condition variants including Condition::Not (e.g. Acererak's
+                // "if you haven't completed Tomb of Annihilation").
                 let condition_holds = triggered_carddef_iif
                     .as_ref()
                     .map(|cond| {
-                        use crate::cards::card_definition::Condition;
-                        match cond {
-                            Condition::OpponentHasPoisonCounters(n) => {
-                                state.players.iter().any(|(pid, ps)| {
-                                    *pid != stack_obj.controller
-                                        && !ps.has_lost
-                                        && ps.poison_counters >= *n
-                                })
-                            }
-                            // Other conditions: treat as satisfied (safe default for rare cases).
-                            _ => true,
-                        }
+                        let ctx = EffectContext::new(
+                            stack_obj.controller,
+                            source_object,
+                            stack_obj.targets.clone(),
+                        );
+                        check_condition(state, cond, &ctx)
                     })
                     .unwrap_or(true);
                 if condition_holds {

@@ -3386,7 +3386,11 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
 
 // ── Condition checking ────────────────────────────────────────────────────────
 
-fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext) -> bool {
+pub(crate) fn check_condition(
+    state: &GameState,
+    condition: &Condition,
+    ctx: &EffectContext,
+) -> bool {
     match condition {
         Condition::Always => true,
         Condition::ControllerLifeAtLeast(n) => state
@@ -3476,6 +3480,9 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
             .get(&ctx.controller)
             .map(|ps| ps.dungeons_completed_set.contains(dungeon_id))
             .unwrap_or(false),
+        // Logical negation of any condition (CR 603.4: intervening-if can express "haven't").
+        // Used by Acererak's ETB: "if you haven't completed Tomb of Annihilation".
+        Condition::Not(inner) => !check_condition(state, inner, ctx),
     }
 }
 
