@@ -17,9 +17,10 @@ pub fn card() -> CardDefinition {
             effect: Effect::DestroyPermanent {
                 target: EffectTarget::DeclaredTarget { index: 0 },
             },
-            // TODO: TargetRequirement::TargetNonlandPermanent doesn't exist;
-            // using TargetPermanent as approximation
-            targets: vec![TargetRequirement::TargetPermanent],
+            targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                non_land: true,
+                ..Default::default()
+            })],
             modes: None,
             cant_be_countered: false,
         }],

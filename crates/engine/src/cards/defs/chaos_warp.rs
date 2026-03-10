@@ -17,6 +17,8 @@ pub fn card() -> CardDefinition {
             effect: Effect::Sequence(vec![
                 Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    // TODO: should be owner of target, not caster — PlayerTarget::Controller
+                    // is wrong in multiplayer when targeting opponent's permanent
                     to: ZoneTarget::Library { owner: PlayerTarget::Controller, position: LibraryPosition::ShuffledIn },
                 },
                 // Shuffle is implicit with ShuffledIn position above

@@ -15,8 +15,8 @@ pub fn card() -> CardDefinition {
             effect: Effect::DestroyPermanent {
                 target: EffectTarget::DeclaredTarget { index: 0 },
             },
-            // TODO: TargetRequirement::TargetArtifactOrCreature doesn't exist
-            targets: vec![TargetRequirement::TargetCreature],
+            // TODO: no TargetArtifactOrCreature — using TargetPermanent as broader fallback
+            targets: vec![TargetRequirement::TargetPermanent],
             modes: None,
             cant_be_countered: false,
         }],
