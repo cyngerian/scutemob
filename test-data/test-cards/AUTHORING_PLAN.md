@@ -16,7 +16,16 @@
 | Ready (authorable now) | 1,471 |
 | Blocked (DSL/keyword gaps) | 141 |
 | Deferred (Morph/Mutate/etc.) | 24 |
-| Ready sessions (batches of 8) | 206 |
+
+### Execution Breakdown
+
+| Phase | Cards | Agent Sessions | Notes |
+|-------|-------|----------------|-------|
+| Phase 1: Templates | ~227 | 0 | Python script, no agents |
+| Phase 2: Bulk Agent | ~1,244 | ~141 | Variable batch sizes (8-20) |
+| Audit (all cards) | ~1,471 | ~295 | Reviewer at 5 cards/session |
+| Fix passes | varies | ~50-75 est. | Based on 20-card batch: ~30% find rate |
+| **Total** | **~1,471** | **~486-511** | |
 
 ---
 
@@ -213,30 +222,44 @@ python3 tools/generate_skeleton.py --from-worklist test-data/test-cards/_authori
 #### Step 2b: Bulk Abilities Agent
 
 Create a new agent (or modify `card-definition-author`) that:
-1. Reads a session from `_authoring_plan.json` (8 cards, same group)
+1. Reads a session from `_authoring_plan.json` (N cards, same group)
 2. Reads one reference card def from the same group to learn the DSL pattern
-3. Fills in `abilities: vec![...]` for all 8 cards in the session
+3. Fills in `abilities: vec![...]` for all N cards in the session
 4. Runs `cargo build --lib -p mtg-engine` to verify compilation
 
 **Agent design**:
-- Name: `bulk-card-author` (or extend `card-definition-author`)
+- Name: `bulk-card-author` (new agent in `.claude/agents/`)
 - Model: Sonnet (fast, good at pattern replication)
 - Input: session ID from `_authoring_plan.json`
 - Tools: Read, Write, Edit, Glob, Grep, Bash, `mcp__mtg-rules__lookup_card`
-- One invocation per session (8 cards), not per card
+- One invocation per session, not per card
 - Reads `crates/engine/src/cards/helpers.rs` for available types
 - Reads 1-2 existing card defs from the same group as reference
+- Must `cargo build --lib -p mtg-engine` after writing all files
+
+**Variable batch sizes by group complexity**:
+
+| Complexity | Batch Size | Groups |
+|------------|-----------|--------|
+| Formulaic | 16-20 | Combat Keywords, Body Only, Mana Lands/Rocks/Dorks, ETB Tapped Lands |
+| Moderate | 10-12 | Draw, Tokens, Removal (all types), Counters, Pump, Counterspells, Triggers |
+| Complex | 8 | Modal/Choice, Stax, Other/Misc, Tutors, Equipment, Recursion, everything else |
 
 **Session execution order** (by group, highest-priority first):
-1. Combat Keyword Creatures (163 ready, ~21 sessions) — simple: just list keywords
-2. Draw & Card Advantage (161 ready, ~21 sessions) — `Effect::DrawCards` pattern
-3. Token Creators (146 ready, ~19 sessions) — `Effect::CreateToken` pattern
-4. Modal & Choice Spells (100 ready, ~13 sessions) — `Effect::Conditional` / modes
-5. Removal — Destroy (48 ready, ~6 sessions) — `Effect::DestroyPermanent` pattern
-6. +1/+1 Counters (42 ready, ~6 sessions) — `Effect::AddCounters` pattern
-7. Attack Triggers (33 ready, ~5 sessions) — `TriggerCondition::WhenAttacks`
-8. Death Triggers (24 ready, ~3 sessions) — `TriggerCondition::WheneverCreatureDies`
-9. Remaining groups (~441 ready, ~56 sessions)
+
+| # | Group | Cards | Batch | Sessions | DSL Pattern |
+|---|-------|-------|-------|----------|-------------|
+| 1 | Combat Keyword Creatures | 163 | 16 | 11 | keyword list in abilities |
+| 2 | Draw & Card Advantage | 161 | 12 | 14 | `Effect::DrawCards` |
+| 3 | Token Creators | 146 | 12 | 13 | `Effect::CreateToken` |
+| 4 | Other / Miscellaneous | 127 | 8 | 16 | varied |
+| 5 | Modal & Choice Spells | 100 | 8 | 13 | `Effect::Conditional` / modes |
+| 6 | Lands — ETB Tapped (complex) | 66 | 16 | 5 | ETB tapped + mana + extra |
+| 7 | Removal — Destroy | 48 | 12 | 4 | `Effect::DestroyPermanent` |
+| 8 | +1/+1 Counters | 42 | 10 | 5 | `Effect::AddCounters` |
+| 9 | Attack Triggers | 33 | 10 | 4 | `TriggerCondition::WhenAttacks` |
+| 10 | Remaining (25 groups) | 358 | 8-12 | 56 | varied |
+| | **Total** | **1,244** | | **141** | |
 
 **Cards that should use `abilities: vec![]`** (per W5 policy):
 - Cards with oracle text that exceeds DSL expressiveness
@@ -282,10 +305,10 @@ Every card definition — whether templated or agent-written — must be audited
 
 ### Audit Schedule
 
-| After Phase | Cards to Audit | Reviewer Sessions (5/batch) | Estimated |
-|-------------|---------------|----------------------------|-----------|
-| Phase 1 | ~313 templated | ~63 sessions | Systematic template bugs likely — high ROI |
-| Phase 2 | ~1,158 agent-written | ~232 sessions | Agent errors vary — medium ROI |
+| After Phase | Cards to Audit | Reviewer Sessions (5/batch) | Notes |
+|-------------|---------------|----------------------------|-------|
+| Phase 1 | ~227 templated | ~46 sessions | Systematic template bugs — high ROI |
+| Phase 2 | ~1,244 agent-written | ~249 sessions | Agent errors vary — medium ROI |
 | Total | ~1,471 | ~295 sessions | |
 
 ### Audit Parallelism
@@ -294,6 +317,7 @@ Every card definition — whether templated or agent-written — must be audited
 - Each reviewer takes ~2 min → 4 parallel = ~1 review/30s
 - 295 sessions ÷ 4 parallel = ~74 rounds × 2 min = ~2.5 hours total
 - Fix sessions run sequentially after each review wave
+- Fix rate ~30% based on first batch → ~100 fix sessions estimated
 
 ### Known Audit Patterns (from 20-card batch review)
 
@@ -368,7 +392,7 @@ from `deferred` to `ready`.
 - [ ] Phase 2a: Generate skeletons for remaining ~1,158 cards
 - [ ] Phase 2a: `cargo build` — verify skeletons compile
 - [ ] Phase 2b: Create/modify bulk-card-author agent
-- [ ] Phase 2b: Run agent sessions by group (206 - ~39 templated = ~167 sessions)
+- [ ] Phase 2b: Run agent sessions by group (~141 sessions, variable batch 8-20)
 - [ ] Phase 2b: `cargo build` after each session
 - [ ] Phase 2 Audit: Run reviewer on all agent-written cards (232 sessions × 4 parallel)
 - [ ] Phase 2 Audit: Apply fixes

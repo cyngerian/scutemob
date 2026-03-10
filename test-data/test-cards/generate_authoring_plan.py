@@ -559,10 +559,36 @@ def main():
     for group_id in groups:
         groups[group_id].sort(key=lambda c: -c["priority_score"])
 
-    # 10. Split groups into sessions of up to 8 cards
+    # 10. Split groups into sessions with variable batch sizes
     sessions = []
     session_id = 1
-    SESSION_SIZE = 8
+
+    # Batch sizes by group complexity
+    BATCH_SIZES = {
+        # Formulaic (16-20): repetitive patterns, minimal variation
+        "body-only": 20,
+        "combat-keyword": 16,
+        "mana-land": 16,
+        "mana-artifact": 16,
+        "mana-creature": 16,
+        "land-etb-tapped": 16,
+        # Moderate (10-12): clear DSL pattern with some variation
+        "draw": 12,
+        "token-create": 12,
+        "removal-destroy": 12,
+        "removal-damage-each": 12,
+        "removal-damage-target": 12,
+        "removal-exile": 12,
+        "counter": 12,
+        "pump-buff": 12,
+        "counters-plus": 10,
+        "attack-trigger": 10,
+        "death-trigger": 10,
+        "scry-surveil": 12,
+        # Complex (8): unique patterns, needs more agent attention
+        # Everything else defaults to 8
+    }
+    DEFAULT_BATCH_SIZE = 8
 
     # Sort groups by total priority (highest-value groups first)
     sorted_groups = sorted(
@@ -590,13 +616,14 @@ def main():
         if not cards:
             continue
         label = cards[0]["group_label"]
+        batch_size = BATCH_SIZES.get(group_id, DEFAULT_BATCH_SIZE)
 
         ready_cards = [c for c in cards if c["status"] == "ready"]
         blocked_cards = [c for c in cards if c["status"] == "blocked"]
         deferred_cards = [c for c in cards if c["status"] == "deferred"]
 
-        for i in range(0, len(ready_cards), SESSION_SIZE):
-            batch = ready_cards[i:i+SESSION_SIZE]
+        for i in range(0, len(ready_cards), batch_size):
+            batch = ready_cards[i:i+batch_size]
             sessions.append({
                 "session_id": session_id,
                 "group_id": group_id,
@@ -608,8 +635,8 @@ def main():
             session_id += 1
 
         if blocked_cards:
-            for i in range(0, len(blocked_cards), SESSION_SIZE):
-                batch = blocked_cards[i:i+SESSION_SIZE]
+            for i in range(0, len(blocked_cards), batch_size):
+                batch = blocked_cards[i:i+batch_size]
                 sessions.append({
                     "session_id": session_id,
                     "group_id": group_id,
@@ -674,7 +701,7 @@ def main():
     print(f"  Ready:            {total_ready}", file=sys.stderr)
     print(f"  Blocked:          {total_blocked}", file=sys.stderr)
     print(f"  Deferred:         {total_deferred}", file=sys.stderr)
-    print(f"  Ready sessions:   {len(ready_sessions)} (batches of up to {SESSION_SIZE})", file=sys.stderr)
+    print(f"  Ready sessions:   {len(ready_sessions)} (variable batch sizes 8-20)", file=sys.stderr)
     print(f"  Blocked sessions: {len(blocked_sessions)}", file=sys.stderr)
     print(f"", file=sys.stderr)
 

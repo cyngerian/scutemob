@@ -1,13 +1,13 @@
 {
-  "generated": "2026-03-10T22:41:15.682601+00:00",
+  "generated": "2026-03-10T23:08:41.804537+00:00",
   "summary": {
     "total_cards": 1636,
     "already_authored": 107,
     "ready": 1471,
     "blocked": 141,
     "deferred": 24,
-    "ready_sessions": 206,
-    "blocked_sessions": 33,
+    "ready_sessions": 155,
+    "blocked_sessions": 29,
     "groups": 43,
     "edhrec_threshold": 5000,
     "sources": {
@@ -22,7 +22,7 @@
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Woodland Cemetery",
@@ -135,16 +135,7 @@
           "priority_score": 272.0,
           "source": "both",
           "oracle_text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}."
-        }
-      ]
-    },
-    {
-      "session_id": 2,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Haunted Ridge",
           "types": [
@@ -264,11 +255,11 @@
       ]
     },
     {
-      "session_id": 3,
+      "session_id": 2,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Spire Garden",
@@ -387,16 +378,7 @@
           "priority_score": 163.2,
           "source": "both",
           "oracle_text": "({T}: Add {G}, {W}, or {U}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)"
-        }
-      ]
-    },
-    {
-      "session_id": 4,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Sundown Pass",
           "types": [
@@ -520,11 +502,11 @@
       ]
     },
     {
-      "session_id": 5,
+      "session_id": 3,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Indatha Triome",
@@ -641,16 +623,7 @@
           "priority_score": 136.4,
           "source": "both",
           "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {U} or {R}."
-        }
-      ]
-    },
-    {
-      "session_id": 6,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Oran-Rief, the Vastwood",
           "types": [
@@ -771,11 +744,11 @@
       ]
     },
     {
-      "session_id": 7,
+      "session_id": 4,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Izzet Boilerworks",
@@ -890,16 +863,7 @@
           "priority_score": 123.3,
           "source": "both",
           "oracle_text": "This land enters tapped unless you control a Plains.\n{T}: Add {W}.\n{2}{W}{W}, {T}: Create a 1/1 white Human creature token."
-        }
-      ]
-    },
-    {
-      "session_id": 8,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Sandsteppe Citadel",
           "types": [
@@ -1019,11 +983,11 @@
       ]
     },
     {
-      "session_id": 9,
+      "session_id": 5,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Smoldering Crater",
@@ -1146,16 +1110,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nThis land enters tapped.\n{T}: Add {R}.\n{R}, {T}: You may play the exiled card without paying its mana cost if an opponent was dealt 7 or more damage this turn."
-        }
-      ]
-    },
-    {
-      "session_id": 10,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Arena of Glory",
           "types": [
@@ -1275,11 +1230,11 @@
       ]
     },
     {
-      "session_id": 11,
+      "session_id": 6,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Halimar Depths",
@@ -1392,16 +1347,7 @@
           "priority_score": 41.3,
           "source": "edhrec",
           "oracle_text": "({T}: Add {W} or {U}.)\nThis land enters tapped unless you control two or more basic lands."
-        }
-      ]
-    },
-    {
-      "session_id": 12,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Boros Garrison",
           "types": [
@@ -1521,11 +1467,11 @@
       ]
     },
     {
-      "session_id": 13,
+      "session_id": 7,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Jungle Hollow",
@@ -1640,16 +1586,7 @@
           "priority_score": 28.2,
           "source": "edhrec",
           "oracle_text": "This land enters tapped.\n{T}: Add {R}, {G}, or {W}."
-        }
-      ]
-    },
-    {
-      "session_id": 14,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Foreboding Ruins",
           "types": [
@@ -1769,11 +1706,11 @@
       ]
     },
     {
-      "session_id": 15,
+      "session_id": 8,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 10,
       "cards": [
         {
           "name": "Glistening Sphere",
@@ -1891,16 +1828,7 @@
           "priority_score": 15.6,
           "source": "edhrec",
           "oracle_text": "Arixmethes enters tapped with five slumber counters on it.\nAs long as Arixmethes has a slumber counter on it, it's a land. (It's not a creature.)\nWhenever you cast a spell, you may remove a slumber counter from Arixmethes.\n{T}: Add {G}{U}."
-        }
-      ]
-    },
-    {
-      "session_id": 16,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "ready",
-      "card_count": 2,
-      "cards": [
+        },
         {
           "name": "Undercity Sewers",
           "types": [
@@ -1934,11 +1862,11 @@
       ]
     },
     {
-      "session_id": 17,
+      "session_id": 9,
       "group_id": "land-etb-tapped",
       "group_label": "Lands \u2014 ETB Tapped",
       "status": "blocked",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Godless Shrine",
@@ -2051,16 +1979,7 @@
           "priority_score": 382.2,
           "source": "both",
           "oracle_text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
-        }
-      ]
-    },
-    {
-      "session_id": 18,
-      "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "blocked",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Watery Grave",
           "types": [
@@ -2176,11 +2095,11 @@
       ]
     },
     {
-      "session_id": 19,
+      "session_id": 10,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Sensei's Divining Top",
@@ -2298,16 +2217,7 @@
           "priority_score": 269.1,
           "source": "both",
           "oracle_text": "Landfall \u2014 Whenever a land you control enters, you gain 1 life and draw a card."
-        }
-      ]
-    },
-    {
-      "session_id": 20,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Yawgmoth, Thran Physician",
           "types": [
@@ -2370,7 +2280,16 @@
           "priority_score": 241.2,
           "source": "both",
           "oracle_text": "You may play an additional land on each of your turns.\nLandfall \u2014 Whenever a land you control enters, you may draw a card."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 11,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Black Market Connections",
           "types": [
@@ -2434,16 +2353,7 @@
           "priority_score": 176.2,
           "source": "both",
           "oracle_text": "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card."
-        }
-      ]
-    },
-    {
-      "session_id": 21,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Corrupted Conviction",
           "types": [
@@ -2560,11 +2470,11 @@
       ]
     },
     {
-      "session_id": 22,
+      "session_id": 12,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Opt",
@@ -2683,16 +2593,7 @@
           "priority_score": 136.6,
           "source": "both",
           "oracle_text": "You may activate loyalty abilities of Teferi on any player's turn any time you could cast an instant.\n+1: Draw a card, then discard a card.\n\u22123: Target creature you don't control phases out. (Treat it and anything attached to it as though they don't exist until its controller's next turn.)\n\u221210: Take two extra turns after this one."
-        }
-      ]
-    },
-    {
-      "session_id": 23,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Ingenious Infiltrator",
           "types": [
@@ -2754,7 +2655,16 @@
           "priority_score": 132.0,
           "source": "both",
           "oracle_text": "Flying\nWhenever an opponent draws a card, you may draw two cards."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 13,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Teferi, Temporal Pilgrim",
           "types": [
@@ -2818,16 +2728,7 @@
           "priority_score": 130.2,
           "source": "both",
           "oracle_text": "Affinity for planeswalkers (This spell costs {1} less to cast for each planeswalker you control.)\nFlying, vigilance\nWhenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control, that opponent loses 3 life and you draw a card."
-        }
-      ]
-    },
-    {
-      "session_id": 24,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Phyrexian Arena",
           "types": [
@@ -2946,11 +2847,11 @@
       ]
     },
     {
-      "session_id": 25,
+      "session_id": 14,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Roiling Dragonstorm",
@@ -3075,16 +2976,7 @@
           "priority_score": 120.8,
           "source": "both",
           "oracle_text": "As Throne of Eldraine enters, choose a color.\n{T}: Add four mana of the chosen color. Spend this mana only to cast monocolored spells of that color.\n{3}, {T}: Draw two cards. Spend only mana of the chosen color to activate this ability."
-        }
-      ]
-    },
-    {
-      "session_id": 26,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Out of the Tombs",
           "types": [
@@ -3149,7 +3041,16 @@
           "priority_score": 120.0,
           "source": "both",
           "oracle_text": "Lifelink\nWhenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control, draw a card.\nWhenever an opponent casts their second spell each turn, draw a card."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 15,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Miara, Thorn of the Glade",
           "types": [
@@ -3209,16 +3110,7 @@
           "priority_score": 116.1,
           "source": "both",
           "oracle_text": "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)\nWhenever a +1/+1 counter is put on this creature, you may draw a card."
-        }
-      ]
-    },
-    {
-      "session_id": 27,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Betor, Kin to All",
           "types": [
@@ -3340,11 +3232,11 @@
       ]
     },
     {
-      "session_id": 28,
+      "session_id": 16,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Ayara, First of Locthwain",
@@ -3467,16 +3359,7 @@
           "priority_score": 111.5,
           "source": "both",
           "oracle_text": "Whenever one or more other creatures you control leave the battlefield without dying, draw a card.\n{1}{U}, {T}: Return another target creature you control to its owner's hand."
-        }
-      ]
-    },
-    {
-      "session_id": 29,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Footbottom Feast",
           "types": [
@@ -3534,7 +3417,16 @@
           "priority_score": 110.9,
           "source": "both",
           "oracle_text": "Whenever a creature you control deals combat damage to an opponent, you may draw a card."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 17,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Enduring Curiosity",
           "types": [
@@ -3593,16 +3485,7 @@
           "priority_score": 110.0,
           "source": "both",
           "oracle_text": "You may cast spells this turn as though they had flash.\nDraw a card."
-        }
-      ]
-    },
-    {
-      "session_id": 30,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Ohran Frostfang",
           "types": [
@@ -3723,11 +3606,11 @@
       ]
     },
     {
-      "session_id": 31,
+      "session_id": 18,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Kishla Skimmer",
@@ -3847,16 +3730,7 @@
           "priority_score": 86.9,
           "source": "edhrec",
           "oracle_text": "Whenever a creature you control dies, draw a card.\n+1: Create a 2/2 black Zombie creature token.\n\u22124: Each player sacrifices two creatures of their choice.\n\u22129: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest."
-        }
-      ]
-    },
-    {
-      "session_id": 32,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Growth Spiral",
           "types": [
@@ -3916,7 +3790,16 @@
           "priority_score": 59.2,
           "source": "edhrec",
           "oracle_text": "Scry 2, then draw a card. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)"
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 19,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Cultivator Colossus",
           "types": [
@@ -3977,16 +3860,7 @@
           "priority_score": 56.0,
           "source": "edhrec",
           "oracle_text": "When this enchantment enters, draw a card, then you may put a land card from your hand onto the battlefield. If you put a Cave onto the battlefield this way, you gain 4 life.\nLands you control enter untapped."
-        }
-      ]
-    },
-    {
-      "session_id": 33,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Big Score",
           "types": [
@@ -4106,11 +3980,11 @@
       ]
     },
     {
-      "session_id": 34,
+      "session_id": 20,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Unearth",
@@ -4233,16 +4107,7 @@
           "priority_score": 35.4,
           "source": "edhrec",
           "oracle_text": "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape\u2014{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)"
-        }
-      ]
-    },
-    {
-      "session_id": 35,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Sarkhan, Fireblood",
           "types": [
@@ -4303,7 +4168,16 @@
           "priority_score": 31.3,
           "source": "edhrec",
           "oracle_text": "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card unless this creature entered this turn."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 21,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Contaminant Grafter",
           "types": [
@@ -4364,16 +4238,7 @@
           "priority_score": 27.9,
           "source": "edhrec",
           "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever a spell or ability you control counters a spell, you may draw a card. If you do, discard a card."
-        }
-      ]
-    },
-    {
-      "session_id": 36,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Priest of Forgotten Gods",
           "types": [
@@ -4498,11 +4363,11 @@
       ]
     },
     {
-      "session_id": 37,
+      "session_id": 22,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Aurelia, the Law Above",
@@ -4626,16 +4491,7 @@
           "priority_score": 17.8,
           "source": "edhrec",
           "oracle_text": "Whenever this creature attacks, you may sacrifice another creature. If you do, draw a card and this creature can't be blocked this turn."
-        }
-      ]
-    },
-    {
-      "session_id": 38,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Tandem Lookout",
           "types": [
@@ -4697,7 +4553,16 @@
           "priority_score": 15.8,
           "source": "edhrec",
           "oracle_text": "Vigilance\nWhenever one or more +1/+1 counters are put on this creature, draw a card. This ability triggers only once each turn."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 23,
+      "group_id": "draw",
+      "group_label": "Draw & Card Advantage",
+      "status": "ready",
+      "card_count": 5,
+      "cards": [
         {
           "name": "Street Wraith",
           "types": [
@@ -4757,16 +4622,7 @@
           "priority_score": 15.1,
           "source": "edhrec",
           "oracle_text": "{T}, Discard a card: Draw a card."
-        }
-      ]
-    },
-    {
-      "session_id": 39,
-      "group_id": "draw",
-      "group_label": "Draw & Card Advantage",
-      "status": "ready",
-      "card_count": 1,
-      "cards": [
+        },
         {
           "name": "Chivalric Alliance",
           "types": [
@@ -4784,7 +4640,7 @@
       ]
     },
     {
-      "session_id": 40,
+      "session_id": 24,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "blocked",
@@ -4891,7 +4747,7 @@
       ]
     },
     {
-      "session_id": 41,
+      "session_id": 25,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
       "status": "deferred",
@@ -4931,11 +4787,11 @@
       ]
     },
     {
-      "session_id": 42,
+      "session_id": 26,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Finale of Devastation",
@@ -5059,16 +4915,7 @@
           "priority_score": 244.5,
           "source": "both",
           "oracle_text": "You may activate abilities of creatures you control as though those creatures had haste.\n{1}, {T}: Untap target creature."
-        }
-      ]
-    },
-    {
-      "session_id": 43,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Basilisk Collar",
           "types": [
@@ -5200,11 +5047,11 @@
       ]
     },
     {
-      "session_id": 44,
+      "session_id": 27,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Shadowspear",
@@ -5326,16 +5173,7 @@
           "priority_score": 142.2,
           "source": "both",
           "oracle_text": "Goblin spells you cast cost {1} less to cast.\nGoblins you control have haste."
-        }
-      ]
-    },
-    {
-      "session_id": 45,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Darksteel Mutation",
           "types": [
@@ -5470,11 +5308,11 @@
       ]
     },
     {
-      "session_id": 46,
+      "session_id": 28,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Legolas's Quick Reflexes",
@@ -5601,16 +5439,7 @@
           "priority_score": 129.2,
           "source": "both",
           "oracle_text": "Flying\nWhenever this creature deals combat damage to a player, roll a d20. Draw cards equal to the result. You have no maximum hand size for the rest of the game."
-        }
-      ]
-    },
-    {
-      "session_id": 47,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Mossborn Hydra",
           "types": [
@@ -5745,11 +5574,11 @@
       ]
     },
     {
-      "session_id": 48,
+      "session_id": 29,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Blade Historian",
@@ -5879,16 +5708,7 @@
           "priority_score": 118.1,
           "source": "both",
           "oracle_text": "Flying\nYou may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of mana spent to cast this creature, except it's a Bird in addition to its other types and it has flying."
-        }
-      ]
-    },
-    {
-      "session_id": 49,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Boromir, Warden of the Tower",
           "types": [
@@ -6020,11 +5840,11 @@
       ]
     },
     {
-      "session_id": 50,
+      "session_id": 30,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Greymond, Avacyn's Stalwart",
@@ -6154,16 +5974,7 @@
           "priority_score": 111.4,
           "source": "both",
           "oracle_text": "Trample\nWhen this creature enters, sacrifice it unless you sacrifice any number of creatures with total power 12 or greater."
-        }
-      ]
-    },
-    {
-      "session_id": 51,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Danitha Capashen, Paragon",
           "types": [
@@ -6296,11 +6107,11 @@
       ]
     },
     {
-      "session_id": 52,
+      "session_id": 31,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Archetype of Endurance",
@@ -6430,16 +6241,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Flying\nWhenever you cast a spell, return up to one target nonland permanent an opponent controls with mana value less than or equal to that spell's mana value to its owner's hand."
-        }
-      ]
-    },
-    {
-      "session_id": 53,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Keen-Eyed Curator",
           "types": [
@@ -6571,11 +6373,11 @@
       ]
     },
     {
-      "session_id": 54,
+      "session_id": 32,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Vampire Hexmage",
@@ -6707,16 +6509,7 @@
           "priority_score": 45.0,
           "source": "edhrec",
           "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} \u2014 Mill four cards. You may put up to two creature and/or land cards from among the milled cards into your hand.\n+ {4}{G} \u2014 You may put up to two creature cards from your hand onto the battlefield.\n+ {1} \u2014 Creatures you control with power 4 or greater gain hexproof and indestructible until end of turn."
-        }
-      ]
-    },
-    {
-      "session_id": 55,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Bloated Contaminator",
           "types": [
@@ -6846,11 +6639,11 @@
       ]
     },
     {
-      "session_id": 56,
+      "session_id": 33,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Bladewing the Risen",
@@ -6982,16 +6775,7 @@
           "priority_score": 29.6,
           "source": "edhrec",
           "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\nWhen this creature enters, reveal the top four cards of your library. Put all Goblin cards revealed this way into your hand and the rest on the bottom of your library in any order."
-        }
-      ]
-    },
-    {
-      "session_id": 57,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Wrathful Red Dragon",
           "types": [
@@ -7126,11 +6910,11 @@
       ]
     },
     {
-      "session_id": 58,
+      "session_id": 34,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Abomination of Llanowar",
@@ -7264,16 +7048,7 @@
           "priority_score": 19.2,
           "source": "edhrec",
           "oracle_text": "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever another creature you control enters, you may pay {2}. If you do, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
-        }
-      ]
-    },
-    {
-      "session_id": 59,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Florian, Voldaren Scion",
           "types": [
@@ -7405,11 +7180,11 @@
       ]
     },
     {
-      "session_id": 60,
+      "session_id": 35,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Karlach, Fury of Avernus",
@@ -7537,16 +7312,7 @@
           "priority_score": 16.7,
           "source": "edhrec",
           "oracle_text": "Flying\nDragonlord Ojutai has hexproof as long as it's untapped.\nWhenever Dragonlord Ojutai deals combat damage to a player, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order."
-        }
-      ]
-    },
-    {
-      "session_id": 61,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Bilious Skulldweller",
           "types": [
@@ -7678,7 +7444,7 @@
       ]
     },
     {
-      "session_id": 62,
+      "session_id": 36,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "ready",
@@ -7736,11 +7502,11 @@
       ]
     },
     {
-      "session_id": 63,
+      "session_id": 37,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "blocked",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Druid Class",
@@ -7872,16 +7638,7 @@
           "priority_score": 118.6,
           "source": "both",
           "oracle_text": "Indestructible\nWhenever this creature is dealt damage, it deals that much damage to target opponent.\n{2}{R}, {T}: This creature fights another target creature."
-        }
-      ]
-    },
-    {
-      "session_id": 64,
-      "group_id": "combat-keyword",
-      "group_label": "Combat Keyword Creatures",
-      "status": "blocked",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "\u00c9omer, King of Rohan",
           "types": [
@@ -8021,7 +7778,7 @@
       ]
     },
     {
-      "session_id": 65,
+      "session_id": 38,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "blocked",
@@ -8147,7 +7904,7 @@
       ]
     },
     {
-      "session_id": 66,
+      "session_id": 39,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
       "status": "deferred",
@@ -8172,11 +7929,11 @@
       ]
     },
     {
-      "session_id": 67,
+      "session_id": 40,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Kiki-Jiki, Mirror Breaker",
@@ -8303,16 +8060,7 @@
           "priority_score": 272.0,
           "source": "both",
           "oracle_text": "Pay 1 life, Sacrifice another creature: Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")"
-        }
-      ]
-    },
-    {
-      "session_id": 68,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Marionette Apprentice",
           "types": [
@@ -8378,7 +8126,16 @@
           "priority_score": 258.2,
           "source": "both",
           "oracle_text": "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 41,
+      "group_id": "token-create",
+      "group_label": "Token Creators",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Awaken the Woods",
           "types": [
@@ -8442,16 +8199,7 @@
           "priority_score": 239.7,
           "source": "both",
           "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")"
-        }
-      ]
-    },
-    {
-      "session_id": 69,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Myrel, Shield of Argive",
           "types": [
@@ -8579,11 +8327,11 @@
       ]
     },
     {
-      "session_id": 70,
+      "session_id": 42,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Ophiomancer",
@@ -8707,16 +8455,7 @@
           "priority_score": 135.4,
           "source": "both",
           "oracle_text": "Lands you control have \"{T}: Create a Treasure token.\""
-        }
-      ]
-    },
-    {
-      "session_id": 71,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Prosperous Thief",
           "types": [
@@ -8778,7 +8517,16 @@
           "priority_score": 134.0,
           "source": "both",
           "oracle_text": "Red spells you cast cost {1} less to cast.\nCreatures you control have haste.\n{4}{R}{R}, {T}: Create a token that's a copy of target creature you control. Sacrifice it at the beginning of the next end step."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 43,
+      "group_id": "token-create",
+      "group_label": "Token Creators",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Goblin Rabblemaster",
           "types": [
@@ -8837,16 +8585,7 @@
           "priority_score": 131.0,
           "source": "both",
           "oracle_text": "Whenever one or more other Elves you control enter, create a 1/1 green Elf Warrior creature token. This ability triggers only once each turn.\n{5}{G}{G}: Elves you control get +2/+2 and gain deathtouch until end of turn."
-        }
-      ]
-    },
-    {
-      "session_id": 72,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Elven Ambush",
           "types": [
@@ -8969,11 +8708,11 @@
       ]
     },
     {
-      "session_id": 73,
+      "session_id": 44,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Xorn",
@@ -9096,16 +8835,7 @@
           "priority_score": 120.2,
           "source": "both",
           "oracle_text": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever you cast a noncreature spell, create a 1/1 white Monk creature token with prowess."
-        }
-      ]
-    },
-    {
-      "session_id": 74,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Spiteful Banditry",
           "types": [
@@ -9168,7 +8898,16 @@
           "priority_score": 118.3,
           "source": "both",
           "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nAt the beginning of your upkeep, create a 1/1 green Phyrexian Insect creature token with infect for each poison counter your opponents have."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 45,
+      "group_id": "token-create",
+      "group_label": "Token Creators",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Hanweir Garrison",
           "types": [
@@ -9233,16 +8972,7 @@
           "priority_score": 116.5,
           "source": "both",
           "oracle_text": "Devoid (This card has no color.)\nWhenever another nontoken creature you control dies, create a 1/1 colorless Eldrazi Scion creature token. It has \"Sacrifice this token: Add {C}.\" ({C} represents colorless mana.)"
-        }
-      ]
-    },
-    {
-      "session_id": 75,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Talrand, Sky Summoner",
           "types": [
@@ -9366,11 +9096,11 @@
       ]
     },
     {
-      "session_id": 76,
+      "session_id": 46,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Blight Mound",
@@ -9487,16 +9217,7 @@
           "priority_score": 110.0,
           "source": "both",
           "oracle_text": "Whenever you cast a noncreature spell, create a 1/1 white Spirit creature token with flying. This ability triggers only once each turn."
-        }
-      ]
-    },
-    {
-      "session_id": 77,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Anafenza, Unyielding Lineage",
           "types": [
@@ -9561,7 +9282,16 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Deathtouch\nWhenever this creature enters or attacks, create two 2/2 black Zombie creature tokens."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 47,
+      "group_id": "token-create",
+      "group_label": "Token Creators",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Lathril, Blade of the Elves",
           "types": [
@@ -9623,16 +9353,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "When this creature enters, create three 0/1 black Serf creature tokens.\nWhen this creature leaves the battlefield, exile all Serf tokens."
-        }
-      ]
-    },
-    {
-      "session_id": 78,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "The Eternal Wanderer",
           "types": [
@@ -9758,11 +9479,11 @@
       ]
     },
     {
-      "session_id": 79,
+      "session_id": 48,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Hordeling Outburst",
@@ -9881,16 +9602,7 @@
           "priority_score": 38.4,
           "source": "edhrec",
           "oracle_text": "At the beginning of your upkeep, you may create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\""
-        }
-      ]
-    },
-    {
-      "session_id": 80,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Academy Manufactor",
           "types": [
@@ -9954,7 +9666,16 @@
           "priority_score": 32.4,
           "source": "edhrec",
           "oracle_text": "Flying\nWhenever Ganax or another Dragon you control enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nChoose a Background (You can have a Background as a second commander.)"
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 49,
+      "group_id": "token-create",
+      "group_label": "Token Creators",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Skrelv's Hive",
           "types": [
@@ -10014,16 +9735,7 @@
           "priority_score": 27.1,
           "source": "edhrec",
           "oracle_text": "When this creature enters, create a 1/1 red Goblin creature token."
-        }
-      ]
-    },
-    {
-      "session_id": 81,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Meloku the Clouded Mirror",
           "types": [
@@ -10157,11 +9869,11 @@
       ]
     },
     {
-      "session_id": 82,
+      "session_id": 50,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Beetleback Chief",
@@ -10284,16 +9996,7 @@
           "priority_score": 19.8,
           "source": "edhrec",
           "oracle_text": "Squad {1}{G} (As an additional cost to cast this spell, you may pay {1}{G} any number of times. When this creature enters, create that many tokens that are copies of it.)\nOther Elves you control get +1/+1."
-        }
-      ]
-    },
-    {
-      "session_id": 83,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Squee, Dubious Monarch",
           "types": [
@@ -10357,7 +10060,16 @@
           "priority_score": 18.4,
           "source": "edhrec",
           "oracle_text": "Flying\nWhenever you gain life, put a +1/+1 counter on this creature.\nWhen this creature dies, create X 1/1 white Vampire creature tokens with lifelink, where X is its power."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 51,
+      "group_id": "token-create",
+      "group_label": "Token Creators",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Vishgraz, the Doomhive",
           "types": [
@@ -10419,16 +10131,7 @@
           "priority_score": 17.6,
           "source": "edhrec",
           "oracle_text": "Choose one \u2014\n\u2022 Creatures you control get +2/+0 until end of turn.\n\u2022 Create two 1/1 red Goblin creature tokens."
-        }
-      ]
-    },
-    {
-      "session_id": 84,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Hunted Witness",
           "types": [
@@ -10555,7 +10258,7 @@
       ]
     },
     {
-      "session_id": 85,
+      "session_id": 52,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "ready",
@@ -10594,11 +10297,11 @@
       ]
     },
     {
-      "session_id": 86,
+      "session_id": 53,
       "group_id": "token-create",
       "group_label": "Token Creators",
       "status": "blocked",
-      "card_count": 8,
+      "card_count": 9,
       "cards": [
         {
           "name": "Scute Swarm",
@@ -10720,16 +10423,7 @@
           "priority_score": 16.4,
           "source": "edhrec",
           "oracle_text": "Myriad (Whenever this creature attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)\nWhenever this creature attacks, for each opponent, tap up to one target creature that player controls."
-        }
-      ]
-    },
-    {
-      "session_id": 87,
-      "group_id": "token-create",
-      "group_label": "Token Creators",
-      "status": "blocked",
-      "card_count": 1,
-      "cards": [
+        },
         {
           "name": "Dragonmaster Outcast",
           "types": [
@@ -10747,7 +10441,7 @@
       ]
     },
     {
-      "session_id": 88,
+      "session_id": 54,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -10868,7 +10562,7 @@
       ]
     },
     {
-      "session_id": 89,
+      "session_id": 55,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -10998,7 +10692,7 @@
       ]
     },
     {
-      "session_id": 90,
+      "session_id": 56,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11124,7 +10818,7 @@
       ]
     },
     {
-      "session_id": 91,
+      "session_id": 57,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11249,7 +10943,7 @@
       ]
     },
     {
-      "session_id": 92,
+      "session_id": 58,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11370,7 +11064,7 @@
       ]
     },
     {
-      "session_id": 93,
+      "session_id": 59,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11493,7 +11187,7 @@
       ]
     },
     {
-      "session_id": 94,
+      "session_id": 60,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11618,7 +11312,7 @@
       ]
     },
     {
-      "session_id": 95,
+      "session_id": 61,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11746,7 +11440,7 @@
       ]
     },
     {
-      "session_id": 96,
+      "session_id": 62,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11871,7 +11565,7 @@
       ]
     },
     {
-      "session_id": 97,
+      "session_id": 63,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -11996,7 +11690,7 @@
       ]
     },
     {
-      "session_id": 98,
+      "session_id": 64,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -12119,7 +11813,7 @@
       ]
     },
     {
-      "session_id": 99,
+      "session_id": 65,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -12242,7 +11936,7 @@
       ]
     },
     {
-      "session_id": 100,
+      "session_id": 66,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -12370,7 +12064,7 @@
       ]
     },
     {
-      "session_id": 101,
+      "session_id": 67,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -12495,7 +12189,7 @@
       ]
     },
     {
-      "session_id": 102,
+      "session_id": 68,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -12620,7 +12314,7 @@
       ]
     },
     {
-      "session_id": 103,
+      "session_id": 69,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "ready",
@@ -12732,7 +12426,7 @@
       ]
     },
     {
-      "session_id": 104,
+      "session_id": 70,
       "group_id": "other",
       "group_label": "Other / Miscellaneous",
       "status": "blocked",
@@ -12803,11 +12497,11 @@
       ]
     },
     {
-      "session_id": 105,
+      "session_id": 71,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Cavern of Souls",
@@ -12922,16 +12616,7 @@
           "priority_score": 268.6,
           "source": "both",
           "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This land deals 1 damage to you."
-        }
-      ]
-    },
-    {
-      "session_id": 106,
-      "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Sulfurous Springs",
           "types": [
@@ -13047,11 +12732,11 @@
       ]
     },
     {
-      "session_id": 107,
+      "session_id": 72,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Hanweir Battlements",
@@ -13173,16 +12858,7 @@
           "priority_score": 203.4,
           "source": "both",
           "oracle_text": "{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
-        }
-      ]
-    },
-    {
-      "session_id": 108,
-      "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Secluded Courtyard",
           "types": [
@@ -13299,11 +12975,11 @@
       ]
     },
     {
-      "session_id": 109,
+      "session_id": 73,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Urza's Saga",
@@ -13420,16 +13096,7 @@
           "priority_score": 157.1,
           "source": "both",
           "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)"
-        }
-      ]
-    },
-    {
-      "session_id": 110,
-      "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Savannah",
           "types": [
@@ -13545,11 +13212,11 @@
       ]
     },
     {
-      "session_id": 111,
+      "session_id": 74,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Volcanic Island",
@@ -13662,16 +13329,7 @@
           "priority_score": 119.6,
           "source": "both",
           "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This land deals 1 damage to you."
-        }
-      ]
-    },
-    {
-      "session_id": 112,
-      "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Cascade Bluffs",
           "types": [
@@ -13791,11 +13449,11 @@
       ]
     },
     {
-      "session_id": 113,
+      "session_id": 75,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Plateau",
@@ -13908,16 +13566,7 @@
           "priority_score": 38.2,
           "source": "edhrec",
           "oracle_text": "{T}: Add {C}.\n{R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}."
-        }
-      ]
-    },
-    {
-      "session_id": 114,
-      "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Grim Backwoods",
           "types": [
@@ -14033,7 +13682,7 @@
       ]
     },
     {
-      "session_id": 115,
+      "session_id": 76,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "ready",
@@ -14100,7 +13749,7 @@
       ]
     },
     {
-      "session_id": 116,
+      "session_id": 77,
       "group_id": "mana-land",
       "group_label": "Mana \u2014 Lands",
       "status": "blocked",
@@ -14226,7 +13875,7 @@
       ]
     },
     {
-      "session_id": 117,
+      "session_id": 78,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -14347,7 +13996,7 @@
       ]
     },
     {
-      "session_id": 118,
+      "session_id": 79,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -14475,7 +14124,7 @@
       ]
     },
     {
-      "session_id": 119,
+      "session_id": 80,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -14600,7 +14249,7 @@
       ]
     },
     {
-      "session_id": 120,
+      "session_id": 81,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -14725,7 +14374,7 @@
       ]
     },
     {
-      "session_id": 121,
+      "session_id": 82,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -14853,7 +14502,7 @@
       ]
     },
     {
-      "session_id": 122,
+      "session_id": 83,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -14984,7 +14633,7 @@
       ]
     },
     {
-      "session_id": 123,
+      "session_id": 84,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15109,7 +14758,7 @@
       ]
     },
     {
-      "session_id": 124,
+      "session_id": 85,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15241,7 +14890,7 @@
       ]
     },
     {
-      "session_id": 125,
+      "session_id": 86,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15374,7 +15023,7 @@
       ]
     },
     {
-      "session_id": 126,
+      "session_id": 87,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15497,7 +15146,7 @@
       ]
     },
     {
-      "session_id": 127,
+      "session_id": 88,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15625,7 +15274,7 @@
       ]
     },
     {
-      "session_id": 128,
+      "session_id": 89,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15754,7 +15403,7 @@
       ]
     },
     {
-      "session_id": 129,
+      "session_id": 90,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "ready",
@@ -15819,7 +15468,7 @@
       ]
     },
     {
-      "session_id": 130,
+      "session_id": 91,
       "group_id": "modal-choice",
       "group_label": "Modal & Choice Spells",
       "status": "blocked",
@@ -15902,7 +15551,7 @@
       ]
     },
     {
-      "session_id": 131,
+      "session_id": 92,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "ready",
@@ -16025,7 +15674,7 @@
       ]
     },
     {
-      "session_id": 132,
+      "session_id": 93,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "ready",
@@ -16150,7 +15799,7 @@
       ]
     },
     {
-      "session_id": 133,
+      "session_id": 94,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "ready",
@@ -16278,7 +15927,7 @@
       ]
     },
     {
-      "session_id": 134,
+      "session_id": 95,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "ready",
@@ -16331,7 +15980,7 @@
       ]
     },
     {
-      "session_id": 135,
+      "session_id": 96,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "blocked",
@@ -16452,7 +16101,7 @@
       ]
     },
     {
-      "session_id": 136,
+      "session_id": 97,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "blocked",
@@ -16576,7 +16225,7 @@
       ]
     },
     {
-      "session_id": 137,
+      "session_id": 98,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
       "status": "blocked",
@@ -16613,11 +16262,11 @@
       ]
     },
     {
-      "session_id": 138,
+      "session_id": 99,
       "group_id": "body-only",
       "group_label": "Body Only (No Abilities)",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 20,
       "cards": [
         {
           "name": "Boggart Trawler // Boggart Bog",
@@ -16732,16 +16381,7 @@
           "priority_score": 200.0,
           "source": "deck",
           "oracle_text": ""
-        }
-      ]
-    },
-    {
-      "session_id": 139,
-      "group_id": "body-only",
-      "group_label": "Body Only (No Abilities)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Witch Enchanter // Witch-Blessed Meadow",
           "types": [
@@ -16856,16 +16496,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": ""
-        }
-      ]
-    },
-    {
-      "session_id": 140,
-      "group_id": "body-only",
-      "group_label": "Body Only (No Abilities)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Blightstep Pathway // Searstep Pathway",
           "types": [
@@ -16925,7 +16556,16 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": ""
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 100,
+      "group_id": "body-only",
+      "group_label": "Body Only (No Abilities)",
+      "status": "ready",
+      "card_count": 20,
+      "cards": [
         {
           "name": "Cragcrown Pathway // Timbercrown Pathway",
           "types": [
@@ -16983,16 +16623,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": ""
-        }
-      ]
-    },
-    {
-      "session_id": 141,
-      "group_id": "body-only",
-      "group_label": "Body Only (No Abilities)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Marang River Regent // Coil and Catch",
           "types": [
@@ -17111,16 +16742,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": ""
-        }
-      ]
-    },
-    {
-      "session_id": 142,
-      "group_id": "body-only",
-      "group_label": "Body Only (No Abilities)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Turntimber Symbiosis // Turntimber, Serpentine Wood",
           "types": [
@@ -17242,11 +16864,11 @@
       ]
     },
     {
-      "session_id": 143,
+      "session_id": 101,
       "group_id": "body-only",
       "group_label": "Body Only (No Abilities)",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 15,
       "cards": [
         {
           "name": "Disciple of Freyalise",
@@ -17369,16 +16991,7 @@
           "priority_score": 41.5,
           "source": "edhrec",
           "oracle_text": ""
-        }
-      ]
-    },
-    {
-      "session_id": 144,
-      "group_id": "body-only",
-      "group_label": "Body Only (No Abilities)",
-      "status": "ready",
-      "card_count": 7,
-      "cards": [
+        },
         {
           "name": "Decadent Dragon",
           "types": [
@@ -17494,7 +17107,7 @@
       ]
     },
     {
-      "session_id": 145,
+      "session_id": 102,
       "group_id": "body-only",
       "group_label": "Body Only (No Abilities)",
       "status": "deferred",
@@ -17749,11 +17362,11 @@
       ]
     },
     {
-      "session_id": 146,
+      "session_id": 103,
       "group_id": "removal-destroy",
       "group_label": "Removal \u2014 Destroy",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Abrade",
@@ -17866,16 +17479,7 @@
           "priority_score": 156.8,
           "source": "both",
           "oracle_text": "Destroy all nonland permanents your opponents control."
-        }
-      ]
-    },
-    {
-      "session_id": 147,
-      "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Abrupt Decay",
           "types": [
@@ -17933,7 +17537,16 @@
           "priority_score": 151.4,
           "source": "both",
           "oracle_text": "This spell costs {1} less to cast for each creature on the battlefield.\nDestroy all creatures."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 104,
+      "group_id": "removal-destroy",
+      "group_label": "Removal \u2014 Destroy",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Culling Ritual",
           "types": [
@@ -17989,16 +17602,7 @@
           "priority_score": 142.0,
           "source": "both",
           "oracle_text": "Choose one \u2014\n\u2022 All creatures get -1/-1 until end of turn.\n\u2022 Destroy target enchantment.\n\u2022 Regenerate each creature you control."
-        }
-      ]
-    },
-    {
-      "session_id": 148,
-      "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Casualties of War",
           "types": [
@@ -18118,11 +17722,11 @@
       ]
     },
     {
-      "session_id": 149,
+      "session_id": 105,
       "group_id": "removal-destroy",
       "group_label": "Removal \u2014 Destroy",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Bane of Progress",
@@ -18237,16 +17841,7 @@
           "priority_score": 47.9,
           "source": "edhrec",
           "oracle_text": "+1: Create three 1/1 white Soldier creature tokens.\n\u22123: Destroy all creatures with power 4 or greater.\n\u22127: You get an emblem with \"Creatures you control get +2/+2 and have flying.\""
-        }
-      ]
-    },
-    {
-      "session_id": 150,
-      "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Staff of Compleation",
           "types": [
@@ -18304,7 +17899,16 @@
           "priority_score": 45.2,
           "source": "edhrec",
           "oracle_text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n+1: Create a 1/1 white Soldier creature token.\n0: Put a +1/+1 counter on each creature you control. Those creatures gain flying until your next turn.\n\u22123: Destroy target creature an opponent controls with mana value 3 or greater."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 106,
+      "group_id": "removal-destroy",
+      "group_label": "Removal \u2014 Destroy",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Fracture",
           "types": [
@@ -18363,16 +17967,7 @@
           "priority_score": 26.9,
           "source": "edhrec",
           "oracle_text": "Flying\n{2}: This creature gets +1/+0 until end of turn.\n{X}: Destroy each nonland permanent with mana value X whose controller was dealt combat damage by this creature this turn. Activate only once each turn."
-        }
-      ]
-    },
-    {
-      "session_id": 151,
-      "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Force of Despair",
           "types": [
@@ -18499,7 +18094,7 @@
       ]
     },
     {
-      "session_id": 152,
+      "session_id": 107,
       "group_id": "removal-destroy",
       "group_label": "Removal \u2014 Destroy",
       "status": "blocked",
@@ -18630,11 +18225,11 @@
       ]
     },
     {
-      "session_id": 153,
+      "session_id": 108,
       "group_id": "mana-artifact",
       "group_label": "Mana \u2014 Artifacts (Rocks)",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Chrome Mox",
@@ -18749,16 +18344,7 @@
           "priority_score": 252.9,
           "source": "both",
           "oracle_text": "This artifact doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {4}. If you do, untap this artifact.\nAt the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.\n{T}: Add {C}{C}{C}."
-        }
-      ]
-    },
-    {
-      "session_id": 154,
-      "group_id": "mana-artifact",
-      "group_label": "Mana \u2014 Artifacts (Rocks)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Patchwork Banner",
           "types": [
@@ -18878,11 +18464,11 @@
       ]
     },
     {
-      "session_id": 155,
+      "session_id": 109,
       "group_id": "mana-artifact",
       "group_label": "Mana \u2014 Artifacts (Rocks)",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Paradise Mantle",
@@ -18997,16 +18583,7 @@
           "priority_score": 60.8,
           "source": "edhrec",
           "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. This artifact deals 1 damage to you."
-        }
-      ]
-    },
-    {
-      "session_id": 156,
-      "group_id": "mana-artifact",
-      "group_label": "Mana \u2014 Artifacts (Rocks)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Simic Signet",
           "types": [
@@ -19122,7 +18699,7 @@
       ]
     },
     {
-      "session_id": 157,
+      "session_id": 110,
       "group_id": "mana-artifact",
       "group_label": "Mana \u2014 Artifacts (Rocks)",
       "status": "ready",
@@ -19145,7 +18722,7 @@
       ]
     },
     {
-      "session_id": 158,
+      "session_id": 111,
       "group_id": "mana-artifact",
       "group_label": "Mana \u2014 Artifacts (Rocks)",
       "status": "blocked",
@@ -19170,11 +18747,11 @@
       ]
     },
     {
-      "session_id": 159,
+      "session_id": 112,
       "group_id": "counters-plus",
       "group_label": "+1/+1 Counters",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 10,
       "cards": [
         {
           "name": "Sword of Truth and Justice",
@@ -19298,16 +18875,7 @@
           "priority_score": 136.1,
           "source": "both",
           "oracle_text": "Creatures you control gain indestructible until end of turn.\nAddendum \u2014 If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn."
-        }
-      ]
-    },
-    {
-      "session_id": 160,
-      "group_id": "counters-plus",
-      "group_label": "+1/+1 Counters",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Drana, Liberator of Malakir",
           "types": [
@@ -19340,7 +18908,16 @@
           "priority_score": 128.4,
           "source": "both",
           "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature enters, if an opponent lost life this turn, put a +1/+1 counter on each other Vampire you control.\nAs long as an opponent lost life this turn, each other Vampire you control enters with an additional +1/+1 counter on it."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 113,
+      "group_id": "counters-plus",
+      "group_label": "+1/+1 Counters",
+      "status": "ready",
+      "card_count": 10,
+      "cards": [
         {
           "name": "Juri, Master of the Revue",
           "types": [
@@ -19433,16 +19010,7 @@
           "priority_score": 119.0,
           "source": "both",
           "oracle_text": "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid \u2014 At the beginning of your end step, if you attacked this turn, return target creature card with mana value less than or equal to Alesha's power from your graveyard to the battlefield."
-        }
-      ]
-    },
-    {
-      "session_id": 161,
-      "group_id": "counters-plus",
-      "group_label": "+1/+1 Counters",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Forgotten Ancient",
           "types": [
@@ -19500,7 +19068,16 @@
           "priority_score": 114.0,
           "source": "both",
           "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on it instead."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 114,
+      "group_id": "counters-plus",
+      "group_label": "+1/+1 Counters",
+      "status": "ready",
+      "card_count": 10,
+      "cards": [
         {
           "name": "Champion of Lambholt",
           "types": [
@@ -19556,16 +19133,7 @@
           "priority_score": 110.2,
           "source": "both",
           "oracle_text": "This creature enters with three +1/+1 counters on it.\n{2}, Remove a +1/+1 counter from this creature: Put a +1/+1 counter on target creature.\n{1}, Remove a +1/+1 counter from this creature: Prevent all combat damage that would be dealt this turn."
-        }
-      ]
-    },
-    {
-      "session_id": 162,
-      "group_id": "counters-plus",
-      "group_label": "+1/+1 Counters",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Oran-Rief Hydra",
           "types": [
@@ -19655,7 +19223,16 @@
           "priority_score": 53.1,
           "source": "edhrec",
           "oracle_text": "At the beginning of your end step, put a +1/+1 counter on each creature you control and a loyalty counter on each planeswalker you control."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 115,
+      "group_id": "counters-plus",
+      "group_label": "+1/+1 Counters",
+      "status": "ready",
+      "card_count": 10,
+      "cards": [
         {
           "name": "Knight of the Ebon Legion",
           "types": [
@@ -19685,16 +19262,7 @@
           "priority_score": 33.1,
           "source": "edhrec",
           "oracle_text": "Whenever a creature dies, put a +1/+1 counter on equipped creature. If equipped creature is a Vampire, put two +1/+1 counters on it instead.\nEquip {1}"
-        }
-      ]
-    },
-    {
-      "session_id": 163,
-      "group_id": "counters-plus",
-      "group_label": "+1/+1 Counters",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Ramos, Dragon Engine",
           "types": [
@@ -19820,7 +19388,7 @@
       ]
     },
     {
-      "session_id": 164,
+      "session_id": 116,
       "group_id": "counters-plus",
       "group_label": "+1/+1 Counters",
       "status": "ready",
@@ -19862,7 +19430,7 @@
       ]
     },
     {
-      "session_id": 165,
+      "session_id": 117,
       "group_id": "counters-plus",
       "group_label": "+1/+1 Counters",
       "status": "blocked",
@@ -19935,7 +19503,7 @@
       ]
     },
     {
-      "session_id": 166,
+      "session_id": 118,
       "group_id": "counters-plus",
       "group_label": "+1/+1 Counters",
       "status": "deferred",
@@ -19991,11 +19559,11 @@
       ]
     },
     {
-      "session_id": 167,
+      "session_id": 119,
       "group_id": "death-trigger",
       "group_label": "Death Triggers",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 10,
       "cards": [
         {
           "name": "Cruel Celebrant",
@@ -20114,16 +19682,7 @@
           "priority_score": 126.3,
           "source": "both",
           "oracle_text": "Other Goblins you control get +1/+1.\nWhenever this creature or another Goblin you control dies, exile the top card of your library. If it's a Goblin creature card, you may cast that card until the end of your next turn."
-        }
-      ]
-    },
-    {
-      "session_id": 168,
-      "group_id": "death-trigger",
-      "group_label": "Death Triggers",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Elderfang Venom",
           "types": [
@@ -20153,7 +19712,16 @@
           "priority_score": 124.8,
           "source": "both",
           "oracle_text": "Deathtouch\nWhenever another creature you control enters, you gain 1 life.\nWhenever another creature you control dies, each opponent loses 1 life."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 120,
+      "group_id": "death-trigger",
+      "group_label": "Death Triggers",
+      "status": "ready",
+      "card_count": 10,
+      "cards": [
         {
           "name": "Kaya's Ghostform",
           "types": [
@@ -20245,16 +19813,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Whenever this creature or another Vampire you control dies, you may pay {B}. If you do, target player loses 2 life and you gain 2 life."
-        }
-      ]
-    },
-    {
-      "session_id": 169,
-      "group_id": "death-trigger",
-      "group_label": "Death Triggers",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Wirewood Herald",
           "types": [
@@ -20314,7 +19873,16 @@
           "priority_score": 72.0,
           "source": "edhrec",
           "oracle_text": "Whenever a creature dies, put a charge counter on this enchantment.\nAt the beginning of your first main phase, add {B} for each charge counter on this enchantment."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 121,
+      "group_id": "death-trigger",
+      "group_label": "Death Triggers",
+      "status": "ready",
+      "card_count": 4,
+      "cards": [
         {
           "name": "Kokusho, the Evening Star",
           "types": [
@@ -20382,11 +19950,11 @@
       ]
     },
     {
-      "session_id": 170,
+      "session_id": 122,
       "group_id": "death-trigger",
       "group_label": "Death Triggers",
       "status": "blocked",
-      "card_count": 8,
+      "card_count": 10,
       "cards": [
         {
           "name": "Blood Artist",
@@ -20507,16 +20075,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Whenever this creature or another creature or artifact you control dies, target opponent loses 1 life and you gain 1 life.\nWarp {B} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)"
-        }
-      ]
-    },
-    {
-      "session_id": 171,
-      "group_id": "death-trigger",
-      "group_label": "Death Triggers",
-      "status": "blocked",
-      "card_count": 2,
-      "cards": [
+        },
         {
           "name": "Falkenrath Noble",
           "types": [
@@ -20553,7 +20112,7 @@
       ]
     },
     {
-      "session_id": 172,
+      "session_id": 123,
       "group_id": "activated-tap",
       "group_label": "Activated \u2014 Tap Cost",
       "status": "ready",
@@ -20676,7 +20235,7 @@
       ]
     },
     {
-      "session_id": 173,
+      "session_id": 124,
       "group_id": "activated-tap",
       "group_label": "Activated \u2014 Tap Cost",
       "status": "ready",
@@ -20800,7 +20359,7 @@
       ]
     },
     {
-      "session_id": 174,
+      "session_id": 125,
       "group_id": "activated-tap",
       "group_label": "Activated \u2014 Tap Cost",
       "status": "ready",
@@ -20924,7 +20483,7 @@
       ]
     },
     {
-      "session_id": 175,
+      "session_id": 126,
       "group_id": "activated-tap",
       "group_label": "Activated \u2014 Tap Cost",
       "status": "ready",
@@ -20947,7 +20506,7 @@
       ]
     },
     {
-      "session_id": 176,
+      "session_id": 127,
       "group_id": "activated-tap",
       "group_label": "Activated \u2014 Tap Cost",
       "status": "blocked",
@@ -20988,11 +20547,11 @@
       ]
     },
     {
-      "session_id": 177,
+      "session_id": 128,
       "group_id": "mana-creature",
       "group_label": "Mana \u2014 Creatures (Dorks)",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 16,
       "cards": [
         {
           "name": "Elves of Deep Shadow",
@@ -21115,16 +20674,7 @@
           "priority_score": 132.3,
           "source": "both",
           "oracle_text": "Vigilance\nCreatures you control have \"{T}: Add one mana of any color.\"\nWhen Enduring Vitality dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)"
-        }
-      ]
-    },
-    {
-      "session_id": 178,
-      "group_id": "mana-creature",
-      "group_label": "Mana \u2014 Creatures (Dorks)",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Canopy Tactician",
           "types": [
@@ -21249,7 +20799,7 @@
       ]
     },
     {
-      "session_id": 179,
+      "session_id": 129,
       "group_id": "mana-creature",
       "group_label": "Mana \u2014 Creatures (Dorks)",
       "status": "ready",
@@ -21302,7 +20852,7 @@
       ]
     },
     {
-      "session_id": 180,
+      "session_id": 130,
       "group_id": "cant-restriction",
       "group_label": "Restrictions & Stax",
       "status": "ready",
@@ -21425,7 +20975,7 @@
       ]
     },
     {
-      "session_id": 181,
+      "session_id": 131,
       "group_id": "cant-restriction",
       "group_label": "Restrictions & Stax",
       "status": "ready",
@@ -21549,7 +21099,7 @@
       ]
     },
     {
-      "session_id": 182,
+      "session_id": 132,
       "group_id": "cant-restriction",
       "group_label": "Restrictions & Stax",
       "status": "ready",
@@ -21672,7 +21222,7 @@
       ]
     },
     {
-      "session_id": 183,
+      "session_id": 133,
       "group_id": "cant-restriction",
       "group_label": "Restrictions & Stax",
       "status": "blocked",
@@ -21695,7 +21245,7 @@
       ]
     },
     {
-      "session_id": 184,
+      "session_id": 134,
       "group_id": "activated-sacrifice",
       "group_label": "Activated \u2014 Sacrifice Cost",
       "status": "ready",
@@ -21823,7 +21373,7 @@
       ]
     },
     {
-      "session_id": 185,
+      "session_id": 135,
       "group_id": "activated-sacrifice",
       "group_label": "Activated \u2014 Sacrifice Cost",
       "status": "ready",
@@ -21946,7 +21496,7 @@
       ]
     },
     {
-      "session_id": 186,
+      "session_id": 136,
       "group_id": "activated-sacrifice",
       "group_label": "Activated \u2014 Sacrifice Cost",
       "status": "ready",
@@ -21997,7 +21547,7 @@
       ]
     },
     {
-      "session_id": 187,
+      "session_id": 137,
       "group_id": "graveyard-recursion",
       "group_label": "Graveyard Recursion",
       "status": "ready",
@@ -22125,7 +21675,7 @@
       ]
     },
     {
-      "session_id": 188,
+      "session_id": 138,
       "group_id": "graveyard-recursion",
       "group_label": "Graveyard Recursion",
       "status": "ready",
@@ -22148,7 +21698,7 @@
       ]
     },
     {
-      "session_id": 189,
+      "session_id": 139,
       "group_id": "graveyard-recursion",
       "group_label": "Graveyard Recursion",
       "status": "blocked",
@@ -22274,7 +21824,7 @@
       ]
     },
     {
-      "session_id": 190,
+      "session_id": 140,
       "group_id": "graveyard-recursion",
       "group_label": "Graveyard Recursion",
       "status": "deferred",
@@ -22298,11 +21848,11 @@
       ]
     },
     {
-      "session_id": 191,
+      "session_id": 141,
       "group_id": "removal-damage-target",
       "group_label": "Removal \u2014 Targeted Damage",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Boros Charm",
@@ -22422,16 +21972,7 @@
           "priority_score": 130.5,
           "source": "both",
           "oracle_text": "Equipped creature gets +2/+2 and has protection from red and from blue.\nWhenever equipped creature deals combat damage to a player, this Equipment deals 2 damage to any target and you draw a card.\nEquip {2}"
-        }
-      ]
-    },
-    {
-      "session_id": 192,
-      "group_id": "removal-damage-target",
-      "group_label": "Removal \u2014 Targeted Damage",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Goblin Sharpshooter",
           "types": [
@@ -22492,7 +22033,16 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Tap an untapped creature you control: This enchantment deals 1 damage to target player or planeswalker."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 142,
+      "group_id": "removal-damage-target",
+      "group_label": "Removal \u2014 Targeted Damage",
+      "status": "ready",
+      "card_count": 9,
+      "cards": [
         {
           "name": "Niv-Mizzet, Parun",
           "types": [
@@ -22550,16 +22100,7 @@
           "priority_score": 34.1,
           "source": "edhrec",
           "oracle_text": "When this creature enters, create three 1/1 red Goblin creature tokens.\n{1}{R}, Sacrifice a Goblin: This creature deals 2 damage to any target."
-        }
-      ]
-    },
-    {
-      "session_id": 193,
-      "group_id": "removal-damage-target",
-      "group_label": "Removal \u2014 Targeted Damage",
-      "status": "ready",
-      "card_count": 5,
-      "cards": [
+        },
         {
           "name": "Drakuseth, Maw of Flames",
           "types": [
@@ -22637,7 +22178,7 @@
       ]
     },
     {
-      "session_id": 194,
+      "session_id": 143,
       "group_id": "removal-damage-target",
       "group_label": "Removal \u2014 Targeted Damage",
       "status": "blocked",
@@ -22674,11 +22215,11 @@
       ]
     },
     {
-      "session_id": 195,
+      "session_id": 144,
       "group_id": "pump-buff",
       "group_label": "Pump & Buff",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Return of the Wildspeaker",
@@ -22795,16 +22336,7 @@
           "priority_score": 136.6,
           "source": "both",
           "oracle_text": "Target creature gets +1/+0 and gains infect until end of turn. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)"
-        }
-      ]
-    },
-    {
-      "session_id": 196,
-      "group_id": "pump-buff",
-      "group_label": "Pump & Buff",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Dwynen, Gilt-Leaf Daen",
           "types": [
@@ -22862,7 +22394,16 @@
           "priority_score": 120.5,
           "source": "both",
           "oracle_text": "Whenever a Goblin you control enters, you may put a quest counter on this enchantment.\nAs long as this enchantment has five or more quest counters on it, creatures you control get +2/+0."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 145,
+      "group_id": "pump-buff",
+      "group_label": "Pump & Buff",
+      "status": "ready",
+      "card_count": 12,
+      "cards": [
         {
           "name": "Vampire Nocturnus",
           "types": [
@@ -22920,16 +22461,7 @@
           "priority_score": 39.1,
           "source": "edhrec",
           "oracle_text": "Creatures you control get +1/+1 and have flying and indestructible.\nAt the beginning of your upkeep, sacrifice a creature. If you can't, sacrifice this artifact."
-        }
-      ]
-    },
-    {
-      "session_id": 197,
-      "group_id": "pump-buff",
-      "group_label": "Pump & Buff",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Sword of the Paruns",
           "types": [
@@ -23060,7 +22592,7 @@
       ]
     },
     {
-      "session_id": 198,
+      "session_id": 146,
       "group_id": "pump-buff",
       "group_label": "Pump & Buff",
       "status": "ready",
@@ -23097,7 +22629,7 @@
       ]
     },
     {
-      "session_id": 199,
+      "session_id": 147,
       "group_id": "pump-buff",
       "group_label": "Pump & Buff",
       "status": "blocked",
@@ -23120,11 +22652,11 @@
       ]
     },
     {
-      "session_id": 200,
+      "session_id": 148,
       "group_id": "attack-trigger",
       "group_label": "Attack Triggers",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 10,
       "cards": [
         {
           "name": "Shared Animosity",
@@ -23242,16 +22774,7 @@
           "priority_score": 120.5,
           "source": "both",
           "oracle_text": "Whenever a creature you control attacks, defending player loses 1 life and you gain 1 life.\n{3}{R/W}{R/W}: Creatures your opponents control block this turn if able, and you choose how those creatures block."
-        }
-      ]
-    },
-    {
-      "session_id": 201,
-      "group_id": "attack-trigger",
-      "group_label": "Attack Triggers",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Kozilek, Butcher of Truth",
           "types": [
@@ -23281,7 +22804,16 @@
           "priority_score": 117.3,
           "source": "both",
           "oracle_text": "Whenever this creature attacks, untap each other creature you control."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 149,
+      "group_id": "attack-trigger",
+      "group_label": "Attack Triggers",
+      "status": "ready",
+      "card_count": 10,
+      "cards": [
         {
           "name": "Trench Behemoth",
           "types": [
@@ -23376,16 +22908,7 @@
           "priority_score": 39.5,
           "source": "edhrec",
           "oracle_text": "Flying, trample\nWhenever a Dragon you control attacks, it gains double strike until end of turn."
-        }
-      ]
-    },
-    {
-      "session_id": 202,
-      "group_id": "attack-trigger",
-      "group_label": "Attack Triggers",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Norn's Decree",
           "types": [
@@ -23450,7 +22973,16 @@
           "priority_score": 26.0,
           "source": "edhrec",
           "oracle_text": "Flying, hexproof\nWhenever a Dragon you control attacks, creatures defending player controls get -1/-1 until end of turn."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 150,
+      "group_id": "attack-trigger",
+      "group_label": "Attack Triggers",
+      "status": "ready",
+      "card_count": 10,
+      "cards": [
         {
           "name": "Goblin Piledriver",
           "types": [
@@ -23514,16 +23046,7 @@
           "priority_score": 20.7,
           "source": "edhrec",
           "oracle_text": "Whenever a creature you control with power 2 or less attacks, this enchantment deals 1 damage to the player or planeswalker that creature is attacking."
-        }
-      ]
-    },
-    {
-      "session_id": 203,
-      "group_id": "attack-trigger",
-      "group_label": "Attack Triggers",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Rhys the Exiled",
           "types": [
@@ -23620,7 +23143,16 @@
           "priority_score": 16.2,
           "source": "edhrec",
           "oracle_text": "Flying\nMelee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)\nLieutenant \u2014 As long as you control your commander, other creatures you control have melee."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 151,
+      "group_id": "attack-trigger",
+      "group_label": "Attack Triggers",
+      "status": "ready",
+      "card_count": 3,
+      "cards": [
         {
           "name": "Raiyuu, Storm's Edge",
           "types": [
@@ -23650,16 +23182,7 @@
           "priority_score": 15.5,
           "source": "edhrec",
           "oracle_text": "Whenever this creature attacks, you may pay {R}. If you do, target creature can't block this turn."
-        }
-      ]
-    },
-    {
-      "session_id": 204,
-      "group_id": "attack-trigger",
-      "group_label": "Attack Triggers",
-      "status": "ready",
-      "card_count": 1,
-      "cards": [
+        },
         {
           "name": "Caustic Bronco",
           "types": [
@@ -23679,7 +23202,7 @@
       ]
     },
     {
-      "session_id": 205,
+      "session_id": 152,
       "group_id": "attack-trigger",
       "group_label": "Attack Triggers",
       "status": "blocked",
@@ -23705,11 +23228,11 @@
       ]
     },
     {
-      "session_id": 206,
+      "session_id": 153,
       "group_id": "removal-exile",
       "group_label": "Removal \u2014 Exile",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 11,
       "cards": [
         {
           "name": "Despark",
@@ -23826,16 +23349,7 @@
           "priority_score": 122.1,
           "source": "both",
           "oracle_text": "Sacrifice three white creatures: Exile target creature.\nWhenever another black creature you control dies, create a 1/1 white Spirit creature token with flying."
-        }
-      ]
-    },
-    {
-      "session_id": 207,
-      "group_id": "removal-exile",
-      "group_label": "Removal \u2014 Exile",
-      "status": "ready",
-      "card_count": 3,
-      "cards": [
+        },
         {
           "name": "Resculpt",
           "types": [
@@ -23884,7 +23398,7 @@
       ]
     },
     {
-      "session_id": 208,
+      "session_id": 154,
       "group_id": "removal-exile",
       "group_label": "Removal \u2014 Exile",
       "status": "blocked",
@@ -23909,7 +23423,7 @@
       ]
     },
     {
-      "session_id": 209,
+      "session_id": 155,
       "group_id": "removal-exile",
       "group_label": "Removal \u2014 Exile",
       "status": "deferred",
@@ -23949,11 +23463,11 @@
       ]
     },
     {
-      "session_id": 210,
+      "session_id": 156,
       "group_id": "counter",
       "group_label": "Counterspells",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Force of Will",
@@ -24068,16 +23582,7 @@
           "priority_score": 121.4,
           "source": "both",
           "oracle_text": "Choose one \u2014\n\u2022 Counter target spell.\n\u2022 Target player draws two cards.\n\u2022 Gain control of target nonland permanent with mana value 1 or less."
-        }
-      ]
-    },
-    {
-      "session_id": 211,
-      "group_id": "counter",
-      "group_label": "Counterspells",
-      "status": "ready",
-      "card_count": 7,
-      "cards": [
+        },
         {
           "name": "Access Denied",
           "types": [
@@ -24135,7 +23640,16 @@
           "priority_score": 110.0,
           "source": "both",
           "oracle_text": "Counter target spell. If that spell is countered this way, put it on top of its owner's library instead of into that player's graveyard."
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 157,
+      "group_id": "counter",
+      "group_label": "Counterspells",
+      "status": "ready",
+      "card_count": 3,
+      "cards": [
         {
           "name": "Mental Misstep",
           "types": [
@@ -24181,7 +23695,7 @@
       ]
     },
     {
-      "session_id": 212,
+      "session_id": 158,
       "group_id": "counter",
       "group_label": "Counterspells",
       "status": "blocked",
@@ -24207,7 +23721,7 @@
       ]
     },
     {
-      "session_id": 213,
+      "session_id": 159,
       "group_id": "tutor",
       "group_label": "Tutors",
       "status": "ready",
@@ -24338,7 +23852,7 @@
       ]
     },
     {
-      "session_id": 214,
+      "session_id": 160,
       "group_id": "tutor",
       "group_label": "Tutors",
       "status": "ready",
@@ -24391,7 +23905,7 @@
       ]
     },
     {
-      "session_id": 215,
+      "session_id": 161,
       "group_id": "untap-phase",
       "group_label": "Untap & Phase Effects",
       "status": "ready",
@@ -24512,7 +24026,7 @@
       ]
     },
     {
-      "session_id": 216,
+      "session_id": 162,
       "group_id": "untap-phase",
       "group_label": "Untap & Phase Effects",
       "status": "ready",
@@ -24581,7 +24095,7 @@
       ]
     },
     {
-      "session_id": 217,
+      "session_id": 163,
       "group_id": "untap-phase",
       "group_label": "Untap & Phase Effects",
       "status": "blocked",
@@ -24604,11 +24118,11 @@
       ]
     },
     {
-      "session_id": 218,
+      "session_id": 164,
       "group_id": "removal-damage-each",
       "group_label": "Removal \u2014 Damage Sweeper",
       "status": "ready",
-      "card_count": 8,
+      "card_count": 12,
       "cards": [
         {
           "name": "Witty Roastmaster",
@@ -24736,16 +24250,7 @@
           "priority_score": 100.0,
           "source": "deck",
           "oracle_text": "Choose two \u2014\n\u2022 Incendiary Command deals 4 damage to target player or planeswalker.\n\u2022 Incendiary Command deals 2 damage to each creature.\n\u2022 Destroy target nonbasic land.\n\u2022 Each player discards all the cards in their hand, then draws that many cards."
-        }
-      ]
-    },
-    {
-      "session_id": 219,
-      "group_id": "removal-damage-each",
-      "group_label": "Removal \u2014 Damage Sweeper",
-      "status": "ready",
-      "card_count": 8,
-      "cards": [
+        },
         {
           "name": "Omnath, Locus of Creation",
           "types": [
@@ -24806,7 +24311,16 @@
           "priority_score": 26.1,
           "source": "edhrec",
           "oracle_text": "Whenever another creature you control enters, this creature deals 1 damage to each opponent.\nUnearth {R} ({R}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)"
-        },
+        }
+      ]
+    },
+    {
+      "session_id": 165,
+      "group_id": "removal-damage-each",
+      "group_label": "Removal \u2014 Damage Sweeper",
+      "status": "ready",
+      "card_count": 5,
+      "cards": [
         {
           "name": "Vindictive Vampire",
           "types": [
@@ -24862,16 +24376,7 @@
           "priority_score": 17.5,
           "source": "edhrec",
           "oracle_text": "At the beginning of your upkeep, this creature deals 1 damage to each opponent. You gain life equal to the damage dealt this way."
-        }
-      ]
-    },
-    {
-      "session_id": 220,
-      "group_id": "removal-damage-each",
-      "group_label": "Removal \u2014 Damage Sweeper",
-      "status": "ready",
-      "card_count": 1,
-      "cards": [
+        },
         {
           "name": "Goblin Chainwhirler",
           "types": [
@@ -24891,7 +24396,7 @@
       ]
     },
     {
-      "session_id": 221,
+      "session_id": 166,
       "group_id": "removal-bounce",
       "group_label": "Removal \u2014 Bounce",
       "status": "ready",
@@ -25004,7 +24509,7 @@
       ]
     },
     {
-      "session_id": 222,
+      "session_id": 167,
       "group_id": "removal-bounce",
       "group_label": "Removal \u2014 Bounce",
       "status": "blocked",
@@ -25061,7 +24566,7 @@
       ]
     },
     {
-      "session_id": 223,
+      "session_id": 168,
       "group_id": "equipment",
       "group_label": "Equipment",
       "status": "ready",
@@ -25198,7 +24703,7 @@
       ]
     },
     {
-      "session_id": 224,
+      "session_id": 169,
       "group_id": "equipment",
       "group_label": "Equipment",
       "status": "ready",
@@ -25223,7 +24728,7 @@
       ]
     },
     {
-      "session_id": 225,
+      "session_id": 170,
       "group_id": "equipment",
       "group_label": "Equipment",
       "status": "blocked",
@@ -25264,7 +24769,7 @@
       ]
     },
     {
-      "session_id": 226,
+      "session_id": 171,
       "group_id": "opponent-punish",
       "group_label": "Opponent Punishment",
       "status": "ready",
@@ -25389,7 +24894,7 @@
       ]
     },
     {
-      "session_id": 227,
+      "session_id": 172,
       "group_id": "opponent-punish",
       "group_label": "Opponent Punishment",
       "status": "ready",
@@ -25412,7 +24917,7 @@
       ]
     },
     {
-      "session_id": 228,
+      "session_id": 173,
       "group_id": "opponent-punish",
       "group_label": "Opponent Punishment",
       "status": "blocked",
@@ -25465,7 +24970,7 @@
       ]
     },
     {
-      "session_id": 229,
+      "session_id": 174,
       "group_id": "discard-effect",
       "group_label": "Discard Effects",
       "status": "ready",
@@ -25572,7 +25077,7 @@
       ]
     },
     {
-      "session_id": 230,
+      "session_id": 175,
       "group_id": "cost-reduction",
       "group_label": "Cost Reduction",
       "status": "ready",
@@ -25695,7 +25200,7 @@
       ]
     },
     {
-      "session_id": 231,
+      "session_id": 176,
       "group_id": "cost-reduction",
       "group_label": "Cost Reduction",
       "status": "ready",
@@ -25762,7 +25267,7 @@
       ]
     },
     {
-      "session_id": 232,
+      "session_id": 177,
       "group_id": "aura",
       "group_label": "Auras & Enchantments",
       "status": "ready",
@@ -25868,7 +25373,7 @@
       ]
     },
     {
-      "session_id": 233,
+      "session_id": 178,
       "group_id": "sacrifice-outlet",
       "group_label": "Sacrifice Outlets",
       "status": "ready",
@@ -25961,7 +25466,7 @@
       ]
     },
     {
-      "session_id": 234,
+      "session_id": 179,
       "group_id": "static-enchantment",
       "group_label": "Static Enchantments & Anthems",
       "status": "ready",
@@ -26058,7 +25563,7 @@
       ]
     },
     {
-      "session_id": 235,
+      "session_id": 180,
       "group_id": "static-enchantment",
       "group_label": "Static Enchantments & Anthems",
       "status": "blocked",
@@ -26099,7 +25604,7 @@
       ]
     },
     {
-      "session_id": 236,
+      "session_id": 181,
       "group_id": "scry-surveil",
       "group_label": "Scry & Surveil",
       "status": "ready",
@@ -26226,7 +25731,7 @@
       ]
     },
     {
-      "session_id": 237,
+      "session_id": 182,
       "group_id": "mana-other",
       "group_label": "Mana \u2014 Other",
       "status": "ready",
@@ -26309,7 +25814,7 @@
       ]
     },
     {
-      "session_id": 238,
+      "session_id": 183,
       "group_id": "lifedrain",
       "group_label": "Life Drain",
       "status": "ready",
@@ -26407,7 +25912,7 @@
       ]
     },
     {
-      "session_id": 239,
+      "session_id": 184,
       "group_id": "etb-trigger",
       "group_label": "ETB Triggers",
       "status": "ready",
@@ -26497,7 +26002,7 @@
       ]
     },
     {
-      "session_id": 240,
+      "session_id": 185,
       "group_id": "etb-trigger",
       "group_label": "ETB Triggers",
       "status": "blocked",
@@ -26522,7 +26027,7 @@
       ]
     },
     {
-      "session_id": 241,
+      "session_id": 186,
       "group_id": "lifegain",
       "group_label": "Life Gain",
       "status": "ready",
@@ -26607,7 +26112,7 @@
       ]
     },
     {
-      "session_id": 242,
+      "session_id": 187,
       "group_id": "protection",
       "group_label": "Protection",
       "status": "ready",
@@ -26630,7 +26135,7 @@
       ]
     },
     {
-      "session_id": 243,
+      "session_id": 188,
       "group_id": "removal-minus",
       "group_label": "Removal \u2014 Debuff",
       "status": "ready",
@@ -26701,7 +26206,7 @@
       ]
     },
     {
-      "session_id": 244,
+      "session_id": 189,
       "group_id": "x-spell",
       "group_label": "X-Cost Spells",
       "status": "ready",
@@ -26726,7 +26231,7 @@
       ]
     },
     {
-      "session_id": 245,
+      "session_id": 190,
       "group_id": "exile-play",
       "group_label": "Exile & Impulse Draw",
       "status": "ready",
