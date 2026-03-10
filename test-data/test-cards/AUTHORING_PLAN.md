@@ -56,7 +56,145 @@ text maps to a single, known DSL pattern.
 
 **Output**: One `.rs` file per card in `crates/engine/src/cards/defs/`. `build.rs` auto-discovers.
 
-**Estimated effort**: Write the script (~200 lines), run it, `cargo build` to verify.
+**Estimated effort**: Write the script (~300-400 lines), run it, `cargo build` to verify.
+
+#### `bulk_generate.py` Detailed Spec
+
+**Location**: `test-data/test-cards/bulk_generate.py`
+
+**Inputs**:
+- `_authoring_plan.json` — session groups (knows which cards are in which group)
+- `cards.sqlite` — oracle text, type_line, mana_cost, power, toughness, subtypes
+- `crates/engine/src/cards/defs/` — skip already-existing files
+
+**Card ID convention**: `cid("card-name")` — lowercase, spaces→hyphens, strip apostrophes/commas.
+Use same slug logic as `generate_skeleton.py`.
+
+**File name convention**: `card_name.rs` — lowercase, spaces→underscores, strip apostrophes/commas/colons.
+
+**All generated files use**: `use crate::cards::helpers::*;`
+
+**Helper functions available** (from `crates/engine/src/cards/helpers.rs`):
+- `cid(s: &str) -> CardId` — creates card ID from slug
+- `types(card_types: &[CardType]) -> TypeLine` — basic type line
+- `types_sub(card_types: &[CardType], subtypes: &[&str]) -> TypeLine` — with subtypes
+- `creature_types(subtypes: &[&str]) -> TypeLine` — shorthand for creature with subtypes
+- `mana_pool(w: u32, u: u32, b: u32, r: u32, g: u32, colorless: u32) -> ManaPool`
+- `treasure_token_spec(count: u32) -> TokenSpec`
+
+**ManaCost parsing** — parse `{2}{B}{G}` into `ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }`.
+Lands have `mana_cost: None`. Mana cost string format: `{X}` = generic X, `{W}` = white, `{U}` = blue,
+`{B}` = black, `{R}` = red, `{G}` = green, `{C}` = colorless, `{0}` = zero.
+
+**Subtype parsing** — extract from SQLite `type_line` column. Format: `"Creature — Elf Druid"` →
+subtypes are everything after `—`, split by space. For lands: `"Land — Gate"` → `&["Gate"]`.
+
+**Template 1: Body Only** (`group_id == "body-only"`)
+```rust
+// Card Name
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("card-name"),
+        name: "Card Name".to_string(),
+        mana_cost: Some(ManaCost { ... }),  // or None for lands
+        types: creature_types(&["Subtype1", "Subtype2"]),  // or types(&[...])
+        oracle_text: "".to_string(),
+        power: Some(N),      // creatures only
+        toughness: Some(N),  // creatures only
+        abilities: vec![],
+        back_face: None,
+    }
+}
+```
+
+**Template 2: ETB Tapped Land** (`group_id == "land-etb-tapped"`)
+Reference: `crates/engine/src/cards/defs/dimir_guildgate.rs`
+```rust
+// Card Name — Land; enters tapped. {T}: Add {X} or {Y}.
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("card-name"),
+        name: "Card Name".to_string(),
+        mana_cost: None,
+        types: types_sub(&[CardType::Land], &["Subtype"]),  // or types(&[CardType::Land])
+        oracle_text: "...".to_string(),
+        abilities: vec![
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Choose {            // for 2+ colors
+                    prompt: "Add {X} or {Y}?".to_string(),
+                    choices: vec![
+                        Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(...) },
+                        Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(...) },
+                    ],
+                },
+                timing_restriction: None,
+            },
+        ],
+        ..Default::default()
+    }
+}
+```
+Variations:
+- Single color: use `Effect::AddMana` directly (no `Choose`)
+- Three colors (triomes): `Choose` with 3 options
+- Any color: `Effect::AddManaAnyColor { player: PlayerTarget::Controller }`
+- Conditional ETB ("unless you control..."): use same template + TODO comment for condition
+- Has additional abilities beyond mana (e.g., Castle Locthwain): skip template, leave for Phase 2
+
+**Template 3: Mana Land** (`group_id == "mana-land"`)
+Reference: `crates/engine/src/cards/defs/command_tower.rs`
+```rust
+// Same as ETB Tapped but WITHOUT the Replacement block.
+// Only the Activated { cost: Cost::Tap, effect: AddMana/AddManaAnyColor/Choose }
+```
+
+**Template 4: Mana Artifact** (`group_id == "mana-artifact"`)
+Reference: `crates/engine/src/cards/defs/arcane_signet.rs`
+```rust
+// Same as Mana Land but types: types(&[CardType::Artifact])
+// or types_sub(&[CardType::Artifact], &["Subtype"]) if it has subtypes
+// Has mana_cost: Some(ManaCost { ... })
+```
+
+**Template 5: Mana Creature** (`group_id == "mana-creature"`)
+Reference: `crates/engine/src/cards/defs/elvish_mystic.rs`
+```rust
+// Same activated ability but creature_types(&[...]) + power/toughness
+// Has mana_cost, power: Some(N), toughness: Some(N), back_face: None
+```
+
+**Mana color parsing from oracle text**:
+```python
+# Parse "{T}: Add {W} or {B}." or "{T}: Add {G}." or "{T}: Add {W}, {U}, or {B}."
+# Regex: r"\{T\}: Add (?:\{([WUBRGC])\}(?:,?\s*(?:or\s+)?)?)+"
+# Map: W=white, U=blue, B=black, R=red, G=green, C=colorless
+# "any color" / "one mana of any color" → AddManaAnyColor
+```
+
+**Skip rules** — do NOT template a card if:
+- It has additional oracle text beyond the mana ability (e.g., "Whenever you tap..." or "When ~ enters...")
+- It has a complex ETB condition not expressible as `EntersTapped`
+- Its oracle text can't be fully parsed by the template regex
+- A file already exists at the target path
+
+For skipped cards, log the name and reason so they fall through to Phase 2.
+
+**Script output**:
+- Creates `.rs` files
+- Prints summary: N files created, M skipped (with reasons)
+- Writes `_bulk_generate_log.json` with per-card results
 
 ### Phase 2: Skeleton + Bulk Abilities Agent (agent-assisted)
 
