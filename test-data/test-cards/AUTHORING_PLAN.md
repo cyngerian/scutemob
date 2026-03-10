@@ -290,7 +290,7 @@ Every card definition — whether templated or agent-written — must be audited
 ### Audit Process
 
 1. **Batch size**: 5 cards per reviewer agent invocation
-2. **Agent**: `ability-impl-reviewer` (Opus) — already proven in the 20-card batch
+2. **Agent**: `card-batch-reviewer` (Opus, yellow) — purpose-built for card def review
 3. **Per card, the reviewer checks**:
    - Oracle text matches Scryfall (via `mcp__mtg-rules__lookup_card`)
    - Mana cost, types, subtypes, P/T are correct
@@ -356,6 +356,164 @@ is not blocking.
 
 ---
 
+## Session Workflow (step-by-step for orchestrating agent)
+
+This is the exact procedure the orchestrating Claude session follows. Each "wave"
+processes one authoring plan group. The orchestrator does NOT write card defs directly —
+it invokes agents and tracks their output.
+
+### Agents Used
+
+| Agent | Color | Model | Purpose |
+|-------|-------|-------|---------|
+| `bulk-card-author` | white | Sonnet | Write card def files (batch of 8-20) |
+| `card-batch-reviewer` | yellow | Opus | Review card defs against oracle text (batch of 5) |
+| `ability-impl-runner` | green | Sonnet | Apply fixes from reviewer findings |
+
+### Per-Wave Procedure
+
+Each wave = one group from `_authoring_plan.json` (e.g., all "Lands — ETB Tapped" sessions).
+
+#### Step 1: Create wave plan
+
+Before launching any agents, create a tracking file at
+`memory/card-authoring/wave-NNN-<group>.md` with this template:
+
+```markdown
+# Wave NNN: <Group Label>
+
+**Sessions**: S001, S002, S003
+**Cards**: <total count>
+**Batch size**: <N>
+
+## Author Phase
+- [ ] S001: <card1>, <card2>, ... (8 cards)
+- [ ] S002: <card1>, <card2>, ... (8 cards)
+
+## Review Phase
+- [ ] Review batch 1: <card1-5 from S001>
+- [ ] Review batch 2: <card6-8 from S001 + card1-2 from S002>
+- [ ] ...
+
+## Fix Phase
+- [ ] Fix batch 1 findings
+- [ ] Fix batch 2 findings
+
+## Status: PENDING
+```
+
+#### Step 2: Author phase (bulk-card-author agent)
+
+For each session in the wave:
+
+```
+Agent subagent_type="bulk-card-author"
+  prompt="Author session <N> from the authoring plan.
+    Read /home/airbaggie/scutemob/test-data/test-cards/_authoring_plan.json
+    and find session_id <N>. Write all card definition files for that session.
+    Run cargo build after writing all files."
+```
+
+- Run up to 2 author agents in parallel (they write to separate files)
+- After each agent completes, check off the session in the wave plan
+- After ALL author sessions in the wave complete, run `cargo build --lib -p mtg-engine`
+  and `cargo test --all` to verify
+
+#### Step 3: Review phase (card-batch-reviewer agent)
+
+Split all authored cards from the wave into review batches of 5 cards each.
+
+```
+Agent subagent_type="card-batch-reviewer"
+  prompt="Review these 5 card definitions against their oracle text:
+    1. crates/engine/src/cards/defs/<file1>.rs (<Card Name 1>)
+    2. crates/engine/src/cards/defs/<file2>.rs (<Card Name 2>)
+    ...
+    Write findings to memory/card-authoring/review-wave-NNN-batch-M.md"
+```
+
+- Run up to 4 reviewer agents in parallel (proven in 20-card batch)
+- After each reviewer completes, check off the review batch in the wave plan
+- Collect all HIGH and MEDIUM findings
+
+#### Step 4: Fix phase
+
+If any HIGH or MEDIUM findings:
+
+```
+Agent subagent_type="ability-impl-runner"
+  prompt="Fix these review findings for card definitions:
+    <paste HIGH/MEDIUM findings from review>
+    Read the review file at memory/card-authoring/review-wave-NNN-batch-M.md
+    Apply each fix, run cargo build after each change."
+```
+
+- Or apply fixes directly if they're simple (field name, wrong filter, vec![] swap)
+- After fixes, run `cargo build` and `cargo test --all`
+- Check off fix batches in wave plan
+
+#### Step 5: Commit and update wave plan
+
+```bash
+git add crates/engine/src/cards/defs/*.rs
+git commit -m "W5-cards: author <group label> (<N> cards)"
+```
+
+Update wave plan status to COMPLETE. Update the authoring plan session data
+if needed (mark sessions as done).
+
+### Wave Execution Order
+
+Process waves in this priority order (highest-value groups first):
+
+| Wave | Group | Sessions | Cards | Batch | Priority |
+|------|-------|----------|-------|-------|----------|
+| 1 | Lands — ETB Tapped | 8 | 122 | 16 | Highest (most cards, simple pattern) |
+| 2 | Combat Keyword Creatures | 11 | 163 | 16 | High (formulaic) |
+| 3 | Mana — Lands | 6 | 84 | 16 | High (formulaic) |
+| 4 | Mana — Artifacts (Rocks) | 3 | 33 | 16 | High (formulaic) |
+| 5 | Mana — Creatures (Dorks) | 2 | 19 | 16 | High (formulaic) |
+| 6 | Body Only | 3 | 55 | 20 | High (trivial) |
+| 7 | Draw & Card Advantage | 14 | 161 | 12 | Medium |
+| 8 | Token Creators | 13 | 146 | 12 | Medium |
+| 9 | Removal — Destroy | 4 | 48 | 12 | Medium |
+| 10 | Modal & Choice Spells | 13 | 100 | 8 | Medium-Complex |
+| 11+ | Remaining groups | ~78 | ~540 | 8-12 | Lower |
+
+### Tracking Between Sessions
+
+After each Claude session ends (`/end-session`), the wave plan file persists in
+`memory/card-authoring/`. The next session reads it to know where to resume.
+
+The orchestrator checks:
+1. Which wave is in progress? → Resume it
+2. All waves done? → Move to next priority group
+3. How many cards are authored total? → Update CLAUDE.md
+
+### Example: Running Wave 1
+
+```
+Orchestrator:
+  1. Read _authoring_plan.json, find all sessions with group_id="land-etb-tapped", status="ready"
+  2. Create memory/card-authoring/wave-001-land-etb-tapped.md with session checklist
+  3. Launch bulk-card-author for session S001 (background)
+  4. Launch bulk-card-author for session S002 (background)
+  5. Wait for both to complete
+  6. cargo build + cargo test
+  7. Check off S001, S002 in wave plan
+  8. Launch bulk-card-author for S003, S004 (background)
+  9. ... repeat until all author sessions done
+  10. Split all cards into review batches of 5
+  11. Launch 4 card-batch-reviewer agents in parallel
+  12. Wait, collect findings
+  13. Apply fixes (directly or via ability-impl-runner)
+  14. cargo build + cargo test
+  15. git commit
+  16. Update wave plan → COMPLETE
+```
+
+---
+
 ## Deferred Keyword Update
 
 Morph, Mutate, Transform, Disguise, Manifest, Cloak, Daybound, Nightbound are all
@@ -369,7 +527,7 @@ from `deferred` to `ready`.
 
 | File | Purpose |
 |------|---------|
-| `test-data/test-cards/AUTHORING_PLAN.md` | This plan |
+| `test-data/test-cards/AUTHORING_PLAN.md` | This plan (you are here) |
 | `test-data/test-cards/_authoring_plan.json` | Session data (groups, cards, oracle text) |
 | `test-data/test-cards/edhrec_all_commanders.json` | EDHREC data for 20 commanders |
 | `test-data/test-cards/generate_authoring_plan.py` | Generates `_authoring_plan.json` |
@@ -377,6 +535,9 @@ from `deferred` to `ready`.
 | `test-data/test-decks/generate_worklist.py` | Generates `_authoring_worklist.json` (TUI) |
 | `test-data/test-decks/_authoring_worklist.json` | TUI-facing card status |
 | `tools/generate_skeleton.py` | Creates skeleton `.rs` files from Scryfall data |
+| `.claude/agents/bulk-card-author.md` | Agent: write batch of card defs (Sonnet, white) |
+| `.claude/agents/card-batch-reviewer.md` | Agent: review card defs vs oracle (Opus, yellow) |
+| `memory/card-authoring/wave-NNN-*.md` | Per-wave tracking files (created during execution) |
 
 ---
 
