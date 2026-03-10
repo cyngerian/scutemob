@@ -18,7 +18,7 @@ description: |
   <commentary>Triggered when authoring by group.</commentary>
   </example>
 model: sonnet
-color: white
+color: purple
 maxTurns: 40
 tools: ["Write", "Edit", "Read", "Grep", "Glob", "Bash", "mcp__mtg-rules__lookup_card"]
 ---
