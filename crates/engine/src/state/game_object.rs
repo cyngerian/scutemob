@@ -494,6 +494,17 @@ pub struct GameObject {
     /// the attack declaration.
     #[serde(default)]
     pub decayed_sacrifice_at_eoc: bool,
+    /// CR 701.54c (ring level >= 3): If true, this creature blocked the ring-bearer
+    /// and must be sacrificed at end of combat by its controller.
+    ///
+    /// Set in `check_triggers` (abilities.rs) in the `BlockersDeclared` handler
+    /// when the attacker is a ring-bearer with ring_level >= 3.
+    ///
+    /// CR 701.54c: "that creature's controller sacrifices it at end of combat."
+    /// The sacrifice targets the specific blocking creature (not a generic
+    /// SacrificePermanents choice). Checked in `end_combat()` in turn_actions.rs.
+    #[serde(default)]
+    pub ring_block_sacrifice_at_eoc: bool,
     /// CR 702.75a / CR 607.2a: If set, this object in exile was exiled face-down
     /// by a Hideaway ETB trigger from the permanent with this ObjectId.
     ///

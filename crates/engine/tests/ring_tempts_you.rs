@@ -22,9 +22,10 @@
 //! - CR 701.54d: "Whenever the Ring tempts you" triggered ability fires on RingTempted event.
 
 use mtg_engine::{
-    calculate_characteristics, handle_ring_tempts_you, process_command, AttackTarget, CombatState,
-    Command, Designations, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
-    Step, SuperType, ZoneId,
+    calculate_characteristics, handle_ring_tempts_you, process_command, AbilityDefinition,
+    AttackTarget, CardDefinition, CardId, CardRegistry, CardType, CombatState, Command,
+    Designations, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaCost, ObjectId,
+    ObjectSpec, PlayerId, PlayerTarget, Step, SuperType, TriggerCondition, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -644,5 +645,258 @@ fn test_non_ring_bearer_no_blocking_restriction() {
     assert!(
         result.is_ok(),
         "Non-ring-bearer should be blockable by any creature regardless of ring level"
+    );
+}
+
+// ── Additional tests for review findings ──────────────────────────────────────
+
+fn is_on_battlefield(state: &GameState, name: &str) -> bool {
+    state
+        .objects
+        .values()
+        .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
+}
+
+/// CR 701.54c level 3: Blocker of ring-bearer is sacrificed at END of combat (not immediately).
+///
+/// This test verifies two things:
+/// 1. The blocker is NOT immediately sacrificed when DeclareBlockers is processed.
+/// 2. The `ring_block_sacrifice_at_eoc` flag is set on the specific blocker — not on any
+///    other permanent controlled by P2 (e.g., "Innocent Bystander").
+///
+/// The actual EOC sacrifice mechanism (flag check in `end_combat()`) is identical to the
+/// Decayed EOC pattern verified in `tests/decayed.rs`. We verify the flag is set correctly
+/// and only on the specific blocker.
+#[test]
+fn test_ring_level3_sacrifice_at_eoc() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::creature(p1, "Ring Bearer", 2, 2))
+        .object(ObjectSpec::creature(p2, "Blocker", 1, 1))
+        .object(ObjectSpec::creature(p2, "Innocent Bystander", 3, 3))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let bearer_id = find_object(&state, "Ring Bearer");
+    let blocker_id = find_object(&state, "Blocker");
+    let bystander_id = find_object(&state, "Innocent Bystander");
+
+    // Set ring level 3 and assign ring-bearer.
+    if let Some(ps) = state.players.get_mut(&p1) {
+        ps.ring_level = 3;
+    }
+    set_ring_bearer(&mut state, bearer_id, p1);
+
+    // Set up combat with ring-bearer attacking.
+    state.combat = Some({
+        let mut cs = CombatState::new(p1);
+        cs.attackers.insert(bearer_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    // P2 blocks with the 1/1 creature.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, bearer_id)],
+        },
+    )
+    .expect("DeclareBlockers should succeed");
+
+    // After declare-blockers, blocker should STILL be on the battlefield (NOT yet sacrificed).
+    // The bug in the old implementation was that the SacrificePermanents effect resolved
+    // immediately during the trigger resolution, before end of combat.
+    assert!(
+        is_on_battlefield(&state, "Blocker"),
+        "CR 701.54c: blocker should NOT be sacrificed immediately at declare-blockers time"
+    );
+
+    // The ring_block_sacrifice_at_eoc flag should be set on the SPECIFIC blocker.
+    let blocker_obj = state
+        .objects
+        .get(&blocker_id)
+        .expect("Blocker should still exist on battlefield");
+    assert!(
+        blocker_obj.ring_block_sacrifice_at_eoc,
+        "CR 701.54c: ring_block_sacrifice_at_eoc flag should be set on the specific blocker"
+    );
+
+    // The innocent bystander's flag should NOT be set — only the blocker is tagged.
+    let bystander_obj = state
+        .objects
+        .get(&bystander_id)
+        .expect("Innocent Bystander should still exist");
+    assert!(
+        !bystander_obj.ring_block_sacrifice_at_eoc,
+        "CR 701.54c: ring_block_sacrifice_at_eoc should NOT be set on other permanents"
+    );
+
+    // The ring-bearer (attacker) flag should also NOT be set.
+    let bearer_obj = state
+        .objects
+        .get(&bearer_id)
+        .expect("Ring Bearer should still exist");
+    assert!(
+        !bearer_obj.ring_block_sacrifice_at_eoc,
+        "CR 701.54c: ring_block_sacrifice_at_eoc should NOT be set on the attacker (ring-bearer)"
+    );
+}
+
+/// CR 701.54c level 4: When ring-bearer deals combat damage to a player,
+/// a RingCombatDamage trigger fires (each opponent loses 3 life).
+///
+/// Setup: P1 has ring level 4, ring-bearer attacks P2 who doesn't block. After
+/// CombatDamage is dealt, a RingAbility trigger should be on the stack or queued
+/// (controlled by P1, the ring-bearer's controller).
+///
+/// We verify the trigger is queued by checking that a RingCombatDamage PendingTrigger
+/// is generated from the CombatDamageDealt event via check_triggers, which is
+/// mechanically the same as verifying the trigger fires in practice.
+#[test]
+fn test_ring_level4_combat_damage_trigger_fires() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    use mtg_engine::rules::events::{CombatDamageAssignment, CombatDamageTarget};
+    use mtg_engine::state::stubs::PendingTriggerKind;
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::creature(p1, "Ring Bearer", 3, 3))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let bearer_id = find_object(&state, "Ring Bearer");
+
+    // Set ring level 4 and assign ring-bearer.
+    if let Some(ps) = state.players.get_mut(&p1) {
+        ps.ring_level = 4;
+    }
+    set_ring_bearer(&mut state, bearer_id, p1);
+
+    // Set up combat state with ring-bearer attacking P2 (no blockers).
+    state.combat = Some({
+        let mut cs = CombatState::new(p1);
+        cs.attackers.insert(bearer_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    // Simulate the CombatDamageDealt event — this is what triggers the ring level 4 path.
+    let damage_event = GameEvent::CombatDamageDealt {
+        assignments: vec![CombatDamageAssignment {
+            source: bearer_id,
+            target: CombatDamageTarget::Player(p2),
+            amount: 3,
+        }],
+    };
+
+    // check_triggers should return a RingCombatDamage PendingTrigger for level >= 4.
+    let pending = mtg_engine::rules::abilities::check_triggers(&state, &[damage_event]);
+
+    let ring_trigger = pending
+        .iter()
+        .find(|t| matches!(t.kind, PendingTriggerKind::RingCombatDamage));
+    assert!(
+        ring_trigger.is_some(),
+        "CR 701.54c level 4: RingCombatDamage PendingTrigger should be generated when ring-bearer deals combat damage to a player"
+    );
+
+    let trigger = ring_trigger.unwrap();
+    assert_eq!(
+        trigger.controller, p1,
+        "CR 701.54c level 4: trigger should be controlled by the ring-bearer's controller"
+    );
+    assert_eq!(
+        trigger.source, bearer_id,
+        "CR 701.54c level 4: trigger source should be the ring-bearer"
+    );
+}
+
+/// CR 701.54d: "Whenever the Ring tempts you" triggered ability fires on RingTempted event.
+///
+/// Setup: P1 controls a permanent with a WheneverRingTemptsYou triggered ability
+/// (draw a card). When the ring tempts P1, verify the trigger is queued
+/// (a PendingTrigger with Normal kind is added to pending_triggers).
+///
+/// Note: `handle_ring_tempts_you` emits events but does not process them through
+/// `check_triggers`. We call `check_triggers` manually on the returned events to
+/// verify that a PendingTrigger is generated for the WheneverRingTemptsYou ability.
+#[test]
+fn test_whenever_ring_tempts_you_trigger() {
+    let p1 = p(1);
+
+    // Build a card definition with WheneverRingTemptsYou triggered ability.
+    let ring_trigger_def = CardDefinition {
+        card_id: CardId("ring-trigger-test".to_string()),
+        name: "Ring Watcher".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Whenever the Ring tempts you, draw a card.".to_string(),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverRingTemptsYou,
+            effect: Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            },
+            intervening_if: None,
+        }],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![ring_trigger_def]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::creature(p1, "Ring Watcher", 1, 1)
+                .with_card_id(CardId("ring-trigger-test".to_string())),
+        )
+        .build()
+        .unwrap();
+
+    // Tempt P1 with the ring — this emits RingTempted and RingBearerChosen events.
+    let events =
+        handle_ring_tempts_you(&mut state, p1).expect("handle_ring_tempts_you should succeed");
+
+    // Verify the RingTempted event fired.
+    let ring_tempted = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::RingTempted { player, .. } if *player == p1));
+    assert!(ring_tempted, "CR 701.54d: RingTempted event should fire");
+
+    // Run check_triggers on the emitted events to verify the WheneverRingTemptsYou
+    // trigger would be queued. handle_ring_tempts_you returns events but does not
+    // internally call check_triggers — that's done by the process_command caller.
+    // We call it directly here to verify the dispatch is wired correctly.
+    let pending = mtg_engine::rules::abilities::check_triggers(&state, &events);
+
+    let trigger_queued = pending.iter().any(|t| {
+        t.controller == p1 && matches!(t.kind, mtg_engine::state::stubs::PendingTriggerKind::Normal)
+    });
+    assert!(
+        trigger_queued,
+        "CR 701.54d: a Normal PendingTrigger should be queued for WheneverRingTemptsYou ability (found {} pending triggers)",
+        pending.len()
     );
 }

@@ -131,6 +131,7 @@ fn test_clone_independence_object_modification() {
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
+                ring_block_sacrifice_at_eoc: false,
                 exiled_by_hideaway: None,
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,

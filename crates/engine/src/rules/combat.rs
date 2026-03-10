@@ -1023,6 +1023,45 @@ pub fn handle_declare_blockers(
         combat.defenders_declared.insert(player);
     }
 
+    // CR 701.54c (ring level >= 3): Tag blockers of the ring-bearer for EOC sacrifice.
+    // "Whenever your Ring-bearer becomes blocked by a creature, that creature's controller
+    // sacrifices it at end of combat."
+    //
+    // We tag the blocker with `ring_block_sacrifice_at_eoc = true` here (in mutable context)
+    // rather than emitting a RingBlockSacrifice PendingTrigger, because:
+    //   1. The sacrifice must target the specific blocker (not a generic SacrificePermanents).
+    //   2. The sacrifice must happen at end of combat (not when the trigger resolves).
+    // This mirrors the Decayed EOC pattern (CR 702.147a) in handle_declare_attackers.
+    //
+    // TODO(M10+): Per CR 603.7, this is technically a delayed triggered ability. The current
+    // TBA approach applies the sacrifice with no interaction window (can't Stifle). Refactor
+    // when delayed trigger infrastructure is expanded.
+    for (blocker_id, attacker_id) in &blockers {
+        let (is_ring_bearer, ring_level) = {
+            let obj = state.objects.get(attacker_id);
+            match obj {
+                Some(o) => {
+                    let bearer = o
+                        .designations
+                        .contains(crate::state::game_object::Designations::RING_BEARER);
+                    let ctrl = o.controller;
+                    let lvl = state
+                        .players
+                        .get(&ctrl)
+                        .map(|ps| ps.ring_level)
+                        .unwrap_or(0);
+                    (bearer, lvl)
+                }
+                None => (false, 0),
+            }
+        };
+        if is_ring_bearer && ring_level >= 3 {
+            if let Some(obj) = state.objects.get_mut(blocker_id) {
+                obj.ring_block_sacrifice_at_eoc = true;
+            }
+        }
+    }
+
     // Always emit BlockersDeclared (even for empty declarations, to mark player done).
     events.push(GameEvent::BlockersDeclared {
         defending_player: player,

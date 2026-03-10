@@ -3110,6 +3110,7 @@ pub fn make_token(
         was_unearthed: false,
         myriad_exile_at_eoc: false,
         decayed_sacrifice_at_eoc: false,
+        ring_block_sacrifice_at_eoc: false,
         exiled_by_hideaway: None,
         // CR 701.60b: tokens are not suspected by default.
         encore_sacrifice_at_end_step: false,

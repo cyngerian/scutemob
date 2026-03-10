@@ -528,7 +528,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 source: obj_id,
                 ability_index,
                 controller,
-                kind: PendingTriggerKind::Normal,
+                kind: PendingTriggerKind::CardDefETB,
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
@@ -576,13 +576,18 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     // CR 725.2: "At the beginning of your upkeep, if you have the initiative,
     // venture into Undercity." This is an inherent triggered ability of the initiative
     // designation. It forces The Undercity when entering a new dungeon.
+    let mut events = Vec::new();
     if state.has_initiative == Some(active) {
         use super::engine::handle_venture_into_dungeon;
-        let venture_events = handle_venture_into_dungeon(state, active, true).unwrap_or_default();
-        return venture_events;
+        match handle_venture_into_dungeon(state, active, true) {
+            Ok(venture_events) => events.extend(venture_events),
+            Err(_) => {
+                // Player not found in a race condition; skip venture this upkeep.
+            }
+        }
     }
 
-    Vec::new() // No direct events; triggers are flushed by enter_step
+    events // No direct events beyond venture; triggers are flushed by enter_step
 }
 
 /// CR 702.84a: End step actions -- queue delayed exile triggers for all unearthed permanents.
@@ -973,7 +978,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                 source: obj_id,
                 ability_index,
                 controller,
-                kind: PendingTriggerKind::Normal,
+                kind: PendingTriggerKind::CardDefETB,
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
@@ -1765,10 +1770,7 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
 ///
 /// This is called after both first-strike damage and regular combat damage so
 /// that initiative steals are checked in both damage steps.
-fn check_initiative_steal_from_combat_damage(
-    state: &mut GameState,
-    events: &mut Vec<GameEvent>,
-) {
+fn check_initiative_steal_from_combat_damage(state: &mut GameState, events: &mut Vec<GameEvent>) {
     let Some(initiative_holder) = state.has_initiative else {
         return;
     };
@@ -1793,10 +1795,13 @@ fn check_initiative_steal_from_combat_damage(
         state.has_initiative = Some(new_holder);
         events.push(GameEvent::InitiativeTaken { player: new_holder });
         // CR 725.2: Taking the initiative also ventures into the Undercity.
-        let venture_events =
-            super::engine::handle_venture_into_dungeon(state, new_holder, true)
-                .unwrap_or_default();
-        events.extend(venture_events);
+        match super::engine::handle_venture_into_dungeon(state, new_holder, true) {
+            Ok(venture_events) => events.extend(venture_events),
+            Err(_) => {
+                // Player not found in a race condition; initiative transfer already
+                // recorded; skip venture for this damage step.
+            }
+        }
     }
 }
 
@@ -1925,6 +1930,102 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
 
     for obj_id in decayed_sacrifice_ids {
+        let (owner, controller, pre_death_counters) = match state.objects.get(&obj_id) {
+            Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
+            None => continue,
+        };
+
+        // CR 614: Check replacement effects before moving to graveyard.
+        let action = crate::rules::replacement::check_zone_change_replacement(
+            state,
+            obj_id,
+            crate::state::zone::ZoneType::Battlefield,
+            crate::state::zone::ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+
+        match action {
+            crate::rules::replacement::ZoneChangeAction::Redirect {
+                to,
+                events: repl_events,
+                ..
+            } => {
+                events.extend(repl_events);
+                if let Ok((new_id, _old)) = state.move_object_to_zone(obj_id, to) {
+                    match to {
+                        crate::state::zone::ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: controller,
+                                object_id: obj_id,
+                                new_exile_id: new_id,
+                            });
+                        }
+                        crate::state::zone::ZoneId::Command(_) => {
+                            // Commander redirected to command zone — no CreatureDied.
+                        }
+                        _ => {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: obj_id,
+                                new_grave_id: new_id,
+                                controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                if let Ok((new_id, _old)) =
+                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: obj_id,
+                        new_grave_id: new_id,
+                        controller,
+                        pre_death_counters,
+                    });
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::ChoiceRequired { .. } => {
+                // Multiple replacements — in the absence of full choice infrastructure
+                // for TBA context, fall back to Proceed (graveyard).
+                if let Ok((new_id, _old)) =
+                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: obj_id,
+                        new_grave_id: new_id,
+                        controller,
+                        pre_death_counters,
+                    });
+                }
+            }
+        }
+    }
+
+    // CR 701.54c (ring level >= 3): Sacrifice all creatures tagged to be sacrificed because
+    // they blocked a ring-bearer. These are tagged with `ring_block_sacrifice_at_eoc = true`
+    // in `handle_declare_blockers` in combat.rs when a blocker is declared against the ring-bearer.
+    //
+    // CR 701.54c: "that creature's controller sacrifices it at end of combat."
+    // We sacrifice the specific tagged creature (not a generic SacrificePermanents choice).
+    // CR 701.17a: Sacrifice is NOT destruction — indestructible does not prevent it.
+    //
+    // TODO(M10+): Per CR 603.7, this is technically a delayed triggered ability. The current
+    // TBA implementation sacrifices with no interaction window (can't Stifle the sacrifice).
+    // Same caveat as Myriad/Decayed EOC handling. Refactor when delayed trigger infrastructure
+    // is expanded.
+    let ring_sacrifice_ids: Vec<ObjectId> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == crate::state::zone::ZoneId::Battlefield && obj.ring_block_sacrifice_at_eoc
+        })
+        .map(|obj| obj.id)
+        .collect();
+
+    for obj_id in ring_sacrifice_ids {
         let (owner, controller, pre_death_counters) = match state.objects.get(&obj_id) {
             Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
             None => continue,

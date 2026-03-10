@@ -4214,82 +4214,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 701.54c (ring level >= 3): "Whenever your Ring-bearer becomes blocked
                 // by a creature, that creature's controller sacrifices it at end of combat."
                 //
-                // Queue a RingBlockSacrifice PendingTrigger for each blocker assigned to
-                // the ring-bearer when ring_level >= 3. The source is the blocker ObjectId.
-                // At flush time, a RingAbility SOK is created that sacrifices the blocker.
-                for (blocker_id, attacker_id) in blockers {
-                    let (is_ring_bearer, ring_level, ring_controller) = {
-                        let obj = state.objects.get(attacker_id);
-                        match obj {
-                            Some(o) => {
-                                let bearer = o
-                                    .designations
-                                    .contains(crate::state::game_object::Designations::RING_BEARER);
-                                let ctrl = o.controller;
-                                let lvl = state
-                                    .players
-                                    .get(&ctrl)
-                                    .map(|ps| ps.ring_level)
-                                    .unwrap_or(0);
-                                (bearer, lvl, ctrl)
-                            }
-                            None => (false, 0, *defending_player),
-                        }
-                    };
-                    if is_ring_bearer && ring_level >= 3 {
-                        let blocker_controller = state
-                            .objects
-                            .get(blocker_id)
-                            .map(|o| o.controller)
-                            .unwrap_or(ring_controller);
-                        triggers.push(PendingTrigger {
-                            source: *blocker_id,
-                            ability_index: 0,
-                            controller: blocker_controller,
-                            kind: PendingTriggerKind::RingBlockSacrifice,
-                            triggering_event: None,
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            echo_cost: None,
-                            cumulative_upkeep_cost: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
-                        });
-                    }
-                }
+                // The blocker is tagged with `ring_block_sacrifice_at_eoc = true` directly
+                // in `handle_declare_blockers` in combat.rs (which has mutable state access).
+                // That tag is checked in `end_combat()` in turn_actions.rs. No PendingTrigger
+                // is pushed here — the EOC tag pattern (used by Decayed/Myriad) avoids the
+                // bugs of an immediate-resolution trigger: wrong timing and wrong sacrifice target.
             }
 
             GameEvent::PermanentTargeted {
@@ -6630,17 +6559,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         controller: trigger.controller,
                     }
                 }
-                // CR 701.54c: Ring level 3 — "Whenever your Ring-bearer becomes blocked by a
-                // creature, that creature's controller sacrifices it at end of combat."
-                // The trigger source is the blocker; controller is the blocker's controller.
+                // PendingTriggerKind::RingBlockSacrifice is retired: the ring level 3
+                // EOC sacrifice is now handled via the `ring_block_sacrifice_at_eoc` flag
+                // on GameObject, checked in `end_combat()` in turn_actions.rs.
+                // This arm is unreachable but kept for exhaustiveness (Rust requires it).
                 PendingTriggerKind::RingBlockSacrifice => {
-                    use crate::cards::card_definition::{Effect, EffectAmount, PlayerTarget};
+                    // Should never be reached — ring level 3 uses EOC flag pattern now.
+                    // Fallback: no-op (empty sequence).
+                    use crate::cards::card_definition::Effect;
                     StackObjectKind::RingAbility {
                         source_object: trigger.source,
-                        effect: Box::new(Effect::SacrificePermanents {
-                            player: PlayerTarget::Controller,
-                            count: EffectAmount::Fixed(1),
-                        }),
+                        effect: Box::new(Effect::Sequence(vec![])),
                         controller: trigger.controller,
                     }
                 }

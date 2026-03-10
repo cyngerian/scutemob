@@ -4389,6 +4389,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,
+                        ring_block_sacrifice_at_eoc: false,
                         exiled_by_hideaway: None,
                         encore_sacrifice_at_end_step: false,
                         encore_must_attack: None,
@@ -4583,6 +4584,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
+                ring_block_sacrifice_at_eoc: false,
                 exiled_by_hideaway: None,
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
@@ -5351,6 +5353,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // Tagged here so end_combat() in turn_actions.rs can find them.
                     myriad_exile_at_eoc: true,
                     decayed_sacrifice_at_eoc: false,
+                    ring_block_sacrifice_at_eoc: false,
                     exiled_by_hideaway: None,
                     // CR 701.60b: tokens are not suspected by default.
                     encore_sacrifice_at_end_step: false,
@@ -6130,6 +6133,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
+                    ring_block_sacrifice_at_eoc: false,
                     exiled_by_hideaway: None,
                     // CR 701.60b: tokens are not suspected by default.
                     encore_sacrifice_at_end_step: false,
@@ -6342,6 +6346,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
+                    ring_block_sacrifice_at_eoc: false,
                     exiled_by_hideaway: None,
                     // CR 701.60b: tokens are not suspected by default.
                     encore_sacrifice_at_end_step: false,
@@ -6571,6 +6576,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,
+                        ring_block_sacrifice_at_eoc: false,
                         exiled_by_hideaway: None,
                         // CR 701.60b: tokens are not suspected by default.
                         encore_sacrifice_at_end_step: true, // sacrificed at end step

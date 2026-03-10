@@ -379,6 +379,8 @@ impl GameState {
             myriad_exile_at_eoc: false,
             // CR 400.7: decayed sacrifice flag is not preserved across zone changes.
             decayed_sacrifice_at_eoc: false,
+            // CR 400.7: ring block sacrifice flag is not preserved across zone changes.
+            ring_block_sacrifice_at_eoc: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
             exiled_by_hideaway: None,
             // CR 400.7: encore sacrifice flag is not preserved across zone changes.
@@ -539,6 +541,7 @@ impl GameState {
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
+                    ring_block_sacrifice_at_eoc: false,
                     exiled_by_hideaway: None,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
@@ -696,6 +699,8 @@ impl GameState {
             myriad_exile_at_eoc: false,
             // CR 400.7: decayed sacrifice flag is not preserved across zone changes.
             decayed_sacrifice_at_eoc: false,
+            // CR 400.7: ring block sacrifice flag is not preserved across zone changes.
+            ring_block_sacrifice_at_eoc: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
             exiled_by_hideaway: None,
             // CR 400.7: encore sacrifice flag is not preserved across zone changes.

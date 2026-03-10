@@ -878,6 +878,8 @@ impl HashInto for GameObject {
         self.myriad_exile_at_eoc.hash_into(hasher);
         // Decayed (CR 702.147a) — creature must be sacrificed at end of combat
         self.decayed_sacrifice_at_eoc.hash_into(hasher);
+        // Ring level 3 (CR 701.54c) — blocker of ring-bearer must be sacrificed at end of combat
+        self.ring_block_sacrifice_at_eoc.hash_into(hasher);
         // Hideaway (CR 702.75a / CR 607.2a) — card was exiled face-down by a Hideaway trigger
         self.exiled_by_hideaway.hash_into(hasher);
         // Encore (CR 702.141a) — token must be sacrificed at beginning of next end step
