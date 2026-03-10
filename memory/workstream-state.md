@@ -10,37 +10,46 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 16: Venture/Dungeon + The Ring Tempts You | ACTIVE | 2026-03-09 | Dungeon zone infra + 4 dungeon defs + Ring Tempts You; full /implement-ability pipeline per ability |
+| W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | — | available | — | 19 cards total authored; low yield until DSL gaps filled |
+| W5: Card Authoring | — | available | — | 149 cards authored; comprehensive plan at test-data/test-cards/AUTHORING_PLAN.md |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
 
 ## Last Handoff
 
-**Date**: 2026-03-09
-**Workstream**: Cross-cutting (chore) — Ability Validation Sprint
-**Task**: Promote 6 "complete" P4 abilities to "validated" (card defs + scripts + harness fixes)
+**Date**: 2026-03-10
+**Workstream**: W1 (B16 closeout) + W5 (card authoring planning)
+**Task**: Complete Dungeon/Ring abilities, author 20 cards, build comprehensive card authoring pipeline
 
 **Completed**:
-- Harness fix: `gift_opponent` field added to `PlayerAction` schema; `AbilityDefinition::Gift → KeywordAbility::Gift` in `enrich_spec_from_def`; `gift_opponent_name` param in `translate_player_action` (all callers updated)
-- Card defs created: Lumbering Laundry (Disguise {5}), Den Protector (Megamorph {1}{G}), Write into Being (Manifest), Cryptic Coat (Cloak ETB)
-- Scripts approved: 182 (Forage Food), 185 (Gift Nocturnal Hunger), 200 (Forage exile-3), 201 (Disguise), 202 (Megamorph), 203 (Manifest), 204 (Cloak)
-- Coverage doc updated: P4 93/105 validated (was 87); 0 complete remaining; all non-N/A P4 abilities validated
-- Committed: `chore: validate 6 complete abilities — Disguise, Megamorph, Manifest, Cloak, Forage, Gift`
+- B16 complete: Dungeon (CR 309, 701.49, 725) + The Ring Tempts You (CR 701.54) — all reviewed + fixed via agents
+- Authored 24 card definitions (20 new + 4 Dungeon/Ring) — reviewed by 4 parallel agents, 6 fixes applied
+- EDHREC data fetched for all 20 commanders (5,110 unique cards)
+- Combined card universe: 1,743 cards (20 decks + EDHREC >= 5k inclusion)
+- `generate_authoring_plan.py`: groups cards into 43 categories, variable batch sizes (8-20), 155 ready sessions
+- Comprehensive authoring plan at `test-data/test-cards/AUTHORING_PLAN.md`
+- Two new agents: `bulk-card-author` (Sonnet, purple), `card-batch-reviewer` (Opus, yellow)
+- Explicit per-wave workflow: create tracking plan → author (2 parallel) → build → review (4 parallel) → fix → commit
 
-**Next**: All implementable abilities validated. Proceed to M10 (W4), TUI hardening (W2), LOW remediation W3 T3 (ManaPool hardening), or card authoring (W5). Read `docs/mtg-engine-strategic-review.md` before starting M10. Discuss the 12 N/A abilities (Banding, digital-only, niche) — user flagged for discussion.
+**Next**:
+1. Write `bulk_generate.py` (Phase 1 template script — ~227 cards)
+2. Run Phase 1, audit, fix, commit
+3. Generate skeletons for remaining ~1,244 cards (Phase 2a)
+4. Run bulk-card-author agent sessions by wave (Phase 2b)
+5. Start with Wave 1: Lands — ETB Tapped (122 cards, 8 sessions)
 
-**Hazards**: ~79 LOW issues open. W3 T3 (ManaPool hardening) still pending — one unchecked Phase 3 box in workstream-coordination.md.
+**Hazards**: New agents require session restart to appear in registry. ~79 LOW issues still open. `_authoring_worklist.json` only tracks 20-deck universe (1,174 cards), not full 1,743 — TUI shows stale numbers until we update it to read `_authoring_plan.json`.
 
-**Discriminant chain end**: KW 157, AbilDef 55, SOK ~20 (unchanged).
-
-**Commit prefix used**: chore:
+**Commit prefix used**: W5-cards:, chore:
 
 ## Handoff History
+
+### 2026-03-09 — Cross-cutting: Ability Validation Sprint + B16 closeout
+- P4 93/105 validated; 6 abilities promoted; harness: gift_opponent, enrich_spec_from_def Gift fix; 4 card defs + 7 scripts; docs updated
 
 ### 2026-03-08 (session end) — W1: Abilities — Morph Mini-Milestone
 - Morph (CR 702.37, P3); Megamorph/Disguise/Manifest/Cloak engine complete; 3 cards, 2 scripts; P3 40/40 ALL DONE; W1 COMPLETE; KW 157, AbilDef 64, SOK 63
@@ -57,6 +66,4 @@
 ### 2026-03-08 (session end) — W1: Abilities — Batch 14
 - Cipher (702.99), Haunt (702.55), Reconfigure (702.151), Blood Tokens (111.10g), Treasure Tokens (already done), Decayed Tokens (702.147); 1829 tests; 175 validated; P4 82/88; scripts 187-191; cards: Call of the Nightwing, Blind Hunter, Lizard Blades, Voldaren Epicure, Jadar Ghoulcaller of Nephalia; commits W1-B14:
 
-### 2026-03-07 (session end) — W1: Abilities — Batch 13
-- Discover (701.57), Suspect (701.60), Collect Evidence (701.59), Forage (701.61), Squad (702.157), Offspring (702.175), Gift (702.174), Saddle (702.171); 1792 tests; 171 validated; P4 77/88; scripts 179-186; cards: Geological Appraiser, Frantic Scapegoat, Crimestopper Sprite, Camellia the Seedmiser, Ultramarines Honour Guard, Flowerfoot Swordmaster, Nocturnal Hunger, Quilled Charger
 
