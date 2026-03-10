@@ -222,14 +222,14 @@ On `PlayerState`:
 
 **Files**: `crates/engine/src/rules/resolution.rs`, `crates/engine/src/rules/sba.rs`, `crates/engine/src/rules/turn_actions.rs`, `crates/engine/src/rules/abilities.rs`, `crates/engine/src/rules/combat.rs` (or `turn_actions.rs`)
 
-1. Add `RoomAbility` resolution arm in `resolution.rs`: look up `DungeonDef` via `get_dungeon(dungeon_id)`, get `RoomDef` at `room` index, call `room.effect()` to get the `Effect`, execute it via the standard effect execution path. Controller is `owner`. After execution, the `StackObject` leaves the stack normally (CR 309.4c)
-2. Add SBA 704.5t in `sba.rs:apply_sbas_once()`: for each player with a `DungeonState` where `current_room == dungeon.bottommost_room`, check if no `RoomAbility` SOK on the stack has matching `owner` and `dungeon`. If clear, remove the dungeon from `dungeon_state`, increment `dungeons_completed`, emit `DungeonCompleted` event (CR 704.5t, CR 309.6)
-3. Add initiative upkeep trigger in `turn_actions.rs:upkeep_actions()`: if `state.has_initiative == Some(active_player)`, call `handle_venture_into_dungeon` with undercity-forced flag (CR 725.2: "At the beginning of the upkeep of the player who has the initiative, that player ventures into Undercity")
-4. Add initiative combat damage steal trigger in `abilities.rs:check_triggers()` or `combat.rs`: when processing `CombatDamageDealt` events, if one or more creatures a player controls dealt combat damage to the player who has the initiative, that attacking player takes the initiative (CR 725.2). Push a `PendingTrigger` that will call `TakeTheInitiative` on resolution
-5. Wire initiative player-leaving-game cleanup: when a player with the initiative loses or concedes, transfer initiative to the active player (or next in turn order if the active player is also leaving) (CR 725.4)
-6. Implement `Condition::CompletedADungeon` evaluation in `effects/mod.rs` (or wherever conditions are evaluated): check `state.players[controller].dungeons_completed > 0`
-7. Add `RoomAbility` arms to `tools/replay-viewer/src/view_model.rs` exhaustive `StackObjectKind` match (SOK description: "Room Ability: {room_name} ({dungeon_name})") and `tools/tui/src/play/panels/stack_view.rs` exhaustive match
-8. Tests: `test_room_ability_resolves_scry` (Lost Mine Cave Entrance resolves to Scry 1), `test_room_ability_resolves_create_token` (Lost Mine Goblin Lair creates 1/1 red Goblin), `test_sba_704_5t_removes_completed_dungeon` (dungeon removed when on bottommost + no room ability on stack), `test_sba_704_5t_waits_for_room_ability` (dungeon NOT removed while room ability still on stack), `test_initiative_upkeep_venture` (initiative holder ventures at upkeep), `test_initiative_combat_damage_steal` (creature dealing combat damage to initiative holder steals it)
+1. [x] Add `RoomAbility` resolution arm in `resolution.rs` (CR 309.4c). Already done in Session 2; confirmed at resolution.rs line 7128.
+2. [x] Add SBA 704.5t in `sba.rs:apply_sbas_once()`. Added `check_dungeon_completion_sba()` and `transfer_initiative_on_player_leave()` (pub, called from engine.rs handle_concede). (CR 704.5t, CR 309.6, CR 725.4)
+3. [x] Add initiative upkeep trigger in `turn_actions.rs:upkeep_actions()`: calls `handle_venture_into_dungeon` with force_undercity=true when active player has initiative. (CR 725.2)
+4. [x] Add initiative combat damage steal in `turn_actions.rs:combat_damage_step()`: after apply_combat_damage, scan CombatDamageDealt events for damage to initiative holder, transfer initiative and venture into Undercity. (CR 725.2)
+5. [x] Wire initiative player-leaving-game cleanup: `transfer_initiative_on_player_leave` called from `check_player_sbas` (all 3 loss paths) and `handle_concede`. (CR 725.4)
+6. [x] Implement `Condition::CompletedADungeon` evaluation. Already done in Session 2 per session notes.
+7. [x] Add `RoomAbility` arms to view_model.rs and stack_view.rs. Already done in Session 2 per session notes.
+8. [x] Tests in `crates/engine/tests/dungeon_resolution.rs`: all 6 tests pass — `test_room_ability_resolves_scry`, `test_room_ability_resolves_create_token`, `test_sba_704_5t_removes_completed_dungeon`, `test_sba_704_5t_waits_for_room_ability`, `test_initiative_upkeep_venture`, `test_initiative_combat_damage_steal`.
 
 ### Session 4: Card Definitions, Harness Integration, and Game Scripts (7 items)
 

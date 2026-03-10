@@ -1894,6 +1894,11 @@ fn handle_concede(
 
     events.push(GameEvent::PlayerConceded { player });
 
+    // CR 725.4: If the conceding player had the initiative, transfer it to the
+    // next active player in turn order.
+    let initiative_events = sba::transfer_initiative_on_player_leave(state, player);
+    events.extend(initiative_events);
+
     // Check game over
     let game_over_events = check_game_over(state);
     events.extend(game_over_events);

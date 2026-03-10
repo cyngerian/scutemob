@@ -573,6 +573,15 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         }
     }
 
+    // CR 725.2: "At the beginning of your upkeep, if you have the initiative,
+    // venture into Undercity." This is an inherent triggered ability of the initiative
+    // designation. It forces The Undercity when entering a new dungeon.
+    if state.has_initiative == Some(active) {
+        use super::engine::handle_venture_into_dungeon;
+        let venture_events = handle_venture_into_dungeon(state, active, true).unwrap_or_default();
+        return venture_events;
+    }
+
     Vec::new() // No direct events; triggers are flushed by enter_step
 }
 
@@ -1744,6 +1753,53 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
     Vec::new()
 }
 
+/// CR 725.2: Check whether any combat damage was dealt to the initiative holder
+/// and transfer the initiative if so.
+///
+/// CR 725.2: "Whenever one or more creatures a player controls deal combat damage
+/// to the player who has the initiative, the controller of those creatures takes
+/// the initiative."
+/// CR 725.3: Only one player has the initiative at a time. Taking it (even from
+/// yourself) still triggers venture into the Undercity (CR 725.5).
+/// CR 603.2g: 0-damage assignments do not trigger.
+///
+/// This is called after both first-strike damage and regular combat damage so
+/// that initiative steals are checked in both damage steps.
+fn check_initiative_steal_from_combat_damage(
+    state: &mut GameState,
+    events: &mut Vec<GameEvent>,
+) {
+    let Some(initiative_holder) = state.has_initiative else {
+        return;
+    };
+    let new_holder = events.iter().find_map(|e| {
+        if let GameEvent::CombatDamageDealt { assignments } = e {
+            assignments.iter().find_map(|a| {
+                if a.amount == 0 {
+                    return None;
+                }
+                if let crate::rules::events::CombatDamageTarget::Player(damaged) = a.target {
+                    if damaged == initiative_holder {
+                        return state.objects.get(&a.source).map(|obj| obj.controller);
+                    }
+                }
+                None
+            })
+        } else {
+            None
+        }
+    });
+    if let Some(new_holder) = new_holder {
+        state.has_initiative = Some(new_holder);
+        events.push(GameEvent::InitiativeTaken { player: new_holder });
+        // CR 725.2: Taking the initiative also ventures into the Undercity.
+        let venture_events =
+            super::engine::handle_venture_into_dungeon(state, new_holder, true)
+                .unwrap_or_default();
+        events.extend(venture_events);
+    }
+}
+
 /// CR 510: Apply first-strike combat damage (creatures with FirstStrike or DoubleStrike).
 ///
 /// CR 702.7b: The determination of which creatures deal damage in the REGULAR step is
@@ -1777,14 +1833,22 @@ fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
         state.combat.as_mut().unwrap().first_strike_participants = participants;
     }
 
-    super::combat::apply_combat_damage(state, true)
+    let mut events = super::combat::apply_combat_damage(state, true);
+    // CR 725.2: Initiative steal applies to first-strike damage as well.
+    check_initiative_steal_from_combat_damage(state, &mut events);
+    events
 }
 
 /// CR 510: Apply regular combat damage (creatures without exclusive FirstStrike).
 ///
 /// Called as a turn-based action in `Step::CombatDamage`.
 fn combat_damage_step(state: &mut GameState) -> Vec<GameEvent> {
-    super::combat::apply_combat_damage(state, false)
+    let mut events = super::combat::apply_combat_damage(state, false);
+
+    // CR 725.2: Check whether any creature dealt combat damage to the initiative holder.
+    check_initiative_steal_from_combat_damage(state, &mut events);
+
+    events
 }
 
 /// CR 511.1: Clear combat state at the end of the combat phase.

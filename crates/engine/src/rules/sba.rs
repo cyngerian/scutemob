@@ -28,9 +28,11 @@ use std::collections::HashMap;
 
 use im::OrdMap;
 
+use crate::state::dungeon::get_dungeon;
 use crate::state::game_object::{Characteristics, Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::PendingZoneChange;
+use crate::state::stack::StackObjectKind;
 use crate::state::types::{
     CardType, CounterType, EnchantTarget, KeywordAbility, SubType, SuperType,
 };
@@ -225,6 +227,11 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     // the plan (704.6d runs after 704.5 SBAs).
     events.extend(commander::check_commander_zone_return_sba(state));
 
+    // CR 704.5t / CR 309.6: Remove completed dungeon from command zone when the
+    // venture marker is on the bottommost room and no room ability from that dungeon
+    // is on the stack.
+    events.extend(check_dungeon_completion_sba(state));
+
     events
 }
 
@@ -254,6 +261,8 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 player: id,
                 reason: LossReason::LifeTotal,
             });
+            // CR 725.4: If the player who lost had the initiative, transfer it.
+            events.extend(transfer_initiative_on_player_leave(state, id));
             continue; // Only emit one loss event per player per pass.
         }
 
@@ -266,6 +275,8 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 player: id,
                 reason: LossReason::PoisonCounters,
             });
+            // CR 725.4: If the player who lost had the initiative, transfer it.
+            events.extend(transfer_initiative_on_player_leave(state, id));
             continue;
         }
 
@@ -286,9 +297,80 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 player: id,
                 reason: LossReason::CommanderDamage,
             });
+            // CR 725.4: If the player who lost had the initiative, transfer it.
+            events.extend(transfer_initiative_on_player_leave(state, id));
         }
     }
 
+    events
+}
+
+/// CR 725.4: If the player who has the initiative leaves the game, the active player
+/// takes the initiative. If the active player is also leaving, the next player in turn
+/// order takes the initiative.
+///
+/// CR 725.4: "If the player who has the initiative leaves the game, the active player
+/// takes the initiative at the same time that player leaves the game. If the active
+/// player is leaving the game or if there is no active player, the next player in turn
+/// order takes the initiative."
+/// Taking the initiative triggers venture into the Undercity (CR 725.2).
+pub fn transfer_initiative_on_player_leave(
+    state: &mut GameState,
+    leaving_player: PlayerId,
+) -> Vec<GameEvent> {
+    // Only transfer if this player had the initiative.
+    if state.has_initiative != Some(leaving_player) {
+        return Vec::new();
+    }
+
+    // CR 725.4: The active player takes the initiative first, unless they are also
+    // the leaving player or have already lost/conceded.
+    let active = state.turn.active_player;
+    let active_is_eligible = active != leaving_player
+        && state
+            .players
+            .get(&active)
+            .map(|p| !p.has_lost && !p.has_conceded)
+            .unwrap_or(false);
+
+    let new_holder = if active_is_eligible {
+        Some(active)
+    } else {
+        // Fallback: next player in turn order after the leaving player.
+        let turn_order: Vec<PlayerId> = state.turn.turn_order.iter().copied().collect();
+        let leaving_pos = turn_order.iter().position(|&p| p == leaving_player);
+        let Some(leaving_pos) = leaving_pos else {
+            return Vec::new();
+        };
+        let n = turn_order.len();
+        (1..n).find_map(|offset| {
+            let candidate = turn_order[(leaving_pos + offset) % n];
+            let is_active = state
+                .players
+                .get(&candidate)
+                .map(|p| !p.has_lost && !p.has_conceded)
+                .unwrap_or(false);
+            // The leaving player may still have has_lost == true but is being eliminated now.
+            if is_active && candidate != leaving_player {
+                Some(candidate)
+            } else {
+                None
+            }
+        })
+    };
+
+    let Some(new_holder) = new_holder else {
+        // No other active player — game is over.
+        state.has_initiative = None;
+        return Vec::new();
+    };
+
+    state.has_initiative = Some(new_holder);
+    let mut events = vec![GameEvent::InitiativeTaken { player: new_holder }];
+    // CR 725.2: Taking the initiative also ventures into the Undercity.
+    use super::engine::handle_venture_into_dungeon;
+    let venture_events = handle_venture_into_dungeon(state, new_holder, true).unwrap_or_default();
+    events.extend(venture_events);
     events
 }
 
@@ -1202,4 +1284,70 @@ fn check_soulbond_unpairing(state: &mut GameState) {
             obj.paired_with = None;
         }
     }
+}
+
+// ── CR 704.5t / CR 309.6 ─────────────────────────────────────────────────────
+
+/// CR 704.5t: If a player has a dungeon in the command zone whose venture marker
+/// is on the bottommost room, and no room ability from that dungeon is on the stack,
+/// that dungeon leaves the game and the player completes that dungeon.
+///
+/// CR 309.6: A dungeon is removed from the game when its last room ability has left
+/// the stack and the venture marker is on the bottommost room.
+///
+/// Note: `dungeons_completed` is already incremented in `handle_venture_into_dungeon`
+/// when the player reaches the bottommost room and triggers the completion. This SBA
+/// only performs the removal from `dungeon_state` and emits the `DungeonCompleted`
+/// event for cases where the removal was deferred (room ability still resolving).
+/// In practice, the bottommost room's room ability must resolve before SBA fires.
+fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+
+    // Collect players whose dungeon is on the bottommost room.
+    let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
+
+    for player_id in player_ids {
+        // Check if player has a dungeon in their command zone.
+        let Some(ds) = state.dungeon_state.get(&player_id).cloned() else {
+            continue;
+        };
+
+        // Is the venture marker on the bottommost room?
+        let dungeon_def = get_dungeon(ds.dungeon);
+        if ds.current_room != dungeon_def.bottommost_room {
+            continue;
+        }
+
+        // CR 309.6: Check if any RoomAbility from this dungeon for this player
+        // is still on the stack. If so, wait.
+        let room_ability_on_stack = state.stack_objects.iter().any(|so| {
+            matches!(
+                &so.kind,
+                StackObjectKind::RoomAbility { owner, dungeon, .. }
+                if *owner == player_id && *dungeon == ds.dungeon
+            )
+        });
+
+        if room_ability_on_stack {
+            // CR 309.6: Cannot remove the dungeon while its room ability is still on the stack.
+            continue;
+        }
+
+        // Remove the completed dungeon from the player's command zone.
+        state.dungeon_state.remove(&player_id);
+
+        // CR 309.7: Player "completes" the dungeon when it is removed from the game.
+        // Increment dungeons_completed and add to the set.
+        if let Some(ps) = state.players.get_mut(&player_id) {
+            ps.dungeons_completed += 1;
+            ps.dungeons_completed_set.insert(ds.dungeon);
+        }
+
+        events.push(super::events::GameEvent::DungeonCompleted {
+            player: player_id,
+            dungeon: ds.dungeon,
+        });
+    }
+
+    events
 }
