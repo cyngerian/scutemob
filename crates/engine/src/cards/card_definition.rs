@@ -1153,6 +1153,14 @@ pub enum Effect {
     /// and immediately ventures into the Undercity (CR 725.2: "that player ventures
     /// into the Undercity" as an inherent triggered ability of taking the initiative).
     TakeTheInitiative,
+
+    /// CR 701.54a-c: "The Ring tempts you."
+    ///
+    /// Advances the controller's ring level (cap at 4), emits `RingTempted`, then
+    /// the controller chooses a creature they control as their ring-bearer.
+    /// Deterministic fallback: choose the creature with the lowest ObjectId.
+    /// If no creature is available, ring level still advances but no ring-bearer is chosen.
+    TheRingTemptsYou,
 }
 
 // ── Effect Targets ────────────────────────────────────────────────────────────
@@ -1400,6 +1408,12 @@ pub enum TriggerCondition {
     /// Dispatched via `GameEvent::PermanentTurnedFaceUp` → `TriggerEvent::SelfTurnedFaceUp`
     /// in `check_triggers`. Resolves as a `TurnFaceUpTrigger` stack object.
     WhenTurnedFaceUp,
+    /// CR 701.54d: "Whenever the Ring tempts you."
+    ///
+    /// Fires when `GameEvent::RingTempted` is emitted for the ability controller.
+    /// The ring tempts a player even when no creature is available (CR 701.54d), so
+    /// this trigger fires regardless of whether a ring-bearer was chosen.
+    WheneverRingTemptsYou,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────
@@ -1484,6 +1498,18 @@ pub enum Condition {
     /// card definition (i.e., `Condition::Not(Box::new(CompletedSpecificDungeon(...)))`)
     /// when the oracle text says "haven't".
     CompletedSpecificDungeon(crate::state::dungeon::DungeonId),
+
+    /// CR 701.54c: "if the Ring has tempted you N or more times."
+    ///
+    /// True when the controller's `ring_level >= n`. Used for cards that check how
+    /// many times the Ring has tempted you (e.g., Frodo, Sauron's Bane at level 4).
+    RingHasTemptedYou(u8),
+
+    /// Logical negation of another condition.
+    ///
+    /// Used for Acererak's "if you haven't completed Tomb of Annihilation":
+    /// `Condition::Not(Box::new(Condition::CompletedSpecificDungeon(DungeonId::TombOfAnnihilation)))`.
+    Not(Box<Condition>),
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

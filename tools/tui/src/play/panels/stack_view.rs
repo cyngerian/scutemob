@@ -146,6 +146,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::RoomAbility { dungeon, room, .. } => {
                     (format!("Room {:?}[{}]: ", dungeon, room), None)
                 }
+                // CR 701.54c: Ring-bearer triggered ability.
+                StackObjectKind::RingAbility { source_object, .. } => {
+                    ("Ring: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

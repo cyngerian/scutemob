@@ -538,6 +538,10 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         }
         // CR 309.4c: Room ability — no source_object (dungeon is in command zone).
         StackObjectKind::RoomAbility { .. } => ("room_ability", None),
+        // CR 701.54c: Ring-bearer triggered ability.
+        StackObjectKind::RingAbility { source_object, .. } => {
+            ("ring_ability", Some(*source_object))
+        }
     }
 }
 

@@ -2066,6 +2066,116 @@ fn place_opening_hand_permanents(
     Ok(())
 }
 
+/// Build a `StackObject` for a ring-bearer triggered ability (CR 701.54c).
+///
+/// Ring ability stack objects are triggered abilities pushed onto the stack when a
+/// ring level condition is met (level 2 on attack, level 3 on block, level 4 on
+/// combat damage). All alt-cost and mode fields are left at their zero/empty defaults.
+pub fn ring_ability_stack_object(
+    id: crate::state::ObjectId,
+    source_object: crate::state::ObjectId,
+    controller: crate::state::PlayerId,
+    effect: crate::cards::card_definition::Effect,
+) -> crate::state::stack::StackObject {
+    use crate::state::stack::{StackObject, StackObjectKind};
+    StackObject {
+        id,
+        controller,
+        kind: StackObjectKind::RingAbility {
+            source_object,
+            effect: Box::new(effect),
+            controller,
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        modes_chosen: vec![],
+        x_value: 0,
+        evidence_collected: false,
+        is_cast_transformed: false,
+        additional_costs: vec![],
+    }
+}
+
+/// Build a `StackObject` for a dungeon room ability (CR 309.4c).
+///
+/// Room abilities are triggered abilities pushed onto the stack when the venture
+/// marker advances to a new room. All alt-cost and mode fields are irrelevant for
+/// room abilities and are left at their zero/empty defaults.
+fn room_ability_stack_object(
+    id: crate::state::ObjectId,
+    player: crate::state::PlayerId,
+    dungeon: crate::state::dungeon::DungeonId,
+    room: usize,
+) -> crate::state::stack::StackObject {
+    use crate::state::stack::{StackObject, StackObjectKind};
+    StackObject {
+        id,
+        controller: player,
+        kind: StackObjectKind::RoomAbility {
+            owner: player,
+            dungeon,
+            room,
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        modes_chosen: vec![],
+        x_value: 0,
+        evidence_collected: false,
+        is_cast_transformed: false,
+        additional_costs: vec![],
+    }
+}
+
 /// CR 701.49: Handle a venture-into-the-dungeon action.
 ///
 /// Implements all three CR 701.49 cases:
@@ -2084,7 +2194,6 @@ pub fn handle_venture_into_dungeon(
     force_undercity: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::state::dungeon::{get_dungeon, DungeonId, DungeonState};
-    use crate::state::stack::{StackObject, StackObjectKind};
 
     let mut events = Vec::new();
 
@@ -2114,47 +2223,7 @@ pub fn handle_venture_into_dungeon(
             });
             // CR 309.4c: Push room ability for room 0 onto the stack.
             let room_ability_id = state.next_object_id();
-            let room_so = StackObject {
-                id: room_ability_id,
-                controller: player,
-                kind: StackObjectKind::RoomAbility {
-                    owner: player,
-                    dungeon: chosen_dungeon,
-                    room: 0,
-                },
-                targets: vec![],
-                cant_be_countered: false,
-                is_copy: false,
-                cast_with_flashback: false,
-                kicker_times_paid: 0,
-                was_evoked: false,
-                was_bestowed: false,
-                cast_with_madness: false,
-                cast_with_miracle: false,
-                was_escaped: false,
-                cast_with_foretell: false,
-                was_buyback_paid: false,
-                was_suspended: false,
-                was_overloaded: false,
-                cast_with_jump_start: false,
-                cast_with_aftermath: false,
-                was_dashed: false,
-                was_blitzed: false,
-                was_plotted: false,
-                was_prototyped: false,
-                was_impended: false,
-                was_bargained: false,
-                was_surged: false,
-                was_casualty_paid: false,
-                was_cleaved: false,
-                spliced_effects: vec![],
-                spliced_card_ids: vec![],
-                modes_chosen: vec![],
-                x_value: 0,
-                evidence_collected: false,
-                is_cast_transformed: false,
-                additional_costs: vec![],
-            };
+            let room_so = room_ability_stack_object(room_ability_id, player, chosen_dungeon, 0);
             state.stack_objects.push_back(room_so);
         }
         Some(ds) => {
@@ -2194,52 +2263,99 @@ pub fn handle_venture_into_dungeon(
                     });
                     // CR 309.4c: Push room ability for the new room onto the stack.
                     let room_ability_id = state.next_object_id();
-                    let room_so = StackObject {
-                        id: room_ability_id,
-                        controller: player,
-                        kind: StackObjectKind::RoomAbility {
-                            owner: player,
-                            dungeon: dungeon_id,
-                            room: next_room,
-                        },
-                        targets: vec![],
-                        cant_be_countered: false,
-                        is_copy: false,
-                        cast_with_flashback: false,
-                        kicker_times_paid: 0,
-                        was_evoked: false,
-                        was_bestowed: false,
-                        cast_with_madness: false,
-                        cast_with_miracle: false,
-                        was_escaped: false,
-                        cast_with_foretell: false,
-                        was_buyback_paid: false,
-                        was_suspended: false,
-                        was_overloaded: false,
-                        cast_with_jump_start: false,
-                        cast_with_aftermath: false,
-                        was_dashed: false,
-                        was_blitzed: false,
-                        was_plotted: false,
-                        was_prototyped: false,
-                        was_impended: false,
-                        was_bargained: false,
-                        was_surged: false,
-                        was_casualty_paid: false,
-                        was_cleaved: false,
-                        spliced_effects: vec![],
-                        spliced_card_ids: vec![],
-                        modes_chosen: vec![],
-                        x_value: 0,
-                        evidence_collected: false,
-                        is_cast_transformed: false,
-                        additional_costs: vec![],
-                    };
+                    let room_so =
+                        room_ability_stack_object(room_ability_id, player, dungeon_id, next_room);
                     state.stack_objects.push_back(room_so);
                 }
             }
         }
     }
+
+    Ok(events)
+}
+
+/// CR 701.54a-c: Process "the Ring tempts you" for a player.
+///
+/// Steps:
+/// 1. Advance ring_level (cap at 4). Emit `RingTempted`.
+/// 2. Find all creatures this player controls on the battlefield.
+/// 3. If any: choose the one with the lowest ObjectId (deterministic fallback).
+/// 4. Clear `RING_BEARER` from the previous ring-bearer (if different creature).
+/// 5. Set `RING_BEARER` on the new ring-bearer. Update `player.ring_bearer_id`.
+/// 6. Emit `RingBearerChosen`.
+/// 7. If no creatures: ring_bearer_id is unchanged (if previously None, stays None).
+///
+/// Per CR 701.54d, the ring still tempts the player even if no creature is available
+/// (the `RingTempted` event fires regardless).
+pub fn handle_ring_tempts_you(
+    state: &mut GameState,
+    player: PlayerId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::game_object::ObjectId;
+    use crate::state::types::CardType;
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Step 1: Advance ring level (cap at 4).
+    let new_level = {
+        let ps = state.players.get_mut(&player).ok_or_else(|| {
+            GameStateError::InvalidCommand(format!("Unknown player {:?}", player))
+        })?;
+        if ps.ring_level < 4 {
+            ps.ring_level += 1;
+        }
+        ps.ring_level
+    };
+    events.push(GameEvent::RingTempted { player, new_level });
+
+    // Step 2: Find all creatures this player controls on the battlefield.
+    // Collect as sorted Vec so deterministic (lowest ObjectId wins).
+    let creature_ids: Vec<ObjectId> = {
+        let mut ids: Vec<ObjectId> = state
+            .objects
+            .values()
+            .filter(|obj| {
+                obj.zone == ZoneId::Battlefield
+                    && obj.controller == player
+                    && obj.characteristics.card_types.contains(&CardType::Creature)
+            })
+            .map(|obj| obj.id)
+            .collect();
+        ids.sort();
+        ids
+    };
+
+    // Step 3: Choose ring-bearer — deterministic: lowest ObjectId creature.
+    if let Some(&chosen_id) = creature_ids.first() {
+        let previous_bearer_id = state.players.get(&player).and_then(|ps| ps.ring_bearer_id);
+
+        // Step 4: Clear RING_BEARER from previous ring-bearer if it's a different creature.
+        if let Some(prev_id) = previous_bearer_id {
+            if prev_id != chosen_id {
+                if let Some(prev_obj) = state.objects.get_mut(&prev_id) {
+                    prev_obj.designations.remove(Designations::RING_BEARER);
+                }
+            }
+        }
+
+        // Step 5: Set RING_BEARER on the chosen creature.
+        if let Some(chosen_obj) = state.objects.get_mut(&chosen_id) {
+            chosen_obj.designations.insert(Designations::RING_BEARER);
+        }
+
+        // Update player's ring_bearer_id.
+        if let Some(ps) = state.players.get_mut(&player) {
+            ps.ring_bearer_id = Some(chosen_id);
+        }
+
+        // Step 6: Emit RingBearerChosen (fires even when re-choosing same creature).
+        events.push(GameEvent::RingBearerChosen {
+            player,
+            creature: chosen_id,
+        });
+    }
+    // If no creatures: ring_bearer_id stays as-is (cleared elsewhere by SBA on zone change).
 
     Ok(events)
 }

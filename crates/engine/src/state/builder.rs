@@ -290,6 +290,8 @@ impl GameStateBuilder {
                 protection_qualities: vec![],
                 dungeons_completed: 0,
                 dungeons_completed_set: im::OrdSet::new(),
+                ring_level: 0,
+                ring_bearer_id: None,
             };
             players.insert(config.id, player_state);
         }

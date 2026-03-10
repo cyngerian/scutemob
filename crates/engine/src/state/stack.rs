@@ -440,9 +440,17 @@ pub enum StackObjectKind {
     /// The `source_object` may be in any zone (it triggered from wherever it
     /// was when the trigger condition was met). `ability_index` identifies
     /// which ability triggered.
+    ///
+    /// `is_carddef_etb` signals that `ability_index` is into the card registry's
+    /// `CardDefinition::abilities` Vec, NOT into the runtime `triggered_abilities`.
+    /// Set by `queue_carddef_etb_triggers` via `PendingTriggerKind::CardDefETB`.
     TriggeredAbility {
         source_object: ObjectId,
         ability_index: usize,
+        /// When true, resolution always uses the card registry path for effect lookup.
+        /// Prevents index-namespace collisions with runtime triggered_abilities.
+        #[serde(default)]
+        is_carddef_etb: bool,
     },
     /// CR 702.35a: Madness triggered ability on the stack.
     ///
@@ -787,5 +795,22 @@ pub enum StackObjectKind {
         dungeon: crate::state::dungeon::DungeonId,
         /// The room index in the dungeon's room list.
         room: crate::state::dungeon::RoomIndex,
+    },
+
+    /// CR 701.54c: Ring-bearer triggered ability (ring level 2, 3, or 4).
+    ///
+    /// Fires when the appropriate ring event occurs (attacker declared for level 2,
+    /// blocker declared for level 3, combat damage dealt for level 4).
+    ///
+    /// At resolution: execute the embedded effect with `controller` as the controller.
+    ///
+    /// Discriminant 66.
+    RingAbility {
+        /// The ring-bearer creature that caused this trigger.
+        source_object: ObjectId,
+        /// The effect to execute when this resolves.
+        effect: Box<crate::cards::card_definition::Effect>,
+        /// The player who controls the ring.
+        controller: crate::state::player::PlayerId,
     },
 }

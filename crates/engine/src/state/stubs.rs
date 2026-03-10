@@ -23,6 +23,14 @@ pub struct DelayedTrigger {
 pub enum PendingTriggerKind {
     /// Normal triggered ability — dispatched by ability_index on the source.
     Normal,
+    /// Card-definition ETB trigger — `ability_index` is into the card registry's
+    /// `CardDefinition::abilities` Vec (NOT into the runtime `triggered_abilities`).
+    ///
+    /// Created by `queue_carddef_etb_triggers`. At resolution, the effect and
+    /// intervening_if are looked up from the card registry (never runtime triggered_abilities).
+    /// This avoids index-namespace collisions when the card also has runtime triggers
+    /// added by `enrich_spec_from_def` that happen to use the same index.
+    CardDefETB,
     /// CR 702.74a: Evoke sacrifice trigger.
     Evoke,
     /// CR 702.35a: Madness trigger.
@@ -160,6 +168,25 @@ pub enum PendingTriggerKind {
         keyword: crate::state::types::KeywordAbility,
         data: crate::state::stack::TriggerData,
     },
+    /// CR 701.54c (ring level >= 2): Ring-bearer attack loot trigger.
+    ///
+    /// Fired in AttackersDeclared handler when the attacker is the controller's ring-bearer
+    /// and ring_level >= 2. At flush time, creates a RingAbility SOK with a Sequence effect
+    /// (DrawCards(1) then DiscardCards(1)).
+    RingLoot,
+    /// CR 701.54c (ring level >= 3): Ring-bearer becomes-blocked sacrifice trigger.
+    ///
+    /// Fired in BlockersDeclared handler when a creature blocks the ring-bearer and
+    /// ring_level >= 3. At flush time, creates a RingAbility SOK with a SacrificePermanents
+    /// effect targeting the blocking creature's controller.
+    /// The `source` of the PendingTrigger is the blocker ObjectId.
+    RingBlockSacrifice,
+    /// CR 701.54c (ring level >= 4): Ring-bearer combat damage trigger.
+    ///
+    /// Fired in CombatDamageDealt handler when the ring-bearer deals combat damage to a
+    /// player and ring_level >= 4. At flush time, creates a RingAbility SOK with a
+    /// LoseLife(EachOpponent, 3) effect.
+    RingCombatDamage,
     // Add new trigger kinds here as abilities are implemented
 }
 

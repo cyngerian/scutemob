@@ -7158,6 +7158,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
         }
+        // CR 701.54c: Ring-bearer triggered ability resolution.
+        // Execute the embedded effect with the ring controller as the controller.
+        StackObjectKind::RingAbility {
+            source_object,
+            effect,
+            controller,
+        } => {
+            let mut ctx = crate::effects::EffectContext::new(controller, source_object, vec![]);
+            let effect_events = execute_effect(state, &effect, &mut ctx);
+            events.extend(effect_events);
+        }
+
         // CR 309.4c: Room ability resolution — execute the room's effect.
         // The dungeon is in the command zone; the owner is the venture controller.
         StackObjectKind::RoomAbility {
@@ -7382,7 +7394,9 @@ pub fn counter_stack_object(
         | StackObjectKind::KeywordTrigger { .. }
         // CR 309.4c: RoomAbility countered (e.g. by Stifle) — no room effect fires.
         // The venture marker has already been advanced; only the room trigger is countered.
-        | StackObjectKind::RoomAbility { .. } => {
+        // CR 701.54c: RingAbility countered — no ring effect fires.
+        | StackObjectKind::RoomAbility { .. }
+        | StackObjectKind::RingAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.

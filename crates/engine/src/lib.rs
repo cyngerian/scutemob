@@ -40,7 +40,9 @@ pub use rules::commander::{
     apply_commander_tax, compute_color_identity, validate_deck, validate_partner_commanders,
     DeckValidationResult, DeckViolation,
 };
-pub use rules::engine::{handle_venture_into_dungeon, process_command, start_game};
+pub use rules::engine::{
+    handle_ring_tempts_you, handle_venture_into_dungeon, process_command, start_game,
+};
 pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;
 pub use rules::sba::check_and_apply_sbas;

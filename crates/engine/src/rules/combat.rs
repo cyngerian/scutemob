@@ -720,6 +720,31 @@ pub fn handle_declare_blockers(
             }
         }
 
+        // CR 701.54c (ring level >= 1): Ring-bearer can't be blocked by creatures with
+        // greater power. Identical to Skulk's restriction, but triggered by the RING_BEARER
+        // designation rather than a keyword ability.
+        if let Some(attacker_obj) = state.objects.get(attacker_id) {
+            if attacker_obj
+                .designations
+                .contains(crate::state::game_object::Designations::RING_BEARER)
+            {
+                let controller = attacker_obj.controller;
+                if let Some(ps) = state.players.get(&controller) {
+                    if ps.ring_level >= 1 {
+                        let attacker_power = attacker_chars.power.unwrap_or(0);
+                        let blocker_power = blocker_chars.power.unwrap_or(0);
+                        if blocker_power > attacker_power {
+                            return Err(GameStateError::InvalidCommand(format!(
+                                "Object {:?} cannot block ring-bearer {:?} \
+                                 (blocker power {} > ring-bearer power {}, CR 701.54c)",
+                                blocker_id, attacker_id, blocker_power, attacker_power
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+
         // CR 702.16f: protection from blocking. A creature with protection from a quality
         // cannot be blocked by creatures that match that quality. The blocker is the source.
         if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {
@@ -917,6 +942,25 @@ pub fn handle_declare_blockers(
                 let blocker_power = provoked_chars.power.unwrap_or(0);
                 if blocker_power > attacker_power {
                     continue; // Requirement impossible -- skip
+                }
+            }
+
+            // CR 701.54c: Ring-bearer blocking restriction (identical to Skulk).
+            if let Some(attacker_obj) = state.objects.get(&must_block_attacker) {
+                if attacker_obj
+                    .designations
+                    .contains(crate::state::game_object::Designations::RING_BEARER)
+                {
+                    let controller = attacker_obj.controller;
+                    if let Some(ps) = state.players.get(&controller) {
+                        if ps.ring_level >= 1 {
+                            let attacker_power = attacker_chars.power.unwrap_or(0);
+                            let blocker_power = provoked_chars.power.unwrap_or(0);
+                            if blocker_power > attacker_power {
+                                continue; // Requirement impossible -- skip
+                            }
+                        }
+                    }
                 }
             }
 

@@ -3923,6 +3923,75 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
 
+                // CR 701.54c (ring level >= 2): "Whenever your Ring-bearer attacks, draw a
+                // card, then discard a card." Queue a RingLoot PendingTrigger for each
+                // attacking creature that is this player's ring-bearer.
+                for (attacker_id, _) in attackers {
+                    let is_ring_bearer = state
+                        .objects
+                        .get(attacker_id)
+                        .map(|o| {
+                            o.designations
+                                .contains(crate::state::game_object::Designations::RING_BEARER)
+                        })
+                        .unwrap_or(false);
+                    if is_ring_bearer {
+                        let ring_level = state
+                            .players
+                            .get(attacking_player)
+                            .map(|ps| ps.ring_level)
+                            .unwrap_or(0);
+                        if ring_level >= 2 {
+                            triggers.push(PendingTrigger {
+                                source: *attacker_id,
+                                ability_index: 0,
+                                controller: *attacking_player,
+                                kind: PendingTriggerKind::RingLoot,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                                echo_cost: None,
+                                cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
+                                soulbond_pair_target: None,
+                                squad_count: None,
+                                gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
+                            });
+                        }
+                    }
+                }
+
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
                 // If exactly one creature is declared as an attacker, fire exalted triggers
                 // on ALL permanents controlled by the attacking player (not just the attacker).
@@ -4139,6 +4208,86 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // LoseLife path via DeclaredTarget; Bushido/Rampage use Source/custom).
                     for t in &mut triggers[pre_len..] {
                         t.defending_player_id = Some(*defending_player);
+                    }
+                }
+
+                // CR 701.54c (ring level >= 3): "Whenever your Ring-bearer becomes blocked
+                // by a creature, that creature's controller sacrifices it at end of combat."
+                //
+                // Queue a RingBlockSacrifice PendingTrigger for each blocker assigned to
+                // the ring-bearer when ring_level >= 3. The source is the blocker ObjectId.
+                // At flush time, a RingAbility SOK is created that sacrifices the blocker.
+                for (blocker_id, attacker_id) in blockers {
+                    let (is_ring_bearer, ring_level, ring_controller) = {
+                        let obj = state.objects.get(attacker_id);
+                        match obj {
+                            Some(o) => {
+                                let bearer = o
+                                    .designations
+                                    .contains(crate::state::game_object::Designations::RING_BEARER);
+                                let ctrl = o.controller;
+                                let lvl = state
+                                    .players
+                                    .get(&ctrl)
+                                    .map(|ps| ps.ring_level)
+                                    .unwrap_or(0);
+                                (bearer, lvl, ctrl)
+                            }
+                            None => (false, 0, *defending_player),
+                        }
+                    };
+                    if is_ring_bearer && ring_level >= 3 {
+                        let blocker_controller = state
+                            .objects
+                            .get(blocker_id)
+                            .map(|o| o.controller)
+                            .unwrap_or(ring_controller);
+                        triggers.push(PendingTrigger {
+                            source: *blocker_id,
+                            ability_index: 0,
+                            controller: blocker_controller,
+                            kind: PendingTriggerKind::RingBlockSacrifice,
+                            triggering_event: None,
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
+                            soulbond_pair_target: None,
+                            squad_count: None,
+                            gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
+                        });
                     }
                 }
             }
@@ -5177,6 +5326,85 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                     );
                 }
+
+                // CR 701.54c (ring level >= 4): "Whenever your Ring-bearer deals combat
+                // damage to a player, each opponent loses 3 life."
+                // Queue a RingCombatDamage PendingTrigger for each assignment where the
+                // source is a ring-bearer with ring_level >= 4.
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue; // no trigger on fully-prevented damage (CR 603.2g)
+                    }
+                    if !matches!(assignment.target, CombatDamageTarget::Player(_)) {
+                        continue; // only triggers on damage to players
+                    }
+                    let (is_ring_bearer, ring_level, ring_controller) = {
+                        let obj = state.objects.get(&assignment.source);
+                        match obj {
+                            Some(o) if o.zone == ZoneId::Battlefield => {
+                                let bearer = o
+                                    .designations
+                                    .contains(crate::state::game_object::Designations::RING_BEARER);
+                                let ctrl = o.controller;
+                                let lvl = state
+                                    .players
+                                    .get(&ctrl)
+                                    .map(|ps| ps.ring_level)
+                                    .unwrap_or(0);
+                                (bearer, lvl, ctrl)
+                            }
+                            _ => (false, 0, crate::state::player::PlayerId(u64::MAX)),
+                        }
+                    };
+                    if is_ring_bearer && ring_level >= 4 {
+                        triggers.push(PendingTrigger {
+                            source: assignment.source,
+                            ability_index: 0,
+                            controller: ring_controller,
+                            kind: PendingTriggerKind::RingCombatDamage,
+                            triggering_event: None,
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
+                            soulbond_pair_target: None,
+                            squad_count: None,
+                            gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
+                        });
+                    }
+                }
             }
 
             GameEvent::Proliferated { controller, .. } => {
@@ -5484,6 +5712,88 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     haunt_source_card_id: None,
                                 });
                             }
+                        }
+                    }
+                }
+            }
+
+            // CR 701.54d: "Whenever the Ring tempts you" — fire triggers on permanents
+            // controlled by the tempted player that have WheneverRingTemptsYou trigger condition.
+            GameEvent::RingTempted {
+                player: tempted_player,
+                ..
+            } => {
+                use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
+                // Collect all permanents controlled by the tempted player.
+                let obj_ids: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.controller == *tempted_player
+                            && obj.is_phased_in()
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+
+                for obj_id in obj_ids {
+                    let card_id = state.objects.get(&obj_id).and_then(|o| o.card_id.clone());
+                    let Some(cid) = card_id else { continue };
+                    let Some(def) = state.card_registry.get(cid) else {
+                        continue;
+                    };
+                    for (idx, ability) in def.abilities.iter().enumerate() {
+                        if let AbilityDefinition::Triggered {
+                            trigger_condition: TriggerCondition::WheneverRingTemptsYou,
+                            ..
+                        } = ability
+                        {
+                            triggers.push(PendingTrigger {
+                                source: obj_id,
+                                ability_index: idx,
+                                controller: *tempted_player,
+                                kind: crate::state::stubs::PendingTriggerKind::Normal,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                                echo_cost: None,
+                                cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
+                                soulbond_pair_target: None,
+                                squad_count: None,
+                                gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
+                            });
                         }
                     }
                 }
@@ -6301,9 +6611,64 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         ability_index: trigger.ability_index,
                     }
                 }
+                // CR 701.54c: Ring level 2 — "Whenever your Ring-bearer attacks,
+                // draw a card, then discard a card." (Loot effect for the controller.)
+                PendingTriggerKind::RingLoot => {
+                    use crate::cards::card_definition::{Effect, EffectAmount, PlayerTarget};
+                    StackObjectKind::RingAbility {
+                        source_object: trigger.source,
+                        effect: Box::new(Effect::Sequence(vec![
+                            Effect::DrawCards {
+                                player: PlayerTarget::Controller,
+                                count: EffectAmount::Fixed(1),
+                            },
+                            Effect::DiscardCards {
+                                player: PlayerTarget::Controller,
+                                count: EffectAmount::Fixed(1),
+                            },
+                        ])),
+                        controller: trigger.controller,
+                    }
+                }
+                // CR 701.54c: Ring level 3 — "Whenever your Ring-bearer becomes blocked by a
+                // creature, that creature's controller sacrifices it at end of combat."
+                // The trigger source is the blocker; controller is the blocker's controller.
+                PendingTriggerKind::RingBlockSacrifice => {
+                    use crate::cards::card_definition::{Effect, EffectAmount, PlayerTarget};
+                    StackObjectKind::RingAbility {
+                        source_object: trigger.source,
+                        effect: Box::new(Effect::SacrificePermanents {
+                            player: PlayerTarget::Controller,
+                            count: EffectAmount::Fixed(1),
+                        }),
+                        controller: trigger.controller,
+                    }
+                }
+                // CR 701.54c: Ring level 4 — "Whenever your Ring-bearer deals combat damage
+                // to a player, each opponent loses 3 life."
+                PendingTriggerKind::RingCombatDamage => {
+                    use crate::cards::card_definition::{Effect, EffectAmount, PlayerTarget};
+                    StackObjectKind::RingAbility {
+                        source_object: trigger.source,
+                        effect: Box::new(Effect::LoseLife {
+                            player: PlayerTarget::EachOpponent,
+                            amount: EffectAmount::Fixed(3),
+                        }),
+                        controller: trigger.controller,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
+                    is_carddef_etb: false,
+                },
+                // CR 603.3: Card-definition ETB triggers use CardDefETB kind.
+                // ability_index is into CardDef::abilities, NOT runtime triggered_abilities.
+                // At resolution, always use the card registry path.
+                PendingTriggerKind::CardDefETB => StackObjectKind::TriggeredAbility {
+                    source_object: trigger.source,
+                    ability_index: trigger.ability_index,
+                    is_carddef_etb: true,
                 },
                 PendingTriggerKind::KeywordTrigger {
                     ref keyword,

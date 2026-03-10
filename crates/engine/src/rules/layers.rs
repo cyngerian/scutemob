@@ -72,6 +72,19 @@ pub fn calculate_characteristics(
         chars.keywords.insert(KeywordAbility::Menace);
     }
 
+    // CR 701.54c (ring level >= 1): Ring-bearer is legendary.
+    //
+    // The Legendary supertype is applied pre-layer-loop (Layer 4 analogue) so that
+    // Layer 6 ability-removal effects (e.g., Humility) do not strip it — supertypes
+    // are set in Layer 4, not Layer 6.
+    //
+    // Any creature with the RING_BEARER designation always has ring_level >= 1, since
+    // ring_level is advanced before the ring-bearer is chosen (CR 701.54c).
+    // We do not verify ring_level here — the designation itself implies level >= 1.
+    if obj.designations.contains(Designations::RING_BEARER) && obj.zone == ZoneId::Battlefield {
+        chars.supertypes.insert(SuperType::Legendary);
+    }
+
     // CR 712.8d/712.8e: Double-Faced Card face resolution.
     //
     // When a DFC permanent has its back face up (is_transformed == true), its effective

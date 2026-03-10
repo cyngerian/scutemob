@@ -997,6 +997,10 @@ impl HashInto for PlayerState {
         for dungeon_id in &self.dungeons_completed_set {
             dungeon_id.hash_into(hasher);
         }
+        // CR 701.54c: ring level (0-4) for this player.
+        self.ring_level.hash_into(hasher);
+        // CR 701.54a: ring-bearer ObjectId for this player.
+        self.ring_bearer_id.hash_into(hasher);
     }
 }
 
@@ -1415,6 +1419,7 @@ impl HashInto for crate::state::stubs::PendingTriggerKind {
         use crate::state::stubs::PendingTriggerKind;
         match self {
             PendingTriggerKind::Normal => 0u8.hash_into(hasher),
+            PendingTriggerKind::CardDefETB => 46u8.hash_into(hasher),
             PendingTriggerKind::Evoke => 1u8.hash_into(hasher),
             PendingTriggerKind::Madness => 2u8.hash_into(hasher),
             PendingTriggerKind::Miracle => 3u8.hash_into(hasher),
@@ -1463,6 +1468,9 @@ impl HashInto for crate::state::stubs::PendingTriggerKind {
                 keyword.hash_into(hasher);
                 data.hash_into(hasher);
             }
+            PendingTriggerKind::RingLoot => 47u8.hash_into(hasher),
+            PendingTriggerKind::RingBlockSacrifice => 48u8.hash_into(hasher),
+            PendingTriggerKind::RingCombatDamage => 49u8.hash_into(hasher),
         }
     }
 }
@@ -1894,10 +1902,12 @@ impl HashInto for StackObjectKind {
             StackObjectKind::TriggeredAbility {
                 source_object,
                 ability_index,
+                is_carddef_etb,
             } => {
                 2u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
+                is_carddef_etb.hash_into(hasher);
             }
             // MadnessTrigger (discriminant 6) — CR 702.35a
             StackObjectKind::MadnessTrigger {
@@ -2107,6 +2117,17 @@ impl HashInto for StackObjectKind {
                 owner.hash_into(hasher);
                 dungeon.hash_into(hasher);
                 (*room as u32).hash_into(hasher);
+            }
+            // RingAbility (discriminant 66) -- CR 701.54c ring-bearer triggered ability
+            StackObjectKind::RingAbility {
+                source_object,
+                effect,
+                controller,
+            } => {
+                66u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                effect.hash_into(hasher);
+                controller.hash_into(hasher);
             }
         }
     }
@@ -3304,6 +3325,18 @@ impl HashInto for GameEvent {
                 116u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // RingTempted -- CR 701.54a (discriminant 117)
+            GameEvent::RingTempted { player, new_level } => {
+                117u8.hash_into(hasher);
+                player.hash_into(hasher);
+                new_level.hash_into(hasher);
+            }
+            // RingBearerChosen -- CR 701.54a (discriminant 118)
+            GameEvent::RingBearerChosen { player, creature } => {
+                118u8.hash_into(hasher);
+                player.hash_into(hasher);
+                creature.hash_into(hasher);
+            }
         }
     }
 }
@@ -3579,6 +3612,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenMutates => 24u8.hash_into(hasher),
             // CR 708.8: "When this permanent is turned face up" — discriminant 25
             TriggerCondition::WhenTurnedFaceUp => 25u8.hash_into(hasher),
+            // CR 701.54d: "Whenever the Ring tempts you" — discriminant 26
+            TriggerCondition::WheneverRingTemptsYou => 26u8.hash_into(hasher),
         }
     }
 }
@@ -3637,6 +3672,16 @@ impl HashInto for Condition {
             Condition::CompletedSpecificDungeon(dungeon_id) => {
                 16u8.hash_into(hasher);
                 dungeon_id.hash_into(hasher);
+            }
+            // Not condition (discriminant 17) — logical negation of inner condition
+            Condition::Not(inner) => {
+                17u8.hash_into(hasher);
+                inner.hash_into(hasher);
+            }
+            // RingHasTemptedYou condition (discriminant 18) — CR 701.54c
+            Condition::RingHasTemptedYou(n) => {
+                18u8.hash_into(hasher);
+                n.hash_into(hasher);
             }
         }
     }
@@ -3976,6 +4021,8 @@ impl HashInto for Effect {
             Effect::VentureIntoDungeon => 49u8.hash_into(hasher),
             // TakeTheInitiative effect (discriminant 50) — CR 725.2
             Effect::TakeTheInitiative => 50u8.hash_into(hasher),
+            // TheRingTemptsYou effect (discriminant 51) — CR 701.54
+            Effect::TheRingTemptsYou => 51u8.hash_into(hasher),
         }
     }
 }

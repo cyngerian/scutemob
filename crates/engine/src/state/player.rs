@@ -164,4 +164,18 @@ pub struct PlayerState {
     /// ("if you haven't completed Tomb of Annihilation").
     #[serde(default)]
     pub dungeons_completed_set: OrdSet<DungeonId>,
+    /// CR 701.54c: Number of times the Ring has tempted this player (0-4, capped).
+    ///
+    /// Determines which ring abilities are active. Once incremented, never decreases.
+    /// 0 = the Ring has never tempted this player (no emblem yet).
+    /// 1-4 = the ring level; higher levels unlock additional ring abilities.
+    #[serde(default)]
+    pub ring_level: u8,
+    /// CR 701.54a: ObjectId of this player's current ring-bearer creature.
+    ///
+    /// `None` if the player has no ring-bearer (never tempted, no creatures when
+    /// tempted, or ring-bearer left the battlefield / changed control per CR 701.54a).
+    /// Stored as `ObjectId` because the designation is lost on zone change (CR 400.7).
+    #[serde(default)]
+    pub ring_bearer_id: Option<crate::state::game_object::ObjectId>,
 }

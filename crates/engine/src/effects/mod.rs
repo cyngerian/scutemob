@@ -2069,6 +2069,21 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.54a-c: The Ring tempts you.
+        //
+        // Advances the controller's ring level (cap at 4), emits RingTempted,
+        // then chooses a creature the controller controls as their ring-bearer.
+        // Deterministic fallback: creature with the lowest ObjectId.
+        // If no creature is available, ring level still advances but no ring-bearer
+        // is chosen (CR 701.54a — the temptation still occurs).
+        Effect::TheRingTemptsYou => {
+            let controller = ctx.controller;
+            if let Ok(ring_events) = crate::rules::engine::handle_ring_tempts_you(state, controller)
+            {
+                events.extend(ring_events);
+            }
+        }
+
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
         // Hideaway ETB trigger without paying its mana cost.
         //
@@ -3483,6 +3498,13 @@ pub(crate) fn check_condition(
         // Logical negation of any condition (CR 603.4: intervening-if can express "haven't").
         // Used by Acererak's ETB: "if you haven't completed Tomb of Annihilation".
         Condition::Not(inner) => !check_condition(state, inner, ctx),
+        // CR 701.54c: "if the Ring has tempted you N or more times" — true when ring_level >= n.
+        // Used for cards that check the ring level (e.g., Frodo, Sauron's Bane at level 4).
+        Condition::RingHasTemptedYou(n) => state
+            .players
+            .get(&ctx.controller)
+            .map(|ps| ps.ring_level >= *n)
+            .unwrap_or(false),
     }
 }
 

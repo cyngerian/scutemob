@@ -35,6 +35,13 @@ bitflags! {
         const SUSPENDED      = 1 << 6;
         /// CR 702.151b: Reconfigured (attached Equipment is not a creature).
         const RECONFIGURED   = 1 << 7;
+        /// CR 701.54b: Ring-bearer designation. Not a copiable value (CR 701.54b).
+        ///
+        /// Set by `handle_ring_tempts_you` when a player chooses this creature as their
+        /// ring-bearer. Cleared when the creature leaves the battlefield or changes control
+        /// (CR 701.54a). Grants the Legendary supertype via the layer system (ring level >= 1)
+        /// and enables ring-bearer blocking restriction (ring level >= 1).
+        const RING_BEARER    = 1 << 8;
     }
 }
 

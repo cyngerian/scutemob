@@ -232,6 +232,10 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     // is on the stack.
     events.extend(check_dungeon_completion_sba(state));
 
+    // CR 701.54a: Clear ring-bearer designation when the ring-bearer leaves the
+    // battlefield or another player gains control of it.
+    check_ring_bearer_sba(state);
+
     events
 }
 
@@ -369,8 +373,13 @@ pub fn transfer_initiative_on_player_leave(
     let mut events = vec![GameEvent::InitiativeTaken { player: new_holder }];
     // CR 725.2: Taking the initiative also ventures into the Undercity.
     use super::engine::handle_venture_into_dungeon;
-    let venture_events = handle_venture_into_dungeon(state, new_holder, true).unwrap_or_default();
-    events.extend(venture_events);
+    match handle_venture_into_dungeon(state, new_holder, true) {
+        Ok(venture_events) => events.extend(venture_events),
+        Err(_) => {
+            // Player not found in a concession race or similar edge case;
+            // initiative transfer already succeeded, so return what we have.
+        }
+    }
     events
 }
 
@@ -1295,11 +1304,20 @@ fn check_soulbond_unpairing(state: &mut GameState) {
 /// CR 309.6: A dungeon is removed from the game when its last room ability has left
 /// the stack and the venture marker is on the bottommost room.
 ///
-/// Note: `dungeons_completed` is already incremented in `handle_venture_into_dungeon`
-/// when the player reaches the bottommost room and triggers the completion. This SBA
-/// only performs the removal from `dungeon_state` and emits the `DungeonCompleted`
-/// event for cases where the removal was deferred (room ability still resolving).
-/// In practice, the bottommost room's room ability must resolve before SBA fires.
+/// There are two paths to dungeon completion:
+///
+/// **Path A — immediate re-venture (`handle_venture_into_dungeon` case c):** When a
+/// player ventures while already on the bottommost room, `handle_venture_into_dungeon`
+/// completes the current dungeon immediately (increments `dungeons_completed`, adds to
+/// `dungeons_completed_set`, emits `DungeonCompleted`, removes `dungeon_state`) and
+/// starts a new one. This SBA does **not** fire for that case because `dungeon_state`
+/// is already cleared before SBA checks run.
+///
+/// **Path B — deferred completion (this SBA):** After the bottommost room's room
+/// ability resolves normally, the dungeon stays in `dungeon_state` until this SBA
+/// fires. This SBA then removes the dungeon entry, increments `dungeons_completed`,
+/// adds to `dungeons_completed_set`, and emits `DungeonCompleted`. The two paths are
+/// mutually exclusive, so there is no double-counting.
 fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
@@ -1350,4 +1368,56 @@ fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
     }
 
     events
+}
+
+/// CR 701.54a: Clear ring-bearer when the creature leaves the battlefield or
+/// another player gains control of it.
+///
+/// The ring-bearer designation is tied to the specific ObjectId (CR 400.7). When
+/// the creature leaves the battlefield it becomes a new object, so the old
+/// `ring_bearer_id` no longer refers to a valid battlefield permanent.
+///
+/// Control change: CR 701.54a says "another player gains control of it" — the
+/// creature stops being the previous controller's ring-bearer. It does NOT
+/// automatically become the new controller's ring-bearer.
+fn check_ring_bearer_sba(state: &mut GameState) {
+    use crate::state::game_object::Designations;
+    use crate::state::zone::ZoneId;
+
+    // Collect players that need their ring_bearer_id cleared.
+    let players_to_clear: Vec<crate::state::player::PlayerId> = state
+        .players
+        .iter()
+        .filter_map(|(player_id, ps)| {
+            let bearer_id = ps.ring_bearer_id?;
+            // Check if the object still exists on the battlefield under this player's control.
+            let valid = state
+                .objects
+                .get(&bearer_id)
+                .map(|obj| obj.controller == *player_id && obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+            if !valid {
+                Some(*player_id)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for player_id in players_to_clear {
+        // Also clear RING_BEARER designation from any lingering object.
+        let bearer_id = state
+            .players
+            .get(&player_id)
+            .and_then(|ps| ps.ring_bearer_id);
+        if let Some(bid) = bearer_id {
+            if let Some(obj) = state.objects.get_mut(&bid) {
+                obj.designations.remove(Designations::RING_BEARER);
+            }
+        }
+        // Clear ring_bearer_id on the player.
+        if let Some(ps) = state.players.get_mut(&player_id) {
+            ps.ring_bearer_id = None;
+        }
+    }
 }

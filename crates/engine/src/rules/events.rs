@@ -1247,6 +1247,33 @@ pub enum GameEvent {
         /// The player who now has the initiative.
         player: PlayerId,
     },
+
+    /// CR 701.54a-c: The Ring tempted a player.
+    ///
+    /// Emitted after the ring level advances. Fires even when the player has no
+    /// creatures (CR 701.54a — the temptation still occurs). Triggers abilities
+    /// with `TriggerCondition::WheneverRingTemptsYou` (CR 701.54d).
+    ///
+    /// Discriminant: 117.
+    RingTempted {
+        /// The player who was tempted.
+        player: PlayerId,
+        /// The new ring level (1-4) after this temptation.
+        new_level: u8,
+    },
+
+    /// CR 701.54a: A creature was chosen as a player's ring-bearer.
+    ///
+    /// Emitted after `RingTempted` when a creature is available to be chosen.
+    /// Also fires when re-choosing the same creature (ruling 2023-06-16).
+    ///
+    /// Discriminant: 118.
+    RingBearerChosen {
+        /// The player who chose the ring-bearer.
+        player: PlayerId,
+        /// The creature that became the ring-bearer.
+        creature: crate::state::game_object::ObjectId,
+    },
 }
 
 impl GameEvent {
