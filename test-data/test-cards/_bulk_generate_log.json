@@ -1,0 +1,1573 @@
+{
+  "created": [
+    {
+      "name": "Woodland Cemetery",
+      "file": "woodland_cemetery.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Undergrowth Stadium",
+      "file": "undergrowth_stadium.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Vault of Champions",
+      "file": "vault_of_champions.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Luxury Suite",
+      "file": "luxury_suite.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Dragonskull Summit",
+      "file": "dragonskull_summit.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Spectator Seating",
+      "file": "spectator_seating.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Clifftop Retreat",
+      "file": "clifftop_retreat.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Haunted Ridge",
+      "file": "haunted_ridge.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Rejuvenating Springs",
+      "file": "rejuvenating_springs.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Hinterland Harbor",
+      "file": "hinterland_harbor.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Morphic Pool",
+      "file": "morphic_pool.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sea of Clouds",
+      "file": "sea_of_clouds.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Bountiful Promenade",
+      "file": "bountiful_promenade.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Spire Garden",
+      "file": "spire_garden.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Drowned Catacomb",
+      "file": "drowned_catacomb.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Smoldering Marsh",
+      "file": "smoldering_marsh.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Shattered Sanctum",
+      "file": "shattered_sanctum.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sundown Pass",
+      "file": "sundown_pass.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Nomad Outpost",
+      "file": "nomad_outpost.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Seaside Citadel",
+      "file": "seaside_citadel.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sunken Hollow",
+      "file": "sunken_hollow.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sulfur Falls",
+      "file": "sulfur_falls.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Opulent Palace",
+      "file": "opulent_palace.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Training Center",
+      "file": "training_center.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Necroblossom Snarl",
+      "file": "necroblossom_snarl.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Glacial Fortress",
+      "file": "glacial_fortress.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sunpetal Grove",
+      "file": "sunpetal_grove.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Marble Diamond",
+      "file": "marble_diamond.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Rockfall Vale",
+      "file": "rockfall_vale.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sandsteppe Citadel",
+      "file": "sandsteppe_citadel.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Gilt-Leaf Palace",
+      "file": "gilt_leaf_palace.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Arcane Sanctum",
+      "file": "arcane_sanctum.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Stormcarved Coast",
+      "file": "stormcarved_coast.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Concealed Courtyard",
+      "file": "concealed_courtyard.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Deathcap Glade",
+      "file": "deathcap_glade.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Golgari Guildgate",
+      "file": "golgari_guildgate.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Rootbound Crag",
+      "file": "rootbound_crag.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Canopy Vista",
+      "file": "canopy_vista.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Cinder Glade",
+      "file": "cinder_glade.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Prairie Stream",
+      "file": "prairie_stream.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Fire Diamond",
+      "file": "fire_diamond.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Blooming Marsh",
+      "file": "blooming_marsh.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Dreamroot Cascade",
+      "file": "dreamroot_cascade.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Haunted Mire",
+      "file": "haunted_mire.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Shineshadow Snarl",
+      "file": "shineshadow_snarl.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Frontier Bivouac",
+      "file": "frontier_bivouac.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Shipwreck Marsh",
+      "file": "shipwreck_marsh.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Savage Lands",
+      "file": "savage_lands.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Jungle Shrine",
+      "file": "jungle_shrine.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Foreboding Ruins",
+      "file": "foreboding_ruins.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Mystic Monastery",
+      "file": "mystic_monastery.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Furycalm Snarl",
+      "file": "furycalm_snarl.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Foul Orchard",
+      "file": "foul_orchard.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Choked Estuary",
+      "file": "choked_estuary.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Frostboil Snarl",
+      "file": "frostboil_snarl.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Darkslick Shores",
+      "file": "darkslick_shores.rs",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Dryad Arbor",
+      "file": "dryad_arbor.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Bayou",
+      "file": "bayou.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Badlands",
+      "file": "badlands.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Tropical Island",
+      "file": "tropical_island.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Ancient Den",
+      "file": "ancient_den.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Savannah",
+      "file": "savannah.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Taiga",
+      "file": "taiga.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Snow-Covered Island",
+      "file": "snow_covered_island.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Tundra",
+      "file": "tundra.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Snow-Covered Swamp",
+      "file": "snow_covered_swamp.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Volcanic Island",
+      "file": "volcanic_island.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Plateau",
+      "file": "plateau.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Scrubland",
+      "file": "scrubland.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Underground Sea",
+      "file": "underground_sea.rs",
+      "group": "mana-land"
+    },
+    {
+      "name": "Boggart Trawler // Boggart Bog",
+      "file": "boggart_trawler.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Malakir Rebirth // Malakir Mire",
+      "file": "malakir_rebirth.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Sea Gate Restoration // Sea Gate, Reborn",
+      "file": "sea_gate_restoration.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Commit // Memory",
+      "file": "commit.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Brightclimb Pathway // Grimclimb Pathway",
+      "file": "brightclimb_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Disciple of Freyalise // Garden of Freyalise",
+      "file": "disciple_of_freyalise.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Fell the Profane // Fell Mire",
+      "file": "fell_the_profane.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Sink into Stupor // Soporific Springs",
+      "file": "sink_into_stupor.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Witch Enchanter // Witch-Blessed Meadow",
+      "file": "witch_enchanter.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Funeral Room // Awakening Hall",
+      "file": "funeral_room.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Walk-In Closet // Forgotten Cellar",
+      "file": "walk_in_closet.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Phyrexian Walker",
+      "file": "phyrexian_walker.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Connive // Concoct",
+      "file": "connive.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Bottomless Pool // Locker Room",
+      "file": "bottomless_pool.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Agadeem's Awakening // Agadeem, the Undercrypt",
+      "file": "agadeems_awakening.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Barkchannel Pathway // Tidechannel Pathway",
+      "file": "barkchannel_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Blightstep Pathway // Searstep Pathway",
+      "file": "blightstep_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Bloomvine Regent // Claim Territory",
+      "file": "bloomvine_regent.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Bridgeworks Battle // Tanglespan Bridgeworks",
+      "file": "bridgeworks_battle.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Clearwater Pathway // Murkwater Pathway",
+      "file": "clearwater_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Cragcrown Pathway // Timbercrown Pathway",
+      "file": "cragcrown_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Darkbore Pathway // Slitherbore Pathway",
+      "file": "darkbore_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Hydroelectric Specimen // Hydroelectric Laboratory",
+      "file": "hydroelectric_specimen.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Kabira Takedown // Kabira Plateau",
+      "file": "kabira_takedown.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Marang River Regent // Coil and Catch",
+      "file": "marang_river_regent.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Revitalizing Repast // Old-Growth Grove",
+      "file": "revitalizing_repast.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Riverglide Pathway // Lavaglide Pathway",
+      "file": "riverglide_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
+      "file": "rune_tail_kitsune_ascendant.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Scavenger Regent // Exude Toxin",
+      "file": "scavenger_regent.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Sejiri Shelter // Sejiri Glacier",
+      "file": "sejiri_shelter.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Sundering Eruption // Volcanic Fissure",
+      "file": "sundering_eruption.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Turn // Burn",
+      "file": "turn.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+      "file": "turntimber_symbiosis.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Valakut Awakening // Valakut Stoneforge",
+      "file": "valakut_awakening.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Bala Ged Recovery",
+      "file": "bala_ged_recovery.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Monster Manual",
+      "file": "monster_manual.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Decadent Dragon",
+      "file": "decadent_dragon.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Needleverge Pathway",
+      "file": "needleverge_pathway.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Consign // Oblivion",
+      "file": "consign.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Memnite",
+      "file": "memnite.rs",
+      "group": "body-only"
+    },
+    {
+      "name": "Mox Amber",
+      "file": "mox_amber.rs",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Avacyn's Pilgrim",
+      "file": "avacyns_pilgrim.rs",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Leaden Myr",
+      "file": "leaden_myr.rs",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Llanowar Tribe",
+      "file": "llanowar_tribe.rs",
+      "group": "mana-creature"
+    }
+  ],
+  "skipped": [
+    {
+      "name": "Mystic Sanctuary",
+      "reason": "additional oracle text: When this land enters untapped, you may put target instant o",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Ziatora's Proving Ground",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Castle Vantress",
+      "reason": "additional oracle text: {2}{U}{U}, {T}: Scry 2.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Shifting Woodland",
+      "reason": "additional oracle text: Delirium \u2014 {2}{G}{G}: This land becomes a copy of target per",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Savai Triome",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Mistrise Village",
+      "reason": "additional oracle text: {U}, {T}: The next spell you cast this turn can't be counter",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Spara's Headquarters",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Castle Locthwain",
+      "reason": "additional oracle text: {1}{B}{B}, {T}: Draw a card, then you lose life equal to the",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of Malady",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Simic Growth Chamber",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Spymaster's Vault",
+      "reason": "additional oracle text: {B}, {T}: Target creature you control connives X, where X is",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Forgotten Cave",
+      "reason": "additional oracle text: Cycling {R} ({R}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Zagoth Triome",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Indatha Triome",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Ketria Triome",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Gruul Turf",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Oran-Rief, the Vastwood",
+      "reason": "additional oracle text: {T}: Put a +1/+1 counter on each green creature that entered",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Thousand-Faced Shadow",
+      "reason": "additional oracle text: Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker ",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Raugrin Triome",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Castle Embereth",
+      "reason": "additional oracle text: {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Crypt of Agadeem",
+      "reason": "additional oracle text: {2}, {T}: Add {B} for each black creature card in your grave",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Izzet Boilerworks",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Selesnya Sanctuary",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Secluded Steppe",
+      "reason": "additional oracle text: Cycling {W} ({W}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Azorius Chancery",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Creeping Tar Pit",
+      "reason": "additional oracle text: {1}{U}{B}: Until end of turn, this land becomes a 3/2 blue a",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Castle Ardenvale",
+      "reason": "additional oracle text: {2}{W}{W}, {T}: Create a 1/1 white Human creature token.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Oathsworn Vampire",
+      "reason": "additional oracle text: You may cast this card from your graveyard if you gained lif",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Thundering Falls",
+      "reason": "additional oracle text: When this land enters, surveil 1. (Look at the top card of y",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Smoldering Crater",
+      "reason": "additional oracle text: Cycling {2} ({2}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Drifting Meadow",
+      "reason": "additional oracle text: Cycling {2} ({2}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Desert of the True",
+      "reason": "additional oracle text: Cycling {1}{W} ({1}{W}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Sunken Palace",
+      "reason": "additional oracle text: {1}{U}, {T}, Exile seven cards from your graveyard: Add {U}.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Flamekin Village",
+      "reason": "additional oracle text: {R}, {T}: Target creature gains haste until end of turn.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Cult Conscript",
+      "reason": "additional oracle text: {1}{B}: Return this card from your graveyard to the battlefi",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Desert of the Fervent",
+      "reason": "additional oracle text: Cycling {1}{R} ({1}{R}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Spinerock Knoll",
+      "reason": "additional oracle text: Hideaway 4 (When this land enters, look at the top four card",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Arena of Glory",
+      "reason": "additional oracle text: {R}, {T}, Exert this land: Add {R}{R}. If that mana is spent",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Minas Tirith",
+      "reason": "additional oracle text: {1}{W}, {T}: Draw a card. Activate only if you attacked with",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Golgari Rot Farm",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of Silence",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Orzhov Basilica",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Underground Mortuary",
+      "reason": "additional oracle text: When this land enters, surveil 1. (Look at the top card of y",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Rakdos Carnarium",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Halimar Depths",
+      "reason": "additional oracle text: When this land enters, look at the top three cards of your l",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Valakut, the Molten Pinnacle",
+      "reason": "additional oracle text: Whenever a Mountain you control enters, if you control at le",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Scoured Barrens",
+      "reason": "additional oracle text: When this land enters, you gain 1 life.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Boros Garrison",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Bloodfell Caves",
+      "reason": "additional oracle text: When this land enters, you gain 1 life.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Wind-Scarred Crag",
+      "reason": "additional oracle text: When this land enters, you gain 1 life.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of Triumph",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Jetmir's Garden",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Jungle Hollow",
+      "reason": "additional oracle text: When this land enters, you gain 1 life.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of Malice",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of Epiphany",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "The World Tree",
+      "reason": "additional oracle text: As long as you control six or more lands, lands you control ",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Raffine's Tower",
+      "reason": "additional oracle text: Cycling {3} ({3}, Discard this card: Draw a card.)",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Glistening Sphere",
+      "reason": "additional oracle text: When this artifact enters, proliferate.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of the Dragon Queen",
+      "reason": "additional oracle text: As this land enters, choose a color.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Temple of Deceit",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Dimir Aqueduct",
+      "reason": "additional oracle text: When this land enters, return a land you control to its owne",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Skemfar Elderhall",
+      "reason": "additional oracle text: {2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target cre",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Arixmethes, Slumbering Isle",
+      "reason": "additional oracle text: As long as Arixmethes has a slumber counter on it, it's a la",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Undercity Sewers",
+      "reason": "additional oracle text: When this land enters, surveil 1. (Look at the top card of y",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Swiftwater Cliffs",
+      "reason": "additional oracle text: When this land enters, you gain 1 life.",
+      "group": "land-etb-tapped"
+    },
+    {
+      "name": "Cavern of Souls",
+      "reason": "additional oracle text: As this land enters, choose a creature type.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Boseiju, Who Endures",
+      "reason": "additional oracle text: Channel \u2014 {1}{G}, Discard this card: Destroy target artifact",
+      "group": "mana-land"
+    },
+    {
+      "name": "Strip Mine",
+      "reason": "additional oracle text: {T}, Sacrifice this land: Destroy target land.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Gaea's Cradle",
+      "reason": "complex mana ability: {T}: Add {G} for each creature you control.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Nykthos, Shrine to Nyx",
+      "reason": "additional oracle text: {2}, {T}: Choose a color. Add an amount of mana of that colo",
+      "group": "mana-land"
+    },
+    {
+      "name": "Ghost Quarter",
+      "reason": "additional oracle text: {T}, Sacrifice this land: Destroy target land. Its controlle",
+      "group": "mana-land"
+    },
+    {
+      "name": "Llanowar Wastes",
+      "reason": "complex mana ability: {T}: Add {B} or {G}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Caves of Koilos",
+      "reason": "complex mana ability: {T}: Add {W} or {B}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Sulfurous Springs",
+      "reason": "complex mana ability: {T}: Add {B} or {R}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Wasteland",
+      "reason": "additional oracle text: {T}, Sacrifice this land: Destroy target nonbasic land.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Scavenger Grounds",
+      "reason": "additional oracle text: {2}, {T}, Sacrifice a Desert: Exile all graveyards.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Fetid Heath",
+      "reason": "additional oracle text: {W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Tainted Wood",
+      "reason": "complex mana ability: {T}: Add {B} or {G}. Activate only if you control a Swamp.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Minamo, School at Water's Edge",
+      "reason": "additional oracle text: {U}, {T}: Untap target legendary permanent.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Tainted Field",
+      "reason": "complex mana ability: {T}: Add {W} or {B}. Activate only if you control a Swamp.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Wirewood Lodge",
+      "reason": "additional oracle text: {G}, {T}: Untap target Elf.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Hanweir Battlements",
+      "reason": "additional oracle text: {R}, {T}: Target creature gains haste until end of turn.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Command Beacon",
+      "reason": "additional oracle text: {T}, Sacrifice this land: Put your commander into your hand ",
+      "group": "mana-land"
+    },
+    {
+      "name": "Phyrexian Tower",
+      "reason": "additional oracle text: {T}, Sacrifice a creature: Add {B}{B}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Gemstone Caverns",
+      "reason": "additional oracle text: If this card is in your opening hand and you're not the star",
+      "group": "mana-land"
+    },
+    {
+      "name": "Treasure Vault",
+      "reason": "additional oracle text: {X}{X}, {T}, Sacrifice this land: Create X Treasure tokens.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Otawara, Soaring City",
+      "reason": "additional oracle text: Channel \u2014 {3}{U}, Discard this card: Return target artifact,",
+      "group": "mana-land"
+    },
+    {
+      "name": "Three Tree City",
+      "reason": "additional oracle text: As Three Tree City enters, choose a creature type.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Karn's Bastion",
+      "reason": "additional oracle text: {4}, {T}: Proliferate. (Choose any number of permanents and/",
+      "group": "mana-land"
+    },
+    {
+      "name": "Secluded Courtyard",
+      "reason": "additional oracle text: As this land enters, choose a creature type.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Cabal Coffers",
+      "reason": "additional oracle text: {2}, {T}: Add {B} for each Swamp you control.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Thespian's Stage",
+      "reason": "additional oracle text: {2}, {T}: This land becomes a copy of target land, except it",
+      "group": "mana-land"
+    },
+    {
+      "name": "Shizo, Death's Storehouse",
+      "reason": "additional oracle text: {B}, {T}: Target legendary creature gains fear until end of ",
+      "group": "mana-land"
+    },
+    {
+      "name": "Hall of Heliod's Generosity",
+      "reason": "additional oracle text: {1}{W}, {T}: Put target enchantment card from your graveyard",
+      "group": "mana-land"
+    },
+    {
+      "name": "War Room",
+      "reason": "additional oracle text: {3}, {T}, Pay life equal to the number of colors in your com",
+      "group": "mana-land"
+    },
+    {
+      "name": "Urza's Saga",
+      "reason": "additional oracle text: I \u2014 This Saga gains \"{T}: Add {C}.\"",
+      "group": "mana-land"
+    },
+    {
+      "name": "Unclaimed Territory",
+      "reason": "additional oracle text: As this land enters, choose a creature type.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Battlefield Forge",
+      "reason": "complex mana ability: {T}: Add {R} or {W}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Sokenzan, Crucible of Defiance",
+      "reason": "additional oracle text: Channel \u2014 {3}{R}, Discard this card: Create two 1/1 colorles",
+      "group": "mana-land"
+    },
+    {
+      "name": "Inkmoth Nexus",
+      "reason": "additional oracle text: {1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact cr",
+      "group": "mana-land"
+    },
+    {
+      "name": "Viridescent Bog",
+      "reason": "additional oracle text: {1}, {T}: Add {B}{G}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Oboro, Palace in the Clouds",
+      "reason": "additional oracle text: {1}: Return Oboro to its owner's hand.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Flooded Grove",
+      "reason": "additional oracle text: {G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Bleachbone Verge",
+      "reason": "complex mana ability: {T}: Add {W}. Activate only if you control a Plains or a Swa",
+      "group": "mana-land"
+    },
+    {
+      "name": "Yavimaya Hollow",
+      "reason": "additional oracle text: {G}, {T}: Regenerate target creature.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Kor Haven",
+      "reason": "additional oracle text: {1}{W}, {T}: Prevent all combat damage that would be dealt b",
+      "group": "mana-land"
+    },
+    {
+      "name": "Deserted Temple",
+      "reason": "additional oracle text: {1}, {T}: Untap target land.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Slayers' Stronghold",
+      "reason": "additional oracle text: {R}{W}, {T}: Target creature gets +2/+0 and gains vigilance ",
+      "group": "mana-land"
+    },
+    {
+      "name": "Graven Cairns",
+      "reason": "additional oracle text: {B/R}, {T}: Add {B}{B}, {B}{R}, or {R}{R}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Shivan Reef",
+      "reason": "complex mana ability: {T}: Add {U} or {R}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Cascade Bluffs",
+      "reason": "additional oracle text: {U/R}, {T}: Add {U}{U}, {U}{R}, or {R}{R}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Blinkmoth Nexus",
+      "reason": "additional oracle text: {1}: This land becomes a 1/1 Blinkmoth artifact creature wit",
+      "group": "mana-land"
+    },
+    {
+      "name": "Sunken Ruins",
+      "reason": "additional oracle text: {U/B}, {T}: Add {U}{U}, {U}{B}, or {B}{B}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Cabal Stronghold",
+      "reason": "additional oracle text: {3}, {T}: Add {B} for each basic Swamp you control.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Geier Reach Sanitarium",
+      "reason": "additional oracle text: {2}, {T}: Each player draws a card, then discards a card.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Zhalfirin Void",
+      "reason": "additional oracle text: When this land enters, scry 1. (Look at the top card of your",
+      "group": "mana-land"
+    },
+    {
+      "name": "Eiganjo, Seat of the Empire",
+      "reason": "additional oracle text: Channel \u2014 {2}{W}, Discard this card: It deals 4 damage to ta",
+      "group": "mana-land"
+    },
+    {
+      "name": "High Market",
+      "reason": "additional oracle text: {T}, Sacrifice a creature: You gain 1 life.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Vault of the Archangel",
+      "reason": "additional oracle text: {2}{W}{B}, {T}: Creatures you control gain deathtouch and li",
+      "group": "mana-land"
+    },
+    {
+      "name": "Yavimaya Coast",
+      "reason": "complex mana ability: {T}: Add {G} or {U}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Twilight Mire",
+      "reason": "additional oracle text: {B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Blazemire Verge",
+      "reason": "complex mana ability: {T}: Add {R}. Activate only if you control a Swamp or a Moun",
+      "group": "mana-land"
+    },
+    {
+      "name": "Rugged Prairie",
+      "reason": "additional oracle text: {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Grim Backwoods",
+      "reason": "additional oracle text: {2}{B}{G}, {T}, Sacrifice a creature: Draw a card.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Kher Keep",
+      "reason": "additional oracle text: {1}{R}, {T}: Create a 0/1 red Kobold creature token named Ko",
+      "group": "mana-land"
+    },
+    {
+      "name": "Voldaren Estate",
+      "reason": "additional oracle text: {T}, Pay 1 life: Add one mana of any color. Spend this mana ",
+      "group": "mana-land"
+    },
+    {
+      "name": "Darkwater Catacombs",
+      "reason": "additional oracle text: {1}, {T}: Add {U}{B}.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Underground River",
+      "reason": "complex mana ability: {T}: Add {U} or {B}. This land deals 1 damage to you.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Wastewood Verge",
+      "reason": "complex mana ability: {T}: Add {B}. Activate only if you control a Swamp or a Fore",
+      "group": "mana-land"
+    },
+    {
+      "name": "Maelstrom of the Spirit Dragon",
+      "reason": "complex mana ability: {T}: Add one mana of any color. Spend this mana only to cast",
+      "group": "mana-land"
+    },
+    {
+      "name": "Crucible of the Spirit Dragon",
+      "reason": "additional oracle text: {1}, {T}: Put a storage counter on this land.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Tainted Isle",
+      "reason": "complex mana ability: {T}: Add {U} or {B}. Activate only if you control a Swamp.",
+      "group": "mana-land"
+    },
+    {
+      "name": "Access Tunnel",
+      "reason": "additional oracle text: {3}, {T}: Target creature with power 3 or less can't be bloc",
+      "group": "mana-land"
+    },
+    {
+      "name": "The Seedcore",
+      "reason": "complex mana ability: {T}: Add one mana of any color. Spend this mana only to cast",
+      "group": "mana-land"
+    },
+    {
+      "name": "Gloomlake Verge",
+      "reason": "complex mana ability: {T}: Add {B}. Activate only if you control an Island or a Sw",
+      "group": "mana-land"
+    },
+    {
+      "name": "Fell the Profane",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Sea Gate Restoration",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Agadeem's Awakening",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Sink into Stupor",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Malakir Rebirth",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Disciple of Freyalise",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Revitalizing Repast",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Boggart Trawler",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Hydroelectric Specimen",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Valakut Awakening",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Darkbore Pathway",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Brightclimb Pathway",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Witch Enchanter",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Clearwater Pathway",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Scavenger Regent",
+      "reason": "file already exists",
+      "group": "body-only"
+    },
+    {
+      "name": "Chrome Mox",
+      "reason": "additional oracle text: Imprint \u2014 When this artifact enters, you may exile a nonarti",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Talisman of Hierarchy",
+      "reason": "complex mana ability: {T}: Add {W} or {B}. This artifact deals 1 damage to you.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Talisman of Conviction",
+      "reason": "complex mana ability: {T}: Add {R} or {W}. This artifact deals 1 damage to you.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Mox Diamond",
+      "reason": "additional oracle text: If this artifact would enter, you may discard a land card in",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Chromatic Lantern",
+      "reason": "additional oracle text: Lands you control have \"{T}: Add one mana of any color.\"",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Talisman of Indulgence",
+      "reason": "complex mana ability: {T}: Add {B} or {R}. This artifact deals 1 damage to you.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Mana Vault",
+      "reason": "additional oracle text: This artifact doesn't untap during your untap step.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Patchwork Banner",
+      "reason": "additional oracle text: As this artifact enters, choose a creature type.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Everflowing Chalice",
+      "reason": "additional oracle text: Multikicker {2} (You may pay an additional {2} any number of",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Orzhov Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {W}{B}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "The Soul Stone",
+      "reason": "additional oracle text: Indestructible",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Boros Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {R}{W}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Talisman of Creativity",
+      "reason": "complex mana ability: {T}: Add {U} or {R}. This artifact deals 1 damage to you.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Dimir Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {U}{B}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Izzet Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {U}{R}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Paradise Mantle",
+      "reason": "additional oracle text: Equipped creature has \"{T}: Add one mana of any color.\"",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Strixhaven Stadium",
+      "reason": "complex mana ability: {T}: Add {C}. Put a point counter on this artifact.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Forger's Foundry",
+      "reason": "complex mana ability: {T}: Add {U}. When you spend this mana to cast an instant or",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "The Great Henge",
+      "reason": "additional oracle text: This spell costs {X} less to cast, where X is the greatest p",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Decanter of Endless Water",
+      "reason": "additional oracle text: You have no maximum hand size.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Golgari Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {B}{G}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Rakdos Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {B}{R}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Talisman of Resilience",
+      "reason": "complex mana ability: {T}: Add {B} or {G}. This artifact deals 1 damage to you.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Simic Signet",
+      "reason": "additional oracle text: {1}, {T}: Add {G}{U}.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Replicating Ring",
+      "reason": "additional oracle text: At the beginning of your upkeep, put a night counter on this",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Dragon's Hoard",
+      "reason": "additional oracle text: Whenever a Dragon you control enters, put a gold counter on ",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Talisman of Dominance",
+      "reason": "complex mana ability: {T}: Add {U} or {B}. This artifact deals 1 damage to you.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Patriar's Seal",
+      "reason": "additional oracle text: {1}, {T}: Untap target legendary creature you control.",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Dragonstorm Globe",
+      "reason": "additional oracle text: Each Dragon you control enters with an additional +1/+1 coun",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Mox Jasper",
+      "reason": "complex mana ability: {T}: Add one mana of any color. Activate only if you control",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Carnelian Orb of Dragonkind",
+      "reason": "complex mana ability: {T}: Add {R}. If that mana is spent on a Dragon creature spe",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Jade Orb of Dragonkind",
+      "reason": "complex mana ability: {T}: Add {G}. When you spend this mana to cast a Dragon crea",
+      "group": "mana-artifact"
+    },
+    {
+      "name": "Elves of Deep Shadow",
+      "reason": "complex mana ability: {T}: Add {B}. This creature deals 1 damage to you.",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Ornithopter of Paradise",
+      "reason": "additional oracle text: Flying",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Priest of Titania",
+      "reason": "complex mana ability: {T}: Add {G} for each Elf on the battlefield.",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Noble Hierarch",
+      "reason": "additional oracle text: Exalted (Whenever a creature you control attacks alone, that",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Ignoble Hierarch",
+      "reason": "additional oracle text: Exalted (Whenever a creature you control attacks alone, that",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Elvish Archdruid",
+      "reason": "additional oracle text: Other Elf creatures you control get +1/+1.",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Marwyn, the Nurturer",
+      "reason": "additional oracle text: Whenever another Elf you control enters, put a +1/+1 counter",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Enduring Vitality",
+      "reason": "additional oracle text: Vigilance",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Canopy Tactician",
+      "reason": "additional oracle text: Other Elves you control get +1/+1.",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Howlsquad Heavy",
+      "reason": "additional oracle text: Start your engines!",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Elvish Harbinger",
+      "reason": "additional oracle text: When this creature enters, you may search your library for a",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Plague Myr",
+      "reason": "additional oracle text: Infect (This creature deals damage to creatures in the form ",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Joraga Treespeaker",
+      "reason": "additional oracle text: Level up {1}{G} ({1}{G}: Put a level counter on this. Level ",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Incubation Druid",
+      "reason": "complex mana ability: {T}: Add one mana of any type that a land you control could ",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Circle of Dreams Druid",
+      "reason": "complex mana ability: {T}: Add {G} for each creature you control.",
+      "group": "mana-creature"
+    },
+    {
+      "name": "Scaled Nurturer",
+      "reason": "complex mana ability: {T}: Add {G}. When you spend this mana to cast a Dragon crea",
+      "group": "mana-creature"
+    }
+  ],
+  "errors": [
+    {
+      "name": "Mishra, Claimed by Gix",
+      "reason": "template generation failed (unparseable mana)",
+      "group": "land-etb-tapped"
+    }
+  ]
+}
