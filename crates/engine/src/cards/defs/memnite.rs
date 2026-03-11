@@ -6,7 +6,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("memnite"),
         name: "Memnite".to_string(),
         mana_cost: Some(ManaCost { ..Default::default() }),
-        types: creature_types(&["Construct"]),
+        types: types_sub(&[CardType::Artifact, CardType::Creature], &["Construct"]),
         oracle_text: "".to_string(),
         power: Some(1),
         toughness: Some(1),

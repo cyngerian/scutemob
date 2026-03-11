@@ -6,7 +6,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("snow-covered-island"),
         name: "Snow-Covered Island".to_string(),
         mana_cost: None,
-        types: types_sub(&[CardType::Land], &["Island"]),
+        types: full_types(&[SuperType::Basic, SuperType::Snow], &[CardType::Land], &["Island"]),
         oracle_text: "({T}: Add {U}.)".to_string(),
         abilities: vec![
             AbilityDefinition::Activated {

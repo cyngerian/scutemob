@@ -14,7 +14,7 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | — | available | — | 149 cards authored; comprehensive plan at test-data/test-cards/AUTHORING_PLAN.md |
+| W5: Card Authoring | Phase 1: bulk_generate.py template cards | ACTIVE | 2026-03-10 | 149 cards authored; comprehensive plan at test-data/test-cards/AUTHORING_PLAN.md |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)

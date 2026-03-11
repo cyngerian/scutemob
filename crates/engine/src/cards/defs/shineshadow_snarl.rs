@@ -9,7 +9,8 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "As this land enters, you may reveal a Plains or Swamp card from your hand. If you don't, this land enters tapped.\n{T}: Add {W} or {B}.".to_string(),
         abilities: vec![
-            // Enters tapped (CR 614.1c)
+            // TODO: Conditional ETB — may reveal a Plains or Swamp card, enters tapped if you don't
+            // DSL gap: ReplacementModification::EntersTapped has no condition field
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,

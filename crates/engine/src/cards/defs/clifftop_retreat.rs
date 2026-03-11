@@ -9,7 +9,8 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.".to_string(),
         abilities: vec![
-            // Enters tapped (CR 614.1c)
+            // TODO: Conditional ETB — enters tapped unless you control a Mountain or a Plains
+            // DSL gap: ReplacementModification::EntersTapped has no condition field
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,

@@ -133,29 +133,33 @@ def has_supertype(type_line: str, supertype: str) -> bool:
 def format_types_expr(type_line: str, card_types: list[str]) -> str:
     """Generate the Rust types expression from type_line."""
     subtypes = parse_subtypes(type_line)
-    is_creature = "Creature" in card_types or "Creature" in type_line
+    left = type_line.split("—")[0].strip() if "—" in type_line else type_line
 
-    if is_creature:
-        if subtypes:
-            quoted = ['"' + s + '"' for s in subtypes]
-            return "creature_types(&[" + ", ".join(quoted) + "])"
-        return "creature_types(&[])"
-
-    # Build CardType list
+    # Build CardType list from type_line (most authoritative)
+    all_types = ["Creature", "Land", "Artifact", "Enchantment", "Instant", "Sorcery", "Planeswalker"]
     rust_types = []
-    for t in card_types:
-        if t in ("Creature", "Land", "Artifact", "Enchantment", "Instant", "Sorcery", "Planeswalker"):
+    for t in all_types:
+        if t in left:
             rust_types.append("CardType::" + t)
 
-    # Fallback: parse from type_line
+    # Fallback: use plan's types array
     if not rust_types:
-        left = type_line.split("—")[0].strip() if "—" in type_line else type_line
-        for t in ["Land", "Artifact", "Enchantment", "Instant", "Sorcery", "Planeswalker"]:
-            if t in left:
+        for t in card_types:
+            if t in all_types:
                 rust_types.append("CardType::" + t)
 
     if not rust_types:
         rust_types = ["CardType::Land"]  # fallback
+
+    # Use creature_types helper only for pure creatures (single type)
+    is_creature = "Creature" in left or "Creature" in card_types
+    is_multi_type = len(rust_types) > 1
+
+    if is_creature and not is_multi_type:
+        if subtypes:
+            quoted = ['"' + s + '"' for s in subtypes]
+            return "creature_types(&[" + ", ".join(quoted) + "])"
+        return "creature_types(&[])"
 
     type_list = ", ".join(rust_types)
 
@@ -436,6 +440,8 @@ def generate_etb_tapped_land(card_data: dict, plan_card: dict) -> str:
     type_line = card_data["type_line"]
     types_expr = format_types_expr(type_line, plan_card.get("types", []))
 
+    mana_cost = parse_mana_cost(card_data["mana_cost"])
+
     prods = parse_mana_production(oracle)
     if not prods:
         return None  # Can't parse mana production
@@ -461,16 +467,8 @@ def generate_etb_tapped_land(card_data: dict, plan_card: dict) -> str:
             }""")
 
     # Mana abilities
-    for i, eff in enumerate(mana_effects):
-        # Indent multi-line effects properly
-        if "\n" in eff:
-            abilities.append(f"""            AbilityDefinition::Activated {{
-                cost: Cost::Tap,
-                effect: {eff},
-                timing_restriction: None,
-            }}""")
-        else:
-            abilities.append(f"""            AbilityDefinition::Activated {{
+    for eff in mana_effects:
+        abilities.append(f"""            AbilityDefinition::Activated {{
                 cost: Cost::Tap,
                 effect: {eff},
                 timing_restriction: None,
@@ -488,7 +486,7 @@ pub fn card() -> CardDefinition {{
     CardDefinition {{
         card_id: cid("{slug}"),
         name: "{display_name}".to_string(),
-        mana_cost: None,
+        mana_cost: {mana_cost},
         types: {types_expr},
         oracle_text: "{oracle_escaped}".to_string(),
         abilities: vec![

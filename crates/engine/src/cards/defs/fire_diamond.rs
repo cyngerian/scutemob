@@ -5,7 +5,7 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fire-diamond"),
         name: "Fire Diamond".to_string(),
-        mana_cost: None,
+        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
         types: types(&[CardType::Artifact]),
         oracle_text: "This artifact enters tapped.\n{T}: Add {R}.".to_string(),
         abilities: vec![
