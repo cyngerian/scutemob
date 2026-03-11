@@ -6,7 +6,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("mox-amber"),
         name: "Mox Amber".to_string(),
         mana_cost: Some(ManaCost { ..Default::default() }),
-        types: types(&[CardType::Artifact]),
+        types: full_types(&[SuperType::Legendary], &[CardType::Artifact], &[]),
         oracle_text: "{T}: Add one mana of any color among legendary creatures and planeswalkers you control.".to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
