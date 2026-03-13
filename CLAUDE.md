@@ -13,9 +13,9 @@
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
 - **Status**: 1944 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; 0 HIGH/MEDIUM open; ~79 LOW deferred
-- **Active Plan**: W5 card authoring — `test-data/test-cards/AUTHORING_PLAN.md` (1,743 card universe, 3-phase pipeline); Wave 2 done (640 card defs total); Wave 3 next = mana-land (92 cards)
+- **Active Plan**: W5 card authoring — `test-data/test-cards/AUTHORING_PLAN.md` (1,743 card universe, 3-phase pipeline); Wave 3 done (718 card defs total); Wave 4 next
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-13 (W5 Phase 2 Wave 2 complete — 187 combat-keyword cards, 640 total defs, 1944 tests)
+- **Last Updated**: 2026-03-13 (W5 Phase 2 Wave 3 complete — 78 mana-land cards, 718 total defs, 1972 tests)
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 453 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior), CardRegistry

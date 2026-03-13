@@ -14,7 +14,7 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | — | available | — | Wave 2 DONE (187 cards, committed d83ac94+01e3b52); Wave 3 next (Mana Lands, 92 cards) |
+| W5: Card Authoring | Wave 3: Mana Lands (92 cards, 7 sessions) | ACTIVE | 2026-03-13 | Wave 3 next — group `mana-land` from _authoring_plan.json; reference: command_tower.rs |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
