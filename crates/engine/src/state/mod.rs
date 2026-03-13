@@ -40,7 +40,10 @@ pub use replacement_effect::{
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
-pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
+pub use stubs::{
+    DelayedTrigger, ETBSuppressFilter, ETBSuppressor, PendingTrigger, TriggerDoubler,
+    TriggerDoublerFilter,
+};
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
@@ -106,6 +109,14 @@ pub struct GameState {
     /// when a permanent with a trigger-doubling ability enters the battlefield
     /// and removed when that permanent leaves.
     pub trigger_doublers: Vector<TriggerDoubler>,
+    /// Active ETB trigger suppression effects (Torpor Orb-style, CR 614.16a).
+    ///
+    /// When a creature matching any suppressor's filter would have its ETB triggered
+    /// ability queued, the trigger is skipped entirely (it never fires). Entries are
+    /// added when a permanent with `AbilityDefinition::SuppressCreatureETBTriggers`
+    /// enters the battlefield and cleaned up when that permanent leaves.
+    #[serde(default)]
+    pub etb_suppressors: Vector<ETBSuppressor>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

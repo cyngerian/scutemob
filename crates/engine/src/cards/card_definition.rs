@@ -69,6 +69,10 @@ pub struct CardDefinition {
     /// Printed toughness (creatures only). None for non-creatures.
     #[serde(default)]
     pub toughness: Option<i32>,
+    /// CR 204: Color indicator (colored dot on type line). Overrides mana-cost-derived
+    /// colors. Used by cards like Dryad Arbor (green with no mana cost).
+    #[serde(default)]
+    pub color_indicator: Option<Vec<crate::state::Color>>,
     /// CR 712: The back face of a double-faced card.
     ///
     /// `None` for single-faced cards. `Some(face)` for DFCs — Transform,
@@ -89,6 +93,7 @@ impl Default for CardDefinition {
             abilities: vec![],
             power: None,
             toughness: None,
+            color_indicator: None,
             back_face: None,
         }
     }
@@ -170,6 +175,21 @@ pub enum AbilityDefinition {
     TriggerDoubling {
         filter: crate::state::stubs::TriggerDoublerFilter,
         additional_triggers: u32,
+    },
+    /// CR 614.16a: A Torpor Orb-style static ability that prevents ETB triggered abilities
+    /// from triggering on entering permanents.
+    ///
+    /// "Creatures entering the battlefield don't cause abilities to trigger."
+    ///
+    /// This is a replacement effect (CR 614.16a): the trigger never fires, rather than
+    /// being countered after firing. Applies to CardDef `AbilityDefinition::Triggered` with
+    /// `WhenEntersBattlefield` condition. Does NOT suppress keyword ETB effects like Landfall
+    /// or ETB replacements — only CardDef triggered ability queueing.
+    ///
+    /// When a permanent with this ability enters the battlefield, an `ETBSuppressor` entry
+    /// is registered in `GameState::etb_suppressors`. Cleaned up when that permanent leaves.
+    SuppressCreatureETBTriggers {
+        filter: crate::state::stubs::ETBSuppressFilter,
     },
     /// Consolidated alternative-cost/graveyard-cast ability (RC-3 consolidation).
     /// Replaces individual Flashback/Embalm/Eternalize/Encore/Unearth/Dash/Blitz/Plot/Escape/Prototype variants.

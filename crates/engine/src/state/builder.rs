@@ -343,6 +343,7 @@ impl GameStateBuilder {
             prevention_counters: OrdMap::new(),
             pending_triggers: Vector::new(),
             trigger_doublers: Vector::new(),
+            etb_suppressors: Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
             timestamp_counter: 0,

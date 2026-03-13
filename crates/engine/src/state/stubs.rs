@@ -514,3 +514,33 @@ pub struct TriggerDoubler {
     /// How many additional times the trigger fires (usually 1).
     pub additional_triggers: u32,
 }
+
+/// Which permanents have their ETB triggered abilities suppressed by an `ETBSuppressor`.
+///
+/// CR 614.16a: A "creatures entering the battlefield don't cause abilities to trigger"
+/// effect prevents triggered abilities from triggering — the trigger never fires, rather
+/// than being countered after firing.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ETBSuppressFilter {
+    /// Suppresses ETB triggered abilities on creatures only (Torpor Orb / Hushbringer pattern).
+    ///
+    /// Non-creature permanents entering the battlefield are unaffected.
+    CreaturesOnly,
+    /// Suppresses ETB triggered abilities on all permanents.
+    AllPermanents,
+}
+
+/// A Torpor Orb-style ETB trigger suppressor (CR 614.16a).
+///
+/// When a permanent matching the filter enters the battlefield, its ETB triggered
+/// abilities are suppressed — they do not trigger at all (not just countered).
+///
+/// Registered when a permanent with `AbilityDefinition::SuppressCreatureETBTriggers`
+/// enters the battlefield; cleaned up when that permanent leaves.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ETBSuppressor {
+    /// ObjectId of the permanent generating this suppression (Torpor Orb, etc.).
+    pub source: ObjectId,
+    /// Which entering permanents are affected.
+    pub filter: ETBSuppressFilter,
+}

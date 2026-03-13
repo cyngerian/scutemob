@@ -20,15 +20,16 @@ pub use state::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomI
 pub use state::{
     AbilityInstance, AdditionalCost, AffinityTarget, AltCostKind, AttackTarget, CardId, CardType,
     ChampionFilter, Characteristics, Color, CombatState, ContinuousEffect, CounterType,
-    CumulativeUpkeepCost, DamageTargetFilter, DayNight, Designations, ETBTriggerFilter,
-    EffectDuration, EffectFilter, EffectId, EffectLayer, EnchantTarget, FaceDownKind, GameObject,
-    GameState, GameStateBuilder, GameStateError, KeywordAbility, LandwalkType, LayerModification,
-    ManaAbility, ManaColor, ManaCost, ManaPool, MergedComponent, ObjectFilter, ObjectId,
-    ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId,
-    PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
-    ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
-    Target, TriggerData, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef,
-    TurnFaceUpMethod, TurnState, UpkeepCostKind, Zone, ZoneId, ZoneType,
+    CumulativeUpkeepCost, DamageTargetFilter, DayNight, Designations, ETBSuppressFilter,
+    ETBSuppressor, ETBTriggerFilter, EffectDuration, EffectFilter, EffectId, EffectLayer,
+    EnchantTarget, FaceDownKind, GameObject, GameState, GameStateBuilder, GameStateError,
+    KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
+    MergedComponent, ObjectFilter, ObjectId, ObjectSpec, ObjectStatus, PendingZoneChange, Phase,
+    PlayerBuilder, PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect,
+    ReplacementId, ReplacementModification, ReplacementTrigger, SpellTarget, StackObject,
+    StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
+    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, TurnState,
+    UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 
 pub use testing::replay_harness::{

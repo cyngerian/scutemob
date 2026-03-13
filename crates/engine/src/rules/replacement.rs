@@ -924,6 +924,10 @@ pub fn apply_self_etb_from_definition(
 /// SOK resolution path (with CardDef registry fallback from B14) handles resolution.
 ///
 /// CR 708.3: Face-down permanents have no triggered abilities — checked at entry.
+/// CR 603.2, 613 (Layer 6): If a continuous effect removes all abilities from this
+/// permanent, no ETB triggers are queued (IG-1).
+/// CR 614.16a: If a Torpor Orb-style ETB suppressor applies to this permanent,
+/// no ETB triggers are queued (IG-2).
 ///
 /// Returns `Vec<GameEvent>` for Fabricate inline events only (bot approximation).
 /// All other ETB triggers are queued — no events returned for them.
@@ -936,12 +940,85 @@ pub fn queue_carddef_etb_triggers(
 ) -> Vec<GameEvent> {
     use crate::cards::card_definition::{AbilityDefinition, Effect, TokenSpec, TriggerCondition};
     use crate::effects::{execute_effect, EffectContext};
-    use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
+    use crate::state::stubs::{ETBSuppressFilter, PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};
 
     // CR 708.3: Face-down permanents have no triggered abilities.
     if let Some(obj) = state.objects.get(&new_id) {
         if obj.status.face_down && obj.face_down_as.is_some() {
+            return Vec::new();
+        }
+    }
+
+    // IG-1 (CR 603.2, 613 Layer 6): If any active continuous effect applies
+    // RemoveAllAbilities (Layer 6) to the entering permanent, its CardDef triggered
+    // abilities are suppressed — do not queue any ETB triggers.
+    //
+    // We check this by calling calculate_characteristics and examining whether any
+    // Layer 6 RemoveAllAbilities effect applies. Using the layer-resolved chars
+    // directly: if RemoveAllAbilities was applied, the keywords will reflect that.
+    // However, CardDef triggers are not in chars.triggered_abilities, so we must
+    // check the active effects directly for RemoveAllAbilities targeting new_id.
+    {
+        use crate::rules::layers;
+        use crate::state::continuous_effect::{EffectLayer, LayerModification};
+
+        let abilities_removed = state
+            .continuous_effects
+            .iter()
+            .filter(|e| layers::is_effect_active(state, e))
+            .filter(|e| e.layer == EffectLayer::Ability)
+            .filter(|e| matches!(e.modification, LayerModification::RemoveAllAbilities))
+            .any(|e| {
+                // Check if this effect's filter applies to new_id.
+                // We need base characteristics to evaluate filter predicates.
+                // Use the object's stored characteristics as the filter basis.
+                let obj_zone = state
+                    .objects
+                    .get(&new_id)
+                    .map(|o| o.zone)
+                    .unwrap_or(crate::state::zone::ZoneId::Exile);
+                let chars = state
+                    .objects
+                    .get(&new_id)
+                    .map(|o| o.characteristics.clone())
+                    .unwrap_or_default();
+                layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
+            });
+
+        if abilities_removed {
+            return Vec::new();
+        }
+    }
+
+    // IG-2 (CR 614.16a): If any active ETB suppressor on the battlefield applies
+    // to this entering permanent, its CardDef ETB triggered abilities are suppressed.
+    //
+    // Lazily remove stale suppressors whose source left the battlefield.
+    state.etb_suppressors.retain(|s| {
+        state
+            .objects
+            .get(&s.source)
+            .map(|o| o.zone == crate::state::zone::ZoneId::Battlefield)
+            .unwrap_or(false)
+    });
+    {
+        let entering_is_creature = state
+            .objects
+            .get(&new_id)
+            .map(|o| {
+                o.characteristics
+                    .card_types
+                    .contains(&crate::state::types::CardType::Creature)
+            })
+            .unwrap_or(false);
+
+        let etb_suppressed = state.etb_suppressors.iter().any(|s| match &s.filter {
+            ETBSuppressFilter::CreaturesOnly => entering_is_creature,
+            ETBSuppressFilter::AllPermanents => true,
+        });
+
+        if etb_suppressed {
             return Vec::new();
         }
     }
@@ -986,11 +1063,15 @@ pub fn queue_carddef_etb_triggers(
                     }
                 }
                 // CR 603.3: Queue as PendingTrigger; flush_pending_triggers places it on the stack.
+                // Use PendingTriggerKind::CardDefETB so resolution looks up the effect from
+                // the card registry (ability_index is into CardDef::abilities, NOT into
+                // runtime triggered_abilities). This avoids index collisions with triggers
+                // added by enrich_spec_from_def for attack/dies/etc. triggers.
                 state.pending_triggers.push_back(PendingTrigger {
                     source: new_id,
                     ability_index: idx,
                     controller,
-                    kind: PendingTriggerKind::Normal,
+                    kind: PendingTriggerKind::CardDefETB,
                     triggering_event: Some(
                         crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
                     ),
@@ -1046,7 +1127,7 @@ pub fn queue_carddef_etb_triggers(
                         source: new_id,
                         ability_index: idx,
                         controller,
-                        kind: PendingTriggerKind::Normal,
+                        kind: PendingTriggerKind::CardDefETB,
                         triggering_event: Some(
                             crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
                         ),
@@ -1510,6 +1591,15 @@ pub fn register_static_continuous_effects(
                         controller,
                         filter: filter.clone(),
                         additional_triggers: *additional_triggers,
+                    });
+            }
+            // CR 614.16a: Register a Torpor Orb-style ETB trigger suppressor.
+            AbilityDefinition::SuppressCreatureETBTriggers { filter } => {
+                state
+                    .etb_suppressors
+                    .push_back(crate::state::stubs::ETBSuppressor {
+                        source: new_id,
+                        filter: filter.clone(),
                     });
             }
             _ => {}

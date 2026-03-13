@@ -432,6 +432,19 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
 /// CR 702.26e: Phased-out permanents are NOT included in the set of objects affected
 /// by continuous effects (except for effects that specifically reference phased-out
 /// permanents). This is enforced here for all battlefield-scope filters.
+/// Returns true if a continuous effect applies to the given object.
+///
+/// Public within the crate for use in `replacement.rs` (IG-1 Layer 6 check).
+pub(crate) fn effect_applies_to_object(
+    state: &GameState,
+    effect: &ContinuousEffect,
+    object_id: ObjectId,
+    obj_zone: ZoneId,
+    chars: &Characteristics,
+) -> bool {
+    effect_applies_to(state, effect, object_id, obj_zone, chars)
+}
+
 fn effect_applies_to(
     state: &GameState,
     effect: &ContinuousEffect,

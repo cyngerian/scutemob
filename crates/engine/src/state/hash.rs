@@ -28,7 +28,10 @@ use super::replacement_effect::{
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
-use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
+use super::stubs::{
+    DelayedTrigger, ETBSuppressFilter, ETBSuppressor, PendingTrigger, TriggerDoubler,
+    TriggerDoublerFilter,
+};
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
@@ -708,6 +711,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Manifest => 156u8.hash_into(hasher),
             // Cloak (discriminant 157) -- CR 701.58
             KeywordAbility::Cloak => 157u8.hash_into(hasher),
+            // MustAttackEachCombat (discriminant 158) -- CR 508.1d
+            KeywordAbility::MustAttackEachCombat => 158u8.hash_into(hasher),
         }
     }
 }
@@ -1240,6 +1245,22 @@ impl HashInto for TriggerDoubler {
 impl HashInto for DelayedTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
+    }
+}
+
+impl HashInto for ETBSuppressFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ETBSuppressFilter::CreaturesOnly => 0u8.hash_into(hasher),
+            ETBSuppressFilter::AllPermanents => 1u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for ETBSuppressor {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.filter.hash_into(hasher);
     }
 }
 
@@ -4409,6 +4430,11 @@ impl HashInto for AbilityDefinition {
                 64u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // SuppressCreatureETBTriggers -- IG-2 (CR 614.16a) — discriminant 65
+            AbilityDefinition::SuppressCreatureETBTriggers { filter } => {
+                65u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
         }
     }
 }
@@ -4544,6 +4570,8 @@ impl GameState {
         self.pending_triggers.hash_into(&mut hasher);
         // M9.4: trigger_doublers (CR 603.2d) — Panharmonicon-style doubling
         self.trigger_doublers.hash_into(&mut hasher);
+        // IG-2: etb_suppressors (CR 614.16a) — Torpor Orb-style ETB suppression
+        self.etb_suppressors.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
 
         // 6. Combat state
