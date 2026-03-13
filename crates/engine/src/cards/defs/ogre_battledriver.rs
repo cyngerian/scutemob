@@ -1,0 +1,25 @@
+// Ogre Battledriver — {2}{R}{R}, Creature — Ogre Warrior 3/3
+// Whenever another creature you control enters, that creature gets +2/+0 and gains haste
+// until end of turn.
+//
+// TODO: DSL gap — "that creature" references the specific triggering creature.
+// WheneverCreatureEntersBattlefield fires, but the effect needs EffectTarget::TriggeringCreature
+// to pump/grant haste to that specific entering creature. TriggeringCreature is not in DSL.
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("ogre-battledriver"),
+        name: "Ogre Battledriver".to_string(),
+        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        types: creature_types(&["Ogre", "Warrior"]),
+        oracle_text: "Whenever another creature you control enters, that creature gets +2/+0 and gains haste until end of turn. (It can attack and {T} this turn.)".to_string(),
+        power: Some(3),
+        toughness: Some(3),
+        abilities: vec![
+            // TODO: WheneverCreatureEntersBattlefield — effect targets triggering creature
+            // (EffectTarget::TriggeringCreature not in DSL; +2/+0 + haste until EOT)
+        ],
+        ..Default::default()
+    }
+}
