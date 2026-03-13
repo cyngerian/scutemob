@@ -12,9 +12,9 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nUntap target creature. Until end of turn, it gains hexproof, reach, and \"Whenever this creature becomes tapped, it deals damage equal to its power to up to one target creature.\"".to_string(),
         abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::SplitSecond),
-            // TODO: DSL gap — untap effect, grant hexproof/reach until EOT, and temporary
-            // "whenever this creature becomes tapped" triggered ability are not expressible.
+            // TODO: DSL gap — Split second is a keyword but the card's core effect
+            // (untap + grant hexproof/reach until EOT + temporary tap trigger) is not
+            // expressible. Card left uncastable per W5 policy to avoid do-nothing behavior.
         ],
         ..Default::default()
     }

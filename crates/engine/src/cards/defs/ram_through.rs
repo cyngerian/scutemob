@@ -19,18 +19,9 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Target creature you control deals damage equal to its power to target creature you don't control. If the creature you control has trample, excess damage is dealt to that creature's controller instead.".to_string(),
         abilities: vec![
-            AbilityDefinition::Spell {
-                effect: Effect::DealDamage {
-                    target: EffectTarget::DeclaredTarget { index: 1 },
-                    amount: EffectAmount::PowerOf(EffectTarget::DeclaredTarget { index: 0 }),
-                },
-                targets: vec![
-                    TargetRequirement::TargetCreature,
-                    TargetRequirement::TargetCreature,
-                ],
-                modes: None,
-                cant_be_countered: false,
-            },
+            // TODO: DSL gap — TargetRequirement has no "creature you control" / "creature you
+            // don't control" variants. The trample excess-damage clause is also not expressible.
+            // Approximate targeting (both TargetCreature) would allow illegal targets in multiplayer.
         ],
         ..Default::default()
     }

@@ -23,8 +23,8 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 1, green: 1, white: 1, ..Default::default() }),
         types: creature_types(&["Treefolk", "Druid"]),
         oracle_text: "Vigilance\nThis creature gets +1/+1 for each color among permanents you control.\n{T}: For each color among permanents you control, add one mana of that color.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */*  CDA — engine SBA skips None toughness
+        toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
         ],

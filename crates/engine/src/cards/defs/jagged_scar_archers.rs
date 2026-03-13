@@ -15,8 +15,8 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 1, green: 2, ..Default::default() }),
         types: creature_types(&["Elf", "Archer"]),
         oracle_text: "Jagged-Scar Archers's power and toughness are each equal to the number of Elves you control.\n{T}: This creature deals damage equal to its power to target creature with flying.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */*  CDA — engine SBA skips None toughness
+        toughness: None,
         abilities: vec![
             // TODO: static P/T — power and toughness equal the number of Elves you control.
             // DSL gap: no CountCreaturesYouControlWithSubtype EffectAmount.

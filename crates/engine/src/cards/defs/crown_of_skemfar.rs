@@ -8,8 +8,6 @@
 // 2. "{2}{G}: Return this card from your graveyard to your hand." — activated graveyard ability
 //    (return_from_graveyard pattern). DSL gap: no Cost::PayMana activated ability that returns
 //    the card itself from graveyard to hand.
-// The Reach keyword on the enchanted creature is also blocked by the same static-effect gap
-// (would require a separate ContinuousEffectDef granting Reach to the attached permanent).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +17,22 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
         oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 for each Elf you control and has reach.\n{2}{G}: Return this card from your graveyard to your hand.".to_string(),
-        abilities: vec![],
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
+            // Static: enchanted creature has Reach (CR 613.1f, Layer 6)
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Reach),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+            // TODO: DSL gap — "+1/+1 for each Elf you control" count-based P/T modifier
+            // (no EffectAmount variant for subtype count).
+            // TODO: DSL gap — "{2}{G}: Return this card from graveyard to hand" activated
+            // graveyard ability (return_from_graveyard pattern not supported).
+        ],
         ..Default::default()
     }
 }

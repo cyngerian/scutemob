@@ -23,6 +23,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Mutate),
+            AbilityDefinition::MutateCost {
+                cost: ManaCost { generic: 4, black: 1, ..Default::default() },
+            },
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
         ..Default::default()

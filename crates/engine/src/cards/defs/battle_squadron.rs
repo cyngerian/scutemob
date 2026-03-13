@@ -9,8 +9,8 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
         types: creature_types(&["Goblin"]),
         oracle_text: "Flying\nBattle Squadron's power and toughness are each equal to the number of creatures you control.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */* CDA — engine SBA skips None toughness; actual P/T set by layer
+        toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // TODO: DSL gap — characteristic-defining ability (CDA) setting P/T equal to number

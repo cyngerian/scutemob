@@ -18,7 +18,12 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Convoke),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
+            AbilityDefinition::Keyword(KeywordAbility::Madness),
+            AbilityDefinition::Madness { cost: ManaCost { generic: 2, black: 1, ..Default::default() } },
+            // TODO: DSL gap — "Other Vampires you control get +1/+1" requires subtype-filtered
+            // continuous P/T bonus with exclude-self filter, not yet expressible in card DSL.
         ],
         ..Default::default()
     }

@@ -8,6 +8,8 @@ pub fn card() -> CardDefinition {
         card_id: cid("rograkh-son-of-rohgahh"),
         name: "Rograkh, Son of Rohgahh".to_string(),
         mana_cost: Some(ManaCost { ..Default::default() }),
+        // Note: color_indicator is not a CardDefinition field (only CardFace for DFCs).
+        // Rograkh's red color identity comes from its {R} commander color identity rule — no fix needed.
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],

@@ -22,6 +22,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
+            AbilityDefinition::Ninjutsu {
+                cost: ManaCost { generic: 1, black: 1, ..Default::default() },
+            },
         ],
         ..Default::default()
     }

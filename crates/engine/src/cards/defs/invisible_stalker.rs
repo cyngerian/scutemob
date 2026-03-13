@@ -2,10 +2,6 @@
 // "Hexproof (This creature can't be the target of spells or abilities your opponents control.)
 // This creature can't be blocked."
 //
-// Hexproof is implemented.
-//
-// TODO: DSL gap — "This creature can't be blocked" requires a CantBeBlocked static keyword
-// or continuous effect. No such KeywordAbility variant exists in the current DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,6 +15,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Hexproof),
+            AbilityDefinition::Keyword(KeywordAbility::CantBeBlocked),
         ],
         ..Default::default()
     }

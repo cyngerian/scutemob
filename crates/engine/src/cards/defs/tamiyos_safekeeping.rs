@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
                         amount: EffectAmount::Fixed(2),
                     },
                 ]),
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter { controller: TargetController::You, ..Default::default() })],
                 modes: None,
                 cant_be_countered: false,
             },

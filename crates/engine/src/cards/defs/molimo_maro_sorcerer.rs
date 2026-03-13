@@ -15,8 +15,8 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 4, green: 3, ..Default::default() }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elemental", "Sorcerer"]),
         oracle_text: "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nMolimo's power and toughness are each equal to the number of lands you control.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */*  CDA — engine SBA skips None toughness
+        toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             // TODO: P/T = number of lands you control (dynamic Layer 7b, CountLands not in DSL)

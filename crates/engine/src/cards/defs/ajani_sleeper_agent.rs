@@ -13,10 +13,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ajani-sleeper-agent"),
         name: "Ajani, Sleeper Agent".to_string(),
-        // Mana cost approximated as {1}{G}{W} — the {G/W/P} hybrid pip omits life payment
+        // Mana cost: {1}{G}{G/W/P}{W} — {G/W/P} approximated as {G} to preserve CMC 4
         mana_cost: Some(ManaCost {
             generic: 1,
-            green: 1,
+            green: 2,
             white: 1,
             ..Default::default()
         }),

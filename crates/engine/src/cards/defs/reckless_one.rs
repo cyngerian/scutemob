@@ -12,8 +12,8 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
         types: creature_types(&["Goblin", "Avatar"]),
         oracle_text: "Haste\nReckless One's power and toughness are each equal to the number of Goblins on the battlefield.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */*  CDA — engine SBA skips None toughness
+        toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // TODO: static P/T — power and toughness equal the number of Goblins on the battlefield.

@@ -15,8 +15,8 @@ pub fn card() -> CardDefinition {
             &["Elf", "Horror"],
         ),
         oracle_text: "Vigilance; menace (This creature can't be blocked except by two or more creatures.)\nAbomination of Llanowar's power and toughness are each equal to the number of Elves you control plus the number of Elf cards in your graveyard.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */* CDA — engine SBA skips None toughness; actual P/T set by layer
+        toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             AbilityDefinition::Keyword(KeywordAbility::Menace),

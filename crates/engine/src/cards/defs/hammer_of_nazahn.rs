@@ -20,11 +20,31 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever Hammer of Nazahn or another Equipment you control enters, you may attach that Equipment to target creature you control.\nEquipped creature gets +2/+0 and has indestructible.\nEquip {4}".to_string(),
         abilities: vec![
             // TODO: ETB trigger watching for any Equipment entering (not just self) and
-            // attaching to target creature requires triggered_trigger with equipment filter
-            // — not in DSL.
-            // TODO: Continuous "+2/+0 and indestructible while equipped" effect requires
-            // equipment-grant continuous effect layer — not in DSL.
-            // TODO: Equip {4} activated ability not in DSL.
+            // attaching it to target creature — triggered_trigger with equipment filter not in DSL.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyPower(2),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Indestructible),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                effect: Effect::AttachEquipment {
+                    equipment: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+            },
         ],
         ..Default::default()
     }

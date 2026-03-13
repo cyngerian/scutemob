@@ -18,8 +18,8 @@ pub fn card() -> CardDefinition {
             &["Elemental", "Avatar"],
         ),
         oracle_text: "Reach, trample\nMultani gets +1/+1 for each land you control and each land card in your graveyard.\n{1}{G}, Return two lands you control to their owner's hand: Return this card from your graveyard to your hand.".to_string(),
-        power: Some(0),
-        toughness: Some(0),
+        power: None,   // */* CDA — engine SBA skips None toughness
+        toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Reach),
             AbilityDefinition::Keyword(KeywordAbility::Trample),

@@ -21,8 +21,15 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Kicker),
+            AbilityDefinition::Kicker {
+                cost: ManaCost { generic: 3, black: 1, ..Default::default() },
+                is_multikicker: false,
+            },
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Menace),
+            // TODO: DSL gap — ETB triggered "if kicked, return target creature from graveyard
+            // to battlefield" requires return_from_graveyard effect pattern (not yet supported).
         ],
         ..Default::default()
     }
