@@ -552,6 +552,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         kind: mtg_engine::StackObjectKind::TriggeredAbility {
             source_object: ObjectId(9998),
             ability_index: 0,
+            is_carddef_etb: false,
         },
         targets: Vec::new(),
         cant_be_countered: false,

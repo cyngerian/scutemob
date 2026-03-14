@@ -25,15 +25,12 @@ import argparse
 import json
 import os
 import re
+import sqlite3
 import sys
-import time
-import urllib.request
-import urllib.error
 
 DEFS_DIR = "crates/engine/src/cards/defs"
 DECKS_DIR = "test-data/test-decks"
-SCRYFALL_API = "https://api.scryfall.com/cards/named"
-USER_AGENT = "MTGEngine/1.0 (card skeleton generator)"
+SQLITE_DB = "cards.sqlite"
 
 
 def build_local_card_index(decks_dir: str) -> dict[str, dict]:
@@ -79,27 +76,46 @@ def _reconstruct_type_line(card: dict) -> str:
     return left
 
 
-def fetch_card(name: str, local_index: dict[str, dict] | None = None) -> dict | None:
-    """Fetch card data, preferring local index, falling back to Scryfall API."""
-    # Try local index first
+def build_sqlite_card_index(db_path: str) -> dict[str, dict]:
+    """Build a name → card_data index from cards.sqlite."""
+    index = {}
+    if not os.path.exists(db_path):
+        return index
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT name, mana_cost, type_line, oracle_text, power, toughness
+            FROM cards
+            WHERE layout NOT IN ('art_series', 'token', 'emblem')
+        """)
+        for row in cur.fetchall():
+            name, mana_cost, type_line, oracle_text, power, toughness = row
+            if name and name not in index:
+                index[name] = {
+                    "name": name,
+                    "mana_cost": mana_cost,
+                    "type_line": type_line or "",
+                    "oracle_text": oracle_text or "",
+                    "keywords": [],
+                    "power": power,
+                    "toughness": toughness,
+                }
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"  WARNING: SQLite error: {e}", file=sys.stderr)
+    return index
+
+
+def fetch_card(name: str, local_index: dict[str, dict] | None = None,
+               sqlite_index: dict[str, dict] | None = None) -> dict | None:
+    """Fetch card data, preferring local deck index, then SQLite DB."""
     if local_index and name in local_index:
         return local_index[name]
-
-    # Fall back to Scryfall API
-    url = f"{SCRYFALL_API}?exact={urllib.request.quote(name)}"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            print(f"  WARNING: Card not found on Scryfall: {name}", file=sys.stderr)
-            return None
-        print(f"  WARNING: Scryfall API error {e.code} for {name}", file=sys.stderr)
-        return None
-    except (urllib.error.URLError, OSError) as e:
-        print(f"  WARNING: Network error for {name}: {e}", file=sys.stderr)
-        return None
+    if sqlite_index and name in sqlite_index:
+        return sqlite_index[name]
+    print(f"  WARNING: Card not found in local index or SQLite DB: {name}", file=sys.stderr)
+    return None
 
 
 def card_name_to_slug(name: str) -> str:
@@ -370,16 +386,21 @@ def main():
 
     os.makedirs(DEFS_DIR, exist_ok=True)
 
-    # Build local card index from deck files (avoids network dependency)
+    # Build local card index from deck files
     print("Building local card index from deck files...")
     local_index = build_local_card_index(DECKS_DIR)
     print(f"  {len(local_index)} unique cards indexed locally")
+
+    # Build SQLite index for cards not in deck files
+    print("Building SQLite card index...")
+    sqlite_index = build_sqlite_card_index(SQLITE_DB)
+    print(f"  {len(sqlite_index)} unique cards in SQLite DB")
 
     written = 0
     skipped = 0
     failed = 0
 
-    for i, name in enumerate(card_names):
+    for name in card_names:
         slug = card_name_to_slug(name)
         filename = slug_to_filename(slug)
         filepath = os.path.join(DEFS_DIR, f"{filename}.rs")
@@ -394,20 +415,15 @@ def main():
             written += 1
             continue
 
-        # Only rate-limit when falling back to Scryfall (not for local lookups)
-        use_api = name not in local_index
-        if use_api and i > 0:
-            time.sleep(0.1)
-
-        card = fetch_card(name, local_index)
+        card = fetch_card(name, local_index, sqlite_index)
         if card is None:
             failed += 1
             continue
 
+        src = "local" if (local_index and name in local_index) else "sqlite"
         skeleton = generate_skeleton(card)
         with open(filepath, "w") as f:
             f.write(skeleton)
-        src = "local" if not use_api else "scryfall"
         print(f"  Generated: {filepath} ({name}) [{src}]")
         written += 1
 

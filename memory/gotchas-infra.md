@@ -341,6 +341,9 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
 - **`ObjectSpec::card + .with_types([Creature])` creates a creature with `toughness: None`.**
   SBAs 704.5f/g/h skip `None` toughness to avoid false positives. Use
   `ObjectSpec::creature(owner, name, power, toughness)` for creatures SBAs should affect.
+- **`state.add_object()` takes `(GameObject, ZoneId)`, NOT `ObjectSpec`.** To add objects in
+  tests, use `GameStateBuilder::new().object(spec).build()` + `find_by_name()` to get IDs.
+  Do NOT call `state.add_object(spec)` post-build — it won't compile.
 - **Don't test implementation details.** Test observable behavior: "player B's life is 37"
   not "the stack has one item of type InstantSpell with damage field 3."
 - **Randomness in tests**: use seeded RNG (`StdRng::seed_from_u64`) for deterministic

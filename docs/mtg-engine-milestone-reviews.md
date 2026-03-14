@@ -47,6 +47,7 @@
 - [M9: Commander Rules Integration](#m9-commander-rules-integration) **(REVIEWED)**
 - [M9.4: Copy, Protection, Storm, Cascade, Trigger Doubling, Loop Detection](#m94-copy-protection-storm-cascade-trigger-doubling-loop-detection) **(REVIEWED)**
 - [M9.5: Game State Stepper (Developer Replay Viewer)](#m95-game-state-stepper-developer-replay-viewer) **(REVIEWED)**
+- [W1-B16: Dungeon / Venture into the Dungeon](#w1-b16-dungeon--venture-into-the-dungeon-cr-309-70149-725) **(REVIEWED)**
 - [Cross-Milestone Issue Index](#cross-milestone-issue-index)
 
 ---
@@ -2203,25 +2204,140 @@ Session 6 consolidated 10 AbilityDefinition variants (Flashback, Embalm, Eternal
 
 ---
 
+## W1-B16: Dungeon / Venture into the Dungeon (CR 309, 701.49, 725)
+
+**Review Status**: REVIEWED (2026-03-09)
+
+Cross-session review of the complete Dungeon mini-milestone (4 sessions). Covers data model, core venture mechanic, resolution/SBA/initiative, card definitions, harness action, and game script 205. Per-session reviews at `memory/abilities/ability-review-dungeon-s{1-4}.md` identified 5 HIGH, 5 MEDIUM, and 12 LOW findings; all HIGH and MEDIUM were fixed inline before this cross-session review.
+
+### Files Introduced
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `state/dungeon.rs` | 566 | DungeonId enum, DungeonState, DungeonDef/RoomDef structs, 4 dungeon definitions (28 rooms), token specs |
+| `cards/defs/nadaar_selfless_paladin.rs` | 53 | Nadaar card def: Vigilance, ETB/attack venture, conditional +1/+1 (DSL gap) |
+| `cards/defs/seasoned_dungeoneer.rs` | 50 | Seasoned Dungeoneer card def: ETB take the initiative (DSL gap for attack trigger) |
+| `cards/defs/acererak_the_archlich.rs` | 84 | Acererak card def: ETB intervening-if bounce + venture, attack Zombie tokens |
+| `tests/dungeon_data_model.rs` | 241 | 3 tests: graph structure, default state, hash determinism |
+| `tests/dungeon_venture.rs` | 252 | 5 tests: enter first room, advance, complete, restart, RoomAbility on stack |
+| `tests/dungeon_resolution.rs` | 543 | 6 tests: room effect execution, SBA 704.5t (both branches), initiative upkeep + combat steal |
+| `tests/dungeon_cards.rs` | 727 | 6 tests: Nadaar ETB/attack, Nadaar completed-dungeon buff, Acererak bounce/stays, initiative take |
+
+### Files Modified
+
+| File | Change | Purpose |
+|------|--------|---------|
+| `state/mod.rs` | +20 | `dungeon_state: OrdMap<PlayerId, DungeonState>`, `has_initiative: Option<PlayerId>` fields, re-exports |
+| `state/player.rs` | +18 | `dungeons_completed: u32`, `dungeons_completed_set: OrdSet<DungeonId>` fields |
+| `state/builder.rs` | +8 | Initialize dungeon fields (empty map, None, 0, empty set) |
+| `state/hash.rs` | +123 | HashInto for DungeonId, DungeonState, PlayerState dungeon fields, GameState dungeon/initiative, RoomAbility SOK, VenturedIntoDungeon/DungeonCompleted/InitiativeTaken events, CompletedADungeon/CompletedSpecificDungeon/Not conditions, VentureIntoDungeon/TakeTheInitiative effects |
+| `state/stack.rs` | +46 | `StackObjectKind::RoomAbility { owner, dungeon, room }` (disc 65), `is_carddef_etb` on TriggeredAbility |
+| `cards/card_definition.rs` | +41 | `Effect::VentureIntoDungeon`, `Effect::TakeTheInitiative`, `Condition::CompletedADungeon`, `Condition::CompletedSpecificDungeon(DungeonId)`, `Condition::Not(Box<Condition>)`, `TokenSpec.supertypes` field |
+| `cards/helpers.rs` | +10 | Re-exports: DungeonId, DungeonState, RoomIndex |
+| `effects/mod.rs` | +58 | Effect execution for VentureIntoDungeon/TakeTheInitiative, condition evaluation for CompletedADungeon/CompletedSpecificDungeon/Not |
+| `rules/engine.rs` | +202 | `handle_venture_into_dungeon()` (3 cases + recursive), VentureIntoDungeon/ChooseDungeonRoom command handlers |
+| `rules/resolution.rs` | +288 | RoomAbility resolution arm (effect lookup + execute), CardDefETB resolution path, RoomAbility in counter arm |
+| `rules/sba.rs` | +148 | `check_dungeon_completion_sba()` (CR 704.5t), `transfer_initiative_on_player_leave()` (CR 725.4) with active-player priority, initiative transfer on player loss |
+| `rules/turn_actions.rs` | +68 | Initiative upkeep venture trigger (CR 725.2), `check_initiative_steal_from_combat_damage()` for both first-strike and regular damage |
+| `rules/command.rs` | +23 | `Command::VentureIntoDungeon`, `Command::ChooseDungeonRoom` |
+| `rules/events.rs` | +40 | `GameEvent::VenturedIntoDungeon`, `DungeonCompleted`, `InitiativeTaken` (discriminants 114-116) |
+| `testing/replay_harness.rs` | +5 | `venture_into_dungeon` harness action |
+| `tools/replay-viewer/src/view_model.rs` | +62 | RoomAbility display arm |
+| `tools/tui/src/play/panels/stack_view.rs` | +4 | RoomAbility display arm |
+| `lib.rs` | +8 | Public re-exports: get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomIndex, handle_venture_into_dungeon |
+
+### CR Sections Implemented
+
+| CR Section | Implementation |
+|------------|---------------|
+| CR 309.1-309.2 | `dungeon.rs` -- DungeonId enum, 4 static definitions (non-traditional cards, outside the game) |
+| CR 309.3 | `engine.rs` -- one dungeon per player in command zone (enforced by OrdMap keyed by PlayerId) |
+| CR 309.4-309.4c | `dungeon.rs` -- DungeonState (venture marker), RoomDef (room abilities), DungeonDef (room graph) |
+| CR 309.5-309.5b | `engine.rs` -- venture marker advancement, branching path choice (deterministic first-exit fallback) |
+| CR 309.6 | `sba.rs` -- check_dungeon_completion_sba waits for RoomAbility to leave the stack |
+| CR 309.7 | `player.rs` + `sba.rs` + `engine.rs` -- dungeons_completed counter, dungeons_completed_set |
+| CR 701.49a-d | `engine.rs` -- handle_venture_into_dungeon: 3 cases + force_undercity for 701.49d |
+| CR 704.5t | `sba.rs` -- check_dungeon_completion_sba: remove dungeon when on bottommost + no room ability on stack |
+| CR 725.1 | `mod.rs` -- has_initiative: Option<PlayerId> on GameState |
+| CR 725.2 | `turn_actions.rs` + `effects/mod.rs` -- upkeep venture, combat steal, taking initiative ventures into Undercity |
+| CR 725.3 | `effects/mod.rs` -- assigning initiative replaces previous holder |
+| CR 725.4 | `sba.rs` -- transfer_initiative_on_player_leave: active player first, then turn order |
+| CR 725.5 | `effects/mod.rs` -- taking initiative from self still triggers venture (CR 725.2 third ability) |
+| CR 603.4 | `resolution.rs` -- intervening-if re-evaluated at resolution for CardDefETB (Acererak) |
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-B16-01 | **MEDIUM** | `sba.rs:372`, `turn_actions.rs:581,1794` | **Silent error swallowing via `unwrap_or_default()` in engine library code.** Three call sites use `handle_venture_into_dungeon(...).unwrap_or_default()` to silently convert venture errors to empty event vecs. This violates the error handling policy (Architecture Invariant: "Engine crate uses typed errors -- never unwrap() or expect() in engine logic"). If `handle_venture` fails (e.g., player not found after concession race), the error is silently dropped with no events and no error reporting. **Fix:** Propagate the `Result` upward. For `transfer_initiative_on_player_leave` (returns `Vec`), consider logging the error and returning empty events, or change the signature to `Result`. For `upkeep_actions` (returns `Vec`), similarly propagate. For `check_initiative_steal_from_combat_damage` (takes `&mut Vec`), match on the Result and handle the Err case. | CLOSED — fix session 1 |
+| MR-B16-02 | **MEDIUM** | `sba.rs:1298-1302,1341-1343` | **Misleading comment about double-counting `dungeons_completed`.** The comment on lines 1298-1301 says "dungeons_completed is already incremented in handle_venture_into_dungeon" and claims the SBA "only performs the removal." But lines 1341-1343 ALSO increment `dungeons_completed` and add to `dungeons_completed_set`. While the two code paths are mutually exclusive in practice (handle_venture case c removes the entry before SBA fires; SBA handles the normal reach-bottommost-then-wait-for-room-ability path), the comment is factually wrong about what the SBA does. This is a maintenance hazard: a future developer trusting the comment could introduce a real double-count bug. **Fix:** Update the comment to accurately describe both paths: handle_venture case c for immediate completion-on-re-venture, and SBA for deferred completion after room ability resolves. | CLOSED — fix session 1 |
+| MR-B16-03 | **LOW** | `engine.rs:2116-2157,2196-2237` | **Duplicated ~40-line StackObject construction for RoomAbility.** The StackObject construction for RoomAbility is duplicated verbatim in both the `None` branch (entering new dungeon) and the `Some` branch (advancing room) of `handle_venture_into_dungeon`. This is the same boilerplate proliferation pattern noted in MR-TC-25. **Fix:** Extract a helper `fn room_ability_stack_object(id, player, dungeon, room) -> StackObject` to eliminate the duplication. | CLOSED — fix session 1 |
+| MR-B16-04 | **LOW** | `dungeon.rs:251-258,279-285,347-353,507-513,526-534` | **Placeholder room effects diverge from oracle text.** 5 rooms use `Effect::GainLife` as a placeholder for targeting effects (Storeroom: +1/+1 counter, Fungi Cavern: -4/-0, Twisted Caverns: can't attack, Forge: two +1/+1 counters, Arena: goad). Each placeholder is documented with a TODO, but the placeholder effects are arbitrary and not marked distinctively in the effect system -- a downstream consumer cannot distinguish "real GainLife 1" from "placeholder for targeting effect." **Fix:** Add an `Effect::Placeholder { description: String }` variant or use `Effect::Nothing` with a comment for placeholders, so they are distinguishable from real effects. Alternatively, accept this as a known limitation until M10+ interactive targeting. | OPEN |
+| MR-B16-05 | **LOW** | `dungeon.rs:365-372,394-401,553-560` | **Deterministic fallback effects differ from oracle text for complex rooms.** Runestone Caverns (exile + play) is approximated as Draw 2. Mad Wizard's Lair (draw 3 + play each for free) is approximated as Draw 3. Throne of the Dead Three (reveal top 10, take 3 specific types) is approximated as Draw 3. The approximations for Mad Wizard's Lair and Throne are reasonable, but Runestone Caverns changes a conditional free-cast into unconditional draw -- a meaningful gameplay difference. Documented with TODOs. No action needed until M10+. | OPEN |
+| MR-B16-06 | **LOW** | `acererak_the_archlich.rs:56-60` | **Zombie tokens created under wrong controller.** The Acererak attack trigger uses `ForEach { EachOpponent, CreateToken }` which creates tokens under Acererak's controller, not under each opponent's control as the oracle text specifies ("that player creates"). The comment documents this as a known simplification requiring `EffectTarget::CurrentIterationPlayer` or equivalent. No correctness issue for the current test suite but would produce wrong game states in competitive play. **Fix:** Deferred to M10+ when ForEach iteration context is extended. | OPEN |
+| MR-B16-07 | **LOW** | `resolution.rs:7170,7175` | **Sentinel ObjectId(0) used as source for room ability effects.** Room abilities use `ObjectId(0)` as the source in `EffectContext::new()` since dungeons have no permanent source object. ObjectId(0) is never assigned to real objects (counter starts at 1), so no collision occurs. However, effects that reference `EffectTarget::Source` (e.g., a hypothetical room effect targeting "this") would resolve against a nonexistent object. Currently no room effect uses `EffectTarget::Source`, so this is safe. **Fix:** Document the sentinel convention or use a dedicated `ObjectId::SENTINEL` constant for clarity. | OPEN |
+| MR-B16-08 | **LOW** | `turn_actions.rs:581-582` | **Initiative upkeep venture returns early, bypassing other upkeep triggers.** The initiative upkeep check at line 579-582 does `return venture_events;` immediately, which means any subsequent upkeep logic in `upkeep_actions()` (e.g., generic CardDef AtBeginningOfYourUpkeep triggers) is skipped for the initiative holder. Currently the initiative check runs after the generic upkeep sweep (lines 494-574), so this is not a bug -- but if any upkeep logic is added AFTER the initiative check, it will be silently skipped. **Fix:** Change `return venture_events;` to append the events to the local events vec and let the function fall through naturally. | CLOSED — fix session 1 |
+| MR-B16-09 | **INFO** | Multiple files | **Per-session review findings all resolved.** Sessions 1-4 identified 5 HIGH (hash omissions, SBA double-count, intervening-if, Atropal supertype, CompletedSpecificDungeon tracking) and 5 MEDIUM (upkeep trigger, combat steal, Condition::Not, CardDefETB, token controller). All 10 were fixed before this cross-session review. The implementation reflects a mature incremental development process with review-driven corrections between sessions. | -- |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| Dungeon graph structure (4 dungeons, 28 rooms) | Full | `test_dungeon_def_structure` validates exits, bottommost, no self-loops |
+| Default state (no dungeon, no initiative) | Full | `test_dungeon_state_default` |
+| Hash determinism (dungeon, room, initiative) | Full | `test_dungeon_hash_determinism` with 5 hash comparisons |
+| CR 701.49a: Enter first room | Full | `test_venture_enters_first_room` |
+| CR 701.49b: Advance room | Full | `test_venture_advances_room` |
+| CR 701.49c: Complete dungeon | Full | `test_venture_completes_dungeon` |
+| CR 701.49c: Restart after completion | Full | `test_venture_starts_new_after_completion` |
+| CR 309.4c: Room ability on stack | Full | `test_room_ability_goes_on_stack` |
+| CR 309.4c: Room ability resolves (Scry) | Full | `test_room_ability_resolves_scry` |
+| CR 309.4c: Room ability resolves (CreateToken) | Full | `test_room_ability_resolves_create_token` |
+| CR 704.5t: SBA removes completed dungeon | Full | `test_sba_704_5t_removes_completed_dungeon` |
+| CR 704.5t: SBA waits for room ability on stack | Full | `test_sba_704_5t_waits_for_room_ability` |
+| CR 725.2: Initiative upkeep venture | Full | `test_initiative_upkeep_venture` |
+| CR 725.2: Initiative combat damage steal | Full | `test_initiative_combat_damage_steal` |
+| CR 725.4: Initiative transfer on player leave | Partial | Tested in SBA path (loss events); no dedicated test for concession or multi-player edge cases |
+| CR 603.4: Intervening-if (Acererak, condition true) | Full | `test_acererak_bounces_without_tomb` |
+| CR 603.4: Intervening-if (Acererak, condition false) | Full | `test_acererak_stays_after_tomb_completed` |
+| Nadaar ETB venture | Full | `test_nadaar_enters_ventures` |
+| Nadaar attack venture | Full | `test_nadaar_attacks_ventures` |
+| Seasoned Dungeoneer ETB take initiative | Full | `test_initiative_take_ventures_undercity` |
+| CR 701.49d: Force Undercity | Partial | Tested via Seasoned Dungeoneer and initiative upkeep; no test for force_undercity=true while mid-dungeon |
+| Multiple dungeon completions | Not tested | No test verifies dungeons_completed incrementing from 1 to 2+ or completing different dungeons |
+| Condition::Not generic | Partial | Only tested via Acererak (CompletedSpecificDungeon); no test with other conditions |
+| Branching path interactive choice | Not tested | ChooseDungeonRoom command accepted but deterministic; deferred to M10+ |
+
+### Notes
+
+- **Implementation quality is high.** The 4-session approach with review-fix cycles between sessions resulted in a clean final implementation. All 10 HIGH/MEDIUM findings from per-session reviews were addressed before this cross-session review. The remaining findings are 2 MEDIUM and 6 LOW/INFO.
+- **Hash coverage is complete.** DungeonId, DungeonState, PlayerState dungeon fields, GameState dungeon_state and has_initiative, all 3 new events, 2 new effects, 3 new conditions, and RoomAbility SOK all have correct HashInto implementations with explicit match-based discriminants.
+- **CR 309/701.49/725 coverage is comprehensive.** All subsections of these rules are implemented or documented as deferred (interactive targeting, branching choice). The SBA 704.5t correctly waits for room abilities to leave the stack before removing the dungeon.
+- **The `Condition::Not` variant is a valuable generic addition.** It enables intervening-if negation (Acererak's "if you haven't") without special-casing each negatable condition.
+- **StackObject boilerplate remains a drag.** Each RoomAbility construction requires setting ~30 fields to default values. This is the same pattern noted in MR-TC-25 and amplifies the argument for a `StackObject::default()` or builder.
+- **20 tests across 4 files** provide strong coverage of the core dungeon mechanics. The main gap is multi-completion scenarios and the interactive branching path (both deferred).
+
+---
+
 ## Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 310 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate + 26 TC) |
+| Total unique issue IDs | 319 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate + 26 TC + 9 B16) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 36 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03 + 1 B10 inline: MR-B10-01 + 2 B11 inline: MR-B11-01, MR-B11-02) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 -- deferred to M10+) |
-| MEDIUM (CLOSED) | 66 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02 + 2 B14 inline: MR-B14-01, MR-B14-02 + 1 B14 inline: MR-B14-04 + 2 TC inline: MR-TC-01, MR-TC-18) |
+| MEDIUM (CLOSED) | 68 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02 + 2 B14 inline: MR-B14-01, MR-B14-02 + 1 B14 inline: MR-B14-04 + 2 TC inline: MR-TC-01, MR-TC-18 + 2 B16 fix session 1: MR-B16-01, MR-B16-02) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 79 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10 + 2 B13: MR-B13-01, MR-B13-02 + 1 B14: MR-B14-03 + 2 B15: MR-B15-01, MR-B15-02 + 2 Mutate: MR-Mutate-01, MR-Mutate-02 + 23 TC: MR-TC-02 through MR-TC-25, excluding MR-TC-18 MEDIUM) |
-| LOW (CLOSED) | 39 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03 + 1 B9 MR-B9-01 closed by B10 + 2 B10 inline: MR-B10-07, MR-B10-08) |
+| LOW (OPEN) | 83 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10 + 2 B13: MR-B13-01, MR-B13-02 + 1 B14: MR-B14-03 + 2 B15: MR-B15-01, MR-B15-02 + 2 Mutate: MR-Mutate-01, MR-Mutate-02 + 23 TC: MR-TC-02 through MR-TC-25, excluding MR-TC-18 MEDIUM + 4 B16: MR-B16-04 through MR-B16-07) |
+| LOW (CLOSED) | 41 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03 + 1 B9 MR-B9-01 closed by B10 + 2 B10 inline: MR-B10-07, MR-B10-08 + 2 B16 fix session 1: MR-B16-03, MR-B16-08) |
 | LOW (DEFERRED) | 5 |
-| INFO | 68 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19 + 1 TC: MR-TC-26) |
-| Milestones reviewed | 18 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5, W1-B10, W1-B11, W1-B12, W1-B13, W1-B14, W1-B15, W1-Mutate) |
+| INFO | 69 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19 + 1 TC: MR-TC-26 + 1 B16: MR-B16-09) |
+| Milestones reviewed | 19 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5, W1-B10, W1-B11, W1-B12, W1-B13, W1-B14, W1-B15, W1-Mutate, W1-B16) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B10 complete (2026-03-07)**: Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify — 1 HIGH + 5 MEDIUM + 2 LOW found, all fixed inline; 1706 tests; 155 validated; P4 64/88; **W1-B11 complete (2026-03-07)**: Modal Choice, Tribute, Fabricate, Fuse, Spree — 2 HIGH + 6 MEDIUM found, all fixed inline; 2 LOW deferred; 1754 tests; 160 validated; P4 66/88; P2 17/17 (all P2 complete); **W1-B12 complete (2026-03-07)**: Enrage, Alliance, Corrupted, Ravenous, Bloodrush — 2 MEDIUM + 8 LOW found; 2 MEDIUM fixed inline; 8 LOW deferred; 1784 tests; 165 validated; P4 71/88; **W1-B13 complete (2026-03-07)**: Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle — 0 HIGH/MEDIUM; 2 LOW deferred; 1792 tests; 171 validated; P4 77/88; **W1-B14 complete (2026-03-08)**: Cipher, Haunt, Reconfigure, Blood Tokens, Decayed Tokens — 2 MEDIUM + 2 LOW found; 3 MEDIUM/LOW fixed inline; 1 LOW deferred; 1829 tests; 175 validated; P4 82/88; **W1-B15 complete (2026-03-08)**: Friends Forever, Choose a Background, Doctor's Companion — 0 HIGH/MEDIUM; 2 LOW deferred; 1889 tests (with Mutate); P4 84/88; **W1-Mutate complete (2026-03-08)**: Mutate mini-milestone — 0 HIGH/MEDIUM; 2 LOW deferred; all 78 implementable abilities done |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B10 complete (2026-03-07)**: Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify — 1 HIGH + 5 MEDIUM + 2 LOW found, all fixed inline; 1706 tests; 155 validated; P4 64/88; **W1-B11 complete (2026-03-07)**: Modal Choice, Tribute, Fabricate, Fuse, Spree — 2 HIGH + 6 MEDIUM found, all fixed inline; 2 LOW deferred; 1754 tests; 160 validated; P4 66/88; P2 17/17 (all P2 complete); **W1-B12 complete (2026-03-07)**: Enrage, Alliance, Corrupted, Ravenous, Bloodrush — 2 MEDIUM + 8 LOW found; 2 MEDIUM fixed inline; 8 LOW deferred; 1784 tests; 165 validated; P4 71/88; **W1-B13 complete (2026-03-07)**: Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle — 0 HIGH/MEDIUM; 2 LOW deferred; 1792 tests; 171 validated; P4 77/88; **W1-B14 complete (2026-03-08)**: Cipher, Haunt, Reconfigure, Blood Tokens, Decayed Tokens — 2 MEDIUM + 2 LOW found; 3 MEDIUM/LOW fixed inline; 1 LOW deferred; 1829 tests; 175 validated; P4 82/88; **W1-B15 complete (2026-03-08)**: Friends Forever, Choose a Background, Doctor's Companion — 0 HIGH/MEDIUM; 2 LOW deferred; 1889 tests (with Mutate); P4 84/88; **W1-Mutate complete (2026-03-08)**: Mutate mini-milestone — 0 HIGH/MEDIUM; 2 LOW deferred; all 78 implementable abilities done; **W1-B16 complete (2026-03-09)**: Dungeon/Venture/Initiative — 0 HIGH; 2 MEDIUM; 6 LOW; 1 INFO; 20 tests across 4 files |
 
 **Engine source LOC (M0-M9.4 baseline)**: ~17,800 lines (+2,700 M9.4); W1-B0 through B15+Mutate added ~9,000+ lines (86 abilities, new infra fields, effect variants, trigger kinds, merged_cards model)
 **Engine test LOC (M1-M9.4 baseline)**: ~25,400 lines (+4,700 M9.4); W1-B0 through B15+Mutate added ~11,000+ lines (22 new test files, 435+ unit tests + 99 scripts)

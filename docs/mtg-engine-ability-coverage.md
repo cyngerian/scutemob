@@ -1,8 +1,8 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-09 (Validation sprint: Disguise/Megamorph/Manifest/Cloak/Forage/Gift promoted complete→validated; 6 new card defs; 7 new scripts (200-204 + 185 unblocked + 182 approved); harness: gift_opponent field added to PlayerAction schema; P4 93/105 validated, 0 complete, 0 none)
-> Reclassified 2026-03-09: 9 digital-only abilities → `permanent-n/a`; Banding → `deferred` (post-alpha); Dungeon/Venture + The Ring Tempts You → `none` (planned for implementation)
+> Last audited: 2026-03-11 (The Ring Tempts You + Venture/Dungeon validated; summary table corrected to 95/105 P4 validated, 0 none; 194 total validated)
+> Reclassified 2026-03-09: 9 digital-only abilities → `permanent-n/a`; Banding → `deferred` (post-alpha)
 
 ---
 
@@ -35,8 +35,8 @@
 | P1       | 42    | 42        | 0        | 0       | 0    | 0        | 0       |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0        | 0       |
 | P3       | 40    | 40        | 0        | 0       | 0    | 0        | 0       |
-| P4       | 105   | 93        | 0        | 0       | 2    | 9        | 1       |
-| **Total**| **204**| **192** | **0**    | **0**   | **2**| **9**    | **1**   |
+| P4       | 105   | 95        | 0        | 0       | 0    | 9        | 1       |
+| **Total**| **204**| **194** | **0**    | **0**   | **0**| **9**    | **1**   |
 
 ---
 
@@ -332,7 +332,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Surveil | 701.25 | P2 | `validated` | `cards/card_definition.rs:293-303` (Effect::Surveil), `rules/events.rs:678-684` (GameEvent::Surveilled), `state/game_object.rs:147-150` (TriggerEvent::ControllerSurveils), `cards/card_definition.rs:577-582` (TriggerCondition::WheneverYouSurveil), `effects/mod.rs:917-953` (execution), `rules/abilities.rs:846-865` (trigger dispatch), `testing/replay_harness.rs:635-651` (enrichment), `state/hash.rs:959,1736,1996,2259` (hash arms) | Consider | `stack/071` | — | CR 701.25a/c/d fully enforced; deterministic fallback (all surveilled cards go to graveyard); surveil 0 suppresses event (CR 701.25c); event fires even with empty/partial library (CR 701.25d); WheneverYouSurveil trigger pipeline complete; 7 unit tests in `tests/surveil.rs`; game script pending_review (all assertions pass) |
 | Adapt (keyword action) | 701.46 | P3 | `validated` | — | — | — | — | See Section 9 (primary row); implementation tracked there |
 | Venture/Dungeon | 309, 701.49 | P4 | `validated` | `state/dungeon.rs` (DungeonId enum, 4 static defs, 28 rooms), `state/mod.rs` (dungeon_state, has_initiative), `state/player.rs` (dungeons_completed, dungeons_completed_set), `rules/engine.rs` (handle_venture_into_dungeon, room_ability_stack_object), `state/stack.rs` (RoomAbility SOK 65), `rules/sba.rs` (SBA 704.5t, transfer_initiative_on_player_leave), `rules/resolution.rs` (RoomAbility resolution), `rules/turn_actions.rs` (initiative upkeep, combat steal), `effects/mod.rs` (VentureIntoDungeon, TakeTheInitiative, CompletedADungeon, CompletedSpecificDungeon, Condition::Not), `cards/card_definition.rs` (Effect/Condition variants) | Nadaar Selfless Paladin, Seasoned Dungeoneer, Acererak the Archlich | `etb-triggers/205` | — | CR 309, 701.49, 725 fully implemented. 4 dungeons (28 rooms), venture state machine (3 cases), SBA 704.5t, initiative (upkeep/combat-steal/player-leave), TokenSpec.supertypes for Legendary Atropal. 20 tests across 4 files; 4 review cycles, 0 HIGH/MEDIUM open. |
-| The Ring Tempts You | 701.54 | P4 | `validated` | `state/player.rs` (ring_level, ring_bearer_id), `state/game_object.rs` (RING_BEARER designation, ring_block_sacrifice_at_eoc), `rules/engine.rs` (handle_ring_tempts_you, ring_ability_stack_object), `state/stack.rs` (RingAbility SOK 66), `rules/layers.rs` (Legendary supertype grant), `rules/combat.rs` (blocking restriction), `rules/sba.rs` (check_ring_bearer_sba), `rules/abilities.rs` (ring trigger dispatch levels 2-4), `rules/turn_actions.rs` (EOC sacrifice), `effects/mod.rs` (TheRingTemptsYou, RingHasTemptedYou, WheneverRingTemptsYou) | Call of the Ring, Frodo Sauron's Bane | `etb-triggers/206` | — | CR 701.54 fully implemented. 4-level cumulative ring abilities: L1 legendary (layers), L2 loot on attack (trigger), L3 sacrifice blocker at EOC (flag pattern), L4 loses game on combat damage (trigger). Ring-bearer SBA cleanup on zone/control change. 16 tests across 2 files; 2 review cycles, 0 HIGH/MEDIUM open. |
+| The Ring Tempts You | 701.54 | P4 | `validated` | `state/player.rs` (ring_level, ring_bearer_id), `state/game_object.rs` (RING_BEARER designation, ring_block_sacrifice_at_eoc), `rules/engine.rs` (handle_ring_tempts_you, ring_ability_stack_object), `state/stack.rs` (RingAbility SOK 66), `rules/layers.rs` (Legendary supertype grant), `rules/combat.rs` (blocking restriction), `rules/sba.rs` (check_ring_bearer_sba), `rules/abilities.rs` (ring trigger dispatch levels 2-4), `rules/turn_actions.rs` (EOC sacrifice), `effects/mod.rs` (TheRingTemptsYou, RingHasTemptedYou, WheneverRingTemptsYou) | Call of the Ring, Frodo Sauron's Bane | `etb-triggers/206` | — | CR 701.54 fully implemented. 4-level cumulative ring abilities: L1 legendary (layers), L2 loot on attack (trigger), L3 sacrifice blocker at EOC (flag pattern), L4 loses game on combat damage (trigger). Ring-bearer SBA cleanup on zone/control change. 18 tests across 2 files (ring_tempts_you.rs + ring_cards.rs); 2 review cycles, 0 HIGH/MEDIUM open. |
 
 ---
 

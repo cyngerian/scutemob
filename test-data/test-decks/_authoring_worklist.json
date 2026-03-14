@@ -1,11 +1,11 @@
 {
-  "generated": "2026-02-28T23:49:56.972935+00:00",
+  "generated": "2026-03-10T22:15:07.543739+00:00",
   "summary": {
     "total_cards": 1174,
-    "authored": 66,
-    "ready": 941,
-    "blocked": 147,
-    "deferred": 20,
+    "authored": 95,
+    "ready": 954,
+    "blocked": 108,
+    "deferred": 17,
     "unknown": 0
   },
   "authored": [
@@ -171,6 +171,15 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Exotic Orchard",
+      "appears_in_decks": 5,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Heroic Intervention",
       "appears_in_decks": 5,
       "types": [
@@ -227,6 +236,33 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Blasphemous Act",
+      "appears_in_decks": 4,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Chaos Warp",
+      "appears_in_decks": 4,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "City of Brass",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Elvish Mystic",
       "appears_in_decks": 4,
       "types": [
@@ -263,6 +299,17 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Mystic Remora",
+      "appears_in_decks": 4,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Cumulative upkeep"
+      ],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Phyrexian Altar",
       "appears_in_decks": 4,
       "types": [
@@ -281,7 +328,25 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Assassin's Trophy",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Brainstorm",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Crop Rotation",
       "appears_in_decks": 3,
       "types": [
         "Instant"
@@ -299,10 +364,57 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Deadly Dispute",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Treasure"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Delighted Halfling",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Demonic Tutor",
       "appears_in_decks": 3,
       "types": [
         "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Fellwar Stone",
+      "appears_in_decks": 3,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Fyndhorn Elves",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Grand Abolisher",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -317,6 +429,33 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Isolated Chapel",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Mana Crypt",
+      "appears_in_decks": 3,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Mother of Runes",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Night's Whisper",
       "appears_in_decks": 3,
       "types": [
@@ -326,7 +465,65 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Path of Ancestry",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [
+        "Scry"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Pitiless Plunderer",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure"
+      ],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Prismatic Vista",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Putrefy",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Reanimate",
+      "appears_in_decks": 3,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Reassembling Skeleton",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Reflecting Pool",
       "appears_in_decks": 3,
       "types": [
         "Land"
@@ -463,6 +660,17 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Vandalblast",
+      "appears_in_decks": 2,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Overload"
+      ],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Batterskull",
       "appears_in_decks": 1,
       "types": [
@@ -471,6 +679,18 @@
       "keywords": [
         "Equip",
         "Living weapon"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Brokkos, Apex of Forever",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Trample",
+        "Mutate"
       ],
       "keyword_statuses": {}
     },
@@ -493,6 +713,19 @@
       ],
       "keywords": [
         "Indestructible"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Gemrazer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Reach",
+        "Trample",
+        "Mutate"
       ],
       "keyword_statuses": {}
     },
@@ -546,6 +779,31 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Nethroi, Apex of Death",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Lifelink",
+        "Deathtouch",
+        "Mutate"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Pir, Imaginative Rascal",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Rampant Growth",
       "appears_in_decks": 1,
       "types": [
@@ -562,6 +820,18 @@
       ],
       "keywords": [
         "Enchant"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Reckless Bushwhacker",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Haste",
+        "Surge"
       ],
       "keyword_statuses": {}
     },
@@ -609,6 +879,18 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Toothy, Imaginary Friend",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Treasure Cruise",
       "appears_in_decks": 1,
       "types": [
@@ -616,6 +898,17 @@
       ],
       "keywords": [
         "Delve"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Wear // Tear",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Fuse"
       ],
       "keyword_statuses": {}
     },
@@ -660,42 +953,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Exotic Orchard",
-      "appears_in_decks": 5,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Blasphemous Act",
-      "appears_in_decks": 4,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Chaos Warp",
-      "appears_in_decks": 4,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "City of Brass",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Fierce Guardianship",
       "appears_in_decks": 4,
       "types": [
@@ -727,15 +984,6 @@
       "appears_in_decks": 3,
       "types": [
         "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Assassin's Trophy",
-      "appears_in_decks": 3,
-      "types": [
-        "Instant"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -794,50 +1042,23 @@
       }
     },
     {
-      "name": "Crop Rotation",
-      "appears_in_decks": 3,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Deadly Dispute",
+      "name": "Cyclonic Rift",
       "appears_in_decks": 3,
       "types": [
         "Instant"
       ],
       "keywords": [
-        "Treasure"
+        "Overload"
       ],
       "keyword_statuses": {
-        "Treasure": "validated (P2)"
+        "Overload": "validated (P3)"
       }
-    },
-    {
-      "name": "Delighted Halfling",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Diabolic Intent",
       "appears_in_decks": 3,
       "types": [
         "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Fellwar Stone",
-      "appears_in_decks": 3,
-      "types": [
-        "Artifact"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -852,28 +1073,10 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Fyndhorn Elves",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Gaea's Cradle",
       "appears_in_decks": 3,
       "types": [
         "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Grand Abolisher",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -890,15 +1093,6 @@
       "keyword_statuses": {
         "Enchant": "validated (P1)"
       }
-    },
-    {
-      "name": "Isolated Chapel",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Jeska's Will",
@@ -932,24 +1126,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Mana Crypt",
-      "appears_in_decks": 3,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Mother of Runes",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Mystical Tutor",
       "appears_in_decks": 3,
       "types": [
@@ -959,66 +1135,19 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Path of Ancestry",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [
-        "Scry"
-      ],
-      "keyword_statuses": {
-        "Scry": "ready"
-      }
-    },
-    {
-      "name": "Pitiless Plunderer",
+      "name": "Nether Traitor",
       "appears_in_decks": 3,
       "types": [
         "Creature"
       ],
       "keywords": [
-        "Treasure"
+        "Haste",
+        "Shadow"
       ],
       "keyword_statuses": {
-        "Treasure": "validated (P2)"
+        "Haste": "validated (P1)",
+        "Shadow": "validated (P4)"
       }
-    },
-    {
-      "name": "Putrefy",
-      "appears_in_decks": 3,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Reanimate",
-      "appears_in_decks": 3,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Reassembling Skeleton",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Reflecting Pool",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Sea Gate Restoration // Sea Gate, Reborn",
@@ -1384,6 +1513,19 @@
       ],
       "keyword_statuses": {
         "Exert": "ready"
+      }
+    },
+    {
+      "name": "Commit // Memory",
+      "appears_in_decks": 2,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Aftermath"
+      ],
+      "keyword_statuses": {
+        "Aftermath": "validated (P4)"
       }
     },
     {
@@ -1785,6 +1927,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Marionette Apprentice",
+      "appears_in_decks": 2,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Fabricate"
+      ],
+      "keyword_statuses": {
+        "Fabricate": "validated (P4)"
+      }
     },
     {
       "name": "Massacre Wurm",
@@ -2761,6 +2916,19 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Arcane Heist",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Cipher"
+      ],
+      "keyword_statuses": {
+        "Cipher": "validated (P4)"
+      }
+    },
+    {
       "name": "Arcane Sanctum",
       "appears_in_decks": 1,
       "types": [
@@ -3400,6 +3568,21 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Brallin, Skyshark Rider",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "keyword_statuses": {
+        "Partner with": "validated (P3)",
+        "Partner": "validated (P1)"
+      }
+    },
+    {
       "name": "Breach the Multiverse",
       "appears_in_decks": 1,
       "types": [
@@ -3846,6 +4029,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Collective Resistance",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Escalate"
+      ],
+      "keyword_statuses": {
+        "Escalate": "validated (P4)"
+      }
     },
     {
       "name": "Command Beacon",
@@ -4791,6 +4987,21 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Elvish Dreadlord",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Deathtouch",
+        "Encore"
+      ],
+      "keyword_statuses": {
+        "Deathtouch": "validated (P1)",
+        "Encore": "validated (P4)"
+      }
+    },
+    {
       "name": "Elvish Harbinger",
       "appears_in_decks": 1,
       "types": [
@@ -5722,6 +5933,19 @@
       }
     },
     {
+      "name": "Hands of Binding",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Cipher"
+      ],
+      "keyword_statuses": {
+        "Cipher": "validated (P4)"
+      }
+    },
+    {
       "name": "Hanweir Garrison",
       "appears_in_decks": 1,
       "types": [
@@ -5847,6 +6071,19 @@
       }
     },
     {
+      "name": "Hidden Strings",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Cipher"
+      ],
+      "keyword_statuses": {
+        "Cipher": "validated (P4)"
+      }
+    },
+    {
       "name": "High Tide",
       "appears_in_decks": 1,
       "types": [
@@ -5854,6 +6091,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Higure, the Still Wind",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "validated (P4)"
+      }
     },
     {
       "name": "Hobgoblin Bandit Lord",
@@ -5974,6 +6224,21 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Impulsive Pilferer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Encore"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Encore": "validated (P4)"
+      }
+    },
+    {
       "name": "Incarnation Technique",
       "appears_in_decks": 1,
       "types": [
@@ -6061,6 +6326,19 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Ingenious Infiltrator",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "validated (P4)"
+      }
+    },
+    {
       "name": "Inkmoth Nexus",
       "appears_in_decks": 1,
       "types": [
@@ -6068,6 +6346,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Insatiable Avarice",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Spree"
+      ],
+      "keyword_statuses": {
+        "Spree": "validated (P4)"
+      }
     },
     {
       "name": "Insidious Dreams",
@@ -6249,6 +6540,21 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Kaito, Bane of Nightmares",
+      "appears_in_decks": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "keywords": [
+        "Ninjutsu",
+        "Surveil"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "validated (P4)",
+        "Surveil": "validated (P2)"
+      }
     },
     {
       "name": "Kalastria Highborn",
@@ -6521,6 +6827,19 @@
       ],
       "keyword_statuses": {
         "Menace": "validated (P1)"
+      }
+    },
+    {
+      "name": "Lazotep Plating",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Amass"
+      ],
+      "keyword_statuses": {
+        "Amass": "validated (P4)"
       }
     },
     {
@@ -7064,6 +7383,19 @@
       }
     },
     {
+      "name": "Mirage Phalanx",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Soulbond"
+      ],
+      "keyword_statuses": {
+        "Soulbond": "validated (P4)"
+      }
+    },
+    {
       "name": "Mirari's Wake",
       "appears_in_decks": 1,
       "types": [
@@ -7280,6 +7612,20 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Myr Convert",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "keywords": [
+        "Toxic"
+      ],
+      "keyword_statuses": {
+        "Toxic": "validated (P4)"
+      }
     },
     {
       "name": "Mystic Reflection",
@@ -7629,6 +7975,21 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Orcish Bowmasters",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flash",
+        "Amass"
+      ],
+      "keyword_statuses": {
+        "Flash": "validated (P1)",
+        "Amass": "validated (P4)"
+      }
+    },
+    {
       "name": "Orzhov Signet",
       "appears_in_decks": 1,
       "types": [
@@ -7661,6 +8022,19 @@
       ],
       "keyword_statuses": {
         "Mill": "ready"
+      }
+    },
+    {
+      "name": "Outcaster Trailblazer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Plot"
+      ],
+      "keyword_statuses": {
+        "Plot": "validated (P4)"
       }
     },
     {
@@ -7919,6 +8293,21 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Prosperous Thief",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Ninjutsu": "validated (P4)"
+      }
+    },
+    {
       "name": "Prossh, Skyraider of Kher",
       "appears_in_decks": 1,
       "types": [
@@ -8006,6 +8395,21 @@
       ],
       "keyword_statuses": {
         "Equip": "validated (P1)"
+      }
+    },
+    {
+      "name": "Ragavan, Nimble Pilferer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Dash"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Dash": "validated (P4)"
       }
     },
     {
@@ -8390,6 +8794,19 @@
       "keyword_statuses": {
         "Landfall": "ready",
         "Reach": "validated (P1)"
+      }
+    },
+    {
+      "name": "Sakashima's Student",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "validated (P4)"
       }
     },
     {
@@ -8838,6 +9255,19 @@
       }
     },
     {
+      "name": "Sifter of Skulls",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Devoid"
+      ],
+      "keyword_statuses": {
+        "Devoid": "validated (P4)"
+      }
+    },
+    {
       "name": "Silence",
       "appears_in_decks": 1,
       "types": [
@@ -8944,6 +9374,20 @@
       }
     },
     {
+      "name": "Skrelv, Defector Mite",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "keywords": [
+        "Toxic"
+      ],
+      "keyword_statuses": {
+        "Toxic": "validated (P4)"
+      }
+    },
+    {
       "name": "Skyknight Vanguard",
       "appears_in_decks": 1,
       "types": [
@@ -9004,6 +9448,21 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Smothering Abomination",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Devoid"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Devoid": "validated (P4)"
+      }
     },
     {
       "name": "Smothering Tithe",
@@ -9810,6 +10269,21 @@
       }
     },
     {
+      "name": "Thousand-Faced Shadow",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Ninjutsu": "validated (P4)"
+      }
+    },
+    {
       "name": "Three Tree City",
       "appears_in_decks": 1,
       "types": [
@@ -9922,6 +10396,19 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Tombstone Stairwell",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Cumulative upkeep"
+      ],
+      "keyword_statuses": {
+        "Cumulative upkeep": "validated (P4)"
+      }
+    },
+    {
       "name": "Tomik, Wielder of Law",
       "appears_in_decks": 1,
       "types": [
@@ -9936,6 +10423,19 @@
         "Flying": "validated (P1)",
         "Affinity": "validated (P3)",
         "Vigilance": "validated (P1)"
+      }
+    },
+    {
+      "name": "Tooth and Nail",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Entwine"
+      ],
+      "keyword_statuses": {
+        "Entwine": "validated (P4)"
       }
     },
     {
@@ -10042,6 +10542,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Turn // Burn",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Fuse"
+      ],
+      "keyword_statuses": {
+        "Fuse": "validated (P4)"
+      }
     },
     {
       "name": "Turntimber Symbiosis // Turntimber, Serpentine Wood",
@@ -10218,6 +10731,21 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Vampire Cutthroat",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Lifelink",
+        "Skulk"
+      ],
+      "keyword_statuses": {
+        "Lifelink": "validated (P1)",
+        "Skulk": "validated (P4)"
+      }
+    },
+    {
       "name": "Vampire Hexmage",
       "appears_in_decks": 1,
       "types": [
@@ -10378,6 +10906,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Walker of Secret Ways",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "validated (P4)"
+      }
     },
     {
       "name": "War Room",
@@ -10652,6 +11193,19 @@
       }
     },
     {
+      "name": "Yuriko, the Tiger's Shadow",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Commander ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Commander ninjutsu": "validated (P4)"
+      }
+    },
+    {
       "name": "Zagoth Triome",
       "appears_in_decks": 1,
       "types": [
@@ -10877,22 +11431,6 @@
       ]
     },
     {
-      "name": "Mystic Remora",
-      "appears_in_decks": 4,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Cumulative upkeep"
-      ],
-      "keyword_statuses": {
-        "Cumulative upkeep": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Cumulative upkeep"
-      ]
-    },
-    {
       "name": "Overgrown Tomb",
       "appears_in_decks": 4,
       "types": [
@@ -10938,22 +11476,6 @@
       ]
     },
     {
-      "name": "Cyclonic Rift",
-      "appears_in_decks": 3,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Overload"
-      ],
-      "keyword_statuses": {
-        "Overload": "none (P3)"
-      },
-      "blocking_keywords": [
-        "Overload"
-      ]
-    },
-    {
       "name": "Hallowed Fountain",
       "appears_in_decks": 3,
       "types": [
@@ -10981,24 +11503,6 @@
           "gap": "nonbasic_land_search",
           "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
         }
-      ]
-    },
-    {
-      "name": "Nether Traitor",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Haste",
-        "Shadow"
-      ],
-      "keyword_statuses": {
-        "Haste": "validated (P1)",
-        "Shadow": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Shadow"
       ]
     },
     {
@@ -11178,22 +11682,6 @@
       ]
     },
     {
-      "name": "Commit // Memory",
-      "appears_in_decks": 2,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Aftermath"
-      ],
-      "keyword_statuses": {
-        "Aftermath": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Aftermath"
-      ]
-    },
-    {
       "name": "Flooded Strand",
       "appears_in_decks": 2,
       "types": [
@@ -11206,22 +11694,6 @@
           "gap": "nonbasic_land_search",
           "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
         }
-      ]
-    },
-    {
-      "name": "Marionette Apprentice",
-      "appears_in_decks": 2,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Fabricate"
-      ],
-      "keyword_statuses": {
-        "Fabricate": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Fabricate"
       ]
     },
     {
@@ -11304,22 +11776,6 @@
       ]
     },
     {
-      "name": "Vandalblast",
-      "appears_in_decks": 2,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Overload"
-      ],
-      "keyword_statuses": {
-        "Overload": "none (P3)"
-      },
-      "blocking_keywords": [
-        "Overload"
-      ]
-    },
-    {
       "name": "Abstergo Entertainment",
       "appears_in_decks": 1,
       "types": [
@@ -11347,22 +11803,6 @@
           "gap": "targeted_trigger",
           "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
         }
-      ]
-    },
-    {
-      "name": "Arcane Heist",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Cipher"
-      ],
-      "keyword_statuses": {
-        "Cipher": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Cipher"
       ]
     },
     {
@@ -11434,24 +11874,6 @@
       ]
     },
     {
-      "name": "Brallin, Skyshark Rider",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Partner with",
-        "Partner"
-      ],
-      "keyword_statuses": {
-        "Partner with": "none (P3)",
-        "Partner": "validated (P1)"
-      },
-      "blocking_keywords": [
-        "Partner with"
-      ]
-    },
-    {
       "name": "Brash Taunter",
       "appears_in_decks": 1,
       "types": [
@@ -11489,22 +11911,6 @@
           "gap": "targeted_trigger",
           "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
         }
-      ]
-    },
-    {
-      "name": "Collective Resistance",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Escalate"
-      ],
-      "keyword_statuses": {
-        "Escalate": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Escalate"
       ]
     },
     {
@@ -11632,24 +12038,6 @@
           "gap": "return_from_graveyard",
           "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
         }
-      ]
-    },
-    {
-      "name": "Elvish Dreadlord",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Deathtouch",
-        "Encore"
-      ],
-      "keyword_statuses": {
-        "Deathtouch": "validated (P1)",
-        "Encore": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Encore"
       ]
     },
     {
@@ -11936,54 +12324,6 @@
       ]
     },
     {
-      "name": "Hands of Binding",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Cipher"
-      ],
-      "keyword_statuses": {
-        "Cipher": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Cipher"
-      ]
-    },
-    {
-      "name": "Hidden Strings",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Cipher"
-      ],
-      "keyword_statuses": {
-        "Cipher": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Cipher"
-      ]
-    },
-    {
-      "name": "Higure, the Still Wind",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
-      ]
-    },
-    {
       "name": "Hyrax Tower Scout",
       "appears_in_decks": 1,
       "types": [
@@ -11999,56 +12339,6 @@
       ]
     },
     {
-      "name": "Impulsive Pilferer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Encore"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Encore": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Encore"
-      ]
-    },
-    {
-      "name": "Ingenious Infiltrator",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
-      ]
-    },
-    {
-      "name": "Insatiable Avarice",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Spree"
-      ],
-      "keyword_statuses": {
-        "Spree": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Spree"
-      ]
-    },
-    {
       "name": "Inventors' Fair",
       "appears_in_decks": 1,
       "types": [
@@ -12061,24 +12351,6 @@
           "gap": "count_threshold",
           "reason": "count threshold: 'control N or more' Condition not in DSL"
         }
-      ]
-    },
-    {
-      "name": "Kaito, Bane of Nightmares",
-      "appears_in_decks": 1,
-      "types": [
-        "Planeswalker"
-      ],
-      "keywords": [
-        "Ninjutsu",
-        "Surveil"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)",
-        "Surveil": "validated (P2)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
       ]
     },
     {
@@ -12120,22 +12392,6 @@
       ]
     },
     {
-      "name": "Lazotep Plating",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Amass"
-      ],
-      "keyword_statuses": {
-        "Amass": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Amass"
-      ]
-    },
-    {
       "name": "Life from the Loam",
       "appears_in_decks": 1,
       "types": [
@@ -12172,22 +12428,6 @@
       ]
     },
     {
-      "name": "Mirage Phalanx",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Soulbond"
-      ],
-      "keyword_statuses": {
-        "Soulbond": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Soulbond"
-      ]
-    },
-    {
       "name": "Mistblade Shinobi",
       "appears_in_decks": 1,
       "types": [
@@ -12197,11 +12437,8 @@
         "Ninjutsu"
       ],
       "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
+        "Ninjutsu": "validated (P4)"
       },
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
       "blocking_dsl_gaps": [
         {
           "gap": "targeted_trigger",
@@ -12250,23 +12487,6 @@
       ]
     },
     {
-      "name": "Myr Convert",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature",
-        "Artifact"
-      ],
-      "keywords": [
-        "Toxic"
-      ],
-      "keyword_statuses": {
-        "Toxic": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Toxic"
-      ]
-    },
-    {
       "name": "Naya Charm",
       "appears_in_decks": 1,
       "types": [
@@ -12279,40 +12499,6 @@
           "gap": "return_from_graveyard",
           "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
         }
-      ]
-    },
-    {
-      "name": "Orcish Bowmasters",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flash",
-        "Amass"
-      ],
-      "keyword_statuses": {
-        "Flash": "validated (P1)",
-        "Amass": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Amass"
-      ]
-    },
-    {
-      "name": "Outcaster Trailblazer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Plot"
-      ],
-      "keyword_statuses": {
-        "Plot": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Plot"
       ]
     },
     {
@@ -12335,24 +12521,6 @@
       ]
     },
     {
-      "name": "Pir, Imaginative Rascal",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Partner with",
-        "Partner"
-      ],
-      "keyword_statuses": {
-        "Partner with": "none (P3)",
-        "Partner": "validated (P1)"
-      },
-      "blocking_keywords": [
-        "Partner with"
-      ]
-    },
-    {
       "name": "Polluted Delta",
       "appears_in_decks": 1,
       "types": [
@@ -12365,24 +12533,6 @@
           "gap": "nonbasic_land_search",
           "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
         }
-      ]
-    },
-    {
-      "name": "Prosperous Thief",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
       ]
     },
     {
@@ -12404,42 +12554,6 @@
           "gap": "targeted_trigger",
           "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
         }
-      ]
-    },
-    {
-      "name": "Ragavan, Nimble Pilferer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Dash"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Dash": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Dash"
-      ]
-    },
-    {
-      "name": "Reckless Bushwhacker",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Haste",
-        "Surge"
-      ],
-      "keyword_statuses": {
-        "Haste": "validated (P1)",
-        "Surge": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Surge"
       ]
     },
     {
@@ -12500,22 +12614,6 @@
       ]
     },
     {
-      "name": "Sakashima's Student",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
-      ]
-    },
-    {
       "name": "Shadow Alley Denizen",
       "appears_in_decks": 1,
       "types": [
@@ -12543,22 +12641,6 @@
           "gap": "targeted_trigger",
           "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
         }
-      ]
-    },
-    {
-      "name": "Sifter of Skulls",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Devoid"
-      ],
-      "keyword_statuses": {
-        "Devoid": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Devoid"
       ]
     },
     {
@@ -12593,41 +12675,6 @@
           "gap": "targeted_trigger",
           "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
         }
-      ]
-    },
-    {
-      "name": "Skrelv, Defector Mite",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature",
-        "Artifact"
-      ],
-      "keywords": [
-        "Toxic"
-      ],
-      "keyword_statuses": {
-        "Toxic": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Toxic"
-      ]
-    },
-    {
-      "name": "Smothering Abomination",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Devoid"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Devoid": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Devoid"
       ]
     },
     {
@@ -12802,24 +12849,6 @@
       ]
     },
     {
-      "name": "Thousand-Faced Shadow",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
-      ]
-    },
-    {
       "name": "Titania, Protector of Argoth",
       "appears_in_decks": 1,
       "types": [
@@ -12832,56 +12861,6 @@
           "gap": "targeted_trigger",
           "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
         }
-      ]
-    },
-    {
-      "name": "Tombstone Stairwell",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Cumulative upkeep"
-      ],
-      "keyword_statuses": {
-        "Cumulative upkeep": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Cumulative upkeep"
-      ]
-    },
-    {
-      "name": "Tooth and Nail",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Entwine"
-      ],
-      "keyword_statuses": {
-        "Entwine": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Entwine"
-      ]
-    },
-    {
-      "name": "Toothy, Imaginary Friend",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Partner with",
-        "Partner"
-      ],
-      "keyword_statuses": {
-        "Partner with": "none (P3)",
-        "Partner": "validated (P1)"
-      },
-      "blocking_keywords": [
-        "Partner with"
       ]
     },
     {
@@ -12940,22 +12919,6 @@
       ]
     },
     {
-      "name": "Turn // Burn",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Fuse"
-      ],
-      "keyword_statuses": {
-        "Fuse": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Fuse"
-      ]
-    },
-    {
       "name": "Twilight Prophet",
       "appears_in_decks": 1,
       "types": [
@@ -12998,24 +12961,6 @@
       ]
     },
     {
-      "name": "Vampire Cutthroat",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Lifelink",
-        "Skulk"
-      ],
-      "keyword_statuses": {
-        "Lifelink": "validated (P1)",
-        "Skulk": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Skulk"
-      ]
-    },
-    {
       "name": "Venerated Rotpriest",
       "appears_in_decks": 1,
       "types": [
@@ -13025,11 +12970,8 @@
         "Toxic"
       ],
       "keyword_statuses": {
-        "Toxic": "none (P4)"
+        "Toxic": "validated (P4)"
       },
-      "blocking_keywords": [
-        "Toxic"
-      ],
       "blocking_dsl_gaps": [
         {
           "gap": "targeted_trigger",
@@ -13095,38 +13037,6 @@
       ]
     },
     {
-      "name": "Walker of Secret Ways",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Ninjutsu"
-      ]
-    },
-    {
-      "name": "Wear // Tear",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Fuse"
-      ],
-      "keyword_statuses": {
-        "Fuse": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Fuse"
-      ]
-    },
-    {
       "name": "Witch's Cottage",
       "appears_in_decks": 1,
       "types": [
@@ -13169,22 +13079,6 @@
           "gap": "return_from_graveyard",
           "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
         }
-      ]
-    },
-    {
-      "name": "Yuriko, the Tiger's Shadow",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Commander ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Commander ninjutsu": "none (P4)"
-      },
-      "blocking_keywords": [
-        "Commander ninjutsu"
       ]
     },
     {
@@ -13296,24 +13190,6 @@
       }
     },
     {
-      "name": "Brokkos, Apex of Forever",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Trample",
-        "Mutate"
-      ],
-      "deferred_keywords": [
-        "Mutate"
-      ],
-      "keyword_statuses": {
-        "Trample": "validated (P1)",
-        "Mutate": "deferred"
-      }
-    },
-    {
       "name": "Docent of Perfection // Final Iteration",
       "appears_in_decks": 1,
       "types": [
@@ -13347,26 +13223,6 @@
       "keyword_statuses": {
         "Transform": "deferred",
         "Incubate": "ignored"
-      }
-    },
-    {
-      "name": "Gemrazer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Reach",
-        "Trample",
-        "Mutate"
-      ],
-      "deferred_keywords": [
-        "Mutate"
-      ],
-      "keyword_statuses": {
-        "Reach": "validated (P1)",
-        "Trample": "validated (P1)",
-        "Mutate": "deferred"
       }
     },
     {
@@ -13504,26 +13360,6 @@
         "Mutate"
       ],
       "keyword_statuses": {
-        "Mutate": "deferred"
-      }
-    },
-    {
-      "name": "Nethroi, Apex of Death",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Lifelink",
-        "Deathtouch",
-        "Mutate"
-      ],
-      "deferred_keywords": [
-        "Mutate"
-      ],
-      "keyword_statuses": {
-        "Lifelink": "validated (P1)",
-        "Deathtouch": "validated (P1)",
         "Mutate": "deferred"
       }
     },
