@@ -35,7 +35,7 @@ use crate::state::game_object::{
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{CardType, KeywordAbility, ManaColor, SuperType};
+use crate::state::types::{CardType, Color, KeywordAbility, ManaColor, SuperType};
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 
@@ -987,6 +987,25 @@ fn execute_effect_inner(
                         player: p,
                         color: ManaColor::Colorless,
                         amount: 1,
+                    });
+                }
+            }
+        }
+
+        Effect::AddManaScaled {
+            player,
+            color,
+            count,
+        } => {
+            let amount = resolve_amount(state, count, ctx).max(0) as u32;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    ps.mana_pool.add(*color, amount);
+                    events.push(GameEvent::ManaAdded {
+                        player: p,
+                        color: *color,
+                        amount,
                     });
                 }
             }
@@ -2989,6 +3008,67 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                             .unwrap_or(true)
                 })
                 .count() as i32
+        }
+        EffectAmount::PermanentCount { filter, controller } => {
+            // Count permanents on the battlefield matching filter, controlled by the
+            // resolved player. Phased-out permanents are excluded (CR 702.26d).
+            let players = resolve_player_target_list(state, controller, ctx);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && matches_filter(&obj.characteristics, filter)
+                })
+                .count() as i32
+        }
+        EffectAmount::DevotionTo(color) => {
+            // CR 700.5: A player's devotion to [color] is the number of mana symbols
+            // of that color among the mana costs of permanents that player controls.
+            let controller = resolve_player_target_list(state, &PlayerTarget::Controller, ctx);
+            let controller_id = controller.first().copied().unwrap_or(ctx.controller);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == controller_id
+                })
+                .map(|obj| {
+                    obj.characteristics
+                        .mana_cost
+                        .as_ref()
+                        .map(|mc| match color {
+                            Color::White => mc.white as i32,
+                            Color::Blue => mc.blue as i32,
+                            Color::Black => mc.black as i32,
+                            Color::Red => mc.red as i32,
+                            Color::Green => mc.green as i32,
+                        })
+                        .unwrap_or(0)
+                })
+                .sum()
+        }
+        EffectAmount::CounterCount { target, counter } => {
+            // Count counters of a specific type on the target permanent.
+            let targets = resolve_effect_target_list(state, target, ctx);
+            targets
+                .into_iter()
+                .filter_map(|t| {
+                    if let ResolvedTarget::Object(id) = t {
+                        state
+                            .objects
+                            .get(&id)
+                            .map(|obj| *obj.counters.get(counter).unwrap_or(&0) as i32)
+                    } else {
+                        None
+                    }
+                })
+                .next()
+                .unwrap_or(0)
         }
     }
 }

@@ -1,5 +1,11 @@
 // Nykthos, Shrine to Nyx — Legendary Land
-// {T}: Add {C}. {2},{T}: devotion mechanic — not expressible in DSL.
+// {T}: Add {C}.
+// {2}, {T}: Choose a color. Add an amount of mana of that color equal to your
+// devotion to that color.
+//
+// EffectAmount::DevotionTo(color) is now available, but the "choose a color"
+// interactive selection requires M10 (Command::ChooseColor). Devotion ability
+// deferred until color choice is implemented.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +25,9 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {2},{T}: Choose a color, add mana equal to devotion to that color —
-            // devotion counting and choice-of-color variable mana are not expressible
-            // in the DSL
+            // TODO: {2},{T}: Choose a color, add mana equal to devotion to that color.
+            // DevotionTo(color) is implemented but "choose a color" interactive selection
+            // requires M10 (Command::ChooseColor). Deferred.
         ],
         ..Default::default()
     }

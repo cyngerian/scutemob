@@ -2,12 +2,6 @@
 // Flying, protection from white
 // When this creature enters, each opponent loses life equal to the number of
 // Vampires you control. You gain life equal to the life lost this way.
-//
-// Flying and protection from white are implemented.
-// TODO: DSL gap — the ETB triggered ability requires counting creatures you
-// control with a specific subtype (Vampire) and using that count as a
-// variable amount for ForEach/LoseLife + GainLife. No subtype-count
-// EffectAmount exists in the DSL.
 use crate::cards::helpers::*;
 use crate::state::types::ProtectionQuality;
 
@@ -25,7 +19,22 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
                 ProtectionQuality::FromColor(Color::White),
             )),
-            // TODO: DSL gap — ETB drain equal to Vampire count not expressible.
+            // CR 702.101a: DrainLife — each opponent loses N, controller gains total lost.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::PermanentCount {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            has_subtype: Some(SubType("Vampire".to_string())),
+                            ..Default::default()
+                        },
+                        controller: PlayerTarget::Controller,
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

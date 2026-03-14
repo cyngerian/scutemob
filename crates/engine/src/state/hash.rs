@@ -3584,6 +3584,20 @@ impl HashInto for EffectAmount {
                 player.hash_into(hasher);
                 filter.hash_into(hasher);
             }
+            EffectAmount::PermanentCount { filter, controller } => {
+                6u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
+            EffectAmount::DevotionTo(color) => {
+                7u8.hash_into(hasher);
+                color.hash_into(hasher);
+            }
+            EffectAmount::CounterCount { target, counter } => {
+                8u8.hash_into(hasher);
+                target.hash_into(hasher);
+                counter.hash_into(hasher);
+            }
         }
     }
 }
@@ -3911,6 +3925,16 @@ impl HashInto for Effect {
             Effect::AddManaChoice { player, count } => {
                 14u8.hash_into(hasher);
                 player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::AddManaScaled {
+                player,
+                color,
+                count,
+            } => {
+                56u8.hash_into(hasher);
+                player.hash_into(hasher);
+                color.hash_into(hasher);
                 count.hash_into(hasher);
             }
             Effect::AddCounter {

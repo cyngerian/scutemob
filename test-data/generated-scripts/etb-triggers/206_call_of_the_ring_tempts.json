@@ -1,0 +1,206 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_206",
+    "name": "Call of the Ring — ETB triggers the Ring tempts you",
+    "description": "p1 casts Call of the Ring ({3}{B}). When it resolves and enters the battlefield, its ETB trigger fires: 'the Ring tempts you.' (CR 701.54a). Since p1 controls a creature (Bog Raiders), ring level advances from 0 to 1, Bog Raiders becomes the ring-bearer (RING_BEARER designation), and a RingBearerChosen event is emitted. Tests the full Call of the Ring ETB → ring-temptation pipeline (CR 603.2, CR 701.54a).",
+    "cr_sections_tested": [
+      "601.2",
+      "603.2",
+      "603.3",
+      "608.2",
+      "701.54a",
+      "701.54b"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ring-tempts-you",
+      "call-of-the-ring",
+      "etb-trigger",
+      "ring-bearer"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Call of the Ring oracle: 'When this enters, the Ring tempts you. At the beginning of your upkeep, lose 1 life for each burden counter, then put a burden counter on this.' Cast for {3}{B}. ETB trigger queued, resolves via Effect::TheRingTemptsYou → handle_ring_tempts_you(p1) → ring_level=1, Bog Raiders chosen as ring-bearer. Upkeep trigger is not tested in this script (that would require advancing to upkeep step).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 3,
+          "black": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Bog Raiders",
+            "tapped": false,
+            "counters": {},
+            "damage_marked": 0,
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Call of the Ring",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Call of the Ring; ETB trigger fires 'the Ring tempts you'; ring level advances to 1; Bog Raiders becomes ring-bearer.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Call of the Ring in p1 hand, stack empty, Bog Raiders on battlefield",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [{"card": "Bog Raiders"}]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Call of the Ring",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 3,
+            "black": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Call of the Ring for {3}{B}; card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Call of the Ring on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Call of the Ring resolves. ETB trigger for 'the Ring tempts you' queued."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Call of the Ring",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Call of the Ring",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Call of the Ring resolves and enters the battlefield under p1's control."
+            },
+            {
+              "effect": "etb_trigger_queued",
+              "source": "Call of the Ring",
+              "trigger_condition": "when_this_enters_battlefield",
+              "cr_ref": "603.3",
+              "note": "CR 603.3: ETB trigger 'the Ring tempts you' queued and placed on the stack."
+            }
+          ],
+          "note": "Call of the Ring enters; ETB ring-temptation trigger on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Call of the Ring on battlefield, ETB trigger on stack",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{"card": "Call of the Ring"}, {"card": "Bog Raiders"}]
+            },
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — ETB trigger resolves. Effect::TheRingTemptsYou fires for p1."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Call of the Ring ETB trigger",
+          "resolution": [
+            {
+              "effect": "ring_tempts_you",
+              "player": "p1",
+              "new_ring_level": 1,
+              "ring_bearer": "Bog Raiders",
+              "cr_ref": "701.54a",
+              "note": "CR 701.54a: The Ring tempts p1 — ring level advances from 0 to 1. Bog Raiders (lowest ObjectId creature) is chosen as ring-bearer. RingTempted and RingBearerChosen events are emitted."
+            }
+          ],
+          "note": "Ring temptation resolves: p1 ring level = 1, Bog Raiders is ring-bearer."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Call of the Ring on battlefield, stack empty, p1 ring level 1, Bog Raiders is ring-bearer",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{"card": "Call of the Ring"}, {"card": "Bog Raiders"}]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 701.54a: Call of the Ring ETB triggered ring temptation. p1 ring level advanced to 1. Bog Raiders designated as ring-bearer."
+        }
+      ]
+    }
+  ]
+}

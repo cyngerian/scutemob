@@ -1,8 +1,8 @@
 // Reckless One — {3}{R}, Creature — Goblin Avatar */*
 // Haste
 // Reckless One's power and toughness are each equal to the number of Goblins on the battlefield.
-// TODO: DSL gap — dynamic P/T based on the count of Goblins on the battlefield (all players)
-// is not expressible; no CountCreaturesOnBattlefieldWithSubtype EffectAmount exists.
+// TODO: CDA gap — */* requires SetPowerToughness with EffectAmount, not fixed i32.
+// PermanentCount({ Creature, Goblin }, EachPlayer) is now available for the count.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,8 +16,8 @@ pub fn card() -> CardDefinition {
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: static P/T — power and toughness equal the number of Goblins on the battlefield.
-            // DSL gap: no CountCreaturesOnBattlefieldWithSubtype EffectAmount.
+            // TODO: CDA — P/T = PermanentCount({ Creature + Goblin }, EachPlayer).
+            // Needs SetPowerToughness to accept EffectAmount.
         ],
         ..Default::default()
     }

@@ -1,6 +1,5 @@
 // Gaea's Cradle — Legendary Land
-// {T}: Add {G} for each creature you control — scales with board state,
-// not expressible in the DSL.
+// {T}: Add {G} for each creature you control.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -11,9 +10,22 @@ pub fn card() -> CardDefinition {
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
         oracle_text: "{T}: Add {G} for each creature you control.".to_string(),
         abilities: vec![
-            // TODO: {T}: Add {G} for each creature you control — variable mana
-            // production based on battlefield count is not expressible in the DSL
-            // (EffectAmount has no CountCreaturesYouControl variant)
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaScaled {
+                    player: PlayerTarget::Controller,
+                    color: ManaColor::Green,
+                    count: EffectAmount::PermanentCount {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            ..Default::default()
+                        },
+                        controller: PlayerTarget::Controller,
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

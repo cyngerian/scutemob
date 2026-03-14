@@ -1889,7 +1889,9 @@ pub fn enrich_spec_from_def(
             let is_tap_mana_ability = matches!(cost, Cost::Tap)
                 && (matches!(
                     effect,
-                    Effect::AddMana { .. } | Effect::AddManaAnyColor { .. }
+                    Effect::AddMana { .. }
+                        | Effect::AddManaAnyColor { .. }
+                        | Effect::AddManaScaled { .. }
                 ) || try_as_tap_mana_ability(effect).is_some());
             if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);

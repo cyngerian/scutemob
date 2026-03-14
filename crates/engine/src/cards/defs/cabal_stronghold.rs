@@ -1,4 +1,6 @@
-// Cabal Stronghold — Land, {T}: Add {C}. {3},{T}: Add {B} per basic Swamp (TODO: count-based mana).
+// Cabal Stronghold — Land
+// {T}: Add {C}.
+// {3}, {T}: Add {B} for each basic Swamp you control.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +20,27 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {3},{T}: Add {B} for each basic Swamp you control — count-based mana generation not in DSL
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::AddManaScaled {
+                    player: PlayerTarget::Controller,
+                    color: ManaColor::Black,
+                    count: EffectAmount::PermanentCount {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Land),
+                            has_subtype: Some(SubType("Swamp".to_string())),
+                            basic: true,
+                            ..Default::default()
+                        },
+                        controller: PlayerTarget::Controller,
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

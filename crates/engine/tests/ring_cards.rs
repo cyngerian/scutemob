@@ -1,7 +1,7 @@
 //! Card definition tests for The Ring Tempts You mechanic — Call of the Ring (CR 701.54).
 //!
 //! Tests cover:
-//! - Call of the Ring ETB triggers the Ring tempts the controller (CR 701.54a, CR 603.3)
+//! - Call of the Ring resolves to the battlefield with correct abilities
 //! - ring_tempts_you harness action translates to Command::TheRingTemptsYou (CR 701.54a)
 
 use std::collections::HashMap;
@@ -43,27 +43,17 @@ fn make_spec(
 
 // ── Call of the Ring ──────────────────────────────────────────────────────────
 
-/// CR 701.54a / CR 603.3: When Call of the Ring enters the battlefield, its ETB
-/// triggered ability "the Ring tempts you" fires. The controller's ring level should
-/// advance from 0 to 1, and a creature should be chosen as ring-bearer.
+/// Call of the Ring ({1}{B} enchantment) resolves to the battlefield correctly.
+/// The card has an upkeep trigger (Ring tempts you), not an ETB trigger.
+/// Upkeep triggers are tested via unit tests since the harness doesn't advance phases.
 ///
-/// Setup: p1 has a Bog Raiders on the battlefield (to serve as ring-bearer) and
-/// Call of the Ring in hand with enough mana ({3}{B}).
-///
-/// Expected: After Call of the Ring resolves and the ETB trigger resolves,
-/// RingTempted event fires with new_level=1, and RingBearerChosen event fires
-/// pointing to Bog Raiders.
-///
-/// Source: Call of the Ring oracle text; CR 701.54a (ring temptation keyword action);
-/// CR 603.3 (ETB triggers go on the stack).
+/// Source: Call of the Ring oracle text; CR 701.54a.
 #[test]
-fn test_call_of_the_ring_etb_tempts() {
+fn test_call_of_the_ring_resolves_to_battlefield() {
     let (defs, registry) = build_defs_and_registry();
     let p1 = p(1);
     let p2 = p(2);
 
-    // Bog Raiders is a simple 2/2 creature — serves as ring-bearer.
-    let bog_raiders = make_spec(p1, "Bog Raiders", ZoneId::Battlefield, &defs);
     let call_of_the_ring = make_spec(p1, "Call of the Ring", ZoneId::Hand(p1), &defs);
 
     let mut state = GameStateBuilder::new()
@@ -72,14 +62,13 @@ fn test_call_of_the_ring_etb_tempts() {
         .add_player(p1)
         .add_player(p2)
         .with_registry(registry)
-        .object(bog_raiders)
         .object(call_of_the_ring)
         .build()
         .unwrap();
 
-    // Give p1 mana for Call of the Ring ({3}{B}).
+    // Give p1 mana for Call of the Ring ({1}{B}).
     if let Some(ps) = state.players.get_mut(&p1) {
-        ps.mana_pool.colorless += 3;
+        ps.mana_pool.colorless += 1;
         ps.mana_pool.black += 1;
     }
 
@@ -117,7 +106,7 @@ fn test_call_of_the_ring_etb_tempts() {
     )
     .expect("casting Call of the Ring should succeed");
 
-    // Both players pass priority → Call of the Ring resolves → enters battlefield → ETB trigger queued.
+    // Both players pass priority → Call of the Ring resolves → enters battlefield.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).expect("pass p1");
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).expect("pass p2");
 
@@ -131,68 +120,11 @@ fn test_call_of_the_ring_etb_tempts() {
         "Call of the Ring should be on the battlefield after resolving"
     );
 
-    // ETB trigger (the Ring tempts you) should be on the stack.
-    assert!(
-        !state.stack_objects.is_empty(),
-        "ETB 'the Ring tempts you' trigger should be on the stack"
-    );
-
-    // Both players pass priority → ETB trigger resolves → Effect::TheRingTemptsYou fires.
-    let (state, etb_events) =
-        process_command(state, Command::PassPriority { player: p1 }).expect("pass p1");
-    let (state, etb_events2) =
-        process_command(state, Command::PassPriority { player: p2 }).expect("pass p2");
-
-    let all_events: Vec<_> = etb_events.into_iter().chain(etb_events2).collect();
-
-    // CR 701.54a: RingTempted event should fire with new_level = 1.
-    let ring_tempted = all_events
-        .iter()
-        .any(|e| matches!(e, GameEvent::RingTempted { player, new_level: 1 } if *player == p1));
-    assert!(
-        ring_tempted,
-        "RingTempted event with new_level=1 should fire when Call of the Ring ETB trigger resolves"
-    );
-
-    // CR 701.54b: p1's ring level should be 1.
-    let ring_level = state.players.get(&p1).map(|ps| ps.ring_level).unwrap_or(0);
-    assert_eq!(
-        ring_level, 1,
-        "p1 ring level should be 1 after Call of the Ring ETB trigger resolves"
-    );
-
-    // CR 701.54b: RingBearerChosen event should fire (Bog Raiders chosen as ring-bearer).
-    let bearer_chosen = all_events
-        .iter()
-        .any(|e| matches!(e, GameEvent::RingBearerChosen { player, .. } if *player == p1));
-    assert!(
-        bearer_chosen,
-        "RingBearerChosen event should be emitted when ring tempts p1 (Bog Raiders is the bearer)"
-    );
-
-    // p1's ring_bearer_id should be set to Bog Raiders.
-    let ring_bearer_id = state.players.get(&p1).and_then(|ps| ps.ring_bearer_id);
-    assert!(
-        ring_bearer_id.is_some(),
-        "p1 should have a ring-bearer after the Ring tempts them"
-    );
-
-    // The ring-bearer should be Bog Raiders.
-    let bearer_is_bog_raiders = ring_bearer_id.is_some_and(|id| {
-        state
-            .objects
-            .get(&id)
-            .is_some_and(|o| o.characteristics.name == "Bog Raiders")
-    });
-    assert!(
-        bearer_is_bog_raiders,
-        "Bog Raiders should be the ring-bearer (only creature controlled by p1)"
-    );
-
-    // Stack should be empty after both trigger resolutions.
+    // No ETB trigger — Call of the Ring only has an upkeep trigger.
+    // Stack should be empty after enchantment resolves.
     assert!(
         state.stack_objects.is_empty(),
-        "stack should be empty after ETB trigger resolved"
+        "stack should be empty after enchantment resolves (no ETB trigger)"
     );
 }
 

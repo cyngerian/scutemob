@@ -882,6 +882,14 @@ pub enum Effect {
         player: PlayerTarget,
         count: EffectAmount,
     },
+    /// Add N mana of a specific color, where N is dynamic.
+    /// Used for "Add {G} for each creature you control" (Gaea's Cradle),
+    /// "Add {B} for each Swamp you control" (Cabal Coffers), etc.
+    AddManaScaled {
+        player: PlayerTarget,
+        color: ManaColor,
+        count: EffectAmount,
+    },
 
     // ── Counters ─────────────────────────────────────────────────────────────
     /// CR 122: Put one or more counters on a permanent or player.
@@ -1255,6 +1263,21 @@ pub enum EffectAmount {
         zone: ZoneTarget,
         player: PlayerTarget,
         filter: Option<TargetFilter>,
+    },
+    /// Count permanents on the battlefield matching a filter.
+    /// Used for "number of creatures you control", "number of lands you control", etc.
+    PermanentCount {
+        filter: TargetFilter,
+        controller: PlayerTarget,
+    },
+    /// CR 700.5: Devotion to a color — count mana symbols of that color in the mana costs
+    /// of permanents you control.
+    DevotionTo(Color),
+    /// Count counters of a given type on a target permanent.
+    /// Used for "draw cards equal to the number of +1/+1 counters on this creature", etc.
+    CounterCount {
+        target: EffectTarget,
+        counter: CounterType,
     },
 }
 

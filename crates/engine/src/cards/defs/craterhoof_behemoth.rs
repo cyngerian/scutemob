@@ -1,7 +1,9 @@
 // Craterhoof Behemoth — {5}{G}{G}{G}, Creature — Beast 5/5; Haste.
 // ETB trigger: creatures you control gain trample and get +X/+X where X = creature count.
-// TODO: DSL gap — ETB pump based on count of creatures you control (count_threshold pattern)
-// and mass trample grant not expressible.
+// TODO: DSL gap — mass trample grant + dynamic +X/+X continuous effect.
+// PermanentCount is now available for X, but LayerModification::ModifyBoth
+// takes a fixed i32, not an EffectAmount. Needs LayerModification variant
+// with dynamic amount, or snapshot-at-resolution pattern.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,7 +18,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
         ],
-        // TODO: ETB trigger — mass trample grant + X/X pump based on creature count
+        // TODO: ETB trigger — mass trample grant + dynamic +X/+X (needs LayerModification with EffectAmount)
         ..Default::default()
     }
 }
