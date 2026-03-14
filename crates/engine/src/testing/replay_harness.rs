@@ -25,7 +25,8 @@ use crate::testing::script_schema::{
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, Color, Command, Cost, Designations, ETBTriggerFilter,
-    Effect, GameState, GameStateBuilder, KeywordAbility, ManaAbility, ManaColor, ObjectSpec,
+    Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility, ManaAbility, ManaColor,
+    ObjectSpec,
     PlayerId, Step, TargetController, TimingRestriction, TriggerCondition, TriggerEvent,
     TriggeredAbilityDef, ZoneId,
 };
@@ -1872,14 +1873,14 @@ pub fn enrich_spec_from_def(
             timing_restriction,
         } = ability
         {
-            // Skip ALL tap-for-mana abilities (both fixed-mana and any-color variants).
-            // These are either registered as ManaAbility above or handled via TapForMana.
-            // Including them here would shift the ability_index of non-mana abilities.
+            // Skip ALL tap-for-mana abilities (fixed-mana, any-color, and pain-land
+            // Sequence variants). These are registered as ManaAbility above via
+            // try_as_tap_mana_ability. Including them here would shift ability_index.
             let is_tap_mana_ability = matches!(cost, Cost::Tap)
-                && matches!(
+                && (matches!(
                     effect,
                     Effect::AddMana { .. } | Effect::AddManaAnyColor { .. }
-                );
+                ) || try_as_tap_mana_ability(effect).is_some());
             if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);
                 let ab = ActivatedAbility {
@@ -2271,6 +2272,26 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // "Whenever this permanent becomes tapped" — fires on any tap event (mana, combat,
+    // opponent effects). Used by City of Brass. Maps to TriggerEvent::SelfBecomesTapped
+    // which is already dispatched from GameEvent::PermanentTapped in check_triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
+                trigger_on: TriggerEvent::SelfBecomesTapped,
+                intervening_if: None,
+                description: "Whenever this permanent becomes tapped".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
     spec
 }
 
@@ -2463,38 +2484,71 @@ fn find_on_battlefield_by_name(state: &GameState, name: &str) -> Option<crate::s
 /// Sol Ring ({T}: Add {CC}) produces 2 colorless — handled via ActivateAbility
 /// in scripts instead of TapForMana.
 fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
+    // Simple: {T}: Add {mana}
     if let Effect::AddMana { mana, .. } = effect {
-        // Collect all non-zero color entries (supports multi-mana like Sol Ring's {CC}).
-        let color_amounts = [
-            (ManaColor::White, mana.white),
-            (ManaColor::Blue, mana.blue),
-            (ManaColor::Black, mana.black),
-            (ManaColor::Red, mana.red),
-            (ManaColor::Green, mana.green),
-            (ManaColor::Colorless, mana.colorless),
-        ];
-        let non_zero: Vec<_> = color_amounts
-            .iter()
-            .filter(|(_, amount)| *amount > 0)
-            .collect();
-
-        // Must produce at least one mana in at least one color.
-        if non_zero.is_empty() {
-            return None;
-        }
-
-        let mut produces = OrdMap::new();
-        for (color, amount) in &non_zero {
-            produces.insert(*color, *amount);
-        }
+        return mana_pool_to_ability(mana, 0);
+    }
+    // Any color: {T}: Add one mana of any color
+    if matches!(effect, Effect::AddManaAnyColor { .. }) {
         return Some(ManaAbility {
-            produces,
+            produces: im::OrdMap::new(),
             requires_tap: true,
             sacrifice_self: false,
-            any_color: false,
+            any_color: true,
+            damage_to_controller: 0,
         });
     }
+    // Pain land pattern: {T}: Sequence([AddMana, DealDamage{Controller, Fixed(n)}])
+    if let Effect::Sequence(effects) = effect {
+        if effects.len() == 2 {
+            if let (
+                Effect::AddMana { mana, .. },
+                Effect::DealDamage {
+                    target: CardEffectTarget::Controller,
+                    amount: EffectAmount::Fixed(dmg),
+                },
+            ) = (&effects[0], &effects[1])
+            {
+                return mana_pool_to_ability(mana, *dmg as u32);
+            }
+        }
+    }
     None
+}
+
+/// Convert a ManaPool into a ManaAbility, returning None if no mana is produced.
+fn mana_pool_to_ability(
+    mana: &crate::state::player::ManaPool,
+    damage_to_controller: u32,
+) -> Option<ManaAbility> {
+    let color_amounts = [
+        (ManaColor::White, mana.white),
+        (ManaColor::Blue, mana.blue),
+        (ManaColor::Black, mana.black),
+        (ManaColor::Red, mana.red),
+        (ManaColor::Green, mana.green),
+        (ManaColor::Colorless, mana.colorless),
+    ];
+    let non_zero: Vec<_> = color_amounts
+        .iter()
+        .filter(|(_, amount)| *amount > 0)
+        .collect();
+
+    if non_zero.is_empty() {
+        return None;
+    }
+
+    let mut produces = OrdMap::new();
+    for (color, amount) in &non_zero {
+        produces.insert(*color, *amount);
+    }
+    Some(ManaAbility {
+        produces,
+        requires_tap: true,
+        sacrifice_self: false,
+        any_color: false,
+        damage_to_controller,
+    })
 }
 
 /// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.

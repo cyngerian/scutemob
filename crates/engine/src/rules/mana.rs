@@ -13,7 +13,7 @@ use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
-use super::events::GameEvent;
+use super::events::{CombatDamageTarget, GameEvent};
 
 /// Handle a TapForMana command: activate a mana ability by tapping a permanent.
 ///
@@ -146,7 +146,19 @@ pub fn handle_tap_for_mana(
         }
     }
 
-    // 9. Player retains priority. players_passed is unchanged.
+    // 9. Pain land damage: deal damage to controller as part of the mana ability.
+    //    CR 605: this is part of the mana ability resolution, not a separate trigger.
+    if ability.damage_to_controller > 0 {
+        let player_state = state.player_mut(player)?;
+        player_state.life_total -= ability.damage_to_controller as i32;
+        events.push(GameEvent::DamageDealt {
+            source,
+            target: CombatDamageTarget::Player(player),
+            amount: ability.damage_to_controller,
+        });
+    }
+
+    // 10. Player retains priority. players_passed is unchanged.
     //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
 
     Ok(events)

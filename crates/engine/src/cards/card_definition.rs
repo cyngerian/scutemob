@@ -1434,6 +1434,12 @@ pub enum TriggerCondition {
     /// The ring tempts a player even when no creature is available (CR 701.54d), so
     /// this trigger fires regardless of whether a ring-bearer was chosen.
     WheneverRingTemptsYou,
+    /// "Whenever this permanent becomes tapped" — fires on ANY tap (mana ability,
+    /// combat, opponent's effect, etc.). Used by City of Brass.
+    ///
+    /// Dispatched via `GameEvent::PermanentTapped` → `TriggerEvent::SelfBecomesTapped`
+    /// in `check_triggers`.
+    WhenSelfBecomesTapped,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────

@@ -1,7 +1,4 @@
 // Battlefield Forge — Land; {T}: Add {C}; {T}: Add {R} or {W} (deals 1 damage to you).
-// TODO: the pain-land damage clause ("This land deals 1 damage to you") for the
-// second ability requires a conditional self-damage effect not yet in DSL.
-// Implementing colorless tap and choose {R}/{W} without the damage.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +17,20 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}: Add {R} or {W}. This land deals 1 damage to you.
-            // DSL gap: no self-damage side effect on mana abilities.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Sequence(vec![
+                    Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(1, 0, 0, 1, 0, 0),
+                    },
+                    Effect::DealDamage {
+                        target: EffectTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                timing_restriction: None,
+            },
         ],
         ..Default::default()
     }

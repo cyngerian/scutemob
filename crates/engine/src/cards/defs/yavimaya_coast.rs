@@ -1,4 +1,4 @@
-// Yavimaya Coast — painland, {T}: Add {C}. {T}: Add {G} or {U} (deals 1 damage, TODO).
+// Yavimaya Coast — Land; {T}: Add {C}; {T}: Add {G} or {U} (deals 1 damage to you).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,8 +17,20 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}: Add {G} or {U}. This land deals 1 damage to you.
-            // DSL gap: no self-damage side effect on mana abilities.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Sequence(vec![
+                    Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 1, 0, 0, 1, 0),
+                    },
+                    Effect::DealDamage {
+                        target: EffectTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                timing_restriction: None,
+            },
         ],
         ..Default::default()
     }

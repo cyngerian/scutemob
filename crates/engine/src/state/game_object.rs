@@ -96,6 +96,11 @@ pub struct ManaAbility {
     /// interactive color choice is implemented.
     #[serde(default)]
     pub any_color: bool,
+    /// Pain land damage: if > 0, this mana ability deals this much damage to the
+    /// controller when activated. Used by pain lands (e.g., Battlefield Forge:
+    /// "{T}: Add {R} or {W}. This land deals 1 damage to you.").
+    #[serde(default)]
+    pub damage_to_controller: u32,
 }
 
 impl ManaAbility {
@@ -108,6 +113,7 @@ impl ManaAbility {
             requires_tap: true,
             sacrifice_self: false,
             any_color: false,
+            damage_to_controller: 0,
         }
     }
 
@@ -119,6 +125,7 @@ impl ManaAbility {
             requires_tap: true,
             sacrifice_self: true,
             any_color: true,
+            damage_to_controller: 0,
         }
     }
 }

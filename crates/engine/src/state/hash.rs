@@ -826,6 +826,7 @@ impl HashInto for ManaAbility {
         self.requires_tap.hash_into(hasher);
         self.sacrifice_self.hash_into(hasher);
         self.any_color.hash_into(hasher);
+        self.damage_to_controller.hash_into(hasher);
     }
 }
 
@@ -3637,6 +3638,7 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenTurnedFaceUp => 25u8.hash_into(hasher),
             // CR 701.54d: "Whenever the Ring tempts you" — discriminant 26
             TriggerCondition::WheneverRingTemptsYou => 26u8.hash_into(hasher),
+            TriggerCondition::WhenSelfBecomesTapped => 27u8.hash_into(hasher),
         }
     }
 }
