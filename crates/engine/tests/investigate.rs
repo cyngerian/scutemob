@@ -461,6 +461,7 @@ fn test_investigate_clue_can_be_activated() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();

@@ -88,6 +88,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
             sacrifice_self: false,
             discard_card: false,
             forage: true,
+                sacrifice_filter: None,
         },
         description: "{2}, Forage: You gain 2 life.".to_string(),
         effect: Some(Effect::GainLife {
@@ -108,6 +109,7 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
                 sacrifice_self: false,
                 discard_card: false,
                 forage: true,
+                sacrifice_filter: None,
             },
             description: "Forage: You gain 1 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -162,6 +164,7 @@ fn test_forage_sacrifice_food() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .expect("forage activate with Food available should succeed");
@@ -238,6 +241,7 @@ fn test_forage_exile_three_from_graveyard() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .expect("forage activate with 3 graveyard cards should succeed (no Food needed)");
@@ -311,6 +315,7 @@ fn test_forage_insufficient_resources() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -350,6 +355,7 @@ fn test_forage_requires_mana_cost_too() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -396,6 +402,7 @@ fn test_forage_food_is_artifact_subtype_not_just_token() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .expect("ruling 2024-11-08: non-token Food artifact should qualify for forage");
@@ -447,6 +454,7 @@ fn test_forage_non_food_artifact_rejected() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -490,6 +498,7 @@ fn test_forage_prefers_food_when_both_available() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .expect("forage with both options available should succeed");

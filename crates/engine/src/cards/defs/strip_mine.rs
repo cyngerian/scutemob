@@ -1,5 +1,5 @@
 // Strip Mine — Land
-// {T}: Add {C}. {T}, Sacrifice: Destroy target land (sacrifice ability not expressible).
+// {T}: Add {C}. {T}, Sacrifice: Destroy target land (PB-5: targeted activated).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,9 +18,8 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}, Sacrifice this land: Destroy target land — sacrifice-as-cost
-            // activated abilities with targeted land destruction are not expressible
-            // in the DSL (no Cost::SacrificeSelf variant)
+            // TODO: {T}, Sacrifice this land: Destroy target land — PB-5 (targeted activated)
+            // Cost::SacrificeSelf is available; blocked on targeted land destruction effect
         ],
         ..Default::default()
     }

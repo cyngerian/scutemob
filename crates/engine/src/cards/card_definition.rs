@@ -771,7 +771,9 @@ pub enum Cost {
     Mana(ManaCost),
     /// Tap the source permanent (CR 602.2).
     Tap,
-    /// Sacrifice a permanent matching the filter.
+    /// Sacrifice this permanent (CR 602.2).
+    SacrificeSelf,
+    /// Sacrifice another permanent matching the filter (CR 602.2).
     Sacrifice(TargetFilter),
     /// Pay N life (CR 119).
     PayLife(u32),
@@ -1714,6 +1716,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 sacrifice_self: true,
                 discard_card: false,
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -1754,6 +1757,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 sacrifice_self: true,
                 discard_card: false,
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -1797,6 +1801,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 sacrifice_self: true,
                 discard_card: true,
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

@@ -14,8 +14,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
-            // TODO: Activated ability — "Sacrifice this creature: Remove all counters from target permanent."
-            // DSL gap: no RemoveAllCounters effect; no self-sacrifice cost.
+            // TODO: Sacrifice: Remove all counters from target permanent — PB-5 (targeted)
+            // Cost::SacrificeSelf available; blocked on targeted RemoveAllCounters effect
         ],
         ..Default::default()
     }

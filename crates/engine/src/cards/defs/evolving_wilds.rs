@@ -12,7 +12,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Activated {
             cost: Cost::Sequence(vec![
                 Cost::Tap,
-                Cost::Sacrifice(TargetFilter::default()),
+                Cost::SacrificeSelf,
             ]),
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {

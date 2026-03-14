@@ -21,10 +21,8 @@ pub fn card() -> CardDefinition {
             // TODO: {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
             // DSL gap: mana restriction (Dragon creatures only) not expressible.
 
-            // TODO: {2}, {T}, Sacrifice this land: Return target Dragon creature card or Ugin
-            // planeswalker card from your graveyard to your hand.
-            // DSL gaps: return_from_graveyard with specific-card-name filter;
-            // sacrifice-self cost not expressible in Activated.
+            // TODO: {2}, {T}, Sacrifice: Return Dragon/Ugin from graveyard — PB-5+PB-10
+            // Cost::SacrificeSelf available; blocked on targeted return-from-graveyard effect
         ],
         ..Default::default()
     }

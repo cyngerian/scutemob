@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
             cost: Cost::Sequence(vec![
                 Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
                 Cost::Tap,
-                Cost::Sacrifice(TargetFilter::default()),
+                Cost::SacrificeSelf,
             ]),
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {

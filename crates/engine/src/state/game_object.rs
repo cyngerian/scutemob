@@ -130,6 +130,24 @@ impl ManaAbility {
     }
 }
 
+/// Filter for "sacrifice a [type]" activation costs (CR 602.2).
+///
+/// Used when an activated ability requires sacrificing another permanent (not self)
+/// as part of its cost. E.g., Phyrexian Tower: "{T}, Sacrifice a creature: Add {B}{B}."
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SacrificeFilter {
+    /// "Sacrifice a creature" — any creature you control (other than the source if needed).
+    Creature,
+    /// "Sacrifice a land" — any land you control.
+    Land,
+    /// "Sacrifice an artifact" — any artifact you control.
+    Artifact,
+    /// "Sacrifice an artifact or creature" — either type.
+    ArtifactOrCreature,
+    /// "Sacrifice a [subtype]" — e.g., "Sacrifice a Desert", "Sacrifice a Food".
+    Subtype(super::types::SubType),
+}
+
 /// Cost to activate an activated ability (CR 602.2).
 ///
 /// For M3-E, activation costs can include tapping and paying mana.
@@ -153,6 +171,11 @@ pub struct ActivationCost {
     /// "Forage" means: exile three cards from your graveyard OR sacrifice a Food artifact.
     #[serde(default)]
     pub forage: bool,
+    /// CR 602.2: Optional filter for sacrificing another permanent as part of the cost.
+    /// E.g., "Sacrifice a creature" = `Some(SacrificeFilter::Creature)`.
+    /// The caller must supply the ObjectId of the permanent to sacrifice in the command.
+    #[serde(default)]
+    pub sacrifice_filter: Option<SacrificeFilter>,
 }
 
 /// A non-mana activated ability that uses the stack (CR 602).

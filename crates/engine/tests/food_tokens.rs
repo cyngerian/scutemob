@@ -70,6 +70,7 @@ fn food_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 sacrifice_self: true,
                 discard_card: false,
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -215,6 +216,7 @@ fn test_food_activate_gain_3_life() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -283,6 +285,7 @@ fn test_food_uses_stack_not_mana_ability() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -330,6 +333,7 @@ fn test_food_sacrifice_is_cost_not_effect() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -383,6 +387,7 @@ fn test_food_already_tapped_cannot_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -449,6 +454,7 @@ fn test_food_not_affected_by_summoning_sickness() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -495,6 +501,7 @@ fn test_food_token_ceases_to_exist_after_sba() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -565,6 +572,7 @@ fn test_food_opponent_cannot_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -615,6 +623,7 @@ fn test_food_insufficient_mana_cannot_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 

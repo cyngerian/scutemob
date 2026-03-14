@@ -11,8 +11,8 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "You may sacrifice a nontoken white creature rather than pay this spell's mana cost.\nUntil end of turn, your life total can't change, and permanents you control gain hexproof and indestructible.".to_string(),
         abilities: vec![
-            // TODO: Alternative cost — sacrifice a nontoken white creature.
-            // DSL gap: no sacrifice-permanent alt cost with subtype/token filter.
+            // TODO: Alt cost — sacrifice a nontoken white creature (not PB-4 activated cost)
+            // Needs AltCostKind::SacrificeCreature variant with token/color filter.
             // TODO: Spell effect — until end of turn, your life total can't change, and permanents
             // you control gain hexproof and indestructible.
             // DSL gap: no "life total can't change" effect; no mass hexproof+indestructible grant.

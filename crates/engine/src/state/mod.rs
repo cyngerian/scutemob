@@ -32,7 +32,7 @@ pub use error::GameStateError;
 pub use game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, Designations,
     ETBTriggerFilter, GameObject, InterveningIf, ManaAbility, ManaCost, MergedComponent, ObjectId,
-    ObjectStatus, TriggerEvent, TriggeredAbilityDef,
+    ObjectStatus, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{

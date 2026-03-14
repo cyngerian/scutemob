@@ -19,9 +19,8 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
             },
             // TODO: {2}, {T}, Sacrifice this land: Return target artifact card from your graveyard
-            // to your hand.
-            // DSL gap: return_from_graveyard (with type filter) not in Effect enum;
-            // sacrifice-self cost not expressible in Activated.
+            // to your hand. — PB-5 (targeted) + PB-10 (return from zone with filter)
+            // Cost::SacrificeSelf available; blocked on targeted return-from-graveyard effect
         ],
         ..Default::default()
     }

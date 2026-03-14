@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
                     Cost::Tap,
-                    Cost::Sacrifice(TargetFilter::default()),
+                    Cost::SacrificeSelf,
                 ]),
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

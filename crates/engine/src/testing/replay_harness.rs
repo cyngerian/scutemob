@@ -18,16 +18,17 @@ use im::OrdMap;
 
 use crate::state::combat::AttackTarget;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
-use crate::state::{ActivatedAbility, ActivationCost, CounterType};
+use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
 use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
-    CardEffectTarget, CardId, CardRegistry, Color, Command, Cost, Designations, ETBTriggerFilter,
-    Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility, ManaAbility, ManaColor,
-    ObjectSpec,
-    PlayerId, Step, TargetController, TimingRestriction, TriggerCondition, TriggerEvent,
+    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, Designations,
+    ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility,
+    ManaAbility, ManaColor, ObjectSpec,
+    PlayerId, Step, TargetController, TimingRestriction, TriggerCondition,
+    TriggerEvent,
     TriggeredAbilityDef, ZoneId,
 };
 
@@ -301,6 +302,9 @@ pub fn translate_player_action(
     // CR 702.174a: For `cast_spell` with gift. The name of the opponent who receives the
     // gift benefit. `None` means the gift was not promised. Ignored for all other action types.
     gift_opponent_name: Option<&str>,
+    // CR 602.2: For `activate_ability` with sacrifice-another-permanent cost. The name of
+    // the permanent to sacrifice. `None` for abilities without sacrifice-other cost.
+    sacrifice_card_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -545,12 +549,17 @@ pub fn translate_player_action(
             // resolve it to an ObjectId from the player's hand.
             let discard_card_id =
                 discard_card_name.and_then(|name| find_in_hand(state, player, name));
+            // If the script specifies sacrifice_card, resolve it to an ObjectId.
+            let sacrifice_target_id = sacrifice_card_name.and_then(|name| {
+                find_on_battlefield(state, player, name)
+            });
             Some(Command::ActivateAbility {
                 player,
                 source: source_id,
                 ability_index,
                 targets: target_list,
                 discard_card: discard_card_id,
+                sacrifice_target: sacrifice_target_id,
             })
         }
 
@@ -1986,6 +1995,7 @@ pub fn enrich_spec_from_def(
                     sacrifice_self: false,
                     discard_card: false,
                     forage: false,
+                    sacrifice_filter: None,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -2565,7 +2575,21 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
     match cost {
         Cost::Tap => ac.requires_tap = true,
         Cost::Mana(m) => ac.mana_cost = Some(m.clone()),
-        Cost::Sacrifice(_) => ac.sacrifice_self = true,
+        Cost::SacrificeSelf => ac.sacrifice_self = true,
+        Cost::Sacrifice(filter) => {
+            // Convert TargetFilter to SacrificeFilter
+            let sac_filter = if let Some(ref subtype) = filter.has_subtype {
+                SacrificeFilter::Subtype(subtype.clone())
+            } else {
+                match filter.has_card_type {
+                    Some(CardType::Creature) => SacrificeFilter::Creature,
+                    Some(CardType::Land) => SacrificeFilter::Land,
+                    Some(CardType::Artifact) => SacrificeFilter::Artifact,
+                    _ => SacrificeFilter::Creature, // default fallback
+                }
+            };
+            ac.sacrifice_filter = Some(sac_filter);
+        }
         Cost::Sequence(costs) => costs.iter().for_each(|c| flatten_cost_into(c, ac)),
         Cost::DiscardCard => ac.discard_card = true,
         Cost::Forage => ac.forage = true,

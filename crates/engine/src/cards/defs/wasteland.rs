@@ -1,5 +1,5 @@
 // Wasteland — Land
-// {T}: Add {C}. {T}, Sacrifice: Destroy target nonbasic land (sacrifice ability not expressible).
+// {T}: Add {C}. {T}, Sacrifice: Destroy target nonbasic land (PB-5: targeted activated).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,9 +18,8 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}, Sacrifice this land: Destroy target nonbasic land —
-            // sacrifice-as-cost activated abilities are not expressible in the
-            // DSL (no Cost::SacrificeSelf variant)
+            // TODO: {T}, Sacrifice this land: Destroy target nonbasic land — PB-5
+            // Cost::SacrificeSelf is available; blocked on targeted land destruction effect
         ],
         ..Default::default()
     }

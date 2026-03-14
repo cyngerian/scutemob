@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
             },
             // TODO: {T}, Sacrifice: Put your commander into your hand from the command zone
-            // — sacrifice cost + command zone targeting not expressible in DSL
+            // — Cost::SacrificeSelf available; blocked on command-zone-to-hand effect
         ],
         ..Default::default()
     }

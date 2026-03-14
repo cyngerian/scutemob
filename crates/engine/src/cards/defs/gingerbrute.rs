@@ -16,9 +16,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
+            // TODO: {1}: Can't be blocked except by creatures with haste — PB-5 (targeted/filtered evasion)
+            // {2}, {T}, Sacrifice: gain 3 life (Food ability)
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(3),
+                },
+                timing_restriction: None,
+            },
         ],
-        // TODO: {1} activated — can't be blocked except by haste creatures (filtered evasion)
-        // TODO: {2},{T},sacrifice — sacrifice as cost not expressible in DSL
         ..Default::default()
     }
 }

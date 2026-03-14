@@ -17,11 +17,22 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {2}{B}{G}, {T}, Sacrifice a creature: Draw a card.
-            // DSL gap: Cost::Sacrifice currently takes TargetFilter but does not support targeting
-            // a specific creature as part of the cost (activated_ability_targets gap). Would need
-            // Cost::Sequence([Cost::Mana, Cost::Tap, Cost::Sacrifice(creature_filter)]) plus
-            // a draw effect.
+            // {2}{B}{G}, {T}, Sacrifice a creature: Draw a card
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
+                    Cost::Tap,
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                timing_restriction: None,
+            },
         ],
         ..Default::default()
     }

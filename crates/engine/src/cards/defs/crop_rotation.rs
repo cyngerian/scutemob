@@ -1,7 +1,7 @@
 // Crop Rotation — {G} Instant; as an additional cost, sacrifice a land.
 // Search your library for a land card, put it onto the battlefield, then shuffle.
-// TODO: DSL gap — "sacrifice a land" as additional cost is not expressible.
-// The search-for-land portion uses SearchLibrary with TargetFilter.
+// TODO: "Sacrifice a land" as spell additional cost — not activated ability cost (PB-4)
+// Needs required_additional_cost field on CardDef or Spell. SearchLibrary portion works.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
                 reveal: false,
                 destination: ZoneTarget::Battlefield { tapped: false },
             },
-            // TODO: sacrifice a land (additional cost) not modeled
+            // TODO: sacrifice a land (spell additional cost, not PB-4 activated cost)
             targets: vec![],
             modes: None,
             cant_be_countered: false,

@@ -67,6 +67,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: format!("Reconfigure (attach) {{{}}} (CR 702.151a)", generic_mana),
         effect: Some(Effect::AttachEquipment {
@@ -94,6 +95,7 @@ fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: format!("Reconfigure (unattach) {{{}}} (CR 702.151a)", generic_mana),
         effect: Some(Effect::DetachEquipment {
@@ -155,6 +157,7 @@ fn test_reconfigure_attach_removes_creature_type() {
             ability_index: 0, // attach ability
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -250,6 +253,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
             ability_index: 0,
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -284,6 +288,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
             ability_index: 1, // detach ability
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -368,6 +373,7 @@ fn test_reconfigure_sorcery_speed_only() {
             ability_index: 0,
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -420,6 +426,7 @@ fn test_reconfigure_cant_attach_to_self() {
             ability_index: 0,
             targets: vec![Target::Object(blades_id)], // targeting self,
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -495,6 +502,7 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
             ability_index: 0,
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -586,6 +594,7 @@ fn test_reconfigure_unattach_rejected_when_not_attached() {
             ability_index: 1, // detach ability
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -643,6 +652,7 @@ fn test_reconfigure_cant_attach_to_opponents_creature() {
             ability_index: 0,
             targets: vec![Target::Object(opp_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -708,6 +718,7 @@ fn test_reconfigure_artifact_type_retained_while_attached() {
             ability_index: 0,
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();

@@ -1758,8 +1758,8 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             }),
             sacrifice_self: false,
             discard_card: false,
-
             forage: false,
+            sacrifice_filter: None,
         },
         description: "{4},{T}: Target creature can't be blocked this turn.".to_string(),
         effect: Some(Effect::ApplyContinuousEffect {
@@ -1806,6 +1806,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             ability_index: 0,
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .expect("ActivateAbility should succeed");

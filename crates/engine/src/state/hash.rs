@@ -19,8 +19,8 @@ use super::continuous_effect::{
 use super::dungeon::{DungeonId, DungeonState};
 use super::game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
-    GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent,
-    TriggeredAbilityDef,
+    GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, SacrificeFilter,
+    TriggerEvent, TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
@@ -1576,6 +1576,21 @@ impl HashInto for PendingTrigger {
     }
 }
 
+impl HashInto for SacrificeFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            SacrificeFilter::Creature => 0u8.hash_into(hasher),
+            SacrificeFilter::Land => 1u8.hash_into(hasher),
+            SacrificeFilter::Artifact => 2u8.hash_into(hasher),
+            SacrificeFilter::ArtifactOrCreature => 3u8.hash_into(hasher),
+            SacrificeFilter::Subtype(sub) => {
+                4u8.hash_into(hasher);
+                sub.hash_into(hasher);
+            }
+        }
+    }
+}
+
 impl HashInto for ActivationCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.requires_tap.hash_into(hasher);
@@ -1583,6 +1598,7 @@ impl HashInto for ActivationCost {
         self.sacrifice_self.hash_into(hasher);
         self.discard_card.hash_into(hasher);
         self.forage.hash_into(hasher);
+        self.sacrifice_filter.hash_into(hasher);
     }
 }
 
@@ -3794,6 +3810,7 @@ impl HashInto for Cost {
                 costs.hash_into(hasher);
             }
             Cost::Forage => 6u8.hash_into(hasher),
+            Cost::SacrificeSelf => 7u8.hash_into(hasher),
         }
     }
 }

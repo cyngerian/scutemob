@@ -19,9 +19,8 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}, Sacrifice this land: Destroy target land, opponent may
-            // search library for basic — sacrifice-as-cost activated abilities
-            // and opponent-controlled search effects are not expressible in the DSL
+            // TODO: {T}, Sacrifice: Destroy target land, opponent may search — PB-5 (targeted)
+            // Cost::SacrificeSelf available; blocked on targeted destroy + opponent search effect
         ],
         ..Default::default()
     }

@@ -1,7 +1,7 @@
 // Deadly Dispute — {1}{B} Instant; as an additional cost, sacrifice an artifact
 // or creature. Draw two cards. Create a Treasure token.
-// TODO: DSL gap — "sacrifice an artifact or creature" as additional cost
-// requires typed sacrifice. The draw + treasure portion is expressible.
+// TODO: "Sacrifice an artifact or creature" as spell additional cost — not activated ability cost (PB-4)
+// Needs required_additional_cost field on CardDef or Spell. Draw + Treasure works.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards. Create a Treasure token.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
-                // TODO: sacrifice additional cost not modeled
+                // TODO: sacrifice additional cost (spell cost, not PB-4 activated cost)
                 Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(2),

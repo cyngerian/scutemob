@@ -82,6 +82,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: format!("Adapt {adapt_n} (CR 701.46a)"),
         effect: Some(Effect::Conditional {
@@ -157,6 +158,7 @@ fn test_adapt_basic_adds_counters() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -254,6 +256,7 @@ fn test_adapt_does_nothing_with_existing_counters() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -327,6 +330,7 @@ fn test_adapt_activation_always_legal() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -401,6 +405,7 @@ fn test_adapt_after_losing_counters() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -452,6 +457,7 @@ fn test_adapt_after_losing_counters() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -508,6 +514,7 @@ fn test_adapt_pays_mana_cost() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -568,6 +575,7 @@ fn test_adapt_counter_added_event_emitted() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();

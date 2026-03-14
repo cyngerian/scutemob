@@ -80,6 +80,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: "Outlast (CR 702.107a)".to_string(),
         effect: Some(Effect::AddCounter {
@@ -156,6 +157,7 @@ fn test_outlast_basic_adds_counter() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -242,6 +244,7 @@ fn test_outlast_sorcery_speed_restriction() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -296,6 +299,7 @@ fn test_outlast_summoning_sickness_prevents_activation() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -331,6 +335,7 @@ fn test_outlast_requires_mana() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -371,6 +376,7 @@ fn test_outlast_already_tapped() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -411,6 +417,7 @@ fn test_outlast_stacks_counters() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -446,6 +453,7 @@ fn test_outlast_stacks_counters() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -497,6 +505,7 @@ fn test_outlast_not_a_cast() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();

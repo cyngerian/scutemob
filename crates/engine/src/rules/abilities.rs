@@ -55,6 +55,7 @@ pub fn handle_activate_ability(
     ability_index: usize,
     targets: Vec<Target>,
     discard_card: Option<ObjectId>,
+    sacrifice_target: Option<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 602.2: Activating requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -378,6 +379,81 @@ pub fn handle_activate_ability(
         } else {
             events.push(GameEvent::PermanentDestroyed {
                 object_id: source,
+                new_grave_id: new_id,
+            });
+        }
+    }
+
+    // CR 602.2: Pay sacrifice-another-permanent cost (e.g., "Sacrifice a creature: ...").
+    // The caller supplies the ObjectId of the permanent to sacrifice via `sacrifice_target`.
+    if let Some(ref filter) = ability_cost.sacrifice_filter {
+        let sac_id = sacrifice_target.ok_or_else(|| {
+            GameStateError::InvalidCommand(
+                "ability requires sacrificing a permanent as cost: sacrifice_target must be Some (CR 602.2)".into(),
+            )
+        })?;
+        // Validate the sacrifice target is on the battlefield and controlled by the player.
+        {
+            let sac_obj = state.object(sac_id)?;
+            if sac_obj.zone != ZoneId::Battlefield {
+                return Err(GameStateError::InvalidCommand(
+                    "sacrifice cost: permanent must be on the battlefield (CR 602.2)".into(),
+                ));
+            }
+            if sac_obj.controller != player {
+                return Err(GameStateError::InvalidCommand(
+                    "sacrifice cost: you must control the permanent to sacrifice (CR 602.2)".into(),
+                ));
+            }
+            // Validate the permanent matches the sacrifice filter using layer-resolved characteristics.
+            let chars = crate::rules::layers::calculate_characteristics(state, sac_id)
+                .unwrap_or_else(|| sac_obj.characteristics.clone());
+            let matches_filter = match filter {
+                crate::state::game_object::SacrificeFilter::Creature => {
+                    chars.card_types.contains(&crate::state::types::CardType::Creature)
+                }
+                crate::state::game_object::SacrificeFilter::Land => {
+                    chars.card_types.contains(&crate::state::types::CardType::Land)
+                }
+                crate::state::game_object::SacrificeFilter::Artifact => {
+                    chars.card_types.contains(&crate::state::types::CardType::Artifact)
+                }
+                crate::state::game_object::SacrificeFilter::ArtifactOrCreature => {
+                    chars.card_types.contains(&crate::state::types::CardType::Artifact)
+                        || chars.card_types.contains(&crate::state::types::CardType::Creature)
+                }
+                crate::state::game_object::SacrificeFilter::Subtype(sub) => {
+                    chars.subtypes.contains(sub)
+                }
+            };
+            if !matches_filter {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "sacrifice cost: permanent does not match required filter {:?} (CR 602.2)",
+                    filter
+                )));
+            }
+        }
+        // Sacrifice the permanent (move to graveyard).
+        let (is_creature, owner, pre_death_controller, pre_death_counters) = {
+            let obj = state.object(sac_id)?;
+            (
+                obj.characteristics.card_types.contains(&crate::state::types::CardType::Creature),
+                obj.owner,
+                obj.controller,
+                obj.counters.clone(),
+            )
+        };
+        let (new_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(owner))?;
+        if is_creature {
+            events.push(GameEvent::CreatureDied {
+                object_id: sac_id,
+                new_grave_id: new_id,
+                controller: pre_death_controller,
+                pre_death_counters,
+            });
+        } else {
+            events.push(GameEvent::PermanentDestroyed {
+                object_id: sac_id,
                 new_grave_id: new_id,
             });
         }

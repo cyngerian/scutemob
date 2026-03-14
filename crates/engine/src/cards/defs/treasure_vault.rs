@@ -18,8 +18,8 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {X}{X}, {T}, Sacrifice this land: Create X Treasure tokens
-            // — {X} cost + X-scaled token creation not expressible in DSL
+            // TODO: {X}{X}, {T}, Sacrifice: Create X Treasure tokens — PB-9 (X costs)
+            // Cost::SacrificeSelf available; blocked on X-cost + X-scaled token creation
         ],
         ..Default::default()
     }

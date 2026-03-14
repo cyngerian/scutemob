@@ -165,6 +165,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     squad_count,
                     mutate_on_top,
                     gift_opponent,
+                    sacrifice_card,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -201,6 +202,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             *squad_count,
                             *mutate_on_top,
                             gift_opponent.as_deref(),
+                            sacrifice_card.as_deref(),
                             &state,
                             &players,
                         );

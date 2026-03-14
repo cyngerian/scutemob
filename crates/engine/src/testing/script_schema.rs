@@ -360,6 +360,13 @@ pub enum ScriptAction {
         /// Ignored for all other action types.
         #[serde(default)]
         mutate_on_top: bool,
+        /// CR 602.2: For `activate_ability` with sacrifice-another-permanent cost.
+        /// The name of the permanent on the battlefield to sacrifice as part of
+        /// the ability's activation cost. `None` for abilities that don't require
+        /// sacrificing another permanent.
+        /// Example: "Llanowar Elves"
+        #[serde(default)]
+        sacrifice_card: Option<String>,
         /// CR 702.174a: For `cast_spell` with gift. The name of the opponent chosen to
         /// receive the gift benefit (e.g. `"p2"`). `None` means the gift was not promised;
         /// the conditional downside clause will apply at resolution (CR 702.174j).

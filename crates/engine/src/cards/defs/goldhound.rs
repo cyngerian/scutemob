@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Tap,
-                    Cost::Sacrifice(TargetFilter::default()),
+                    Cost::SacrificeSelf,
                 ]),
                 effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
                 timing_restriction: None,

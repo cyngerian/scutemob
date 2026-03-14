@@ -248,6 +248,7 @@ fn test_split_second_blocks_activated_abilities() {
                 discard_card: false,
 
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{T}: Does something".to_string(),
             effect: None,
@@ -305,6 +306,7 @@ fn test_split_second_blocks_activated_abilities() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 

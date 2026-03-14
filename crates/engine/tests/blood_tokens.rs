@@ -70,6 +70,7 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 sacrifice_self: true,
                 discard_card: true,
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -242,6 +243,7 @@ fn test_blood_token_activation_basic() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -334,6 +336,7 @@ fn test_blood_token_discard_is_cost() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -406,6 +409,7 @@ fn test_blood_token_uses_stack() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(discard_id),
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -450,6 +454,7 @@ fn test_blood_token_activation_no_mana() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     );
 
@@ -504,6 +509,7 @@ fn test_blood_token_activation_already_tapped() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     );
 
@@ -555,6 +561,7 @@ fn test_blood_token_activation_no_cards_in_hand() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -606,6 +613,7 @@ fn test_blood_token_sba_ceases_to_exist() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -700,6 +708,7 @@ fn test_blood_token_not_affected_by_summoning_sickness() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     );
 
@@ -750,6 +759,7 @@ fn test_blood_token_only_controller_can_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     );
 
@@ -848,6 +858,7 @@ fn test_blood_token_activation_sacrifice_removes_from_battlefield() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(dummy_id),
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -898,6 +909,7 @@ fn test_blood_token_discard_must_be_from_hand() {
             ability_index: 0,
             targets: vec![],
             discard_card: Some(grave_card_id),
+            sacrifice_target: None,
         },
     );
 

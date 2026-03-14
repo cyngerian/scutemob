@@ -18,9 +18,9 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {2},{T}, Sacrifice a Desert: Exile all graveyards —
-            // sacrifice-a-permanent-of-type as cost and exile-all-graveyards
-            // effect are not expressible in the DSL
+            // TODO: {2},{T}, Sacrifice a Desert: Exile all graveyards — PB-19 (mass exile)
+            // Cost: Cost::Sacrifice(TargetFilter { has_subtype: Desert }) available
+            // Blocked on exile-all-graveyards effect (no Effect::ExileAllGraveyards)
         ],
         ..Default::default()
     }

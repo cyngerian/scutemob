@@ -13,9 +13,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: DSL gap — activated ability "Sacrifice this creature: another target creature
-            // gains haste until end of turn" requires targeting + ApplyContinuousEffect granting
-            // Haste until EOT; targeted activated abilities are not expressible in the DSL.
+            // TODO: Sacrifice: target creature gains haste until EOT — PB-5 (targeted activated)
+            // Cost::SacrificeSelf available; blocked on targeted grant-keyword effect
         ],
         ..Default::default()
     }

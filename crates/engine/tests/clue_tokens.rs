@@ -73,6 +73,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 discard_card: false,
 
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -234,6 +235,7 @@ fn test_clue_activate_draw_card() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -311,6 +313,7 @@ fn test_clue_uses_stack_not_mana_ability() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -362,6 +365,7 @@ fn test_clue_sacrifice_is_cost_not_effect() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -419,6 +423,7 @@ fn test_clue_tapped_can_still_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -479,6 +484,7 @@ fn test_clue_not_affected_by_summoning_sickness() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -525,6 +531,7 @@ fn test_clue_token_ceases_to_exist_after_sba() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -595,6 +602,7 @@ fn test_clue_opponent_cannot_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 
@@ -645,6 +653,7 @@ fn test_clue_insufficient_mana_cannot_activate() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
 

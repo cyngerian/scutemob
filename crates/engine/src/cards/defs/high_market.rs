@@ -17,7 +17,21 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}, Sacrifice a creature: You gain 1 life — Cost::SacrificeCreature not in DSL
+            // {T}, Sacrifice a creature: You gain 1 life
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Tap,
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(1),
+                },
+                timing_restriction: None,
+            },
         ],
         ..Default::default()
     }

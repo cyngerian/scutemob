@@ -18,8 +18,21 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
             },
-            // TODO: {T}, Sacrifice a creature: Add {B}{B}
-            // — sacrifice-a-creature cost not expressible in DSL (Cost enum lacks SacrificeCreature)
+            // {T}, Sacrifice a creature: Add {B}{B}
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Tap,
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 2, 0, 0, 0),
+                },
+                timing_restriction: None,
+            },
         ],
         ..Default::default()
     }

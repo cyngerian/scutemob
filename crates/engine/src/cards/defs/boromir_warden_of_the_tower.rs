@@ -11,9 +11,8 @@
 // condition checking that zero mana was spent. No such trigger condition or mana-spent
 // check exists in the DSL.
 //
-// TODO: DSL gap — "Sacrifice Boromir: ... The Ring tempts you" is an activated sacrifice
-// ability with a two-part effect (grant indestructible to all creatures you control +
-// ring tempt). No activated ability with SacrificeSelf cost is currently expressible.
+// TODO: Sacrifice: creatures gain indestructible + Ring tempts you — PB-6 (static grant)
+// Cost::SacrificeSelf available; blocked on mass-indestructible grant effect
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

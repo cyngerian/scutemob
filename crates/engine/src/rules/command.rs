@@ -115,6 +115,12 @@ pub enum Command {
         /// `None` for abilities that don't require a discard cost.
         #[serde(default)]
         discard_card: Option<ObjectId>,
+        /// CR 602.2: If the ability's cost requires sacrificing another permanent
+        /// (not self — that's `sacrifice_self`), this is the ObjectId of the permanent
+        /// to sacrifice. Must match the `sacrifice_filter` on the `ActivationCost`.
+        /// `None` for abilities that don't require sacrificing another permanent.
+        #[serde(default)]
+        sacrifice_target: Option<ObjectId>,
     },
 
     // ── M6: Combat commands ───────────────────────────────────────────────
@@ -544,6 +550,18 @@ pub enum Command {
         /// Cards/permanents to exile as the material cost.
         material_ids: Vec<ObjectId>,
     },
+
+    // ── The Ring Tempts You (CR 701.54) ──────────────────────────────────────
+    /// The ring tempts the given player (CR 701.54a).
+    ///
+    /// Advances the player's ring level by 1 (capped at 4) and lets the player
+    /// choose a creature as their ring-bearer. In the deterministic engine the
+    /// creature with the lowest ObjectId is chosen automatically.
+    ///
+    /// This command is used by scripts and triggered abilities that say "the Ring
+    /// tempts you" as a keyword action (CR 701.54a). It is also the fallback used
+    /// internally by `Effect::TheRingTemptsYou`.
+    TheRingTemptsYou { player: PlayerId },
 
     // ── Dungeon / Venture (CR 701.49, CR 725) ────────────────────────────────
     /// Trigger a venture-into-the-dungeon action for the given player (CR 701.49).

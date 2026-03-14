@@ -23,11 +23,8 @@ pub fn card() -> CardDefinition {
             // DSL gap: intervening_if condition "control three or more artifacts" (count_threshold)
             // not expressible.
 
-            // TODO: {4}, {T}, Sacrifice Inventors' Fair: Search your library for an artifact card,
-            // reveal it, put it into your hand, then shuffle. Activate only if you control
-            // three or more artifacts.
-            // DSL gaps: sacrifice-self cost; nonbasic_land_search with type filter (artifact);
-            // conditional activation (count_threshold) not expressible.
+            // TODO: {4}, {T}, Sacrifice: Search for artifact, activate only with 3+ artifacts — PB-17
+            // Cost::SacrificeSelf available; blocked on typed search + conditional activation
         ],
         ..Default::default()
     }

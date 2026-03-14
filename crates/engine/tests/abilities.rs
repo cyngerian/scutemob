@@ -9,7 +9,8 @@ use mtg_engine::state::turn::Step;
 use mtg_engine::state::zone::ZoneId;
 use mtg_engine::state::{
     error::GameStateError, ActivatedAbility, ActivationCost, GameStateBuilder, InterveningIf,
-    ManaColor, ManaCost, ObjectSpec, PlayerId, StackObjectKind, TriggerEvent, TriggeredAbilityDef,
+    ManaColor, ManaCost, ObjectSpec, PlayerId, SacrificeFilter, StackObjectKind, TriggerEvent,
+    TriggeredAbilityDef,
 };
 use mtg_engine::{AttackTarget, Effect, EffectAmount, PlayerTarget};
 
@@ -27,6 +28,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: description.to_string(),
         effect: None,
@@ -44,6 +46,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: description.to_string(),
         effect: None,
@@ -108,6 +111,7 @@ fn test_activate_ability_tap_places_on_stack() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -177,6 +181,7 @@ fn test_activate_ability_tap_cost_taps_source() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -222,6 +227,7 @@ fn test_activate_ability_pays_mana_cost() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -274,6 +280,7 @@ fn test_activate_ability_not_priority_holder_fails() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
     assert!(matches!(
@@ -317,6 +324,7 @@ fn test_activate_ability_wrong_controller_fails() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotController { .. })));
@@ -353,6 +361,7 @@ fn test_activate_ability_invalid_index_fails() {
             ability_index: 5, // Only index 0 exists
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
     assert!(matches!(
@@ -393,6 +402,7 @@ fn test_activate_ability_already_tapped_fails() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
     assert!(matches!(
@@ -439,6 +449,7 @@ fn test_activate_ability_insufficient_mana_fails() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InsufficientMana)));
@@ -484,6 +495,7 @@ fn test_activated_ability_resolves_after_all_pass() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -980,6 +992,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
                 discard_card: false,
 
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "Sacrifice: Draw a card.".into(),
             effect: Some(draw_effect),
@@ -1016,6 +1029,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();
@@ -1075,6 +1089,277 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
         hand_after,
         hand_before + 1,
         "player 1 should have drawn one card from the sacrifice ability"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Sacrifice-another-permanent as cost (CR 602.2 — sacrifice_filter)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 602.2 — sacrifice a creature as activation cost (Phyrexian Tower pattern).
+/// Validates: sacrifice_filter: Creature, valid creature sacrificed → ability on stack.
+fn test_sacrifice_filter_creature_valid() {
+    let p1 = p(1);
+
+    // Land with "{T}, Sacrifice a creature: Add {B}{B}." (simplified: gain 2 life instead)
+    let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
+        .with_activated_ability(ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: true,
+                mana_cost: None,
+                sacrifice_self: false,
+                discard_card: false,
+                forage: false,
+                sacrifice_filter: Some(SacrificeFilter::Creature),
+            },
+            description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
+            effect: Some(Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            }),
+            sorcery_speed: false,
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let creature = ObjectSpec::creature(p1, "Llanowar Elves", 1, 1).in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(tower)
+        .object(creature)
+        .build()
+        .unwrap();
+
+    let tower_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
+        .map(|(&id, _)| id)
+        .unwrap();
+    let creature_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Llanowar Elves")
+        .map(|(&id, _)| id)
+        .unwrap();
+
+    let (state, events) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: tower_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: Some(creature_id),
+        },
+    )
+    .unwrap();
+
+    // Creature should be in graveyard (sacrificed as cost).
+    let in_graveyard = state
+        .objects
+        .values()
+        .any(|o| o.characteristics.name == "Llanowar Elves" && matches!(o.zone, ZoneId::Graveyard(_)));
+    assert!(in_graveyard, "sacrificed creature should be in graveyard");
+
+    // CreatureDied event emitted for the sacrificed creature.
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::CreatureDied { object_id, .. } if *object_id == creature_id
+        )),
+        "CreatureDied event expected for creature sacrifice"
+    );
+
+    // Ability is on the stack.
+    assert_eq!(state.stack_objects.len(), 1);
+}
+
+#[test]
+/// CR 602.2 — sacrifice_filter: Creature rejects non-creature permanents.
+fn test_sacrifice_filter_creature_rejects_artifact() {
+    let p1 = p(1);
+
+    let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
+        .with_activated_ability(ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: true,
+                mana_cost: None,
+                sacrifice_self: false,
+                discard_card: false,
+                forage: false,
+                sacrifice_filter: Some(SacrificeFilter::Creature),
+            },
+            description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
+            effect: Some(Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            }),
+            sorcery_speed: false,
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let artifact = ObjectSpec::artifact(p1, "Sol Ring").in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(tower)
+        .object(artifact)
+        .build()
+        .unwrap();
+
+    let tower_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
+        .map(|(&id, _)| id)
+        .unwrap();
+    let artifact_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Sol Ring")
+        .map(|(&id, _)| id)
+        .unwrap();
+
+    let result = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: tower_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: Some(artifact_id),
+        },
+    );
+
+    assert!(result.is_err(), "non-creature should be rejected by Creature filter");
+}
+
+#[test]
+/// CR 602.2 — sacrifice_filter: Creature rejects opponent's creature.
+fn test_sacrifice_filter_rejects_opponent_creature() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
+        .with_activated_ability(ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: true,
+                mana_cost: None,
+                sacrifice_self: false,
+                discard_card: false,
+                forage: false,
+                sacrifice_filter: Some(SacrificeFilter::Creature),
+            },
+            description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
+            effect: Some(Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            }),
+            sorcery_speed: false,
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let opponent_creature =
+        ObjectSpec::creature(p2, "Opponent Bear", 2, 2).in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(tower)
+        .object(opponent_creature)
+        .build()
+        .unwrap();
+
+    let tower_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
+        .map(|(&id, _)| id)
+        .unwrap();
+    let opp_creature_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Opponent Bear")
+        .map(|(&id, _)| id)
+        .unwrap();
+
+    let result = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: tower_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: Some(opp_creature_id),
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "sacrificing opponent's creature should be rejected"
+    );
+}
+
+#[test]
+/// CR 602.2 — sacrifice_filter: missing sacrifice_target when filter is set → error.
+fn test_sacrifice_filter_missing_target_errors() {
+    let p1 = p(1);
+
+    let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
+        .with_activated_ability(ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: true,
+                mana_cost: None,
+                sacrifice_self: false,
+                discard_card: false,
+                forage: false,
+                sacrifice_filter: Some(SacrificeFilter::Creature),
+            },
+            description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
+            effect: Some(Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            }),
+            sorcery_speed: false,
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(tower)
+        .build()
+        .unwrap();
+
+    let tower_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
+        .map(|(&id, _)| id)
+        .unwrap();
+
+    let result = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: tower_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None, // no target provided — should fail
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "missing sacrifice_target with sacrifice_filter should error"
     );
 }
 
@@ -1375,6 +1660,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
                 discard_card: false,
 
                 forage: false,
+                sacrifice_filter: None,
             },
             description: "Sacrifice: trigger dies".to_string(),
             effect: None,
@@ -1407,6 +1693,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             ability_index: 0,
             targets: vec![],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap();

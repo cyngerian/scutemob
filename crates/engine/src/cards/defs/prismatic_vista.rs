@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Sequence(vec![
                     Cost::Tap,
                     Cost::PayLife(1),
-                    Cost::Sacrifice(TargetFilter::default()),
+                    Cost::SacrificeSelf,
                 ]),
                 effect: Effect::Sequence(vec![
                     Effect::SearchLibrary {

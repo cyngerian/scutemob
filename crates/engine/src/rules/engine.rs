@@ -130,6 +130,7 @@ pub fn process_command(
             ability_index,
             targets,
             discard_card,
+            sacrifice_target,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: activating an ability is a meaningful player choice; reset loop detection.
@@ -141,6 +142,7 @@ pub fn process_command(
                 ability_index,
                 targets,
                 discard_card,
+                sacrifice_target,
             )?;
             // CR 603.3: Check for triggered abilities arising from activating this ability
             // (e.g., Ward — "Whenever this permanent becomes the target of an ability an
@@ -595,6 +597,19 @@ pub fn process_command(
             let trigger_events = abilities::flush_pending_triggers(&mut state);
             events.extend(trigger_events);
             all_events.extend(events);
+        }
+
+        // ── The Ring Tempts You (CR 701.54) ──────────────────────────────────
+        Command::TheRingTemptsYou { player } => {
+            let events = handle_ring_tempts_you(&mut state, player)?;
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            let mut all = events;
+            all.extend(trigger_events);
+            all_events.extend(all);
         }
 
         // ── Dungeon / Venture (CR 701.49) ────────────────────────────────────

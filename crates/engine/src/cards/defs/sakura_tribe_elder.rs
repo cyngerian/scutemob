@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Activated {
-                cost: Cost::Sacrifice(TargetFilter::default()),
+                cost: Cost::SacrificeSelf,
                 effect: Effect::Sequence(vec![
                     Effect::SearchLibrary {
                         player: PlayerTarget::Controller,

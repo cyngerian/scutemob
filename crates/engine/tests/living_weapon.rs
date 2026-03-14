@@ -82,6 +82,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
+                sacrifice_filter: None,
         },
         description: format!("Equip {{{}}}", generic_mana),
         effect: Some(Effect::AttachEquipment {
@@ -606,6 +607,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
             ability_index: 0,
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
+            sacrifice_target: None,
         },
     )
     .unwrap_or_else(|e| panic!("ActivateAbility (Equip) failed: {:?}", e));

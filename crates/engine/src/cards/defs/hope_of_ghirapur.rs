@@ -5,10 +5,8 @@
 //
 // Flying is implemented. The sacrifice ability is a TODO.
 //
-// TODO: DSL gap — the sacrifice ability requires tracking which players were dealt combat
-// damage by this creature this turn. There is no TriggerCondition or EffectTarget variant
-// that can express "target player who was dealt combat damage by [source] this turn" with
-// the "until your next turn" duration. This ability is omitted to avoid incorrect behavior.
+// TODO: Sacrifice: target player dealt combat damage can't cast noncreature — PB-5+PB-13
+// Cost::SacrificeSelf available; blocked on combat-damage tracking + cast restriction effect
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

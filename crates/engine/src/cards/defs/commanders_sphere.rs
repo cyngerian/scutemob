@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
             },
             AbilityDefinition::Activated {
-                cost: Cost::Sacrifice(TargetFilter::default()),
+                cost: Cost::SacrificeSelf,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
