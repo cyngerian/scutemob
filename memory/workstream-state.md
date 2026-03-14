@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-2: Conditional ETB tapped (56 cards) | ACTIVE | 2026-03-14 | **TOP PRIORITY**. PB-0+PB-1 done. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | PB-3: Shockland pay-life-or-tapped | ACTIVE | 2026-03-14 | **TOP PRIORITY**. PB-0+PB-1+PB-2 done. Plan: `docs/primitive-card-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,27 +23,33 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-13
+**Date**: 2026-03-14
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-1 — Pain land mana-with-damage (8 cards)
+**Task**: PB-2 — Conditional ETB tapped (56 cards)
 
 **Completed**:
-- Added `ManaAbility.damage_to_controller` field for pain land self-damage (CR 605)
-- Added `TriggerCondition::WhenSelfBecomesTapped` for City of Brass (fires on any tap)
-- Extended `try_as_tap_mana_ability` to recognize `Sequence(AddMana+DealDamage)` and `AddManaAnyColor` patterns
-- Fixed all 8 pain land card defs: battlefield_forge, caves_of_koilos, city_of_brass, llanowar_wastes, shivan_reef, sulfurous_springs, underground_river, yavimaya_coast
-- 5 new tests in pain_lands.rs; commit 6601de0; 1982 tests, 0 clippy warnings
+- Added `unless_condition: Option<Condition>` to `AbilityDefinition::Replacement` (avoids circular state→cards→state dep)
+- 10 new `Condition` variants: `Or`, `ControlLandWithSubtypes`, `ControlAtMostNOtherLands`, `HaveTwoOrMoreOpponents`, `CanRevealFromHandWithSubtype`, `ControlBasicLandsAtLeast`, `ControlAtLeastNOtherLands`, `ControlAtLeastNOtherLandsWithSubtype`, `ControlLegendaryCreature`, `ControlCreatureWithSubtype`
+- `check_condition` arms for all 10 variants in effects/mod.rs
+- Hash discriminants 19-28 in state/hash.rs
+- `apply_self_etb_from_definition` in replacement.rs: unless_condition check before applying modification
+- 116 existing card defs updated with `unless_condition: None,` (new required field)
+- 56 conditional ETB card defs fixed: 18 check/castle, 3 fast, 8 slow, 5 battle, 10 bond, 8 reveal, 2 subtype-count, 2 special (Minas Tirith, Temple of the Dragon Queen)
+- 8 new unit tests covering all condition patterns; commit 091baa5; 1990 tests, 0 clippy warnings
 
 **Next**:
-1. **PB-5**: Targeted abilities (32 cards, 2-3 sessions) — highest leverage
-2. **PB-2**: Conditional ETB tapped (56 cards, 2-3 sessions) — most cards
-3. Follow execution order in `docs/primitive-card-plan.md`
+1. Follow execution order in `docs/primitive-card-plan.md` — PB-3 through PB-21
+2. **PB-3**: Shockland pay-life-or-tapped (10 cards) or **PB-5**: Targeted abilities (32 cards)
+3. ~50 fewer wrong-game-state cards (was ~106, fixed 56 conditional ETB)
 
-**Hazards**: Pre-existing uncommitted changes in working tree from prior sessions (CLAUDE.md, command.rs, engine.rs, encore.rs, docs, memory). ~106 card defs still produce wrong game state (was 114, fixed 8 pain lands).
+**Hazards**: Pre-existing uncommitted changes in working tree from prior sessions (CLAUDE.md, command.rs, engine.rs, encore.rs, docs, memory).
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-14 — W6: PB-2 conditional ETB tapped (56 cards)
+- unless_condition on AbilityDefinition::Replacement + 10 Condition variants; 56 card defs fixed; commit 091baa5; 1990 tests
 
 ### 2026-03-13 — W6: PB-1 pain land mana-with-damage (8 cards)
 - ManaAbility.damage_to_controller + WhenSelfBecomesTapped trigger; 8 card defs fixed; commit 6601de0; 1982 tests
@@ -57,5 +63,3 @@
 ### 2026-03-13 — W5 → W6: Wave 3 mana-land (78 cards) + strategic pivot
 - Wave 3: 78 cards authored+reviewed+fixed, commit 0896563; DSL gap audit; unauthored card scan (1,195 cards); primitive-first plan created; W5 retired → W6
 
-### 2026-03-13 — W5: Wave 2 combat-keyword (187 cards) complete
-- 14 sessions (26–39); 38 review batches; 13 HIGH fixes; commits d83ac94+01e3b52; 640 total card defs; 1944 tests

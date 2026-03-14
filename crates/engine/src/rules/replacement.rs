@@ -1336,7 +1336,10 @@ fn emit_etb_modification(
 ) -> Vec<GameEvent> {
     let mut evts: Vec<GameEvent> = Vec::new();
     match modification {
-        Some(ReplacementModification::EntersTapped) => {
+        Some(ReplacementModification::EntersTapped)
+        | Some(ReplacementModification::EntersTappedUnlessPayLife(_)) => {
+            // EntersTappedUnlessPayLife: deterministic fallback (pre-M10) — always
+            // enters tapped. Interactive "may pay N life" choice deferred to M10.
             if let Some(obj) = state.objects.get_mut(&new_id) {
                 obj.status.tapped = true;
             }

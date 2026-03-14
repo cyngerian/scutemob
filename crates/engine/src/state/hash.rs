@@ -1409,6 +1409,11 @@ impl HashInto for ReplacementModification {
             ReplacementModification::ShuffleIntoOwnerLibrary => 6u8.hash_into(hasher),
             // CR 701.19a/614.8: Regenerate (discriminant 7)
             ReplacementModification::Regenerate => 7u8.hash_into(hasher),
+            // CR 614.1c: shockland pay-life-or-tapped (discriminant 8)
+            ReplacementModification::EntersTappedUnlessPayLife(life) => {
+                8u8.hash_into(hasher);
+                life.hash_into(hasher);
+            }
         }
     }
 }

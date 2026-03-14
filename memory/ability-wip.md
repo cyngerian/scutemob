@@ -1,43 +1,29 @@
-# Ability WIP: PB-2 Conditional ETB Tapped
+# Ability WIP: PB-3 Shockland ETB (pay-life-or-tapped)
 
-ability: Conditional ETB Tapped
-cr: 614.1c (replacement effects — enters tapped unless)
-priority: W6-PB-2
+ability: Shockland ETB (pay-life-or-tapped)
+cr: 614.1c (replacement effects — enters tapped unless pay life)
+priority: W6-PB-3
 started: 2026-03-14
-phase: implement
-plan_file: (inline — see primitive-card-plan.md PB-2)
+phase: complete
+plan_file: (inline — see primitive-card-plan.md PB-3)
 
 ## Step Checklist
-- [x] 1. New Condition variants (8 variants: Or, ControlLandWithSubtypes, ControlAtMostNOtherLands, HaveTwoOrMoreOpponents, CanRevealFromHandWithSubtype, ControlBasicLandsAtLeast, ControlAtLeastNOtherLands, ControlAtLeastNOtherLandsWithSubtype)
-- [x] 2. unless_condition: Option<Condition> on AbilityDefinition::Replacement (avoids circular dep)
-- [x] 3. check_condition arms + replacement.rs unless_condition check
-- [x] 4. Hash discriminants 19-26 + exhaustive match updates (116 card defs sed'd)
-- [x] 5. Unit tests — 8 tests covering all condition patterns (77 total in replacement_effects.rs)
-- [x] 6. Fix 56 card defs — all unless_condition set (18 check/castle, 3 fast, 8 slow, 5 battle, 10 bond, 8 reveal, 2 subtype-count, 2 special)
-- [x] 7. Build verification — 1990 tests passing, clippy clean, workspace builds
+- [x] 1. Add ReplacementModification::EntersTappedUnlessPayLife(u32) variant
+- [x] 2. Handle in apply_self_etb_from_definition (replacement.rs) — deterministic: enters tapped
+- [x] 3. Hash discriminant 8 in hash.rs
+- [x] 4. Unit tests — 3 tests (single shockland, all 10, variant check)
+- [x] 5. Fix 10 card defs — add replacement + dual mana abilities
+- [x] 6. Build verification — 1993 tests passing, clippy clean, workspace builds
 
 ## Design
 
-### New Condition variants:
-- `ControlLandWithSubtypes(Vec<SubType>)` — check-lands + castles (any of listed subtypes)
-- `ControlAtMostNOtherLands(u32)` — fast-lands (≤ N other lands → enters untapped)
-- `HaveTwoOrMoreOpponents` — bond-lands (≥ 2 opponents → enters untapped)
-- `CanRevealFromHandWithSubtype(SubType)` — reveal-lands (deterministic auto-reveal)
-- `ControlBasicLandsAtLeast(u32)` — battle-lands (≥ N basics → enters untapped)
-- `ControlAtLeastNOtherLands(u32)` — slow-lands (≥ N other lands → enters untapped)
+### Engine change:
+- `ReplacementModification::EntersTappedUnlessPayLife(u32)` — "As this enters, you may pay N life. If you don't, it enters tapped."
+- Deterministic fallback (pre-M10): always enters tapped (conservative, prevents free mana)
+- Combined match arm with `EntersTapped` in `emit_etb_modification` — same behavior, distinct variant for M10 wiring
+- Interactive choice deferred to M10 (Command::PayLifeForETB or similar)
 
-### ReplacementModification:
-- `EntersTappedUnless(Condition)` — if condition met, enter untapped; if not, enter tapped
-
-### Evaluation:
-- Construct minimal EffectContext in emit_etb_modification (controller + source)
-- Reuse existing check_condition infrastructure
-
-### Card sub-patterns (56 total):
-- Check-lands (12): clifftop_retreat, dragonskull_summit, drowned_catacomb, glacial_fortress, etc.
-- Fast-lands (6): blooming_marsh, concealed_courtyard, darkslick_shores, etc.
-- Bond-lands (6-10): bountiful_promenade, luxury_suite, morphic_pool, etc.
-- Reveal-lands (6): choked_estuary, foreboding_ruins, frostboil_snarl, etc.
-- Battle-lands (5): canopy_vista, cinder_glade, prairie_stream, smoldering_marsh, sunken_hollow
-- Slow-lands (6): deathcap_glade, dreamroot_cascade, haunted_ridge, rockfall_vale, shipwreck_marsh, stormcarved_coast
-- Misc (remaining): castle_*, arena_of_glory, flamekin_village, mystic_sanctuary, etc.
+### Cards (10):
+- blood_crypt (B/R), breeding_pool (G/U), godless_shrine (W/B), hallowed_fountain (W/U),
+  overgrown_tomb (B/G), sacred_foundry (R/W), steam_vents (U/R), stomping_ground (R/G),
+  temple_garden (G/W), watery_grave (U/B)

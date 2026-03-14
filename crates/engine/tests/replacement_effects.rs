@@ -3981,3 +3981,147 @@ fn test_conditional_etb_reveal_land() {
         "Reveal-land: no matching card in hand → enters tapped"
     );
 }
+
+// =============================================================================
+// PB-3: Shockland ETB — EntersTappedUnlessPayLife(2)
+// =============================================================================
+
+/// CR 614.1c: Shocklands enter tapped in deterministic mode (pre-M10 fallback:
+/// "you may pay 2 life" is not paid → enters tapped).
+#[test]
+fn test_shockland_enters_tapped_deterministic_fallback() {
+    use mtg_engine::{all_cards, Step};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let registry = CardRegistry::new(all_cards());
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::land(p1, "Blood Crypt")
+                .with_card_id(CardId("blood-crypt".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+    state.turn.priority_holder = Some(p1);
+
+    let card_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
+
+    let (new_state, events) = mtg_engine::process_command(
+        state,
+        Command::PlayLand {
+            player: p1,
+            card: card_id,
+        },
+    )
+    .unwrap();
+
+    // Shockland should be on the battlefield, tapped (deterministic fallback).
+    let bf_objects = new_state.objects_in_zone(&ZoneId::Battlefield);
+    assert_eq!(bf_objects.len(), 1, "Blood Crypt should be on the battlefield");
+    assert!(
+        bf_objects[0].status.tapped,
+        "Blood Crypt should enter tapped (deterministic: life payment not available pre-M10)"
+    );
+
+    // PermanentTapped event should fire.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        "PermanentTapped event should be emitted for shockland ETB replacement"
+    );
+}
+
+/// CR 614.1c: All 10 shocklands use EntersTappedUnlessPayLife(2) and all enter tapped
+/// in deterministic mode. Verifies the card definitions are wired correctly.
+#[test]
+fn test_all_shocklands_enter_tapped() {
+    use mtg_engine::{all_cards, Step};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let shocklands = [
+        ("blood-crypt", "Blood Crypt"),
+        ("breeding-pool", "Breeding Pool"),
+        ("godless-shrine", "Godless Shrine"),
+        ("hallowed-fountain", "Hallowed Fountain"),
+        ("overgrown-tomb", "Overgrown Tomb"),
+        ("sacred-foundry", "Sacred Foundry"),
+        ("steam-vents", "Steam Vents"),
+        ("stomping-ground", "Stomping Ground"),
+        ("temple-garden", "Temple Garden"),
+        ("watery-grave", "Watery Grave"),
+    ];
+
+    for (slug, name) in &shocklands {
+        let registry = CardRegistry::new(all_cards());
+
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .object(
+                ObjectSpec::land(p1, name)
+                    .with_card_id(CardId(slug.to_string()))
+                    .in_zone(ZoneId::Hand(p1)),
+            )
+            .at_step(Step::PreCombatMain)
+            .active_player(p1)
+            .with_registry(registry)
+            .build()
+            .unwrap();
+        state.turn.priority_holder = Some(p1);
+
+        let card_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
+
+        let (new_state, _events) = mtg_engine::process_command(
+            state,
+            Command::PlayLand {
+                player: p1,
+                card: card_id,
+            },
+        )
+        .unwrap();
+
+        let bf_objects = new_state.objects_in_zone(&ZoneId::Battlefield);
+        assert_eq!(bf_objects.len(), 1, "{name} should be on the battlefield");
+        assert!(
+            bf_objects[0].status.tapped,
+            "{name} should enter tapped (deterministic fallback)"
+        );
+    }
+}
+
+/// Verify EntersTappedUnlessPayLife is distinct from EntersTapped in the card definition.
+#[test]
+fn test_shockland_uses_pay_life_variant_not_enters_tapped() {
+    use mtg_engine::all_cards;
+
+    let cards = all_cards();
+    let blood_crypt = cards
+        .iter()
+        .find(|c| c.card_id.0 == "blood-crypt")
+        .expect("Blood Crypt should be in all_cards");
+
+    let has_pay_life = blood_crypt.abilities.iter().any(|a| {
+        matches!(
+            a,
+            AbilityDefinition::Replacement {
+                modification: ReplacementModification::EntersTappedUnlessPayLife(2),
+                ..
+            }
+        )
+    });
+    assert!(
+        has_pay_life,
+        "Blood Crypt should use EntersTappedUnlessPayLife(2), not EntersTapped"
+    );
+}

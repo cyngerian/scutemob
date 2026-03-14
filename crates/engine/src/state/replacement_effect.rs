@@ -79,6 +79,10 @@ pub enum ReplacementModification {
     /// marked on the permanent, tap it, and remove it from combat (if attacking/blocking).
     /// One-shot: consumed after one use.
     Regenerate,
+    /// CR 614.1c: "As this enters, you may pay N life. If you don't, it enters tapped."
+    /// Used by shocklands. Pre-M10 deterministic fallback: always enters tapped
+    /// (conservative — prevents free mana). Interactive choice deferred to M10.
+    EntersTappedUnlessPayLife(u32),
 }
 
 /// Filters which objects a replacement trigger matches.
