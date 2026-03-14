@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // TODO: Activated — {1}{B}: Return this card from your graveyard to the battlefield.
             // Activate only if a non-Skeleton creature died under your control this turn.

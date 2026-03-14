@@ -3708,6 +3708,52 @@ impl HashInto for Condition {
                 18u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Or condition (discriminant 19) — logical disjunction
+            Condition::Or(a, b) => {
+                19u8.hash_into(hasher);
+                a.hash_into(hasher);
+                b.hash_into(hasher);
+            }
+            // ── ETB condition variants (PB-2, discriminants 20-26) ───────────
+            Condition::ControlLandWithSubtypes(subtypes) => {
+                20u8.hash_into(hasher);
+                (subtypes.len() as u32).hash_into(hasher);
+                for st in subtypes {
+                    st.hash_into(hasher);
+                }
+            }
+            Condition::ControlAtMostNOtherLands(n) => {
+                21u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            Condition::HaveTwoOrMoreOpponents => 22u8.hash_into(hasher),
+            Condition::CanRevealFromHandWithSubtype(subtypes) => {
+                23u8.hash_into(hasher);
+                (subtypes.len() as u32).hash_into(hasher);
+                for st in subtypes {
+                    st.hash_into(hasher);
+                }
+            }
+            Condition::ControlBasicLandsAtLeast(n) => {
+                24u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            Condition::ControlAtLeastNOtherLands(n) => {
+                25u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            Condition::ControlAtLeastNOtherLandsWithSubtype { count, subtype } => {
+                26u8.hash_into(hasher);
+                count.hash_into(hasher);
+                subtype.hash_into(hasher);
+            }
+            Condition::ControlLegendaryCreature => {
+                27u8.hash_into(hasher);
+            }
+            Condition::ControlCreatureWithSubtype(subtype) => {
+                28u8.hash_into(hasher);
+                subtype.hash_into(hasher);
+            }
         }
     }
 }
@@ -4099,11 +4145,19 @@ impl HashInto for AbilityDefinition {
                 trigger,
                 modification,
                 is_self,
+                unless_condition,
             } => {
                 5u8.hash_into(hasher);
                 trigger.hash_into(hasher);
                 modification.hash_into(hasher);
                 is_self.hash_into(hasher);
+                match unless_condition {
+                    None => 0u8.hash_into(hasher),
+                    Some(cond) => {
+                        1u8.hash_into(hasher);
+                        cond.hash_into(hasher);
+                    }
+                }
             }
             AbilityDefinition::OpeningHand => 6u8.hash_into(hasher),
             // M9.4: TriggerDoubling (discriminant 7) — CR 603.2d

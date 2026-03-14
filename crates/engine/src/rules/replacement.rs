@@ -900,8 +900,17 @@ pub fn apply_self_etb_from_definition(
             trigger: ReplacementTrigger::WouldEnterBattlefield { .. },
             modification,
             is_self: true,
+            unless_condition,
         } = ability
         {
+            // CR 614.1c: "enters tapped unless [condition]" — if the condition
+            // is met, skip the replacement (permanent enters untapped).
+            if let Some(condition) = unless_condition {
+                let ctx = crate::effects::EffectContext::new(controller, new_id, vec![]);
+                if crate::effects::check_condition(state, condition, &ctx) {
+                    continue;
+                }
+            }
             evts.extend(apply_self_etb_modification(
                 state,
                 new_id,
@@ -1466,6 +1475,7 @@ pub fn register_permanent_replacement_abilities(
             trigger,
             modification,
             is_self,
+            unless_condition: _,
         } = ability
         {
             // Self-ETB replacements are applied inline — do not register.

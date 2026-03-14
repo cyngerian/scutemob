@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Plains".to_string()), SubType("Swamp".to_string())])),
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

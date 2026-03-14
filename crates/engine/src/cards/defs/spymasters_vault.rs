@@ -9,7 +9,6 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control a Swamp.\n{T}: Add {B}.\n{B}, {T}: Target creature you control connives X, where X is the number of creatures that died this turn. (Draw X cards, then discard X cards. Put a +1/+1 counter on that creature for each nonland card discarded this way.)".to_string(),
         abilities: vec![
-            // TODO: This land enters tapped unless you control a Swamp.
             // DSL gap: conditional ETB tapped (no condition field on ReplacementModification::EntersTapped).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // {T}: Add {B}.
             AbilityDefinition::Activated {

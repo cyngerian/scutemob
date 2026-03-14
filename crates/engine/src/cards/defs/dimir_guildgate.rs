@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // {T}: Add {U} or {B} (CR 106.6: player chooses color).
             // M9.4: uses Effect::Choose between AddMana blue and AddMana black.

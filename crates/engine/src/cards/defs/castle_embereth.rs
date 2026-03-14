@@ -9,7 +9,6 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control a Mountain.\n{T}: Add {R}.\n{1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.".to_string(),
         abilities: vec![
-            // TODO: This land enters tapped unless you control a Mountain.
             // TODO: Activated — {T}: Add {R}.
             // TODO: Activated — {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.
         ],

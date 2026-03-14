@@ -8,15 +8,13 @@ pub fn card() -> CardDefinition {
         mana_cost: None,
         types: types(&[CardType::Land]),
         oracle_text: "As this land enters, you may reveal a Swamp or Forest card from your hand. If you don't, this land enters tapped.\n{T}: Add {B} or {G}.".to_string(),
-        abilities: vec![
-            // TODO: Conditional ETB — may reveal a Swamp or Forest card, enters tapped if you don't
-            // DSL gap: ReplacementModification::EntersTapped has no condition field
-            AbilityDefinition::Replacement {
+        abilities: vec![            AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: Some(Condition::CanRevealFromHandWithSubtype(vec![SubType("Swamp".to_string()), SubType("Forest".to_string())])),
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

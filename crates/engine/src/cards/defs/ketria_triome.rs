@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // Mana production handled by basic land subtypes Forest/Island/Mountain (CR 305.6).
             // CR 702.29: Cycling {3}.

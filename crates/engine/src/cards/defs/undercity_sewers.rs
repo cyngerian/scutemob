@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // CR 701.25: Surveil 1 on ETB.
             AbilityDefinition::Triggered {

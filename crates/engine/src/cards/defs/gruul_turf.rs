@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // TODO: Triggered — When this land enters, return a land you control to its owner's hand.
             // {T}: Add {R}{G}.

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // TODO: Triggered — When this land enters, you may put target creature card from your graveyard on top of your library.
             // {T}: Add {B}.

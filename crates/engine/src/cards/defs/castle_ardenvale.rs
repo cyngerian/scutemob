@@ -9,7 +9,6 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control a Plains.\n{T}: Add {W}.\n{2}{W}{W}, {T}: Create a 1/1 white Human creature token.".to_string(),
         abilities: vec![
-            // TODO: This land enters tapped unless you control a Plains.
             // TODO: Activated — {T}: Add {W}.
             // TODO: Activated — {2}{W}{W}, {T}: Create a 1/1 white Human creature token.
         ],

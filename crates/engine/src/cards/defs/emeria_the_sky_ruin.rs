@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // TODO: Triggered — At the beginning of your upkeep, if you control seven or more Plains,
             // return target creature card from your graveyard to the battlefield.

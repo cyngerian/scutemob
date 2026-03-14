@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
                 is_self: false,
+                unless_condition: None,
             },
         ],
         ..Default::default()

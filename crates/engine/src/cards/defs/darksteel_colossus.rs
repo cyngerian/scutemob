@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::ShuffleIntoOwnerLibrary,
                 is_self: true,
+                unless_condition: None,
             },
         ],
         color_indicator: None,

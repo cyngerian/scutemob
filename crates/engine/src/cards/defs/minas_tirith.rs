@@ -9,9 +9,21 @@ pub fn card() -> CardDefinition {
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
         oracle_text: "Minas Tirith enters tapped unless you control a legendary creature.\n{T}: Add {W}.\n{1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.".to_string(),
         abilities: vec![
-            // TODO: Minas Tirith enters tapped unless you control a legendary creature.
-            // TODO: Activated — {T}: Add {W}.
-            // TODO: Activated — {1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatur
+            // CR 614.1c: enters tapped unless you control a legendary creature.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+                unless_condition: Some(Condition::ControlLegendaryCreature),
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(1, 0, 0, 0, 0, 0) },
+                timing_restriction: None,
+            },
+            // TODO: Activated — {1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.
         ],
         ..Default::default()
     }

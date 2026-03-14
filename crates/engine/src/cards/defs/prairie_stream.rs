@@ -8,15 +8,13 @@ pub fn card() -> CardDefinition {
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Plains", "Island"]),
         oracle_text: "({T}: Add {W} or {U}.)\nThis land enters tapped unless you control two or more basic lands.".to_string(),
-        abilities: vec![
-            // TODO: Conditional ETB — enters tapped unless you control two or more basic lands
-            // DSL gap: ReplacementModification::EntersTapped has no condition field
-            AbilityDefinition::Replacement {
+        abilities: vec![            AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: Some(Condition::ControlBasicLandsAtLeast(2)),
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

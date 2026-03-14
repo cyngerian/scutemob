@@ -155,6 +155,11 @@ pub enum AbilityDefinition {
         /// CR 614.15: if true, this is a self-replacement (applies before global effects).
         #[serde(default)]
         is_self: bool,
+        /// CR 614.1c: "enters tapped unless [condition]" — if the condition is met,
+        /// the replacement is skipped (permanent enters untapped). If not met, the
+        /// replacement applies normally. Used by check-lands, fast-lands, bond-lands, etc.
+        #[serde(default)]
+        unless_condition: Option<Condition>,
     },
     /// CR 113.6b: Opening-hand static ability — "If ~ is in your opening hand, you may
     /// begin the game with it on the battlefield."
@@ -1536,6 +1541,55 @@ pub enum Condition {
     /// Used for Acererak's "if you haven't completed Tomb of Annihilation":
     /// `Condition::Not(Box::new(Condition::CompletedSpecificDungeon(DungeonId::TombOfAnnihilation)))`.
     Not(Box<Condition>),
+
+    /// Logical disjunction of two conditions. True if either is true.
+    ///
+    /// Used for Temple of the Dragon Queen: "unless you revealed a Dragon card
+    /// this way or you control a Dragon."
+    Or(Box<Condition>, Box<Condition>),
+
+    // ── ETB condition variants (PB-2) ────────────────────────────────────────
+
+    /// "unless you control a [Plains/Island/etc.]" — check-lands, castles.
+    /// True if the controller controls a land on the battlefield with ANY of the
+    /// listed subtypes. Used with `unless_condition` on `AbilityDefinition::Replacement`.
+    ControlLandWithSubtypes(Vec<SubType>),
+
+    /// "unless you control N or fewer other lands" — fast-lands (e.g., N=2).
+    /// True if the controller controls N or fewer OTHER lands on the battlefield
+    /// (excluding the entering land itself).
+    ControlAtMostNOtherLands(u32),
+
+    /// "unless you have two or more opponents" — bond-lands.
+    /// True if the controller has >= 2 opponents still in the game.
+    HaveTwoOrMoreOpponents,
+
+    /// "you may reveal a [type] card from your hand" — reveal-lands.
+    /// Deterministic fallback: auto-reveal if hand contains a card with ANY of the
+    /// listed subtypes. True if a matching card is found.
+    CanRevealFromHandWithSubtype(Vec<SubType>),
+
+    /// "unless you control N or more basic lands" — battle-lands (e.g., N=2).
+    /// True if the controller controls >= N basic lands on the battlefield.
+    ControlBasicLandsAtLeast(u32),
+
+    /// "unless you control N or more other lands" — slow-lands (e.g., N=2).
+    /// True if the controller controls >= N OTHER lands on the battlefield
+    /// (excluding the entering land itself).
+    ControlAtLeastNOtherLands(u32),
+
+    /// "unless you control N or more other [subtype]s" — Mystic Sanctuary, Witch's Cottage.
+    /// True if the controller controls >= N OTHER lands with the given subtype on the
+    /// battlefield (excluding the entering land itself).
+    ControlAtLeastNOtherLandsWithSubtype { count: u32, subtype: SubType },
+
+    /// "unless you control a legendary creature" — Minas Tirith.
+    /// True if the controller controls a legendary creature on the battlefield.
+    ControlLegendaryCreature,
+
+    /// "unless you control a creature with subtype X" — Temple of the Dragon Queen.
+    /// True if the controller controls a creature with the given subtype.
+    ControlCreatureWithSubtype(SubType),
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

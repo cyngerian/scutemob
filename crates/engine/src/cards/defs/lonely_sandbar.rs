@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // {T}: Add {U} (Island subtype grants this implicitly, but explicit here).
             AbilityDefinition::Activated {

@@ -10,9 +10,10 @@ use std::collections::HashSet;
 use mtg_engine::rules::replacement::{self, ReplacementResult};
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, CombatDamageTarget, Command,
-    CounterType, DamageTargetFilter, EffectDuration, GameEvent, GameStateBuilder, ManaCost,
-    ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId, ReplacementEffect, ReplacementId,
-    ReplacementModification, ReplacementTrigger, TypeLine, ZoneId, ZoneType,
+    Condition, CounterType, DamageTargetFilter, EffectDuration, GameEvent, GameStateBuilder,
+    ManaCost, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId, ReplacementEffect,
+    ReplacementId, ReplacementModification, ReplacementTrigger, SubType, SuperType, TypeLine,
+    ZoneId, ZoneType,
 };
 
 /// Helper: create a simple zone-change replacement effect for testing.
@@ -3205,6 +3206,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
             },
             modification: ReplacementModification::EntersTapped,
             is_self: true,
+            unless_condition: None,
         }],
         power: Some(2),
         toughness: Some(2),
@@ -3285,5 +3287,697 @@ fn test_etb_self_and_global_replacement_both_apply() {
             .get(&CounterType::PlusOnePlusOne)
             .copied()
             .unwrap_or(0)
+    );
+}
+
+// ── PB-2: Conditional ETB Tapped ────────────────────────────────────────────
+
+/// Helper: create a land card definition with conditional ETB tapped.
+fn conditional_etb_land(
+    id: &str,
+    name: &str,
+    subtypes: &[&str],
+    unless_condition: Condition,
+) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(id.to_string()),
+        name: name.to_string(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Land].iter().cloned().collect(),
+            supertypes: Default::default(),
+            subtypes: subtypes
+                .iter()
+                .map(|s| SubType(s.to_string()))
+                .collect(),
+        },
+        oracle_text: format!("Conditional ETB tapped land: {}", name),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldEnterBattlefield {
+                filter: ObjectFilter::Any,
+            },
+            modification: ReplacementModification::EntersTapped,
+            is_self: true,
+            unless_condition: Some(unless_condition),
+        }],
+        color_indicator: None,
+        back_face: None,
+        ..Default::default()
+    }
+}
+
+/// Helper: create a basic land card definition.
+fn basic_land_def(id: &str, name: &str, subtype: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(id.to_string()),
+        name: name.to_string(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Land].iter().cloned().collect(),
+            supertypes: [SuperType::Basic].iter().cloned().collect(),
+            subtypes: [SubType(subtype.to_string())].iter().cloned().collect(),
+        },
+        oracle_text: format!("Basic land: {}", name),
+        abilities: vec![],
+        color_indicator: None,
+        back_face: None,
+        ..Default::default()
+    }
+}
+
+/// Helper: find an object by name in the game state.
+fn find_cond_etb_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
+    state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == name)
+        .map(|(id, _)| *id)
+        .unwrap_or_else(|| panic!("Object '{}' not found", name))
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Check-land pattern: "enters tapped unless you control a
+/// Plains or an Island." When the controller has a Plains on the battlefield,
+/// the land enters untapped.
+fn test_conditional_etb_check_land_condition_met() {
+    let p1 = PlayerId(1);
+
+    let plains_def = basic_land_def("plains", "Plains", "Plains");
+    let check_land_def = conditional_etb_land(
+        "glacial-fortress",
+        "Glacial Fortress",
+        &[],
+        Condition::ControlLandWithSubtypes(vec![
+            SubType("Plains".to_string()),
+            SubType("Island".to_string()),
+        ]),
+    );
+    let registry = CardRegistry::new(vec![plains_def, check_land_def]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Plains")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Plains".to_string())])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Glacial Fortress")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("glacial-fortress".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let check_land_id = find_cond_etb_by_name(&state, "Glacial Fortress");
+
+    let evts = mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        check_land_id,
+        p1,
+        Some(&CardId("glacial-fortress".to_string())),
+        &registry,
+    );
+
+    let obj = state.objects.get(&check_land_id).unwrap();
+    assert!(
+        !obj.status.tapped,
+        "CR 614.1c: Check-land should enter untapped when controller has a Plains"
+    );
+    assert!(
+        !evts.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        "No PermanentTapped event when condition is met"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Check-land pattern: when the controller does NOT have a
+/// matching land type, the land enters tapped.
+fn test_conditional_etb_check_land_condition_not_met() {
+    let p1 = PlayerId(1);
+
+    let check_land_def = conditional_etb_land(
+        "glacial-fortress",
+        "Glacial Fortress",
+        &[],
+        Condition::ControlLandWithSubtypes(vec![
+            SubType("Plains".to_string()),
+            SubType("Island".to_string()),
+        ]),
+    );
+    let registry = CardRegistry::new(vec![check_land_def]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Glacial Fortress")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("glacial-fortress".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let check_land_id = find_cond_etb_by_name(&state, "Glacial Fortress");
+
+    let evts = mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        check_land_id,
+        p1,
+        Some(&CardId("glacial-fortress".to_string())),
+        &registry,
+    );
+
+    let obj = state.objects.get(&check_land_id).unwrap();
+    assert!(
+        obj.status.tapped,
+        "CR 614.1c: Check-land should enter tapped when controller has no Plains/Island"
+    );
+    assert!(
+        evts.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        "PermanentTapped event must be emitted"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Fast-land pattern: "enters tapped unless you control two
+/// or fewer other lands." With 2 other lands, enters untapped; with 3, enters tapped.
+fn test_conditional_etb_fast_land() {
+    let p1 = PlayerId(1);
+
+    let fast_land_def = conditional_etb_land(
+        "blooming-marsh",
+        "Blooming Marsh",
+        &[],
+        Condition::ControlAtMostNOtherLands(2),
+    );
+    let registry = CardRegistry::new(vec![fast_land_def]);
+
+    // Case 1: 2 other lands → enters untapped.
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Land 0")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Land 1")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Blooming Marsh")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("blooming-marsh".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let fast_land_id = find_cond_etb_by_name(&state, "Blooming Marsh");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        fast_land_id,
+        p1,
+        Some(&CardId("blooming-marsh".to_string())),
+        &registry,
+    );
+    assert!(
+        !state.objects.get(&fast_land_id).unwrap().status.tapped,
+        "Fast-land: 2 other lands → enters untapped"
+    );
+
+    // Case 2: 3 other lands → enters tapped.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Land A")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Land B")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Land C")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Blooming Marsh")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("blooming-marsh".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let fast_land_id2 = find_cond_etb_by_name(&state2, "Blooming Marsh");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state2,
+        fast_land_id2,
+        p1,
+        Some(&CardId("blooming-marsh".to_string())),
+        &registry,
+    );
+    assert!(
+        state2.objects.get(&fast_land_id2).unwrap().status.tapped,
+        "Fast-land: 3 other lands → enters tapped"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Bond-land pattern: "enters tapped unless you have two or
+/// more opponents." In 4-player Commander (3 opponents), enters untapped.
+/// In 2-player (1 opponent), enters tapped.
+fn test_conditional_etb_bond_land() {
+    let p1 = PlayerId(1);
+
+    let bond_land_def = conditional_etb_land(
+        "bountiful-promenade",
+        "Bountiful Promenade",
+        &[],
+        Condition::HaveTwoOrMoreOpponents,
+    );
+    let registry = CardRegistry::new(vec![bond_land_def.clone()]);
+
+    // 4-player game (3 opponents) → enters untapped.
+    let mut state4 = GameStateBuilder::four_player()
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Bountiful Promenade")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("bountiful-promenade".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let bond_id4 = find_cond_etb_by_name(&state4, "Bountiful Promenade");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state4,
+        bond_id4,
+        p1,
+        Some(&CardId("bountiful-promenade".to_string())),
+        &registry,
+    );
+    assert!(
+        !state4.objects.get(&bond_id4).unwrap().status.tapped,
+        "Bond-land: 3 opponents → enters untapped"
+    );
+
+    // 2-player game (1 opponent) → enters tapped.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Bountiful Promenade")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("bountiful-promenade".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let bond_id2 = find_cond_etb_by_name(&state2, "Bountiful Promenade");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state2,
+        bond_id2,
+        p1,
+        Some(&CardId("bountiful-promenade".to_string())),
+        &registry,
+    );
+    assert!(
+        state2.objects.get(&bond_id2).unwrap().status.tapped,
+        "Bond-land: 1 opponent → enters tapped"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Battle-land pattern: "enters tapped unless you control
+/// two or more basic lands."
+fn test_conditional_etb_battle_land() {
+    let p1 = PlayerId(1);
+
+    let battle_land_def = conditional_etb_land(
+        "canopy-vista",
+        "Canopy Vista",
+        &["Forest", "Plains"],
+        Condition::ControlBasicLandsAtLeast(2),
+    );
+    let plains_def = basic_land_def("plains", "Plains", "Plains");
+    let forest_def = basic_land_def("forest", "Forest", "Forest");
+    let registry = CardRegistry::new(vec![battle_land_def, plains_def, forest_def]);
+
+    // Case 1: 2 basic lands → enters untapped.
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Plains")
+                .with_types(vec![CardType::Land])
+                .with_supertypes(vec![SuperType::Basic])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Forest")
+                .with_types(vec![CardType::Land])
+                .with_supertypes(vec![SuperType::Basic])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Canopy Vista")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("canopy-vista".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let battle_id = find_cond_etb_by_name(&state, "Canopy Vista");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        battle_id,
+        p1,
+        Some(&CardId("canopy-vista".to_string())),
+        &registry,
+    );
+    assert!(
+        !state.objects.get(&battle_id).unwrap().status.tapped,
+        "Battle-land: 2 basic lands → enters untapped"
+    );
+
+    // Case 2: 1 basic land → enters tapped.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Plains")
+                .with_types(vec![CardType::Land])
+                .with_supertypes(vec![SuperType::Basic])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Canopy Vista")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("canopy-vista".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let battle_id2 = find_cond_etb_by_name(&state2, "Canopy Vista");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state2,
+        battle_id2,
+        p1,
+        Some(&CardId("canopy-vista".to_string())),
+        &registry,
+    );
+    assert!(
+        state2.objects.get(&battle_id2).unwrap().status.tapped,
+        "Battle-land: 1 basic land → enters tapped"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Slow-land pattern: "enters tapped unless you control
+/// two or more other lands."
+fn test_conditional_etb_slow_land() {
+    let p1 = PlayerId(1);
+
+    let slow_land_def = conditional_etb_land(
+        "deathcap-glade",
+        "Deathcap Glade",
+        &[],
+        Condition::ControlAtLeastNOtherLands(2),
+    );
+    let registry = CardRegistry::new(vec![slow_land_def]);
+
+    // Case 1: 2 other lands → enters untapped.
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Land 0")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Land 1")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Deathcap Glade")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("deathcap-glade".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let slow_id = find_cond_etb_by_name(&state, "Deathcap Glade");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        slow_id,
+        p1,
+        Some(&CardId("deathcap-glade".to_string())),
+        &registry,
+    );
+    assert!(
+        !state.objects.get(&slow_id).unwrap().status.tapped,
+        "Slow-land: 2 other lands → enters untapped"
+    );
+
+    // Case 2: 1 other land → enters tapped.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Land 0")
+                .with_types(vec![CardType::Land])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Deathcap Glade")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("deathcap-glade".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let slow_id2 = find_cond_etb_by_name(&state2, "Deathcap Glade");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state2,
+        slow_id2,
+        p1,
+        Some(&CardId("deathcap-glade".to_string())),
+        &registry,
+    );
+    assert!(
+        state2.objects.get(&slow_id2).unwrap().status.tapped,
+        "Slow-land: 1 other land → enters tapped"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Mystic Sanctuary pattern: "enters tapped unless you
+/// control three or more other Islands."
+fn test_conditional_etb_subtype_count_land() {
+    let p1 = PlayerId(1);
+
+    let sanctuary_def = conditional_etb_land(
+        "mystic-sanctuary",
+        "Mystic Sanctuary",
+        &["Island"],
+        Condition::ControlAtLeastNOtherLandsWithSubtype {
+            count: 3,
+            subtype: SubType("Island".to_string()),
+        },
+    );
+    let registry = CardRegistry::new(vec![sanctuary_def]);
+
+    // Case 1: 3 other Islands → enters untapped.
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Island 0")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Island 1")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Island 2")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Mystic Sanctuary")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .with_card_id(CardId("mystic-sanctuary".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let sanctuary_id = find_cond_etb_by_name(&state, "Mystic Sanctuary");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        sanctuary_id,
+        p1,
+        Some(&CardId("mystic-sanctuary".to_string())),
+        &registry,
+    );
+    assert!(
+        !state.objects.get(&sanctuary_id).unwrap().status.tapped,
+        "Mystic Sanctuary: 3 other Islands → enters untapped"
+    );
+
+    // Case 2: 2 other Islands → enters tapped.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Island 0")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Island 1")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::card(p1, "Mystic Sanctuary")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .with_card_id(CardId("mystic-sanctuary".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let sanctuary_id2 = find_cond_etb_by_name(&state2, "Mystic Sanctuary");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state2,
+        sanctuary_id2,
+        p1,
+        Some(&CardId("mystic-sanctuary".to_string())),
+        &registry,
+    );
+    assert!(
+        state2.objects.get(&sanctuary_id2).unwrap().status.tapped,
+        "Mystic Sanctuary: 2 other Islands → enters tapped"
+    );
+}
+
+#[test]
+/// PB-2 / CR 614.1c — Reveal-land pattern: "you may reveal a [type] card from
+/// your hand." Deterministic: auto-reveal if matching card in hand.
+fn test_conditional_etb_reveal_land() {
+    let p1 = PlayerId(1);
+
+    let reveal_land_def = conditional_etb_land(
+        "choked-estuary",
+        "Choked Estuary",
+        &[],
+        Condition::CanRevealFromHandWithSubtype(vec![
+            SubType("Island".to_string()),
+            SubType("Swamp".to_string()),
+        ]),
+    );
+    let registry = CardRegistry::new(vec![reveal_land_def]);
+
+    // Case 1: Island in hand → enters untapped.
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Island")
+                .with_types(vec![CardType::Land])
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .object(
+            ObjectSpec::card(p1, "Choked Estuary")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("choked-estuary".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let reveal_id = find_cond_etb_by_name(&state, "Choked Estuary");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        reveal_id,
+        p1,
+        Some(&CardId("choked-estuary".to_string())),
+        &registry,
+    );
+    assert!(
+        !state.objects.get(&reveal_id).unwrap().status.tapped,
+        "Reveal-land: Island in hand → enters untapped"
+    );
+
+    // Case 2: no matching card in hand → enters tapped.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Choked Estuary")
+                .with_types(vec![CardType::Land])
+                .with_card_id(CardId("choked-estuary".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let reveal_id2 = find_cond_etb_by_name(&state2, "Choked Estuary");
+    mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state2,
+        reveal_id2,
+        p1,
+        Some(&CardId("choked-estuary".to_string())),
+        &registry,
+    );
+    assert!(
+        state2.objects.get(&reveal_id2).unwrap().status.tapped,
+        "Reveal-land: no matching card in hand → enters tapped"
     );
 }

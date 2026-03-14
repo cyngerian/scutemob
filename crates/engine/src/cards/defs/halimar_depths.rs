@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: None,
             },
             // TODO: Triggered — When this land enters, look at the top three cards of your library, then put them back in any order.
             // {T}: Add {U}.

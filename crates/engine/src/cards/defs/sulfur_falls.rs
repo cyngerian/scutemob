@@ -8,15 +8,13 @@ pub fn card() -> CardDefinition {
         mana_cost: None,
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control an Island or a Mountain.\n{T}: Add {U} or {R}.".to_string(),
-        abilities: vec![
-            // TODO: Conditional ETB — enters tapped unless you control an Island or a Mountain
-            // DSL gap: ReplacementModification::EntersTapped has no condition field
-            AbilityDefinition::Replacement {
+        abilities: vec![            AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
+                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Island".to_string()), SubType("Mountain".to_string())])),
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

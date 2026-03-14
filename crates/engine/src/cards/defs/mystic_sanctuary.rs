@@ -10,7 +10,6 @@ pub fn card() -> CardDefinition {
         oracle_text: "({T}: Add {U}.)\nThis land enters tapped unless you control three or more other Islands.\nWhen this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.".to_string(),
         abilities: vec![
             // TODO: ({T}: Add {U}.)
-            // TODO: This land enters tapped unless you control three or more other Islands.
             // TODO: Triggered — When this land enters untapped, you may put target instant or sorcery card from 
         ],
         ..Default::default()
