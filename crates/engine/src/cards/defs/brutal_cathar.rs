@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Daybound),
             // DSL gap: ETB exile-until-leaves requires ExileUntilLeaves effect
         ],
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Moonrage Brute".to_string(),
             mana_cost: None,

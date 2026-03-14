@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             // needed — the casting.rs validation would need to allow graveyard-zone casting
             // for this specific ability. Omitted until that infrastructure exists.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

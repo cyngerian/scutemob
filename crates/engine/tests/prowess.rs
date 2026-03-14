@@ -120,6 +120,7 @@ fn creature_spell_def() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![],
+        color_indicator: None,
         back_face: None,
     }
 }
@@ -143,6 +144,7 @@ fn artifact_creature_def() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![],
+        color_indicator: None,
         back_face: None,
     }
 }

@@ -374,6 +374,7 @@ fn test_702_25b_flanking_multiple_instances() {
         ],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: None,
     };
 

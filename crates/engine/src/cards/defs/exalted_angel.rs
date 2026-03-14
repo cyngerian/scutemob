@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Morph),
             AbilityDefinition::Morph { cost: ManaCost { generic: 2, white: 2, ..Default::default() } },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

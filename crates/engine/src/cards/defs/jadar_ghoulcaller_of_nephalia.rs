@@ -36,6 +36,7 @@ When it attacks, sacrifice it at end of combat.)"
                 intervening_if: None,
             },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

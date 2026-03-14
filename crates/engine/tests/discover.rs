@@ -78,6 +78,7 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         ],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: None,
     }
 }
@@ -107,6 +108,7 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         }],
         power: None,
         toughness: None,
+        color_indicator: None,
         back_face: None,
     }
 }
@@ -125,6 +127,7 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         abilities: vec![],
         power: None,
         toughness: None,
+        color_indicator: None,
         back_face: None,
     }
 }

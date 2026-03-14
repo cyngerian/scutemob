@@ -858,5 +858,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Manifest => "Manifest".to_string(),
         // CR 701.58: cloak
         KeywordAbility::Cloak => "Cloak".to_string(),
+        KeywordAbility::MustAttackEachCombat => "Must Attack".to_string(),
     }
 }

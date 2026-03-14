@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Infect),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

@@ -1703,6 +1703,18 @@ pub fn translate_player_action(
         // this arm should issue that Command instead.
         "search_library" => None,
 
+        // CR 701.54a: Manually trigger "the Ring tempts you" for the given player.
+        // Used in scripts to test ring-temptation directly (without casting a spell).
+        // Schema: { "action_type": "ring_tempts_you", "priority_player": "p1" }
+        // Deterministic fallback in the engine picks the ring-bearer automatically (lowest ObjectId creature).
+        "ring_tempts_you" => Some(Command::TheRingTemptsYou { player }),
+
+        // CR 701.49a-c: Manually trigger a venture into the dungeon for the given player.
+        // Used in scripts to test dungeon progression directly (without casting a venture spell).
+        // Schema: { "action_type": "venture_into_dungeon", "priority_player": "p1" }
+        // Deterministic fallback in the engine picks the dungeon/room automatically.
+        "venture_into_dungeon" => Some(Command::VentureIntoDungeon { player }),
+
         _ => {
             // Unrecognized action — skip without error.
             None
@@ -1795,8 +1807,11 @@ pub fn enrich_spec_from_def(
         spec.rules_text = def.oracle_text.clone();
     }
 
-    // Derive colors from mana cost (CR 202.2) — only if not already set.
-    if spec.colors.is_empty() {
+    // CR 204: Color indicator overrides mana-cost-derived colors.
+    if let Some(ref ci) = def.color_indicator {
+        spec.colors = ci.clone();
+    } else if spec.colors.is_empty() {
+        // Derive colors from mana cost (CR 202.2) — only if not already set.
         if let Some(ref cost) = def.mana_cost {
             let mut colors = Vec::new();
             if cost.white > 0 {

@@ -267,6 +267,43 @@ pub fn handle_declare_attackers(
         }
     }
 
+    // CR 508.1d: Creatures with "attacks each combat if able" must attack if able.
+    // Similar to goaded enforcement but without directional restriction.
+    {
+        for (obj_id, obj) in &state.objects {
+            if obj.zone != ZoneId::Battlefield || obj.controller != player {
+                continue;
+            }
+            let chars = match calculate_characteristics(state, *obj_id) {
+                Some(c) => c,
+                None => continue,
+            };
+            if !chars
+                .keywords
+                .contains(&KeywordAbility::MustAttackEachCombat)
+            {
+                continue;
+            }
+            if declared_attacker_ids.contains(obj_id) {
+                continue;
+            }
+            // Check if the creature is able to attack.
+            let has_vigilance = chars.keywords.contains(&KeywordAbility::Vigilance);
+            let has_haste = chars.keywords.contains(&KeywordAbility::Haste);
+            let has_defender = chars.keywords.contains(&KeywordAbility::Defender);
+            let is_tapped = obj.status.tapped;
+            let has_sickness = obj.has_summoning_sickness;
+            let cannot_attack =
+                (is_tapped && !has_vigilance) || (has_sickness && !has_haste) || has_defender;
+            if !cannot_attack {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Creature {:?} must attack each combat if able (CR 508.1d)",
+                    obj_id
+                )));
+            }
+        }
+    }
+
     // ---- CR 702.154a / CR 508.1g: Validate enlist choices ----
     //
     // Each (enlisting_attacker_id, enlisted_creature_id) must satisfy:

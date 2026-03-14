@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // granted ability set (CR 702.165d).
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

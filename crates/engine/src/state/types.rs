@@ -1552,6 +1552,11 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 157.
     Cloak,
+    /// CR 508.1d: "Attacks each combat if able" — a static ability requiring the
+    /// creature to be declared as an attacker each combat step if it is able to attack.
+    ///
+    /// Discriminant 158.
+    MustAttackEachCombat,
 }
 
 /// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.

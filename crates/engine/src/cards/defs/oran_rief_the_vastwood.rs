@@ -9,8 +9,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped.\n{T}: Add {G}.\n{T}: Put a +1/+1 counter on each green creature that entered this turn.".to_string(),
         abilities: vec![
-            // TODO: This land enters tapped.
-            // TODO: Activated — {T}: Add {G}.
+            // CR 614.1c: self-replacement — this land enters tapped.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+            },
+            // {T}: Add {G}.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 0, 1, 0) },
+                timing_restriction: None,
+            },
             // TODO: Activated — {T}: Put a +1/+1 counter on each green creature that entered this turn.
         ],
         ..Default::default()

@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // until end of turn" — requires Condition::WasSurged + ForEach(Creature, pump+haste).
             // Implement when authoring a card that needs it or when Condition::WasSurged is added.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

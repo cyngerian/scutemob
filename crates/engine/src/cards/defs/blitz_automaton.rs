@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(6),
         toughness: Some(4),
+        color_indicator: None,
         back_face: None,
     }
 }

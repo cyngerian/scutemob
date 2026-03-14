@@ -285,6 +285,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         ],
         power: Some(1),
         toughness: Some(1),
+        color_indicator: None,
         back_face: None,
     };
 

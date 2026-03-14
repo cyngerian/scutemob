@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
             },
         ],
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Generous Soul".to_string(),
             // Back face has a printed mana cost {4}{W}{W} (used for Disturb casting).

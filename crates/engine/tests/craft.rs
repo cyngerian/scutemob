@@ -68,6 +68,7 @@ fn braided_net_def() -> CardDefinition {
         ],
         power: None,
         toughness: None,
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Braided Quipu".to_string(),
             mana_cost: None,
@@ -130,6 +131,7 @@ fn non_dfc_craft_def() -> CardDefinition {
                 materials: CraftMaterials::Artifacts(1),
             },
         ],
+        color_indicator: None,
         back_face: None, // Not a DFC
         ..Default::default()
     }

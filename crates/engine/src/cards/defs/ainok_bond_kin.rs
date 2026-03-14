@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Modification::GainKeyword(FirstStrike) filtered to creatures with +1/+1 counters.
             // Omitted until the DSL supports a counter-presence filter on static grants.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

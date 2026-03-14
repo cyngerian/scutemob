@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(4),
         abilities: vec![],
+        color_indicator: None,
         back_face: None,
     }
 }

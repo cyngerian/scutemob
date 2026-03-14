@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

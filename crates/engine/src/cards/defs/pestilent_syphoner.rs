@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Toxic(1)),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

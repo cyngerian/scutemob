@@ -15,9 +15,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: Add KeywordAbility::Wither variant (CR 702.77a): damage dealt to
-            // creatures is in the form of -1/-1 counters instead of marked damage.
+            // CR 702.80: Wither — damage dealt to creatures is in the form of -1/-1 counters.
+            AbilityDefinition::Keyword(KeywordAbility::Wither),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Extort),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

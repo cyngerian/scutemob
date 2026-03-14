@@ -76,6 +76,7 @@ fn delver_def() -> CardDefinition {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Transform)],
         power: Some(1),
         toughness: Some(1),
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Insectile Aberration".to_string(),
             mana_cost: None,
@@ -121,6 +122,7 @@ fn plain_creature_def() -> CardDefinition {
         abilities: vec![],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: None,
         ..Default::default()
     }

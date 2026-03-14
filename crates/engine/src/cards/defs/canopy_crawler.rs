@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // for each +1/+1 counter on this creature. Requires EffectAmount::CountersOnSelf
             // or similar variant (not yet in DSL).
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

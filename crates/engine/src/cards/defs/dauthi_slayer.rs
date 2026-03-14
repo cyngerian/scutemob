@@ -14,10 +14,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Shadow),
-            // TODO: "This creature attacks each combat if able." requires an AttacksEachCombat
-            // enforcement effect (no DSL variant exists yet). CR 508.1f covers must-attack
-            // requirements. Add when the engine supports mandatory-attack static effects.
+            // CR 508.1d: Attacks each combat if able.
+            AbilityDefinition::Keyword(KeywordAbility::MustAttackEachCombat),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

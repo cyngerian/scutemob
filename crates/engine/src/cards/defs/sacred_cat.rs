@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Embalm),
             AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, cost: ManaCost { white: 1, ..Default::default() }, details: None },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

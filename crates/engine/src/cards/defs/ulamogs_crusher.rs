@@ -2,8 +2,7 @@
 // Annihilator 2 (CR 702.86a): whenever this creature attacks, the defending
 // player sacrifices two permanents. Engine support: builder.rs registers the
 // WhenAttacks triggered ability from KeywordAbility::Annihilator(n).
-// "This creature attacks each combat if able." — no DSL variant exists for
-// the compelled-attack static ability; tracked below as a TODO.
+// "This creature attacks each combat if able." — enforced via MustAttackEachCombat keyword.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,10 +16,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(8),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Annihilator(2)),
-            // TODO: Add a KeywordAbility::AttacksEachCombatIfAble variant (or a Static
-            // ContinuousEffectDef) to enforce the compelled-attack rule (CR 508.1d).
-            // Until then the "attacks each combat if able" text is cosmetic only.
+            // CR 508.1d: Attacks each combat if able.
+            AbilityDefinition::Keyword(KeywordAbility::MustAttackEachCombat),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

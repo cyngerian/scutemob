@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Skulk)],
+        color_indicator: None,
         back_face: None,
     }
 }

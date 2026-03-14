@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Bushido(1)),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

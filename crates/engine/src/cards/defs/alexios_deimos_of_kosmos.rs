@@ -23,7 +23,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: "attacks each combat if able" — forced-attack static not in DSL
+            // CR 508.1d: Attacks each combat if able.
+            AbilityDefinition::Keyword(KeywordAbility::MustAttackEachCombat),
             // TODO: "can't be sacrificed" — sacrifice restriction not in DSL
             // TODO: "can't attack its owner" — attack restriction by owner not in DSL
             // TODO: Upkeep trigger (each player's upkeep): GainControl + untap + AddCounters + haste

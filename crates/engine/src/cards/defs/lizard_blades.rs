@@ -56,6 +56,7 @@ Equipped creature gets +1/+1 and has double strike."
                 },
             },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

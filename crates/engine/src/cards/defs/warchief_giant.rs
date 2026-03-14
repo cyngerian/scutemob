@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Keyword(KeywordAbility::Myriad),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

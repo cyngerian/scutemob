@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             // DSL also lacks a condition field on AbilityDefinition::Static for "as long as".
             // Deferred — same gap as Ultramarines Honour Guard. Full effect deferred to M10+.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

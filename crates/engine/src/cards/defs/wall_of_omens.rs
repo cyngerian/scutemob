@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
             },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

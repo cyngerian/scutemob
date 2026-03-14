@@ -81,6 +81,7 @@ Everywhere that is every basic land type."
         ],
         power: Some(6),
         toughness: Some(5),
+        color_indicator: None,
         back_face: None,
     }
 }

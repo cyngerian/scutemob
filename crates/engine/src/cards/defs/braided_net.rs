@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             },
             // DSL gap: ETB tap target creature needs TapTarget effect
         ],
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Braided Quipu".to_string(),
             mana_cost: None,

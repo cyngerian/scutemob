@@ -1171,6 +1171,7 @@ fn test_partner_commanders_combined_color_identity() {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Partner)],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: None,
     };
 
@@ -1188,6 +1189,7 @@ fn test_partner_commanders_combined_color_identity() {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Partner)],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: None,
     };
 

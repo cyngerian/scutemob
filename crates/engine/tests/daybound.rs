@@ -51,6 +51,7 @@ fn brutal_cathar_def() -> CardDefinition {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Daybound)],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Moonrage Brute".to_string(),
             mana_cost: None,

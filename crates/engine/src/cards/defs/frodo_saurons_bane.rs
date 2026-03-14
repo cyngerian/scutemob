@@ -53,6 +53,7 @@ pub fn card() -> CardDefinition {
             // "whenever deals combat damage" triggers only activate after one of the above
             // activated abilities resolves. Adding a permanent trigger would misrepresent the card.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

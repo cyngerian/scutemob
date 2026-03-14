@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 is_self: true,
             },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

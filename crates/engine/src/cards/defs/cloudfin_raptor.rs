@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Evolve),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

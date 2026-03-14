@@ -479,6 +479,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
         ],
         power: Some(2),
         toughness: Some(2),
+        color_indicator: None,
         back_face: None,
     };
 

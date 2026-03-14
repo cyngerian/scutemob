@@ -64,6 +64,7 @@ fn storm_sorcery_def() -> CardDefinition {
         ],
         power: None,
         toughness: None,
+        color_indicator: None,
         back_face: None,
     }
 }

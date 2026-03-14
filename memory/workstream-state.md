@@ -14,34 +14,41 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | Wave 3: Mana Lands (92 cards, 7 sessions) | ACTIVE | 2026-03-13 | Wave 3 next — group `mana-land` from _authoring_plan.json; reference: command_tower.rs |
+| W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | PB-0: Quick-win card fixes (23 cards) | ACTIVE | 2026-03-13 | Fixing wrong-game-state card defs — ETB-tapped, painlands, etc. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
-`paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+`paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
+`RETIRED` (replaced by another workstream)
 
 ## Last Handoff
 
 **Date**: 2026-03-13
-**Workstream**: W5: Card Authoring
-**Task**: Phase 2 Wave 2 — combat-keyword (187 cards) — full cycle: author → review → fix → commit
+**Workstream**: W5 → W6 (strategic pivot)
+**Task**: Wave 3 mana-land authoring + DSL gap audit + primitive-first card plan
 
 **Completed**:
-- Authored 187 cards across 14 sessions (26–39) via bulk-card-author agents (2 in parallel)
-- Compile fixes during authoring: `EffectLayer::PowerToughness` → `PtModify`, no `KeywordAbility::CantBlock` variant, `ManaCost` missing `colorless` field
-- 38 review batches run in parallel (4 at a time) via card-batch-reviewer agents
-- Fix pass (13 HIGHs): World supertype, CantBeBlocked on Invisible Stalker, wrong target filter (Tamiyo's Safekeeping), Concordant Crossroads, approximate-targeting cards emptied (Ram Through, Legolas), Markov Baron Convoke+Madness, Hammer of Nazahn implemented, Crown of Skemfar Enchant+Reach, Nullpriest Kicker, Nezumi Prowler Ninjutsu cost, Mindleecher MutateCost, Ajani CMC, */* CDA creatures `Some(0)→None`
-- Committed `d83ac94` (author) + `01e3b52` (fixes) — 1944 tests pass; 640 total card defs
-- Wave plan: `memory/card-authoring/wave-002-combat-keyword.md` (COMPLETE)
+- Authored Wave 3 mana-land: 78 new card defs (sessions 71–77), committed `0896563`
+- 15 review batches, fix pass (8 HIGH, 5 MEDIUM), 718 total defs, 1972 tests
+- **DSL gap audit**: scanned all 718 existing card defs — 418 have TODOs, 122 produce wrong game state. Audit at `memory/card-authoring/dsl-gap-audit.md`
+- **Unauthored card scan**: analyzed 1,195 remaining cards from authoring universe. Found new gaps: library_search_filters (74 cards), planeswalkers (31, was 4), stax restrictions (13), mass destroy (12), additional combat (10), fight/bite (5)
+- **Created primitive-first card plan**: `docs/primitive-card-plan.md` — 21 primitive batches (PB-0 to PB-21), then bulk authoring, then final audit. Zero deferrals. All 1,743 cards complete pre-alpha.
+- W5 retired, replaced by W6
 
 **Next**:
-1. W5 Wave 3: Mana Lands (92 cards, 7 sessions, batch 16) — sessions from `_authoring_plan.json` group `mana-land`; create `memory/card-authoring/wave-003-mana-land.md`; reference: `command_tower.rs`
-2. W3 T3: ManaPool::spend() encapsulation (last unchecked Phase 3 item)
+1. **TOP PRIORITY**: Start W6 with PB-0 (23 quick-win card fixes, 1 session)
+2. Then PB-1 (pain land mana-with-damage, 8 cards, 1 session)
+3. Then PB-5 (targeted abilities, 32 cards, highest leverage)
+4. Follow execution order in `docs/primitive-card-plan.md`
 
-**Hazards**: `*/*` CDA creatures must use `power: None, toughness: None` (not `Some(0)`) — engine SBA uses `toughness?` which skips None. Aura cards need `Enchant(EnchantTarget::Creature)` keyword. Ninjutsu/Mutate cards need BOTH the keyword marker AND the cost `AbilityDefinition`.
+**Hazards**: 122 existing card defs produce wrong game state (ETB-tapped missing, painlands give free colored mana, etc.). PB-0 through PB-3 fix the most dangerous ones. The audit doc at `memory/card-authoring/dsl-gap-audit.md` has the full list.
 
-**Commit prefix used**: `W5-cards:`
+**Commit prefix**: `W6-prim:` (primitive batches), `W6-cards:` (bulk authoring)
 
 ## Handoff History
+
+### 2026-03-13 — W5: Wave 3 mana-land (78 cards) + strategic pivot to W6
+- Wave 3: 78 cards authored+reviewed+fixed, commit 0896563; DSL gap audit; unauthored card scan (1,195 cards); primitive-first plan created; W5 retired → W6
 
 ### 2026-03-13 — W5: Wave 2 combat-keyword (187 cards) complete
 - 14 sessions (26–39); 38 review batches; 13 HIGH fixes; commits d83ac94+01e3b52; 640 total card defs; 1944 tests
@@ -54,7 +61,3 @@
 
 ### 2026-03-10 — W1 (B16 closeout) + W5 (card authoring planning)
 - B16 complete: Dungeon + Ring; 24 card defs; EDHREC data; 1,743 card universe; authoring plan + 2 new agents
-
-### 2026-03-09 — Cross-cutting: Ability Validation Sprint + B16 closeout
-- P4 93/105 validated; 6 abilities promoted; harness: gift_opponent, enrich_spec_from_def Gift fix; 4 card defs + 7 scripts; docs updated
-

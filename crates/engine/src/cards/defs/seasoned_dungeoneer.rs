@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             // TODO: Effect::GrantProtection with creature-type targeting and Effect::Explore
             // are not yet in the DSL. Full effect deferred to M10+.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

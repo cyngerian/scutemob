@@ -78,6 +78,7 @@ fn beloved_beggar_def() -> CardDefinition {
         ],
         power: Some(1),
         toughness: Some(1),
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Generous Soul".to_string(),
             mana_cost: None,

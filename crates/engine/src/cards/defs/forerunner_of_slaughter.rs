@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

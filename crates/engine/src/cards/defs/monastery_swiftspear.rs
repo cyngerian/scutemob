@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // CR 702.108a: Prowess — builder.rs auto-generates the triggered ability from this keyword.
             AbilityDefinition::Keyword(KeywordAbility::Prowess),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

@@ -9,8 +9,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped.\n{T}: Add {B}.\n{2}, {T}: Add {B} for each black creature card in your graveyard.".to_string(),
         abilities: vec![
-            // TODO: This land enters tapped.
-            // TODO: Activated — {T}: Add {B}.
+            // CR 614.1c: self-replacement — this land enters tapped.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+            },
+            // {T}: Add {B}.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 1, 0, 0, 0) },
+                timing_restriction: None,
+            },
             // TODO: Activated — {2}, {T}: Add {B} for each black creature card in your graveyard.
         ],
         ..Default::default()

@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Shroud),
             AbilityDefinition::Fading { count: 3 },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

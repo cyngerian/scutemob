@@ -121,6 +121,7 @@ fn cipher_instant_def() -> CardDefinition {
         ],
         power: None,
         toughness: None,
+        color_indicator: None,
         back_face: None,
     }
 }
@@ -900,6 +901,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         ],
         power: None,
         toughness: None,
+        color_indicator: None,
         back_face: None,
     };
     let card_id2 = def2.card_id.clone();

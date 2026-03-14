@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 700.2 governs modal spells and abilities. Add when the engine supports
             // mode selection on triggered abilities.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

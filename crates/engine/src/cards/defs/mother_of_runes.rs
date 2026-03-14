@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![],
         // TODO: activated ability with color choice + protection grant
+        color_indicator: None,
         back_face: None,
     }
 }

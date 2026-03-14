@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
                 LandwalkType::BasicType(SubType("Swamp".to_string())),
             )),
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

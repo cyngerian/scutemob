@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // TODO: Token-doubling replacement effect — requires ReplacementTrigger::WouldCreateToken
             // and ReplacementModification::DoubleTokens (not yet in DSL). See note above.
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

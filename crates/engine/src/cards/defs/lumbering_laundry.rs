@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Disguise),
             AbilityDefinition::Disguise { cost: ManaCost { generic: 5, ..Default::default() } },
         ],
+        color_indicator: None,
         back_face: None,
     }
 }

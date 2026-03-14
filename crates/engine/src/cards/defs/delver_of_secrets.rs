@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Transform),
             // DSL gap: upkeep trigger needs TransformSelf effect + TopOfLibraryIsType condition
         ],
+        color_indicator: None,
         back_face: Some(CardFace {
             name: "Insectile Aberration".to_string(),
             mana_cost: None,

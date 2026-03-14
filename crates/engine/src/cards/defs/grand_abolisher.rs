@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![],
         // TODO: static ability restricting opponent actions during your turn
+        color_indicator: None,
         back_face: None,
     }
 }
