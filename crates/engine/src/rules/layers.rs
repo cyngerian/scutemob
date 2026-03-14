@@ -569,6 +569,78 @@ fn effect_applies_to(
                 false
             }
         }
+
+        // CR 604.2: Static ability "Creatures you control have [keyword]."
+        // Resolves the source's controller dynamically at layer-application time.
+        EffectFilter::CreaturesYouControl => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state
+                    .objects
+                    .get(&source_id)
+                    .map(|src| src.controller);
+                let obj_controller = state
+                    .objects
+                    .get(&object_id)
+                    .map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+
+        // CR 604.2: Static ability "Other creatures you control have [keyword]."
+        // Same as CreaturesYouControl but excludes the source object itself.
+        EffectFilter::OtherCreaturesYouControl => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                if source_id == object_id {
+                    return false;
+                }
+                let source_controller = state
+                    .objects
+                    .get(&source_id)
+                    .map(|src| src.controller);
+                let obj_controller = state
+                    .objects
+                    .get(&object_id)
+                    .map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+
+        // CR 604.2: Static ability "Other [Subtype] creatures you control get [bonus]."
+        // Filters by subtype and excludes the source object.
+        EffectFilter::OtherCreaturesYouControlWithSubtype(subtype) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !chars.subtypes.contains(subtype) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                if source_id == object_id {
+                    return false;
+                }
+                let source_controller = state
+                    .objects
+                    .get(&source_id)
+                    .map(|src| src.controller);
+                let obj_controller = state
+                    .objects
+                    .get(&object_id)
+                    .map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
     }
 }
 

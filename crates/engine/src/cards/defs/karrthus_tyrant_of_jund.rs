@@ -1,9 +1,11 @@
 // Karrthus, Tyrant of Jund — {4}{B}{R}{G}, Legendary Creature — Dragon 7/7
 // Flying, haste
+// When Karrthus enters, gain control of all Dragons, then untap all Dragons.
+// Other Dragon creatures you control have haste.
+//
 // TODO: DSL gap — ETB triggered ability "gain control of all Dragons, then untap all Dragons"
 //   (mass control change + untap for subtype-filtered permanents not supported in card DSL)
-// TODO: DSL gap — static ability "Other Dragon creatures you control have haste."
-//   (subtype-filtered keyword grant for "other" creatures not supported in card DSL)
+// CR 604.2 / CR 613.1f: Static subtype-filtered keyword grant.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,6 +30,16 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
+            // TODO: ETB — gain control of all Dragons, then untap all Dragons.
+            // CR 613.1f / Layer 6: "Other Dragon creatures you control have haste."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Dragon".to_string())),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
         ],
         ..Default::default()
     }

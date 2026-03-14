@@ -1,9 +1,9 @@
 // Mass Hysteria — {R}, Enchantment
 // All creatures have haste.
-// TODO: DSL gap — "all creatures have haste" is a static continuous effect (layer 6) granting
-// haste to all creatures on the battlefield including opponents'; no EffectFilter::AllCreatures
-// granting keyword as a static card ability exists (only EffectFilter::AllCreatures is used
-// in Effect::DestroyPermanent context, not in ContinuousEffectDef).
+//
+// CR 604.2: Static ability functions while on the battlefield.
+// CR 613.1f: Layer 6 ability-granting effect applies to all creatures.
+// Note: "All creatures" = AllCreatures filter (both players), like Concordant Crossroads.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,8 +14,14 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "All creatures have haste.".to_string(),
         abilities: vec![
-            // TODO: static — all creatures have haste (layer 6 continuous effect).
-            // DSL gap: no static ContinuousEffectDef with EffectFilter::AllCreatures granting keywords.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                    filter: EffectFilter::AllCreatures,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
         ],
         ..Default::default()
     }

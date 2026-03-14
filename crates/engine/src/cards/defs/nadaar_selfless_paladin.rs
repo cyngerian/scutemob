@@ -46,9 +46,10 @@ pub fn card() -> CardDefinition {
             },
             // CR 309.7 / CR 613.1c: "Other creatures you control get +1/+1 as long as
             // you've completed a dungeon."
-            // TODO: EffectFilter::OtherCreaturesControlledBy(controller) not yet implemented.
-            // DSL also lacks a condition field on AbilityDefinition::Static for "as long as".
-            // Deferred — same gap as Ultramarines Honour Guard. Full effect deferred to M10+.
+            // TODO: AbilityDefinition::Static lacks a condition field for "as long as" clauses.
+            // The OtherCreaturesYouControl filter is now available, but the dungeon-completion
+            // condition is still needed. Unconditionally granting +1/+1 would be incorrect.
+            // Deferred until condition-on-static is implemented.
         ],
         color_indicator: None,
         back_face: None,

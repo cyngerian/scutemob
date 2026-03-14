@@ -1,8 +1,8 @@
 // Crashing Drawbridge — {2}, Artifact Creature — Wall 0/4
 // Defender
 // {T}: Creatures you control gain haste until end of turn.
-// TODO: DSL gap — {T}: grant haste to all creatures you control until end of turn requires
-// ApplyContinuousEffect with EffectFilter::CreaturesYouControl granting Haste; not supported.
+//
+// CR 604.2 / CR 613.1f: Activated ability produces a continuous effect.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,7 +16,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Defender),
-            // TODO: {T}: grant haste to all creatures you control until end of turn
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                        filter: EffectFilter::CreaturesYouControl,
+                        duration: EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

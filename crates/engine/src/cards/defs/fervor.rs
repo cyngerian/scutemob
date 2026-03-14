@@ -1,10 +1,8 @@
 // Fervor — {2}{R}, Enchantment
 // Creatures you control have haste.
 //
-// TODO: DSL gap — no EffectFilter::CreaturesYouControl exists for static
-// continuous effects. Only EffectFilter::AllCreatures is available, which
-// would incorrectly grant haste to opponents' creatures too. Ability omitted
-// to avoid incorrect behavior.
+// CR 604.2: Static ability functions while on the battlefield.
+// CR 613.1f: Layer 6 ability-granting effect scoped to source controller.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,8 +13,14 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Creatures you control have haste. (They can attack and {T} as soon as they come under your control.)".to_string(),
         abilities: vec![
-            // TODO: DSL gap — EffectFilter::CreaturesYouControl not available;
-            // AllCreatures would incorrectly grant haste to opponent creatures.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
         ],
         ..Default::default()
     }

@@ -1,7 +1,8 @@
 // Goblin War Drums — {2}{R}, Enchantment
 // Creatures you control have menace.
-// TODO: DSL gap — granting a keyword (Menace) to all creatures you control requires
-// ApplyContinuousEffect with EffectFilter::CreaturesYouControl; not expressible in the DSL.
+//
+// CR 604.2: Static ability functions while on the battlefield.
+// CR 613.1f: Layer 6 ability-granting effect scoped to source controller.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -12,8 +13,14 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Creatures you control have menace. (They can't be blocked except by two or more creatures.)".to_string(),
         abilities: vec![
-            // TODO: DSL gap — static ability granting Menace to all creatures you control
-            // requires ApplyContinuousEffect with EffectFilter::CreaturesYouControl; not supported.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Menace),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
         ],
         ..Default::default()
     }

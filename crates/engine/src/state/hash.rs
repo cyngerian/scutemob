@@ -1125,6 +1125,12 @@ impl HashInto for EffectFilter {
             }
             EffectFilter::Source => 12u8.hash_into(hasher),
             EffectFilter::AttachedLand => 13u8.hash_into(hasher),
+            EffectFilter::CreaturesYouControl => 14u8.hash_into(hasher),
+            EffectFilter::OtherCreaturesYouControl => 15u8.hash_into(hasher),
+            EffectFilter::OtherCreaturesYouControlWithSubtype(subtype) => {
+                16u8.hash_into(hasher);
+                subtype.hash_into(hasher);
+            }
         }
     }
 }

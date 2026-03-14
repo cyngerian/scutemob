@@ -1,5 +1,5 @@
 // Camellia, the Seedmiser — {1}{B}{G} Legendary Creature — Squirrel Warlock 3/3
-// Menace; other Squirrels get menace (TODO: continuous grant — needs exclude-source filter);
+// Menace; other Squirrels have menace (static grant with subtype filter);
 // sacrifice-Food trigger creates Squirrel token (TODO: TriggerCondition::WhenSacrificeFood);
 // {2}, Forage: implemented with Cost::Forage; targets all Squirrels you control (including
 // Camellia due to missing exclude-source in TargetFilter — deferred DSL gap).
@@ -19,9 +19,15 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 702.110: Menace (self).
             AbilityDefinition::Keyword(KeywordAbility::Menace),
-            // TODO: "Other Squirrels you control have menace." — requires a continuous grant
-            // ability with subtype filter (has_subtype: Squirrel, controller: You, exclude_self).
-            // DSL gap: TargetFilter has no exclude_source field. Deferred.
+            // CR 613.1f / Layer 6: "Other Squirrels you control have menace."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Menace),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Squirrel".to_string())),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
 
             // TODO: "Whenever you sacrifice one or more Foods, create a 1/1 green Squirrel token."
             // Requires TriggerCondition::WheneverYouSacrificeFood (not yet implemented).

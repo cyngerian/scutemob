@@ -1,7 +1,8 @@
 // Markov Baron — {2}{B}, Creature — Vampire Noble 2/2
 // Convoke, Lifelink, Madness {2}{B}
-// TODO: DSL gap — static ability "Other Vampires you control get +1/+1."
-//   (subtype-filtered continuous P/T bonus for "other" creatures not supported in card DSL)
+// Other Vampires you control get +1/+1.
+//
+// CR 604.2 / CR 613.1c: Layer 7c subtype-filtered P/T modification.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,8 +23,15 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Madness),
             AbilityDefinition::Madness { cost: ManaCost { generic: 2, black: 1, ..Default::default() } },
-            // TODO: DSL gap — "Other Vampires you control get +1/+1" requires subtype-filtered
-            // continuous P/T bonus with exclude-self filter, not yet expressible in card DSL.
+            // CR 613.1c / Layer 7c: "Other Vampires you control get +1/+1."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBoth(1),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
         ],
         ..Default::default()
     }

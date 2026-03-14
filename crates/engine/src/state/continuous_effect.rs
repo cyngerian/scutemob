@@ -110,6 +110,24 @@ pub enum EffectFilter {
     /// Resolved at `ApplyContinuousEffect` execution time to `SingleObject(ctx.source)`.
     /// Used by keyword abilities like Prowess where the effect targets the source creature.
     Source,
+    /// Applies to all creature permanents controlled by the source's controller.
+    ///
+    /// Resolved dynamically at layer-application time using `effect.source` to determine
+    /// the controller. Used for CardDef static abilities like Fervor ("Creatures you
+    /// control have haste.") where the controller isn't known at definition time.
+    CreaturesYouControl,
+    /// Applies to all creature permanents controlled by the source's controller, excluding
+    /// the source object itself.
+    ///
+    /// Used for "lord" effects like Dragonlord Kolaghan ("Other creatures you control
+    /// have haste.") where the source doesn't benefit from its own static ability.
+    OtherCreaturesYouControl,
+    /// Applies to creature permanents controlled by the source's controller that have the
+    /// specified subtype, excluding the source object itself.
+    ///
+    /// Used for tribal lords like Markov Baron ("Other Vampires you control get +1/+1.")
+    /// where only creatures of a specific type benefit.
+    OtherCreaturesYouControlWithSubtype(SubType),
 }
 
 /// What a continuous effect does when applied.

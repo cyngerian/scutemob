@@ -2,8 +2,6 @@
 // Flying, haste
 // Other creatures you control have haste.
 // Whenever an opponent casts a creature or planeswalker spell with the same name as a card in their graveyard, that player loses 10 life.
-// TODO: DSL gap — "other creatures you control have haste" requires EffectFilter::OtherCreaturesYouControl,
-// which doesn't exist (only EffectFilter::AllCreatures is available, which would affect all creatures).
 // TODO: DSL gap — the triggered ability requires checking the opponent's graveyard for a name match,
 // which is not supported by any TriggerCondition in the current DSL.
 use crate::cards::helpers::*;
@@ -24,8 +22,15 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: static — other creatures you control have haste.
-            // DSL gap: EffectFilter::OtherCreaturesYouControl not available.
+            // CR 604.2 / CR 613.1f: "Other creatures you control have haste."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                    filter: EffectFilter::OtherCreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
             // TODO: triggered — opponent casts a spell with same name as a card in their graveyard → loses 10 life.
             // DSL gap: no TriggerCondition checking opponent's graveyard for name match.
         ],

@@ -16,11 +16,15 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Squad),
             // CR 702.157a: Squad {2} — additional cost paid N times; ETB trigger creates N token copies.
             AbilityDefinition::Squad { cost: ManaCost { generic: 2, ..Default::default() } },
-            // TODO: "Other creatures you control get +1/+1" (CR 613.1c, Layer 7c).
-            // DSL gap: EffectFilter has no OtherCreaturesControlledBy variant (excludes source).
-            // Closest available filters are AllCreatures (incorrect — buffs opponents' creatures)
-            // and CreaturesControlledBy(PlayerId) (incorrect — includes self + needs runtime PlayerId).
-            // Implement once EffectFilter::OtherCreaturesControlledBy is added.
+            // CR 613.1c / Layer 7c: "Other creatures you control get +1/+1."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBoth(1),
+                    filter: EffectFilter::OtherCreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
         ],
         color_indicator: None,
         back_face: None,
