@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(3),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

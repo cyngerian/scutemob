@@ -653,6 +653,7 @@ fn test_whenever_you_surveil_trigger() {
     let surveil_creature = ObjectSpec::creature(p1, "Spybug", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            targets: vec![],
             trigger_on: TriggerEvent::ControllerSurveils,
             intervening_if: None,
             description: "Whenever you surveil, Spybug gets a +1/+1 counter (CR 701.25d)"
@@ -761,6 +762,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
     let surveil_creature = ObjectSpec::creature(p1, "Spybug", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            targets: vec![],
             trigger_on: TriggerEvent::ControllerSurveils,
             intervening_if: None,
             description: "Whenever you surveil, Spybug gets a +1/+1 counter (CR 701.25d)"

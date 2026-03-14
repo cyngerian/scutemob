@@ -112,6 +112,7 @@ fn connive_etb_creature_def(card_id_str: &str, name: &str) -> CardDefinition {
                 count: EffectAmount::Fixed(1),
             },
             intervening_if: None,
+            targets: vec![],
         }],
         ..Default::default()
     }
@@ -689,6 +690,7 @@ fn test_connive_self_trigger_fires_on_connive() {
     let connive_trigger_creature = ObjectSpec::creature(p1, "Ledger Shredder Stand-in", 2, 1)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            targets: vec![],
             trigger_on: TriggerEvent::SourceConnives,
             intervening_if: None,
             description: "Whenever this creature connives, it gets a +1/+1 counter (CR 701.50b)"

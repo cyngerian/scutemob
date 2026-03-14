@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 }),
             },
             intervening_if: None,
+            targets: vec![],
         }],
         ..Default::default()
     }

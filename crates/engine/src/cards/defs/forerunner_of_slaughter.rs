@@ -1,7 +1,4 @@
 // Forerunner of Slaughter — {B}{R}, Creature — Eldrazi Drone 3/2; Devoid.
-// NOTE: "{1}: Target colorless creature gains haste until end of turn" is omitted
-// because AbilityDefinition::Activated has no targets field (activated_ability_targets gap).
-// TODO: Add the activated ability once Activated gains a TargetRequirement field.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,6 +12,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
+            // {1}: Target colorless creature gains haste until end of turn.
+            // TODO: TargetFilter lacks is_colorless — using TargetCreature (over-permissive).
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::Haste,
+                        ),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         color_indicator: None,
         back_face: None,

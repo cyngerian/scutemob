@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {1}{W}, {T}: Put target enchantment card from your graveyard on top of library
             // — graveyard targeting + return_to_library not expressible in DSL

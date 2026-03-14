@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(2),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             AbilityDefinition::Evoke {
                 cost: ManaCost { generic: 2, blue: 1, ..Default::default() },

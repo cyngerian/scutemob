@@ -32,6 +32,7 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Cloak { player: PlayerTarget::Controller },
                 intervening_if: None,
+                targets: vec![],
             },
             // TODO: Static grant — equipped creature gets +1/+0 and can't be blocked.
             // No EquippedCreatureGrant continuous effect primitive. Deferred.

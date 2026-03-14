@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 // but no such Condition variant exists yet. Until it is added, this trigger
                 // fires unconditionally (including when the creature enters without being cast).
                 intervening_if: None,
+                targets: vec![],
                 effect: Effect::Discover {
                     player: PlayerTarget::Controller,
                     n: 3,

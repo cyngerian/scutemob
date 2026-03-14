@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                     // you control } once that Effect variant exists.
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             AbilityDefinition::Keyword(KeywordAbility::Forecast),
             // Forecast — {W}{U}: Untap all creatures you control.

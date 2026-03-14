@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {4}, {T}: Proliferate
             // — generic mana cost in activated ability + Proliferate effect not expressible in DSL

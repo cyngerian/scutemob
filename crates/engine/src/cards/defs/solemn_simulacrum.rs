@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                     Effect::Shuffle { player: PlayerTarget::Controller },
                 ]),
                 intervening_if: None,
+                targets: vec![],
             },
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenDies,
@@ -33,6 +34,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

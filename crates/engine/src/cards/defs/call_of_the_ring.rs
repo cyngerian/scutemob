@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::TheRingTemptsYou,
                 intervening_if: None,
+                targets: vec![],
             },
             // CR 603.2 / CR 122: At the beginning of your upkeep, put a burden counter on this.
             // TODO: Also "you lose 1 life for each burden counter on Call of the Ring" — requires
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                     count: 1,
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

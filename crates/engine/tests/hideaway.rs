@@ -168,6 +168,7 @@ fn mock_hideaway_with_play_ability_def() -> CardDefinition {
                     if_false: Box::new(Effect::Nothing),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()
@@ -560,6 +561,7 @@ fn test_hideaway_play_exiled_card() {
     // Build the "play the exiled card" activated ability directly on the ObjectSpec.
     // This is the linked ability (CR 607.2a) for Hideaway.
     let play_exiled_ability = ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: None,

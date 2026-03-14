@@ -19,12 +19,14 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             // Mana ability: {T}: Add one mana of any color.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 1, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn).
             // DSL gap: targeted_trigger + death_count tracking per turn.

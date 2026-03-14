@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {1}: animate land as 1/1 Phyrexian Blinkmoth artifact creature with flying
             // and infect until end of turn — requires land animation effect not in DSL.

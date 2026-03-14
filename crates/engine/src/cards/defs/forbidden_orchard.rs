@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     player: PlayerTarget::Controller,
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Whenever you tap this land for mana, target opponent creates a 1/1 colorless
             // Spirit creature token.

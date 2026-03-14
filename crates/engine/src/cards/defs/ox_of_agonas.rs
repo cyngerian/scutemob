@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 intervening_if: None,
+                targets: vec![],
                 effect: Effect::Sequence(vec![
                     Effect::DiscardCards {
                         player: PlayerTarget::Controller,

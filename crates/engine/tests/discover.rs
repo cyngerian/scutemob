@@ -74,6 +74,7 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
                     n: discover_n,
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         power: Some(2),

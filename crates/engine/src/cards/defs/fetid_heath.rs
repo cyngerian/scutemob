@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {W/B},{T}: Add {W}{W}, {W}{B}, or {B}{B} — hybrid mana
             // activation cost ({W/B}) and three-way colored mana production

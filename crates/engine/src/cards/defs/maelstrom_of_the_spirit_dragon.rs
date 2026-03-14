@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell
             // or an Omen spell. DSL gap: no mana-spending restriction on AddManaAnyColor.

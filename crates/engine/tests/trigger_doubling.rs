@@ -83,6 +83,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        targets: vec![],
     }
 }
 

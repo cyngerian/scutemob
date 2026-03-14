@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 1, 0, 0) },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Activated — {3}{R}: Until end of turn, this land becomes a 3/2 red Goblin creature with "Whenever this creature attacks, create a 1/1 red Goblin creature token that's tapped and attacking." (PB-13 land animation)
         ],

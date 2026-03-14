@@ -471,6 +471,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
 
     // p2 has a creature with an activated ability: "{T}: Destroy target creature."
     let ability = ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: None,

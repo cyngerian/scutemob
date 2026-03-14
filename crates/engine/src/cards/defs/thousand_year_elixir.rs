@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         // TODO: static ability — "activate creature abilities as though they had haste"

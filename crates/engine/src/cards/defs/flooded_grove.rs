@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U} — hybrid mana cost and
             // 3-way double-mana choice not expressible in current DSL.

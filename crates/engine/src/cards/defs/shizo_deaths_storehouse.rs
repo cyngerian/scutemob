@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 1, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {B}, {T}: Target legendary creature gains fear until end of turn
             // — targeted activated ability not expressible in DSL (no targets field on Activated);

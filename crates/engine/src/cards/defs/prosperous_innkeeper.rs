@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,
+                targets: vec![],
             },
             // Alliance ability word (CR 702 ability word — no KeywordAbility variant).
             // Fires whenever another creature you control enters (exclude_self applied by engine).
@@ -33,6 +34,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         power: Some(1),

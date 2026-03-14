@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 1, 0, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Channel ability — discard cost + variable cost reduction + multi-type
             // targeting (artifact/creature/enchantment/planeswalker) not expressible in DSL

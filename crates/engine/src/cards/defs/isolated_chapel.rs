@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                     ],
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

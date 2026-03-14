@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::Proliferate,
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

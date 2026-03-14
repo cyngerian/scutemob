@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                     if_false: Box::new(Effect::Sequence(vec![])),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

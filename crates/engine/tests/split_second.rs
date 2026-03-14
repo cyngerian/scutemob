@@ -241,6 +241,7 @@ fn test_split_second_blocks_activated_abilities() {
     // P2's creature on battlefield with a tap activated ability.
     let creature = ObjectSpec::creature(p2, "Sparkmage", 2, 2)
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: true,
                 mana_cost: None,
@@ -810,6 +811,7 @@ fn test_split_second_triggered_abilities_still_fire() {
     let creature = ObjectSpec::creature(p1, "Spell Watcher", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            targets: vec![],
             trigger_on: TriggerEvent::AnySpellCast,
             intervening_if: None,
             description:

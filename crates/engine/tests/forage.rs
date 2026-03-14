@@ -79,6 +79,7 @@ fn food_artifact(owner: PlayerId, name: &str) -> ObjectSpec {
 /// The effect is simple (gain life) so we can verify it resolved.
 fn forager_creature(owner: PlayerId) -> ObjectSpec {
     ObjectSpec::creature(owner, "Forager Creature", 2, 2).with_activated_ability(ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: Some(ManaCost {
@@ -103,6 +104,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
 fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
     ObjectSpec::creature(owner, "Forage-Only Creature", 1, 1).with_activated_ability(
         ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: false,
                 mana_cost: None,

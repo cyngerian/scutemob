@@ -56,6 +56,7 @@ pub fn card() -> CardDefinition {
                     },
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             // CR 701.38: Effect::Goad — goad target creature that the damaged player controls.
             // Trigger approximated as WhenDealsCombatDamageToPlayer (fires when Alela
@@ -66,6 +67,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

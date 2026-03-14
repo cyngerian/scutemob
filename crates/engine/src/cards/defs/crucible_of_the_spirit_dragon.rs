@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {1}, {T}: Put a storage counter on this land.
             // DSL gap: no Effect::AddCounter targeting self with CounterType::Storage.

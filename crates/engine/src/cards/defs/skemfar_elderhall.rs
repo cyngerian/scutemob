@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 0, 1, 0) },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Activated — {2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens.
         ],

@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: second ability adds any-color mana restricted to creature spells of chosen type
             // Requires ETB choice tracking and mana restriction enforcement — not yet in DSL.

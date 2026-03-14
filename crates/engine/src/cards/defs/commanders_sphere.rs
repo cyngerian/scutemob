@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
                 timing_restriction: None,
+                targets: vec![],
             },
             AbilityDefinition::Activated {
                 cost: Cost::SacrificeSelf,
@@ -22,6 +23,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

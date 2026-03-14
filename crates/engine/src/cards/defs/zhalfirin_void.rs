@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -25,6 +26,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

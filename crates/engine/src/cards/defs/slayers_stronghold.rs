@@ -16,8 +16,39 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
-            // TODO: {R}{W},{T}: Target creature +2/+0, gains vigilance and haste until EOT — targeted pump not in DSL for activated abilities
+            // {R}{W}, {T}: Target creature gets +2/+0 and gains vigilance and haste until EOT.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { red: 1, white: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::PtModify,
+                            modification: crate::state::LayerModification::ModifyPower(2),
+                            filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                            duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::Ability,
+                            modification: crate::state::LayerModification::AddKeywords(
+                                [KeywordAbility::Vigilance, KeywordAbility::Haste]
+                                    .into_iter()
+                                    .collect(),
+                            ),
+                            filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                            duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         ..Default::default()
     }

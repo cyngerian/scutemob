@@ -22,8 +22,27 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 1, 0, 0) },
                 timing_restriction: None,
+                targets: vec![],
             },
-            // TODO: Activated — {R}, {T}: Target creature gains haste until end of turn.
+            // {R}, {T}: Target creature gains haste until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::Haste,
+                        ),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         ..Default::default()
     }

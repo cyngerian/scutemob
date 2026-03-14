@@ -128,6 +128,7 @@ fn tribute_2_def() -> CardDefinition {
                     amount: EffectAmount::Fixed(3),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         ..Default::default()
@@ -160,6 +161,7 @@ fn tribute_3_def() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

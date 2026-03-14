@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

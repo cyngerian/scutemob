@@ -57,6 +57,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// CR 207.2c: "Whenever another creature you control enters, you gain 1 life."
 fn alliance_gain_life_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
         description:
@@ -302,6 +303,7 @@ fn test_alliance_does_not_fire_on_self_etb() {
                 amount: EffectAmount::Fixed(1),
             },
             intervening_if: None,
+            targets: vec![],
         }],
         power: Some(2),
         toughness: Some(2),

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Mana(ManaCost { black: 1, ..Default::default() }),
                 effect: Effect::Regenerate { target: EffectTarget::Source },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

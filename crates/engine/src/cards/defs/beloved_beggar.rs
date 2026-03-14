@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(3),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

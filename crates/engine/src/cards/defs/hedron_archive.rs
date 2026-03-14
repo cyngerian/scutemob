@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 2),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -29,6 +30,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(2),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

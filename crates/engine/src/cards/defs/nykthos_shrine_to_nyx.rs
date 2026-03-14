@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {2},{T}: Choose a color, add mana equal to devotion to that color —
             // devotion counting and choice-of-color variable mana are not expressible

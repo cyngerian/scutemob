@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Triggered — Whenever this land or another land you control enters, if you control
             // seven or more lands with different names, create a 2/2 black Zombie creature token.

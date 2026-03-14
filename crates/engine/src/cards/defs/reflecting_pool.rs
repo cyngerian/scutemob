@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             cost: Cost::Tap,
             effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
             timing_restriction: None,
+            targets: vec![],
         }],
         ..Default::default()
     }

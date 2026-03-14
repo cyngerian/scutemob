@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
                 effect: Effect::Proliferate,
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

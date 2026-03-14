@@ -95,6 +95,7 @@ fn haunt_creature_def() -> CardDefinition {
                     amount: EffectAmount::Fixed(0),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         power: Some(2),

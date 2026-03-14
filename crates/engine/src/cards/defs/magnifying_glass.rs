@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // {3}, {T}: Investigate.
             AbilityDefinition::Activated {
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
                 ]),
                 effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

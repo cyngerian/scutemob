@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 },
             ]),
             intervening_if: None,
+            targets: vec![],
         }],
         color_indicator: None,
         back_face: None,

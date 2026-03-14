@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(1, 0, 0, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Channel — {2}{W}, Discard this card: deals 4 damage to target attacking/blocking creature,
             // cost reduction per legendary creature — Channel keyword + variable cost reduction not in DSL

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 intervening_if: Some(Condition::OpponentHasPoisonCounters(3)),
+                targets: vec![],
             },
         ],
         // TODO: targets field on Triggered is not currently supported in AbilityDefinition::Triggered.

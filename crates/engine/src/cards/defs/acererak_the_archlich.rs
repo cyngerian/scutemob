@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                 intervening_if: Some(Condition::Not(Box::new(
                     Condition::CompletedSpecificDungeon(DungeonId::TombOfAnnihilation),
                 ))),
+                targets: vec![],
             },
             // CR 603.1: Attack trigger — for each opponent, create a 2/2 black Zombie token.
             // Simplification 1: "unless that player sacrifices a creature" is interactive;
@@ -77,6 +78,7 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

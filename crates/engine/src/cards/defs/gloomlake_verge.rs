@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 1, 0, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}: Add {B}. Activate only if you control an Island or a Swamp.
             // DSL gap: conditional mana activation (requires "control an Island or a Swamp" filter)

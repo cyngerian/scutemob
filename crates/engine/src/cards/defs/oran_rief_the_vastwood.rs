@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 0, 1, 0) },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Activated — {T}: Put a +1/+1 counter on each green creature that entered this turn.
         ],

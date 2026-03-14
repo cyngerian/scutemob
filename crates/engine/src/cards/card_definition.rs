@@ -118,6 +118,10 @@ pub enum AbilityDefinition {
         effect: Effect,
         /// If Some, restricts when the ability can be activated (e.g., sorcery speed).
         timing_restriction: Option<TimingRestriction>,
+        /// Target requirements for this activated ability (CR 601.2c).
+        /// Empty = no targets required.
+        #[serde(default)]
+        targets: Vec<TargetRequirement>,
     },
     /// Triggered ability: "When/Whenever/At [event], [Effect]" (CR 603).
     Triggered {
@@ -125,6 +129,10 @@ pub enum AbilityDefinition {
         effect: Effect,
         /// Intervening-if condition checked at trigger time and resolution (CR 603.4).
         intervening_if: Option<Condition>,
+        /// Target requirements for this triggered ability (CR 601.2c).
+        /// Empty = no targets required.
+        #[serde(default)]
+        targets: Vec<TargetRequirement>,
     },
     /// Static ability that generates a continuous effect while the source is on the battlefield
     /// (CR 604). Handled via the layer system (see `rules/layers.rs`).
@@ -1707,6 +1715,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
         keywords: OrdSet::new(),
         mana_abilities: vec![],
         activated_abilities: vec![ActivatedAbility {
+            targets: vec![],
             cost: crate::state::game_object::ActivationCost {
                 requires_tap: true,
                 mana_cost: Some(ManaCost {
@@ -1748,6 +1757,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
         keywords: OrdSet::new(),
         mana_abilities: vec![],
         activated_abilities: vec![ActivatedAbility {
+            targets: vec![],
             cost: crate::state::game_object::ActivationCost {
                 requires_tap: false,
                 mana_cost: Some(ManaCost {
@@ -1792,6 +1802,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
         keywords: OrdSet::new(),
         mana_abilities: vec![],
         activated_abilities: vec![ActivatedAbility {
+            targets: vec![],
             cost: crate::state::game_object::ActivationCost {
                 requires_tap: true,
                 mana_cost: Some(ManaCost {

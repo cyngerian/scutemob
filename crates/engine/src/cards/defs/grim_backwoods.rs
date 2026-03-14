@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // {2}{B}{G}, {T}, Sacrifice a creature: Draw a card
             AbilityDefinition::Activated {
@@ -32,6 +33,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

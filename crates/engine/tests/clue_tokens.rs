@@ -63,6 +63,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
     ObjectSpec::artifact(owner, name)
         .with_subtypes(vec![SubType("Clue".to_string())])
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: false, // KEY DIFFERENCE from Food — no tap required
                 mana_cost: Some(ManaCost {

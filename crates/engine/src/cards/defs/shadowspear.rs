@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                targets: vec![],
             },
         ],
         ..Default::default()

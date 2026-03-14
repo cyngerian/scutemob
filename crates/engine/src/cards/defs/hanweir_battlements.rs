@@ -17,9 +17,27 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
-            // TODO: {R}, {T}: Target creature gains haste until end of turn
-            // — targeted activated ability not expressible in DSL (no targets field on Activated)
+            // {R}, {T}: Target creature gains haste until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::Haste,
+                        ),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
             // TODO: meld ability — Meld mechanic not implemented in DSL
         ],
         ..Default::default()

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

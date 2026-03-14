@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: ETB "choose a creature type" is not expressible in the DSL
             // TODO: {T}: Add one mana of any color — spend only to cast chosen-type creature

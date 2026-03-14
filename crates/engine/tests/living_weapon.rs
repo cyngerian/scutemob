@@ -68,6 +68,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Build an ActivatedAbility for Equip {N} (sorcery-speed, targets creature).
 fn equip_ability(generic_mana: u32) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: if generic_mana > 0 {

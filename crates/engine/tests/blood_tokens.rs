@@ -61,6 +61,7 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
     ObjectSpec::artifact(owner, name)
         .with_subtypes(vec![SubType("Blood".to_string())])
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: true,
                 mana_cost: Some(ManaCost {

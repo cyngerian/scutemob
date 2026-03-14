@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // {1}, {T}: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
                     player: PlayerTarget::Controller,
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
             // from your graveyard to your hand, then exile all graveyards.

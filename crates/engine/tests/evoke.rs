@@ -130,6 +130,7 @@ fn mulldrifter_def() -> CardDefinition {
                     count: EffectAmount::Fixed(2),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         power: Some(2),

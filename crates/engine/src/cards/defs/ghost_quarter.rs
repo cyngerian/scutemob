@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}, Sacrifice: Destroy target land, opponent may search — PB-5 (targeted)
             // Cost::SacrificeSelf available; blocked on targeted destroy + opponent search effect

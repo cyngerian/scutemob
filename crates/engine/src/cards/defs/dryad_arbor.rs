@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 0, 1, 0) },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

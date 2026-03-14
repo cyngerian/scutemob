@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // {T}: Add one mana of any color.
             // TODO: Restriction "Spend this mana only to cast Phyrexian creature spells" not expressible.
@@ -26,6 +27,7 @@ pub fn card() -> CardDefinition {
                     player: PlayerTarget::Controller,
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
             // DSL gap: activated ability with targets (Activated has no targets field);

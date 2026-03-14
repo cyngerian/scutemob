@@ -23,12 +23,14 @@ creature dies, each opponent loses 2 life and you gain 2 life."
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,
+                targets: vec![],
             },
             // CR 702.55c: haunted creature dies trigger (same effect)
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::HauntedCreatureDies,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

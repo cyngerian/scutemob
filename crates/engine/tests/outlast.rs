@@ -73,6 +73,7 @@ fn pass_all(
 /// CR 702.107a: "[Cost], {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery."
 fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: Some(mana),

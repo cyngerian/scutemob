@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // CR 509.1 / CR 702 (CantBeBlocked): {4}, {T}: target creature can't be
             // blocked this turn. Applies a UntilEndOfTurn continuous effect granting
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
             },
         ],
         ..Default::default()

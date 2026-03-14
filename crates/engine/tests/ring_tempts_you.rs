@@ -859,6 +859,7 @@ fn test_whenever_ring_tempts_you_trigger() {
                 count: EffectAmount::Fixed(1),
             },
             intervening_if: None,
+            targets: vec![],
         }],
         ..Default::default()
     };

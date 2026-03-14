@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}: Add {B} or {G}, Activate only if you control a Swamp —
             // conditional activation restriction (requires controlling a subtype

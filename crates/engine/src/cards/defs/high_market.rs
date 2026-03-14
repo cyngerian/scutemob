@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // {T}, Sacrifice a creature: You gain 1 life
             AbilityDefinition::Activated {
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

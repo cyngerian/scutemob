@@ -1880,6 +1880,7 @@ pub fn enrich_spec_from_def(
             cost,
             effect,
             timing_restriction,
+            targets: ab_targets,
         } = ability
         {
             // Skip ALL tap-for-mana abilities (fixed-mana, any-color, and pain-land
@@ -1902,6 +1903,7 @@ pub fn enrich_spec_from_def(
                         timing_restriction,
                         Some(TimingRestriction::SorcerySpeed)
                     ),
+                    targets: ab_targets.clone(),
                 };
                 spec = spec.with_activated_ability(ab);
             }
@@ -1957,6 +1959,7 @@ pub fn enrich_spec_from_def(
 
             // Ability 1: Attach to a target creature you control (sorcery speed).
             let attach_ab = ActivatedAbility {
+                targets: vec![],
                 cost: cost_to_activation_cost(&Cost::Mana(cost.clone())),
                 description: "Reconfigure (CR 702.151a): Attach to target creature you control."
                     .to_string(),
@@ -1971,6 +1974,7 @@ pub fn enrich_spec_from_def(
             // Ability 2: Unattach from the equipped creature (sorcery speed).
             // Activation restriction "only if attached" is enforced in handle_activate_ability.
             let detach_ab = ActivatedAbility {
+                targets: vec![],
                 cost: cost_to_activation_cost(&Cost::Mana(cost.clone())),
                 description: "Reconfigure (CR 702.151a): Unattach from equipped creature."
                     .to_string(),
@@ -1989,6 +1993,7 @@ pub fn enrich_spec_from_def(
     for ability in &def.abilities {
         if let AbilityDefinition::Outlast { cost } = ability {
             let ab = ActivatedAbility {
+                targets: vec![],
                 cost: ActivationCost {
                     requires_tap: true,
                     mana_cost: Some(cost.clone()),
@@ -2023,6 +2028,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
                 intervening_if: None,
+                targets: vec![],
                 description: "When ~ dies (CR 700.4)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2047,6 +2053,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever ~ attacks (CR 508.3a)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2067,6 +2074,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever ~ blocks (CR 509.1)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2089,6 +2097,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2110,6 +2119,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfIsDealtDamage,
                 intervening_if: None,
+                targets: vec![],
                 description: "Enrage -- Whenever this creature is dealt damage (CR 207.2c)"
                     .to_string(),
                 effect: Some(effect.clone()),
@@ -2133,6 +2143,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2153,6 +2164,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever you surveil (CR 701.25d)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2174,6 +2186,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever this creature connives (CR 701.50b)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2194,6 +2207,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever you investigate (CR 701.16a)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2216,6 +2230,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever you cast a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2258,6 +2273,7 @@ pub fn enrich_spec_from_def(
                     .to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: Some(etb_filter),
+                targets: vec![],
             });
         }
     }
@@ -2276,6 +2292,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfMutates,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever this creature mutates (CR 702.140d)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2296,6 +2313,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 trigger_on: TriggerEvent::SelfBecomesTapped,
                 intervening_if: None,
+                targets: vec![],
                 description: "Whenever this permanent becomes tapped".to_string(),
                 effect: Some(effect.clone()),
             });

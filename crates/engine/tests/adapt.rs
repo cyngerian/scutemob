@@ -75,6 +75,7 @@ fn pass_all(
 /// The condition check happens at resolution time, not activation time (ruling 2019-01-25).
 fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: Some(mana),

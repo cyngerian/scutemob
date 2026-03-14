@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.
             // DSL gap: no named token spec for "Kobolds of Kher Keep" (TokenSpec only supports

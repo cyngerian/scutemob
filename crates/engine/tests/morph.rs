@@ -246,6 +246,7 @@ fn when_turned_face_up_def() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         power: Some(2),

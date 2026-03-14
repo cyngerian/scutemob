@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: blood_token_spec(1) },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

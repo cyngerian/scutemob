@@ -196,6 +196,10 @@ pub struct ActivatedAbility {
     /// (main phase, stack empty, active player only).
     #[serde(default)]
     pub sorcery_speed: bool,
+    /// Target requirements for this activated ability (CR 601.2c).
+    /// Empty = no targets required.
+    #[serde(default)]
+    pub targets: Vec<crate::cards::card_definition::TargetRequirement>,
 }
 
 /// Trigger event patterns for triggered abilities (CR 603).
@@ -370,6 +374,10 @@ pub struct TriggeredAbilityDef {
     /// CR 207.2c / CR 603.2
     #[serde(default)]
     pub etb_filter: Option<ETBTriggerFilter>,
+    /// Target requirements for this triggered ability (CR 601.2c).
+    /// Empty = no targets required.
+    #[serde(default)]
+    pub targets: Vec<crate::cards::card_definition::TargetRequirement>,
 }
 
 /// The observable characteristics of a game object (CR 109.3).

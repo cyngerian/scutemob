@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                     to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

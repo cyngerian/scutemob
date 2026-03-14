@@ -5014,13 +5014,24 @@ fn apply_delve_reduction(
 ///
 /// `source_chars` is the characteristics of the spell being cast, used for protection-from
 /// checks (CR 702.16b). Pass `None` when unavailable (protection check is skipped).
-fn validate_targets(
+pub(crate) fn validate_targets(
     state: &GameState,
     targets: &[Target],
     requirements: &[TargetRequirement],
     caster: PlayerId,
     source_chars: Option<&Characteristics>,
 ) -> Result<Vec<SpellTarget>, GameStateError> {
+    // CR 601.2c: When requirements are specified, the number of targets must match.
+    // When requirements is empty, targets are validated individually (used by auras/bestow
+    // which validate via a separate enchant path, not via TargetRequirement).
+    if !requirements.is_empty() && targets.len() != requirements.len() {
+        return Err(GameStateError::InvalidTarget(format!(
+            "expected {} target(s) but got {}",
+            requirements.len(),
+            targets.len()
+        )));
+    }
+
     let mut spell_targets = Vec::with_capacity(targets.len());
 
     for (i, target) in targets.iter().enumerate() {

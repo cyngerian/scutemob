@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Suspect { target: EffectTarget::Source },
                 intervening_if: None,
+                targets: vec![],
             },
             // TODO: "Whenever one or more other creatures you control enter, if this creature
             // is suspected, you may suspect one of the other creatures. If you do, this

@@ -83,6 +83,7 @@ fn corrupted_etb_def(card_id: &str, name: &str) -> CardDefinition {
                 count: EffectAmount::Fixed(1),
             },
             intervening_if: Some(Condition::OpponentHasPoisonCounters(3)),
+            targets: vec![],
         }],
         ..Default::default()
     }

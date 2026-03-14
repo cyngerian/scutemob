@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                     count: 1,
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         power: Some(3),

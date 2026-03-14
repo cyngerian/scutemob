@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),
             timing_restriction: None,
+            targets: vec![],
         }],
         ..Default::default()
     }

@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenMutates,
                 effect: Effect::Nothing,
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

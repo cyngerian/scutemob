@@ -53,6 +53,7 @@ fn pass_all(
 /// Build the Reconfigure attach activated ability with the given generic cost.
 fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: if generic_mana > 0 {
@@ -81,6 +82,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
 /// Build the Reconfigure unattach activated ability with the given generic cost.
 fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: if generic_mana > 0 {

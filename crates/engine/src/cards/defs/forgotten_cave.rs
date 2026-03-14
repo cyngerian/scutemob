@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 1, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // CR 702.29: Cycling {R}.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),

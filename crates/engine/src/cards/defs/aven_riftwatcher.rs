@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(2),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             // TODO: WhenLeavesBattlefield trigger condition not yet implemented in DSL.
             // The second half of "When this creature enters or leaves the battlefield,

@@ -123,21 +123,37 @@ pub fn handle_activate_ability(
         }
     }
 
-    // Clone the cost and capture effect before mutating state.
+    // Clone the cost, effect, and target requirements before mutating state.
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
-    let (ability_cost, embedded_effect) = {
+    let (ability_cost, embedded_effect, target_requirements) = {
         let obj = state.object(source)?;
         let ab = &obj.characteristics.activated_abilities[ability_index];
-        (ab.cost.clone(), ab.effect.clone())
+        (ab.cost.clone(), ab.effect.clone(), ab.targets.clone())
     };
+
+    // CR 601.2c: General target validation for activated abilities.
+    // If the ability declares TargetRequirements, validate each target against them
+    // BEFORE spending any costs (so mana is not wasted on illegal activations).
+    if !target_requirements.is_empty() {
+        let source_chars =
+            crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
+                state.objects.get(&source).map(|o| o.characteristics.clone())
+            });
+        crate::rules::casting::validate_targets(
+            state,
+            &targets,
+            &target_requirements,
+            player,
+            source_chars.as_ref(),
+        )?;
+    }
 
     // CR 702.6a / CR 601.2c: Equip abilities can only target "a creature you control."
     // Validate target type and controller BEFORE spending any costs, so that mana is
     // not wasted when the activation is illegal.
     //
-    // This is a special-case check for AttachEquipment effects. The general activated-
-    // ability framework does not (yet) have a TargetRequirement field; this check
-    // bridges that gap for Equip specifically.
+    // Legacy special-case check for AttachEquipment effects. Cards with proper
+    // TargetRequirement declarations will be validated by the general check above.
     if matches!(
         &embedded_effect,
         Some(crate::cards::card_definition::Effect::AttachEquipment { .. })

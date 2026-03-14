@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             // Mana production handled by basic land subtypes Island/Swamp (CR 305.6).
         ],

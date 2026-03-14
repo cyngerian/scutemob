@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::TakeTheInitiative,
                 intervening_if: None,
+                targets: vec![],
             },
             // CR 725.2 / CR 701.12a: "Whenever you attack, target attacking creature
             // (of subtype Cleric/Rogue/Warrior/Wizard) gains protection from creatures

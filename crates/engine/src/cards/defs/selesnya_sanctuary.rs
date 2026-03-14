@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(1, 0, 0, 0, 1, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

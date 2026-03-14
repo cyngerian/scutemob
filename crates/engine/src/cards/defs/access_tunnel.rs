@@ -17,10 +17,30 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
-            // TODO: {3}, {T}: Target creature with power 3 or less can't be blocked this turn.
-            // DSL gap: activated ability with targets (Activated has no targets field),
-            // and "can't be blocked" effect is not in Effect enum.
+            // {3}, {T}: Target creature with power 3 or less can't be blocked this turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::CantBeBlocked,
+                        ),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    max_power: Some(3),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

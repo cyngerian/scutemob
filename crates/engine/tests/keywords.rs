@@ -1750,6 +1750,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
     // Build an object with an activated ability that grants CantBeBlocked to a
     // declared target until end of turn (mirrors Rogue's Passage {4},{T} ability).
     let passage_ability = ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: Some(ManaCost {

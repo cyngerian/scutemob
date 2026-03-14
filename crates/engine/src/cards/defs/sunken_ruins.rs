@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {U/B},{T}: Add {U}{U}, {U}{B}, or {B}{B} — hybrid cost and triple-choice filter ability not in DSL
         ],

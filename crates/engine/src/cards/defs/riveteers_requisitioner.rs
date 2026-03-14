@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                     spec: treasure_token_spec(1),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

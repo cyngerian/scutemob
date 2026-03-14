@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {2}, {T}, Sacrifice this land: Return target artifact card from your graveyard
             // to your hand. — PB-5 (targeted) + PB-10 (return from zone with filter)

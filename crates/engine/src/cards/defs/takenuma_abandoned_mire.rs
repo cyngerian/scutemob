@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 1, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Channel — {3}{B}, Discard this card: Mill three cards, then return a creature
             // or planeswalker card from your graveyard to your hand.

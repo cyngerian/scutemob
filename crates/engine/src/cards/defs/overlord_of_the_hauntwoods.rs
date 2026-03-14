@@ -71,12 +71,14 @@ Everywhere that is every basic land type."
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: everywhere_token_spec() },
                 intervening_if: None,
+                targets: vec![],
             },
             // "Whenever this permanent attacks" — attack trigger.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken { spec: everywhere_token_spec() },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         power: Some(6),

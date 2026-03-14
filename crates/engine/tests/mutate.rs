@@ -687,6 +687,7 @@ fn test_mutate_trigger_fires() {
             description: "Whenever this creature mutates (CR 702.140d)".to_string(),
             effect: None, // No effect needed for trigger-fires test
             etb_filter: None,
+            targets: vec![],
         });
     mutating_beast.power = Some(4);
     mutating_beast.toughness = Some(4);

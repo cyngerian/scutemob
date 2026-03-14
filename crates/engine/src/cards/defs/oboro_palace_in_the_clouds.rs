@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 1, 0, 0, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {1}: return this land to owner's hand — self-bounce activated ability
             // not expressible in current DSL.

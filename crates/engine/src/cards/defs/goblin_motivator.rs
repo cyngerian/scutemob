@@ -1,7 +1,5 @@
 // Goblin Motivator — {R}, Creature — Goblin Warrior 1/1
 // {T}: Target creature gains haste until end of turn.
-// TODO: Activated ability has a target (target creature). DSL gap: AbilityDefinition::Activated
-// has no TargetRequirement field. Deferred (activated_ability_targets gap).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,9 +12,21 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: {T}: Target creature gains haste until end of turn.
-            // DSL gap: AbilityDefinition::Activated has no TargetRequirement field.
-            // Deferred — same gap as Forerunner of Slaughter.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::Haste,
+                        ),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         ..Default::default()
     }

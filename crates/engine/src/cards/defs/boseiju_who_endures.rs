@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 1, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Channel ability — discard-as-cost activated ability with
             // variable mana cost (scaling down per legendary creature) and

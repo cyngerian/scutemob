@@ -21,6 +21,7 @@ fn p(n: u64) -> PlayerId {
 /// Tap-only activated ability (no mana cost).
 fn tap_ability(description: &str) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: None,
@@ -39,6 +40,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
 /// Tap-and-pay activated ability (e.g., "{T}: draw a card").
 fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: Some(mana),
@@ -62,6 +64,7 @@ fn etb_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        targets: vec![],
     }
 }
 
@@ -73,6 +76,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        targets: vec![],
     }
 }
 
@@ -759,6 +763,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
     let conditional_creature = ObjectSpec::creature(p1, "High Life Watcher", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            targets: vec![],
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(50)),
             description: "When ~ enters, if you have 50+ life, do something.".into(),
@@ -824,6 +829,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
     let conditional_creature = ObjectSpec::creature(p1, "Sanctuary Warden", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            targets: vec![],
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(30)),
             description: "When ~ enters, if you have 30+ life, do something.".into(),
@@ -985,6 +991,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
     };
     let artifact = ObjectSpec::artifact(p1, "Jar of Eyeballs (stub)")
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: false,
                 mana_cost: None,
@@ -1105,6 +1112,7 @@ fn test_sacrifice_filter_creature_valid() {
     // Land with "{T}, Sacrifice a creature: Add {B}{B}." (simplified: gain 2 life instead)
     let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: true,
                 mana_cost: None,
@@ -1185,6 +1193,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
 
     let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: true,
                 mana_cost: None,
@@ -1248,6 +1257,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
 
     let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: true,
                 mana_cost: None,
@@ -1314,6 +1324,7 @@ fn test_sacrifice_filter_missing_target_errors() {
 
     let tower = ObjectSpec::land(p1, "Phyrexian Tower (stub)")
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: true,
                 mana_cost: None,
@@ -1375,12 +1386,14 @@ fn dies_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        targets: vec![],
     }
 }
 
 /// Dies trigger with a DrawCards effect for functional (resolution) testing.
 fn dies_draw_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        targets: vec![],
         trigger_on: TriggerEvent::SelfDies,
         intervening_if: None,
         description: "When ~ dies, draw a card. (CR 700.4)".to_string(),
@@ -1653,6 +1666,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
     // Sacrifice is paid at activation time (CR 602.2c), emitting CreatureDied.
     let creature = ObjectSpec::creature(p1, "Doomed Traveler (stub)", 1, 1)
         .with_activated_ability(ActivatedAbility {
+            targets: vec![],
             cost: ActivationCost {
                 requires_tap: false,
                 mana_cost: None,
@@ -2189,12 +2203,14 @@ fn attack_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        targets: vec![],
     }
 }
 
 /// Attack trigger with a DrawCards effect for functional (resolution) testing.
 fn attack_draw_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        targets: vec![],
         trigger_on: TriggerEvent::SelfAttacks,
         intervening_if: None,
         description: "Whenever ~ attacks, draw a card. (CR 508.3a)".to_string(),
@@ -2306,6 +2322,7 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
                 count: mtg_engine::EffectAmount::Fixed(1),
             },
             intervening_if: None,
+            targets: vec![],
         }],
         power: Some(2),
         toughness: Some(2),

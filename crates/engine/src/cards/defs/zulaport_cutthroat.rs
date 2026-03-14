@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WheneverCreatureDies,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
                 intervening_if: None,
+                targets: vec![],
             },
         ],
         color_indicator: None,

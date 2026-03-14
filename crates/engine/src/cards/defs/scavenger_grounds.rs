@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {2},{T}, Sacrifice a Desert: Exile all graveyards — PB-19 (mass exile)
             // Cost: Cost::Sacrifice(TargetFilter { has_subtype: Desert }) available

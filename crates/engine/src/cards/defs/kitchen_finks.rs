@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::Fixed(2),
                 },
                 intervening_if: None,
+                targets: vec![],
             },
             AbilityDefinition::Keyword(KeywordAbility::Persist),
         ],

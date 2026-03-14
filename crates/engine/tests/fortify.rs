@@ -54,6 +54,7 @@ fn pass_all(
 /// Build an ActivatedAbility representing Fortify {N} (sorcery-speed, no tap required).
 fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
     ActivatedAbility {
+        targets: vec![],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: if generic_mana > 0 {

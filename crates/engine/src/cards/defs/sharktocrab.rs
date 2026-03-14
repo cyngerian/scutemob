@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                     if_false: Box::new(Effect::Nothing),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         power: Some(4),

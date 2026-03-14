@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
                 // TODO: conditional scry on creature-type match
                 timing_restriction: None,
+                targets: vec![],
             },
         ],
         ..Default::default()

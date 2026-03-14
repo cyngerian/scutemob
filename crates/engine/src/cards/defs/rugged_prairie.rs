@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}.
             // DSL gap: hybrid mana costs ({R/W}) not expressible in Cost::Mana (ManaCost struct has

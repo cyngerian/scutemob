@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}, Sacrifice: Put your commander into your hand from the command zone
             // — Cost::SacrificeSelf available; blocked on command-zone-to-hand effect

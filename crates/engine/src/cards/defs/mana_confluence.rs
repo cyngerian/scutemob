@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
             cost: Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]),
             effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
             timing_restriction: None,
+            targets: vec![],
         }],
         ..Default::default()
     }

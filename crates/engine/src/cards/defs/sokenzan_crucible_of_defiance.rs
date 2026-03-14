@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 1, 0, 0),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Channel ability — discard-from-hand cost, token creation with haste,
             // cost reduction per legendary creature. Requires Channel keyword enforcement + DSL gaps.

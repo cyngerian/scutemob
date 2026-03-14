@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}, Sacrifice this land: Destroy target nonbasic land — PB-5
             // Cost::SacrificeSelf is available; blocked on targeted land destruction effect

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: Ascend — city's blessing tracking not in DSL.
             // TODO: {5}, {T}: Draw a card. Activate only if you have the city's blessing.

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {X}{X}, {T}, Sacrifice: Create X Treasure tokens — PB-9 (X costs)
             // Cost::SacrificeSelf available; blocked on X-cost + X-scaled token creation

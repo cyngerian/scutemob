@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 intervening_if: None,
+                targets: vec![],
             },
             // TODO: "Whenever a Zombie token you control with power 6 or greater attacks,
             // it gains lifelink until end of turn." — needs attack trigger with token-type

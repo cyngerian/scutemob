@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 1),
                 },
                 timing_restriction: None,
+                targets: vec![],
             },
             // TODO: {T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a
             // Vampire spell. DSL gap: no life-payment cost variant and no mana restriction
