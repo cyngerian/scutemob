@@ -1,10 +1,6 @@
 // Danitha Capashen, Paragon — {2}{W}, Legendary Creature — Human Knight 2/2
 // First strike, vigilance, lifelink
 // Aura and Equipment spells you cast cost {1} less to cast.
-//
-// Keywords implemented. Cost reduction for Aura/Equipment spells requires a
-// spell-cost-reduction static that filters by card type — not in DSL.
-// TODO: DSL gap — cost reduction for Aura/Equipment spells not expressible
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +16,13 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
-            // TODO: Aura and Equipment spells cost {1} less (spell cost reduction by type)
         ],
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::AuraOrEquipment,
+            scope: CostModifierScope::Controller,
+            eminence: false,
+        }],
         ..Default::default()
     }
 }

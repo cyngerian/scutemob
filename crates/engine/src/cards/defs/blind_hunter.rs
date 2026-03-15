@@ -35,5 +35,7 @@ creature dies, each opponent loses 2 life and you gain 2 life."
         ],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }

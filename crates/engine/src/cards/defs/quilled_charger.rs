@@ -26,5 +26,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }

@@ -18,5 +18,7 @@ pub fn card() -> CardDefinition {
         // TODO: activated ability with color choice + protection grant
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }

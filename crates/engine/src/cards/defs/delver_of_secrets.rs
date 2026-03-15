@@ -34,5 +34,7 @@ pub fn card() -> CardDefinition {
             ],
             color_indicator: Some(vec![Color::Blue]),
         }),
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }

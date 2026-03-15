@@ -7,8 +7,8 @@ use mtg_engine::rules::{process_command, Command};
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::zone::ZoneId;
 use mtg_engine::state::{
-    error::GameStateError, ActivatedAbility, ActivationCost, GameStateBuilder, ObjectSpec, PlayerId,
-    TriggerEvent, TriggeredAbilityDef,
+    error::GameStateError, ActivatedAbility, ActivationCost, GameStateBuilder, ObjectSpec,
+    PlayerId, TriggerEvent, TriggeredAbilityDef,
 };
 use mtg_engine::{Effect, EffectAmount, PlayerTarget, Target, TargetRequirement};
 
@@ -79,7 +79,10 @@ fn targeted_activated_ability_valid_creature_target() {
             sacrifice_target: None,
         },
     );
-    assert!(result.is_ok(), "targeted activated ability with valid creature target should succeed");
+    assert!(
+        result.is_ok(),
+        "targeted activated ability with valid creature target should succeed"
+    );
 }
 
 /// CR 601.2c: Activated ability with TargetCreature rejects a non-creature target.
@@ -200,7 +203,10 @@ fn targeted_activated_ability_target_player() {
             sacrifice_target: None,
         },
     );
-    assert!(result.is_ok(), "targeting a player with TargetPlayer should succeed");
+    assert!(
+        result.is_ok(),
+        "targeting a player with TargetPlayer should succeed"
+    );
 }
 
 /// CR 601.2c: Activated ability with no TargetRequirements still works (backward compat).
@@ -253,7 +259,10 @@ fn activated_ability_no_targets_backward_compatible() {
             sacrifice_target: None,
         },
     );
-    assert!(result.is_ok(), "ability with no target requirements should work with empty targets");
+    assert!(
+        result.is_ok(),
+        "ability with no target requirements should work with empty targets"
+    );
 }
 
 // ── Targeted Triggered Ability Tests ──────────────────────────────────────
@@ -366,7 +375,9 @@ fn triggered_ability_no_targets_backward_compatible() {
         .unwrap();
 
     assert!(
-        obj.characteristics.triggered_abilities[0].targets.is_empty(),
+        obj.characteristics.triggered_abilities[0]
+            .targets
+            .is_empty(),
         "empty targets should be preserved on runtime struct"
     );
 }

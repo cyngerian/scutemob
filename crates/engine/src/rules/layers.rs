@@ -577,14 +577,8 @@ fn effect_applies_to(
                 return false;
             }
             if let Some(source_id) = effect.source {
-                let source_controller = state
-                    .objects
-                    .get(&source_id)
-                    .map(|src| src.controller);
-                let obj_controller = state
-                    .objects
-                    .get(&object_id)
-                    .map(|obj| obj.controller);
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
                 source_controller.is_some() && source_controller == obj_controller
             } else {
                 false
@@ -601,14 +595,8 @@ fn effect_applies_to(
                 if source_id == object_id {
                     return false;
                 }
-                let source_controller = state
-                    .objects
-                    .get(&source_id)
-                    .map(|src| src.controller);
-                let obj_controller = state
-                    .objects
-                    .get(&object_id)
-                    .map(|obj| obj.controller);
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
                 source_controller.is_some() && source_controller == obj_controller
             } else {
                 false
@@ -628,14 +616,8 @@ fn effect_applies_to(
                 if source_id == object_id {
                     return false;
                 }
-                let source_controller = state
-                    .objects
-                    .get(&source_id)
-                    .map(|src| src.controller);
-                let obj_controller = state
-                    .objects
-                    .get(&object_id)
-                    .map(|obj| obj.controller);
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
                 source_controller.is_some() && source_controller == obj_controller
             } else {
                 false

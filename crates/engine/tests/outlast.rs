@@ -81,7 +81,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: "Outlast (CR 702.107a)".to_string(),
         effect: Some(Effect::AddCounter {

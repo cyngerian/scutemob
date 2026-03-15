@@ -81,6 +81,8 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         toughness: Some(2),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 
@@ -111,6 +113,8 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         toughness: None,
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 
@@ -130,6 +134,8 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         toughness: None,
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 

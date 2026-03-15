@@ -83,7 +83,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: format!("Adapt {adapt_n} (CR 701.46a)"),
         effect: Some(Effect::Conditional {

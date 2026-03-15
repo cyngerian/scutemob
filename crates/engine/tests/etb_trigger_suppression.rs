@@ -60,6 +60,8 @@ fn etb_draw_creature_def() -> CardDefinition {
         toughness: Some(2),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 
@@ -86,6 +88,8 @@ fn torpor_orb_def() -> CardDefinition {
         toughness: None,
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 
@@ -117,6 +121,8 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
         toughness: None,
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 

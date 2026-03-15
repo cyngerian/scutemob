@@ -80,6 +80,17 @@ pub struct CardDefinition {
     /// is true, the layer system uses this face's characteristics as the base.
     #[serde(default)]
     pub back_face: Option<CardFace>,
+    /// Static cost modifiers this permanent applies to spells being cast (CR 601.2f).
+    ///
+    /// Example: Thalia, Guardian of Thraben — noncreature spells cost {1} more.
+    /// Example: Goblin Warchief — Goblin spells you cast cost {1} less.
+    #[serde(default)]
+    pub spell_cost_modifiers: Vec<SpellCostModifier>,
+    /// Self-cost-reduction for this spell at cast time (CR 601.2f).
+    ///
+    /// Example: Blasphemous Act — costs {1} less for each creature on the battlefield.
+    #[serde(default)]
+    pub self_cost_reduction: Option<SelfCostReduction>,
 }
 
 impl Default for CardDefinition {
@@ -95,6 +106,8 @@ impl Default for CardDefinition {
             toughness: None,
             color_indicator: None,
             back_face: None,
+            spell_cost_modifiers: vec![],
+            self_cost_reduction: None,
         }
     }
 }
@@ -1582,7 +1595,6 @@ pub enum Condition {
     Or(Box<Condition>, Box<Condition>),
 
     // ── ETB condition variants (PB-2) ────────────────────────────────────────
-
     /// "unless you control a [Plains/Island/etc.]" — check-lands, castles.
     /// True if the controller controls a land on the battlefield with ANY of the
     /// listed subtypes. Used with `unless_condition` on `AbilityDefinition::Replacement`.
@@ -1982,4 +1994,71 @@ pub struct ContinuousEffectDef {
     pub modification: crate::state::LayerModification,
     pub filter: crate::state::EffectFilter,
     pub duration: crate::state::EffectDuration,
+}
+
+// ── Spell Cost Modification ─────────────────────────────────────────────────
+
+/// A static cost modifier from a permanent on the battlefield (or command zone for Eminence).
+///
+/// CR 601.2f: The total cost is the mana cost (or alternative cost) plus any cost
+/// increases minus any cost reductions. Cost increases and reductions are applied
+/// after the base cost is determined and before optional cost payments (convoke, etc.).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpellCostModifier {
+    /// The generic mana change: positive = increase (Thalia), negative = reduction (Warchief).
+    pub change: i32,
+    /// Which spells this modifier applies to.
+    pub filter: SpellCostFilter,
+    /// Who is affected — all players or just the controller.
+    pub scope: CostModifierScope,
+    /// If true, this modifier applies from the command zone as well as the battlefield (Eminence).
+    #[serde(default)]
+    pub eminence: bool,
+}
+
+/// Filter for which spells a cost modifier applies to.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpellCostFilter {
+    /// Noncreature spells (Thalia, Guardian of Thraben).
+    NonCreature,
+    /// Spells with a specific creature subtype (Goblin Warchief: "Goblin spells").
+    HasSubtype(SubType),
+    /// Historic spells: artifacts, legendaries, and Sagas (Jhoira's Familiar).
+    Historic,
+    /// Spells with a specific card type (e.g., Aura spells, Equipment spells).
+    HasCardType(CardType),
+    /// Aura or Equipment spells (Danitha Capashen, Paragon).
+    AuraOrEquipment,
+}
+
+/// Who is affected by a spell cost modifier.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CostModifierScope {
+    /// All players (Thalia: "noncreature spells cost {1} more").
+    AllPlayers,
+    /// Only the controller of the source permanent (Warchief: "Goblin spells YOU cast").
+    Controller,
+}
+
+/// A self-cost-reduction on a spell — the spell itself is cheaper based on game state at cast time.
+///
+/// CR 601.2f: Cost reductions are applied during total cost calculation. The generic
+/// component cannot be reduced below 0.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SelfCostReduction {
+    /// "{1} less for each <permanent matching filter> on the battlefield" (Blasphemous Act).
+    PerPermanent {
+        per: i32,
+        filter: TargetFilter,
+        controller: PlayerTarget,
+    },
+    /// "costs {X} less where X is the total power of creatures you control" (Ghalta).
+    TotalPowerOfCreatures,
+    /// "{1} less for each card type among cards in your graveyard" (Emrakul, the Promised End).
+    CardTypesInGraveyard,
+    /// "{N} less for each basic land type among lands you control" (Scion of Draco — Domain).
+    BasicLandTypes { per: i32 },
+    /// "costs {X} less where X is the total mana value of <permanents matching filter> you control"
+    /// (Earthquake Dragon).
+    TotalManaValue { filter: TargetFilter },
 }

@@ -4,9 +4,8 @@
 // Flying
 // Whenever one or more Dragons you control attack, draw that many cards, then you may put
 // a permanent card from your hand onto the battlefield.
-// TODO: DSL gap — Eminence cost reduction (applies from command zone) has no DSL support.
-// Attack trigger "draw that many cards" requires a dynamic count (number of attacking Dragons).
-// Putting a permanent from hand onto battlefield is also not supported.
+// TODO: attack trigger — draw X cards where X = number of attacking Dragons,
+//       then put a permanent from hand onto the battlefield
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,10 +23,15 @@ pub fn card() -> CardDefinition {
         toughness: Some(10),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Eminence — Dragon spells cost {1} less (applies from command zone)
             // TODO: attack trigger — draw X cards where X = number of attacking Dragons,
             //       then put a permanent from hand onto the battlefield
         ],
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::HasSubtype(SubType("Dragon".to_string())),
+            scope: CostModifierScope::Controller,
+            eminence: true,
+        }],
         ..Default::default()
     }
 }

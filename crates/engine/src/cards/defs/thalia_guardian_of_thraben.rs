@@ -1,8 +1,6 @@
 // Thalia, Guardian of Thraben — {1}{W}, Legendary Creature — Human Soldier 2/1
 // First strike
 // Noncreature spells cost {1} more to cast.
-// TODO: DSL gap — "noncreature spells cost {1} more" is a static cost-increase continuous effect
-// applied to opponents' (and controller's) spells; no SpellCostIncrease continuous effect exists.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +18,13 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
-            // TODO: static — noncreature spells cost {1} more to cast.
-            // DSL gap: no SpellCostIncrease continuous effect with card type filter.
         ],
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: 1,
+            filter: SpellCostFilter::NonCreature,
+            scope: CostModifierScope::AllPlayers,
+            eminence: false,
+        }],
         ..Default::default()
     }
 }

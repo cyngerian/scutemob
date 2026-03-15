@@ -137,7 +137,10 @@ pub fn handle_activate_ability(
     if !target_requirements.is_empty() {
         let source_chars =
             crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
-                state.objects.get(&source).map(|o| o.characteristics.clone())
+                state
+                    .objects
+                    .get(&source)
+                    .map(|o| o.characteristics.clone())
             });
         crate::rules::casting::validate_targets(
             state,
@@ -425,18 +428,22 @@ pub fn handle_activate_ability(
             let chars = crate::rules::layers::calculate_characteristics(state, sac_id)
                 .unwrap_or_else(|| sac_obj.characteristics.clone());
             let matches_filter = match filter {
-                crate::state::game_object::SacrificeFilter::Creature => {
-                    chars.card_types.contains(&crate::state::types::CardType::Creature)
-                }
-                crate::state::game_object::SacrificeFilter::Land => {
-                    chars.card_types.contains(&crate::state::types::CardType::Land)
-                }
-                crate::state::game_object::SacrificeFilter::Artifact => {
-                    chars.card_types.contains(&crate::state::types::CardType::Artifact)
-                }
+                crate::state::game_object::SacrificeFilter::Creature => chars
+                    .card_types
+                    .contains(&crate::state::types::CardType::Creature),
+                crate::state::game_object::SacrificeFilter::Land => chars
+                    .card_types
+                    .contains(&crate::state::types::CardType::Land),
+                crate::state::game_object::SacrificeFilter::Artifact => chars
+                    .card_types
+                    .contains(&crate::state::types::CardType::Artifact),
                 crate::state::game_object::SacrificeFilter::ArtifactOrCreature => {
-                    chars.card_types.contains(&crate::state::types::CardType::Artifact)
-                        || chars.card_types.contains(&crate::state::types::CardType::Creature)
+                    chars
+                        .card_types
+                        .contains(&crate::state::types::CardType::Artifact)
+                        || chars
+                            .card_types
+                            .contains(&crate::state::types::CardType::Creature)
                 }
                 crate::state::game_object::SacrificeFilter::Subtype(sub) => {
                     chars.subtypes.contains(sub)
@@ -453,7 +460,9 @@ pub fn handle_activate_ability(
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(sac_id)?;
             (
-                obj.characteristics.card_types.contains(&crate::state::types::CardType::Creature),
+                obj.characteristics
+                    .card_types
+                    .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
                 obj.controller,
                 obj.counters.clone(),

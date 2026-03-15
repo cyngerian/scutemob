@@ -1,12 +1,6 @@
 // Jhoira's Familiar — {4}, Artifact Creature — Bird 2/2
-// "Flying
-// Historic spells you cast cost {1} less to cast. (Artifacts, legendaries, and Sagas are historic.)"
-//
-// Flying is implemented.
-//
-// TODO: DSL gap — "Historic spells you cast cost {1} less to cast" requires a cost-reduction
-// continuous effect filtered by spell type (Artifact, Legendary, or Saga). No such
-// cost-reduction layer effect is expressible in the current DSL.
+// Flying
+// Historic spells you cast cost {1} less to cast. (Artifacts, legendaries, and Sagas are historic.)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,6 +15,12 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::Historic,
+            scope: CostModifierScope::Controller,
+            eminence: false,
+        }],
         ..Default::default()
     }
 }

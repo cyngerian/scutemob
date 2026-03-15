@@ -3212,6 +3212,8 @@ fn test_etb_self_and_global_replacement_both_apply() {
         toughness: Some(2),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     };
 
     let registry = CardRegistry::new(vec![def]);
@@ -3306,10 +3308,7 @@ fn conditional_etb_land(
         types: TypeLine {
             card_types: [CardType::Land].iter().cloned().collect(),
             supertypes: Default::default(),
-            subtypes: subtypes
-                .iter()
-                .map(|s| SubType(s.to_string()))
-                .collect(),
+            subtypes: subtypes.iter().map(|s| SubType(s.to_string())).collect(),
         },
         oracle_text: format!("Conditional ETB tapped land: {}", name),
         abilities: vec![AbilityDefinition::Replacement {
@@ -3322,6 +3321,8 @@ fn conditional_etb_land(
         }],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
         ..Default::default()
     }
 }
@@ -3341,6 +3342,8 @@ fn basic_land_def(id: &str, name: &str, subtype: &str) -> CardDefinition {
         abilities: vec![],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
         ..Default::default()
     }
 }
@@ -3409,7 +3412,9 @@ fn test_conditional_etb_check_land_condition_met() {
         "CR 614.1c: Check-land should enter untapped when controller has a Plains"
     );
     assert!(
-        !evts.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        !evts
+            .iter()
+            .any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
         "No PermanentTapped event when condition is met"
     );
 }
@@ -3460,7 +3465,8 @@ fn test_conditional_etb_check_land_condition_not_met() {
         "CR 614.1c: Check-land should enter tapped when controller has no Plains/Island"
     );
     assert!(
-        evts.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        evts.iter()
+            .any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
         "PermanentTapped event must be emitted"
     );
 }
@@ -4025,7 +4031,11 @@ fn test_shockland_enters_tapped_deterministic_fallback() {
 
     // Shockland should be on the battlefield, tapped (deterministic fallback).
     let bf_objects = new_state.objects_in_zone(&ZoneId::Battlefield);
-    assert_eq!(bf_objects.len(), 1, "Blood Crypt should be on the battlefield");
+    assert_eq!(
+        bf_objects.len(),
+        1,
+        "Blood Crypt should be on the battlefield"
+    );
     assert!(
         bf_objects[0].status.tapped,
         "Blood Crypt should enter tapped (deterministic: life payment not available pre-M10)"

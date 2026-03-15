@@ -287,6 +287,8 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         toughness: Some(1),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     };
 
     let registry = CardRegistry::new(vec![double_toxic_def]);

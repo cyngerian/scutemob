@@ -376,6 +376,8 @@ fn test_702_25b_flanking_multiple_instances() {
         toughness: Some(2),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     };
 
     let registry = CardRegistry::new(vec![double_flanking_def]);

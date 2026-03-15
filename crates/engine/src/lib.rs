@@ -8,9 +8,10 @@ pub use cards::defs::all_cards;
 pub use cards::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
-    CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost, CraftMaterials,
-    Effect, EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition,
-    ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
+    CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost,
+    CostModifierScope, CraftMaterials, Effect, EffectAmount, EffectTarget as CardEffectTarget,
+    ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, SelfCostReduction, SoulbondGrant,
+    SpellCostFilter, SpellCostModifier, TargetController, TargetFilter, TargetRequirement,
     TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 

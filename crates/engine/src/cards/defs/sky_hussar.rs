@@ -43,5 +43,7 @@ pub fn card() -> CardDefinition {
         ],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }

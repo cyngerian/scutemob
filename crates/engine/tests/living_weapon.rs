@@ -83,7 +83,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: format!("Equip {{{}}}", generic_mana),
         effect: Some(Effect::AttachEquipment {

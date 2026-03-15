@@ -39,5 +39,7 @@ When it attacks, sacrifice it at end of combat.)"
         ],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }

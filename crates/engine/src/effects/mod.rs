@@ -3587,9 +3587,7 @@ pub(crate) fn check_condition(
             .map(|ps| ps.ring_level >= *n)
             .unwrap_or(false),
         // Logical disjunction: true if either condition holds.
-        Condition::Or(a, b) => {
-            check_condition(state, a, ctx) || check_condition(state, b, ctx)
-        }
+        Condition::Or(a, b) => check_condition(state, a, ctx) || check_condition(state, b, ctx),
         // ── ETB condition variants (PB-2) ────────────────────────────────────
         //
         // CR 614.1c: "enters tapped unless [condition]" — these are evaluated
@@ -3602,7 +3600,9 @@ pub(crate) fn check_condition(
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && obj.characteristics.card_types.contains(&CardType::Land)
-                && subtypes.iter().any(|st| obj.characteristics.subtypes.contains(st))
+                && subtypes
+                    .iter()
+                    .any(|st| obj.characteristics.subtypes.contains(st))
         }),
         // "unless you control N or fewer other lands" — fast-lands.
         // True if the controller controls <= N OTHER lands (excluding source).
@@ -3636,7 +3636,9 @@ pub(crate) fn check_condition(
             let hand_zone = ZoneId::Hand(ctx.controller);
             state.objects.values().any(|obj| {
                 obj.zone == hand_zone
-                    && subtypes.iter().any(|st| obj.characteristics.subtypes.contains(st))
+                    && subtypes
+                        .iter()
+                        .any(|st| obj.characteristics.subtypes.contains(st))
             })
         }
         // "unless you control N or more basic lands" — battle-lands.
@@ -3650,7 +3652,10 @@ pub(crate) fn check_condition(
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
                         && obj.characteristics.card_types.contains(&CardType::Land)
-                        && obj.characteristics.supertypes.contains(&crate::state::types::SuperType::Basic)
+                        && obj
+                            .characteristics
+                            .supertypes
+                            .contains(&crate::state::types::SuperType::Basic)
                 })
                 .count();
             basic_land_count >= *n as usize
@@ -3688,31 +3693,24 @@ pub(crate) fn check_condition(
             matching_count >= *count as usize
         }
         // "unless you control a legendary creature" — Minas Tirith.
-        Condition::ControlLegendaryCreature => {
-            state
-                .objects
-                .values()
-                .any(|obj| {
-                    obj.zone == ZoneId::Battlefield
-                        && obj.is_phased_in()
-                        && obj.controller == ctx.controller
-                        && obj.characteristics.card_types.contains(&CardType::Creature)
-                        && obj.characteristics.supertypes.contains(&SuperType::Legendary)
-                })
-        }
+        Condition::ControlLegendaryCreature => state.objects.values().any(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && obj.is_phased_in()
+                && obj.controller == ctx.controller
+                && obj.characteristics.card_types.contains(&CardType::Creature)
+                && obj
+                    .characteristics
+                    .supertypes
+                    .contains(&SuperType::Legendary)
+        }),
         // "unless you control a [creature subtype]" — Temple of the Dragon Queen.
-        Condition::ControlCreatureWithSubtype(subtype) => {
-            state
-                .objects
-                .values()
-                .any(|obj| {
-                    obj.zone == ZoneId::Battlefield
-                        && obj.is_phased_in()
-                        && obj.controller == ctx.controller
-                        && obj.characteristics.card_types.contains(&CardType::Creature)
-                        && obj.characteristics.subtypes.contains(subtype)
-                })
-        }
+        Condition::ControlCreatureWithSubtype(subtype) => state.objects.values().any(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && obj.is_phased_in()
+                && obj.controller == ctx.controller
+                && obj.characteristics.card_types.contains(&CardType::Creature)
+                && obj.characteristics.subtypes.contains(subtype)
+        }),
     }
 }
 

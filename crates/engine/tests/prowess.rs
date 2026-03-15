@@ -122,6 +122,8 @@ fn creature_spell_def() -> CardDefinition {
         abilities: vec![],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 
@@ -146,6 +148,8 @@ fn artifact_creature_def() -> CardDefinition {
         abilities: vec![],
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 

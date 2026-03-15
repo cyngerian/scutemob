@@ -26,10 +26,8 @@ use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, Designations,
     ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility,
-    ManaAbility, ManaColor, ObjectSpec,
-    PlayerId, Step, TargetController, TimingRestriction, TriggerCondition,
-    TriggerEvent,
-    TriggeredAbilityDef, ZoneId,
+    ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController, TimingRestriction,
+    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -550,9 +548,8 @@ pub fn translate_player_action(
             let discard_card_id =
                 discard_card_name.and_then(|name| find_in_hand(state, player, name));
             // If the script specifies sacrifice_card, resolve it to an ObjectId.
-            let sacrifice_target_id = sacrifice_card_name.and_then(|name| {
-                find_on_battlefield(state, player, name)
-            });
+            let sacrifice_target_id =
+                sacrifice_card_name.and_then(|name| find_on_battlefield(state, player, name));
             Some(Command::ActivateAbility {
                 player,
                 source: source_id,

@@ -29,7 +29,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: description.to_string(),
         effect: None,
@@ -48,7 +48,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: description.to_string(),
         effect: None,
@@ -1167,10 +1167,9 @@ fn test_sacrifice_filter_creature_valid() {
     .unwrap();
 
     // Creature should be in graveyard (sacrificed as cost).
-    let in_graveyard = state
-        .objects
-        .values()
-        .any(|o| o.characteristics.name == "Llanowar Elves" && matches!(o.zone, ZoneId::Graveyard(_)));
+    let in_graveyard = state.objects.values().any(|o| {
+        o.characteristics.name == "Llanowar Elves" && matches!(o.zone, ZoneId::Graveyard(_))
+    });
     assert!(in_graveyard, "sacrificed creature should be in graveyard");
 
     // CreatureDied event emitted for the sacrificed creature.
@@ -1246,7 +1245,10 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
         },
     );
 
-    assert!(result.is_err(), "non-creature should be rejected by Creature filter");
+    assert!(
+        result.is_err(),
+        "non-creature should be rejected by Creature filter"
+    );
 }
 
 #[test]

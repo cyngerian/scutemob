@@ -1,8 +1,5 @@
 // Blasphemous Act — {8}{R} Sorcery; deals 13 damage to each creature.
-// TODO: DSL gap — the cost reduction "{1} less for each creature on the battlefield"
-// (minimum {R}) requires a dynamic cost modifier that checks battlefield count at
-// cast time. No such Cost variant exists. Card is authored at base cost {8}{R};
-// the actual discount is not applied by the engine.
+// This spell costs {1} less to cast for each creature on the battlefield.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,6 +18,14 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        self_cost_reduction: Some(SelfCostReduction::PerPermanent {
+            per: 1,
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            },
+            controller: PlayerTarget::EachPlayer,
+        }),
         ..Default::default()
     }
 }

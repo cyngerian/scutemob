@@ -35,6 +35,8 @@ fn legendary_creature(id: &str, name: &str, cost: ManaCost) -> CardDefinition {
         toughness: Some(2),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 
@@ -89,6 +91,8 @@ fn creature(id: &str, name: &str, cost: ManaCost) -> CardDefinition {
         toughness: Some(1),
         color_indicator: None,
         back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
     }
 }
 

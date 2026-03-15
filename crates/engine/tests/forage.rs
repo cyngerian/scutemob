@@ -89,7 +89,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
             sacrifice_self: false,
             discard_card: false,
             forage: true,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: "{2}, Forage: You gain 2 life.".to_string(),
         effect: Some(Effect::GainLife {

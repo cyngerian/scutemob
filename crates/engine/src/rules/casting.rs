@@ -21,7 +21,10 @@
 
 use im::OrdSet;
 
-use crate::cards::card_definition::{AbilityDefinition, TargetController, TargetRequirement};
+use crate::cards::card_definition::{
+    AbilityDefinition, CostModifierScope, SelfCostReduction, SpellCostFilter, TargetController,
+    TargetRequirement,
+};
 use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::error::GameStateError;
@@ -3085,6 +3088,16 @@ pub fn handle_cast_spell(
         }
     }
 
+    // CR 601.2f: Apply static spell cost modifiers from permanents on the battlefield
+    // (and command zone for Eminence). Cost increases (+1 for Thalia) and reductions
+    // (-1 for Goblin Warchief) are applied after base cost + tax + kicker, before
+    // affinity/undaunted/convoke/improvise/delve.
+    let mana_cost = apply_spell_cost_modifiers(state, player, &chars, mana_cost);
+
+    // CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
+    // E.g. Blasphemous Act costs {1} less per creature on the battlefield.
+    let mana_cost = apply_self_cost_reduction(state, player, &card_id, mana_cost);
+
     // CR 702.41a / 601.2f: Apply affinity cost reduction AFTER total cost is determined
     // (including commander tax, kicker) and BEFORE convoke/improvise/delve.
     // Affinity is a static ability — the engine counts qualifying permanents automatically.
@@ -5713,6 +5726,284 @@ fn reduce_cost_by_mv(cost: &ManaCost, mv: u32) -> ManaCost {
     }
 
     reduced
+}
+
+/// CR 601.2f: Apply static spell cost modifiers from permanents on the battlefield
+/// (and command zone for Eminence).
+///
+/// Scans all permanents (and command zone cards for Eminence) for `spell_cost_modifiers`.
+/// For each modifier, checks if the spell being cast matches the filter and scope,
+/// then applies the generic mana change. Cost increases and reductions are summed,
+/// and the generic component cannot go below 0.
+fn apply_spell_cost_modifiers(
+    state: &GameState,
+    caster: PlayerId,
+    spell_chars: &Characteristics,
+    cost: Option<ManaCost>,
+) -> Option<ManaCost> {
+    let mut total_change: i32 = 0;
+
+    // Scan all objects for spell_cost_modifiers.
+    for obj in state.objects.values() {
+        let on_battlefield = obj.zone == ZoneId::Battlefield;
+        let in_command_zone = matches!(obj.zone, ZoneId::Command(_));
+
+        if !on_battlefield && !in_command_zone {
+            continue;
+        }
+
+        let card_def = obj
+            .card_id
+            .as_ref()
+            .and_then(|cid| state.card_registry.get(cid.clone()));
+        let card_def = match card_def {
+            Some(d) => d,
+            None => continue,
+        };
+
+        for modifier in &card_def.spell_cost_modifiers {
+            // Eminence check: if not on battlefield, must have eminence flag.
+            if !on_battlefield && (!in_command_zone || !modifier.eminence) {
+                continue;
+            }
+
+            // Scope check: who is affected.
+            match modifier.scope {
+                CostModifierScope::AllPlayers => {} // Everyone is affected.
+                CostModifierScope::Controller => {
+                    if obj.controller != caster {
+                        continue;
+                    }
+                }
+            }
+
+            // Filter check: does the spell match?
+            if !spell_matches_cost_filter(spell_chars, &modifier.filter) {
+                continue;
+            }
+
+            total_change += modifier.change;
+        }
+    }
+
+    if total_change == 0 {
+        return cost;
+    }
+
+    let mut reduced = cost?;
+    // Apply: positive = increase, negative = reduction. Generic cannot go below 0.
+    reduced.generic = (reduced.generic as i32 + total_change).max(0) as u32;
+    Some(reduced)
+}
+
+/// Check if a spell's characteristics match a `SpellCostFilter`.
+fn spell_matches_cost_filter(chars: &Characteristics, filter: &SpellCostFilter) -> bool {
+    match filter {
+        SpellCostFilter::NonCreature => !chars.card_types.contains(&CardType::Creature),
+        SpellCostFilter::HasSubtype(sub) => chars.subtypes.contains(sub),
+        SpellCostFilter::Historic => {
+            // CR 700.6: An object is historic if it has the legendary supertype,
+            // the artifact card type, or the Saga subtype.
+            chars
+                .supertypes
+                .contains(&crate::state::SuperType::Legendary)
+                || chars.card_types.contains(&CardType::Artifact)
+                || chars.subtypes.contains(&SubType("Saga".to_string()))
+        }
+        SpellCostFilter::HasCardType(ct) => chars.card_types.contains(ct),
+        SpellCostFilter::AuraOrEquipment => {
+            chars.subtypes.contains(&SubType("Aura".to_string()))
+                || chars.subtypes.contains(&SubType("Equipment".to_string()))
+        }
+    }
+}
+
+/// CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
+///
+/// Looks up the spell's `CardDefinition.self_cost_reduction` and evaluates it against
+/// the current game state at cast time. The generic component cannot go below 0.
+fn apply_self_cost_reduction(
+    state: &GameState,
+    caster: PlayerId,
+    card_id: &Option<crate::state::CardId>,
+    cost: Option<ManaCost>,
+) -> Option<ManaCost> {
+    let reduction_def = card_id
+        .as_ref()
+        .and_then(|cid| state.card_registry.get(cid.clone()))
+        .and_then(|def| def.self_cost_reduction.as_ref());
+
+    let reduction_def = match reduction_def {
+        Some(r) => r,
+        None => return cost,
+    };
+
+    let reduction = evaluate_self_cost_reduction(state, caster, reduction_def);
+    if reduction == 0 {
+        return cost;
+    }
+
+    let mut reduced = cost?;
+    // Self-cost-reductions reduce generic mana first (CR 601.2f).
+    reduce_generic_by(&mut reduced, reduction);
+    Some(reduced)
+}
+
+/// Evaluate a `SelfCostReduction` against the current game state, returning the total
+/// generic mana reduction amount.
+fn evaluate_self_cost_reduction(
+    state: &GameState,
+    caster: PlayerId,
+    reduction: &SelfCostReduction,
+) -> u32 {
+    match reduction {
+        SelfCostReduction::PerPermanent {
+            per,
+            filter,
+            controller,
+        } => {
+            let count = count_permanents_matching(state, caster, filter, controller);
+            (count as i32 * per).max(0) as u32
+        }
+        SelfCostReduction::TotalPowerOfCreatures => {
+            // Sum power of creatures the caster controls (Ghalta, Primal Hunger).
+            state
+                .objects
+                .values()
+                .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == caster)
+                .filter_map(|obj| {
+                    let chars = calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
+                    if chars.card_types.contains(&CardType::Creature) {
+                        chars.power.map(|p| p.max(0) as u32)
+                    } else {
+                        None
+                    }
+                })
+                .sum()
+        }
+        SelfCostReduction::CardTypesInGraveyard => {
+            // Count distinct card types among cards in the caster's graveyard (Emrakul).
+            // Card types: Artifact, Creature, Enchantment, Instant, Land, Planeswalker, Sorcery, Tribal.
+            let mut seen = std::collections::HashSet::new();
+            for obj in state.objects.values() {
+                if obj.zone == ZoneId::Graveyard(caster) {
+                    for ct in &obj.characteristics.card_types {
+                        seen.insert(*ct);
+                    }
+                }
+            }
+            seen.len() as u32
+        }
+        SelfCostReduction::BasicLandTypes { per } => {
+            // Count distinct basic land types among lands the caster controls (Domain).
+            // Basic land types: Plains, Island, Swamp, Mountain, Forest.
+            let basic_land_subtypes = [
+                SubType("Plains".to_string()),
+                SubType("Island".to_string()),
+                SubType("Swamp".to_string()),
+                SubType("Mountain".to_string()),
+                SubType("Forest".to_string()),
+            ];
+            let mut count = 0u32;
+            for sub in &basic_land_subtypes {
+                let has_it = state.objects.values().any(|obj| {
+                    obj.zone == ZoneId::Battlefield && obj.controller == caster && {
+                        let chars = calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                        chars.card_types.contains(&CardType::Land) && chars.subtypes.contains(sub)
+                    }
+                });
+                if has_it {
+                    count += 1;
+                }
+            }
+            (count as i32 * per).max(0) as u32
+        }
+        SelfCostReduction::TotalManaValue { filter } => {
+            // Sum mana values of matching permanents the caster controls (Earthquake Dragon).
+            state
+                .objects
+                .values()
+                .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == caster)
+                .filter_map(|obj| {
+                    let chars = calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
+                    if permanent_matches_filter(&chars, filter) {
+                        Some(chars.mana_cost.as_ref().map_or(0, |mc| mc.mana_value()))
+                    } else {
+                        None
+                    }
+                })
+                .sum()
+        }
+    }
+}
+
+/// Count permanents on the battlefield matching a TargetFilter.
+fn count_permanents_matching(
+    state: &GameState,
+    caster: PlayerId,
+    filter: &crate::cards::card_definition::TargetFilter,
+    controller: &crate::cards::card_definition::PlayerTarget,
+) -> u32 {
+    use crate::cards::card_definition::PlayerTarget;
+    state
+        .objects
+        .values()
+        .filter(|obj| {
+            if obj.zone != ZoneId::Battlefield {
+                return false;
+            }
+            // Controller check.
+            match controller {
+                PlayerTarget::Controller => {
+                    if obj.controller != caster {
+                        return false;
+                    }
+                }
+                PlayerTarget::EachOpponent => {
+                    if obj.controller == caster {
+                        return false;
+                    }
+                }
+                PlayerTarget::EachPlayer => {} // All players' permanents count.
+                _ => {}                        // DeclaredTarget, ControllerOf — treat as no filter.
+            }
+            let chars = calculate_characteristics(state, obj.id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            permanent_matches_filter(&chars, filter)
+        })
+        .count() as u32
+}
+
+/// Check if a permanent's characteristics match a `TargetFilter` (card type, subtype, etc.).
+fn permanent_matches_filter(
+    chars: &Characteristics,
+    filter: &crate::cards::card_definition::TargetFilter,
+) -> bool {
+    if let Some(ref ct) = filter.has_card_type {
+        if !chars.card_types.contains(ct) {
+            return false;
+        }
+    }
+    if let Some(ref sub) = filter.has_subtype {
+        if !chars.subtypes.contains(sub) {
+            return false;
+        }
+    }
+    if filter.non_creature && chars.card_types.contains(&CardType::Creature) {
+        return false;
+    }
+    if filter.non_land && chars.card_types.contains(&CardType::Land) {
+        return false;
+    }
+    true
+}
+
+/// Reduce the generic component of a ManaCost by the given amount (clamped at 0).
+fn reduce_generic_by(cost: &mut ManaCost, amount: u32) {
+    cost.generic = cost.generic.saturating_sub(amount);
 }
 
 /// CR 702.47a: Look up the splice info from the card's `AbilityDefinition`.

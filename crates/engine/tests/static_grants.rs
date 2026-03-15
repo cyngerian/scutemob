@@ -205,9 +205,7 @@ fn test_other_creatures_with_subtype_filters_correctly() {
         timestamp: 10,
         layer: EffectLayer::PtModify,
         duration: EffectDuration::WhileSourceOnBattlefield,
-        filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
-            "Vampire".to_string(),
-        )),
+        filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
     });
@@ -219,7 +217,11 @@ fn test_other_creatures_with_subtype_filters_correctly() {
 
     // Source Vampire does NOT get the bonus
     let source_chars = calculate_characteristics(&state, source_id).unwrap();
-    assert_eq!(source_chars.power, Some(2), "Vampire Lord should remain 2/2");
+    assert_eq!(
+        source_chars.power,
+        Some(2),
+        "Vampire Lord should remain 2/2"
+    );
     assert_eq!(
         source_chars.toughness,
         Some(2),

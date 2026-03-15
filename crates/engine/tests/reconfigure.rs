@@ -68,7 +68,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: format!("Reconfigure (attach) {{{}}} (CR 702.151a)", generic_mana),
         effect: Some(Effect::AttachEquipment {
@@ -97,7 +97,7 @@ fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: format!("Reconfigure (unattach) {{{}}} (CR 702.151a)", generic_mana),
         effect: Some(Effect::DetachEquipment {

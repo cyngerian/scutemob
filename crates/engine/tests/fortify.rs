@@ -69,7 +69,7 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
             discard_card: false,
 
             forage: false,
-                sacrifice_filter: None,
+            sacrifice_filter: None,
         },
         description: format!("Fortify {{{}}}", generic_mana),
         effect: Some(Effect::AttachFortification {
