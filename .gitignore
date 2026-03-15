@@ -22,6 +22,9 @@ Thumbs.db
 .claude/settings.local.json
 .mcp.json
 
+# Python
+__pycache__/
+
 # Project-specific
 *.sqlite
 *.sqlite3
