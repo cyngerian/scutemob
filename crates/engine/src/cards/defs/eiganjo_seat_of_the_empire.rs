@@ -1,4 +1,4 @@
-// Eiganjo, Seat of the Empire — Legendary Land, {T}: Add {W}. Channel ability (TODO).
+// Eiganjo, Seat of the Empire — Legendary Land, {T}: Add {W}. Channel ability.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,8 +18,21 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: Channel — {2}{W}, Discard this card: deals 4 damage to target attacking/blocking creature,
-            // cost reduction per legendary creature — Channel keyword + variable cost reduction not in DSL
+            // Channel — {2}{W}, Discard this card: 4 damage to target creature.
+            // TODO: Target filter should restrict to "attacking or blocking creature".
+            // TODO: Cost reduction — {1} less per legendary creature you control.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, white: 1, ..Default::default() }),
+                    Cost::DiscardSelf,
+                ]),
+                effect: Effect::DealDamage {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::Fixed(4),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         ..Default::default()
     }

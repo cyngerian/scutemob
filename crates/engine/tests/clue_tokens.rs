@@ -72,7 +72,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 }),
                 sacrifice_self: true,
                 discard_card: false,
-
+                discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },

@@ -67,7 +67,7 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
             },
             sacrifice_self: false,
             discard_card: false,
-
+            discard_self: false,
             forage: false,
             sacrifice_filter: None,
         },

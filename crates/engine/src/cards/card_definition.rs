@@ -800,6 +800,9 @@ pub enum Cost {
     PayLife(u32),
     /// Discard a card.
     DiscardCard,
+    /// Discard this card from hand as a cost (Channel — CR 702.34).
+    /// Implies the ability is activated from hand, not the battlefield.
+    DiscardSelf,
     /// CR 701.61: Sacrifice a Food you control OR exile three cards from your graveyard.
     Forage,
     /// Multiple costs, all paid simultaneously (CR 601.2g).
@@ -1822,6 +1825,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 }),
                 sacrifice_self: true,
                 discard_card: false,
+                discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },
@@ -1864,6 +1868,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 }),
                 sacrifice_self: true,
                 discard_card: false,
+                discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },
@@ -1909,6 +1914,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 }),
                 sacrifice_self: true,
                 discard_card: true,
+                discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },

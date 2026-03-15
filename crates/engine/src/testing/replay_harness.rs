@@ -2070,6 +2070,7 @@ pub fn enrich_spec_from_def(
                     mana_cost: Some(cost.clone()),
                     sacrifice_self: false,
                     discard_card: false,
+                    discard_self: false,
                     forage: false,
                     sacrifice_filter: None,
                 },
@@ -2681,6 +2682,7 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         }
         Cost::Sequence(costs) => costs.iter().for_each(|c| flatten_cost_into(c, ac)),
         Cost::DiscardCard => ac.discard_card = true,
+        Cost::DiscardSelf => ac.discard_self = true,
         Cost::Forage => ac.forage = true,
         Cost::PayLife(_) => {} // no ActivationCost representation yet
     }

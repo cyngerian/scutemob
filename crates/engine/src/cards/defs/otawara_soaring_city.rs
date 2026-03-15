@@ -1,4 +1,4 @@
-// Otawara, Soaring City — Legendary Land, {T}: Add {U}; Channel ability (TODO)
+// Otawara, Soaring City — Legendary Land, {T}: Add {U}; Channel — bounce target.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,8 +19,22 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: Channel ability — discard cost + variable cost reduction + multi-type
-            // targeting (artifact/creature/enchantment/planeswalker) not expressible in DSL
+            // Channel — {3}{U}, Discard this card: Return target permanent to owner's hand.
+            // TODO: Target filter should restrict to "artifact, creature, enchantment, or planeswalker"
+            //       (excludes lands). Using TargetPermanent as approximation.
+            // TODO: Cost reduction — {1} less per legendary creature you control.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+                    Cost::DiscardSelf,
+                ]),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetPermanent],
+            },
         ],
         ..Default::default()
     }

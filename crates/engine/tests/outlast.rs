@@ -79,7 +79,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
             mana_cost: Some(mana),
             sacrifice_self: false,
             discard_card: false,
-
+            discard_self: false,
             forage: false,
             sacrifice_filter: None,
         },

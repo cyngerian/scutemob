@@ -1,5 +1,5 @@
 // Boseiju, Who Endures — Legendary Land
-// {T}: Add {G}. Channel ability (discard + mana cost) not expressible in DSL.
+// {T}: Add {G}. Channel — destroy target artifact/enchantment/nonbasic land an opponent controls.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,10 +19,23 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: Channel ability — discard-as-cost activated ability with
-            // variable mana cost (scaling down per legendary creature) and
-            // multi-type target filter (artifact, enchantment, or nonbasic land)
-            // are not expressible in the DSL
+            // Channel — {1}{G}, Discard this card: Destroy target permanent.
+            // TODO: Target filter should restrict to "artifact, enchantment, or nonbasic land
+            //       an opponent controls". Using TargetPermanent as approximation.
+            // TODO: "That player may search their library for a land card with a basic land type,
+            //       put it onto the battlefield, then shuffle" — opponent search not expressible.
+            // TODO: Cost reduction — {1} less per legendary creature you control.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, green: 1, ..Default::default() }),
+                    Cost::DiscardSelf,
+                ]),
+                effect: Effect::DestroyPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetPermanent],
+            },
         ],
         ..Default::default()
     }

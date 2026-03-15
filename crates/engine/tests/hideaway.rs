@@ -567,7 +567,7 @@ fn test_hideaway_play_exiled_card() {
             mana_cost: None,
             sacrifice_self: false,
             discard_card: false,
-
+            discard_self: false,
             forage: false,
             sacrifice_filter: None,
         },

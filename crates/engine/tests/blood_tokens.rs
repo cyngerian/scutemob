@@ -70,6 +70,7 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 }),
                 sacrifice_self: true,
                 discard_card: true,
+                discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },

@@ -234,6 +234,10 @@ pub struct ActivationCost {
     /// Used by Blood tokens: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
     #[serde(default)]
     pub discard_card: bool,
+    /// CR 702.34: True if activating this ability requires discarding this card from hand.
+    /// Channel abilities are activated from hand (not the battlefield).
+    #[serde(default)]
+    pub discard_self: bool,
     /// CR 701.61a: True if activating this ability requires performing the forage action.
     /// "Forage" means: exile three cards from your graveyard OR sacrifice a Food artifact.
     #[serde(default)]

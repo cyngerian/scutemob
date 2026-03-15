@@ -74,17 +74,37 @@ pub fn handle_activate_ability(
         ));
     }
 
-    // Source must be on the battlefield.
+    // Source must be on the battlefield (or in hand for Channel/DiscardSelf abilities).
     {
         let obj = state.object(source)?;
-        if obj.zone != ZoneId::Battlefield {
-            return Err(GameStateError::ObjectNotOnBattlefield(source));
-        }
-        if obj.controller != player {
-            return Err(GameStateError::NotController {
-                player,
-                object_id: source,
-            });
+        let is_channel = obj
+            .characteristics
+            .activated_abilities
+            .get(ability_index)
+            .map(|ab| ab.cost.discard_self)
+            .unwrap_or(false);
+        if is_channel {
+            // CR 702.34: Channel abilities are activated from hand.
+            if obj.zone != ZoneId::Hand(player) {
+                return Err(GameStateError::InvalidCommand(
+                    "channel ability can only be activated from hand (CR 702.34)".into(),
+                ));
+            }
+            if obj.owner != player {
+                return Err(GameStateError::InvalidCommand(
+                    "you can only activate channel abilities on cards you own".into(),
+                ));
+            }
+        } else {
+            if obj.zone != ZoneId::Battlefield {
+                return Err(GameStateError::ObjectNotOnBattlefield(source));
+            }
+            if obj.controller != player {
+                return Err(GameStateError::NotController {
+                    player,
+                    object_id: source,
+                });
+            }
         }
         // Validate the ability index exists.
         if obj
@@ -368,6 +388,18 @@ pub fn handle_activate_ability(
         events.push(GameEvent::CardDiscarded {
             player,
             object_id: card_to_discard,
+            new_id: new_grave_id,
+        });
+    }
+
+    // CR 702.34: Pay discard-self cost (Channel abilities). The source card is in the
+    // player's hand; discarding it is part of the activation cost.
+    if ability_cost.discard_self {
+        let (new_grave_id, _) =
+            state.move_object_to_zone(source, ZoneId::Graveyard(player))?;
+        events.push(GameEvent::CardDiscarded {
+            player,
+            object_id: source,
             new_id: new_grave_id,
         });
     }

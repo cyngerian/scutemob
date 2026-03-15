@@ -1744,6 +1744,7 @@ impl HashInto for ActivationCost {
         self.mana_cost.hash_into(hasher);
         self.sacrifice_self.hash_into(hasher);
         self.discard_card.hash_into(hasher);
+        self.discard_self.hash_into(hasher);
         self.forage.hash_into(hasher);
         self.sacrifice_filter.hash_into(hasher);
     }
@@ -3988,6 +3989,7 @@ impl HashInto for Cost {
             }
             Cost::Forage => 6u8.hash_into(hasher),
             Cost::SacrificeSelf => 7u8.hash_into(hasher),
+            Cost::DiscardSelf => 8u8.hash_into(hasher),
         }
     }
 }

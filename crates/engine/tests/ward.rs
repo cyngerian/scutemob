@@ -483,7 +483,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             mana_cost: None,
             sacrifice_self: false,
             discard_card: false,
-
+            discard_self: false,
             forage: false,
             sacrifice_filter: None,
         },

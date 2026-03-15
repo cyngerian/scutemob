@@ -251,7 +251,7 @@ fn test_split_second_blocks_activated_abilities() {
                 mana_cost: None,
                 sacrifice_self: false,
                 discard_card: false,
-
+                discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },
