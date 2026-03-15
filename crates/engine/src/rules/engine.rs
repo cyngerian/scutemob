@@ -29,6 +29,17 @@ use super::suspend;
 use super::turn_actions;
 use super::turn_structure;
 
+/// CR 603.3: Check for triggered abilities arising from events and flush
+/// pending triggers to the stack. Extracted from per-command-arm boilerplate.
+fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) {
+    let new_triggers = abilities::check_triggers(state, events);
+    for t in new_triggers {
+        state.pending_triggers.push_back(t);
+    }
+    let trigger_events = abilities::flush_pending_triggers(state);
+    events.extend(trigger_events);
+}
+
 /// Process a player command against the current game state.
 ///
 /// Returns the new game state and a list of events describing what happened.
@@ -70,14 +81,7 @@ pub fn process_command(
             // CR 104.4b: playing a land is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = lands::handle_play_land(&mut state, player, card)?;
-            // CR 603.3: Check for triggered abilities arising from the land entering
-            // (e.g., Hideaway ETB trigger, Landfall). Mirrors CastSpell / ActivateAbility.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
         Command::CastSpell {
@@ -118,14 +122,7 @@ pub fn process_command(
                 hybrid_choices,
                 phyrexian_life_payments,
             )?;
-            // CR 603.3: Check for triggered abilities arising from casting this spell
-            // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
         Command::ActivateAbility {
@@ -148,15 +145,7 @@ pub fn process_command(
                 discard_card,
                 sacrifice_target,
             )?;
-            // CR 603.3: Check for triggered abilities arising from activating this ability
-            // (e.g., Ward — "Whenever this permanent becomes the target of an ability an
-            // opponent controls"). Mirrors the same pattern used for CastSpell.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
         Command::DeclareAttackers {
@@ -243,13 +232,7 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events =
                 abilities::handle_activate_forecast(&mut state, player, card, targets)?;
-            // CR 603.2: Check for triggers after forecast activation.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -264,13 +247,7 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events =
                 abilities::handle_activate_bloodrush(&mut state, player, card, target)?;
-            // CR 603.2: Check for triggers after bloodrush activation (e.g., Ward on target).
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -280,13 +257,7 @@ pub fn process_command(
             // CR 104.4b: cycling is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = abilities::handle_cycle_card(&mut state, player, card)?;
-            // CR 603.2: Check for triggers after cycling (including "when you cycle" triggers).
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -299,14 +270,7 @@ pub fn process_command(
             // CR 104.4b: dredge is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = replacement::handle_choose_dredge(&mut state, player, card)?;
-            // CR 603.2: Check for triggers after dredge (milled cards may trigger effects;
-            // the dredge card returning to hand is not an ETB, so no ETB triggers fire).
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -323,13 +287,7 @@ pub fn process_command(
             // CR 104.4b: choosing to reveal a miracle card is a meaningful player choice.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = miracle::handle_choose_miracle(&mut state, player, card, reveal)?;
-            // CR 603.3: Check for triggered abilities arising from miracle reveal.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -344,13 +302,7 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events =
                 abilities::handle_crew_vehicle(&mut state, player, vehicle, crew_creatures)?;
-            // CR 603.3: Check for triggered abilities arising from crewing.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -365,13 +317,7 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events =
                 abilities::handle_saddle_mount(&mut state, player, mount, saddle_creatures)?;
-            // CR 603.3: Check for triggered abilities arising from saddling.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -409,12 +355,7 @@ pub fn process_command(
             // CR 104.4b: unearth is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = abilities::handle_unearth_card(&mut state, player, card)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -424,12 +365,7 @@ pub fn process_command(
             // CR 104.4b: embalm is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = abilities::handle_embalm_card(&mut state, player, card)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -439,12 +375,7 @@ pub fn process_command(
             // CR 104.4b: eternalize is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = abilities::handle_eternalize_card(&mut state, player, card)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -454,12 +385,7 @@ pub fn process_command(
             // CR 104.4b: encore is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = abilities::handle_encore_card(&mut state, player, card)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -474,12 +400,7 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events =
                 abilities::handle_scavenge_card(&mut state, player, card, target_creature)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -493,12 +414,7 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events =
                 abilities::handle_ninjutsu(&mut state, player, ninja_card, attacker_to_return)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -515,13 +431,7 @@ pub fn process_command(
             // CR 104.4b: paying echo is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_pay_echo(&mut state, player, permanent, pay)?;
-            // CR 603.3: Check for triggered abilities arising from echo resolution.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -536,13 +446,7 @@ pub fn process_command(
             // CR 104.4b: paying recover is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_pay_recover(&mut state, player, recover_card, pay)?;
-            // CR 603.3: Check for triggered abilities arising from recover resolution.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -557,13 +461,7 @@ pub fn process_command(
             // CR 104.4b: paying cumulative upkeep is a meaningful player choice.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_pay_cumulative_upkeep(&mut state, player, permanent, pay)?;
-            // CR 603.3: Check for triggered abilities arising from CU resolution.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -573,13 +471,7 @@ pub fn process_command(
             // CR 104.4b: transforming is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_transform(&mut state, player, permanent)?;
-            // CR 603.3: Check for triggered abilities arising from transformation.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -593,40 +485,22 @@ pub fn process_command(
             // CR 104.4b: activating craft is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_activate_craft(&mut state, player, source, material_ids)?;
-            // CR 603.3: Check for triggered abilities arising from craft resolution.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
         // ── The Ring Tempts You (CR 701.54) ──────────────────────────────────
         Command::TheRingTemptsYou { player } => {
-            let events = handle_ring_tempts_you(&mut state, player)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            let mut all = events;
-            all.extend(trigger_events);
-            all_events.extend(all);
+            let mut events = handle_ring_tempts_you(&mut state, player)?;
+            check_and_flush_triggers(&mut state, &mut events);
+            all_events.extend(events);
         }
 
         // ── Dungeon / Venture (CR 701.49) ────────────────────────────────────
         Command::VentureIntoDungeon { player } => {
-            let events = handle_venture_into_dungeon(&mut state, player, false)?;
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            let mut all = events;
-            all.extend(trigger_events);
-            all_events.extend(all);
+            let mut events = handle_venture_into_dungeon(&mut state, player, false)?;
+            check_and_flush_triggers(&mut state, &mut events);
+            all_events.extend(events);
         }
 
         Command::ChooseDungeonRoom { player: _, room: _ } => {
@@ -645,13 +519,7 @@ pub fn process_command(
             // CR 116.2b: Turn face up is a special action; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_turn_face_up(&mut state, player, permanent, method)?;
-            // CR 603.3: Check for "when turned face up" triggered abilities.
-            let new_triggers = abilities::check_triggers(&state, &events);
-            for t in new_triggers {
-                state.pending_triggers.push_back(t);
-            }
-            let trigger_events = abilities::flush_pending_triggers(&mut state);
-            events.extend(trigger_events);
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
     }
