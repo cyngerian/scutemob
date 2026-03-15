@@ -1,10 +1,8 @@
 // Etchings of the Chosen — {1}{W}{B}, Enchantment
 // As this enchantment enters, choose a creature type.
 // Creatures you control of the chosen type get +1/+1.
-// {1}, Sacrifice a creature of the chosen type: Target creature you control gains indestructible until end of turn.
-// TODO: DSL gap — "as this enters, choose a creature type" is an ETB choice effect that sets a
-// remembered value used by two other abilities; no ChooseSubtype ETB effect or stored-choice
-// continuous effect pattern exists in the current DSL.
+// {1}, Sacrifice a creature of the chosen type: Target creature you control gains
+// indestructible until end of turn.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,11 +13,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "As this enchantment enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\n{1}, Sacrifice a creature of the chosen type: Target creature you control gains indestructible until end of turn.".to_string(),
         abilities: vec![
-            // TODO: ETB replacement — choose a creature type as this enters.
-            // DSL gap: no ChooseSubtype stored-choice effect.
-            // TODO: static — creatures you control of chosen type get +1/+1.
-            // DSL gap: no dynamic subtype filter continuous effect referencing stored choice.
-            // TODO: activated — {1}, sacrifice a creature of chosen type: target creature gains indestructible until EOT.
+            // "As this enters, choose a creature type"
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                is_self: true,
+                unless_condition: None,
+            },
+            // TODO: Creatures you control of chosen type get +1/+1.
+            // DSL gap: no dynamic subtype filter for continuous effects referencing
+            // chosen_creature_type from source permanent. Would need EffectFilter::ChosenSubtype.
+            // TODO: {1}, Sacrifice a creature of the chosen type: Target creature you control
+            // gains indestructible until end of turn.
             // DSL gap: no Cost::SacrificeWithFilter(chosen subtype); no Effect::GainIndestructible.
         ],
         ..Default::default()

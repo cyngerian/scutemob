@@ -113,13 +113,22 @@ impl ManaCost {
     /// CR 202.3g: Each Phyrexian symbol contributes 1.
     /// CR 202.3e: X is 0 off the stack (x_count is structural; actual value on StackObject).
     pub fn mana_value(&self) -> u32 {
-        let base =
-            self.white + self.blue + self.black + self.red + self.green + self.colorless + self.generic;
+        let base = self.white
+            + self.blue
+            + self.black
+            + self.red
+            + self.green
+            + self.colorless
+            + self.generic;
         // CR 202.3f: hybrid — use largest component
-        let hybrid_mv: u32 = self.hybrid.iter().map(|h| match h {
-            HybridMana::ColorColor(_, _) => 1,   // max(1, 1) = 1
-            HybridMana::GenericColor(_) => 2,     // max(2, 1) = 2
-        }).sum();
+        let hybrid_mv: u32 = self
+            .hybrid
+            .iter()
+            .map(|h| match h {
+                HybridMana::ColorColor(_, _) => 1, // max(1, 1) = 1
+                HybridMana::GenericColor(_) => 2,  // max(2, 1) = 2
+            })
+            .sum();
         // CR 202.3g: each Phyrexian symbol contributes 1
         let phyrexian_mv = self.phyrexian.len() as u32;
         // CR 202.3e: X is 0 off stack (x_count not counted here)
@@ -862,6 +871,16 @@ pub struct GameObject {
     /// Reset to empty on zone changes (CR 400.7).
     #[serde(default)]
     pub craft_exiled_cards: im::Vector<ObjectId>,
+    /// CR 106.12: The creature type chosen as this permanent entered the battlefield.
+    ///
+    /// Used by cards like Cavern of Souls, Secluded Courtyard, Unclaimed Territory:
+    /// "As this enters, choose a creature type." The chosen type is referenced by
+    /// `ManaRestriction::ChosenTypeCreaturesOnly` / `ChosenTypeSpellsOnly` to restrict
+    /// what the produced mana can be spent on.
+    ///
+    /// Set by `Effect::ChooseCreatureType`. Reset to `None` on zone changes (CR 400.7).
+    #[serde(default)]
+    pub chosen_creature_type: Option<SubType>,
     /// CR 702.37 / 701.40 / 701.58 / 702.168: Why this object is face-down (if at all).
     ///
     /// `None` means the object is either face-up, or face-down for reasons unrelated to

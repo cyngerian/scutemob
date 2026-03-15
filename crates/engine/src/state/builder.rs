@@ -1045,6 +1045,7 @@ impl GameStateBuilder {
                 // CR 702.167c: test-placed objects have no craft materials.
                 craft_exiled_cards: im::Vector::new(),
                 // CR 708.2: test-placed objects are not morph/manifest/cloak face-down.
+                chosen_creature_type: None,
                 face_down_as: None,
                 designations: Designations::default(),
             };

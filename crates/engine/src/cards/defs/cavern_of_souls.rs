@@ -1,8 +1,8 @@
 // Cavern of Souls — Land
-// ETB: choose a creature type. {T}: Add {C}. {T}: Add any color, only for creature
-// spells of chosen type (and those spells can't be countered).
-// TODO: ETB choice (choose creature type) and conditional mana with
-// uncounterability are not expressible in the current DSL.
+// As this land enters, choose a creature type.
+// {T}: Add {C}.
+// {T}: Add one mana of any color. Spend this mana only to cast a creature spell
+// of the chosen type, and that spell can't be countered.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,6 +13,16 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.".to_string(),
         abilities: vec![
+            // "As this enters, choose a creature type" — self-replacement effect (CR 614.1c)
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                is_self: true,
+                unless_condition: None,
+            },
+            // {T}: Add {C}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -22,10 +32,20 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: ETB "choose a creature type" is not expressible in the DSL
-            // TODO: {T}: Add one mana of any color — spend only to cast chosen-type creature
-            // spells, and those spells can't be countered. DSL gap: no ETB choice mechanism
-            // and no mana-spending restriction with anti-counterspell rider.
+            // {T}: Add one mana of any color. Spend this mana only to cast a creature
+            // spell of the chosen type.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaAnyColorRestricted {
+                    player: PlayerTarget::Controller,
+                    restriction: ManaRestriction::ChosenTypeCreaturesOnly,
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
+            // TODO: "and that spell can't be countered" — uncounterability rider on the
+            // mana restriction is not yet expressible. Requires linking mana source to
+            // spell uncounterability at resolution time. Deferred to future primitive.
         ],
         ..Default::default()
     }

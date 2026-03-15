@@ -4,7 +4,8 @@ use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
 use super::dungeon::DungeonId;
-use super::types::{ManaColor, ProtectionQuality};
+use super::types::{ManaColor, ProtectionQuality, SubType};
+use crate::cards::card_definition::ManaRestriction;
 
 /// Identifies a player in the game. Unique within a game instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -18,6 +19,27 @@ pub struct PlayerId(pub u64);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct CardId(pub String);
 
+/// A single entry of restricted mana in a player's pool (CR 106.12).
+///
+/// Restricted mana can only be spent on costs that match the restriction.
+/// When mana is produced with a restriction, it goes into `ManaPool::restricted`
+/// instead of the unrestricted color buckets.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestrictedMana {
+    pub color: ManaColor,
+    pub amount: u32,
+    pub restriction: ManaRestriction,
+}
+
+/// Context about a spell being cast, used to check mana spending restrictions.
+#[derive(Clone, Debug)]
+pub struct SpellContext {
+    /// Whether the spell is a creature spell.
+    pub is_creature: bool,
+    /// Creature subtypes of the spell (if any).
+    pub subtypes: Vec<SubType>,
+}
+
 /// A player's mana pool (CR 106.4).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManaPool {
@@ -27,11 +49,21 @@ pub struct ManaPool {
     pub red: u32,
     pub green: u32,
     pub colorless: u32,
+    /// Restricted mana entries (CR 106.12). Each entry tracks mana that can only
+    /// be spent on matching spells/abilities.
+    #[serde(default)]
+    pub restricted: Vec<RestrictedMana>,
 }
 
 impl ManaPool {
+    /// Total unrestricted mana in the pool.
     pub fn total(&self) -> u32 {
         self.white + self.blue + self.black + self.red + self.green + self.colorless
+    }
+
+    /// Total mana including restricted entries.
+    pub fn total_with_restricted(&self) -> u32 {
+        self.total() + self.restricted.iter().map(|r| r.amount).sum::<u32>()
     }
 
     pub fn add(&mut self, color: ManaColor, amount: u32) {
@@ -45,12 +77,81 @@ impl ManaPool {
         }
     }
 
+    /// Add restricted mana to the pool (CR 106.12).
+    pub fn add_restricted(&mut self, color: ManaColor, amount: u32, restriction: ManaRestriction) {
+        // Merge with existing entry if same color and restriction
+        for entry in &mut self.restricted {
+            if entry.color == color && entry.restriction == restriction {
+                entry.amount += amount;
+                return;
+            }
+        }
+        self.restricted.push(RestrictedMana {
+            color,
+            amount,
+            restriction,
+        });
+    }
+
+    /// Get the amount of restricted mana of a specific color that matches the spell context.
+    pub fn restricted_available(&self, color: ManaColor, spell: &SpellContext) -> u32 {
+        self.restricted
+            .iter()
+            .filter(|r| r.color == color && restriction_matches(&r.restriction, spell))
+            .map(|r| r.amount)
+            .sum()
+    }
+
+    /// Spend restricted mana of a specific color that matches the spell context.
+    /// Returns the amount actually spent.
+    pub fn spend_restricted(
+        &mut self,
+        color: ManaColor,
+        mut amount: u32,
+        spell: &SpellContext,
+    ) -> u32 {
+        let mut spent = 0;
+        for entry in &mut self.restricted {
+            if amount == 0 {
+                break;
+            }
+            if entry.color == color && restriction_matches(&entry.restriction, spell) {
+                let take = amount.min(entry.amount);
+                entry.amount -= take;
+                amount -= take;
+                spent += take;
+            }
+        }
+        // Remove depleted entries
+        self.restricted.retain(|r| r.amount > 0);
+        spent
+    }
+
     pub fn empty(&mut self) {
         *self = ManaPool::default();
     }
 
     pub fn is_empty(&self) -> bool {
-        self.total() == 0
+        self.total() == 0 && self.restricted.is_empty()
+    }
+}
+
+/// Check if a mana restriction matches the spell being cast.
+pub fn restriction_matches(restriction: &ManaRestriction, spell: &SpellContext) -> bool {
+    match restriction {
+        ManaRestriction::CreatureSpellsOnly => spell.is_creature,
+        ManaRestriction::SubtypeOnly(st) => spell.subtypes.iter().any(|s| s == st),
+        ManaRestriction::SubtypeOrSubtype(a, b) => spell.subtypes.iter().any(|s| s == a || s == b),
+        ManaRestriction::ChosenTypeCreaturesOnly => {
+            // The chosen type is resolved before calling restriction_matches —
+            // if this variant appears, it should have been resolved to SubtypeOnly
+            // by the effect executor. As a fallback, treat as creature-only.
+            spell.is_creature
+        }
+        ManaRestriction::ChosenTypeSpellsOnly => {
+            // Same: should be resolved before reaching here.
+            true
+        }
     }
 }
 

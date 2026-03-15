@@ -1,7 +1,8 @@
-// Three Tree City — Legendary Land, ETB choose creature type, {T}: Add {C}; activated mana (TODO)
-// TODO: "As Three Tree City enters, choose a creature type" — ETB choice not expressible in DSL
-// TODO: {2},{T}: Choose a color. Add mana equal to # creatures you control of chosen type
-// — count-based mana scaling not expressible in DSL
+// Three Tree City — Legendary Land
+// As this land enters, choose a creature type.
+// {T}: Add {C}.
+// {2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of
+// creatures you control of the chosen type.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -12,6 +13,15 @@ pub fn card() -> CardDefinition {
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
         oracle_text: "As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.".to_string(),
         abilities: vec![
+            // "As this enters, choose a creature type"
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                is_self: true,
+                unless_condition: None,
+            },
             // {T}: Add {C}
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -22,6 +32,10 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
+            // TODO: {2}, {T}: Choose a color. Add mana of that color equal to the number
+            // of creatures you control of the chosen type.
+            // DSL gap: count-based mana scaling filtered by chosen_creature_type + color choice.
+            // Would need EffectAmount::CreaturesOfChosenType + AddManaScaled with color choice.
         ],
         ..Default::default()
     }

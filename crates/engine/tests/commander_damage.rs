@@ -449,6 +449,7 @@ fn test_commander_damage_survives_zone_change() {
                 last_transform_timestamp: 0,
                 was_cast_disturbed: false,
                 craft_exiled_cards: im::Vector::new(),
+                chosen_creature_type: None,
                 face_down_as: None,
                 designations: mtg_engine::Designations::default(),
             },

@@ -1,4 +1,8 @@
-// Haven of the Spirit Dragon — Land, {T}: Add {C}; restricted any-color mana (TODO); return Dragon/Ugin (TODO)
+// Haven of the Spirit Dragon — Land
+// {T}: Add {C}.
+// {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
+// {2}, {T}, Sacrifice: Return target Dragon creature card or Ugin planeswalker card
+// from your graveyard to your hand.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,11 +23,19 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
-            // DSL gap: mana restriction (Dragon creatures only) not expressible.
-
-            // TODO: {2}, {T}, Sacrifice: Return Dragon/Ugin from graveyard — PB-5+PB-10
-            // Cost::SacrificeSelf available; blocked on targeted return-from-graveyard effect
+            // {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaAnyColorRestricted {
+                    player: PlayerTarget::Controller,
+                    restriction: ManaRestriction::SubtypeOnly(SubType("Dragon".to_string())),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
+            // TODO: {2}, {T}, Sacrifice: Return Dragon/Ugin from graveyard to hand.
+            // Blocked on: PB-17 SearchLibrary filter for creature subtype (Dragon) and
+            // targeted return-from-graveyard with type union filter (Dragon OR Ugin planeswalker).
         ],
         ..Default::default()
     }

@@ -808,6 +808,27 @@ pub enum Cost {
 
 // ── Effect ────────────────────────────────────────────────────────────────────
 
+/// CR 106.12: Restriction on what a mana payment can be spent on.
+///
+/// Mana produced with a restriction can only be used to pay costs that match
+/// the restriction. If the mana would be spent on something that doesn't match,
+/// it cannot be used for that payment.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum ManaRestriction {
+    /// "Spend this mana only to cast creature spells."
+    CreatureSpellsOnly,
+    /// "Spend this mana only to cast [subtype] spells." (e.g., Dragon, Elf)
+    SubtypeOnly(SubType),
+    /// "Spend this mana only to cast [subtype] or [subtype] spells." (e.g., Dragon or Omen)
+    SubtypeOrSubtype(SubType, SubType),
+    /// "Spend this mana only to cast creature spells of the chosen type."
+    /// Uses `chosen_creature_type` from the source permanent.
+    ChosenTypeCreaturesOnly,
+    /// "Spend this mana only to cast spells of the chosen type."
+    /// Uses `chosen_creature_type` from the source permanent.
+    ChosenTypeSpellsOnly,
+}
+
 /// A recursive effect primitive: the engine's internal DSL for card behavior.
 ///
 /// Effects are executed by `effects::execute_effect`. Every effect that changes
@@ -902,6 +923,20 @@ pub enum Effect {
         player: PlayerTarget,
         color: ManaColor,
         count: EffectAmount,
+    },
+    /// CR 106.12: Add mana with a spending restriction.
+    ///
+    /// Restricted mana can only be used to pay costs matching the restriction.
+    /// Used by Cavern of Souls, Haven of the Spirit Dragon, Gnarlroot Trapper, etc.
+    AddManaRestricted {
+        player: PlayerTarget,
+        mana: ManaPool,
+        restriction: ManaRestriction,
+    },
+    /// CR 106.12: Add one mana of any color with a spending restriction.
+    AddManaAnyColorRestricted {
+        player: PlayerTarget,
+        restriction: ManaRestriction,
     },
 
     // ── Counters ─────────────────────────────────────────────────────────────
@@ -1067,6 +1102,19 @@ pub enum Effect {
     /// permanent. Clears `is_suspected`, removing the menace grant and unblocking
     /// the can't-block restriction.
     Unsuspect { target: EffectTarget },
+    /// Set `chosen_creature_type` on the source permanent (CR 106.12 support).
+    ///
+    /// Used by lands like Cavern of Souls: "As this enters, choose a creature type."
+    /// The chosen type is stored on the `GameObject` and referenced by
+    /// `ManaRestriction::ChosenTypeCreaturesOnly` / `ChosenTypeSpellsOnly`.
+    ///
+    /// In the deterministic engine, the choice is made automatically: picks the most
+    /// common creature subtype among creatures the controller controls, or defaults
+    /// to the `default` field if no creatures are on the battlefield.
+    ChooseCreatureType {
+        /// Default creature type if no creatures are controlled (deterministic fallback).
+        default: SubType,
+    },
     /// CR 701.19a: Regenerate -- create a one-shot regeneration shield on the target
     /// permanent. The next time that permanent would be destroyed this turn, instead
     /// remove all damage marked on it, tap it, and remove it from combat (if in combat).

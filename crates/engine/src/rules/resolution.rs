@@ -4426,6 +4426,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         craft_exiled_cards: im::Vector::new(),
+                        chosen_creature_type: None,
                         face_down_as: None,
                         designations: Designations::default(),
                     };
@@ -4621,6 +4622,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 last_transform_timestamp: 0,
                 was_cast_disturbed: false,
                 craft_exiled_cards: im::Vector::new(),
+                chosen_creature_type: None,
                 face_down_as: None,
                 designations: Designations::default(),
             };
@@ -5391,6 +5393,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
+                    chosen_creature_type: None,
                     face_down_as: None,
                     designations: Designations::default(),
                 };
@@ -6171,6 +6174,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
+                    chosen_creature_type: None,
                     face_down_as: None,
                     designations: Designations::default(),
                 };
@@ -6384,6 +6388,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
+                    chosen_creature_type: None,
                     face_down_as: None,
                     designations: Designations::default(),
                 };
@@ -6615,6 +6620,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         craft_exiled_cards: im::Vector::new(),
+                        chosen_creature_type: None,
                         face_down_as: None,
                         designations: Designations::default(),
                     };

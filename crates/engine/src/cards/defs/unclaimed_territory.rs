@@ -1,7 +1,8 @@
-// Unclaimed Territory — Land; ETB choose creature type, tap for colorless or
-// any color (restricted to chosen creature type spells).
-// TODO: ETB choice of creature type and mana-type restriction not expressible in DSL.
-// Implementing the two tap abilities without the type restriction.
+// Unclaimed Territory — Land
+// As this land enters, choose a creature type.
+// {T}: Add {C}.
+// {T}: Add one mana of any color. Spend this mana only to cast a creature spell
+// of the chosen type.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -12,6 +13,16 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type.".to_string(),
         abilities: vec![
+            // "As this enters, choose a creature type"
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                is_self: true,
+                unless_condition: None,
+            },
+            // {T}: Add {C}
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -21,8 +32,16 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: second ability adds any-color mana restricted to creature spells of chosen type
-            // Requires ETB choice tracking and mana restriction enforcement — not yet in DSL.
+            // {T}: Add one mana of any color (restricted to chosen creature type spells)
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaAnyColorRestricted {
+                    player: PlayerTarget::Controller,
+                    restriction: ManaRestriction::ChosenTypeCreaturesOnly,
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

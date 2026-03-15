@@ -1,4 +1,7 @@
-// Maelstrom of the Spirit Dragon — Land, {T}: Add {C}. {T}: Add any color (Dragon/Omen only, TODO). {4},{T}: Search for Dragon (TODO).
+// Maelstrom of the Spirit Dragon — Land
+// {T}: Add {C}.
+// {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell or an Omen spell.
+// {4}, {T}, Sacrifice: Search library for Dragon card, reveal, put into hand.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,6 +12,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a Dragon spell or an Omen spell.\n{4}, {T}, Sacrifice this land: Search your library for a Dragon card, reveal it, put it into your hand, then shuffle.".to_string(),
         abilities: vec![
+            // {T}: Add {C}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -18,11 +22,23 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell
-            // or an Omen spell. DSL gap: no mana-spending restriction on AddManaAnyColor.
-            // TODO: {4}, {T}, Sacrifice this land: Search your library for a Dragon card, reveal
-            // it, put it into your hand, then shuffle. DSL gap: SearchLibrary filter for creature
-            // subtype (Dragon) not supported; only basic_land_filter() exists.
+            // {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell
+            // or an Omen spell.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaAnyColorRestricted {
+                    player: PlayerTarget::Controller,
+                    restriction: ManaRestriction::SubtypeOrSubtype(
+                        SubType("Dragon".to_string()),
+                        SubType("Omen".to_string()),
+                    ),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
+            // TODO: {4}, {T}, Sacrifice this land: Search your library for a Dragon card,
+            // reveal it, put it into your hand, then shuffle.
+            // Blocked on: PB-17 SearchLibrary filter for creature subtype (Dragon).
         ],
         ..Default::default()
     }

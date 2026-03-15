@@ -1373,6 +1373,38 @@ fn emit_etb_modification(
                 count,
             });
         }
+        Some(ReplacementModification::ChooseCreatureType(default_type)) => {
+            // CR 106.12 support: "As this enters, choose a creature type."
+            // Deterministic fallback: pick the most common creature subtype
+            // among creatures the controller controls, or the default.
+            let chosen = {
+                let mut type_counts: std::collections::HashMap<
+                    crate::state::types::SubType,
+                    usize,
+                > = std::collections::HashMap::new();
+                for obj in state.objects.values() {
+                    if obj.controller == controller
+                        && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
+                        && obj
+                            .characteristics
+                            .card_types
+                            .contains(&crate::state::types::CardType::Creature)
+                    {
+                        for st in &obj.characteristics.subtypes {
+                            *type_counts.entry(st.clone()).or_insert(0usize) += 1;
+                        }
+                    }
+                }
+                type_counts
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(st, _)| st)
+                    .unwrap_or(default_type)
+            };
+            if let Some(obj) = state.objects.get_mut(&new_id) {
+                obj.chosen_creature_type = Some(chosen);
+            }
+        }
         _ => {
             // RedirectToZone and other modifications are not applicable to ETB
             // modification interception. Zone redirections are handled at zone-change

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::continuous_effect::EffectDuration;
 use super::game_object::ObjectId;
 use super::player::{CardId, PlayerId};
-use super::types::{CardType, CounterType};
+use super::types::{CardType, CounterType, SubType};
 use super::zone::ZoneType;
 
 /// Unique identifier for a replacement effect instance.
@@ -83,6 +83,11 @@ pub enum ReplacementModification {
     /// Used by shocklands. Pre-M10 deterministic fallback: always enters tapped
     /// (conservative — prevents free mana). Interactive choice deferred to M10.
     EntersTappedUnlessPayLife(u32),
+    /// CR 106.12 support: "As this enters, choose a creature type."
+    /// Sets `chosen_creature_type` on the entering permanent. Deterministic fallback:
+    /// picks the most common creature subtype among creatures the controller controls,
+    /// or the provided default.
+    ChooseCreatureType(SubType),
 }
 
 /// Filters which objects a replacement trigger matches.

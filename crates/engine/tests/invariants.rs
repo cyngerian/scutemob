@@ -384,7 +384,7 @@ proptest! {
         r in 0u32..10, g in 0u32..10, c in 0u32..10,
     ) {
         use mtg_engine::ManaPool;
-        let pool = ManaPool { white: w, blue: u, black: b, red: r, green: g, colorless: c };
+        let pool = ManaPool { white: w, blue: u, black: b, red: r, green: g, colorless: c, ..ManaPool::default() };
         prop_assert_eq!(pool.total(), w + u + b + r + g + c);
     }
 

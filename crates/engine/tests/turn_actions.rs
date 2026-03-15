@@ -259,11 +259,7 @@ fn test_mana_pools_empty_between_steps() {
             p1,
             mtg_engine::ManaPool {
                 white: 3,
-                blue: 0,
-                black: 0,
-                red: 0,
-                green: 0,
-                colorless: 0,
+                ..Default::default()
             },
         )
         .build()

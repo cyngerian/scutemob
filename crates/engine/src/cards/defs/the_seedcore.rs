@@ -1,4 +1,7 @@
-// The Seedcore — Land — Sphere, {T}: Add {C}; {T}: Add any color (Phyrexian creatures only); Corrupted pump
+// The Seedcore — Land — Sphere
+// {T}: Add {C}.
+// {T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.
+// Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,19 +22,20 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // {T}: Add one mana of any color.
-            // TODO: Restriction "Spend this mana only to cast Phyrexian creature spells" not expressible.
+            // {T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.
+            // Note: "Phyrexian" is a creature type in MTG. Using SubtypeOnly for the restriction.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor {
+                effect: Effect::AddManaAnyColorRestricted {
                     player: PlayerTarget::Controller,
+                    restriction: ManaRestriction::SubtypeOnly(SubType("Phyrexian".to_string())),
                 },
                 timing_restriction: None,
                 targets: vec![],
             },
             // TODO: Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
-            // DSL gap: activated ability with targets (Activated has no targets field);
-            // conditional activation (opponent has 3+ poison counters) not expressible.
+            // DSL gap: activated ability with targets + conditional activation
+            // (opponent has 3+ poison counters) not expressible.
         ],
         ..Default::default()
     }

@@ -32,8 +32,8 @@ pub use error::GameStateError;
 pub use game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, Designations,
     ETBTriggerFilter, GameObject, HybridMana, HybridManaPayment, InterveningIf, ManaAbility,
-    ManaCost, MergedComponent, ObjectId, ObjectStatus, PhyrexianMana, SacrificeFilter, TriggerEvent,
-    TriggeredAbilityDef,
+    ManaCost, MergedComponent, ObjectId, ObjectStatus, PhyrexianMana, SacrificeFilter,
+    TriggerEvent, TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{
@@ -452,6 +452,7 @@ impl GameState {
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
             // A face-down permanent leaving the battlefield is revealed (CR 708.9),
             // and the new object in the destination zone is no longer face-down.
+            chosen_creature_type: None,
             face_down_as: None,
             designations: Designations::default(),
         };
@@ -584,6 +585,7 @@ impl GameState {
                     was_cast_disturbed: false,
                     craft_exiled_cards: im::Vector::new(),
                     // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
+                    chosen_creature_type: None,
                     face_down_as: None,
                     designations: Designations::default(),
                 };
@@ -770,6 +772,7 @@ impl GameState {
             // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
             craft_exiled_cards: im::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
+            chosen_creature_type: None,
             face_down_as: None,
             designations: Designations::default(),
         };

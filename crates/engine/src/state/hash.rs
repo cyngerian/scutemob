@@ -22,7 +22,7 @@ use super::game_object::{
     GameObject, HybridMana, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus,
     PhyrexianMana, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
 };
-use super::player::{CardId, ManaPool, PlayerId, PlayerState};
+use super::player::{CardId, ManaPool, PlayerId, PlayerState, RestrictedMana};
 use super::replacement_effect::{
     DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
     ReplacementId, ReplacementModification, ReplacementTrigger,
@@ -41,6 +41,7 @@ use super::types::{
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
+use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
     AbilityDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget,
     ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, SoulbondGrant, TargetController,
@@ -842,6 +843,38 @@ impl HashInto for ManaPool {
         self.red.hash_into(hasher);
         self.green.hash_into(hasher);
         self.colorless.hash_into(hasher);
+        (self.restricted.len() as u32).hash_into(hasher);
+        for r in &self.restricted {
+            r.hash_into(hasher);
+        }
+    }
+}
+
+impl HashInto for RestrictedMana {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.color.hash_into(hasher);
+        self.amount.hash_into(hasher);
+        self.restriction.hash_into(hasher);
+    }
+}
+
+impl HashInto for ManaRestriction {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        // Discriminant tag + payload
+        match self {
+            ManaRestriction::CreatureSpellsOnly => 0u8.hash_into(hasher),
+            ManaRestriction::SubtypeOnly(st) => {
+                1u8.hash_into(hasher);
+                st.0.hash_into(hasher);
+            }
+            ManaRestriction::SubtypeOrSubtype(a, b) => {
+                2u8.hash_into(hasher);
+                a.0.hash_into(hasher);
+                b.0.hash_into(hasher);
+            }
+            ManaRestriction::ChosenTypeCreaturesOnly => 3u8.hash_into(hasher),
+            ManaRestriction::ChosenTypeSpellsOnly => 4u8.hash_into(hasher),
+        }
     }
 }
 
@@ -989,6 +1022,14 @@ impl HashInto for GameObject {
         (self.craft_exiled_cards.len() as u64).hash_into(hasher);
         for id in self.craft_exiled_cards.iter() {
             id.hash_into(hasher);
+        }
+        // CR 106.12: chosen creature type for mana restriction
+        match &self.chosen_creature_type {
+            None => 0u8.hash_into(hasher),
+            Some(st) => {
+                1u8.hash_into(hasher);
+                st.0.hash_into(hasher);
+            }
         }
         // Morph/Manifest/Cloak (CR 702.37/701.40/701.58) — face-down kind
         match &self.face_down_as {
@@ -1460,6 +1501,10 @@ impl HashInto for ReplacementModification {
             ReplacementModification::EntersTappedUnlessPayLife(life) => {
                 8u8.hash_into(hasher);
                 life.hash_into(hasher);
+            }
+            ReplacementModification::ChooseCreatureType(st) => {
+                9u8.hash_into(hasher);
+                st.0.hash_into(hasher);
             }
         }
     }
@@ -3986,6 +4031,28 @@ impl HashInto for Effect {
                 player.hash_into(hasher);
                 color.hash_into(hasher);
                 count.hash_into(hasher);
+            }
+            Effect::AddManaRestricted {
+                player,
+                mana,
+                restriction,
+            } => {
+                57u8.hash_into(hasher);
+                player.hash_into(hasher);
+                mana.hash_into(hasher);
+                restriction.hash_into(hasher);
+            }
+            Effect::AddManaAnyColorRestricted {
+                player,
+                restriction,
+            } => {
+                58u8.hash_into(hasher);
+                player.hash_into(hasher);
+                restriction.hash_into(hasher);
+            }
+            Effect::ChooseCreatureType { default } => {
+                59u8.hash_into(hasher);
+                default.0.hash_into(hasher);
             }
             Effect::AddCounter {
                 target,

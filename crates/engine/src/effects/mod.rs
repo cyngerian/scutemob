@@ -25,8 +25,8 @@ use std::collections::HashMap;
 use rand::SeedableRng;
 
 use crate::cards::card_definition::{
-    Condition, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget, TargetController,
-    TargetFilter, ZoneTarget,
+    Condition, Effect, EffectAmount, EffectTarget, ForEachTarget, ManaRestriction, PlayerTarget,
+    TargetController, TargetFilter, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{
@@ -35,7 +35,7 @@ use crate::state::game_object::{
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{CardType, Color, KeywordAbility, ManaColor, SuperType};
+use crate::state::types::{CardType, Color, KeywordAbility, ManaColor, SubType, SuperType};
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 
@@ -1011,6 +1011,58 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 106.12: Add mana with a spending restriction.
+        Effect::AddManaRestricted {
+            player,
+            mana,
+            restriction,
+        } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            let resolved = resolve_mana_restriction(state, &Some(restriction.clone()), ctx);
+            let mana_entries: Vec<(ManaColor, u32)> = [
+                (ManaColor::White, mana.white),
+                (ManaColor::Blue, mana.blue),
+                (ManaColor::Black, mana.black),
+                (ManaColor::Red, mana.red),
+                (ManaColor::Green, mana.green),
+                (ManaColor::Colorless, mana.colorless),
+            ]
+            .into_iter()
+            .filter(|(_, amt)| *amt > 0)
+            .collect();
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    for &(color, amount) in &mana_entries {
+                        add_mana_with_restriction(ps, color, amount, &resolved);
+                        events.push(GameEvent::ManaAdded {
+                            player: p,
+                            color,
+                            amount,
+                        });
+                    }
+                }
+            }
+        }
+
+        // CR 106.12: Add one mana of any color with a spending restriction.
+        Effect::AddManaAnyColorRestricted {
+            player,
+            restriction,
+        } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            let resolved = resolve_mana_restriction(state, &Some(restriction.clone()), ctx);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    add_mana_with_restriction(ps, ManaColor::Colorless, 1, &resolved);
+                    events.push(GameEvent::ManaAdded {
+                        player: p,
+                        color: ManaColor::Colorless,
+                        amount: 1,
+                    });
+                }
+            }
+        }
+
         // ── Counters ──────────────────────────────────────────────────────
         Effect::AddCounter {
             target,
@@ -1794,6 +1846,35 @@ fn execute_effect_inner(
                         }
                     }
                 }
+            }
+        }
+
+        // CR 106.12 support: Set chosen_creature_type on the source permanent.
+        // Deterministic fallback: picks the most common creature subtype among
+        // creatures the controller controls, or the provided default.
+        Effect::ChooseCreatureType { default } => {
+            let chosen = {
+                // Find the most common creature subtype among creatures the controller controls.
+                let mut type_counts: std::collections::HashMap<SubType, usize> =
+                    std::collections::HashMap::new();
+                for obj in state.objects.values() {
+                    if obj.controller == ctx.controller
+                        && matches!(obj.zone, ZoneId::Battlefield)
+                        && obj.characteristics.card_types.contains(&CardType::Creature)
+                    {
+                        for st in &obj.characteristics.subtypes {
+                            *type_counts.entry(st.clone()).or_insert(0usize) += 1;
+                        }
+                    }
+                }
+                type_counts
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(st, _)| st)
+                    .unwrap_or_else(|| default.clone())
+            };
+            if let Some(obj) = state.objects.get_mut(&ctx.source) {
+                obj.chosen_creature_type = Some(chosen);
             }
         }
 
@@ -2918,6 +2999,52 @@ fn resolve_player_target_list(
     }
 }
 
+// ── Mana restriction helpers ──────────────────────────────────────────────────
+
+/// Resolve a chosen-type mana restriction to a concrete restriction by looking up
+/// `chosen_creature_type` from the source permanent.
+fn resolve_mana_restriction(
+    state: &GameState,
+    restriction: &Option<ManaRestriction>,
+    ctx: &EffectContext,
+) -> Option<ManaRestriction> {
+    match restriction {
+        None => None,
+        Some(ManaRestriction::ChosenTypeCreaturesOnly)
+        | Some(ManaRestriction::ChosenTypeSpellsOnly) => {
+            // Look up the chosen creature type from the source permanent.
+            let chosen = state
+                .object(ctx.source)
+                .ok()
+                .and_then(|obj| obj.chosen_creature_type.clone());
+            match chosen {
+                Some(st) => Some(ManaRestriction::SubtypeOnly(st)),
+                // No chosen type set — fall back to creature-only as a safe restriction
+                None => match restriction.as_ref().unwrap() {
+                    ManaRestriction::ChosenTypeCreaturesOnly => {
+                        Some(ManaRestriction::CreatureSpellsOnly)
+                    }
+                    _ => None,
+                },
+            }
+        }
+        Some(r) => Some(r.clone()),
+    }
+}
+
+/// Add mana to a player's pool, with optional restriction (CR 106.12).
+fn add_mana_with_restriction(
+    ps: &mut crate::state::player::PlayerState,
+    color: ManaColor,
+    amount: u32,
+    restriction: &Option<ManaRestriction>,
+) {
+    match restriction {
+        Some(r) => ps.mana_pool.add_restricted(color, amount, r.clone()),
+        None => ps.mana_pool.add(color, amount),
+    }
+}
+
 // ── Amount resolution ─────────────────────────────────────────────────────────
 
 /// Resolve an `EffectAmount` to a concrete integer value.
@@ -3227,6 +3354,7 @@ pub fn make_token(
         last_transform_timestamp: 0,
         was_cast_disturbed: false,
         craft_exiled_cards: im::Vector::new(),
+        chosen_creature_type: None,
         face_down_as: None,
         designations: Designations::default(),
     }
