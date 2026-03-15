@@ -1187,10 +1187,7 @@ fn test_partner_commanders_combined_color_identity() {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Partner)],
         power: Some(2),
         toughness: Some(2),
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
+        ..Default::default()
     };
 
     // Partner commander B: legendary creature, blue
@@ -1207,10 +1204,7 @@ fn test_partner_commanders_combined_color_identity() {
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Partner)],
         power: Some(2),
         toughness: Some(2),
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
+        ..Default::default()
     };
 
     // A card with blue color identity (valid in white+blue deck).

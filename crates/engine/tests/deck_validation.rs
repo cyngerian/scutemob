@@ -33,10 +33,7 @@ fn legendary_creature(id: &str, name: &str, cost: ManaCost) -> CardDefinition {
         abilities: vec![],
         power: Some(2),
         toughness: Some(2),
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
+        ..Default::default()
     }
 }
 
@@ -89,10 +86,7 @@ fn creature(id: &str, name: &str, cost: ManaCost) -> CardDefinition {
         abilities: vec![],
         power: Some(1),
         toughness: Some(1),
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
+        ..Default::default()
     }
 }
 
