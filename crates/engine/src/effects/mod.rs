@@ -176,7 +176,14 @@ fn execute_effect_inner(
         // ── Damage & Life ──────────────────────────────────────────────────
         Effect::DealDamage { target, amount } => {
             // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
-            let dmg = resolve_amount(state, amount, ctx).max(0) as u32;
+            let raw_dmg = resolve_amount(state, amount, ctx).max(0) as u32;
+            if raw_dmg == 0 {
+                return;
+            }
+            // CR 614.1: Apply damage-doubling replacement effects before prevention.
+            let (dmg, doubling_events) =
+                crate::rules::replacement::apply_damage_doubling(state, ctx.source, raw_dmg);
+            events.extend(doubling_events);
             if dmg == 0 {
                 return;
             }
@@ -453,7 +460,15 @@ fn execute_effect_inner(
 
         // ── Permanents ────────────────────────────────────────────────────
         Effect::CreateToken { spec } => {
-            for _ in 0..spec.count {
+            // CR 111.1 / CR 614.1: Apply token-creation replacement effects.
+            let (token_count, repl_events) =
+                crate::rules::replacement::apply_token_creation_replacement(
+                    state,
+                    ctx.controller,
+                    spec.count,
+                );
+            events.extend(repl_events);
+            for _ in 0..token_count {
                 let obj = make_token(spec, ctx.controller);
                 if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {
@@ -1074,14 +1089,28 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
-                        let cur = obj.counters.get(&counter).copied().unwrap_or(0);
-                        obj.counters.insert(counter.clone(), cur + count);
-                        events.push(GameEvent::CounterAdded {
-                            object_id: id,
-                            counter: counter.clone(),
+                    // CR 122.6 / CR 614.1: Apply counter-placement replacement effects
+                    // before actually placing counters. The placer is the controller of
+                    // the effect that is placing the counters.
+                    let (modified_count, repl_events) =
+                        crate::rules::replacement::apply_counter_replacement(
+                            state,
+                            ctx.controller,
+                            id,
+                            &counter,
                             count,
-                        });
+                        );
+                    events.extend(repl_events);
+                    if modified_count > 0 {
+                        if let Some(obj) = state.objects.get_mut(&id) {
+                            let cur = obj.counters.get(&counter).copied().unwrap_or(0);
+                            obj.counters.insert(counter.clone(), cur + modified_count);
+                            events.push(GameEvent::CounterAdded {
+                                object_id: id,
+                                counter: counter.clone(),
+                                count: modified_count,
+                            });
+                        }
                     }
                 }
             }
@@ -1403,8 +1432,13 @@ fn execute_effect_inner(
             // find the first matching card (by ObjectId, ascending) in the library.
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
+                // CR 701.19 / CR 614.1: Check search restriction replacements.
+                let (search_restriction, repl_events) =
+                    crate::rules::replacement::apply_search_library_replacement(state, p);
+                events.extend(repl_events);
+
                 let lib_id = ZoneId::Library(p);
-                let candidates: Vec<ObjectId> = state
+                let mut candidates: Vec<ObjectId> = state
                     .objects
                     .iter()
                     .filter(|(_, obj)| {
@@ -1412,6 +1446,21 @@ fn execute_effect_inner(
                     })
                     .map(|(id, _)| *id)
                     .collect();
+
+                // If search is restricted to top N, sort by library position
+                // and truncate. Library order is by ObjectId ascending (deterministic).
+                if let Some(top_n) = search_restriction {
+                    let mut all_lib: Vec<ObjectId> = state
+                        .objects
+                        .iter()
+                        .filter(|(_, obj)| obj.zone == lib_id)
+                        .map(|(id, _)| *id)
+                        .collect();
+                    all_lib.sort();
+                    let top_ids: std::collections::HashSet<ObjectId> =
+                        all_lib.into_iter().take(top_n as usize).collect();
+                    candidates.retain(|id| top_ids.contains(id));
+                }
 
                 if let Some(&card_id) = candidates.iter().min_by_key(|&&id| id.0) {
                     // MR-M7-10: check tapped flag before resolving to ZoneId.
@@ -1943,12 +1992,20 @@ fn execute_effect_inner(
         Effect::Proliferate => {
             let controller = ctx.controller;
 
-            // 1. Iterate all permanents on the battlefield with at least one counter.
-            //    CR ruling 2023-02-04: "You can't choose cards in any zone other
-            //    than the battlefield, even if they have counters on them."
-            // CR 702.26b: phased-out permanents are treated as nonexistent.
-            let battlefield_objects: Vec<(ObjectId, Vec<(crate::state::types::CounterType, u32)>)> =
-                state
+            // CR 701.34 / CR 614.1: Check for proliferate-doubling replacements (Tekuthal).
+            let (proliferate_times, prolif_repl_events) =
+                crate::rules::replacement::apply_proliferate_replacement(state, controller);
+            events.extend(prolif_repl_events);
+
+            for _prolif_iter in 0..proliferate_times {
+                // 1. Iterate all permanents on the battlefield with at least one counter.
+                //    CR ruling 2023-02-04: "You can't choose cards in any zone other
+                //    than the battlefield, even if they have counters on them."
+                // CR 702.26b: phased-out permanents are treated as nonexistent.
+                let battlefield_objects: Vec<(
+                    ObjectId,
+                    Vec<(crate::state::types::CounterType, u32)>,
+                )> = state
                     .objects
                     .iter()
                     .filter(|(_, obj)| {
@@ -1966,55 +2023,69 @@ fn execute_effect_inner(
                     })
                     .collect();
 
-            // Add one counter of each kind to each eligible permanent.
-            for (obj_id, counter_types) in &battlefield_objects {
-                if let Some(obj) = state.objects.get_mut(obj_id) {
+                // Add one counter of each kind to each eligible permanent.
+                // CR 122.6: counter-placement replacements apply to each proliferate addition.
+                for (obj_id, counter_types) in &battlefield_objects {
                     for (counter_type, _) in counter_types {
-                        let cur = obj.counters.get(counter_type).copied().unwrap_or(0);
-                        obj.counters.insert(counter_type.clone(), cur + 1);
-                        events.push(GameEvent::CounterAdded {
-                            object_id: *obj_id,
-                            counter: counter_type.clone(),
-                            count: 1,
+                        let (modified_count, repl_events) =
+                            crate::rules::replacement::apply_counter_replacement(
+                                state,
+                                controller,
+                                *obj_id,
+                                counter_type,
+                                1,
+                            );
+                        events.extend(repl_events);
+                        if modified_count > 0 {
+                            if let Some(obj) = state.objects.get_mut(obj_id) {
+                                let cur = obj.counters.get(counter_type).copied().unwrap_or(0);
+                                obj.counters
+                                    .insert(counter_type.clone(), cur + modified_count);
+                                events.push(GameEvent::CounterAdded {
+                                    object_id: *obj_id,
+                                    counter: counter_type.clone(),
+                                    count: modified_count,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // 2. Iterate all players with poison counters (the only player counter type).
+                //    CR 701.34a: "players that have a counter" -- poison_counters > 0.
+                //
+                // NOTE: Only poison counters are currently tracked on PlayerState. CR 122.1
+                // recognizes additional player counter types (experience from Commander 2015,
+                // energy, rad counters from CR 727). CounterType::Experience and
+                // CounterType::Energy exist in the type system but have no corresponding
+                // PlayerState fields. When those fields are added to PlayerState, update
+                // this loop to also proliferate them.
+                let eligible_players: Vec<crate::state::player::PlayerId> = state
+                    .players
+                    .iter()
+                    .filter(|(_, ps)| !ps.has_lost && ps.poison_counters > 0)
+                    .map(|(id, _)| *id)
+                    .collect();
+
+                for pid in &eligible_players {
+                    if let Some(player) = state.players.get_mut(pid) {
+                        player.poison_counters += 1;
+                        events.push(GameEvent::PoisonCountersGiven {
+                            player: *pid,
+                            amount: 1,
+                            source: ctx.source,
                         });
                     }
                 }
-            }
 
-            // 2. Iterate all players with poison counters (the only player counter type).
-            //    CR 701.34a: "players that have a counter" -- poison_counters > 0.
-            //
-            // NOTE: Only poison counters are currently tracked on PlayerState. CR 122.1
-            // recognizes additional player counter types (experience from Commander 2015,
-            // energy, rad counters from CR 727). CounterType::Experience and
-            // CounterType::Energy exist in the type system but have no corresponding
-            // PlayerState fields. When those fields are added to PlayerState, update
-            // this loop to also proliferate them.
-            let eligible_players: Vec<crate::state::player::PlayerId> = state
-                .players
-                .iter()
-                .filter(|(_, ps)| !ps.has_lost && ps.poison_counters > 0)
-                .map(|(id, _)| *id)
-                .collect();
-
-            for pid in &eligible_players {
-                if let Some(player) = state.players.get_mut(pid) {
-                    player.poison_counters += 1;
-                    events.push(GameEvent::PoisonCountersGiven {
-                        player: *pid,
-                        amount: 1,
-                        source: ctx.source,
-                    });
-                }
-            }
-
-            // 3. Always emit Proliferated event (ruling 2023-02-04:
-            //    "triggers even if you chose no permanents or players").
-            events.push(GameEvent::Proliferated {
-                controller,
-                permanents_affected: battlefield_objects.len() as u32,
-                players_affected: eligible_players.len() as u32,
-            });
+                // 3. Always emit Proliferated event (ruling 2023-02-04:
+                //    "triggers even if you chose no permanents or players").
+                events.push(GameEvent::Proliferated {
+                    controller,
+                    permanents_affected: battlefield_objects.len() as u32,
+                    players_affected: eligible_players.len() as u32,
+                });
+            } // end proliferate_times loop
         }
 
         // CR 701.57a: Discover N — exile cards from the top of the specified

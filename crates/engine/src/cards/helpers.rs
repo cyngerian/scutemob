@@ -29,8 +29,9 @@ pub use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,
 };
 pub use crate::state::replacement_effect::{
-    ObjectFilter, ReplacementModification, ReplacementTrigger,
+    DamageTargetFilter, ObjectFilter, PlayerFilter, ReplacementModification, ReplacementTrigger,
 };
+pub use crate::state::stubs::TriggerDoublerFilter;
 pub use crate::state::zone::ZoneType;
 
 // ── Helper functions ─────────────────────────────────────────────────────────

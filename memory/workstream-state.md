@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **TOP PRIORITY**. PB-0 through PB-11 done. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | PB-12: Complex replacement effects | ACTIVE | 2026-03-15 | **TOP PRIORITY**. PB-0 through PB-11 done. Plan: `docs/primitive-card-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

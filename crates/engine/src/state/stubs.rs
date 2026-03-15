@@ -493,6 +493,12 @@ pub enum TriggerDoublerFilter {
     /// Specifically: any triggered ability on a permanent that would trigger from
     /// a creature or artifact permanent entering the battlefield.
     ArtifactOrCreatureETB,
+    /// "If a creature dying causes a triggered ability to trigger" — Teysa Karlov.
+    ///
+    /// Doubles death-triggered abilities (triggered by CreatureDied events).
+    /// CR 603.2d: the trigger fires an additional time when a creature dying
+    /// is the triggering event.
+    CreatureDeath,
 }
 
 /// A Panharmonicon-style trigger-doubling effect (CR 603.2d).

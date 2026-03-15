@@ -2,8 +2,6 @@
 // If a creature dying causes a triggered ability of a permanent you control to trigger,
 // that ability triggers an additional time.
 // Creature tokens you control have vigilance and lifelink.
-// TODO: DSL gap — doubling death triggers requires a replacement effect on trigger queueing
-// with source-creature-dying filter; not supported. Token keyword grant is also unsupported.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +17,17 @@ pub fn card() -> CardDefinition {
         oracle_text: "If a creature dying causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\nCreature tokens you control have vigilance and lifelink.".to_string(),
         power: Some(2),
         toughness: Some(4),
-        abilities: vec![],
-        // TODO: double death-trigger ability (requires trigger-doubling replacement effect)
-        // TODO: grant vigilance and lifelink to creature tokens you control
+        abilities: vec![
+            // CR 603.2d: Death trigger doubling — creature dying causes triggers
+            // to fire an additional time.
+            AbilityDefinition::TriggerDoubling {
+                filter: TriggerDoublerFilter::CreatureDeath,
+                additional_triggers: 1,
+            },
+            // TODO: "Creature tokens you control have vigilance and lifelink."
+            // Requires a token-only EffectFilter (EffectFilter::TokenCreatures) for
+            // the static ability grant. Not yet expressible in the DSL.
+        ],
         ..Default::default()
     }
 }

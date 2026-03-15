@@ -2,11 +2,6 @@
 // Flash, Flying
 // If an opponent would search a library, that player searches the top four
 // cards of that library instead.
-//
-// Flash and Flying are implemented.
-// TODO: DSL gap — the replacement effect ("search top four instead of entire
-// library") requires a ReplacementTrigger for opponent library searches with
-// a ZoneRestriction modification. No such replacement effect exists in the DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,7 +16,16 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — opponent library search restriction replacement not expressible.
+            // CR 701.19 / CR 614.1: Restrict opponent library searches to top 4.
+            // PlayerId(0) placeholder — bound to controller at registration.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldSearchLibrary {
+                    searcher_filter: PlayerFilter::OpponentsOf(PlayerId(0)),
+                },
+                modification: ReplacementModification::RestrictSearchTopN(4),
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         ..Default::default()
     }

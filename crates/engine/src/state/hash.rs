@@ -1318,6 +1318,7 @@ impl HashInto for TriggerDoublerFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
             TriggerDoublerFilter::ArtifactOrCreatureETB => 0u8.hash_into(hasher),
+            TriggerDoublerFilter::CreatureDeath => 1u8.hash_into(hasher),
         }
     }
 }
@@ -1423,6 +1424,10 @@ impl HashInto for DamageTargetFilter {
                 3u8.hash_into(hasher);
                 id.hash_into(hasher);
             }
+            DamageTargetFilter::FromControllerSources(pid) => {
+                4u8.hash_into(hasher);
+                pid.hash_into(hasher);
+            }
         }
     }
 }
@@ -1471,6 +1476,35 @@ impl HashInto for ReplacementTrigger {
                 5u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
+            // CR 122.6/614.1: WouldPlaceCounters (discriminant 6)
+            ReplacementTrigger::WouldPlaceCounters {
+                placer_filter,
+                receiver_filter,
+            } => {
+                6u8.hash_into(hasher);
+                placer_filter.hash_into(hasher);
+                receiver_filter.hash_into(hasher);
+            }
+            // CR 111.1/614.1: WouldCreateTokens (discriminant 7)
+            ReplacementTrigger::WouldCreateTokens { controller_filter } => {
+                7u8.hash_into(hasher);
+                controller_filter.hash_into(hasher);
+            }
+            // CR 701.19/614.1: WouldSearchLibrary (discriminant 8)
+            ReplacementTrigger::WouldSearchLibrary { searcher_filter } => {
+                8u8.hash_into(hasher);
+                searcher_filter.hash_into(hasher);
+            }
+            // CR 614.1: WouldLoseLife (discriminant 9)
+            ReplacementTrigger::WouldLoseLife { player_filter } => {
+                9u8.hash_into(hasher);
+                player_filter.hash_into(hasher);
+            }
+            // CR 701.34: WouldProliferate (discriminant 10)
+            ReplacementTrigger::WouldProliferate { player_filter } => {
+                10u8.hash_into(hasher);
+                player_filter.hash_into(hasher);
+            }
         }
     }
 }
@@ -1506,6 +1540,25 @@ impl HashInto for ReplacementModification {
                 9u8.hash_into(hasher);
                 st.0.hash_into(hasher);
             }
+            // CR 122.6: DoubleCounters (discriminant 10)
+            ReplacementModification::DoubleCounters => 10u8.hash_into(hasher),
+            // CR 122.6: HalveCounters (discriminant 11)
+            ReplacementModification::HalveCounters => 11u8.hash_into(hasher),
+            // CR 122.6: AddExtraCounter (discriminant 12)
+            ReplacementModification::AddExtraCounter => 12u8.hash_into(hasher),
+            // CR 111.1: DoubleTokens (discriminant 13)
+            ReplacementModification::DoubleTokens => 13u8.hash_into(hasher),
+            // CR 701.19: RestrictSearchTopN (discriminant 14)
+            ReplacementModification::RestrictSearchTopN(n) => {
+                14u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // CR 614.1: DoubleDamage (discriminant 15)
+            ReplacementModification::DoubleDamage => 15u8.hash_into(hasher),
+            // CR 614.1: DoubleLifeLoss (discriminant 16)
+            ReplacementModification::DoubleLifeLoss => 16u8.hash_into(hasher),
+            // CR 701.34: DoubleProliferate (discriminant 17)
+            ReplacementModification::DoubleProliferate => 17u8.hash_into(hasher),
         }
     }
 }

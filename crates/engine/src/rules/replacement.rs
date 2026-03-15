@@ -320,6 +320,57 @@ fn trigger_matches(
             ReplacementTrigger::WouldBeDestroyed { filter: eff_filter },
             ReplacementTrigger::WouldBeDestroyed { filter: evt_filter },
         ) => event_object_matches_filter(state, evt_filter, eff_filter),
+        // CR 122.6/614.1: Counter placement replacement matching.
+        // Both placer_filter and receiver_filter must match.
+        (
+            ReplacementTrigger::WouldPlaceCounters {
+                placer_filter: eff_placer,
+                receiver_filter: eff_receiver,
+            },
+            ReplacementTrigger::WouldPlaceCounters {
+                placer_filter: evt_placer,
+                receiver_filter: evt_receiver,
+            },
+        ) => {
+            event_player_matches_filter(evt_placer, eff_placer)
+                && event_object_matches_filter(state, evt_receiver, eff_receiver)
+        }
+        // CR 111.1/614.1: Token creation replacement matching.
+        (
+            ReplacementTrigger::WouldCreateTokens {
+                controller_filter: eff_filter,
+            },
+            ReplacementTrigger::WouldCreateTokens {
+                controller_filter: evt_filter,
+            },
+        ) => event_player_matches_filter(evt_filter, eff_filter),
+        // CR 701.19/614.1: Library search replacement matching.
+        (
+            ReplacementTrigger::WouldSearchLibrary {
+                searcher_filter: eff_filter,
+            },
+            ReplacementTrigger::WouldSearchLibrary {
+                searcher_filter: evt_filter,
+            },
+        ) => event_player_matches_filter(evt_filter, eff_filter),
+        // CR 614.1: Life loss replacement matching.
+        (
+            ReplacementTrigger::WouldLoseLife {
+                player_filter: eff_filter,
+            },
+            ReplacementTrigger::WouldLoseLife {
+                player_filter: evt_filter,
+            },
+        ) => event_player_matches_filter(evt_filter, eff_filter),
+        // CR 701.34: Proliferate replacement matching.
+        (
+            ReplacementTrigger::WouldProliferate {
+                player_filter: eff_filter,
+            },
+            ReplacementTrigger::WouldProliferate {
+                player_filter: evt_filter,
+            },
+        ) => event_player_matches_filter(evt_filter, eff_filter),
         // Different trigger types never match
         _ => false,
     }
@@ -415,6 +466,31 @@ pub fn player_matches_filter(player_id: PlayerId, filter: &PlayerFilter) -> bool
         PlayerFilter::Any => true,
         PlayerFilter::Specific(id) => player_id == *id,
         PlayerFilter::OpponentsOf(id) => player_id != *id,
+    }
+}
+
+/// Bind a PlayerFilter placeholder to the actual controller's PlayerId.
+///
+/// Card definitions use `Specific(PlayerId(0))` as a placeholder for "the controller"
+/// and `OpponentsOf(PlayerId(0))` for "opponents of the controller". At registration
+/// time, replace these with the actual controller's PlayerId.
+fn bind_player_filter(filter: &PlayerFilter, controller: PlayerId) -> PlayerFilter {
+    match filter {
+        PlayerFilter::Specific(PlayerId(0)) => PlayerFilter::Specific(controller),
+        PlayerFilter::OpponentsOf(PlayerId(0)) => PlayerFilter::OpponentsOf(controller),
+        other => other.clone(),
+    }
+}
+
+/// Bind an ObjectFilter placeholder to the actual controller's PlayerId.
+///
+/// Card definitions use `ControlledBy(PlayerId(0))` as a placeholder for
+/// "controlled by the controller". At registration time, replace with the
+/// actual controller's PlayerId.
+fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilter {
+    match filter {
+        ObjectFilter::ControlledBy(PlayerId(0)) => ObjectFilter::ControlledBy(controller),
+        other => other.clone(),
     }
 }
 
@@ -1357,21 +1433,29 @@ fn emit_etb_modification(
             });
         }
         Some(ReplacementModification::EntersWithCounters { counter, count }) => {
-            if let Some(obj) = state.objects.get_mut(&new_id) {
-                let cur = obj.counters.get(&counter).copied().unwrap_or(0);
-                obj.counters.insert(counter.clone(), cur + count);
+            // CR 122.6: Apply counter-placement replacements to ETB counters too.
+            let (modified_count, repl_events) =
+                apply_counter_replacement(state, controller, new_id, &counter, count);
+            evts.extend(repl_events);
+            if modified_count > 0 {
+                if let Some(obj) = state.objects.get_mut(&new_id) {
+                    let cur = obj.counters.get(&counter).copied().unwrap_or(0);
+                    obj.counters.insert(counter.clone(), cur + modified_count);
+                }
             }
             if let Some(id) = effect_id {
                 evts.push(GameEvent::ReplacementEffectApplied {
                     effect_id: id,
-                    description: format!("enters with {} {:?} counters", count, counter),
+                    description: format!("enters with {} {:?} counters", modified_count, counter),
                 });
             }
-            evts.push(GameEvent::CounterAdded {
-                object_id: new_id,
-                counter,
-                count,
-            });
+            if modified_count > 0 {
+                evts.push(GameEvent::CounterAdded {
+                    object_id: new_id,
+                    counter,
+                    count: modified_count,
+                });
+            }
         }
         Some(ReplacementModification::ChooseCreatureType(default_type)) => {
             // CR 106.12 support: "As this enters, choose a creature type."
@@ -1528,6 +1612,10 @@ pub fn register_permanent_replacement_abilities(
             // For non-self WouldChangeZone effects with `OwnedByOpponentsOf`, bind the
             // controller's PlayerId at registration time so "opponents" is computed
             // relative to the Leyline controller (MR-M8-09).
+            //
+            // For WouldPlaceCounters/WouldCreateTokens/WouldSearchLibrary, bind the
+            // controller's PlayerId at registration time so player filters resolve
+            // correctly (Vorinclex, Pir, Adrix and Nev, Aven Mindcensor).
             let resolved_trigger = if *is_self {
                 match trigger {
                     ReplacementTrigger::WouldChangeZone { from, to, .. } => {
@@ -1550,6 +1638,40 @@ pub fn register_permanent_replacement_abilities(
                         to: *to,
                         filter: ObjectFilter::OwnedByOpponentsOf(controller),
                     },
+                    // Bind PlayerFilter placeholders at registration time.
+                    // Card defs use Specific(PlayerId(0)) as a placeholder for "controller".
+                    ReplacementTrigger::WouldPlaceCounters {
+                        placer_filter,
+                        receiver_filter,
+                    } => ReplacementTrigger::WouldPlaceCounters {
+                        placer_filter: bind_player_filter(placer_filter, controller),
+                        receiver_filter: bind_object_filter(receiver_filter, controller),
+                    },
+                    ReplacementTrigger::WouldCreateTokens { controller_filter } => {
+                        ReplacementTrigger::WouldCreateTokens {
+                            controller_filter: bind_player_filter(controller_filter, controller),
+                        }
+                    }
+                    ReplacementTrigger::WouldSearchLibrary { searcher_filter } => {
+                        ReplacementTrigger::WouldSearchLibrary {
+                            searcher_filter: bind_player_filter(searcher_filter, controller),
+                        }
+                    }
+                    ReplacementTrigger::WouldLoseLife { player_filter } => {
+                        ReplacementTrigger::WouldLoseLife {
+                            player_filter: bind_player_filter(player_filter, controller),
+                        }
+                    }
+                    ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter: DamageTargetFilter::FromControllerSources(PlayerId(0)),
+                    } => ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter: DamageTargetFilter::FromControllerSources(controller),
+                    },
+                    ReplacementTrigger::WouldProliferate { player_filter } => {
+                        ReplacementTrigger::WouldProliferate {
+                            player_filter: bind_player_filter(player_filter, controller),
+                        }
+                    }
                     other => other.clone(),
                 }
             };
@@ -1784,6 +1906,13 @@ pub fn apply_damage_prevention(
                     description: "prevented all damage".to_string(),
                 });
                 // PreventAllDamage is not consumed — it lasts until its duration expires.
+            }
+            Some(ReplacementModification::DoubleDamage) => {
+                remaining *= 2;
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: format!("doubled damage to {}", remaining),
+                });
             }
             _ => {
                 // Other modifications on a DamageWouldBeDealt trigger (future use) are
@@ -2194,4 +2323,277 @@ pub fn apply_umbra_armor(
     }
 
     events
+}
+
+// ── Counter placement replacement helpers (CR 122.6, 614.1) ──────────────
+
+/// CR 122.6 / CR 614.1: Apply counter-placement replacement effects.
+///
+/// Before placing `count` counters of type `counter` on a permanent, check
+/// for registered WouldPlaceCounters replacement effects. Returns the
+/// modified count and any ReplacementEffectApplied events to emit.
+///
+/// `placer` is the player whose effect is placing the counters (typically
+/// the controller of the source that places them).
+/// `receiver_id` is the permanent receiving the counters.
+///
+/// Multiple replacement effects are applied in controller order per CR 616.1
+/// (deterministic for now — interactive choice deferred to M10+).
+/// Each replacement applies at most once per event (CR 614.5).
+pub fn apply_counter_replacement(
+    state: &GameState,
+    placer: PlayerId,
+    receiver_id: ObjectId,
+    _counter: &crate::state::types::CounterType,
+    count: u32,
+) -> (u32, Vec<GameEvent>) {
+    let mut events = Vec::new();
+    if count == 0 {
+        return (0, events);
+    }
+
+    let event_trigger = ReplacementTrigger::WouldPlaceCounters {
+        placer_filter: PlayerFilter::Specific(placer),
+        receiver_filter: ObjectFilter::SpecificObject(receiver_id),
+    };
+
+    let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
+
+    let mut modified_count = count;
+    for effect_id in &applicable {
+        if let Some(effect) = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == *effect_id)
+        {
+            match &effect.modification {
+                ReplacementModification::DoubleCounters => {
+                    modified_count *= 2;
+                    events.push(GameEvent::ReplacementEffectApplied {
+                        effect_id: *effect_id,
+                        description: format!("doubled counters: {} → {}", count, modified_count),
+                    });
+                }
+                ReplacementModification::HalveCounters => {
+                    modified_count /= 2;
+                    events.push(GameEvent::ReplacementEffectApplied {
+                        effect_id: *effect_id,
+                        description: format!("halved counters: {} → {}", count, modified_count),
+                    });
+                }
+                ReplacementModification::AddExtraCounter => {
+                    modified_count += 1;
+                    events.push(GameEvent::ReplacementEffectApplied {
+                        effect_id: *effect_id,
+                        description: format!("added extra counter: {} → {}", count, modified_count),
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+
+    (modified_count, events)
+}
+
+/// CR 111.1 / CR 614.1: Apply token-creation replacement effects.
+///
+/// Before creating `count` tokens, check for registered WouldCreateTokens
+/// replacement effects. Returns the modified count and events.
+pub fn apply_token_creation_replacement(
+    state: &GameState,
+    controller: PlayerId,
+    count: u32,
+) -> (u32, Vec<GameEvent>) {
+    let mut events = Vec::new();
+    if count == 0 {
+        return (0, events);
+    }
+
+    let event_trigger = ReplacementTrigger::WouldCreateTokens {
+        controller_filter: PlayerFilter::Specific(controller),
+    };
+
+    let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
+
+    let mut modified_count = count;
+    for effect_id in &applicable {
+        if let Some(effect) = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == *effect_id)
+        {
+            if matches!(effect.modification, ReplacementModification::DoubleTokens) {
+                modified_count *= 2;
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: *effect_id,
+                    description: format!("doubled tokens: {} → {}", count, modified_count),
+                });
+            }
+        }
+    }
+
+    (modified_count, events)
+}
+
+/// CR 701.19 / CR 614.1: Apply library-search replacement effects.
+///
+/// Before searching a library, check for registered WouldSearchLibrary
+/// replacement effects. Returns `Some(top_n)` if search should be restricted
+/// to the top N cards, or `None` for unrestricted search.
+pub fn apply_search_library_replacement(
+    state: &GameState,
+    searcher: PlayerId,
+) -> (Option<u32>, Vec<GameEvent>) {
+    let mut events = Vec::new();
+
+    let event_trigger = ReplacementTrigger::WouldSearchLibrary {
+        searcher_filter: PlayerFilter::Specific(searcher),
+    };
+
+    let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
+
+    let mut restriction: Option<u32> = None;
+    for effect_id in &applicable {
+        if let Some(effect) = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == *effect_id)
+        {
+            if let ReplacementModification::RestrictSearchTopN(n) = &effect.modification {
+                // Take the most restrictive (smallest) restriction
+                restriction = Some(match restriction {
+                    Some(existing) => existing.min(*n),
+                    None => *n,
+                });
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: *effect_id,
+                    description: format!("search restricted to top {} cards", n),
+                });
+            }
+        }
+    }
+
+    (restriction, events)
+}
+
+/// CR 614.1: Apply damage-doubling replacement effects.
+///
+/// Checks for registered DamageWouldBeDealt replacements with DoubleDamage
+/// modification where the source is controlled by the matching player.
+/// Called before `apply_damage_prevention` in the damage path.
+///
+/// Returns `(modified_amount, events)`.
+pub fn apply_damage_doubling(
+    state: &GameState,
+    source: ObjectId,
+    amount: u32,
+) -> (u32, Vec<GameEvent>) {
+    let mut events = Vec::new();
+    if amount == 0 {
+        return (0, events);
+    }
+
+    let source_controller = state.objects.get(&source).map(|o| o.controller);
+
+    let mut modified = amount;
+    for effect in state.replacement_effects.iter() {
+        if let ReplacementModification::DoubleDamage = &effect.modification {
+            if let ReplacementTrigger::DamageWouldBeDealt {
+                target_filter: DamageTargetFilter::FromControllerSources(pid),
+            } = &effect.trigger
+            {
+                if source_controller == Some(*pid) {
+                    modified *= 2;
+                    events.push(GameEvent::ReplacementEffectApplied {
+                        effect_id: effect.id,
+                        description: format!("doubled damage: {} → {}", amount, modified),
+                    });
+                }
+            }
+        }
+    }
+
+    (modified, events)
+}
+
+/// CR 614.1: Apply life-loss doubling replacement effects.
+///
+/// Checks for registered WouldLoseLife replacements with DoubleLifeLoss
+/// modification. Called before applying life loss.
+///
+/// Returns `(modified_amount, events)`.
+pub fn apply_life_loss_doubling(
+    state: &GameState,
+    player: PlayerId,
+    amount: u32,
+) -> (u32, Vec<GameEvent>) {
+    let mut events = Vec::new();
+    if amount == 0 {
+        return (0, events);
+    }
+
+    let event_trigger = ReplacementTrigger::WouldLoseLife {
+        player_filter: PlayerFilter::Specific(player),
+    };
+
+    let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
+
+    let mut modified = amount;
+    for effect_id in &applicable {
+        if let Some(effect) = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == *effect_id)
+        {
+            if matches!(effect.modification, ReplacementModification::DoubleLifeLoss) {
+                modified *= 2;
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: *effect_id,
+                    description: format!("doubled life loss: {} → {}", amount, modified),
+                });
+            }
+        }
+    }
+
+    (modified, events)
+}
+
+/// CR 701.34 / CR 614.1: Check if proliferate should be doubled.
+///
+/// Returns the number of times to proliferate (1 normally, 2 with Tekuthal, etc.)
+/// and any ReplacementEffectApplied events.
+pub fn apply_proliferate_replacement(
+    state: &GameState,
+    controller: PlayerId,
+) -> (u32, Vec<GameEvent>) {
+    let mut events = Vec::new();
+
+    let event_trigger = ReplacementTrigger::WouldProliferate {
+        player_filter: PlayerFilter::Specific(controller),
+    };
+
+    let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
+
+    let mut times = 1u32;
+    for effect_id in &applicable {
+        if let Some(effect) = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == *effect_id)
+        {
+            if matches!(
+                effect.modification,
+                ReplacementModification::DoubleProliferate
+            ) {
+                times *= 2;
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: *effect_id,
+                    description: format!("proliferate doubled: {} times", times),
+                });
+            }
+        }
+    }
+
+    (times, events)
 }

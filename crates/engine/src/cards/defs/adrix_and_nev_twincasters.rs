@@ -1,17 +1,7 @@
-// 55 (additional). Adrix and Nev, Twincasters — {2}{G}{U}, Legendary Creature — Merfolk
-// Wizard 2/2. Ward {2}. If one or more tokens would be created under your control,
-// twice that many of those tokens are created instead.
-//
-// Ward {2} is encoded as KeywordAbility::Ward(2); the triggered ability that counters
-// spells/abilities targeting this creature unless the opponent pays {2} is generated
-// automatically from the keyword by state/builder.rs.
-//
-// The token-doubling ability is a replacement effect (CR 614.1): "If one or more tokens
-// would be created under your control, twice that many of those tokens are created
-// instead." ReplacementTrigger::WouldCreateToken does not yet exist in the DSL.
-// TODO: Add ReplacementTrigger::WouldCreateToken { player_filter: PlayerFilter }
-// and ReplacementModification::DoubleTokens to replacement_effect.rs, then replace
-// this TODO with AbilityDefinition::Replacement using those variants.
+// Adrix and Nev, Twincasters — {2}{G}{U}, Legendary Creature — Merfolk Wizard 2/2
+// Ward {2}
+// If one or more tokens would be created under your control, twice that many of
+// those tokens are created instead.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -27,12 +17,17 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // CR 702.21a: Ward {2} — generates a triggered ability at object-construction
-            // time that counters any spell or ability an opponent controls that targets this
-            // creature, unless that opponent pays {2}.
             AbilityDefinition::Keyword(KeywordAbility::Ward(2)),
-            // TODO: Token-doubling replacement effect — requires ReplacementTrigger::WouldCreateToken
-            // and ReplacementModification::DoubleTokens (not yet in DSL). See note above.
+            // CR 111.1 / CR 614.1: Token-doubling replacement effect.
+            // PlayerId(0) placeholder — bound to controller at registration.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldCreateTokens {
+                    controller_filter: PlayerFilter::Specific(PlayerId(0)),
+                },
+                modification: ReplacementModification::DoubleTokens,
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         color_indicator: None,
         back_face: None,

@@ -1,8 +1,8 @@
 // Tekuthal, Inquiry Dominus — {2}{U}{U}, Legendary Creature — Phyrexian Horror 3/5
 // Flying
 // If you would proliferate, proliferate twice instead.
-// {1}{U/P}{U/P}, Remove three counters from among other artifacts, creatures, and planeswalkers you control:
-//   Put an indestructible counter on Tekuthal.
+// {1}{U/P}{U/P}, Remove three counters from among other artifacts, creatures, and planeswalkers
+// you control: Put an indestructible counter on Tekuthal.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,11 +20,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Replacement effect — if you would proliferate, proliferate twice instead.
-            // DSL gap: no proliferate-doubling replacement effect.
+            // CR 701.34 / CR 614.1: Proliferate doubling replacement.
+            // PlayerId(0) placeholder — bound to controller at registration.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldProliferate {
+                    player_filter: PlayerFilter::Specific(PlayerId(0)),
+                },
+                modification: ReplacementModification::DoubleProliferate,
+                is_self: false,
+                unless_condition: None,
+            },
             // TODO: Activated ability — {1}{U/P}{U/P}, remove three counters from among other
             // artifacts/creatures/planeswalkers you control: put an indestructible counter on this.
-            // DSL gap: phyrexian mana costs NOW representable (PB-9); remove-counters-from-others cost still missing.
+            // DSL gap: remove-counters-from-others cost not yet expressible.
         ],
         ..Default::default()
     }

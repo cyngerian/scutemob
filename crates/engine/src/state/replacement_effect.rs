@@ -48,6 +48,28 @@ pub enum ReplacementTrigger {
     /// Matches both SBA-based destruction (704.5g/h) and effect-based destruction
     /// (Effect::DestroyPermanent). Does NOT match 704.5f (zero toughness -- not destruction).
     WouldBeDestroyed { filter: ObjectFilter },
+    /// One or more counters would be placed on a permanent (CR 122.6, 614.1).
+    /// `placer_filter` matches the player whose effect is placing the counters.
+    /// `receiver_filter` matches the permanent receiving the counters.
+    /// Used by Vorinclex (placer-based), Pir (receiver-based).
+    WouldPlaceCounters {
+        placer_filter: PlayerFilter,
+        receiver_filter: ObjectFilter,
+    },
+    /// Tokens would be created (CR 111.1, 614.1).
+    /// `controller_filter` matches the player who would create the tokens.
+    WouldCreateTokens { controller_filter: PlayerFilter },
+    /// A player would search a library (CR 701.19, 614.1).
+    /// `searcher_filter` matches the player who would search.
+    WouldSearchLibrary { searcher_filter: PlayerFilter },
+    /// A player would lose life (CR 614.1).
+    /// Distinct from DamageWouldBeDealt — this triggers on life loss specifically.
+    /// Used by Bloodletter of Aclazotz: "If an opponent would lose life during your turn,
+    /// they lose twice that much life instead."
+    WouldLoseLife { player_filter: PlayerFilter },
+    /// A player would proliferate (CR 701.34, CR 614.1).
+    /// Used by Tekuthal: "If you would proliferate, proliferate twice instead."
+    WouldProliferate { player_filter: PlayerFilter },
 }
 
 /// What a replacement effect does when it applies (CR 614.6).
@@ -88,6 +110,38 @@ pub enum ReplacementModification {
     /// picks the most common creature subtype among creatures the controller controls,
     /// or the provided default.
     ChooseCreatureType(SubType),
+    /// CR 614.1 / CR 122.6: Double the number of counters being placed.
+    /// "If you would put one or more counters, put twice that many instead."
+    /// Used by Vorinclex, Monstrous Raider (for controller's counters).
+    DoubleCounters,
+    /// CR 614.1 / CR 122.6: Halve (round down) the number of counters being placed.
+    /// "They put half that many instead, rounded down."
+    /// Used by Vorinclex, Monstrous Raider (for opponents' counters).
+    HalveCounters,
+    /// CR 614.1 / CR 122.6: Add one extra counter of each kind being placed.
+    /// "That many plus one of each of those kinds of counters are put instead."
+    /// Used by Pir, Imaginative Rascal.
+    AddExtraCounter,
+    /// CR 614.1 / CR 111.1: Double the number of tokens being created.
+    /// "If one or more tokens would be created, twice that many are created instead."
+    /// Used by Adrix and Nev, Twincasters.
+    DoubleTokens,
+    /// CR 614.1 / CR 701.19: Restrict library search to the top N cards.
+    /// "That player searches the top N cards instead."
+    /// Used by Aven Mindcensor (top 4).
+    RestrictSearchTopN(u32),
+    /// CR 614.1: Double damage from a damage event.
+    /// "If a source you control would deal damage, it deals double that damage instead."
+    /// Used by Twinflame Tyrant.
+    DoubleDamage,
+    /// CR 614.1: Double life loss.
+    /// "If a player would lose life, they lose twice that much life instead."
+    /// Used by Bloodletter of Aclazotz.
+    DoubleLifeLoss,
+    /// CR 701.34 / CR 614.1: Proliferate an additional time.
+    /// "If you would proliferate, proliferate twice instead."
+    /// Used by Tekuthal, Inquiry Dominus.
+    DoubleProliferate,
 }
 
 /// Filters which objects a replacement trigger matches.
@@ -137,6 +191,9 @@ pub enum DamageTargetFilter {
     Permanent(ObjectId),
     /// Only damage dealt by a specific source.
     FromSource(ObjectId),
+    /// Only damage dealt by sources controlled by a specific player.
+    /// Used by Twinflame Tyrant: "If a source you control would deal damage".
+    FromControllerSources(PlayerId),
 }
 
 /// A replacement or prevention effect active in the game (CR 614, 615).

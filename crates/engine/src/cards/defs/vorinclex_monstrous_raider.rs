@@ -20,9 +20,27 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: Replacement effect — double counters placed on permanents/players by you.
-            // TODO: Replacement effect — halve counters placed on permanents/players by opponents.
-            // DSL gap: no counter-doubling/halving replacement effect.
+            // CR 122.6 / CR 614.1: Double counters placed by controller.
+            // PlayerId(0) is a placeholder — bound to the actual controller at registration.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldPlaceCounters {
+                    placer_filter: PlayerFilter::Specific(PlayerId(0)),
+                    receiver_filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::DoubleCounters,
+                is_self: false,
+                unless_condition: None,
+            },
+            // CR 122.6 / CR 614.1: Halve counters placed by opponents.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldPlaceCounters {
+                    placer_filter: PlayerFilter::OpponentsOf(PlayerId(0)),
+                    receiver_filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::HalveCounters,
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         ..Default::default()
     }

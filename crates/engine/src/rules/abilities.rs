@@ -6889,6 +6889,15 @@ fn doubler_applies_to_trigger(
                 })
                 .unwrap_or(false)
         }
+        TriggerDoublerFilter::CreatureDeath => {
+            // CR 603.2d: The triggering event must be a creature dying.
+            // Matches SelfDies triggers (the dying creature's own "when ~ dies" abilities).
+            // NOTE: WheneverCreatureDies CardDef triggers on other permanents are not yet
+            // doubled — they use PendingTriggerKind::Normal without a triggering_event.
+            // Full implementation requires propagating the triggering event through
+            // the CardDef trigger collection path.
+            matches!(trigger.triggering_event, Some(TriggerEvent::SelfDies))
+        }
     }
 }
 

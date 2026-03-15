@@ -1,6 +1,14 @@
 // Bloodletter of Aclazotz — {1}{B}{B}{B}, Creature — Vampire Demon 2/4
 // Flying
 // If an opponent would lose life during your turn, they lose twice that much life instead.
+//
+// Note: The "during your turn" condition requires runtime checking of the active player.
+// The replacement is registered unconditionally; the apply_life_loss_doubling helper
+// will fire whenever life loss occurs. A proper implementation would add a turn-check
+// condition to the replacement. For now, the replacement fires on all opponent life loss
+// regardless of whose turn it is (conservative — doubles more than it should).
+// TODO: Add turn-condition checking to WouldLoseLife replacement (requires Condition support
+// on ReplacementEffect, similar to unless_condition on ETB replacements).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,9 +22,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Replacement effect — if an opponent would lose life during your turn, they lose
-            // twice that much life instead.
-            // DSL gap: no life-loss-doubling replacement effect conditioned on whose turn it is.
+            // CR 614.1: Life-loss doubling for opponents.
+            // PlayerId(0) placeholder — bound to controller at registration.
+            // NOTE: Missing "during your turn" condition — see file header.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldLoseLife {
+                    player_filter: PlayerFilter::OpponentsOf(PlayerId(0)),
+                },
+                modification: ReplacementModification::DoubleLifeLoss,
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         ..Default::default()
     }

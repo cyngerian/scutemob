@@ -3,10 +3,6 @@
 // Counter-doubling replacement effect: "If one or more counters would be put on a permanent
 // your team controls, that many plus one of each of those kinds of counters are put on that
 // permanent instead." — CR 614.1 replacement effect.
-// TODO: Counter-doubling is not yet representable in the DSL. Requires a new
-// ReplacementTrigger::WouldPutCountersOnPermanent { team_filter: bool } and
-// ReplacementModification::AddOneToEachCounterKind variant in replacement_effect.rs.
-// Until those variants exist, only the PartnerWith keyword is encoded here.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,9 +25,18 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::PartnerWith(
                 "Toothy, Imaginary Friend".to_string(),
             )),
-            // TODO: Counter-doubling replacement effect — requires
-            // ReplacementTrigger::WouldPutCountersOnPermanent and
-            // ReplacementModification::AddOneToEachCounterKind (not yet in DSL).
+            // CR 122.6 / CR 614.1: Add one extra counter of each kind placed on
+            // permanents you control. PlayerId(0) is a placeholder — bound at registration.
+            // In Commander, "your team" = you.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldPlaceCounters {
+                    placer_filter: PlayerFilter::Any,
+                    receiver_filter: ObjectFilter::ControlledBy(PlayerId(0)),
+                },
+                modification: ReplacementModification::AddExtraCounter,
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         color_indicator: None,
         back_face: None,
