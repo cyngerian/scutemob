@@ -150,6 +150,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::RingAbility { source_object, .. } => {
                     ("Ring: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::LoyaltyAbility { source_object, .. } => {
+                    ("Loyalty: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

@@ -98,7 +98,12 @@ fn test_channel_activate_from_hand_basic() {
         .add_player(p(4))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .object(channel_card(p(1), "Channel Land", mana_cost.clone(), channel_effect))
+        .object(channel_card(
+            p(1),
+            "Channel Land",
+            mana_cost.clone(),
+            channel_effect,
+        ))
         .build()
         .unwrap();
 
@@ -109,7 +114,10 @@ fn test_channel_activate_from_hand_basic() {
 
     // The card should be in hand.
     let card_id = find_by_name(&state, "Channel Land");
-    assert_eq!(state.objects.get(&card_id).unwrap().zone, ZoneId::Hand(p(1)));
+    assert_eq!(
+        state.objects.get(&card_id).unwrap().zone,
+        ZoneId::Hand(p(1))
+    );
 
     // Activate the channel ability (ability_index 0).
     let (state, events) = process_command(
@@ -132,20 +140,25 @@ fn test_channel_activate_from_hand_basic() {
     );
     assert!(
         state.objects.values().any(|o| {
-            o.characteristics.name == "Channel Land"
-                && matches!(o.zone, ZoneId::Graveyard(_))
+            o.characteristics.name == "Channel Land" && matches!(o.zone, ZoneId::Graveyard(_))
         }),
         "card should be in graveyard after discard"
     );
 
     // Should have CardDiscarded event.
     assert!(
-        events.iter().any(|e| matches!(e, GameEvent::CardDiscarded { .. })),
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDiscarded { .. })),
         "should emit CardDiscarded event"
     );
 
     // Ability should be on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "channel ability should be on the stack");
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "channel ability should be on the stack"
+    );
 
     // Mana should be spent.
     assert_eq!(state.player(p(1)).unwrap().mana_pool.green, 0);
@@ -155,7 +168,11 @@ fn test_channel_activate_from_hand_basic() {
     let life_before = state.player(p(1)).unwrap().life_total;
     let (state, _) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
     let life_after = state.player(p(1)).unwrap().life_total;
-    assert_eq!(life_after, life_before + 3, "channel effect should gain 3 life");
+    assert_eq!(
+        life_after,
+        life_before + 3,
+        "channel effect should gain 3 life"
+    );
 }
 
 #[test]
@@ -217,7 +234,10 @@ fn test_channel_cannot_activate_from_battlefield() {
         },
     );
 
-    assert!(result.is_err(), "channel ability should not be activatable from battlefield");
+    assert!(
+        result.is_err(),
+        "channel ability should not be activatable from battlefield"
+    );
 }
 
 #[test]
@@ -240,7 +260,12 @@ fn test_channel_only_owner_can_activate() {
         .add_player(p(4))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .object(channel_card(p(1), "P1 Channel", mana_cost.clone(), channel_effect))
+        .object(channel_card(
+            p(1),
+            "P1 Channel",
+            mana_cost.clone(),
+            channel_effect,
+        ))
         .build()
         .unwrap();
 
@@ -263,7 +288,10 @@ fn test_channel_only_owner_can_activate() {
         },
     );
 
-    assert!(result.is_err(), "only the owner should be able to activate channel abilities");
+    assert!(
+        result.is_err(),
+        "only the owner should be able to activate channel abilities"
+    );
 }
 
 #[test]
@@ -287,7 +315,12 @@ fn test_channel_insufficient_mana_fails() {
         .add_player(p(4))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .object(channel_card(p(1), "Expensive Channel", mana_cost, channel_effect))
+        .object(channel_card(
+            p(1),
+            "Expensive Channel",
+            mana_cost,
+            channel_effect,
+        ))
         .build()
         .unwrap();
 
@@ -333,7 +366,12 @@ fn test_channel_ability_uses_stack() {
         .add_player(p(4))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .object(channel_card(p(1), "Damage Channel", mana_cost, channel_effect))
+        .object(channel_card(
+            p(1),
+            "Damage Channel",
+            mana_cost,
+            channel_effect,
+        ))
         .build()
         .unwrap();
 
@@ -358,10 +396,7 @@ fn test_channel_ability_uses_stack() {
 
     // Ability on stack, card in graveyard.
     assert_eq!(state.stack_objects.len(), 1);
-    assert!(
-        state.objects.values().any(|o| {
-            o.characteristics.name == "Damage Channel"
-                && matches!(o.zone, ZoneId::Graveyard(_))
-        }),
-    );
+    assert!(state.objects.values().any(|o| {
+        o.characteristics.name == "Damage Channel" && matches!(o.zone, ZoneId::Graveyard(_))
+    }),);
 }

@@ -88,7 +88,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
             }),
             sacrifice_self: false,
             discard_card: false,
-                discard_self: false,
+            discard_self: false,
             forage: true,
             sacrifice_filter: None,
         },

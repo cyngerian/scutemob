@@ -298,5 +298,15 @@ pub(crate) fn action_to_command(
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
+        LegalAction::ActivateLoyaltyAbility {
+            source,
+            ability_index,
+        } => Command::ActivateLoyaltyAbility {
+            player,
+            source: *source,
+            ability_index: *ability_index,
+            targets: Vec::new(),
+            x_value: None,
+        },
     }
 }

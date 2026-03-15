@@ -522,6 +522,26 @@ pub fn process_command(
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
+        Command::ActivateLoyaltyAbility {
+            player,
+            source,
+            ability_index,
+            targets,
+            x_value,
+        } => {
+            validate_player_active(&state, player)?;
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = handle_activate_loyalty_ability(
+                &mut state,
+                player,
+                source,
+                ability_index,
+                targets,
+                x_value,
+            )?;
+            check_and_flush_triggers(&mut state, &mut events);
+            all_events.extend(events);
+        }
     }
 
     // Record events in history
@@ -2294,4 +2314,197 @@ pub fn start_game(state: GameState) -> Result<(GameState, Vec<GameEvent>), GameS
     }
 
     Ok((state, events))
+}
+
+/// CR 606: Handle activation of a loyalty ability on a planeswalker.
+///
+/// Validates timing restrictions (CR 606.3), pays the loyalty cost (CR 606.4),
+/// and pushes the ability onto the stack.
+fn handle_activate_loyalty_ability(
+    state: &mut GameState,
+    player: PlayerId,
+    source: crate::state::game_object::ObjectId,
+    ability_index: usize,
+    targets: Vec<crate::state::targeting::Target>,
+    x_value: Option<u32>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::cards::card_definition::{AbilityDefinition, LoyaltyCost};
+    use crate::state::stack::{StackObject, StackObjectKind};
+    use crate::state::turn::Step;
+    use crate::state::types::CounterType;
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // CR 606.3: Main phase, stack empty, once per permanent per turn.
+    let is_main_phase = matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain);
+    if !is_main_phase {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateLoyaltyAbility: can only activate during a main phase (CR 606.3)".into(),
+        ));
+    }
+    if !state.stack_objects.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateLoyaltyAbility: stack must be empty (CR 606.3)".into(),
+        ));
+    }
+
+    // Validate source is on battlefield and controlled by player.
+    let obj = state.objects.get(&source).ok_or_else(|| {
+        GameStateError::InvalidCommand("ActivateLoyaltyAbility: source not found".into())
+    })?;
+    if obj.zone != ZoneId::Battlefield {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateLoyaltyAbility: source not on battlefield".into(),
+        ));
+    }
+    if obj.controller != player {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateLoyaltyAbility: source not controlled by player".into(),
+        ));
+    }
+    if obj.loyalty_ability_activated_this_turn {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateLoyaltyAbility: a loyalty ability has already been activated this turn (CR 606.3)".into(),
+        ));
+    }
+
+    // Look up the card definition to find the loyalty ability.
+    let card_id = obj.card_id.clone();
+    let Some(cid) = &card_id else {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateLoyaltyAbility: source has no card_id".into(),
+        ));
+    };
+    let def = state.card_registry.get(cid.clone()).ok_or_else(|| {
+        GameStateError::InvalidCommand("ActivateLoyaltyAbility: card not in registry".into())
+    })?;
+
+    // Filter loyalty abilities from the card definition.
+    let loyalty_abilities: Vec<&AbilityDefinition> = def
+        .abilities
+        .iter()
+        .filter(|a| matches!(a, AbilityDefinition::LoyaltyAbility { .. }))
+        .collect();
+
+    let ability = loyalty_abilities.get(ability_index).ok_or_else(|| {
+        GameStateError::InvalidCommand(format!(
+            "ActivateLoyaltyAbility: ability_index {} out of range (card has {} loyalty abilities)",
+            ability_index,
+            loyalty_abilities.len()
+        ))
+    })?;
+
+    let AbilityDefinition::LoyaltyAbility { cost, effect, .. } = ability else {
+        unreachable!();
+    };
+
+    // CR 606.6: Validate sufficient loyalty counters for negative costs.
+    let current_loyalty = state
+        .objects
+        .get(&source)
+        .and_then(|o| o.counters.get(&CounterType::Loyalty).copied())
+        .unwrap_or(0);
+
+    let effective_cost = match cost {
+        LoyaltyCost::Plus(n) => *n as i32,
+        LoyaltyCost::Minus(n) => -(*n as i32),
+        LoyaltyCost::Zero => 0,
+        LoyaltyCost::MinusX => {
+            let x = x_value.unwrap_or(0);
+            -(x as i32)
+        }
+    };
+
+    if effective_cost < 0 && current_loyalty < (-effective_cost) as u32 {
+        return Err(GameStateError::InvalidCommand(format!(
+            "ActivateLoyaltyAbility: insufficient loyalty counters ({} available, {} needed) (CR 606.6)",
+            current_loyalty, -effective_cost
+        )));
+    }
+
+    // Pay the loyalty cost (CR 606.4).
+    if let Some(obj) = state.objects.get_mut(&source) {
+        let new_loyalty = (current_loyalty as i32 + effective_cost) as u32;
+        obj.counters.insert(CounterType::Loyalty, new_loyalty);
+        // Mark loyalty ability used this turn (CR 606.3).
+        obj.loyalty_ability_activated_this_turn = true;
+    }
+
+    // Capture the effect for stack resolution.
+    let effect_clone = effect.clone();
+
+    // Convert targets to SpellTargets (capture zone at activation time).
+    let spell_targets: Vec<crate::state::targeting::SpellTarget> = targets
+        .iter()
+        .map(|t| match t {
+            crate::state::targeting::Target::Player(id) => crate::state::targeting::SpellTarget {
+                target: crate::state::targeting::Target::Player(*id),
+                zone_at_cast: None,
+            },
+            crate::state::targeting::Target::Object(id) => {
+                let zone = state.objects.get(id).map(|o| o.zone);
+                crate::state::targeting::SpellTarget {
+                    target: crate::state::targeting::Target::Object(*id),
+                    zone_at_cast: zone,
+                }
+            }
+        })
+        .collect();
+
+    // Push the ability onto the stack.
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::LoyaltyAbility {
+            source_object: source,
+            ability_index,
+            effect: Box::new(effect_clone),
+        },
+        targets: spell_targets,
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        modes_chosen: vec![],
+        x_value: x_value.unwrap_or(0),
+        evidence_collected: false,
+        is_cast_transformed: false,
+        additional_costs: vec![],
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // Reset priority since a new object is on the stack.
+    state.turn.players_passed = im::OrdSet::new();
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: source,
+        stack_object_id: stack_id,
+    });
+
+    Ok(events)
 }

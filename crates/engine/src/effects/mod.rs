@@ -3440,6 +3440,7 @@ pub fn make_token(
         craft_exiled_cards: im::Vector::new(),
         chosen_creature_type: None,
         face_down_as: None,
+        loyalty_ability_activated_this_turn: false,
         designations: Designations::default(),
     }
 }

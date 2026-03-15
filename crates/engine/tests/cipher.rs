@@ -127,6 +127,7 @@ fn cipher_instant_def() -> CardDefinition {
         back_face: None,
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
+        starting_loyalty: None,
     }
 }
 
@@ -909,6 +910,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         back_face: None,
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
+        starting_loyalty: None,
     };
     let card_id2 = def2.card_id.clone();
     let registry = CardRegistry::new(vec![def, def2]);

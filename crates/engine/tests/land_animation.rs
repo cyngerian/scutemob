@@ -7,17 +7,17 @@
 //! types, the land no longer has its old land type." But animation effects that say
 //! "It's still a land" add types without removing existing ones (AddCardTypes).
 
+use mtg_engine::cards::ContinuousEffectDef;
+use mtg_engine::rules::layers::calculate_characteristics;
+use mtg_engine::state::continuous_effect::{
+    EffectDuration, EffectFilter, EffectLayer, LayerModification,
+};
+use mtg_engine::state::types::KeywordAbility;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     process_command, CardType, Command, Effect, GameState, GameStateBuilder, ManaCost, ObjectId,
     ObjectSpec, PlayerId, Step, ZoneId,
 };
-use mtg_engine::cards::ContinuousEffectDef;
-use mtg_engine::state::continuous_effect::{
-    EffectDuration, EffectFilter, EffectLayer, LayerModification,
-};
-use mtg_engine::state::types::KeywordAbility;
-use mtg_engine::rules::layers::calculate_characteristics;
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -40,14 +40,19 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
         .with_activated_ability(ActivatedAbility {
             cost: ActivationCost {
                 requires_tap: false,
-                mana_cost: Some(ManaCost { generic: 1, ..ManaCost::default() }),
+                mana_cost: Some(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
                 sacrifice_self: false,
                 discard_card: false,
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
             },
-            description: format!("{{1}}: Becomes a {power}/{toughness} creature with flying until EOT"),
+            description: format!(
+                "{{1}}: Becomes a {power}/{toughness} creature with flying until EOT"
+            ),
             effect: Some(Effect::Sequence(vec![
                 Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
@@ -122,11 +127,8 @@ fn test_land_animation_adds_creature_type_and_pt() {
     .unwrap();
 
     // Resolve the ability from the stack.
-    let (state, _) = process_command(
-        state.clone(),
-        Command::PassPriority { player: p(1) },
-    )
-    .unwrap();
+    let (state, _) =
+        process_command(state.clone(), Command::PassPriority { player: p(1) }).unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p(3) }).unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p(4) }).unwrap();
@@ -173,5 +175,8 @@ fn test_animated_land_has_summoning_sickness() {
     // become creatures, the has_summoning_sickness flag determines tap ability access.
     // The land was on the battlefield from the start, so it should NOT have summoning sickness.
     let obj = state.objects.get(&land_id).unwrap();
-    assert!(!obj.has_summoning_sickness, "land should not have summoning sickness");
+    assert!(
+        !obj.has_summoning_sickness,
+        "land should not have summoning sickness"
+    );
 }

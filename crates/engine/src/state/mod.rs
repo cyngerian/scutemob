@@ -464,6 +464,7 @@ impl GameState {
             // and the new object in the destination zone is no longer face-down.
             chosen_creature_type: None,
             face_down_as: None,
+            loyalty_ability_activated_this_turn: false,
             designations: Designations::default(),
         };
 
@@ -597,6 +598,7 @@ impl GameState {
                     // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
                     chosen_creature_type: None,
                     face_down_as: None,
+                    loyalty_ability_activated_this_turn: false,
                     designations: Designations::default(),
                 };
                 // Add component to destination zone and objects map.
@@ -784,6 +786,7 @@ impl GameState {
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
             chosen_creature_type: None,
             face_down_as: None,
+            loyalty_ability_activated_this_turn: false,
             designations: Designations::default(),
         };
 

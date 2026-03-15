@@ -26,5 +26,6 @@ pub fn card() -> CardDefinition {
         back_face: None,
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
+        starting_loyalty: None,
     }
 }

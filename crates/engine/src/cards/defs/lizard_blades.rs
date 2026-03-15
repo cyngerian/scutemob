@@ -60,5 +60,6 @@ Equipped creature gets +1/+1 and has double strike."
         back_face: None,
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
+        starting_loyalty: None,
     }
 }

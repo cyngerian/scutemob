@@ -885,6 +885,12 @@ pub struct GameObject {
     /// Set by `Effect::ChooseCreatureType`. Reset to `None` on zone changes (CR 400.7).
     #[serde(default)]
     pub chosen_creature_type: Option<SubType>,
+    /// CR 606.3: True if a loyalty ability of this permanent has been activated this turn.
+    ///
+    /// Only one loyalty ability per permanent per turn. Reset to false at the beginning
+    /// of each player's turn (in `reset_turn_state`).
+    #[serde(default)]
+    pub loyalty_ability_activated_this_turn: bool,
     /// CR 702.37 / 701.40 / 701.58 / 702.168: Why this object is face-down (if at all).
     ///
     /// `None` means the object is either face-up, or face-down for reasons unrelated to

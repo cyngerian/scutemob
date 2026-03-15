@@ -574,6 +574,19 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 606: Activate a loyalty ability on a planeswalker.
+        "activate_loyalty_ability" => {
+            let source_id = find_on_battlefield(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::ActivateLoyaltyAbility {
+                player,
+                source: source_id,
+                ability_index,
+                targets: target_list,
+                x_value: None, // TODO: add x_value field to PlayerAction for -X abilities
+            })
+        }
+
         "cycle_card" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             Some(Command::CycleCard {
@@ -1919,6 +1932,11 @@ pub fn enrich_spec_from_def(
     }
     if def.toughness.is_some() {
         spec.toughness = def.toughness;
+    }
+
+    // CR 306.5a: Apply starting loyalty for planeswalkers.
+    if let Some(loyalty) = def.starting_loyalty {
+        spec.loyalty = Some(loyalty as i32);
     }
 
     // Apply keyword abilities (Haste, Vigilance, Hexproof, etc.)

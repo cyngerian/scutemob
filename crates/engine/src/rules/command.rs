@@ -622,4 +622,22 @@ pub enum Command {
         /// A manifested card with disguise may use either DisguiseCost or ManaCost (CR 701.40d).
         method: TurnFaceUpMethod,
     },
+
+    /// CR 606: Activate a loyalty ability on a planeswalker (CR 306.5d).
+    ///
+    /// Special timing rules (CR 606.3): main phase, stack empty, once per permanent per turn.
+    /// The loyalty cost (add/remove counters) is paid as part of activation (CR 606.4).
+    /// CR 606.6: Negative costs require sufficient loyalty counters.
+    ActivateLoyaltyAbility {
+        player: PlayerId,
+        /// The planeswalker permanent whose loyalty ability is being activated.
+        source: ObjectId,
+        /// Index into the card's loyalty abilities (filtered from `abilities` vec).
+        ability_index: usize,
+        /// Targets for the loyalty ability (may be empty).
+        targets: Vec<Target>,
+        /// For −X abilities: the chosen X value. `None` for fixed-cost abilities.
+        #[serde(default)]
+        x_value: Option<u32>,
+    },
 }

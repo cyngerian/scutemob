@@ -44,9 +44,9 @@ use super::GameState;
 use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
     AbilityDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget,
-    ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, SoulbondGrant, TargetController,
-    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
-    ZoneTarget,
+    ForEachTarget, LibraryPosition, LoyaltyCost, ModeSelection, PlayerTarget, SoulbondGrant,
+    TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
+    TriggerCondition, TypeLine, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 
@@ -1033,6 +1033,8 @@ impl HashInto for GameObject {
                 st.0.hash_into(hasher);
             }
         }
+        // CR 606.3: loyalty ability activated this turn
+        self.loyalty_ability_activated_this_turn.hash_into(hasher);
         // Morph/Manifest/Cloak (CR 702.37/701.40/701.58) — face-down kind
         match &self.face_down_as {
             None => 0u8.hash_into(hasher),
@@ -2323,6 +2325,17 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 effect.hash_into(hasher);
                 controller.hash_into(hasher);
+            }
+            // LoyaltyAbility (discriminant 67) -- CR 606 planeswalker loyalty ability
+            StackObjectKind::LoyaltyAbility {
+                source_object,
+                ability_index,
+                effect,
+            } => {
+                67u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                ability_index.hash_into(hasher);
+                effect.hash_into(hasher);
             }
         }
     }
@@ -3995,6 +4008,23 @@ impl HashInto for Cost {
     }
 }
 
+impl HashInto for LoyaltyCost {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            LoyaltyCost::Plus(n) => {
+                0u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            LoyaltyCost::Minus(n) => {
+                1u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            LoyaltyCost::Zero => 2u8.hash_into(hasher),
+            LoyaltyCost::MinusX => 3u8.hash_into(hasher),
+        }
+    }
+}
+
 impl HashInto for ModeSelection {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.min_modes.hash_into(hasher);
@@ -4733,6 +4763,16 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::SuppressCreatureETBTriggers { filter } => {
                 65u8.hash_into(hasher);
                 filter.hash_into(hasher);
+            }
+            AbilityDefinition::LoyaltyAbility {
+                cost,
+                effect,
+                targets,
+            } => {
+                66u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                effect.hash_into(hasher);
+                targets.hash_into(hasher);
             }
         }
     }

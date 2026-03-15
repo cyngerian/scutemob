@@ -1975,7 +1975,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             }),
             sacrifice_self: false,
             discard_card: false,
-                discard_self: false,
+            discard_self: false,
             forage: false,
             sacrifice_filter: None,
         },

@@ -19,7 +19,7 @@ use crate::state::replacement_effect::{
     DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
-use crate::state::types::CardType;
+use crate::state::types::{CardType, CounterType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -995,6 +995,22 @@ pub fn apply_self_etb_from_definition(
             ));
         }
     }
+
+    // CR 306.5b: "This permanent enters with a number of loyalty counters on it
+    // equal to its printed loyalty number." This is an intrinsic replacement effect.
+    if let Some(loyalty) = def.starting_loyalty {
+        if loyalty > 0 {
+            if let Some(obj) = state.objects.get_mut(&new_id) {
+                let current = obj
+                    .counters
+                    .get(&CounterType::Loyalty)
+                    .copied()
+                    .unwrap_or(0);
+                obj.counters.insert(CounterType::Loyalty, current + loyalty);
+            }
+        }
+    }
+
     evts
 }
 

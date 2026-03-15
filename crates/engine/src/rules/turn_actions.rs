@@ -1613,6 +1613,20 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // CR 702.57b: Forecast once-per-turn tracking resets at the start of each turn.
     // Each card's forecast ability may be activated once per turn.
     state.forecast_used_this_turn = im::OrdSet::new();
+
+    // CR 606.3: Reset loyalty ability activation tracking for all planeswalkers.
+    // "No player has previously activated a loyalty ability of that permanent that turn."
+    let loyalty_ids: Vec<crate::state::ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| obj.loyalty_ability_activated_this_turn)
+        .map(|(id, _)| *id)
+        .collect();
+    for id in loyalty_ids {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.loyalty_ability_activated_this_turn = false;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

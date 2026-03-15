@@ -87,6 +87,8 @@ impl HeuristicBot {
             // CastMorphFaceDown: cast a card face-down for {3}. Moderate priority —
             // useful for bluffing but less impactful than casting normally.
             LegalAction::CastMorphFaceDown { .. } => 30,
+            // Loyalty ability: important — planeswalker abilities are high value.
+            LegalAction::ActivateLoyaltyAbility { .. } => 60,
         }
     }
 }

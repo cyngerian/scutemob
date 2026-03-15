@@ -91,6 +91,10 @@ pub struct CardDefinition {
     /// Example: Blasphemous Act — costs {1} less for each creature on the battlefield.
     #[serde(default)]
     pub self_cost_reduction: Option<SelfCostReduction>,
+    /// CR 306.5a: Printed loyalty number (planeswalkers only). None for non-planeswalkers.
+    /// CR 306.5b: A planeswalker enters with this many loyalty counters.
+    #[serde(default)]
+    pub starting_loyalty: Option<u32>,
 }
 
 impl Default for CardDefinition {
@@ -108,6 +112,7 @@ impl Default for CardDefinition {
             back_face: None,
             spell_cost_modifiers: vec![],
             self_cost_reduction: None,
+            starting_loyalty: None,
         }
     }
 }
@@ -266,6 +271,20 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Bestow)` for quick
     /// presence-checking without scanning all abilities.
     Bestow { cost: ManaCost },
+    /// CR 606: Loyalty ability on a planeswalker.
+    ///
+    /// Loyalty abilities are activated abilities with loyalty symbols in their costs
+    /// (CR 606.2). They follow special timing rules (CR 606.3): sorcery-speed,
+    /// empty stack, main phase, and only one loyalty ability per permanent per turn.
+    ///
+    /// The cost is adding or removing loyalty counters (CR 606.4). The effect is
+    /// any Effect, and may have target requirements.
+    LoyaltyAbility {
+        cost: LoyaltyCost,
+        effect: Effect,
+        #[serde(default)]
+        targets: Vec<TargetRequirement>,
+    },
     /// CR 702.35: Madness [cost]. When this card is discarded, it is exiled instead
     /// of going to the graveyard. Then a triggered ability fires: the owner may cast
     /// it by paying [cost] (an alternative cost, CR 118.9). If they decline, it goes
@@ -807,6 +826,23 @@ pub enum Cost {
     Forage,
     /// Multiple costs, all paid simultaneously (CR 601.2g).
     Sequence(Vec<Cost>),
+}
+
+/// CR 606.4: The cost to activate a loyalty ability — add or remove loyalty counters.
+///
+/// CR 606.5: Multiple loyalty costs are combined into a single add/remove.
+/// CR 606.6: Negative costs can't be activated unless the permanent has enough counters.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum LoyaltyCost {
+    /// "+N" — add N loyalty counters (CR 606.4).
+    Plus(u32),
+    /// "−N" — remove N loyalty counters (CR 606.4).
+    Minus(u32),
+    /// "0" — no loyalty counters added or removed.
+    Zero,
+    /// "−X" — remove X loyalty counters, where X is chosen by the player.
+    /// X must be at least 0; the permanent must have at least X counters (CR 606.6).
+    MinusX,
 }
 
 // ── Effect ────────────────────────────────────────────────────────────────────

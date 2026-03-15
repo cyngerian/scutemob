@@ -1872,6 +1872,27 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        StackObjectKind::LoyaltyAbility {
+            source_object,
+            ability_index: _,
+            effect,
+        } => {
+            // CR 606: Loyalty ability resolves — execute the captured effect.
+            // The loyalty cost was already paid at activation time.
+            let mut ctx = EffectContext::new(
+                stack_obj.controller,
+                source_object,
+                stack_obj.targets.clone(),
+            );
+            let effect_events = execute_effect(state, &effect, &mut ctx);
+            events.extend(effect_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller: stack_obj.controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         StackObjectKind::ForecastAbility {
             source_object,
             embedded_effect,
@@ -4428,6 +4449,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         craft_exiled_cards: im::Vector::new(),
                         chosen_creature_type: None,
                         face_down_as: None,
+                        loyalty_ability_activated_this_turn: false,
                         designations: Designations::default(),
                     };
 
@@ -4624,6 +4646,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 craft_exiled_cards: im::Vector::new(),
                 chosen_creature_type: None,
                 face_down_as: None,
+                loyalty_ability_activated_this_turn: false,
                 designations: Designations::default(),
             };
 
@@ -5395,6 +5418,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
+                    loyalty_ability_activated_this_turn: false,
                     designations: Designations::default(),
                 };
 
@@ -6176,6 +6200,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
+                    loyalty_ability_activated_this_turn: false,
                     designations: Designations::default(),
                 };
 
@@ -6390,6 +6415,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
+                    loyalty_ability_activated_this_turn: false,
                     designations: Designations::default(),
                 };
 
@@ -6622,6 +6648,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         craft_exiled_cards: im::Vector::new(),
                         chosen_creature_type: None,
                         face_down_as: None,
+                        loyalty_ability_activated_this_turn: false,
                         designations: Designations::default(),
                     };
 
@@ -7409,7 +7436,9 @@ pub fn counter_stack_object(
         // The venture marker has already been advanced; only the room trigger is countered.
         // CR 701.54c: RingAbility countered — no ring effect fires.
         | StackObjectKind::RoomAbility { .. }
-        | StackObjectKind::RingAbility { .. } => {
+        | StackObjectKind::RingAbility { .. }
+        // CR 606: Loyalty ability countered — cost already paid, no effect.
+        | StackObjectKind::LoyaltyAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.

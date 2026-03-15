@@ -435,6 +435,20 @@ pub enum StackObjectKind {
         embedded_effect: Option<Box<crate::cards::card_definition::Effect>>,
     },
 
+    /// CR 606: A loyalty ability on the stack (CR 606.2).
+    ///
+    /// The loyalty cost (add/remove counters) was paid at activation time.
+    /// Resolution executes the effect. The source planeswalker must still be
+    /// on the battlefield for the effect to resolve (standard ability rules).
+    LoyaltyAbility {
+        source_object: ObjectId,
+        /// Index into the planeswalker's loyalty abilities (filtered from CardDefinition).
+        ability_index: usize,
+        /// The effect to execute on resolution. Captured at activation time so it
+        /// resolves correctly even if the source leaves the battlefield.
+        effect: Box<crate::cards::card_definition::Effect>,
+    },
+
     /// A triggered ability (CR 603).
     ///
     /// The `source_object` may be in any zone (it triggered from wherever it

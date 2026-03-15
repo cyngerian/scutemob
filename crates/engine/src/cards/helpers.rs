@@ -21,9 +21,10 @@ pub use super::card_definition::{
     blood_token_spec, food_token_spec, treasure_token_spec, zombie_decayed_token_spec,
     AbilityDefinition, AltCastDetails, CardDefinition, CardFace, Condition, ContinuousEffectDef,
     Cost, CostModifierScope, CraftMaterials, Effect, EffectAmount, EffectTarget, ForEachTarget,
-    GiftType, LibraryPosition, ManaRestriction, ModeSelection, PlayerTarget, SelfCostReduction,
-    SoulbondGrant, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    GiftType, LibraryPosition, LoyaltyCost, ManaRestriction, ModeSelection, PlayerTarget,
+    SelfCostReduction, SoulbondGrant, SpellCostFilter, SpellCostModifier, TargetController,
+    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
+    ZoneTarget,
 };
 pub use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,

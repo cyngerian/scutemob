@@ -87,5 +87,6 @@ Everywhere that is every basic land type."
         back_face: None,
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
+        starting_loyalty: None,
     }
 }

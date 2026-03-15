@@ -6,8 +6,8 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, FaceDownKind, GameState, KeywordAbility, ManaCost,
-    ObjectId, PlayerId, Step, TurnFaceUpMethod, ZoneId,
+    AbilityDefinition, AttackTarget, CardType, CounterType, FaceDownKind, GameState,
+    KeywordAbility, ManaCost, ObjectId, PlayerId, Step, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -78,6 +78,14 @@ pub enum LegalAction {
         permanent: ObjectId,
         /// The method to use for paying the face-up cost.
         method: TurnFaceUpMethod,
+    },
+    /// CR 606: Activate a loyalty ability on a planeswalker.
+    /// Sorcery-speed, empty stack, once per permanent per turn.
+    ActivateLoyaltyAbility {
+        /// The planeswalker permanent.
+        source: ObjectId,
+        /// Which loyalty ability (filtered index).
+        ability_index: usize,
     },
     /// CR 702.37a / CR 702.37b / CR 702.168b: Cast a card with Morph/Megamorph/Disguise
     /// face-down for {3} (or disguise cost) as a 2/2 creature with no name/text/subtypes.
@@ -337,6 +345,66 @@ impl LegalActionProvider for StubProvider {
                     source: obj.id,
                     ability_index: idx,
                 });
+            }
+        }
+
+        // ── Loyalty abilities (CR 606) ────────────────────────────────────────────
+        // Sorcery-speed, stack empty, once per permanent per turn.
+        if is_main_phase && stack_empty && is_active {
+            for obj in state.objects_in_zone(&ZoneId::Battlefield) {
+                if obj.controller != player {
+                    continue;
+                }
+                if obj.loyalty_ability_activated_this_turn {
+                    continue;
+                }
+                if !obj
+                    .characteristics
+                    .card_types
+                    .contains(&CardType::Planeswalker)
+                {
+                    continue;
+                }
+                // Look up card definition for loyalty abilities.
+                if let Some(ref cid) = obj.card_id {
+                    if let Some(def) = state.card_registry.get(cid.clone()) {
+                        let loyalty_count = obj
+                            .counters
+                            .get(&CounterType::Loyalty)
+                            .copied()
+                            .unwrap_or(0);
+                        for (idx, ability) in def.abilities.iter().enumerate() {
+                            if let mtg_engine::AbilityDefinition::LoyaltyAbility { cost, .. } =
+                                ability
+                            {
+                                // CR 606.6: check sufficient loyalty for negative costs.
+                                let can_afford_loyalty = match cost {
+                                    mtg_engine::LoyaltyCost::Plus(_)
+                                    | mtg_engine::LoyaltyCost::Zero => true,
+                                    mtg_engine::LoyaltyCost::Minus(n) => loyalty_count >= *n,
+                                    mtg_engine::LoyaltyCost::MinusX => true, // X can be 0
+                                };
+                                if can_afford_loyalty {
+                                    // Use filtered index: count LoyaltyAbility entries up to idx.
+                                    let filtered_idx = def.abilities[..=idx]
+                                        .iter()
+                                        .filter(|a| {
+                                            matches!(
+                                                a,
+                                                mtg_engine::AbilityDefinition::LoyaltyAbility { .. }
+                                            )
+                                        })
+                                        .count()
+                                        - 1;
+                                    actions.push(LegalAction::ActivateLoyaltyAbility {
+                                        source: obj.id,
+                                        ability_index: filtered_idx,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

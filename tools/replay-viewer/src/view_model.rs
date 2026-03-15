@@ -542,6 +542,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::RingAbility { source_object, .. } => {
             ("ring_ability", Some(*source_object))
         }
+        StackObjectKind::LoyaltyAbility { source_object, .. } => {
+            ("loyalty_ability", Some(*source_object))
+        }
     }
 }
 

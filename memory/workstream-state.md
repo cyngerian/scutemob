@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-13 part 3 — remaining sub-batches | ACTIVE | 2026-03-15 | **TOP PRIORITY**. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | PB-14: Planeswalker support | ACTIVE | 2026-03-15 | Loyalty abilities, 0-loyalty SBA, damage redirect. 31+ cards blocked. Plan: `docs/primitive-card-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

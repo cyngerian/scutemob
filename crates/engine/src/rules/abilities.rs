@@ -395,8 +395,7 @@ pub fn handle_activate_ability(
     // CR 702.34: Pay discard-self cost (Channel abilities). The source card is in the
     // player's hand; discarding it is part of the activation cost.
     if ability_cost.discard_self {
-        let (new_grave_id, _) =
-            state.move_object_to_zone(source, ZoneId::Graveyard(player))?;
+        let (new_grave_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(player))?;
         events.push(GameEvent::CardDiscarded {
             player,
             object_id: source,
