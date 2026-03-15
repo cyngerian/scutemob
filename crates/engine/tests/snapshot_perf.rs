@@ -162,6 +162,7 @@ fn test_clone_independence_object_modification() {
                 chosen_creature_type: None,
                 face_down_as: None,
                 loyalty_ability_activated_this_turn: false,
+                class_level: 0,
                 designations: mtg_engine::Designations::default(),
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();

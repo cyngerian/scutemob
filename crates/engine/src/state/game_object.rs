@@ -891,6 +891,11 @@ pub struct GameObject {
     /// of each player's turn (in `reset_turn_state`).
     #[serde(default)]
     pub loyalty_ability_activated_this_turn: bool,
+    /// CR 716.2b: Class level designation. 0 means "no level set" — treated as level 1
+    /// when checking Class abilities (CR 716.2d). Set to 1 when a Class enters the battlefield.
+    /// Levels are not a copiable characteristic.
+    #[serde(default)]
+    pub class_level: u32,
     /// CR 702.37 / 701.40 / 701.58 / 702.168: Why this object is face-down (if at all).
     ///
     /// `None` means the object is either face-up, or face-down for reasons unrelated to

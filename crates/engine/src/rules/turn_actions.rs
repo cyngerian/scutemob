@@ -29,6 +29,7 @@ pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent
         Step::EndOfCombat => Ok(end_combat(state)),
         Step::Cleanup => Ok(cleanup_actions(state)),
         Step::End => Ok(end_step_actions(state)),
+        Step::PreCombatMain => Ok(precombat_main_actions(state)),
         _ => Ok(Vec::new()),
     }
 }
@@ -592,6 +593,73 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
 
 /// CR 702.84a: End step actions -- queue delayed exile triggers for all unearthed permanents.
 ///
+/// CR 714.3b: As a player's precombat main phase begins, that player puts a lore
+/// counter on each Saga they control with one or more chapter abilities.
+/// This turn-based action doesn't use the stack.
+fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
+    use crate::cards::card_definition::AbilityDefinition;
+
+    let active = state.turn.active_player;
+    let mut events = Vec::new();
+
+    // Collect Sagas controlled by the active player that have chapter abilities.
+    let sagas: Vec<(ObjectId, crate::state::player::CardId)> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| {
+            obj.controller == active
+                && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
+                && obj.card_id.is_some()
+        })
+        .filter_map(|(id, obj)| {
+            let cid = obj.card_id.as_ref()?;
+            let def = state.card_registry.get(cid.clone())?;
+            let has_chapters = def
+                .abilities
+                .iter()
+                .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
+            if has_chapters {
+                Some((*id, cid.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for (saga_id, card_id) in sagas {
+        let old_count = state
+            .objects
+            .get(&saga_id)
+            .and_then(|o| o.counters.get(&CounterType::Lore).copied())
+            .unwrap_or(0);
+        let new_count = old_count + 1;
+
+        // Add the lore counter.
+        if let Some(obj) = state.objects.get_mut(&saga_id) {
+            obj.counters.insert(CounterType::Lore, new_count);
+        }
+
+        events.push(GameEvent::CounterAdded {
+            object_id: saga_id,
+            counter: CounterType::Lore,
+            count: new_count,
+        });
+
+        // Fire chapter triggers for the newly-crossed thresholds.
+        // Clone the registry Arc to avoid borrow conflict with &mut state.
+        let registry = state.card_registry.clone();
+        if let Some(def) = registry.get(card_id) {
+            #[allow(clippy::needless_borrow)]
+            let chapter_evts = super::replacement::fire_saga_chapter_triggers(
+                state, saga_id, active, old_count, new_count, &def,
+            );
+            events.extend(chapter_evts);
+        }
+    }
+
+    events
+}
+
 /// "Exile it at the beginning of the next end step."
 /// At the beginning of the end step, scan all battlefield permanents with
 /// `was_unearthed == true` and queue a `UnearthTrigger` for each one.

@@ -1051,6 +1051,7 @@ impl GameStateBuilder {
                 face_down_as: None,
                 // CR 606.3: loyalty abilities not yet activated.
                 loyalty_ability_activated_this_turn: false,
+                class_level: 0,
                 designations: Designations::default(),
             };
 

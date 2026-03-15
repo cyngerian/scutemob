@@ -18,6 +18,7 @@
 //! - 704.5g: Creature with lethal damage (damage ≥ toughness) → destroyed.
 //! - 704.5h: Creature dealt damage by a deathtouch source → destroyed.
 //! - 704.5i: Planeswalker with 0 loyalty counters → put into owner's graveyard.
+//! - 714.4: Saga with lore counters >= final chapter number → sacrificed.
 //! - 704.5j: Legendary rule — multiple legendaries with same name → one kept.
 //! - 704.5m: Aura attached to an illegal object → put into owner's graveyard.
 //! - 704.5n: Equipment/fortification attached illegally → becomes unattached.
@@ -214,6 +215,7 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     events.extend(check_token_sbas(state));
     events.extend(check_creature_sbas(state, &chars_map));
     events.extend(check_planeswalker_sbas(state, &chars_map));
+    events.extend(check_saga_sbas(state));
     events.extend(check_legendary_rule(state));
     events.extend(check_aura_sbas(state));
     events.extend(check_equipment_sbas(state, &chars_map));
@@ -803,6 +805,109 @@ fn check_planeswalker_sbas(
                 });
             }
         }
+    }
+
+    events
+}
+
+// ── CR 714.4 ─────────────────────────────────────────────────────────────────
+
+/// CR 714.4: If the number of lore counters on a Saga permanent with one or more
+/// chapter abilities is greater than or equal to its final chapter number, and it
+/// isn't the source of a chapter ability that has triggered but not yet left the
+/// stack, that Saga's controller sacrifices it.
+fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
+    use crate::cards::card_definition::AbilityDefinition;
+
+    let mut events = Vec::new();
+
+    // Collect Sagas on the battlefield.
+    let sagas: Vec<(ObjectId, crate::state::player::PlayerId)> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
+        .filter_map(|(id, obj)| {
+            let cid = obj.card_id.as_ref()?;
+            let def = state.card_registry.get(cid.clone())?;
+
+            // Find the final chapter number (greatest chapter N among SagaChapter abilities).
+            let final_chapter = def
+                .abilities
+                .iter()
+                .filter_map(|a| match a {
+                    AbilityDefinition::SagaChapter { chapter, .. } => Some(*chapter),
+                    _ => None,
+                })
+                .max();
+
+            let Some(final_ch) = final_chapter else {
+                return None; // Not a Saga (no chapter abilities).
+            };
+
+            // Check lore counter count.
+            let lore_count = obj
+                .counters
+                .get(&CounterType::Lore)
+                .copied()
+                .unwrap_or(0);
+
+            if lore_count >= final_ch {
+                Some((*id, obj.controller))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for (saga_id, _controller) in sagas {
+        // CR 714.4: Don't sacrifice if a chapter ability from this Saga is still on the stack.
+        let has_pending_chapter = state.stack_objects.iter().any(|so| {
+            if let StackObjectKind::TriggeredAbility {
+                source_object,
+                ability_index,
+                ..
+            } = &so.kind
+            {
+                if *source_object != saga_id {
+                    return false;
+                }
+                // Check if the ability at this index is a SagaChapter.
+                state
+                    .objects
+                    .get(&saga_id)
+                    .and_then(|obj| obj.card_id.as_ref())
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .map(|def| {
+                        def.abilities
+                            .get(*ability_index)
+                            .map(|a| matches!(a, AbilityDefinition::SagaChapter { .. }))
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        });
+
+        if has_pending_chapter {
+            continue; // Don't sacrifice yet — chapter ability still on the stack.
+        }
+
+        // Sacrifice the Saga (move to graveyard).
+        let owner = match state.objects.get(&saga_id) {
+            Some(obj) => obj.owner,
+            None => continue,
+        };
+
+        let Ok((new_id, _)) =
+            state.move_object_to_zone(saga_id, ZoneId::Graveyard(owner))
+        else {
+            continue;
+        };
+        events.push(GameEvent::PermanentDestroyed {
+            object_id: saga_id,
+            new_grave_id: new_id,
+        });
     }
 
     events

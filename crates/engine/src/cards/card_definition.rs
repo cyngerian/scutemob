@@ -285,6 +285,30 @@ pub enum AbilityDefinition {
         #[serde(default)]
         targets: Vec<TargetRequirement>,
     },
+    /// CR 714.2: Saga chapter ability. "{rN}—[Effect]" means "When one or more lore
+    /// counters are put onto this Saga, if the number of lore counters on it was less
+    /// than N and became at least N, [effect]."
+    ///
+    /// Chapter abilities are keyword abilities that represent triggered abilities.
+    /// They fire when lore counters cross the chapter threshold (CR 714.2b).
+    SagaChapter {
+        chapter: u32,
+        effect: Effect,
+        #[serde(default)]
+        targets: Vec<TargetRequirement>,
+    },
+    /// CR 716.2: Class level bar. "[Cost]: Level N — [Abilities]" means
+    /// "[Cost]: This Class's level becomes N. Activate only if this Class is level N-1
+    /// and only as a sorcery" and "As long as this Class is level N or greater, it has
+    /// [abilities]."
+    ///
+    /// The `cost` is the activation cost of the level-up ability. The `abilities` are
+    /// the static/triggered abilities gained at that level.
+    ClassLevel {
+        level: u32,
+        cost: ManaCost,
+        abilities: Vec<AbilityDefinition>,
+    },
     /// CR 702.35: Madness [cost]. When this card is discarded, it is exiled instead
     /// of going to the graveyard. Then a triggered ability fires: the owner may cast
     /// it by paying [cost] (an alternative cost, CR 118.9). If they decline, it goes

@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-14: Planeswalker support | ACTIVE | 2026-03-15 | Loyalty abilities, 0-loyalty SBA, damage redirect. 31+ cards blocked. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | PB-15: Saga & Class enchantments | ACTIVE | 2026-03-15 | **TOP PRIORITY**. PB-14 complete. Now: PB-15 (Saga/Class). Plan: `docs/primitive-card-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,29 +25,29 @@
 
 **Date**: 2026-03-15
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-13 — Specialized mechanics (part 3)
+**Task**: PB-14 — Planeswalker support
 
 **Completed**:
-- 13c: `Condition::HasCitysBlessing` variant added to `card_definition.rs`, evaluated in `effects/mod.rs`, hashed in `hash.rs` (disc 29). Arch of Orazca fixed: Ascend keyword + conditional draw ability (gated on city's blessing). Twilight Prophet: Ascend keyword added (upkeep trigger remains DSL gap — needs reveal-top + mana-value-based DrainLife). 1 new test in `ascend.rs`.
-- 13e: Dredge — already fully wired (Golgari Grave-Troll has `KeywordAbility::Dredge(6)`, tests in `dredge.rs`). DSL gap audit was stale.
-- 13f: Buyback — already fully wired (Searing Touch has `AbilityDefinition::Buyback`, tests in `buyback.rs`). DSL gap audit was stale.
-- 13l: Flicker — no cards in current universe blocked on this primitive. Deferred until cards are authored.
-- 13n: Living Weapon — already done (Batterskull uses `KeywordAbility::LivingWeapon`).
-- 13h: Coin flip / d20 — deferred to post-alpha (3 cards affected, architectural conflict with deterministic replay).
-- 2096 tests, 0 clippy warnings, workspace builds clean.
+- Full planeswalker loyalty framework per CR 306/606
+- `CardDefinition.starting_loyalty: Option<u32>` (CR 306.5a) — 129 card defs + 16 test files patched
+- `LoyaltyCost` enum: Plus/Minus/Zero/MinusX (CR 606.4) + hash
+- `AbilityDefinition::LoyaltyAbility { cost, effect, targets }` (disc 66)
+- ETB loyalty counter placement in `replacement.rs` (CR 306.5b)
+- `Command::ActivateLoyaltyAbility` with full validation (CR 606.3/606.6)
+- `StackObjectKind::LoyaltyAbility` (disc 67) + resolution in `resolution.rs`
+- `loyalty_ability_activated_this_turn` on `GameObject` (CR 606.3), reset in `turn_actions.rs`
+- `LegalAction::ActivateLoyaltyAbility` in simulator (legal_actions, heuristic_bot, random_bot)
+- `activate_loyalty_ability` replay harness action
+- Ajani + Tyvar card defs updated with `starting_loyalty` + `LoyaltyAbility` stubs
+- 12 new tests in `planeswalker.rs`, 2108 total passing, 0 clippy warnings
+- Commit d7faeff
 
-**Deferred from PB-13 (total)**:
-- Equipment auto-attach (13d): needs entering-object variable refs in triggers — 2 cards
-- Timing restriction (13i): needs ContinuousRestriction framework → PB-18 (Stax)
-- Clone/copy ETB (13j): no actionable cards in universe
-- Adventure (13m): needs dedicated casting subsystem — 1-2 cards
-- Coin flip / d20 (13h): needs randomness framework — 3 cards (post-alpha)
-- Flicker (13l): no blocked cards — build when needed
-- PB-12 leftovers (Neriv, Lightning Army of One, Mossborn Hydra): need landfall trigger + scoped damage doubling
+**Deferred from PB-13 (carried forward)**:
+- Equipment auto-attach (13d), Timing restriction (13i) → PB-18, Clone/copy ETB (13j), Adventure (13m), Coin flip/d20 (13h), Flicker (13l), PB-12 leftovers
 
 **Next**:
-1. **PB-14 (Planeswalker support)**: loyalty abilities, 0-loyalty SBA, damage redirect. 31+ cards blocked.
-2. Continue through PB-15 to PB-21 per `docs/primitive-card-plan.md`
+1. **PB-15 (Saga & Class)**: lore counters, chapter abilities, sacrifice after final chapter SBA
+2. Continue through PB-16 to PB-21 per `docs/primitive-card-plan.md`
 
 **Commit prefix used**: `W6-prim:`
 
@@ -67,6 +67,3 @@
 
 ### 2026-03-15 — W6: PB-11 mana restrictions + ETB choice (10 cards)
 - ManaRestriction enum + restricted mana pool + chosen_creature_type + 10 card fixes + 11 tests; commit 382ae7d; 2065 tests
-
-### 2026-03-14 — W6: PB-10 graveyard targeting (10 cards)
-- 2 TargetRequirement variants + has_subtypes filter + 10 card def fixes + 10 tests; commit 0b6b24d; 2054 tests

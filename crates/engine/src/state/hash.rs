@@ -1035,6 +1035,7 @@ impl HashInto for GameObject {
         }
         // CR 606.3: loyalty ability activated this turn
         self.loyalty_ability_activated_this_turn.hash_into(hasher);
+        self.class_level.hash_into(hasher);
         // Morph/Manifest/Cloak (CR 702.37/701.40/701.58) — face-down kind
         match &self.face_down_as {
             None => 0u8.hash_into(hasher),
@@ -4773,6 +4774,28 @@ impl HashInto for AbilityDefinition {
                 cost.hash_into(hasher);
                 effect.hash_into(hasher);
                 targets.hash_into(hasher);
+            }
+            // SagaChapter (discriminant 67) -- CR 714.2
+            AbilityDefinition::SagaChapter {
+                chapter,
+                effect,
+                targets,
+            } => {
+                67u8.hash_into(hasher);
+                chapter.hash_into(hasher);
+                effect.hash_into(hasher);
+                targets.hash_into(hasher);
+            }
+            // ClassLevel (discriminant 68) -- CR 716.2
+            AbilityDefinition::ClassLevel {
+                level,
+                cost,
+                abilities,
+            } => {
+                68u8.hash_into(hasher);
+                level.hash_into(hasher);
+                cost.hash_into(hasher);
+                abilities.hash_into(hasher);
             }
         }
     }

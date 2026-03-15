@@ -1944,22 +1944,24 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 None::<crate::cards::card_definition::Condition>,
                             )
                         } else {
-                            // Card registry fallback for plain AbilityDefinition::Triggered.
+                            // Card registry fallback for plain AbilityDefinition::Triggered
+                            // and AbilityDefinition::SagaChapter (CR 714.2b).
                             let result = obj
                                 .card_id
                                 .as_ref()
                                 .and_then(|cid| state.card_registry.get(cid.clone()))
                                 .and_then(|def| def.abilities.get(ability_index))
                                 .and_then(|abil| {
-                                    if let crate::cards::card_definition::AbilityDefinition::Triggered {
-                                        effect,
-                                        intervening_if,
-                                        ..
-                                    } = abil
-                                    {
-                                        Some((effect.clone(), intervening_if.clone()))
-                                    } else {
-                                        None
+                                    match abil {
+                                        crate::cards::card_definition::AbilityDefinition::Triggered {
+                                            effect,
+                                            intervening_if,
+                                            ..
+                                        } => Some((effect.clone(), intervening_if.clone())),
+                                        crate::cards::card_definition::AbilityDefinition::SagaChapter {
+                                            effect, ..
+                                        } => Some((effect.clone(), None)),
+                                        _ => None,
                                     }
                                 });
                             if let Some((eff, iif)) = result {
@@ -1977,15 +1979,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .and_then(|cid| state.card_registry.get(cid.clone()))
                             .and_then(|def| def.abilities.get(ability_index))
                             .and_then(|abil| {
-                                if let crate::cards::card_definition::AbilityDefinition::Triggered {
-                                    effect,
-                                    intervening_if,
-                                    ..
-                                } = abil
-                                {
-                                    Some((effect.clone(), intervening_if.clone()))
-                                } else {
-                                    None
+                                match abil {
+                                    crate::cards::card_definition::AbilityDefinition::Triggered {
+                                        effect,
+                                        intervening_if,
+                                        ..
+                                    } => Some((effect.clone(), intervening_if.clone())),
+                                    crate::cards::card_definition::AbilityDefinition::SagaChapter {
+                                        effect, ..
+                                    } => Some((effect.clone(), None)),
+                                    _ => None,
                                 }
                             });
                         if let Some((eff, iif)) = result {
@@ -4450,6 +4453,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         chosen_creature_type: None,
                         face_down_as: None,
                         loyalty_ability_activated_this_turn: false,
+                        class_level: 0,
                         designations: Designations::default(),
                     };
 
@@ -4647,6 +4651,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 chosen_creature_type: None,
                 face_down_as: None,
                 loyalty_ability_activated_this_turn: false,
+                class_level: 0,
                 designations: Designations::default(),
             };
 
@@ -5419,6 +5424,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     chosen_creature_type: None,
                     face_down_as: None,
                     loyalty_ability_activated_this_turn: false,
+                    class_level: 0,
                     designations: Designations::default(),
                 };
 
@@ -6201,6 +6207,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     chosen_creature_type: None,
                     face_down_as: None,
                     loyalty_ability_activated_this_turn: false,
+                    class_level: 0,
                     designations: Designations::default(),
                 };
 
@@ -6416,6 +6423,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     chosen_creature_type: None,
                     face_down_as: None,
                     loyalty_ability_activated_this_turn: false,
+                    class_level: 0,
                     designations: Designations::default(),
                 };
 
@@ -6649,6 +6657,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         chosen_creature_type: None,
                         face_down_as: None,
                         loyalty_ability_activated_this_turn: false,
+                        class_level: 0,
                         designations: Designations::default(),
                     };
 

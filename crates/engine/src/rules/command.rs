@@ -640,4 +640,15 @@ pub enum Command {
         #[serde(default)]
         x_value: Option<u32>,
     },
+    /// CR 716.2a: Level up a Class enchantment.
+    ///
+    /// "[Cost]: This Class's level becomes N. Activate only if this Class is
+    /// level N-1 and only as a sorcery."
+    LevelUpClass {
+        player: PlayerId,
+        /// The Class permanent to level up.
+        source: ObjectId,
+        /// The target level (N). The Class must currently be at level N-1.
+        target_level: u32,
+    },
 }

@@ -542,6 +542,18 @@ pub fn process_command(
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
+        Command::LevelUpClass {
+            player,
+            source,
+            target_level,
+        } => {
+            validate_player_active(&state, player)?;
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                handle_level_up_class(&mut state, player, source, target_level)?;
+            check_and_flush_triggers(&mut state, &mut events);
+            all_events.extend(events);
+        }
     }
 
     // Record events in history
@@ -2505,6 +2517,157 @@ fn handle_activate_loyalty_ability(
         source_object_id: source,
         stack_object_id: stack_id,
     });
+
+    Ok(events)
+}
+
+/// CR 716.2a: Handle leveling up a Class enchantment.
+///
+/// Validates: player controls the Class, it's on the battlefield, sorcery timing
+/// (empty stack, main phase), Class is at level N-1, and the mana cost can be paid.
+/// Then sets the Class's level to N.
+fn handle_level_up_class(
+    state: &mut GameState,
+    player: PlayerId,
+    source: crate::state::game_object::ObjectId,
+    target_level: u32,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::cards::card_definition::AbilityDefinition;
+
+    let mut events = Vec::new();
+
+    // Validate the source is on the battlefield and controlled by the player.
+    let obj = state
+        .objects
+        .get(&source)
+        .ok_or(GameStateError::InvalidCommand("Class not found".into()))?;
+    if obj.controller != player {
+        return Err(GameStateError::InvalidCommand(
+            "Player doesn't control this Class".into(),
+        ));
+    }
+    if obj.zone != crate::state::zone::ZoneId::Battlefield {
+        return Err(GameStateError::InvalidCommand(
+            "Class is not on the battlefield".into(),
+        ));
+    }
+
+    // CR 716.2a: "Activate only as a sorcery" — empty stack + main phase.
+    if !state.stack_objects.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "Stack must be empty to level up a Class".into(),
+        ));
+    }
+    let is_main_phase = matches!(
+        state.turn.step,
+        crate::state::turn::Step::PreCombatMain | crate::state::turn::Step::PostCombatMain
+    );
+    if !is_main_phase {
+        return Err(GameStateError::InvalidCommand(
+            "Can only level up a Class during a main phase".into(),
+        ));
+    }
+
+    // CR 716.2a: "Activate only if this Class is level N-1."
+    let current_level = obj.class_level.max(1); // CR 716.2d: treat 0 as 1.
+    if current_level != target_level - 1 {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Class is at level {}, must be at level {} to level up to {}",
+            current_level,
+            target_level - 1,
+            target_level
+        )));
+    }
+
+    // Find the ClassLevel ability for the target level and get the cost.
+    let card_id = obj.card_id.clone();
+    let registry = state.card_registry.clone();
+    let def = card_id
+        .as_ref()
+        .and_then(|cid| registry.get(cid.clone()))
+        .ok_or(GameStateError::InvalidCommand(
+            "No card definition for Class".into(),
+        ))?;
+
+    let level_cost = def
+        .abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDefinition::ClassLevel { level, cost, .. } if *level == target_level => {
+                Some(cost.clone())
+            }
+            _ => None,
+        })
+        .ok_or(GameStateError::InvalidCommand(format!(
+            "No ClassLevel ability for level {}",
+            target_level
+        )))?;
+
+    // Check and pay the mana cost from the player's mana pool.
+    {
+        let player_state = state
+            .players
+            .get(&player)
+            .ok_or(GameStateError::PlayerNotFound(player))?;
+        if !crate::rules::casting::can_pay_cost(&player_state.mana_pool, &level_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+    }
+    {
+        let player_state = state
+            .players
+            .get_mut(&player)
+            .ok_or(GameStateError::PlayerNotFound(player))?;
+        crate::rules::casting::pay_cost(&mut player_state.mana_pool, &level_cost);
+    }
+
+    // Set the Class's level.
+    if let Some(obj) = state.objects.get_mut(&source) {
+        obj.class_level = target_level;
+    }
+
+    // CR 716.2a: Register static continuous effects from the new level's abilities.
+    // Find the ClassLevel abilities at the target level and register their sub-abilities.
+    let level_abilities: Vec<AbilityDefinition> = def
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::ClassLevel {
+                level, abilities, ..
+            } if *level == target_level => Some(abilities.clone()),
+            _ => None,
+        })
+        .flatten()
+        .collect();
+
+    for sub_ability in &level_abilities {
+        if let AbilityDefinition::Static { continuous_effect } = sub_ability {
+            let eff_id = state.next_object_id().0;
+            let ts = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            state.continuous_effects.push_back(
+                crate::state::continuous_effect::ContinuousEffect {
+                    id: crate::state::continuous_effect::EffectId(eff_id),
+                    source: Some(source),
+                    timestamp: ts,
+                    layer: continuous_effect.layer,
+                    duration: continuous_effect.duration,
+                    filter: continuous_effect.filter.clone(),
+                    modification: continuous_effect.modification.clone(),
+                    is_cda: false,
+                },
+            );
+        }
+    }
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: source,
+        stack_object_id: source, // No stack object — level-up doesn't use the stack.
+    });
+
+    // Reset priority since this is a game action.
+    state.turn.players_passed = im::OrdSet::new();
 
     Ok(events)
 }

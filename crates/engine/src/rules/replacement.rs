@@ -1011,6 +1011,112 @@ pub fn apply_self_etb_from_definition(
         }
     }
 
+    // CR 714.3a: As a Saga enters the battlefield, its controller puts a lore counter on it.
+    // This is a turn-based action that happens as part of the ETB event.
+    let has_saga_chapters = def
+        .abilities
+        .iter()
+        .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
+    if has_saga_chapters {
+        if let Some(obj) = state.objects.get_mut(&new_id) {
+            let current = obj
+                .counters
+                .get(&CounterType::Lore)
+                .copied()
+                .unwrap_or(0);
+            obj.counters.insert(CounterType::Lore, current + 1);
+        }
+        // Fire chapter triggers for the initial lore counter (counter went from 0 to 1).
+        #[allow(clippy::needless_borrow)]
+        let chapter_evts = fire_saga_chapter_triggers(state, new_id, controller, 0, 1, &def);
+        evts.extend(chapter_evts);
+    }
+
+    // CR 716.2d: When a Class enters the battlefield, set its level to 1.
+    let has_class_levels = def
+        .abilities
+        .iter()
+        .any(|a| matches!(a, AbilityDefinition::ClassLevel { .. }));
+    if has_class_levels {
+        if let Some(obj) = state.objects.get_mut(&new_id) {
+            obj.class_level = 1;
+        }
+    }
+
+    evts
+}
+
+/// CR 714.2b: Fire chapter ability triggers when lore counters are added to a Saga.
+///
+/// "{rN}—[Effect]" means "When one or more lore counters are put onto this Saga, if the
+/// number of lore counters on it was less than N and became at least N, [effect]."
+///
+/// Chapters that trigger are those where `old_count < chapter && new_count >= chapter`.
+pub fn fire_saga_chapter_triggers(
+    state: &mut GameState,
+    saga_id: ObjectId,
+    controller: PlayerId,
+    old_count: u32,
+    new_count: u32,
+    def: &crate::cards::card_definition::CardDefinition,
+) -> Vec<GameEvent> {
+    use crate::cards::card_definition::AbilityDefinition;
+    use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
+
+    let evts = Vec::new();
+    for (ability_index, ability) in def.abilities.iter().enumerate() {
+        if let AbilityDefinition::SagaChapter { chapter, .. } = ability {
+            // CR 714.2b: Trigger fires if count crossed the chapter threshold.
+            if old_count < *chapter && new_count >= *chapter {
+                state.pending_triggers.push_back(PendingTrigger {
+                    source: saga_id,
+                    controller,
+                    kind: PendingTriggerKind::Normal,
+                    ability_index,
+                    triggering_event: None,
+                    entering_object_id: None,
+                    targeting_stack_id: None,
+                    triggering_player: None,
+                    exalted_attacker_id: None,
+                    defending_player_id: None,
+                    madness_exiled_card: None,
+                    madness_cost: None,
+                    miracle_revealed_card: None,
+                    miracle_cost: None,
+                    modular_counter_count: None,
+                    evolve_entering_creature: None,
+                    suspend_card_id: None,
+                    hideaway_count: None,
+                    partner_with_name: None,
+                    ingest_target_player: None,
+                    flanking_blocker_id: None,
+                    rampage_n: None,
+                    provoke_target_creature: None,
+                    renown_n: None,
+                    poisonous_n: None,
+                    poisonous_target_player: None,
+                    enlist_enlisted_creature: None,
+                    encore_activator: None,
+                    echo_cost: None,
+                    cumulative_upkeep_cost: None,
+                    recover_cost: None,
+                    recover_card: None,
+                    graft_entering_creature: None,
+                    backup_abilities: None,
+                    backup_n: None,
+                    champion_filter: None,
+                    champion_exiled_card: None,
+                    soulbond_pair_target: None,
+                    squad_count: None,
+                    gift_opponent: None,
+                    cipher_encoded_card_id: None,
+                    cipher_encoded_object_id: None,
+                    haunt_source_object_id: None,
+                    haunt_source_card_id: None,
+                });
+            }
+        }
+    }
     evts
 }
 

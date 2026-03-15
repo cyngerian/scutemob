@@ -465,6 +465,7 @@ impl GameState {
             chosen_creature_type: None,
             face_down_as: None,
             loyalty_ability_activated_this_turn: false,
+            class_level: 0,
             designations: Designations::default(),
         };
 
@@ -599,6 +600,7 @@ impl GameState {
                     chosen_creature_type: None,
                     face_down_as: None,
                     loyalty_ability_activated_this_turn: false,
+                    class_level: 0,
                     designations: Designations::default(),
                 };
                 // Add component to destination zone and objects map.
@@ -787,6 +789,7 @@ impl GameState {
             chosen_creature_type: None,
             face_down_as: None,
             loyalty_ability_activated_this_turn: false,
+            class_level: 0,
             designations: Designations::default(),
         };
 

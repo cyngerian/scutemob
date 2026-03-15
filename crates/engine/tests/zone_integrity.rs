@@ -224,6 +224,7 @@ fn test_add_object_to_state() {
         chosen_creature_type: None,
         face_down_as: None,
         loyalty_ability_activated_this_turn: false,
+        class_level: 0,
         designations: mtg_engine::Designations::default(),
     };
 

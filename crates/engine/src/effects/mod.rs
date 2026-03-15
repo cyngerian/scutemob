@@ -3441,6 +3441,7 @@ pub fn make_token(
         chosen_creature_type: None,
         face_down_as: None,
         loyalty_ability_activated_this_turn: false,
+        class_level: 0,
         designations: Designations::default(),
     }
 }
