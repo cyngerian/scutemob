@@ -1701,6 +1701,12 @@ pub enum Condition {
     /// "unless you control a creature with subtype X" — Temple of the Dragon Queen.
     /// True if the controller controls a creature with the given subtype.
     ControlCreatureWithSubtype(SubType),
+
+    /// CR 702.131c: "if you have the city's blessing"
+    ///
+    /// True when the controller has the city's blessing designation (permanent,
+    /// never removed once gained). Used by Ascend cards to gate abilities.
+    HasCitysBlessing,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

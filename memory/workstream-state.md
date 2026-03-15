@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-13 part 2: Channel, Land animation, Equipment auto-attach, Timing restriction, Clone/copy ETB, Adventure | ACTIVE | 2026-03-15 | **TOP PRIORITY**. PB-13 part 1 done. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | PB-13 part 3 — remaining sub-batches | ACTIVE | 2026-03-15 | **TOP PRIORITY**. Plan: `docs/primitive-card-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,26 +25,39 @@
 
 **Date**: 2026-03-15
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-13 — Specialized mechanics (part 1 of ~3)
+**Task**: PB-13 — Specialized mechanics (part 3)
 
 **Completed**:
-- KeywordAbility::HexproofPlayer (disc 159, CR 702.11d): player targeting check in casting.rs + abilities.rs via layer-resolved chars; crystal_barricade card def fixed; 3 tests
-- Monarch (CR 724): monarch: Option<PlayerId> on GameState, Effect::BecomeMonarch, GameEvent::PlayerBecameMonarch (disc 119), EOT draw in end_step_actions(), combat damage steal (check_monarch_steal_from_combat_damage), transfer_monarch_on_player_leave in sba.rs (3 sites); 6 tests
-- Verified Ascend (CR 702.131), Dredge (CR 702.52), Buyback (CR 702.27), Living Weapon (CR 702.92) already fully implemented — cleaned stale TODOs
-- Verified Flicker expressible with existing Sequence([ExileObject, MoveZone]) + target_remaps
-- Coin flip deferred to interactive play (M10) — Mana Crypt has deterministic worst-case fallback
-- Commit 5a4530c; 2088 tests, 0 clippy warnings
+- 13c: `Condition::HasCitysBlessing` variant added to `card_definition.rs`, evaluated in `effects/mod.rs`, hashed in `hash.rs` (disc 29). Arch of Orazca fixed: Ascend keyword + conditional draw ability (gated on city's blessing). Twilight Prophet: Ascend keyword added (upkeep trigger remains DSL gap — needs reveal-top + mana-value-based DrainLife). 1 new test in `ascend.rs`.
+- 13e: Dredge — already fully wired (Golgari Grave-Troll has `KeywordAbility::Dredge(6)`, tests in `dredge.rs`). DSL gap audit was stale.
+- 13f: Buyback — already fully wired (Searing Touch has `AbilityDefinition::Buyback`, tests in `buyback.rs`). DSL gap audit was stale.
+- 13l: Flicker — no cards in current universe blocked on this primitive. Deferred until cards are authored.
+- 13n: Living Weapon — already done (Batterskull uses `KeywordAbility::LivingWeapon`).
+- 13h: Coin flip / d20 — deferred to post-alpha (3 cards affected, architectural conflict with deterministic replay).
+- 2096 tests, 0 clippy warnings, workspace builds clean.
+
+**Deferred from PB-13 (total)**:
+- Equipment auto-attach (13d): needs entering-object variable refs in triggers — 2 cards
+- Timing restriction (13i): needs ContinuousRestriction framework → PB-18 (Stax)
+- Clone/copy ETB (13j): no actionable cards in universe
+- Adventure (13m): needs dedicated casting subsystem — 1-2 cards
+- Coin flip / d20 (13h): needs randomness framework — 3 cards (post-alpha)
+- Flicker (13l): no blocked cards — build when needed
+- PB-12 leftovers (Neriv, Lightning Army of One, Mossborn Hydra): need landfall trigger + scoped damage doubling
 
 **Next**:
-1. **PB-13 part 2**: Channel (5 NEO lands), Land animation (5+ cards), Equipment auto-attach (2 cards), Timing restriction (3 cards), Clone/copy ETB (1 card), Adventure (1 card)
-2. 3 PB-12 leftover cards: Neriv, Lightning Army of One, Mossborn Hydra
-3. Then PB-14 through PB-21 per `docs/primitive-card-plan.md`
-
-**Hazards**: CLAUDE.md has uncommitted edits (minor). Clean working tree otherwise.
+1. **PB-14 (Planeswalker support)**: loyalty abilities, 0-loyalty SBA, damage redirect. 31+ cards blocked.
+2. Continue through PB-15 to PB-21 per `docs/primitive-card-plan.md`
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-15 — W6: PB-13 part 3 (Ascend condition + audit)
+- Condition::HasCitysBlessing + Arch of Orazca/Twilight Prophet fixes + 1 test; Dredge/Buyback/LivingWeapon confirmed done; coin flip/flicker deferred; 2096 tests
+
+### 2026-03-15 — W6: PB-13 part 2 (Channel + land animation)
+- Cost::DiscardSelf + hand-zone activation + 5 NEO lands + Blinkmoth/Inkmoth animate + 7 tests; commit 50758e5; 2095 tests
 
 ### 2026-03-15 — W6: PB-13 part 1 (player hexproof + monarch)
 - HexproofPlayer (disc 159) + Monarch (CR 724) + stale TODO cleanup + 9 tests; commit 5a4530c; 2088 tests
@@ -57,6 +70,3 @@
 
 ### 2026-03-14 — W6: PB-10 graveyard targeting (10 cards)
 - 2 TargetRequirement variants + has_subtypes filter + 10 card def fixes + 10 tests; commit 0b6b24d; 2054 tests
-
-### 2026-03-14 — W6: PB-9.5 architecture cleanup
-- check_and_flush_triggers() helper extracted (26 copies → 1), 5 test CardDefinition defaults fixed; commits e7b13a1 + 2c8f502; 2044 tests

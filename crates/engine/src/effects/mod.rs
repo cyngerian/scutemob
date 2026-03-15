@@ -3932,6 +3932,12 @@ pub(crate) fn check_condition(
                 && obj.characteristics.card_types.contains(&CardType::Creature)
                 && obj.characteristics.subtypes.contains(subtype)
         }),
+        // CR 702.131c: the city's blessing is permanent once gained.
+        Condition::HasCitysBlessing => state
+            .players
+            .get(&ctx.controller)
+            .map(|p| p.has_citys_blessing)
+            .unwrap_or(false),
     }
 }
 

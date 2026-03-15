@@ -3953,6 +3953,7 @@ impl HashInto for Condition {
                 28u8.hash_into(hasher);
                 subtype.hash_into(hasher);
             }
+            Condition::HasCitysBlessing => 29u8.hash_into(hasher),
         }
     }
 }

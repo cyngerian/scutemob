@@ -558,3 +558,117 @@ fn test_ascend_instant_sorcery_on_resolution() {
         "CR 702.131a: P1 should have the city's blessing after the ascend sorcery resolves"
     );
 }
+
+// ── Test 8: Condition::HasCitysBlessing gates conditional effects ─────────────
+
+#[test]
+/// CR 702.131c: Condition::HasCitysBlessing correctly gates activated abilities
+/// that use a conditional draw gated on the city's blessing.
+///
+/// Uses ObjectSpec with an activated ability containing a Conditional effect.
+/// Case A: P1 does NOT have the blessing → conditional draw does not fire.
+/// Case B: P1 has the blessing → conditional draw fires.
+fn test_condition_has_citys_blessing() {
+    use mtg_engine::state::{ActivatedAbility, ActivationCost};
+    use mtg_engine::{Condition, Effect, PlayerTarget};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Build a card with a free activated ability gated on HasCitysBlessing.
+    let gated_card = ObjectSpec::card(p1, "Blessing Checker")
+        .with_types(vec![CardType::Artifact])
+        .with_activated_ability(ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: false,
+                mana_cost: None,
+                sacrifice_self: false,
+                discard_card: false,
+                discard_self: false,
+                forage: false,
+                sacrifice_filter: None,
+            },
+            description: "Draw if city's blessing".to_string(),
+            effect: Some(Effect::Conditional {
+                condition: Condition::HasCitysBlessing,
+                if_true: Box::new(Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: mtg_engine::EffectAmount::Fixed(1),
+                }),
+                if_false: Box::new(Effect::Nothing),
+            }),
+            sorcery_speed: false,
+            targets: vec![],
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(gated_card)
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // ── Case A: No city's blessing → draw does not happen ──
+    let checker_id = find_object(&state, "Blessing Checker");
+    let (state_a, _) = process_command(
+        state.clone(),
+        Command::ActivateAbility {
+            player: p1,
+            source: checker_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+        },
+    )
+    .expect("ActivateAbility should succeed");
+
+    let (state_a, _) = pass_all(state_a, &[p1, p2]);
+
+    let hand_count_a = state_a
+        .objects
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Hand(p1))
+        .count();
+    assert_eq!(
+        hand_count_a, 0,
+        "CR 702.131c: without city's blessing, conditional draw should not fire"
+    );
+
+    // ── Case B: With city's blessing → draw happens ──
+    let mut state_b = state;
+    if let Some(p) = state_b.players.get_mut(&p1) {
+        p.has_citys_blessing = true;
+    }
+
+    let checker_id = find_object(&state_b, "Blessing Checker");
+    let (state_b, _) = process_command(
+        state_b,
+        Command::ActivateAbility {
+            player: p1,
+            source: checker_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+        },
+    )
+    .expect("ActivateAbility should succeed");
+
+    let (state_b, _) = pass_all(state_b, &[p1, p2]);
+
+    let hand_count_b = state_b
+        .objects
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Hand(p1))
+        .count();
+    assert_eq!(
+        hand_count_b, 1,
+        "CR 702.131c: with city's blessing, conditional draw should fire"
+    );
+}
