@@ -112,6 +112,8 @@ fn test_nadaar_enters_ventures() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("casting Nadaar should succeed");
@@ -399,6 +401,8 @@ fn test_acererak_bounces_without_tomb() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("casting Acererak should succeed");
@@ -534,6 +538,8 @@ fn test_acererak_stays_after_tomb_completed() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("casting Acererak should succeed");
@@ -656,6 +662,8 @@ fn test_initiative_take_ventures_undercity() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("casting Seasoned Dungeoneer should succeed");

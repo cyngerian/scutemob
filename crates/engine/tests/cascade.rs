@@ -248,6 +248,8 @@ fn test_cascade_exiles_until_hit() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -410,6 +412,8 @@ fn test_cascade_skips_lands() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -574,6 +578,8 @@ fn test_cascade_combined_mana_value_skip() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

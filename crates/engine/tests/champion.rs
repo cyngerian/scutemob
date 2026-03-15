@@ -269,6 +269,8 @@ fn setup_champion_on_bf(
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -352,6 +354,8 @@ fn test_champion_basic_etb_exiles_creature() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -472,6 +476,8 @@ fn test_champion_no_target_sacrifices_self() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -588,6 +594,8 @@ fn test_champion_ltb_returns_exiled_card() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -693,6 +701,8 @@ fn test_champion_non_champion_no_trigger() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -802,6 +812,8 @@ fn test_champion_subtype_filter_rejects_wrong_type() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -902,6 +914,8 @@ fn test_champion_subtype_filter_accepts_faerie() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -998,6 +1012,8 @@ fn test_champion_changeling_matches_faerie_filter() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -1096,6 +1112,8 @@ fn test_champion_cannot_target_itself() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

@@ -84,6 +84,8 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -159,6 +161,8 @@ fn test_protection_from_red_allows_green_spell() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -244,6 +248,8 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -312,6 +318,8 @@ fn test_protection_from_all_blocks_all_targeting() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -673,6 +681,8 @@ fn test_protection_player_target_blocked_by_red_spell() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -741,6 +751,8 @@ fn test_protection_player_target_allowed_without_protection() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

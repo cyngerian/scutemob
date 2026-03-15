@@ -519,6 +519,8 @@ fn test_ascend_instant_sorcery_on_resolution() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CastSpell should succeed");

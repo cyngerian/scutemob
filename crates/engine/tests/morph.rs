@@ -382,6 +382,8 @@ fn test_morph_cast_face_down_basic() {
             x_value: 0,
             face_down_kind: Some(FaceDownKind::Morph),
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
@@ -593,6 +595,8 @@ fn test_morph_face_down_no_etb() {
             x_value: 0,
             face_down_kind: Some(FaceDownKind::Morph),
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
@@ -1199,6 +1203,8 @@ fn test_morph_cast_face_down_is_creature_spell() {
             x_value: 0,
             face_down_kind: Some(FaceDownKind::Morph),
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));

@@ -354,6 +354,8 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

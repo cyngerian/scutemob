@@ -342,6 +342,8 @@ fn test_escape_basic_cast_from_graveyard() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -471,6 +473,8 @@ fn test_escape_exile_cost_events() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -565,6 +569,8 @@ fn test_escape_permanent_resolves_to_battlefield() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -667,6 +673,8 @@ fn test_escape_was_escaped_flag_on_permanent() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -762,6 +770,8 @@ fn test_escape_with_counter() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![AdditionalCost::EscapeExile { cards: chaff_ids }],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -855,6 +865,8 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -963,6 +975,8 @@ fn test_escape_insufficient_exile_cards_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1046,6 +1060,8 @@ fn test_escape_duplicate_exile_ids_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1134,6 +1150,8 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1218,6 +1236,8 @@ fn test_escape_on_dual_keyword_card_succeeds() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1314,6 +1334,8 @@ fn test_escape_requires_card_in_graveyard() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1400,6 +1422,8 @@ fn test_escape_mana_value_unchanged() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1518,6 +1542,8 @@ fn test_escape_auto_detected_from_graveyard() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1612,6 +1638,8 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1720,6 +1748,8 @@ fn test_escape_sorcery_resolves_to_graveyard() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1839,6 +1869,8 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

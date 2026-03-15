@@ -356,6 +356,8 @@ fn cast_spell_with_gift(
             } else {
                 vec![]
             },
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
 }

@@ -102,6 +102,8 @@ fn test_call_of_the_ring_resolves_to_battlefield() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("casting Call of the Ring should succeed");

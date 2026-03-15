@@ -50,6 +50,39 @@ bitflags! {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ObjectId(pub u64);
 
+/// A single hybrid mana symbol (CR 107.4e).
+///
+/// Hybrid mana symbols represent a cost that can be paid in one of two ways.
+/// Each hybrid symbol is all of its component colors (CR 202.2d).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum HybridMana {
+    /// {W/U}, {B/R}, etc. — can be paid with either color.
+    ColorColor(ManaColor, ManaColor),
+    /// {2/W}, {2/U}, etc. — can be paid with the color OR 2 generic mana.
+    GenericColor(ManaColor),
+}
+
+/// A single Phyrexian mana symbol (CR 107.4f).
+///
+/// Each Phyrexian symbol represents a cost payable with one mana of its color
+/// or by paying 2 life.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum PhyrexianMana {
+    /// {W/P}, {U/P}, etc. — pay with the color OR 2 life.
+    Single(ManaColor),
+    /// {G/W/P}, {U/B/P}, etc. — pay with either color OR 2 life.
+    Hybrid(ManaColor, ManaColor),
+}
+
+/// How a hybrid mana pip was paid (deterministic choice encoding).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum HybridManaPayment {
+    /// Pay with a specific color (for ColorColor or GenericColor hybrids).
+    Color(ManaColor),
+    /// Pay with 2 generic mana (only valid for GenericColor hybrids).
+    Generic,
+}
+
 /// Mana cost of a card or ability (CR 202).
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ManaCost {
@@ -60,12 +93,37 @@ pub struct ManaCost {
     pub green: u32,
     pub colorless: u32,
     pub generic: u32,
+    /// Hybrid mana symbols (CR 107.4e). Each entry is one hybrid pip.
+    #[serde(default)]
+    pub hybrid: Vec<HybridMana>,
+    /// Phyrexian mana symbols (CR 107.4f). Each entry is one Phyrexian pip.
+    #[serde(default)]
+    pub phyrexian: Vec<PhyrexianMana>,
+    /// Number of {X} symbols in the cost (CR 107.3). Usually 1, sometimes 2
+    /// (e.g., Treasure Vault {X}{X}). The actual value of X is chosen at cast
+    /// time and stored on CastSpell/StackObject.x_value.
+    #[serde(default)]
+    pub x_count: u32,
 }
 
 impl ManaCost {
     /// Mana value (formerly "converted mana cost") per CR 202.3.
+    ///
+    /// CR 202.3f: Hybrid symbols use the largest component ({W/U}=1, {2/W}=2).
+    /// CR 202.3g: Each Phyrexian symbol contributes 1.
+    /// CR 202.3e: X is 0 off the stack (x_count is structural; actual value on StackObject).
     pub fn mana_value(&self) -> u32 {
-        self.white + self.blue + self.black + self.red + self.green + self.colorless + self.generic
+        let base =
+            self.white + self.blue + self.black + self.red + self.green + self.colorless + self.generic;
+        // CR 202.3f: hybrid — use largest component
+        let hybrid_mv: u32 = self.hybrid.iter().map(|h| match h {
+            HybridMana::ColorColor(_, _) => 1,   // max(1, 1) = 1
+            HybridMana::GenericColor(_) => 2,     // max(2, 1) = 2
+        }).sum();
+        // CR 202.3g: each Phyrexian symbol contributes 1
+        let phyrexian_mv = self.phyrexian.len() as u32;
+        // CR 202.3e: X is 0 off stack (x_count not counted here)
+        base + hybrid_mv + phyrexian_mv
     }
 }
 

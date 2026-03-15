@@ -7,7 +7,9 @@ pub use im::OrdSet;
 
 pub use crate::state::dungeon::{DungeonId, DungeonState, RoomIndex};
 
-pub use crate::state::game_object::{ManaAbility, SacrificeFilter};
+pub use crate::state::game_object::{
+    HybridMana, HybridManaPayment, ManaAbility, PhyrexianMana, SacrificeFilter,
+};
 pub use crate::state::player::PlayerId;
 pub use crate::state::types::{AltCostKind, FaceDownKind, TurnFaceUpMethod};
 pub use crate::state::{

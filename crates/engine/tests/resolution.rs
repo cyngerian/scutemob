@@ -76,6 +76,8 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -149,6 +151,8 @@ fn test_608_1_instant_resolves_to_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -210,6 +214,8 @@ fn test_608_3a_creature_enters_battlefield() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -290,6 +296,8 @@ fn test_608_3a_artifact_enters_battlefield() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -350,6 +358,8 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -431,6 +441,8 @@ fn test_608_1_lifo_resolves_top_first() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -453,6 +465,8 @@ fn test_608_1_lifo_resolves_top_first() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -564,6 +578,8 @@ fn test_counter_stack_object_spell_to_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -647,6 +663,8 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -719,6 +737,8 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

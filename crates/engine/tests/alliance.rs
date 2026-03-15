@@ -151,6 +151,8 @@ fn cast_creature(
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CastSpell failed")
@@ -499,6 +501,8 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CastSpell (Sol Ring) failed");

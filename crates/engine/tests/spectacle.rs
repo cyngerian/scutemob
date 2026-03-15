@@ -185,6 +185,8 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -247,6 +249,8 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -298,6 +302,8 @@ fn test_spectacle_normal_cast_without_spectacle() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -357,6 +363,8 @@ fn test_spectacle_no_keyword_rejects() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -413,6 +421,8 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -548,6 +558,8 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -635,6 +647,8 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -686,6 +700,8 @@ fn test_spectacle_own_life_loss_does_not_enable() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -780,6 +796,8 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -916,6 +934,8 @@ fn test_spectacle_commander_tax_applies() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

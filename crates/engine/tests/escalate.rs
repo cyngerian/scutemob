@@ -242,6 +242,8 @@ fn test_escalate_single_mode_no_extra_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=0 failed: {:?}", e));
@@ -333,6 +335,8 @@ fn test_escalate_two_modes_one_extra_cost() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=1 failed: {:?}", e));
@@ -423,6 +427,8 @@ fn test_escalate_all_three_modes() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=2 failed: {:?}", e));
@@ -526,6 +532,8 @@ fn test_escalate_insufficient_mana_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -588,6 +596,8 @@ fn test_escalate_no_keyword_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -647,6 +657,8 @@ fn test_escalate_modes_paid_on_stack() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -731,6 +743,8 @@ fn test_escalate_modes_exceed_available_clamped() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=5 failed: {:?}", e));
@@ -810,6 +824,8 @@ fn test_escalate_modes_execute_in_printed_order() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -931,6 +947,8 @@ fn test_escalate_rejected_on_non_modal_spell() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

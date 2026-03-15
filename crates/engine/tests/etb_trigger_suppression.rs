@@ -212,6 +212,8 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -308,6 +310,8 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -406,6 +410,8 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -460,6 +466,8 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -556,6 +564,8 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -597,6 +607,8 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -697,6 +709,8 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -771,6 +785,8 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

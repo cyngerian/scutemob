@@ -227,6 +227,8 @@ fn test_entwine_basic_both_modes_execute() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -342,6 +344,8 @@ fn test_entwine_not_paid_only_first_mode() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -441,6 +445,8 @@ fn test_entwine_insufficient_mana_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -503,6 +509,8 @@ fn test_entwine_no_keyword_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -599,6 +607,8 @@ fn test_entwine_modes_in_printed_order() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -683,6 +693,8 @@ fn test_entwine_was_entwined_flag_on_stack() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

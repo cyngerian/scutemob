@@ -829,6 +829,8 @@ fn test_whenever_you_proliferate_trigger_fires() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

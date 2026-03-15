@@ -31,8 +31,9 @@ pub use dungeon::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, Roo
 pub use error::GameStateError;
 pub use game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, Designations,
-    ETBTriggerFilter, GameObject, InterveningIf, ManaAbility, ManaCost, MergedComponent, ObjectId,
-    ObjectStatus, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
+    ETBTriggerFilter, GameObject, HybridMana, HybridManaPayment, InterveningIf, ManaAbility,
+    ManaCost, MergedComponent, ObjectId, ObjectStatus, PhyrexianMana, SacrificeFilter, TriggerEvent,
+    TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{

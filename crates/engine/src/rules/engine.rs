@@ -92,6 +92,8 @@ pub fn process_command(
             prototype,
             modes_chosen,
             x_value,
+            hybrid_choices,
+            phyrexian_life_payments,
             face_down_kind,
             additional_costs,
         } => {
@@ -113,6 +115,8 @@ pub fn process_command(
                 x_value,
                 face_down_kind,
                 additional_costs,
+                hybrid_choices,
+                phyrexian_life_payments,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
@@ -1026,6 +1030,9 @@ fn multiply_mana_cost(
         green: cost.green * multiplier,
         colorless: cost.colorless * multiplier,
         generic: cost.generic * multiplier,
+        hybrid: cost.hybrid.iter().flat_map(|h| std::iter::repeat_n(h.clone(), multiplier as usize)).collect(),
+        phyrexian: cost.phyrexian.iter().flat_map(|p| std::iter::repeat_n(p.clone(), multiplier as usize)).collect(),
+        x_count: cost.x_count * multiplier,
     }
 }
 

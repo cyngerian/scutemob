@@ -205,6 +205,8 @@ fn test_blitz_basic_cast_with_blitz_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -311,6 +313,8 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -395,6 +399,8 @@ fn test_blitz_sacrifice_at_end_step() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -492,6 +498,8 @@ fn test_blitz_draw_card_on_death() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -626,6 +634,8 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -742,6 +752,8 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -848,6 +860,8 @@ fn test_blitz_card_without_blitz_rejected() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -919,6 +933,8 @@ fn test_blitz_alternative_cost_exclusivity() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1038,6 +1054,8 @@ fn test_blitz_commander_tax_applies() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -1068,6 +1086,8 @@ fn test_blitz_commander_tax_applies() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

@@ -360,6 +360,8 @@ pub fn translate_player_action(
                 } else {
                     vec![]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -385,6 +387,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -407,6 +411,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -429,6 +435,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -452,6 +460,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -475,6 +485,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -503,6 +515,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![AdditionalCost::EscapeExile { cards: exile_ids }],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -887,6 +901,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -922,6 +938,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -945,6 +963,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -971,6 +991,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![AdditionalCost::Discard(vec![land_id])],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -997,6 +1019,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![AdditionalCost::Discard(vec![discard_id])],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1020,6 +1044,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1043,6 +1069,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1065,6 +1093,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1087,6 +1117,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1109,6 +1141,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1137,6 +1171,8 @@ pub fn translate_player_action(
                 additional_costs: bargain_sac_id
                     .map(|id| vec![crate::state::types::AdditionalCost::Sacrifice(vec![id])])
                     .unwrap_or_default(),
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1169,6 +1205,8 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::CollectEvidenceExile {
                     cards: evidence_ids,
                 }],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1196,6 +1234,8 @@ pub fn translate_player_action(
                 additional_costs: vec![crate::state::types::AdditionalCost::Sacrifice(vec![
                     emerge_sac_id,
                 ])],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1219,6 +1259,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1239,6 +1281,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1269,6 +1313,8 @@ pub fn translate_player_action(
                 additional_costs: casualty_sac_id
                     .map(|id| vec![crate::state::types::AdditionalCost::Sacrifice(vec![id])])
                     .unwrap_or_default(),
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1303,6 +1349,8 @@ pub fn translate_player_action(
                 } else {
                     vec![]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1334,6 +1382,8 @@ pub fn translate_player_action(
                 } else {
                     vec![]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1371,6 +1421,8 @@ pub fn translate_player_action(
                 } else {
                     vec![AdditionalCost::Splice { cards: splice_ids }]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1391,6 +1443,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1421,6 +1475,8 @@ pub fn translate_player_action(
                     target: target_id,
                     on_top: mutate_on_top,
                 }],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1444,6 +1500,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![AdditionalCost::Entwine],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1474,6 +1532,8 @@ pub fn translate_player_action(
                 } else {
                     vec![]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1507,6 +1567,8 @@ pub fn translate_player_action(
                 } else {
                     vec![crate::state::types::AdditionalCost::Sacrifice(devour_ids)]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1532,6 +1594,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1556,6 +1620,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![AdditionalCost::Fuse],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1584,6 +1650,8 @@ pub fn translate_player_action(
                 } else {
                     vec![]
                 },
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1607,6 +1675,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![AdditionalCost::Offspring],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 
@@ -1655,6 +1725,8 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: Some(kind),
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             })
         }
 

@@ -16,9 +16,8 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mockingbird"),
         name: "Mockingbird".to_string(),
-        // {X}{U}: X is variable; mana_cost omitted for {X} costs per W5 policy.
-        // TODO: {X}{U} mana cost — X value not representable in ManaCost struct.
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        // {X}{U}: x_count = 1 for the {X} symbol.
+        mana_cost: Some(ManaCost { blue: 1, x_count: 1, ..Default::default() }),
         types: creature_types(&["Bird", "Bard"]),
         oracle_text: "Flying\nYou may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of mana spent to cast this creature, except it's a Bird in addition to its other types and it has flying.".to_string(),
         power: Some(1),

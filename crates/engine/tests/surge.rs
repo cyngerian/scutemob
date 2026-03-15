@@ -181,6 +181,8 @@ fn test_surge_basic_cast_with_surge_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -243,6 +245,8 @@ fn test_surge_rejected_no_prior_spell() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -294,6 +298,8 @@ fn test_surge_optional_normal_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -341,6 +347,8 @@ fn test_surge_after_resolved_spell() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -387,6 +395,8 @@ fn test_surge_after_countered_spell() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -470,6 +480,8 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
             },
         );
         assert!(
@@ -531,6 +543,8 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -602,6 +616,8 @@ fn test_surge_card_without_keyword_rejected() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -665,6 +681,8 @@ fn test_surge_reset_at_turn_start() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -731,6 +749,8 @@ fn test_surge_reset_at_turn_start() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
             },
         );
         assert!(
@@ -870,6 +890,8 @@ fn test_surge_commander_tax_stacks() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -933,6 +955,8 @@ fn test_surge_cast_alt_cost_tracked() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

@@ -5,8 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("revitalizing-repast"),
         name: "Revitalizing Repast // Old-Growth Grove".to_string(),
-        // TODO: Hybrid mana cost {B/G} — ManaCost lacks hybrid support
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Green)],
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Put a +1/+1 counter on target creature. It gains indestructible until end of turn.".to_string(),
         abilities: vec![],

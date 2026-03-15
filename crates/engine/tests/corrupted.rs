@@ -108,6 +108,8 @@ fn cast_corrupted_creature(state: GameState, player: PlayerId, name: &str) -> Ga
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell ({}) failed: {:?}", name, e))

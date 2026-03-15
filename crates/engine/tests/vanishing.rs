@@ -281,6 +281,8 @@ fn test_vanishing_etb_counters_on_cast() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CastSpell should succeed");

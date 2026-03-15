@@ -104,6 +104,8 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         x_value: 0,
                         face_down_kind: None,
                         additional_costs: vec![],
+                        hybrid_choices: vec![],
+                        phyrexian_life_payments: vec![],
                     };
                     app.execute_command(cmd)?;
                 } else {

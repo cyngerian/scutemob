@@ -205,6 +205,8 @@ fn test_replicate_zero_copies() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without replicate should succeed: {:?}", e));
@@ -252,6 +254,8 @@ fn test_replicate_one_copy() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -337,6 +341,8 @@ fn test_replicate_basic_two_copies() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=2 failed: {:?}", e));
@@ -451,6 +457,8 @@ fn test_replicate_no_keyword_rejected() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -486,6 +494,8 @@ fn test_replicate_copies_not_cast() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -540,6 +550,8 @@ fn test_replicate_mana_cost_added() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

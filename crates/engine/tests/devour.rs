@@ -109,6 +109,8 @@ fn cast_devour_creature(
             } else {
                 vec![mtg_engine::AdditionalCost::Sacrifice(devour_sacrifices)]
             },
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -633,6 +635,8 @@ fn test_devour_only_own_creatures() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![opp_fodder_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -706,6 +710,8 @@ fn test_devour_cannot_sacrifice_self() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![devour_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

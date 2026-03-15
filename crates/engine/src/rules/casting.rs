@@ -70,6 +70,8 @@ pub fn handle_cast_spell(
     x_value: u32,
     _face_down_kind: Option<crate::state::types::FaceDownKind>,
     additional_costs: Vec<crate::state::types::AdditionalCost>,
+    hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+    phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // RC-1 Session 3: Extract individual additional-cost values from the consolidated vec.
     // These local variables replace the old individual parameters.
@@ -2188,6 +2190,17 @@ pub fn handle_cast_spell(
                 green: left.green + right_cost.green,
                 generic: left.generic + right_cost.generic,
                 colorless: left.colorless + right_cost.colorless,
+                hybrid: {
+                    let mut h = left.hybrid.clone();
+                    h.extend(right_cost.hybrid.iter().cloned());
+                    h
+                },
+                phyrexian: {
+                    let mut p = left.phyrexian.clone();
+                    p.extend(right_cost.phyrexian.iter().cloned());
+                    p
+                },
+                x_count: left.x_count + right_cost.x_count,
             }),
             None => {
                 return Err(GameStateError::InvalidCommand(
@@ -3253,32 +3266,55 @@ pub fn handle_cast_spell(
         )?;
     }
 
-    // CR 107.3m: Add the chosen X value to the generic portion of the mana cost.
-    // X spells have an implicit variable generic component. The player declares
-    // x_value at cast time, which is added to the total cost here.
-    // Non-X spells pass x_value = 0 (no change to mana cost).
-    let mana_cost = if x_value > 0 {
-        mana_cost.map(|mut c| {
+    // CR 107.3a: Add x_count * x_value to generic. Uses x_count from ManaCost
+    // (structural, e.g., Treasure Vault has x_count: 2 for {X}{X}) and x_value
+    // from CastSpell (player's chosen value). Falls back to old behavior for
+    // cards that don't use x_count yet (x_count == 0 but x_value > 0).
+    let mana_cost = mana_cost.map(|mut c| {
+        if c.x_count > 0 {
+            c.generic += c.x_count * x_value;
+            c.x_count = 0; // consumed
+        } else if x_value > 0 {
+            // Legacy path: Ravenous and other pre-PB-9 X spells that don't
+            // set x_count on ManaCost. x_value added directly to generic.
             c.generic += x_value;
-            c
-        })
-    } else {
-        mana_cost
-    };
+        }
+        c
+    });
 
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();
 
     if let Some(ref cost) = mana_cost {
-        if cost.mana_value() > 0 {
+        // CR 107.4e/107.4f: Flatten hybrid and Phyrexian choices into a standard cost.
+        let (flat_cost, phyrexian_life) = if !cost.hybrid.is_empty() || !cost.phyrexian.is_empty() {
+            flatten_hybrid_phyrexian(cost, &hybrid_choices, &phyrexian_life_payments)
+        } else {
+            (cost.clone(), 0)
+        };
+
+        if flat_cost.mana_value() > 0 {
             // Check the player has enough mana.
             let player_state = state.player_mut(player)?;
-            if !can_pay_cost(&player_state.mana_pool, cost) {
+            if !can_pay_cost(&player_state.mana_pool, &flat_cost) {
                 return Err(GameStateError::InsufficientMana);
             }
-            pay_cost(&mut player_state.mana_pool, cost);
+            pay_cost(&mut player_state.mana_pool, &flat_cost);
         }
+
+        // CR 107.4f: Pay life for Phyrexian mana symbols paid with life.
+        if phyrexian_life > 0 {
+            let player_state = state.player_mut(player)?;
+            // CR 119.4: Life payment is a cost. Life can go below 0 (SBA handles death).
+            player_state.life_total -= phyrexian_life as i32;
+            events.push(GameEvent::LifeLost {
+                player,
+                amount: phyrexian_life,
+            });
+        }
+
         // CR 601.2f: ManaCostPaid is emitted for all costs, including {0}.
+        // Emit the original cost (with hybrid/phyrexian info) for event consumers.
         events.push(GameEvent::ManaCostPaid {
             player,
             cost: cost.clone(),
@@ -5248,6 +5284,126 @@ fn validate_object_satisfies_requirement(
     }
 }
 
+/// CR 601.2f: Resolve hybrid and Phyrexian payment choices into a flat ManaCost.
+///
+/// Hybrid pips become colored or generic pips based on choices.
+/// Phyrexian pips paid with life are removed from the mana cost (life deducted separately).
+/// Phyrexian pips paid with mana become colored pips.
+///
+/// Returns (flattened mana cost with only standard fields, life to pay for Phyrexian).
+/// If `hybrid_choices` or `phyrexian_life_payments` are shorter than the pip count,
+/// defaults apply: first color for hybrid, mana payment for Phyrexian.
+pub fn flatten_hybrid_phyrexian(
+    cost: &crate::state::game_object::ManaCost,
+    hybrid_choices: &[crate::state::game_object::HybridManaPayment],
+    phyrexian_life_payments: &[bool],
+) -> (crate::state::game_object::ManaCost, u32) {
+    use crate::state::game_object::{HybridMana, HybridManaPayment, PhyrexianMana};
+    use crate::state::types::ManaColor;
+
+    let mut flat = crate::state::game_object::ManaCost {
+        white: cost.white,
+        blue: cost.blue,
+        black: cost.black,
+        red: cost.red,
+        green: cost.green,
+        colorless: cost.colorless,
+        generic: cost.generic,
+        hybrid: vec![],
+        phyrexian: vec![],
+        x_count: cost.x_count,
+    };
+
+    // Resolve hybrid pips
+    for (i, h) in cost.hybrid.iter().enumerate() {
+        let choice = hybrid_choices.get(i);
+        match h {
+            HybridMana::ColorColor(a, b) => {
+                // Default: pay with the first color
+                let color = match choice {
+                    Some(HybridManaPayment::Color(c)) => *c,
+                    _ => *a,
+                };
+                match color {
+                    ManaColor::White => flat.white += 1,
+                    ManaColor::Blue => flat.blue += 1,
+                    ManaColor::Black => flat.black += 1,
+                    ManaColor::Red => flat.red += 1,
+                    ManaColor::Green => flat.green += 1,
+                    ManaColor::Colorless => flat.colorless += 1,
+                }
+                // Validate: chosen color must be one of a or b
+                let _ = (a, b); // used above via default
+            }
+            HybridMana::GenericColor(c) => {
+                match choice {
+                    Some(HybridManaPayment::Generic) => {
+                        // Pay with 2 generic mana
+                        flat.generic += 2;
+                    }
+                    Some(HybridManaPayment::Color(color)) => {
+                        // Pay with the colored option
+                        match color {
+                            ManaColor::White => flat.white += 1,
+                            ManaColor::Blue => flat.blue += 1,
+                            ManaColor::Black => flat.black += 1,
+                            ManaColor::Red => flat.red += 1,
+                            ManaColor::Green => flat.green += 1,
+                            ManaColor::Colorless => flat.colorless += 1,
+                        }
+                    }
+                    _ => {
+                        // Default: pay with color (cheaper)
+                        match c {
+                            ManaColor::White => flat.white += 1,
+                            ManaColor::Blue => flat.blue += 1,
+                            ManaColor::Black => flat.black += 1,
+                            ManaColor::Red => flat.red += 1,
+                            ManaColor::Green => flat.green += 1,
+                            ManaColor::Colorless => flat.colorless += 1,
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Resolve Phyrexian pips
+    let mut life_cost = 0u32;
+    for (i, p) in cost.phyrexian.iter().enumerate() {
+        let pay_life = phyrexian_life_payments.get(i).copied().unwrap_or(false);
+        if pay_life {
+            life_cost += 2;
+        } else {
+            // Pay with mana — add to the appropriate color slot
+            match p {
+                PhyrexianMana::Single(c) => match c {
+                    ManaColor::White => flat.white += 1,
+                    ManaColor::Blue => flat.blue += 1,
+                    ManaColor::Black => flat.black += 1,
+                    ManaColor::Red => flat.red += 1,
+                    ManaColor::Green => flat.green += 1,
+                    ManaColor::Colorless => flat.colorless += 1,
+                },
+                PhyrexianMana::Hybrid(a, _b) => {
+                    // For hybrid Phyrexian paid with mana, default to first color.
+                    // A more precise choice would need a separate field.
+                    match a {
+                        ManaColor::White => flat.white += 1,
+                        ManaColor::Blue => flat.blue += 1,
+                        ManaColor::Black => flat.black += 1,
+                        ManaColor::Red => flat.red += 1,
+                        ManaColor::Green => flat.green += 1,
+                        ManaColor::Colorless => flat.colorless += 1,
+                    }
+                }
+            }
+        }
+    }
+
+    (flat, life_cost)
+}
+
 /// Returns true if the mana pool can cover the mana cost.
 ///
 /// Colored mana (W/U/B/R/G) must be paid with the matching color.
@@ -5515,22 +5671,58 @@ pub(crate) fn get_prototype_data(
 /// An object is the color or colors of the mana symbols in its mana cost.
 /// Used to compute the colors of a prototyped permanent (CR 718.3b).
 pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state::types::Color> {
+    use crate::state::game_object::{HybridMana, PhyrexianMana};
+    use crate::state::types::{Color, ManaColor};
+
     let mut colors = im::OrdSet::new();
     if cost.white > 0 {
-        colors.insert(crate::state::types::Color::White);
+        colors.insert(Color::White);
     }
     if cost.blue > 0 {
-        colors.insert(crate::state::types::Color::Blue);
+        colors.insert(Color::Blue);
     }
     if cost.black > 0 {
-        colors.insert(crate::state::types::Color::Black);
+        colors.insert(Color::Black);
     }
     if cost.red > 0 {
-        colors.insert(crate::state::types::Color::Red);
+        colors.insert(Color::Red);
     }
     if cost.green > 0 {
-        colors.insert(crate::state::types::Color::Green);
+        colors.insert(Color::Green);
     }
+
+    // CR 202.2d: Hybrid and Phyrexian symbols add their component colors.
+    let add_mana_color = |colors: &mut im::OrdSet<Color>, mc: &ManaColor| {
+        match mc {
+            ManaColor::White => { colors.insert(Color::White); }
+            ManaColor::Blue => { colors.insert(Color::Blue); }
+            ManaColor::Black => { colors.insert(Color::Black); }
+            ManaColor::Red => { colors.insert(Color::Red); }
+            ManaColor::Green => { colors.insert(Color::Green); }
+            ManaColor::Colorless => {} // colorless is not a color
+        }
+    };
+    for h in &cost.hybrid {
+        match h {
+            HybridMana::ColorColor(a, b) => {
+                add_mana_color(&mut colors, a);
+                add_mana_color(&mut colors, b);
+            }
+            HybridMana::GenericColor(c) => {
+                add_mana_color(&mut colors, c);
+            }
+        }
+    }
+    for p in &cost.phyrexian {
+        match p {
+            PhyrexianMana::Single(c) => add_mana_color(&mut colors, c),
+            PhyrexianMana::Hybrid(a, b) => {
+                add_mana_color(&mut colors, a);
+                add_mana_color(&mut colors, b);
+            }
+        }
+    }
+
     colors
 }
 

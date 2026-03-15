@@ -216,6 +216,8 @@ fn test_fuse_basic_both_halves_execute() {
             additional_costs: vec![AdditionalCost::Fuse],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
@@ -306,6 +308,8 @@ fn test_fuse_single_half_cast() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("single-half cast failed: {:?}", e));
@@ -398,6 +402,8 @@ fn test_fuse_from_hand_only_rejected_from_graveyard() {
             additional_costs: vec![AdditionalCost::Fuse],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -466,6 +472,8 @@ fn test_fuse_no_keyword_rejected() {
             additional_costs: vec![AdditionalCost::Fuse],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -549,6 +557,8 @@ fn test_fuse_combined_mana_cost_required() {
             additional_costs: vec![AdditionalCost::Fuse],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -632,6 +642,8 @@ fn test_fuse_resolution_order_left_then_right() {
             additional_costs: vec![AdditionalCost::Fuse],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
@@ -739,6 +751,8 @@ fn test_fuse_alt_cost_rejected() {
             additional_costs: vec![AdditionalCost::Fuse],
             x_value: 0,
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

@@ -262,6 +262,8 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -341,6 +343,8 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -417,6 +421,8 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -486,6 +492,8 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -561,6 +569,8 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -643,6 +653,8 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -725,6 +737,8 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Cleave board-wipe CastSpell failed: {:?}", e));
@@ -823,6 +837,8 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal board-wipe CastSpell failed: {:?}", e));

@@ -18,9 +18,23 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}.
-            // DSL gap: hybrid mana costs ({R/W}) not expressible in Cost::Mana (ManaCost struct has
-            // no hybrid field). Triple-choice mana output also not expressible with current Choose.
+            // {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}
+            // TODO: Triple-choice mana output not expressible; defaulting to {R}{W}.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        hybrid: vec![HybridMana::ColorColor(ManaColor::Red, ManaColor::White)],
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(1, 0, 0, 1, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

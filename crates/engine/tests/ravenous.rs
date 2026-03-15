@@ -99,6 +99,8 @@ fn cast_ravenous(
             x_value,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell(x_value={}) failed: {:?}", x_value, e))

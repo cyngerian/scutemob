@@ -114,6 +114,8 @@ fn test_read_the_bones_scry_then_draw() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -289,6 +291,8 @@ fn test_path_to_exile_optional_search() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -782,6 +786,8 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("casting Rest in Peace failed");

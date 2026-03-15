@@ -232,6 +232,8 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -381,6 +383,8 @@ fn test_evoke_basic_cast_without_evoke() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -481,6 +485,8 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -590,6 +596,8 @@ fn test_evoke_does_not_change_mana_value() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -730,6 +738,8 @@ fn test_evoke_cannot_combine_with_flashback() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -799,6 +809,8 @@ fn test_evoke_non_evoke_spell_rejected() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -878,6 +890,8 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -966,6 +980,8 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

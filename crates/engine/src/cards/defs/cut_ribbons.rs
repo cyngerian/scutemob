@@ -42,19 +42,16 @@ pub fn card() -> CardDefinition {
             },
 
             // Ribbons half: {X}{B}{B}, Aftermath — each opponent loses X life.
-            // TODO: X cost approximated as generic: 3 (total {3}{B}{B}); LoseLife
-            // amount approximated as Fixed(3). Requires ManaCost::x and
-            // EffectAmount::X variants for a faithful implementation.
             // CR 702.127: cast from graveyard only; exiled when it leaves the stack.
             AbilityDefinition::Aftermath {
                 name: "Ribbons".to_string(),
-                cost: ManaCost { generic: 3, black: 2, ..Default::default() },
+                cost: ManaCost { black: 2, x_count: 1, ..Default::default() },
                 card_type: CardType::Sorcery,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::LoseLife {
                         player: PlayerTarget::EachOpponent,
-                        amount: EffectAmount::Fixed(3),
+                        amount: EffectAmount::XValue,
                     }),
                 },
                 targets: vec![],

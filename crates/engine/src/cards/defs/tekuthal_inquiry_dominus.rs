@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: no proliferate-doubling replacement effect.
             // TODO: Activated ability — {1}{U/P}{U/P}, remove three counters from among other
             // artifacts/creatures/planeswalkers you control: put an indestructible counter on this.
-            // DSL gap: hybrid/phyrexian mana costs; remove-counters-from-others cost.
+            // DSL gap: phyrexian mana costs NOW representable (PB-9); remove-counters-from-others cost still missing.
         ],
         ..Default::default()
     }

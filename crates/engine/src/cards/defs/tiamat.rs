@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             black: 1,
             red: 1,
             green: 1,
-            colorless: 0,
+            ..Default::default()
         }),
         types: full_types(
             &[SuperType::Legendary],

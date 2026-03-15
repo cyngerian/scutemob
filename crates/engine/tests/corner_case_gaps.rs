@@ -86,6 +86,8 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

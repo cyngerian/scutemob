@@ -214,6 +214,8 @@ fn cast_offspring(
             } else {
                 vec![]
             },
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| {
@@ -428,6 +430,8 @@ fn test_offspring_rejected_without_keyword() {
             x_value: 0,
             additional_costs: vec![AdditionalCost::Offspring], // trying to pay offspring cost on non-offspring creature
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

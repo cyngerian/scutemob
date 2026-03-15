@@ -307,6 +307,8 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
                 cards: vec![gy_mv3_id, gy_mv4_id],
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -368,6 +370,8 @@ fn test_collect_evidence_over_threshold_allowed() {
                 cards: vec![gy_mv3_id, gy_mv4_id],
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -405,6 +409,8 @@ fn test_collect_evidence_under_threshold_rejected() {
                 cards: vec![gy_mv2_id, gy_mv3_id],
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -443,6 +449,8 @@ fn test_collect_evidence_not_collected_optional() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -492,6 +500,8 @@ fn test_collect_evidence_insufficient_single_card_rejected() {
             x_value: 0,
             additional_costs: vec![AdditionalCost::CollectEvidenceExile { cards: vec![gy_id] }], // MV 4 < threshold 6
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -559,6 +569,8 @@ fn test_collect_evidence_mandatory_without_cards_rejected() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -595,6 +607,8 @@ fn test_collect_evidence_duplicate_card_rejected() {
                 cards: vec![gy_id, gy_id],
             }], // duplicate
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -639,6 +653,8 @@ fn test_collect_evidence_card_not_in_graveyard_rejected() {
             x_value: 0,
             additional_costs: vec![AdditionalCost::CollectEvidenceExile { cards: vec![bf_id] }], // on battlefield, not graveyard
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -677,6 +693,8 @@ fn test_collect_evidence_opponents_graveyard_rejected() {
                 cards: vec![opp_gy_id],
             }], // in opponent's graveyard
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -740,6 +758,8 @@ fn test_collect_evidence_spell_without_ability_rejected() {
             x_value: 0,
             additional_costs: vec![AdditionalCost::CollectEvidenceExile { cards: vec![gy_id] }], // spell has no CollectEvidence
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -807,6 +827,8 @@ fn test_collect_evidence_mana_not_reduced() {
             x_value: 0,
             additional_costs: vec![AdditionalCost::CollectEvidenceExile { cards: vec![gy_id] }], // should NOT reduce cost
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

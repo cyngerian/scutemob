@@ -257,6 +257,8 @@ fn test_bargain_basic_instant_with_sacrifice() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![token_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bargain (token) failed: {:?}", e));
@@ -324,6 +326,8 @@ fn test_bargain_basic_instant_without_sacrifice() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));
@@ -398,6 +402,8 @@ fn test_bargain_sacrifice_artifact() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![artifact_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with artifact failed: {:?}", e));
@@ -449,6 +455,8 @@ fn test_bargain_sacrifice_enchantment() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![enchantment_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with enchantment failed: {:?}", e));
@@ -502,6 +510,8 @@ fn test_bargain_sacrifice_creature_token() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![token_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with creature token failed: {:?}", e));
@@ -548,6 +558,8 @@ fn test_bargain_sacrifice_invalid_creature() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -600,6 +612,8 @@ fn test_bargain_sacrifice_opponent_permanent() {
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![
                 opponent_artifact_id,
             ])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -683,6 +697,8 @@ fn test_bargain_no_keyword_sacrifice_ignored() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![artifact_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -762,6 +778,8 @@ fn test_bargain_permanent_etb_was_bargained() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![enchantment_id])],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargain artifact failed: {:?}", e));
@@ -854,6 +872,8 @@ fn test_bargain_permanent_etb_not_bargained() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));

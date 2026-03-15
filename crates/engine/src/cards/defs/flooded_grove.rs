@@ -21,8 +21,23 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U} — hybrid mana cost and
-            // 3-way double-mana choice not expressible in current DSL.
+            // {G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}
+            // TODO: Triple-choice mana output not expressible; defaulting to {G}{U}.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::Blue)],
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 1, 0, 0, 1, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

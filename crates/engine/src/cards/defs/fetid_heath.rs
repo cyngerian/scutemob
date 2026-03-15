@@ -22,10 +22,23 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {W/B},{T}: Add {W}{W}, {W}{B}, or {B}{B} — hybrid mana
-            // activation cost ({W/B}) and three-way colored mana production
-            // are not expressible in the DSL (no hybrid Cost variant; no
-            // three-choice mana output for filterlands)
+            // {W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}
+            // TODO: Triple-choice mana output not expressible; defaulting to {W}{B}.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        hybrid: vec![HybridMana::ColorColor(ManaColor::White, ManaColor::Black)],
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(1, 0, 1, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

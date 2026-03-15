@@ -173,6 +173,8 @@ fn test_disturb_cast_from_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Cast with disturb should succeed");
@@ -241,6 +243,8 @@ fn test_disturb_enters_transformed() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Cast with disturb should succeed");
@@ -419,6 +423,8 @@ fn test_disturb_requires_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

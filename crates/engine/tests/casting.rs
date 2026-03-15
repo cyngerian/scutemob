@@ -59,6 +59,8 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -126,6 +128,8 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(result.is_ok());
@@ -180,6 +184,8 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -233,6 +239,8 @@ fn test_cast_spell_flash_at_instant_speed() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -289,6 +297,8 @@ fn test_cast_spell_lifo_stack_order() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -318,6 +328,8 @@ fn test_cast_spell_lifo_stack_order() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -373,6 +385,8 @@ fn test_cast_spell_not_priority_holder_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(
@@ -423,6 +437,8 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -467,6 +483,8 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -528,6 +546,8 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -556,6 +576,8 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -598,6 +620,8 @@ fn test_cast_spell_land_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -643,6 +667,8 @@ fn test_cast_spell_card_not_in_hand_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -692,6 +718,8 @@ fn test_cast_spell_priority_resets_to_active_player() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: no death-trigger-doubling static effect.
             // TODO: Activated ability — {B/P}{B/P}, exile three creature cards from your graveyard:
             // put an indestructible counter on this.
-            // DSL gap: hybrid/phyrexian mana costs; exile-from-graveyard cost; AddCounters self-target.
+            // DSL gap: phyrexian mana costs NOW representable (PB-9); exile-from-graveyard cost + AddCounters self-target still missing.
         ],
         ..Default::default()
     }

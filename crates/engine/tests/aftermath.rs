@@ -235,6 +235,8 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
@@ -340,6 +342,8 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -445,6 +449,8 @@ fn test_aftermath_exile_on_resolution() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -561,6 +567,8 @@ fn test_aftermath_exile_on_counter() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -600,6 +608,8 @@ fn test_aftermath_exile_on_counter() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -700,6 +710,8 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -774,6 +786,8 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -860,6 +874,8 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -953,6 +969,8 @@ fn test_aftermath_pays_aftermath_cost() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
@@ -1038,6 +1056,8 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1121,6 +1141,8 @@ fn test_aftermath_uses_aftermath_effect() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1222,6 +1244,8 @@ fn test_aftermath_full_lifecycle() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 709.3: first half should cast from hand");
@@ -1290,6 +1314,8 @@ fn test_aftermath_full_lifecycle() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -1388,6 +1414,8 @@ fn test_aftermath_insufficient_mana_rejected() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

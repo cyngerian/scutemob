@@ -5,19 +5,20 @@
 //   +1: reveal top card, put in hand if creature/planeswalker
 //   -3: distribute +1/+1 counters among up to 3 targets + grant vigilance until EOT
 //   -6: create emblem with triggered poison counter ability
-// TODO: DSL gap — Compleated hybrid mana ({G/W/P}) not representable in ManaCost struct
-//   (no life-payment mana field)
+// Compleated hybrid Phyrexian mana ({G/W/P}) — payable with {G}, {W}, or 2 life.
+// TODO: Compleated keyword effect (2 fewer loyalty counters if life paid) deferred to PB-14.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ajani-sleeper-agent"),
         name: "Ajani, Sleeper Agent".to_string(),
-        // Mana cost: {1}{G}{G/W/P}{W} — {G/W/P} approximated as {G} to preserve CMC 4
+        // Mana cost: {1}{G}{G/W/P}{W}
         mana_cost: Some(ManaCost {
             generic: 1,
-            green: 2,
+            green: 1,
             white: 1,
+            phyrexian: vec![PhyrexianMana::Hybrid(ManaColor::Green, ManaColor::White)],
             ..Default::default()
         }),
         types: full_types(

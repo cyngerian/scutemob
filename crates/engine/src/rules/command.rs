@@ -87,6 +87,16 @@ pub enum Command {
         /// CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
         #[serde(default)]
         x_value: u32,
+        /// CR 107.4e: For each hybrid pip in the resolved cost, how it was paid.
+        /// Length must match total hybrid pips after cost calculation.
+        /// Empty = default to first color option for each hybrid pip.
+        #[serde(default)]
+        hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+        /// CR 107.4f: For each Phyrexian pip, true = pay 2 life; false = pay mana.
+        /// Length must match total Phyrexian pips after cost calculation.
+        /// Empty = default to paying with mana for each pip.
+        #[serde(default)]
+        phyrexian_life_payments: Vec<bool>,
         /// CR 702.37c / 702.168b: Which face-down variant is being used when casting face-down.
         #[serde(default)]
         face_down_kind: Option<FaceDownKind>,

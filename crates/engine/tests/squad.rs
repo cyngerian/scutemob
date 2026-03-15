@@ -215,6 +215,8 @@ fn cast_squad(
             } else {
                 vec![]
             },
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell(squad_count={}) failed: {:?}", squad_count, e))
@@ -437,6 +439,8 @@ fn test_squad_rejected_without_keyword() {
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![AdditionalCost::Squad { count: 1 }], // trying to pay squad cost on non-squad creature
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

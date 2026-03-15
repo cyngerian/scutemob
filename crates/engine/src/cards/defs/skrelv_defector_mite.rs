@@ -8,11 +8,11 @@
 // Toxic 1 implemented. CantBlock has no KeywordAbility variant (DSL gap).
 //
 // TODO: DSL gap — the activated ability requires:
-// 1. Phyrexian mana cost ({W/P} = {W} or 2 life) — Cost enum has no PhyrexianMana variant.
+// 1. Phyrexian mana cost ({W/P}) — NOW representable via ManaCost.phyrexian (PB-9).
 // 2. "Choose a color" selection — no ChooseColor effect primitive.
 // 3. "Gains hexproof from that color" — protection-from-color effect not expressible.
 // 4. "Can't be blocked by creatures of that color this turn" — complex block restriction.
-// This activated ability is omitted.
+// This activated ability is omitted (gaps 2-4 remain).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

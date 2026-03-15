@@ -236,6 +236,8 @@ fn test_mutate_resolution_basic_merge() {
                 on_top: true,
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
@@ -420,6 +422,8 @@ fn test_mutate_validation_rejects_human_target() {
                 on_top: true,
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -512,6 +516,8 @@ fn test_mutate_resolution_illegal_target_fallback() {
                 on_top: true,
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
@@ -748,6 +754,8 @@ fn test_mutate_trigger_fires() {
                 on_top: true,
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
@@ -869,6 +877,8 @@ fn test_mutate_under_uses_target_characteristics() {
                 on_top: false,
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate (under) failed: {:?}", e));
@@ -1007,6 +1017,8 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
                 on_top: true,
             }],
             face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate (Gemrazer) failed: {:?}", e));

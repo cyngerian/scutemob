@@ -19,8 +19,8 @@ use super::continuous_effect::{
 use super::dungeon::{DungeonId, DungeonState};
 use super::game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
-    GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, SacrificeFilter,
-    TriggerEvent, TriggeredAbilityDef,
+    GameObject, HybridMana, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus,
+    PhyrexianMana, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
@@ -781,6 +781,38 @@ impl HashInto for LossReason {
 
 // --- Composite type implementations ---
 
+impl HashInto for HybridMana {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            HybridMana::ColorColor(a, b) => {
+                0u8.hash_into(hasher);
+                a.hash_into(hasher);
+                b.hash_into(hasher);
+            }
+            HybridMana::GenericColor(c) => {
+                1u8.hash_into(hasher);
+                c.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for PhyrexianMana {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            PhyrexianMana::Single(c) => {
+                0u8.hash_into(hasher);
+                c.hash_into(hasher);
+            }
+            PhyrexianMana::Hybrid(a, b) => {
+                1u8.hash_into(hasher);
+                a.hash_into(hasher);
+                b.hash_into(hasher);
+            }
+        }
+    }
+}
+
 impl HashInto for ManaCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.white.hash_into(hasher);
@@ -790,6 +822,15 @@ impl HashInto for ManaCost {
         self.green.hash_into(hasher);
         self.colorless.hash_into(hasher);
         self.generic.hash_into(hasher);
+        (self.hybrid.len() as u32).hash_into(hasher);
+        for h in &self.hybrid {
+            h.hash_into(hasher);
+        }
+        (self.phyrexian.len() as u32).hash_into(hasher);
+        for p in &self.phyrexian {
+            p.hash_into(hasher);
+        }
+        self.x_count.hash_into(hasher);
     }
 }
 

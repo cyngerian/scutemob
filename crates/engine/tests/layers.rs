@@ -482,6 +482,7 @@ fn test_613_layer7a_set_pt_to_mana_value() {
         green: 0,
         colorless: 0,
         generic: 2,
+        ..Default::default()
     });
 
     let state = GameStateBuilder::new()
@@ -818,6 +819,7 @@ fn test_613_opalescence_makes_enchantments_into_creatures() {
             green: 0,
             colorless: 0,
             generic: 4,
+            ..Default::default()
         });
 
     let state = GameStateBuilder::new()
@@ -888,7 +890,8 @@ fn test_613_humility_plus_opalescence() {
         red: 0,
         green: 0,
         colorless: 0,
-        generic: 2, // {2}{W}{W} = 4
+        generic: 2, // {2}{W}{W} = 4,
+        ..Default::default()
     });
     let opalescence_spec = ObjectSpec::enchantment(p1(), "Opalescence").with_mana_cost(ManaCost {
         white: 2,
@@ -897,7 +900,8 @@ fn test_613_humility_plus_opalescence() {
         red: 0,
         green: 0,
         colorless: 0,
-        generic: 2, // {2}{W}{W} = 4
+        generic: 2, // {2}{W}{W} = 4,
+        ..Default::default()
     });
 
     let state = GameStateBuilder::new()

@@ -19,8 +19,22 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {X}{X}, {T}, Sacrifice: Create X Treasure tokens — PB-9 (X costs)
-            // Cost::SacrificeSelf available; blocked on X-cost + X-scaled token creation
+            // {X}{X}, {T}, Sacrifice: Create X Treasure tokens.
+            // TODO: X-scaled token creation (EffectAmount::XValue in token count) not yet wired.
+            // Cost is correct; effect approximated as creating 1 Treasure.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { x_count: 2, ..Default::default() }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                // TODO: should create X Treasures (EffectAmount::XValue); approximated as 1.
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

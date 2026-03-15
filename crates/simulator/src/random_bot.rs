@@ -150,6 +150,8 @@ pub(crate) fn action_to_command(
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
         LegalAction::TapForMana {
             source,
@@ -271,6 +273,8 @@ pub(crate) fn action_to_command(
                 target: *mutate_target,
                 on_top: true,
             }],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
         LegalAction::TurnFaceUp { permanent, method } => Command::TurnFaceUp {
             player,
@@ -291,6 +295,8 @@ pub(crate) fn action_to_command(
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     }
 }

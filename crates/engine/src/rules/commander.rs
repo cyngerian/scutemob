@@ -277,6 +277,9 @@ pub fn apply_commander_tax(base_cost: &ManaCost, tax: u32) -> ManaCost {
         red: base_cost.red,
         green: base_cost.green,
         colorless: base_cost.colorless,
+        hybrid: base_cost.hybrid.clone(),
+        phyrexian: base_cost.phyrexian.clone(),
+        x_count: base_cost.x_count,
     }
 }
 
@@ -1026,6 +1029,9 @@ pub fn handle_bring_companion(
 
 /// Add colors present in a mana cost to the accumulator.
 fn add_colors_from_mana_cost(cost: &ManaCost, colors: &mut Vec<Color>) {
+    use crate::state::game_object::{HybridMana, PhyrexianMana};
+    use crate::state::types::ManaColor;
+
     if cost.white > 0 && !colors.contains(&Color::White) {
         colors.push(Color::White);
     }
@@ -1040,6 +1046,41 @@ fn add_colors_from_mana_cost(cost: &ManaCost, colors: &mut Vec<Color>) {
     }
     if cost.green > 0 && !colors.contains(&Color::Green) {
         colors.push(Color::Green);
+    }
+
+    // CR 903.4 / CR 202.2d: Hybrid and Phyrexian symbols add their component colors.
+    let add_mc = |colors: &mut Vec<Color>, mc: &ManaColor| {
+        let color = match mc {
+            ManaColor::White => Some(Color::White),
+            ManaColor::Blue => Some(Color::Blue),
+            ManaColor::Black => Some(Color::Black),
+            ManaColor::Red => Some(Color::Red),
+            ManaColor::Green => Some(Color::Green),
+            ManaColor::Colorless => None,
+        };
+        if let Some(c) = color {
+            if !colors.contains(&c) {
+                colors.push(c);
+            }
+        }
+    };
+    for h in &cost.hybrid {
+        match h {
+            HybridMana::ColorColor(a, b) => {
+                add_mc(colors, a);
+                add_mc(colors, b);
+            }
+            HybridMana::GenericColor(c) => add_mc(colors, c),
+        }
+    }
+    for p in &cost.phyrexian {
+        match p {
+            PhyrexianMana::Single(c) => add_mc(colors, c),
+            PhyrexianMana::Hybrid(a, b) => {
+                add_mc(colors, a);
+                add_mc(colors, b);
+            }
+        }
     }
 }
 

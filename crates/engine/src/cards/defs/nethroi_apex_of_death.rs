@@ -1,5 +1,5 @@
 // Nethroi, Apex of Death — {2}{W}{B}{G}, Legendary Creature — Cat Nightmare Beast 5/5
-// Mutate {4}{G}{B}{B} (hybrid {G/W} simplified to {G} — hybrid mana is a DSL gap)
+// Mutate {4}{G/W}{B}{B}
 // Lifelink, Deathtouch
 // Whenever this creature mutates, return any number of target creature cards with total power
 // 10 or less from your graveyard to the battlefield.
@@ -8,7 +8,6 @@
 // CR 702.140d: "Whenever this creature mutates" fires after a successful merge.
 // TODO: The "total power 10 or less" multi-target graveyard constraint is a DSL gap.
 //       Effect::ReturnFromGraveyard does not exist. The trigger is stubbed with no effect.
-// TODO: Hybrid mana {G/W} in mutate cost simplified to {G}. Full hybrid support is deferred.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,10 +28,14 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 702.140a: Mutate keyword marker for presence-checking.
             AbilityDefinition::Keyword(KeywordAbility::Mutate),
-            // CR 702.140a: Mutate cost {4}{G}{B}{B} (hybrid {G/W} simplified to {G}).
-            // TODO: hybrid mana {G/W} not yet supported; using {G} as approximation.
+            // CR 702.140a: Mutate cost {4}{G/W}{B}{B}
             AbilityDefinition::MutateCost {
-                cost: ManaCost { generic: 4, green: 1, black: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 4,
+                    black: 2,
+                    hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
