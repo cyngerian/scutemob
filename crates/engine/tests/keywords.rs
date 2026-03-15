@@ -508,6 +508,216 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
     );
 }
 
+// ── CR 702.11d: Player Hexproof ──────────────────────────────────────────────
+
+#[test]
+/// CR 702.11d — Player with HexproofPlayer permanent can't be targeted by opponents' spells.
+fn test_702_11d_player_hexproof_blocks_opponent_spell_targeting() {
+    use mtg_engine::{CardType, ManaColor, ManaCost};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // P1 controls a creature with HexproofPlayer
+    let barricade = ObjectSpec::creature(p1, "Crystal Barricade", 0, 4)
+        .with_keyword(KeywordAbility::HexproofPlayer);
+
+    // P2 has a spell that targets a player
+    let bolt_spec = ObjectSpec::card(p2, "Lightning Bolt")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            red: 1,
+            ..Default::default()
+        });
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(barricade)
+        .object(bolt_spec.in_zone(mtg_engine::ZoneId::Hand(p2)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p2);
+
+    let bolt_id = find_object(&state, "Lightning Bolt");
+
+    // P2 tries to target P1 (who has hexproof from Crystal Barricade)
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: bolt_id,
+            targets: vec![mtg_engine::Target::Player(p1)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Opponent should not be able to target a player with hexproof"
+    );
+}
+
+#[test]
+/// CR 702.11d — Player hexproof doesn't prevent their OWN spells from targeting them.
+fn test_702_11d_player_hexproof_allows_self_targeting() {
+    use mtg_engine::{CardType, ManaColor, ManaCost};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // P1 controls a creature with HexproofPlayer and has a spell
+    let barricade = ObjectSpec::creature(p1, "Crystal Barricade", 0, 4)
+        .with_keyword(KeywordAbility::HexproofPlayer);
+
+    let heal_spec = ObjectSpec::card(p1, "Healing Salve")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            white: 1,
+            ..Default::default()
+        });
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(barricade)
+        .object(heal_spec.in_zone(mtg_engine::ZoneId::Hand(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let heal_id = find_object(&state, "Healing Salve");
+
+    // P1 targets themselves — should succeed despite player hexproof
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: heal_id,
+            targets: vec![mtg_engine::Target::Player(p1)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Player should be able to target themselves even with hexproof: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.11d — Player hexproof removed when source permanent leaves battlefield.
+fn test_702_11d_player_hexproof_lost_when_source_leaves() {
+    use mtg_engine::{CardType, ManaColor, ManaCost};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // P1 has a HexproofPlayer creature, but it's NOT on the battlefield (in graveyard).
+    let barricade = ObjectSpec::creature(p1, "Crystal Barricade", 0, 4)
+        .with_keyword(KeywordAbility::HexproofPlayer)
+        .in_zone(mtg_engine::ZoneId::Graveyard(p1));
+
+    let bolt_spec = ObjectSpec::card(p2, "Lightning Bolt")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            red: 1,
+            ..Default::default()
+        });
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(barricade)
+        .object(bolt_spec.in_zone(mtg_engine::ZoneId::Hand(p2)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p2);
+
+    let bolt_id = find_object(&state, "Lightning Bolt");
+
+    // P2 targets P1 — should succeed because the hexproof source is in graveyard
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: bolt_id,
+            targets: vec![mtg_engine::Target::Player(p1)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Should be able to target player when hexproof source is in graveyard: {:?}",
+        result.err()
+    );
+}
+
 // ── CR 702.12: Indestructible ─────────────────────────────────────────────────
 
 #[test]

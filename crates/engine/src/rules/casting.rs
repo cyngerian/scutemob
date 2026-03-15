@@ -5111,6 +5111,28 @@ pub(crate) fn validate_targets(
                         }
                     }
                 }
+                // CR 702.11d: Player hexproof — a player with hexproof can't be
+                // the target of spells or abilities their opponents control.
+                // Check layer-resolved characteristics to respect ability removal
+                // (e.g., Humility removes HexproofPlayer from creatures).
+                if caster != *id {
+                    let player_has_hexproof = state.objects.values().any(|o| {
+                        o.zone == ZoneId::Battlefield
+                            && o.controller == *id
+                            && crate::rules::layers::calculate_characteristics(state, o.id)
+                                .is_some_and(|chars| {
+                                    chars.keywords.contains(
+                                        &crate::state::types::KeywordAbility::HexproofPlayer,
+                                    )
+                                })
+                    });
+                    if player_has_hexproof {
+                        return Err(GameStateError::InvalidTarget(format!(
+                            "player {:?} has hexproof and cannot be targeted by opponents",
+                            id
+                        )));
+                    }
+                }
                 // CR 601.2c: Validate the target satisfies the declared requirement.
                 if let Some(req) = req {
                     validate_player_satisfies_requirement(*id, req)?;

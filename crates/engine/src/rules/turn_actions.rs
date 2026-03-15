@@ -1023,7 +1023,17 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         }
     }
 
-    Vec::new() // No direct events; the triggers will be flushed by enter_step
+    // CR 724.2: "At the beginning of the monarch's end step, that player draws a card."
+    // This is an inherent triggered ability. For the deterministic engine, we resolve
+    // it immediately (no stack interaction) like other turn-based actions.
+    let mut direct_events = Vec::new();
+    if state.monarch == Some(active) {
+        if let Ok(draw_events) = draw_card(state, active) {
+            direct_events.extend(draw_events);
+        }
+    }
+
+    direct_events
 }
 
 /// CR 502.2: "Second, the active player's phased-out permanents phase in and
@@ -1805,6 +1815,40 @@ fn check_initiative_steal_from_combat_damage(state: &mut GameState, events: &mut
     }
 }
 
+/// CR 724.2: "Whenever a creature deals combat damage to the monarch, its controller
+/// becomes the monarch."
+///
+/// Mirrors `check_initiative_steal_from_combat_damage`. Scans combat damage events
+/// for any creature dealing > 0 damage to the current monarch. First match wins.
+fn check_monarch_steal_from_combat_damage(state: &mut GameState, events: &mut Vec<GameEvent>) {
+    let Some(current_monarch) = state.monarch else {
+        return;
+    };
+    let new_monarch = events.iter().find_map(|e| {
+        if let GameEvent::CombatDamageDealt { assignments } = e {
+            assignments.iter().find_map(|a| {
+                if a.amount == 0 {
+                    return None;
+                }
+                if let crate::rules::events::CombatDamageTarget::Player(damaged) = a.target {
+                    if damaged == current_monarch {
+                        return state.objects.get(&a.source).map(|obj| obj.controller);
+                    }
+                }
+                None
+            })
+        } else {
+            None
+        }
+    });
+    if let Some(new_monarch) = new_monarch {
+        state.monarch = Some(new_monarch);
+        events.push(GameEvent::PlayerBecameMonarch {
+            player: new_monarch,
+        });
+    }
+}
+
 /// CR 510: Apply first-strike combat damage (creatures with FirstStrike or DoubleStrike).
 ///
 /// CR 702.7b: The determination of which creatures deal damage in the REGULAR step is
@@ -1841,6 +1885,8 @@ fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = super::combat::apply_combat_damage(state, true);
     // CR 725.2: Initiative steal applies to first-strike damage as well.
     check_initiative_steal_from_combat_damage(state, &mut events);
+    // CR 724.2: Monarch steal applies to first-strike damage as well.
+    check_monarch_steal_from_combat_damage(state, &mut events);
     events
 }
 
@@ -1852,6 +1898,8 @@ fn combat_damage_step(state: &mut GameState) -> Vec<GameEvent> {
 
     // CR 725.2: Check whether any creature dealt combat damage to the initiative holder.
     check_initiative_steal_from_combat_damage(state, &mut events);
+    // CR 724.2: Check whether any creature dealt combat damage to the monarch.
+    check_monarch_steal_from_combat_damage(state, &mut events);
 
     events
 }

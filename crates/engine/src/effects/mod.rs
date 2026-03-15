@@ -1898,6 +1898,19 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 724.1/724.3: Target player becomes the monarch.
+        // Sets state.monarch, replacing any previous monarch.
+        Effect::BecomeMonarch { player } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            if let Some(&target_player) = players.first() {
+                // CR 724.3: Only one player can be the monarch at a time.
+                state.monarch = Some(target_player);
+                events.push(GameEvent::PlayerBecameMonarch {
+                    player: target_player,
+                });
+            }
+        }
+
         // CR 106.12 support: Set chosen_creature_type on the source permanent.
         // Deterministic fallback: picks the most common creature subtype among
         // creatures the controller controls, or the provided default.

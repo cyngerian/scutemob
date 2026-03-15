@@ -2,8 +2,8 @@
 // Defender
 // You have hexproof.
 // Prevent all noncombat damage that would be dealt to other creatures you control.
-// TODO: DSL gap — "you have hexproof" (player hexproof) and blanket noncombat damage
-// prevention for other creatures are not expressible in the current DSL.
+// "You have hexproof" via KeywordAbility::HexproofPlayer (CR 702.11d).
+// TODO: blanket noncombat damage prevention for other creatures not expressible.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,7 +17,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Defender),
-            // TODO: player hexproof (you have hexproof)
+            // CR 702.11d: "You have hexproof" — controller can't be targeted by opponents.
+            AbilityDefinition::Keyword(KeywordAbility::HexproofPlayer),
             // TODO: prevent noncombat damage to other creatures you control
         ],
         ..Default::default()

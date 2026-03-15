@@ -225,6 +225,16 @@ pub struct GameState {
     /// initiative also causes the taker to venture into The Undercity (CR 725.2).
     #[serde(default)]
     pub has_initiative: Option<PlayerId>,
+    /// CR 724.1: The monarch is a designation a player can have.
+    ///
+    /// `None` = no player is the monarch (game start, or monarch left the game
+    /// and no replacement could be found — CR 724.4).
+    /// `Some(player_id)` = that player is the monarch.
+    ///
+    /// Only one player can be the monarch at a time (CR 724.3).
+    /// Inherent triggers (CR 724.2): EOT draw + combat damage steals.
+    #[serde(default)]
+    pub monarch: Option<PlayerId>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones

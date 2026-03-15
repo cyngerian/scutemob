@@ -1274,6 +1274,17 @@ pub enum GameEvent {
         /// The creature that became the ring-bearer.
         creature: crate::state::game_object::ObjectId,
     },
+
+    /// CR 724.1/724.3: A player became the monarch.
+    ///
+    /// Emitted when a player becomes the monarch (from an effect or from
+    /// combat damage to the previous monarch — CR 724.2).
+    ///
+    /// Discriminant: 119.
+    PlayerBecameMonarch {
+        /// The player who is now the monarch.
+        player: PlayerId,
+    },
 }
 
 impl GameEvent {

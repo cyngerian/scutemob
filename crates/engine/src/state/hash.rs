@@ -714,6 +714,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Cloak => 157u8.hash_into(hasher),
             // MustAttackEachCombat (discriminant 158) -- CR 508.1d
             KeywordAbility::MustAttackEachCombat => 158u8.hash_into(hasher),
+            // HexproofPlayer (discriminant 159) -- CR 702.11d
+            KeywordAbility::HexproofPlayer => 159u8.hash_into(hasher),
         }
     }
 }
@@ -3529,6 +3531,11 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 creature.hash_into(hasher);
             }
+            // PlayerBecameMonarch -- CR 724.1 (discriminant 119)
+            GameEvent::PlayerBecameMonarch { player } => {
+                119u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
@@ -4318,6 +4325,11 @@ impl HashInto for Effect {
             Effect::TakeTheInitiative => 50u8.hash_into(hasher),
             // TheRingTemptsYou effect (discriminant 51) — CR 701.54
             Effect::TheRingTemptsYou => 51u8.hash_into(hasher),
+            // BecomeMonarch effect (discriminant 52) — CR 724.1
+            Effect::BecomeMonarch { player } => {
+                52u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
@@ -4906,6 +4918,7 @@ impl GameState {
             ds.hash_into(&mut hasher);
         }
         self.has_initiative.hash_into(&mut hasher);
+        self.monarch.hash_into(&mut hasher);
 
         *hasher.finalize().as_bytes()
     }

@@ -267,6 +267,8 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             });
             // CR 725.4: If the player who lost had the initiative, transfer it.
             events.extend(transfer_initiative_on_player_leave(state, id));
+            // CR 724.4: If the player who lost was the monarch, transfer it.
+            events.extend(transfer_monarch_on_player_leave(state, id));
             continue; // Only emit one loss event per player per pass.
         }
 
@@ -281,6 +283,8 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             });
             // CR 725.4: If the player who lost had the initiative, transfer it.
             events.extend(transfer_initiative_on_player_leave(state, id));
+            // CR 724.4: If the player who lost was the monarch, transfer it.
+            events.extend(transfer_monarch_on_player_leave(state, id));
             continue;
         }
 
@@ -303,6 +307,8 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             });
             // CR 725.4: If the player who lost had the initiative, transfer it.
             events.extend(transfer_initiative_on_player_leave(state, id));
+            // CR 724.4: If the player who lost was the monarch, transfer it.
+            events.extend(transfer_monarch_on_player_leave(state, id));
         }
     }
 
@@ -381,6 +387,62 @@ pub fn transfer_initiative_on_player_leave(
         }
     }
     events
+}
+
+/// CR 724.4: If the monarch leaves the game, the active player becomes the monarch.
+///
+/// Mirrors `transfer_initiative_on_player_leave`. If the active player is also
+/// leaving, the next player in turn order becomes the monarch. If no player can
+/// become the monarch, the game continues with no monarch.
+pub fn transfer_monarch_on_player_leave(
+    state: &mut GameState,
+    leaving_player: PlayerId,
+) -> Vec<GameEvent> {
+    if state.monarch != Some(leaving_player) {
+        return Vec::new();
+    }
+
+    let active = state.turn.active_player;
+    let active_is_eligible = active != leaving_player
+        && state
+            .players
+            .get(&active)
+            .map(|p| !p.has_lost && !p.has_conceded)
+            .unwrap_or(false);
+
+    let new_monarch = if active_is_eligible {
+        Some(active)
+    } else {
+        let turn_order: Vec<PlayerId> = state.turn.turn_order.iter().copied().collect();
+        let leaving_pos = turn_order.iter().position(|&p| p == leaving_player);
+        let Some(leaving_pos) = leaving_pos else {
+            return Vec::new();
+        };
+        let n = turn_order.len();
+        (1..n).find_map(|offset| {
+            let candidate = turn_order[(leaving_pos + offset) % n];
+            let is_active = state
+                .players
+                .get(&candidate)
+                .map(|p| !p.has_lost && !p.has_conceded)
+                .unwrap_or(false);
+            if is_active && candidate != leaving_player {
+                Some(candidate)
+            } else {
+                None
+            }
+        })
+    };
+
+    let Some(new_monarch) = new_monarch else {
+        state.monarch = None;
+        return Vec::new();
+    };
+
+    state.monarch = Some(new_monarch);
+    vec![GameEvent::PlayerBecameMonarch {
+        player: new_monarch,
+    }]
 }
 
 // ── CR 704.5d ────────────────────────────────────────────────────────────────

@@ -859,5 +859,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         // CR 701.58: cloak
         KeywordAbility::Cloak => "Cloak".to_string(),
         KeywordAbility::MustAttackEachCombat => "Must Attack".to_string(),
+        KeywordAbility::HexproofPlayer => "Hexproof (Player)".to_string(),
     }
 }

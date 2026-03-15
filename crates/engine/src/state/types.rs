@@ -1557,6 +1557,15 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 158.
     MustAttackEachCombat,
+    /// CR 702.11d: "Hexproof on a player means that player can't be the target of
+    /// spells or abilities your opponents control."
+    ///
+    /// Presence marker on permanents that grant hexproof to their controller.
+    /// Checked during player targeting in casting.rs via layer-resolved characteristics
+    /// (respects Humility/ability removal).
+    ///
+    /// Discriminant 159.
+    HexproofPlayer,
 }
 
 /// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.

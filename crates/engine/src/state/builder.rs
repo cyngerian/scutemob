@@ -362,6 +362,8 @@ impl GameStateBuilder {
             dungeon_state: OrdMap::new(),
             // CR 725.1: No player has the initiative at game start.
             has_initiative: None,
+            // CR 724.1: No player is the monarch at game start.
+            monarch: None,
             card_registry: self.card_registry,
         };
 

@@ -567,19 +567,42 @@ pub fn handle_activate_ability(
                 .map(|o| o.characteristics.clone())
         });
     for t in &targets {
-        if let Target::Object(id) = t {
-            // MR-M3-04: Non-existent object must be rejected, not silently skipped.
-            let obj = state
-                .objects
-                .get(id)
-                .ok_or(GameStateError::ObjectNotFound(*id))?;
-            // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
-            super::validate_target_protection(
-                &obj.characteristics.keywords,
-                obj.controller,
-                player,
-                source_chars.as_ref(),
-            )?;
+        match t {
+            Target::Object(id) => {
+                // MR-M3-04: Non-existent object must be rejected, not silently skipped.
+                let obj = state
+                    .objects
+                    .get(id)
+                    .ok_or(GameStateError::ObjectNotFound(*id))?;
+                // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
+                super::validate_target_protection(
+                    &obj.characteristics.keywords,
+                    obj.controller,
+                    player,
+                    source_chars.as_ref(),
+                )?;
+            }
+            Target::Player(pid) => {
+                // CR 702.11d: Player hexproof — can't be targeted by opponents' abilities.
+                if player != *pid {
+                    let player_has_hexproof = state.objects.values().any(|o| {
+                        o.zone == ZoneId::Battlefield
+                            && o.controller == *pid
+                            && crate::rules::layers::calculate_characteristics(state, o.id)
+                                .is_some_and(|chars| {
+                                    chars.keywords.contains(
+                                        &crate::state::types::KeywordAbility::HexproofPlayer,
+                                    )
+                                })
+                    });
+                    if player_has_hexproof {
+                        return Err(GameStateError::InvalidTarget(format!(
+                            "player {:?} has hexproof and cannot be targeted by opponents",
+                            pid
+                        )));
+                    }
+                }
+            }
         }
     }
 

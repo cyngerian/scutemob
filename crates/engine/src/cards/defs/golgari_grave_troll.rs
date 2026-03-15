@@ -15,9 +15,8 @@
 // and return this card from your graveyard to your hand. Functions only while
 // this card is in the graveyard. Requires >= N cards in library (CR 702.52b).
 //
-// TODO: AbilityDefinition::Dredge { amount } does not exist in card_definition.rs;
-// once added (paired with KeywordAbility::Dredge marker, following the Flashback
-// pattern), replace this keyword-only encoding with the full two-ability form.
+// Dredge 6 is encoded as KeywordAbility::Dredge(6) — engine handles the
+// draw-replacement logic when this card is in its owner's graveyard.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

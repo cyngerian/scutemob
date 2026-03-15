@@ -3,9 +3,8 @@
 // CR 702.27a: Buyback — you may pay an additional {4} as you cast this spell.
 // If you do, put this card into your hand as it resolves instead of the graveyard.
 //
-// TODO: KeywordAbility::Buyback does not yet exist in state/mod.rs; add it and
-// pair AbilityDefinition::Keyword(KeywordAbility::Buyback) here for quick
-// presence-checking (see card_definition.rs line ~243).
+// Buyback {4} is encoded as AbilityDefinition::Buyback { cost } below.
+// KeywordAbility::Buyback exists for presence-checking.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

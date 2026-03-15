@@ -1102,6 +1102,13 @@ pub enum Effect {
     /// permanent. Clears `is_suspected`, removing the menace grant and unblocking
     /// the can't-block restriction.
     Unsuspect { target: EffectTarget },
+    /// CR 724.1/724.3: Target player becomes the monarch.
+    ///
+    /// Sets `state.monarch` to the target player. If another player was the monarch,
+    /// they cease to be the monarch (CR 724.3). Emits `GameEvent::PlayerBecameMonarch`.
+    /// Inherent triggers (EOT draw, combat damage steal) are handled in turn_actions.rs
+    /// and combat.rs respectively.
+    BecomeMonarch { player: PlayerTarget },
     /// Set `chosen_creature_type` on the source permanent (CR 106.12 support).
     ///
     /// Used by lands like Cavern of Souls: "As this enters, choose a creature type."
