@@ -2,9 +2,6 @@
 // Flying
 // Whenever Teneb deals combat damage to a player, you may pay {2}{B}. If you do,
 // put target creature card from a graveyard onto the battlefield under your control.
-// TODO: DSL gap — "pay {2}{B} to return target creature card from any graveyard to battlefield"
-// is a triggered ability with an optional mana payment and a targeted graveyard-to-battlefield
-// effect; no return_from_graveyard DSL effect exists.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,9 +19,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: triggered — whenever Teneb deals combat damage to a player, may pay {2}{B}
-            // to return target creature card from any graveyard to battlefield under your control.
-            // DSL gap: no return_from_graveyard effect; no optional mana payment trigger pattern.
+            // CR 603.1: Triggered — combat damage to player → optional mana payment → return.
+            // TODO: "you may pay {2}{B}" optional mana payment is not expressible as a trigger cost.
+            // The targeting + return from any GY is implemented; the conditional mana payment
+            // would need a Cost on triggered abilities or Effect::PayManaOrElse pattern.
+            // For now, the trigger fires unconditionally (conservative — always returns).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Battlefield { tapped: false },
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCardInGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

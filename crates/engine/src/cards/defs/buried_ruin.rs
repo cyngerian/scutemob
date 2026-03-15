@@ -1,4 +1,6 @@
-// Buried Ruin — Land, {T}: Add {C}; {2},{T}, sacrifice: return artifact from graveyard (TODO)
+// Buried Ruin — Land
+// {T}: Add {C}.
+// {2}, {T}, Sacrifice this land: Return target artifact card from your graveyard to your hand.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +21,23 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {2}, {T}, Sacrifice this land: Return target artifact card from your graveyard
-            // to your hand. — PB-5 (targeted) + PB-10 (return from zone with filter)
-            // Cost::SacrificeSelf available; blocked on targeted return-from-graveyard effect
+            // {2}, {T}, Sacrifice this land: Return target artifact card from your GY to hand.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Artifact),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

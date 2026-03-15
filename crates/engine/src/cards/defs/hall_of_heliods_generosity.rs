@@ -1,4 +1,6 @@
-// Hall of Heliod's Generosity — Legendary Land, {T}: Add {C}; {1}{W},{T}: graveyard recovery (TODO)
+// Hall of Heliod's Generosity — Legendary Land
+// {T}: Add {C}.
+// {1}{W}, {T}: Put target enchantment card from your graveyard on top of your library.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,8 +21,25 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {1}{W}, {T}: Put target enchantment card from your graveyard on top of library
-            // — graveyard targeting + return_to_library not expressible in DSL
+            // {1}{W}, {T}: Put target enchantment card from your GY on top of library.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, white: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Library {
+                        owner: PlayerTarget::Controller,
+                        position: LibraryPosition::Top,
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Enchantment),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

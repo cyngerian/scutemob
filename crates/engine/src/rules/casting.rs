@@ -5268,6 +5268,17 @@ fn validate_object_satisfies_requirement(
                 passes_filter && passes_controller
             }
         }
+        // "target [type] card from your graveyard" — must be in caster's graveyard (CR 115.1).
+        // No hexproof/shroud check — those only apply to permanents on the battlefield.
+        TargetRequirement::TargetCardInYourGraveyard(filter) => {
+            let in_your_gy = matches!(obj.zone, ZoneId::Graveyard(pid) if pid == caster);
+            in_your_gy && crate::effects::matches_filter(&chars, filter)
+        }
+        // "target [type] card from a graveyard" — any player's graveyard (CR 115.1).
+        TargetRequirement::TargetCardInGraveyard(filter) => {
+            let in_any_gy = matches!(obj.zone, ZoneId::Graveyard(_));
+            in_any_gy && crate::effects::matches_filter(&chars, filter)
+        }
         // Player requirement — object target is illegal
         TargetRequirement::TargetPlayer => false,
         // TargetSpell and TargetSpellWithFilter handled above via early return (zone + filter check).

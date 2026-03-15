@@ -9,15 +9,16 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Return target creature card from your graveyard to your hand.\nRecover {2}{B} (When a creature is put into your graveyard from the battlefield, you may pay {2}{B}. If you do, return this card from your graveyard to your hand. Otherwise, exile this card.)".to_string(),
         abilities: vec![
+            // CR 115.1: Return target creature card from your GY to hand.
             AbilityDefinition::Spell {
-                // TODO: Effect::ReturnFromGraveyard does not exist in the DSL.
-                // The main effect should return target creature card from graveyard to hand.
-                // Using Effect::DrawCards as a placeholder until ReturnFromGraveyard is implemented.
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(0),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
                 },
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
                 modes: None,
                 cant_be_countered: false,
             },

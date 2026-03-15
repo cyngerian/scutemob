@@ -20,18 +20,20 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // TODO: Static evasion — "Creatures with power less than this creature's power
-            // can't block it." No ContinuousEffectDef Modification variant for power-based
-            // blocking restriction exists. Needs a new Modification::CantBlockIfPowerLessThan
-            // (or similar) in continuous_effect.rs before this can be expressed.
+            // can't block it." Needs Modification::CantBlockIfPowerLessThan or similar.
             AbilityDefinition::Keyword(KeywordAbility::Megamorph),
             AbilityDefinition::Megamorph { cost: ManaCost { generic: 1, green: 1, ..Default::default() } },
-            // TODO: Triggered ability — "When this creature is turned face up, return target
-            // card from your graveyard to your hand." TriggerCondition::WhenTurnedFaceUp
-            // exists, but there is no TargetRequirement variant for targeting a card in a
-            // specific zone (graveyard), and no Effect variant for moving a chosen graveyard
-            // card to hand. Needs TargetRequirement::TargetCardInGraveyard and
-            // Effect::ReturnFromGraveyard (or Effect::MoveZone wired to graveyard targets)
-            // before this trigger can be expressed. Tracked as W5 DSL gap: return_from_graveyard.
+            // CR 603.1: When turned face up, return target card from your GY to hand.
+            // Note: "target card" — no type restriction (any card in your GY).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenTurnedFaceUp,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter::default())],
+            },
         ],
         ..Default::default()
     }

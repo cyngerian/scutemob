@@ -3468,6 +3468,7 @@ impl HashInto for TargetFilter {
         self.basic.hash_into(hasher);
         self.controller.hash_into(hasher);
         self.has_subtype.hash_into(hasher);
+        self.has_subtypes.hash_into(hasher);
         self.has_name.hash_into(hasher);
     }
 }
@@ -3496,6 +3497,14 @@ impl HashInto for TargetRequirement {
             TargetRequirement::TargetPlayerOrPlaneswalker => 12u8.hash_into(hasher),
             TargetRequirement::TargetSpellWithFilter(filter) => {
                 13u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TargetRequirement::TargetCardInYourGraveyard(filter) => {
+                14u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TargetRequirement::TargetCardInGraveyard(filter) => {
+                15u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
         }

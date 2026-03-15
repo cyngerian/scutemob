@@ -1330,6 +1330,10 @@ pub enum TargetRequirement {
     TargetPlayerOrPlaneswalker,
     /// "target noncreature spell" — must be on the stack and match the filter.
     TargetSpellWithFilter(TargetFilter),
+    /// "target [type] card from your graveyard" — card in controller's graveyard (CR 115.1).
+    TargetCardInYourGraveyard(TargetFilter),
+    /// "target [type] card from a graveyard" — card in any player's graveyard (CR 115.1).
+    TargetCardInGraveyard(TargetFilter),
 }
 
 /// A filter on game objects, used for target requirements and `SearchLibrary`.
@@ -1356,8 +1360,12 @@ pub struct TargetFilter {
     pub basic: bool,
     /// Controller constraint.
     pub controller: TargetController,
-    /// Subtype constraint.
+    /// Subtype constraint (single — must have this subtype).
     pub has_subtype: Option<SubType>,
+    /// Subtype constraint (OR semantics — must have at least one of these subtypes).
+    /// Used for "Vampire or Wizard creature card" (Bloodline Necromancer).
+    #[serde(default)]
+    pub has_subtypes: Vec<SubType>,
     /// Must have exactly this name (exact match). None = no restriction.
     /// Used by "Partner with" ETB search (CR 702.124j) and similar
     /// "search for a card named [name]" effects.

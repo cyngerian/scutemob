@@ -1,4 +1,8 @@
-// Emeria, the Sky Ruin
+// Emeria, the Sky Ruin — Legendary Land
+// This land enters tapped.
+// At the beginning of your upkeep, if you control seven or more Plains, you may
+// return target creature card from your graveyard to the battlefield.
+// {T}: Add {W}.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,9 +22,23 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // TODO: Triggered — At the beginning of your upkeep, if you control seven or more Plains,
-            // return target creature card from your graveyard to the battlefield.
-            // DSL gap: count_threshold + targeted_trigger + return_from_graveyard.
+            // CR 603.4: Upkeep trigger — if you control 7+ Plains, return creature from GY to BF.
+            // TODO: intervening_if needs Condition::YouControlNOrMorePermanentsWithSubtype { count: 7, subtype: Plains }
+            // which doesn't exist yet. The graveyard targeting is implemented; the count threshold
+            // condition is a separate DSL gap (deferred). Trigger fires unconditionally for now.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Battlefield { tapped: false },
+                },
+                intervening_if: None, // TODO: Condition::YouControlNOrMorePermanentsWithSubtype
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
+            },
+            // {T}: Add {W}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {

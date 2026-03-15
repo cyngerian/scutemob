@@ -3471,6 +3471,15 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
             return false;
         }
     }
+    // OR-semantics subtype filter: card must have at least one of the listed subtypes.
+    if !filter.has_subtypes.is_empty()
+        && !filter
+            .has_subtypes
+            .iter()
+            .any(|st| chars.subtypes.contains(st))
+    {
+        return false;
+    }
     // CR 702.124j: exact-name filter for "search for a card named [name]"
     if let Some(name) = &filter.has_name {
         if &chars.name != name {

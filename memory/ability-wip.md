@@ -1,24 +1,33 @@
-# Ability WIP: PB-9 Hybrid/Phyrexian/X Mana Costs
+# Ability WIP: PB-10 Return From Zone Effects
 
-ability: Hybrid, Phyrexian, and X Mana Costs
-cr: 202.2d (hybrid), 202.2e (Phyrexian), 107.3 (X)
-priority: W6-PB-9
+ability: Return From Zone (graveyard targeting)
+cr: 115.1, 115.7, 400.7, 608.2b
+priority: W6-PB-10
 started: 2026-03-14
 phase: complete
-plan_file: memory/abilities/ability-plan-pb9-mana-costs.md
+plan_file: memory/abilities/ability-plan-pb10-return-from-zone.md
 
 ## Step Checklist
-- [x] 1. Add HybridMana, PhyrexianMana enums + hybrid/phyrexian/x_count fields on ManaCost
-- [x] 2. Update mana_value() for hybrid, phyrexian, X
-- [x] 3. Update casting.rs: flatten_hybrid_phyrexian() helper, X cost x_count support
-- [x] 4. Add hybrid_choices + phyrexian_life_payments to CastSpell command
-- [x] 5. Update color identity (commander.rs, casting.rs) for hybrid/phyrexian
-- [x] 6. Hash updates (hash.rs) for new types
-- [x] 7. Export new types (lib.rs, state/mod.rs, helpers.rs)
-- [x] 8. Update all CastSpell construction sites (~200+ across tests/simulator/harness)
-- [x] 9. 16 unit tests (mana_costs.rs) — MV, payment, color identity
-- [x] 10. Fix 8 hybrid card defs (kitchen_finks, boggart_ram_gang, blade_historian, connive, revitalizing_repast, brokkos, nethroi + 4 filter lands)
-- [x] 11. Fix 1 hybrid Phyrexian card def (ajani_sleeper_agent)
-- [x] 12. Fix 3 X-cost card defs (mockingbird, cut_ribbons, treasure_vault)
-- [x] 13. Updated TODO comments on 3 phyrexian cards (skrelv, tekuthal, drivnod)
-- [x] 14. Build verification — workspace builds, clippy clean, 2044 tests, 0 failures
+- [x] 1. Add TargetCardInYourGraveyard + TargetCardInGraveyard to TargetRequirement enum
+- [x] 2. Add has_subtypes to TargetFilter + update matches_filter
+- [x] 3. Update casting.rs validate_object_satisfies_requirement for graveyard zone
+- [x] 4. Unit tests (10 tests, cite CR 115.1, CR 608.2b)
+- [x] 5. Fix 9 card definitions (8 planned + Den Protector + Grim Harvest bonus)
+- [x] 6. Build verification (2054 tests, 0 clippy warnings, workspace builds clean)
+
+## Summary
+- 2 new TargetRequirement variants: TargetCardInYourGraveyard, TargetCardInGraveyard
+- 1 new TargetFilter field: has_subtypes (Vec<SubType>, OR semantics)
+- casting.rs: 2 new arms in validate_object_satisfies_requirement (no hexproof/shroud for GY)
+- hash.rs: 3 changes (TargetFilter has_subtypes, 2 TargetRequirement variants)
+- effects/mod.rs: has_subtypes check added to matches_filter
+- No resolution.rs changes needed (existing DeclaredTarget + MoveZone handles it)
+- 10 new tests in graveyard_targeting.rs
+- 9 card defs fixed: Bloodline Necromancer, Buried Ruin, Emeria the Sky Ruin,
+  Hall of Heliod's Generosity, Nullpriest of Oblivion, Reanimate, Teneb the Harvester,
+  Bladewing the Risen, Den Protector; 1 bonus: Grim Harvest
+- Remaining TODOs in card defs (separate DSL gaps):
+  - Reanimate: "lose life equal to mana value" (EffectAmount::ManaValueOfTarget)
+  - Teneb: optional mana payment on trigger (Cost on triggered abilities)
+  - Emeria: "7+ Plains" count threshold (Condition::YouControlNOrMore...)
+  - Bladewing: "{B}{R}: Dragon creatures get +1/+1 until EOT" (filtered pump)

@@ -1,8 +1,7 @@
 // Bloodline Necromancer — {4}{B}, Creature — Vampire Wizard 3/2
 // Lifelink
-// When this creature enters, you may return target Vampire or Wizard creature card from your graveyard to the battlefield.
-// TODO: DSL gap — ETB trigger returning a target creature card with subtype filter (Vampire or Wizard)
-// from graveyard to battlefield; no return_from_graveyard effect with subtype OR filter exists.
+// When this creature enters, you may return target Vampire or Wizard creature card
+// from your graveyard to the battlefield.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,8 +15,20 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
-            // TODO: ETB triggered — return target Vampire or Wizard creature card from your GY to BF.
-            // DSL gap: no return_from_graveyard effect; no TargetFilter with multi-subtype OR condition.
+            // CR 603.1: ETB trigger — return target Vampire or Wizard creature from your GY to BF.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Battlefield { tapped: false },
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    has_subtypes: vec![SubType("Vampire".to_string()), SubType("Wizard".to_string())],
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

@@ -1,9 +1,8 @@
 // Bladewing the Risen — {3}{B}{B}{R}{R}, Legendary Creature — Zombie Dragon 4/4
 // Flying
-// TODO: DSL gap — ETB ability requires returning target Dragon card from graveyard to battlefield
-//   (targeted graveyard retrieval not supported)
-// TODO: DSL gap — activated ability {B}{R} gives Dragon creatures +1/+1 until end of turn
-//   (creature-type-filtered continuous effect with temporary duration not supported)
+// When Bladewing enters, you may return target Dragon permanent card from your
+// graveyard to the battlefield.
+// {B}{R}: Dragon creatures get +1/+1 until end of turn.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,6 +25,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            // CR 603.1: ETB trigger — return target Dragon permanent from your GY to BF.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Battlefield { tapped: false },
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_subtypes: vec![SubType("Dragon".to_string())],
+                    ..Default::default()
+                })],
+            },
+            // TODO: {B}{R}: Dragon creatures get +1/+1 until end of turn.
+            // DSL gap: creature-type-filtered temporary pump (EffectFilter::HasSubtype + UntilEndOfTurn).
         ],
         ..Default::default()
     }

@@ -1,14 +1,7 @@
 // Nullpriest of Oblivion — {1}{B}, Creature — Vampire Cleric 2/1
 // Kicker {3}{B}; Lifelink; Menace
-// When this creature enters, if it was kicked, return target creature card from your graveyard
-// to the battlefield.
-//
-// TODO: DSL gap — Kicker ETB trigger omitted.
-// "When this creature enters, if it was kicked, return target creature card from your graveyard
-// to the battlefield." Requires an ETB triggered ability with an intervening-if condition
-// (Condition::WasKicked) and a targeted return-from-graveyard effect. DSL gap:
-// return_from_graveyard pattern (ZoneTarget::Battlefield from graveyard with target filter)
-// is not currently supported.
+// When this creature enters, if it was kicked, return target creature card from your
+// graveyard to the battlefield.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,8 +21,19 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Menace),
-            // TODO: DSL gap — ETB triggered "if kicked, return target creature from graveyard
-            // to battlefield" requires return_from_graveyard effect pattern (not yet supported).
+            // CR 603.4: Intervening-if — "if it was kicked" checked at trigger and resolution.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Battlefield { tapped: false },
+                },
+                intervening_if: Some(Condition::WasKicked),
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }
