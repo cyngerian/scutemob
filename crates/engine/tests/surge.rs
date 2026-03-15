@@ -480,8 +480,8 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(
@@ -749,8 +749,8 @@ fn test_surge_reset_at_turn_start() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(

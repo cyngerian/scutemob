@@ -1,0 +1,243 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_205",
+    "name": "Nadaar, Selfless Paladin — venture into the dungeon on ETB",
+    "description": "p1 casts Nadaar, Selfless Paladin ({3}{W}). When Nadaar resolves and enters the battlefield, its ETB trigger 'venture into the dungeon' fires. Per CR 701.49a, since p1 has no dungeon in the command zone, p1 enters the default dungeon (Lost Mine of Phandelver) at Cave Entrance (room 0). A RoomAbility stack object for 'Scry 1' is placed on the stack (CR 309.4c). Both players pass priority; the RoomAbility resolves and p1 scrys 1 (deterministic: top card goes to bottom). Tests the full Nadaar ETB → venture → room ability resolution pipeline.",
+    "cr_sections_tested": [
+      "601.2",
+      "603.2",
+      "603.3",
+      "701.49a",
+      "309.4a",
+      "309.4c",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "dungeon",
+      "venture",
+      "nadaar",
+      "etb-trigger",
+      "room-ability",
+      "lost-mine-of-phandelver"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Nadaar oracle: Vigilance; 'Whenever Nadaar enters or attacks, venture into the dungeon.'; 'Other creatures you control get +1/+1 as long as you\u2019ve completed a dungeon.' Cast for {3}{W} = 3 generic + 1 white. ETB trigger puts venture into dungeon effect on stack, then room ability (Scry 1) on stack. Library has 1 card so scry sends it to bottom (same position). Dungeon progress: p1 enters Lost Mine of Phandelver, venture marker at Cave Entrance (room 0).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 3,
+          "white": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Nadaar, Selfless Paladin",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Nadaar; ETB trigger fires venture into dungeon; RoomAbility (Scry 1) queued on stack; resolves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Nadaar in p1 hand, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Nadaar, Selfless Paladin",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 3,
+            "white": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Nadaar for {3}{W}; card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Nadaar on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Nadaar resolves. ETB trigger for venture queued."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Nadaar, Selfless Paladin",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Nadaar, Selfless Paladin",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Nadaar resolves and enters the battlefield under p1's control."
+            },
+            {
+              "effect": "etb_trigger_queued",
+              "source": "Nadaar, Selfless Paladin",
+              "trigger_condition": "when_this_enters_battlefield",
+              "cr_ref": "603.3",
+              "note": "CR 603.3: ETB trigger 'venture into the dungeon' queued and placed on the stack."
+            }
+          ],
+          "note": "Nadaar enters; ETB venture trigger on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Nadaar on battlefield, ETB trigger on stack",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{"card": "Nadaar, Selfless Paladin"}]
+            },
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — ETB trigger resolves. Engine calls VentureIntoDungeon."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Nadaar ETB venture trigger",
+          "resolution": [
+            {
+              "effect": "venture_into_dungeon",
+              "player": "p1",
+              "dungeon": "Lost Mine of Phandelver",
+              "room": "Cave Entrance",
+              "cr_ref": "701.49a",
+              "note": "CR 701.49a: p1 has no dungeon in command zone; enters Lost Mine of Phandelver at Cave Entrance (room 0)."
+            },
+            {
+              "effect": "room_ability_queued",
+              "room": "Cave Entrance",
+              "room_effect": "Scry 1",
+              "cr_ref": "309.4c",
+              "note": "CR 309.4c: Room ability 'Scry 1' is a triggered ability placed on the stack as RoomAbility."
+            }
+          ],
+          "note": "Venture fires: p1 enters Cave Entrance of Lost Mine of Phandelver. RoomAbility (Scry 1) on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After venture: Nadaar on battlefield, RoomAbility on stack",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{"card": "Nadaar, Selfless Paladin"}]
+            },
+            "zones.stack.count": 1,
+            "zones.library.p1.count": 1
+          },
+          "note": "RoomAbility for Scry 1 is on the stack. Library still has 1 card (Plains) before scry."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — RoomAbility (Scry 1) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cave Entrance room ability",
+          "resolution": [
+            {
+              "effect": "scry",
+              "player": "p1",
+              "count": 1,
+              "cr_ref": "701.18",
+              "note": "CR 701.18: p1 scrys 1 — looks at top card of library (Plains) and puts it on bottom (deterministic fallback)."
+            }
+          ],
+          "note": "Scry 1 resolves: Plains stays in library (only 1 card, goes to bottom = same)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Nadaar on battlefield, stack empty, library still has Plains",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{"card": "Nadaar, Selfless Paladin"}]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.library.p1.count": 1
+          },
+          "note": "CR 701.49a + 309.4c: Nadaar ETB triggered venture into dungeon, entered Lost Mine of Phandelver Cave Entrance, Scry 1 room ability resolved. Plains remains in library."
+        }
+      ]
+    }
+  ]
+}

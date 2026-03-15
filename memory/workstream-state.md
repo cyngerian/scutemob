@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-11: Mana spending restrictions + ETB choice | ACTIVE | 2026-03-15 | **TOP PRIORITY**. PB-0 through PB-10 done. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | — | available | — | **TOP PRIORITY**. PB-0 through PB-11 done. Plan: `docs/primitive-card-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,30 +23,37 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-14
+**Date**: 2026-03-15
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-10 — Return from zone effects (graveyard targeting)
+**Task**: PB-11 — Mana spending restrictions + ETB creature type choice
 
 **Completed**:
-- Added 2 new TargetRequirement variants: TargetCardInYourGraveyard, TargetCardInGraveyard
-- Added has_subtypes Vec<SubType> to TargetFilter (OR semantics for "Vampire or Wizard")
-- Updated casting.rs validation (2 new arms, no hexproof/shroud for GY cards)
-- Updated hash.rs (3 entries) and matches_filter in effects/mod.rs
-- Fixed 10 card defs: Bloodline Necromancer, Bladewing the Risen, Buried Ruin, Den Protector, Emeria the Sky Ruin, Grim Harvest, Hall of Heliod's Generosity, Nullpriest of Oblivion, Reanimate, Teneb the Harvester
-- 10 new tests in graveyard_targeting.rs
-- Commit 0b6b24d; 2054 tests, 0 clippy warnings
+- Added ManaRestriction enum (5 variants: CreatureSpellsOnly, SubtypeOnly, SubtypeOrSubtype, ChosenTypeCreaturesOnly, ChosenTypeSpellsOnly)
+- Added Effect::AddManaRestricted / AddManaAnyColorRestricted for restricted mana production
+- Added Effect::ChooseCreatureType for direct type choice
+- Added ReplacementModification::ChooseCreatureType for "As this enters, choose a creature type"
+- Added chosen_creature_type: Option<SubType> on GameObject
+- Added RestrictedMana + SpellContext on ManaPool with restricted mana tracking
+- Added can_pay_cost_with_context / pay_cost_with_context in casting.rs
+- Hash support for all new types
+- Fixed 10 card defs: Cavern of Souls, Secluded Courtyard, Unclaimed Territory, Haven of the Spirit Dragon, Maelstrom of the Spirit Dragon, Gnarlroot Trapper, Voldaren Estate, The Seedcore, Three Tree City, Etchings of the Chosen
+- 11 new tests in mana_restriction.rs
+- Commit 382ae7d; 2065 tests, 0 clippy warnings
 
 **Next**:
-1. **PB-11**: Mana spending restrictions + ETB choice (13 cards, 2 sessions)
-2. Follow execution order in `docs/primitive-card-plan.md` — PB-11 through PB-21
+1. **PB-12**: Complex replacement effects (11 cards, 2-3 sessions)
+2. Follow execution order in `docs/primitive-card-plan.md` — PB-12 through PB-21
 3. Many PB-7 cards remain blocked on deeper gaps (dynamic LayerModification for CDA */* creatures)
 4. ~23 PB-5 + ~20 PB-6 cards remain blocked on future primitives
 
-**Hazards**: None. Clean working tree (CLAUDE.md has pre-existing uncommitted changes from prior sessions).
+**Hazards**: CLAUDE.md + several test files have pre-existing uncommitted changes from prior sessions. Not related to PB-11.
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-15 — W6: PB-11 mana restrictions + ETB choice (10 cards)
+- ManaRestriction enum + restricted mana pool + chosen_creature_type + 10 card fixes + 11 tests; commit 382ae7d; 2065 tests
 
 ### 2026-03-14 — W6: PB-10 graveyard targeting (10 cards)
 - 2 TargetRequirement variants + has_subtypes filter + 10 card def fixes + 10 tests; commit 0b6b24d; 2054 tests
@@ -59,6 +66,3 @@
 
 ### 2026-03-14 — W6: PB-8 cost reduction statics (10 cards)
 - SpellCostModifier + SelfCostReduction + 10 card fixes + 8 tests; commit c1edb48; 2028 tests
-
-### 2026-03-14 — W6: PB-7 count-based scaling (29 cards)
-- 3 EffectAmount variants + AddManaScaled + 5 card fixes + 8 tests; commit 399c8da; 2020 tests

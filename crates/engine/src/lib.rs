@@ -25,14 +25,12 @@ pub use state::{
     ETBSuppressor, ETBTriggerFilter, EffectDuration, EffectFilter, EffectId, EffectLayer,
     EnchantTarget, FaceDownKind, GameObject, GameState, GameStateBuilder, GameStateError,
     HybridMana, HybridManaPayment, KeywordAbility, LandwalkType, LayerModification, ManaAbility,
-    ManaColor, ManaCost, ManaPool,
-    MergedComponent, ObjectFilter, ObjectId, ObjectSpec, ObjectStatus, PendingZoneChange,
-    PhyrexianMana, Phase,
-    PlayerBuilder, PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger, SpellTarget, StackObject,
-    StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
-    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, TurnState,
-    UpkeepCostKind, Zone, ZoneId, ZoneType,
+    ManaColor, ManaCost, ManaPool, MergedComponent, ObjectFilter, ObjectId, ObjectSpec,
+    ObjectStatus, PendingZoneChange, Phase, PhyrexianMana, PlayerBuilder, PlayerFilter, PlayerId,
+    PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
+    ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
+    Target, TriggerData, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef,
+    TurnFaceUpMethod, TurnState, UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 
 pub use testing::replay_harness::{

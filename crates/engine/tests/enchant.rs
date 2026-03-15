@@ -433,8 +433,8 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(
@@ -478,8 +478,8 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(

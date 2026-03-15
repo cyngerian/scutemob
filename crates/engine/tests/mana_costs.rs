@@ -3,12 +3,12 @@
 //! CR 107.3 (X), 107.4e (hybrid), 107.4f (Phyrexian),
 //! CR 202.2d (hybrid color identity), 202.3e-g (mana value).
 
-use mtg_engine::{
-    process_command, CardDefinition, CardId, CardType, Command, GameEvent, GameStateBuilder,
-    HybridMana, HybridManaPayment, ManaCost, ManaColor, ObjectSpec, PhyrexianMana,
-    PlayerId, Step, ZoneId, compute_color_identity,
-};
 use mtg_engine::rules::casting::flatten_hybrid_phyrexian;
+use mtg_engine::{
+    compute_color_identity, process_command, CardDefinition, CardId, CardType, Command, GameEvent,
+    GameStateBuilder, HybridMana, HybridManaPayment, ManaColor, ManaCost, ObjectSpec,
+    PhyrexianMana, PlayerId, Step, ZoneId,
+};
 
 // ── Mana Value Tests ─────────────────────────────────────────────────────────
 
@@ -24,7 +24,11 @@ fn test_hybrid_color_color_mana_value() {
         ..Default::default()
     };
     // Kitchen Finks: {{1}}{{G/W}}{{G/W}} → MV 3
-    assert_eq!(cost.mana_value(), 3, "CR 202.3f: {{1}}{{G/W}}{{G/W}} = MV 3");
+    assert_eq!(
+        cost.mana_value(),
+        3,
+        "CR 202.3f: {{1}}{{G/W}}{{G/W}} = MV 3"
+    );
 }
 
 /// CR 202.3f: Hybrid {{2/W}} contributes 2 to mana value (max(2, 1) = 2).
@@ -49,7 +53,11 @@ fn test_phyrexian_mana_value() {
         ..Default::default()
     };
     // {{1}}{{U/P}}{{U/P}} → MV 3
-    assert_eq!(cost.mana_value(), 3, "CR 202.3g: {{1}}{{U/P}}{{U/P}} = MV 3");
+    assert_eq!(
+        cost.mana_value(),
+        3,
+        "CR 202.3g: {{1}}{{U/P}}{{U/P}} = MV 3"
+    );
 }
 
 /// CR 202.3e: X is 0 off the stack; x_count doesn't contribute to mana_value().
@@ -61,7 +69,11 @@ fn test_x_mana_value_off_stack() {
         ..Default::default()
     };
     // {{X}}{{U}} → MV 1 (X = 0 off stack)
-    assert_eq!(cost.mana_value(), 1, "CR 202.3e: {{X}}{{U}} off stack = MV 1");
+    assert_eq!(
+        cost.mana_value(),
+        1,
+        "CR 202.3e: {{X}}{{U}} off stack = MV 1"
+    );
 }
 
 /// CR 202.3e: {{X}}{{X}} has MV 0 off stack (+ any fixed pips).
@@ -72,7 +84,11 @@ fn test_double_x_mana_value() {
         ..Default::default()
     };
     // {{X}}{{X}} → MV 0 off stack
-    assert_eq!(cost.mana_value(), 0, "CR 202.3e: {{X}}{{X}} off stack = MV 0");
+    assert_eq!(
+        cost.mana_value(),
+        0,
+        "CR 202.3e: {{X}}{{X}} off stack = MV 0"
+    );
 }
 
 /// CR 202.3g + 202.2d: Hybrid Phyrexian {G/W/P} contributes 1 to MV.
@@ -86,7 +102,11 @@ fn test_hybrid_phyrexian_mana_value() {
         ..Default::default()
     };
     // {{1}}{{G}}{{W}}{{G/W/P}} → MV 4
-    assert_eq!(cost.mana_value(), 4, "CR 202.3g: {{1}}{{G}}{{W}}{{G/W/P}} = MV 4");
+    assert_eq!(
+        cost.mana_value(),
+        4,
+        "CR 202.3g: {{1}}{{G}}{{W}}{{G/W/P}} = MV 4"
+    );
 }
 
 // ── Payment Tests ────────────────────────────────────────────────────────────
@@ -210,8 +230,14 @@ fn test_hybrid_color_identity() {
     };
 
     let colors = compute_color_identity(&def);
-    assert!(colors.contains(&mtg_engine::Color::Green), "Hybrid adds green to identity");
-    assert!(colors.contains(&mtg_engine::Color::White), "Hybrid adds white to identity");
+    assert!(
+        colors.contains(&mtg_engine::Color::Green),
+        "Hybrid adds green to identity"
+    );
+    assert!(
+        colors.contains(&mtg_engine::Color::White),
+        "Hybrid adds white to identity"
+    );
 }
 
 /// CR 903.4: Phyrexian {B/P} adds B to color identity.
@@ -228,7 +254,10 @@ fn test_phyrexian_color_identity() {
     };
 
     let colors = compute_color_identity(&def);
-    assert!(colors.contains(&mtg_engine::Color::Black), "Phyrexian adds black to identity");
+    assert!(
+        colors.contains(&mtg_engine::Color::Black),
+        "Phyrexian adds black to identity"
+    );
 }
 
 /// CR 903.4: Hybrid Phyrexian {G/W/P} adds both G and W to color identity.
@@ -245,6 +274,12 @@ fn test_hybrid_phyrexian_color_identity() {
     };
 
     let colors = compute_color_identity(&def);
-    assert!(colors.contains(&mtg_engine::Color::Green), "Hybrid Phyrexian adds green");
-    assert!(colors.contains(&mtg_engine::Color::White), "Hybrid Phyrexian adds white");
+    assert!(
+        colors.contains(&mtg_engine::Color::Green),
+        "Hybrid Phyrexian adds green"
+    );
+    assert!(
+        colors.contains(&mtg_engine::Color::White),
+        "Hybrid Phyrexian adds white"
+    );
 }

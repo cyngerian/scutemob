@@ -763,8 +763,8 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(
@@ -832,8 +832,8 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(

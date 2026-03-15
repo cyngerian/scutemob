@@ -898,8 +898,16 @@ fn multiply_mana_cost(
         green: cost.green * multiplier,
         colorless: cost.colorless * multiplier,
         generic: cost.generic * multiplier,
-        hybrid: cost.hybrid.iter().flat_map(|h| std::iter::repeat_n(h.clone(), multiplier as usize)).collect(),
-        phyrexian: cost.phyrexian.iter().flat_map(|p| std::iter::repeat_n(p.clone(), multiplier as usize)).collect(),
+        hybrid: cost
+            .hybrid
+            .iter()
+            .flat_map(|h| std::iter::repeat_n(h.clone(), multiplier as usize))
+            .collect(),
+        phyrexian: cost
+            .phyrexian
+            .iter()
+            .flat_map(|p| std::iter::repeat_n(p.clone(), multiplier as usize))
+            .collect(),
         x_count: cost.x_count * multiplier,
     }
 }
