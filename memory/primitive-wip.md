@@ -5,7 +5,7 @@ title: Quick wins (no engine changes)
 cards_affected: 23
 mode: review-only
 started: 2026-03-16
-phase: fix
+phase: closed
 plan_file: n/a (retroactive review -- no plan needed)
 
 ## Review Scope
@@ -23,5 +23,9 @@ Categories:
 
 ## Review
 findings: 2 (HIGH: 0, MEDIUM: 1, LOW: 1)
-verdict: needs-fix
+verdict: fixed
 review_file: memory/primitives/pb-review-0.md
+
+## Fixes Applied
+- [x] MEDIUM: thousand_faced_shadow.rs — added Ninjutsu keyword marker + cost ability (generic: 2, blue: 2)
+- [x] LOW: keywords.rs — added test_508_1d_must_attack_each_combat_enforced (positive + negative cases)

@@ -11,7 +11,7 @@
 
 | Batch | Title | Status | Cards Fixed | Cards Remaining | Review | Sessions |
 |-------|-------|--------|-------------|-----------------|--------|----------|
-| PB-0 | Quick wins (no engine changes) | done | 23 | 0 | none | 1 |
+| PB-0 | Quick wins (no engine changes) | done | 23 | 0 | fixed | 1 |
 | PB-1 | Mana with damage (pain lands) | done | 8 | 0 | none | 1 |
 | PB-2 | Conditional ETB tapped | done | 56 | 0 | none | 3 |
 | PB-3 | Shockland ETB (pay-or-tapped) | done | 10 | 0 | none | 1 |
@@ -93,7 +93,7 @@ until all reviews are complete and findings fixed.
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2144 |
+| Total tests | 2145 |
 | Test files | 209 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
@@ -131,7 +131,7 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 
 | # | Batch | Title | Cards Fixed | Review Status | Findings |
 |---|-------|-------|-------------|---------------|----------|
-| 1 | PB-0 | Quick wins | 23 | in-review | — |
+| 1 | PB-0 | Quick wins | 23 | fixed | 1M 1L fixed |
 | 2 | PB-1 | Mana with damage | 8 | pending | — |
 | 3 | PB-2 | Conditional ETB tapped | 56 | pending | — |
 | 4 | PB-3 | Shockland ETB | 10 | pending | — |
@@ -153,4 +153,4 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 20 | PB-18 | Stax / restrictions | 10 | pending | — |
 
 **Review Status values**: `pending`, `in-review`, `needs-fix`, `fixing`, `clean`, `fixed`
-**Progress**: 0 / 20 reviewed
+**Progress**: 1 / 20 reviewed

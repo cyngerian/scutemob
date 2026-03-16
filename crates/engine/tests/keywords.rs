@@ -3556,3 +3556,68 @@ fn test_702_90_infect_commander_damage_still_tracks() {
         "CR 704.5c: p2 must lose via poison SBA after 11 poison counters from infect commander"
     );
 }
+
+// ── CR 508.1d: MustAttackEachCombat ──────────────────────────────────────────
+
+#[test]
+/// CR 508.1d — A creature with "attacks each combat if able" must be declared
+/// as an attacker if it is able (not tapped, no summoning sickness, no Defender).
+/// Omitting such a creature from the attack declaration is an error.
+fn test_508_1d_must_attack_each_combat_enforced() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Dauthi Slayer", 2, 2)
+                .with_keyword(KeywordAbility::MustAttackEachCombat),
+        )
+        .object(ObjectSpec::creature(p1, "Eager Soldier", 1, 1))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let slayer_id = find_object(&state, "Dauthi Slayer");
+    let soldier_id = find_object(&state, "Eager Soldier");
+
+    // Declaring only the optional creature, omitting the MustAttack creature — should fail.
+    let result = process_command(
+        state.clone(),
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(soldier_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    );
+    assert!(
+        result.is_err(),
+        "Omitting MustAttackEachCombat creature from attack declaration must be rejected (CR 508.1d)"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("must attack"),
+        "Error should cite must-attack requirement, got: {}",
+        err_msg
+    );
+
+    // Declaring both attackers — should succeed.
+    let result = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![
+                (slayer_id, AttackTarget::Player(p2)),
+                (soldier_id, AttackTarget::Player(p2)),
+            ],
+            enlist_choices: vec![],
+        },
+    );
+    assert!(
+        result.is_ok(),
+        "Declaring MustAttackEachCombat creature as attacker must succeed: {:?}",
+        result.err()
+    );
+}
