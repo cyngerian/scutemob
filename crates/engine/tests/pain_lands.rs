@@ -328,13 +328,19 @@ fn shivan_reef_produces_exactly_one_blue_or_red() {
     )
     .expect("tap for blue mana should succeed");
 
-    assert_eq!(state_blue.players[&p(1)].life_total, 39, "blue tap should deal 1 damage");
     assert_eq!(
-        state_blue.players[&p(1)].mana_pool.blue, 1,
+        state_blue.players[&p(1)].life_total,
+        39,
+        "blue tap should deal 1 damage"
+    );
+    assert_eq!(
+        state_blue.players[&p(1)].mana_pool.blue,
+        1,
         "should have exactly 1 blue mana"
     );
     assert_eq!(
-        state_blue.players[&p(1)].mana_pool.red, 0,
+        state_blue.players[&p(1)].mana_pool.red,
+        0,
         "should have 0 red mana from blue ability"
     );
 
@@ -352,13 +358,19 @@ fn shivan_reef_produces_exactly_one_blue_or_red() {
     )
     .expect("tap for red mana should succeed");
 
-    assert_eq!(state_red.players[&p(1)].life_total, 39, "red tap should deal 1 damage");
     assert_eq!(
-        state_red.players[&p(1)].mana_pool.red, 1,
+        state_red.players[&p(1)].life_total,
+        39,
+        "red tap should deal 1 damage"
+    );
+    assert_eq!(
+        state_red.players[&p(1)].mana_pool.red,
+        1,
         "should have exactly 1 red mana"
     );
     assert_eq!(
-        state_red.players[&p(1)].mana_pool.blue, 0,
+        state_red.players[&p(1)].mana_pool.blue,
+        0,
         "should have 0 blue mana from red ability"
     );
 }

@@ -2006,46 +2006,59 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // AND when it resolves. If the condition no longer holds at resolution, the
             // triggered ability is removed from the stack without effect.
             if triggered_effect_opt.is_some() {
-                // CR 603.4: Re-evaluate the intervening-if condition at resolution.
-                // If the condition no longer holds, the triggered ability is removed
-                // from the stack without effect.
-                // Use check_condition() from effects/mod.rs which correctly handles
-                // all Condition variants including Condition::Not (e.g. Acererak's
-                // "if you haven't completed Tomb of Annihilation").
-                let condition_holds = triggered_carddef_iif
-                    .as_ref()
-                    .map(|cond| {
-                        let ctx = EffectContext::new(
-                            stack_obj.controller,
-                            source_object,
-                            stack_obj.targets.clone(),
-                        );
-                        check_condition(state, cond, &ctx)
-                    })
-                    .unwrap_or(true);
-                if condition_holds {
-                    if let Some(effect) = triggered_effect_opt {
-                        // CR 702.33d: Propagate kicker_times_paid from the source permanent so
-                        // kicker-conditional ETB effects (e.g., Torch Slinger) work correctly.
-                        let kicker_times_paid = state
-                            .objects
-                            .get(&source_object)
-                            .map(|o| o.kicker_times_paid)
-                            .unwrap_or(0);
-                        let mut ctx = EffectContext::new_with_kicker(
-                            stack_obj.controller,
-                            source_object,
-                            stack_obj.targets.clone(),
-                            kicker_times_paid,
-                        );
-                        let effect_events = execute_effect(state, &effect, &mut ctx);
-                        events.extend(effect_events);
+                // CR 608.2b: If the triggered ability has declared targets and all of them
+                // are now illegal, the ability fizzles — it is removed from the stack without
+                // effect. This is the "all targets illegal" fizzle rule for triggered abilities.
+                let fizzled = !stack_obj.targets.is_empty()
+                    && stack_obj.targets.iter().all(|t| !is_target_legal(state, t));
+                if fizzled {
+                    events.push(GameEvent::AbilityResolved {
+                        controller: stack_obj.controller,
+                        stack_object_id: stack_obj.id,
+                    });
+                    // Fizzled — skip effect execution entirely.
+                } else {
+                    // CR 603.4: Re-evaluate the intervening-if condition at resolution.
+                    // If the condition no longer holds, the triggered ability is removed
+                    // from the stack without effect.
+                    // Use check_condition() from effects/mod.rs which correctly handles
+                    // all Condition variants including Condition::Not (e.g. Acererak's
+                    // "if you haven't completed Tomb of Annihilation").
+                    let condition_holds = triggered_carddef_iif
+                        .as_ref()
+                        .map(|cond| {
+                            let ctx = EffectContext::new(
+                                stack_obj.controller,
+                                source_object,
+                                stack_obj.targets.clone(),
+                            );
+                            check_condition(state, cond, &ctx)
+                        })
+                        .unwrap_or(true);
+                    if condition_holds {
+                        if let Some(effect) = triggered_effect_opt {
+                            // CR 702.33d: Propagate kicker_times_paid from the source permanent so
+                            // kicker-conditional ETB effects (e.g., Torch Slinger) work correctly.
+                            let kicker_times_paid = state
+                                .objects
+                                .get(&source_object)
+                                .map(|o| o.kicker_times_paid)
+                                .unwrap_or(0);
+                            let mut ctx = EffectContext::new_with_kicker(
+                                stack_obj.controller,
+                                source_object,
+                                stack_obj.targets.clone(),
+                                kicker_times_paid,
+                            );
+                            let effect_events = execute_effect(state, &effect, &mut ctx);
+                            events.extend(effect_events);
+                        }
                     }
-                }
-                events.push(GameEvent::AbilityResolved {
-                    controller: stack_obj.controller,
-                    stack_object_id: stack_obj.id,
-                });
+                    events.push(GameEvent::AbilityResolved {
+                        controller: stack_obj.controller,
+                        stack_object_id: stack_obj.id,
+                    });
+                } // end else (non-fizzled path)
             } else {
                 let condition_holds = {
                     let source_obj = state.objects.get(&source_object);

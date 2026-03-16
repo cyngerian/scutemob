@@ -564,9 +564,7 @@ pub enum GameRestriction {
     /// "Each player can't cast more than one spell each turn."
     /// (Rule of Law, Archon of Emeria, Eidolon of Rhetoric)
     /// CR 101.2: restriction overrides permission.
-    MaxSpellsPerTurn {
-        max: u32,
-    },
+    MaxSpellsPerTurn { max: u32 },
 
     /// "Your opponents can't cast spells during your turn."
     /// (Dragonlord Dromoka, Grand Abolisher, Myrel)

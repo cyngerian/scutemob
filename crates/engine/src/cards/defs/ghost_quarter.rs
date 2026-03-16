@@ -49,10 +49,7 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                    has_card_type: Some(CardType::Land),
-                    ..Default::default()
-                })],
+                targets: vec![TargetRequirement::TargetLand],
             },
         ],
         ..Default::default()

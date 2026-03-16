@@ -2693,7 +2693,14 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
                     Some(CardType::Creature) => SacrificeFilter::Creature,
                     Some(CardType::Land) => SacrificeFilter::Land,
                     Some(CardType::Artifact) => SacrificeFilter::Artifact,
-                    _ => SacrificeFilter::Creature, // default fallback
+                    other => {
+                        debug_assert!(
+                            other.is_none(),
+                            "unhandled card type in Cost::Sacrifice filter: {:?}",
+                            other
+                        );
+                        SacrificeFilter::Creature // conservative fallback
+                    }
                 }
             };
             ac.sacrifice_filter = Some(sac_filter);

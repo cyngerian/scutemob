@@ -97,15 +97,14 @@ fn check_activate_restrictions(
             GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
                 if active_player == controller && player != controller {
                     // Check if source is an artifact, creature, or enchantment.
-                    let is_restricted_type = crate::rules::layers::calculate_characteristics(
-                        state, source,
-                    )
-                    .map(|chars| {
-                        chars.card_types.contains(&CardType::Artifact)
-                            || chars.card_types.contains(&CardType::Creature)
-                            || chars.card_types.contains(&CardType::Enchantment)
-                    })
-                    .unwrap_or(false);
+                    let is_restricted_type =
+                        crate::rules::layers::calculate_characteristics(state, source)
+                            .map(|chars| {
+                                chars.card_types.contains(&CardType::Artifact)
+                                    || chars.card_types.contains(&CardType::Creature)
+                                    || chars.card_types.contains(&CardType::Enchantment)
+                            })
+                            .unwrap_or(false);
                     if is_restricted_type {
                         return Err(GameStateError::InvalidCommand(
                             "restriction: opponents can't activate abilities of artifacts, creatures, or enchantments during your turn (CR 101.2)".into(),
@@ -6187,45 +6186,289 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // CR 603.2 / CR 102.2: For OpponentCastsSpell triggers, the casting player
         // is set as Target::Player at index 0 so DeclaredTarget { index: 0 } resolves
         // to the specific opponent who cast the spell (e.g. Rhystic Study resolution).
-        let trigger_targets: Vec<SpellTarget> = if let Some(tsid) = trigger.targeting_stack_id {
-            vec![SpellTarget {
+        //
+        // Returns None if a required target cannot be satisfied (trigger skipped per CR 603.3d).
+        let trigger_targets_opt: Option<Vec<SpellTarget>> = if let Some(tsid) =
+            trigger.targeting_stack_id
+        {
+            Some(vec![SpellTarget {
                 target: Target::Object(tsid),
                 zone_at_cast: None,
-            }]
+            }])
         } else if let Some(pid) = trigger.triggering_player {
-            vec![SpellTarget {
+            Some(vec![SpellTarget {
                 target: Target::Player(pid),
                 zone_at_cast: None,
-            }]
+            }])
         } else if let Some(dp) = trigger.defending_player_id {
             // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
             // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
             // resolves to the correct defending player for the SacrificePermanents effect.
-            vec![SpellTarget {
+            Some(vec![SpellTarget {
                 target: Target::Player(dp),
                 zone_at_cast: None,
-            }]
+            }])
         } else if let Some(attacker_id) = trigger.exalted_attacker_id {
             // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
             // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
             // resolves to the attacking creature (not the exalted source permanent).
-            vec![SpellTarget {
+            Some(vec![SpellTarget {
                 target: Target::Object(attacker_id),
                 zone_at_cast: None,
-            }]
+            }])
         } else if trigger.kind == PendingTriggerKind::Provoke {
             // CR 702.39a: Provoke triggers target the provoked creature.
             // Set it as Target::Object so target legality can be checked at resolution.
             if let Some(provoked) = trigger.provoke_target_creature {
-                vec![SpellTarget {
+                Some(vec![SpellTarget {
                     target: Target::Object(provoked),
                     zone_at_cast: Some(ZoneId::Battlefield),
-                }]
+                }])
             } else {
-                vec![]
+                Some(vec![])
+            }
+        } else if matches!(
+            trigger.kind,
+            PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
+        ) {
+            // CR 603.3d: For CardDef-based triggered abilities (Normal / CardDefETB),
+            // look up the target requirements from the ability definition and
+            // auto-select legal targets using deterministic first-match fallback.
+            // If any required target has no legal candidate, skip this trigger.
+            let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> = {
+                let obj = state.objects.get(&trigger.source);
+                if let Some(obj) = obj {
+                    let from_runtime = if trigger.kind == PendingTriggerKind::Normal {
+                        obj.characteristics
+                            .triggered_abilities
+                            .get(trigger.ability_index)
+                            .and_then(|ab| {
+                                // Runtime triggered_abilities come from characteristics;
+                                // they don't carry a `targets` field directly but are
+                                // InterveningIf-keyed. No targets from runtime path.
+                                let _ = ab;
+                                None::<Vec<crate::cards::card_definition::TargetRequirement>>
+                            })
+                    } else {
+                        None
+                    };
+                    from_runtime.unwrap_or_else(|| {
+                        // Card registry fallback: look up ability by index.
+                        obj.card_id
+                            .as_ref()
+                            .and_then(|cid| state.card_registry.get(cid.clone()))
+                            .and_then(|def| def.abilities.get(trigger.ability_index))
+                            .and_then(|abil| match abil {
+                                crate::cards::card_definition::AbilityDefinition::Triggered {
+                                    targets,
+                                    ..
+                                } => Some(targets.clone()),
+                                _ => None,
+                            })
+                            .unwrap_or_default()
+                    })
+                } else {
+                    vec![]
+                }
+            };
+
+            if ability_targets.is_empty() {
+                // No targets required — proceed normally with empty targets.
+                Some(vec![])
+            } else {
+                // CR 603.3d: Auto-select one legal target per requirement (deterministic
+                // first-match). If no legal candidate for any requirement, skip trigger.
+                let source_chars = state
+                    .objects
+                    .get(&trigger.source)
+                    .map(|o| o.characteristics.clone());
+                let mut selected: Vec<SpellTarget> = Vec::new();
+                let mut all_satisfied = true;
+
+                for req in &ability_targets {
+                    use crate::cards::card_definition::TargetRequirement;
+                    use crate::rules::layers::calculate_characteristics;
+                    use crate::state::types::CardType as CT;
+
+                    let candidate: Option<SpellTarget> = match req {
+                        // Player-targeting requirements: pick the first active opponent,
+                        // falling back to the controller if no opponent is available.
+                        TargetRequirement::TargetPlayer
+                        | TargetRequirement::TargetCreatureOrPlayer
+                        | TargetRequirement::TargetAny
+                        | TargetRequirement::TargetPlayerOrPlaneswalker => {
+                            // Try opponents first, then self.
+                            let pid = state
+                                .turn
+                                .turn_order
+                                .iter()
+                                .find(|&&p| {
+                                    p != trigger.controller
+                                        && state
+                                            .players
+                                            .get(&p)
+                                            .map(|pl| !pl.has_lost && !pl.has_conceded)
+                                            .unwrap_or(false)
+                                })
+                                .copied()
+                                .or_else(|| {
+                                    state
+                                        .players
+                                        .get(&trigger.controller)
+                                        .filter(|pl| !pl.has_lost && !pl.has_conceded)
+                                        .map(|_| trigger.controller)
+                                });
+                            pid.map(|p| SpellTarget {
+                                target: Target::Player(p),
+                                zone_at_cast: None,
+                            })
+                        }
+                        // Graveyard card targets: scan objects in the appropriate graveyard.
+                        TargetRequirement::TargetCardInYourGraveyard(filter) => {
+                            let controller_gy = ZoneId::Graveyard(trigger.controller);
+                            state
+                                .objects
+                                .iter()
+                                .find(|(_, obj)| {
+                                    obj.zone == controller_gy
+                                        && crate::effects::matches_filter(
+                                            &obj.characteristics,
+                                            filter,
+                                        )
+                                })
+                                .map(|(id, obj)| SpellTarget {
+                                    target: Target::Object(*id),
+                                    zone_at_cast: Some(obj.zone),
+                                })
+                        }
+                        TargetRequirement::TargetCardInGraveyard(filter) => state
+                            .objects
+                            .iter()
+                            .find(|(_, obj)| {
+                                matches!(obj.zone, ZoneId::Graveyard(_))
+                                    && crate::effects::matches_filter(&obj.characteristics, filter)
+                            })
+                            .map(|(id, obj)| SpellTarget {
+                                target: Target::Object(*id),
+                                zone_at_cast: Some(obj.zone),
+                            }),
+                        // Battlefield object targets: scan battlefield objects.
+                        _ => {
+                            let src_chars_ref = source_chars.as_ref();
+                            state
+                                    .objects
+                                    .iter()
+                                    .find(|(_, obj)| {
+                                        if obj.zone != ZoneId::Battlefield || !obj.is_phased_in() {
+                                            return false;
+                                        }
+                                        // Check protection/hexproof/shroud (CR 603.3d).
+                                        if super::validate_target_protection(
+                                            &obj.characteristics.keywords,
+                                            obj.controller,
+                                            trigger.controller,
+                                            src_chars_ref,
+                                        )
+                                        .is_err()
+                                        {
+                                            return false;
+                                        }
+                                        let chars = calculate_characteristics(state, obj.id)
+                                            .unwrap_or_else(|| obj.characteristics.clone());
+                                        let is_creature =
+                                            chars.card_types.contains(&CT::Creature);
+                                        let is_artifact =
+                                            chars.card_types.contains(&CT::Artifact);
+                                        let is_enchantment =
+                                            chars.card_types.contains(&CT::Enchantment);
+                                        let is_land = chars.card_types.contains(&CT::Land);
+                                        let is_planeswalker =
+                                            chars.card_types.contains(&CT::Planeswalker);
+                                        match req {
+                                            TargetRequirement::TargetCreature => is_creature,
+                                            TargetRequirement::TargetPermanent => true,
+                                            TargetRequirement::TargetArtifact => is_artifact,
+                                            TargetRequirement::TargetEnchantment => is_enchantment,
+                                            TargetRequirement::TargetLand => is_land,
+                                            TargetRequirement::TargetPlaneswalker => is_planeswalker,
+                                            TargetRequirement::TargetCreatureOrPlayer => is_creature,
+                                            TargetRequirement::TargetCreatureWithFilter(f) => {
+                                                if !is_creature {
+                                                    return false;
+                                                }
+                                                let passes =
+                                                    crate::effects::matches_filter(&chars, f);
+                                                let ctrl_ok = match f.controller {
+                                                    crate::cards::card_definition::TargetController::Any => true,
+                                                    crate::cards::card_definition::TargetController::You => {
+                                                        obj.controller == trigger.controller
+                                                    }
+                                                    crate::cards::card_definition::TargetController::Opponent => {
+                                                        obj.controller != trigger.controller
+                                                    }
+                                                };
+                                                passes && ctrl_ok
+                                            }
+                                            TargetRequirement::TargetPermanentWithFilter(f) => {
+                                                let passes =
+                                                    crate::effects::matches_filter(&chars, f);
+                                                let ctrl_ok = match f.controller {
+                                                    crate::cards::card_definition::TargetController::Any => true,
+                                                    crate::cards::card_definition::TargetController::You => {
+                                                        obj.controller == trigger.controller
+                                                    }
+                                                    crate::cards::card_definition::TargetController::Opponent => {
+                                                        obj.controller != trigger.controller
+                                                    }
+                                                };
+                                                passes && ctrl_ok
+                                            }
+                                            // Player-only reqs are handled above — no objects.
+                                            TargetRequirement::TargetPlayer => false,
+                                            // Spell targets not applicable for triggered abilities.
+                                            TargetRequirement::TargetSpell
+                                            | TargetRequirement::TargetSpellWithFilter(_) => false,
+                                            // Graveyard reqs handled above.
+                                            TargetRequirement::TargetCardInYourGraveyard(_)
+                                            | TargetRequirement::TargetCardInGraveyard(_) => false,
+                                            TargetRequirement::TargetAny => {
+                                                is_creature || is_planeswalker
+                                            }
+                                            TargetRequirement::TargetPlayerOrPlaneswalker => {
+                                                is_planeswalker
+                                            }
+                                        }
+                                    })
+                                    .map(|(id, obj)| SpellTarget {
+                                        target: Target::Object(*id),
+                                        zone_at_cast: Some(obj.zone),
+                                    })
+                        }
+                    };
+
+                    if let Some(st) = candidate {
+                        selected.push(st);
+                    } else {
+                        // CR 603.3d: No legal target — skip this trigger.
+                        all_satisfied = false;
+                        break;
+                    }
+                }
+
+                if all_satisfied {
+                    Some(selected)
+                } else {
+                    None
+                }
             }
         } else {
-            vec![]
+            Some(vec![])
+        };
+
+        // CR 603.3d: If trigger_targets_opt is None, no legal target exists — skip trigger.
+        let trigger_targets = match trigger_targets_opt {
+            Some(t) => t,
+            None => continue,
         };
 
         // Push the triggered ability onto the stack (1 + additional_count) times.

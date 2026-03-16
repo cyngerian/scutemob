@@ -13,10 +13,10 @@
 |-------|-------|--------|-------------|-----------------|--------|----------|
 | PB-0 | Quick wins (no engine changes) | done | 23 | 0 | fixed | 1 |
 | PB-1 | Mana with damage (pain lands) | done | 8 | 0 | fixed | 1 |
-| PB-2 | Conditional ETB tapped | done | 56 | 0 | none | 3 |
-| PB-3 | Shockland ETB (pay-or-tapped) | done | 10 | 0 | none | 1 |
-| PB-4 | Sacrifice as activation cost | done | 26 | 0 | none | 2 |
-| PB-5 | Targeted activated/triggered abilities | done | 32 | 0 | none | 3 |
+| PB-2 | Conditional ETB tapped | done | 56 | 0 | fixed | 3 |
+| PB-3 | Shockland ETB (pay-or-tapped) | done | 10 | 0 | clean | 1 |
+| PB-4 | Sacrifice as activation cost | done | 26 | 0 | fixed | 2 |
+| PB-5 | Targeted activated/triggered abilities | done | 32 | 0 | fixed | 3 |
 | PB-6 | Static grant with controller filter | done | 30 | 0 | none | 2 |
 | PB-7 | Count-based scaling | done | 29 | 0 | none | 2 |
 | PB-8 | Cost reduction statics | done | 10 | 0 | none | 2 |
@@ -133,10 +133,10 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 |---|-------|-------|-------------|---------------|----------|
 | 1 | PB-0 | Quick wins | 23 | fixed | 1M 1L fixed |
 | 2 | PB-1 | Mana with damage | 8 | fixed | 1M fixed |
-| 3 | PB-2 | Conditional ETB tapped | 56 | in-review | — |
-| 4 | PB-3 | Shockland ETB | 10 | pending | — |
-| 5 | PB-4 | Sacrifice as activation cost | 26 | pending | — |
-| 6 | PB-5 | Targeted abilities | 32 | pending | — |
+| 3 | PB-2 | Conditional ETB tapped | 56 | fixed | 1H 1M fixed; 1M 2L deferred |
+| 4 | PB-3 | Shockland ETB | 10 | clean | clean |
+| 5 | PB-4 | Sacrifice as activation cost | 26 | fixed | 1M fixed; 1M 13M 6L deferred (other PBs) |
+| 6 | PB-5 | Targeted abilities | 32 | fixed | 1H 2M 1L fixed; 5M 5L deferred |
 | 7 | PB-6 | Static grant with filter | 30 | pending | — |
 | 8 | PB-7 | Count-based scaling | 29 | pending | — |
 | 9 | PB-8 | Cost reduction statics | 10 | pending | — |
@@ -153,4 +153,4 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 20 | PB-18 | Stax / restrictions | 10 | pending | — |
 
 **Review Status values**: `pending`, `in-review`, `needs-fix`, `fixing`, `clean`, `fixed`
-**Progress**: 2 / 20 reviewed
+**Progress**: 6 / 20 reviewed

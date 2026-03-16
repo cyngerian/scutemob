@@ -100,17 +100,24 @@ fn test_restriction_max_spells_blocks_second_spell() {
     let registry = CardRegistry::new(vec![instant_def("Zap", "zap")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p1(), "Zap")
                 .in_zone(ZoneId::Hand(p1()))
                 .with_card_id(CardId("zap".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p1(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p1(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -132,9 +139,16 @@ fn test_restriction_max_spells_blocks_second_spell() {
 
     let zap = find_by_name(&state, "Zap");
     let result = process_command(state, cast_cmd(p1(), zap));
-    assert!(result.is_err(), "second spell should be blocked by Rule of Law");
+    assert!(
+        result.is_err(),
+        "second spell should be blocked by Rule of Law"
+    );
     let err = format!("{:?}", result.unwrap_err());
-    assert!(err.contains("can't cast more than 1 spell"), "error: {}", err);
+    assert!(
+        err.contains("can't cast more than 1 spell"),
+        "error: {}",
+        err
+    );
 }
 
 #[test]
@@ -143,17 +157,24 @@ fn test_restriction_max_spells_allows_first_spell() {
     let registry = CardRegistry::new(vec![instant_def("Zap", "zap")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p1(), "Zap")
                 .in_zone(ZoneId::Hand(p1()))
                 .with_card_id(CardId("zap".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p1(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p1(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -170,7 +191,10 @@ fn test_restriction_max_spells_allows_first_spell() {
 
     let zap = find_by_name(&state, "Zap");
     let result = process_command(state, cast_cmd(p1(), zap));
-    assert!(result.is_ok(), "first spell should succeed under Rule of Law");
+    assert!(
+        result.is_ok(),
+        "first spell should succeed under Rule of Law"
+    );
 }
 
 #[test]
@@ -179,17 +203,24 @@ fn test_restriction_max_spells_affects_opponents() {
     let registry = CardRegistry::new(vec![instant_def("Bolt", "bolt")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p2(), "Bolt")
                 .in_zone(ZoneId::Hand(p2()))
                 .with_card_id(CardId("bolt".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p2(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p2(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -223,17 +254,24 @@ fn test_restriction_opponents_cant_cast_during_your_turn() {
     let registry = CardRegistry::new(vec![instant_def("Bolt", "bolt")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Dromoka", 5, 7).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Dromoka", 5, 7).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p2(), "Bolt")
                 .in_zone(ZoneId::Hand(p2()))
                 .with_card_id(CardId("bolt".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p2(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p2(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -251,9 +289,16 @@ fn test_restriction_opponents_cant_cast_during_your_turn() {
 
     let bolt = find_by_name(&state, "Bolt");
     let result = process_command(state, cast_cmd(p2(), bolt));
-    assert!(result.is_err(), "opponents can't cast during controller's turn");
+    assert!(
+        result.is_err(),
+        "opponents can't cast during controller's turn"
+    );
     let err = format!("{:?}", result.unwrap_err());
-    assert!(err.contains("opponents can't cast spells during your turn"), "error: {}", err);
+    assert!(
+        err.contains("opponents can't cast spells during your turn"),
+        "error: {}",
+        err
+    );
 }
 
 #[test]
@@ -262,17 +307,24 @@ fn test_restriction_dromoka_controller_can_cast() {
     let registry = CardRegistry::new(vec![instant_def("Zap", "zap")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Dromoka", 5, 7).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Dromoka", 5, 7).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p1(), "Zap")
                 .in_zone(ZoneId::Hand(p1()))
                 .with_card_id(CardId("zap".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p1(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p1(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -300,17 +352,24 @@ fn test_restriction_drannith_blocks_graveyard_cast() {
     let registry = CardRegistry::new(vec![instant_def("GY Spell", "gy-spell")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Magistrate", 1, 3).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Magistrate", 1, 3).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p2(), "GY Spell")
                 .in_zone(ZoneId::Graveyard(p2()))
                 .with_card_id(CardId("gy-spell".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p2(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p2(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -365,11 +424,15 @@ fn test_restriction_artifact_abilities_blocked() {
     let registry = CardRegistry::new(vec![]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Ouphe", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Ouphe", 2, 2).in_zone(ZoneId::Battlefield))
         .object(ObjectSpec::artifact(p2(), "Mind Stone"))
-        .player_mana(p2(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p2(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -398,9 +461,16 @@ fn test_restriction_artifact_abilities_blocked() {
         },
     );
 
-    assert!(result.is_err(), "artifact activated abilities should be blocked");
+    assert!(
+        result.is_err(),
+        "artifact activated abilities should be blocked"
+    );
     let err = format!("{:?}", result.unwrap_err());
-    assert!(err.contains("activated abilities of artifacts"), "error: {}", err);
+    assert!(
+        err.contains("activated abilities of artifacts"),
+        "error: {}",
+        err
+    );
 }
 
 // ─── Restriction removal when source leaves ──────────────────────────────────
@@ -411,17 +481,24 @@ fn test_restriction_inactive_when_source_leaves_battlefield() {
     let registry = CardRegistry::new(vec![instant_def("Bolt", "bolt")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Stax Piece", 2, 2).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p2(), "Bolt")
                 .in_zone(ZoneId::Hand(p2()))
                 .with_card_id(CardId("bolt".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p2(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p2(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -449,7 +526,10 @@ fn test_restriction_inactive_when_source_leaves_battlefield() {
 
     let bolt = find_by_name(&state, "Bolt");
     let result = process_command(state, cast_cmd(p2(), bolt));
-    assert!(result.is_ok(), "restriction should not apply when source is off battlefield");
+    assert!(
+        result.is_ok(),
+        "restriction should not apply when source is off battlefield"
+    );
 }
 
 // ─── Grand Abolisher ─────────────────────────────────────────────────────────
@@ -460,17 +540,24 @@ fn test_restriction_grand_abolisher_blocks_opponent_cast() {
     let registry = CardRegistry::new(vec![instant_def("Bolt", "bolt")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Grand Abolisher", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Grand Abolisher", 2, 2).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p2(), "Bolt")
                 .in_zone(ZoneId::Hand(p2()))
                 .with_card_id(CardId("bolt".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p2(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p2(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -488,7 +575,10 @@ fn test_restriction_grand_abolisher_blocks_opponent_cast() {
 
     let bolt = find_by_name(&state, "Bolt");
     let result = process_command(state, cast_cmd(p2(), bolt));
-    assert!(result.is_err(), "opponents can't cast during Abolisher controller's turn");
+    assert!(
+        result.is_err(),
+        "opponents can't cast during Abolisher controller's turn"
+    );
 }
 
 #[test]
@@ -497,17 +587,24 @@ fn test_restriction_grand_abolisher_controller_can_cast() {
     let registry = CardRegistry::new(vec![instant_def("Zap", "zap")]);
 
     let mut state = GameStateBuilder::four_player()
-        .object(
-            ObjectSpec::creature(p1(), "Grand Abolisher", 2, 2).in_zone(ZoneId::Battlefield),
-        )
+        .object(ObjectSpec::creature(p1(), "Grand Abolisher", 2, 2).in_zone(ZoneId::Battlefield))
         .object(
             ObjectSpec::card(p1(), "Zap")
                 .in_zone(ZoneId::Hand(p1()))
                 .with_card_id(CardId("zap".to_string()))
                 .with_types(vec![CardType::Instant])
-                .with_mana_cost(ManaCost { generic: 1, ..ManaCost::default() }),
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
         )
-        .player_mana(p1(), ManaPool { colorless: 10, ..ManaPool::default() })
+        .player_mana(
+            p1(),
+            ManaPool {
+                colorless: 10,
+                ..ManaPool::default()
+            },
+        )
         .with_registry(registry)
         .at_step(Step::PreCombatMain)
         .active_player(p1())
@@ -524,5 +621,8 @@ fn test_restriction_grand_abolisher_controller_can_cast() {
 
     let zap = find_by_name(&state, "Zap");
     let result = process_command(state, cast_cmd(p1(), zap));
-    assert!(result.is_ok(), "Abolisher controller can still cast on own turn");
+    assert!(
+        result.is_ok(),
+        "Abolisher controller can still cast on own turn"
+    );
 }

@@ -67,7 +67,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // {1}, {T}: Target Blinkmoth creature gets +1/+1 until end of turn.
-            // TODO: Target filter should restrict to Blinkmoth creatures only.
+            // CR 115.1: Target must be a creature with the Blinkmoth subtype.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
@@ -82,7 +82,10 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    has_subtype: Some(SubType("Blinkmoth".to_string())),
+                    ..Default::default()
+                })],
             },
         ],
         ..Default::default()
