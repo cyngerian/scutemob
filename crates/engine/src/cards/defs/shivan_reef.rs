@@ -1,4 +1,4 @@
-// Shivan Reef — Land; {T}: Add {C}; {T}: Add {U} or {R} (deals 1 damage to you).
+// Shivan Reef — Land; {T}: Add {C}; {T}: Add {U}. Deals 1 damage; {T}: Add {R}. Deals 1 damage.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -7,7 +7,8 @@ pub fn card() -> CardDefinition {
         name: "Shivan Reef".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {R}. This land deals 1 damage to you.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {R}. This land deals 1 damage to you."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -18,12 +19,29 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
+            // {T}: Add {U}. This land deals 1 damage to you.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::Sequence(vec![
                     Effect::AddMana {
                         player: PlayerTarget::Controller,
-                        mana: mana_pool(0, 1, 0, 1, 0, 0),
+                        mana: mana_pool(0, 1, 0, 0, 0, 0),
+                    },
+                    Effect::DealDamage {
+                        target: EffectTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+            },
+            // {T}: Add {R}. This land deals 1 damage to you.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Sequence(vec![
+                    Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 0, 1, 0, 0),
                     },
                     Effect::DealDamage {
                         target: EffectTarget::Controller,

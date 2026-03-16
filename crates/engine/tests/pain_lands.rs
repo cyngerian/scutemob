@@ -1,9 +1,13 @@
 //! Pain land tests — mana abilities that deal damage to controller.
 //!
 //! CR 605: Mana abilities resolve immediately (no stack).
-//! Pain lands have two mana abilities:
+//! Pain lands have three mana abilities:
 //!   1. {T}: Add {C} — no damage
-//!   2. {T}: Add {R} or {W} — deals 1 damage to controller
+//!   2. {T}: Add {color_A}. This land deals 1 damage to you.
+//!   3. {T}: Add {color_B}. This land deals 1 damage to you.
+//!
+//! Each colored ability produces exactly 1 mana of one color. The player
+//! chooses which ability to activate, giving them the correct "or" choice.
 //!
 //! City of Brass has a triggered ability:
 //!   "Whenever City of Brass becomes tapped, it deals 1 damage to you."
@@ -108,11 +112,11 @@ fn battlefield_forge_colorless_tap_no_damage() {
     );
 }
 
-// ── Pain land: colored tap DOES deal 1 damage ─────────────────────────────
+// ── Pain land: first colored tap (ability_index 1) deals 1 damage ─────────
 
 #[test]
 fn battlefield_forge_colored_tap_deals_damage() {
-    // CR 605: {T}: Add {R} or {W}. This land deals 1 damage to you.
+    // CR 605: {T}: Add {W}. This land deals 1 damage to you. (ability_index 1)
     let state = build_with_land("Battlefield Forge");
     let land_id = find_by_name(&state, "Battlefield Forge");
     let life_before = state.players[&p(1)].life_total;
@@ -122,7 +126,7 @@ fn battlefield_forge_colored_tap_deals_damage() {
         Command::TapForMana {
             player: p(1),
             source: land_id,
-            ability_index: 1, // second ability: {T}: Add {R}/{W} + damage
+            ability_index: 1, // second ability: {T}: Add {W} + damage
         },
     )
     .expect("tap for colored mana should succeed");
@@ -138,7 +142,37 @@ fn battlefield_forge_colored_tap_deals_damage() {
         .any(|e| matches!(e, GameEvent::DamageDealt { .. })));
 }
 
-// ── Verify all 7 pain lands have the colored+damage mana ability ──────────
+// ── Pain land: second colored tap (ability_index 2) also deals 1 damage ──
+
+#[test]
+fn battlefield_forge_second_colored_tap_deals_damage() {
+    // CR 605: {T}: Add {R}. This land deals 1 damage to you. (ability_index 2)
+    let state = build_with_land("Battlefield Forge");
+    let land_id = find_by_name(&state, "Battlefield Forge");
+    let life_before = state.players[&p(1)].life_total;
+
+    let (state, events) = process_command(
+        state,
+        Command::TapForMana {
+            player: p(1),
+            source: land_id,
+            ability_index: 2, // third ability: {T}: Add {R} + damage
+        },
+    )
+    .expect("tap for red mana should succeed");
+
+    // Life should decrease by 1.
+    assert_eq!(state.players[&p(1)].life_total, life_before - 1);
+    // Should have both ManaAdded and DamageDealt events.
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, GameEvent::ManaAdded { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, GameEvent::DamageDealt { .. })));
+}
+
+// ── Verify all 7 pain lands deal damage on colored tap (ability_index 1) ──
 
 #[test]
 fn all_pain_lands_deal_damage_on_colored_tap() {
@@ -162,7 +196,7 @@ fn all_pain_lands_deal_damage_on_colored_tap() {
             Command::TapForMana {
                 player: p(1),
                 source: land_id,
-                ability_index: 1,
+                ability_index: 1, // first colored ability
             },
         )
         .unwrap_or_else(|e| panic!("{}: colored tap failed: {:?}", name, e));
@@ -178,6 +212,52 @@ fn all_pain_lands_deal_damage_on_colored_tap() {
                 .iter()
                 .any(|e| matches!(e, GameEvent::DamageDealt { .. })),
             "{}: should emit DamageDealt event",
+            name
+        );
+    }
+}
+
+// ── Verify all 7 pain lands also deal damage on second colored tap ─────────
+
+#[test]
+fn all_pain_lands_deal_damage_on_second_colored_tap() {
+    // CR 605: The second colored ability (ability_index 2) also deals 1 damage.
+    let pain_lands = [
+        "Battlefield Forge",
+        "Caves of Koilos",
+        "Llanowar Wastes",
+        "Shivan Reef",
+        "Sulfurous Springs",
+        "Underground River",
+        "Yavimaya Coast",
+    ];
+
+    for name in &pain_lands {
+        let state = build_with_land(name);
+        let land_id = find_by_name(&state, name);
+        let life_before = state.players[&p(1)].life_total;
+
+        let (state, events) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: land_id,
+                ability_index: 2, // second colored ability
+            },
+        )
+        .unwrap_or_else(|e| panic!("{}: second colored tap failed: {:?}", name, e));
+
+        assert_eq!(
+            state.players[&p(1)].life_total,
+            life_before - 1,
+            "{}: second colored ability should deal 1 damage",
+            name
+        );
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, GameEvent::DamageDealt { .. })),
+            "{}: second colored ability should emit DamageDealt event",
             name
         );
     }
@@ -227,25 +307,58 @@ fn city_of_brass_tap_produces_mana() {
     let _ = state;
 }
 
-// ── Pain land: verify mana pool gets the right colors ─────────────────────
+// ── Pain land: verify each color produces exactly 1 mana ──────────────────
 
 #[test]
-fn shivan_reef_produces_blue_and_red_with_damage() {
-    // {T}: Add {U} or {R}. This land deals 1 damage to you.
-    // (Currently adds both until interactive choice is implemented.)
+fn shivan_reef_produces_exactly_one_blue_or_red() {
+    // CR 605: {T}: Add {U} or {R}. This land deals 1 damage to you.
+    // Ability 1 adds exactly 1 Blue; ability 2 adds exactly 1 Red.
+
+    // Test Blue (ability_index 1)
     let state = build_with_land("Shivan Reef");
     let land_id = find_by_name(&state, "Shivan Reef");
 
-    let (state, _events) = process_command(
+    let (state_blue, _events) = process_command(
         state,
         Command::TapForMana {
             player: p(1),
             source: land_id,
-            ability_index: 1,
+            ability_index: 1, // {T}: Add {U}
         },
     )
-    .expect("tap for colored mana should succeed");
+    .expect("tap for blue mana should succeed");
 
-    // Life should decrease by 1.
-    assert_eq!(state.players[&p(1)].life_total, 39);
+    assert_eq!(state_blue.players[&p(1)].life_total, 39, "blue tap should deal 1 damage");
+    assert_eq!(
+        state_blue.players[&p(1)].mana_pool.blue, 1,
+        "should have exactly 1 blue mana"
+    );
+    assert_eq!(
+        state_blue.players[&p(1)].mana_pool.red, 0,
+        "should have 0 red mana from blue ability"
+    );
+
+    // Test Red (ability_index 2)
+    let state = build_with_land("Shivan Reef");
+    let land_id = find_by_name(&state, "Shivan Reef");
+
+    let (state_red, _events) = process_command(
+        state,
+        Command::TapForMana {
+            player: p(1),
+            source: land_id,
+            ability_index: 2, // {T}: Add {R}
+        },
+    )
+    .expect("tap for red mana should succeed");
+
+    assert_eq!(state_red.players[&p(1)].life_total, 39, "red tap should deal 1 damage");
+    assert_eq!(
+        state_red.players[&p(1)].mana_pool.red, 1,
+        "should have exactly 1 red mana"
+    );
+    assert_eq!(
+        state_red.players[&p(1)].mana_pool.blue, 0,
+        "should have 0 blue mana from red ability"
+    );
 }
