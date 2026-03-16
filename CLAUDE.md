@@ -165,7 +165,7 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ## Agents
 
-Eleven project-scoped agents in `.claude/agents/` encode milestone and ability workflows:
+Fourteen project-scoped agents in `.claude/agents/` encode milestone, ability, and primitive workflows:
 
 | Agent | Model | RA | Trigger | Purpose |
 |-------|-------|----|---------|---------|
@@ -182,6 +182,9 @@ Eleven project-scoped agents in `.claude/agents/` encode milestone and ability w
 | `ability-impl-planner` | Opus | yes | `/implement-ability` (plan phase) | CR research, study similar abilities, write implementation plan |
 | `ability-impl-runner` | Sonnet | — | `/implement-ability` (implement/fix phase) | Execute steps 1-4 (enum, enforcement, triggers, tests), apply fixes |
 | `ability-impl-reviewer` | Opus | yes | `/implement-ability` (review phase) | Verify implementation against CR, check edge cases, write findings |
+| `primitive-impl-planner` | Opus | yes | `/implement-primitive` (plan phase) | CR research, study engine architecture, write PB plan |
+| `primitive-impl-runner` | Sonnet | — | `/implement-primitive` (implement/fix phase) | Engine changes, card def fixes, tests, apply review fixes |
+| `primitive-impl-reviewer` | Opus | yes | `/implement-primitive` (review phase) | Verify engine + card defs against CR/oracle text, write findings |
 
 ---
 

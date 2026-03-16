@@ -98,18 +98,20 @@ pub fn render(f: &mut Frame, app: &mut App) {
         4 => tabs::reviews::render(f, chunks[1], app),
         5 => tabs::scripts::render(f, chunks[1], app),
         6 => tabs::cards::render(f, chunks[1], app),
+        7 => tabs::progress::render(f, chunks[1], app),
         _ => {}
     }
 
     // ─── status bar ─────────────────────────────────────────────────────────
     let help = match app.current_tab {
-        0 => "q:quit  Tab:next  1-7:jump  r:refresh",
+        0 => "q:quit  Tab:next  1-8:jump  r:refresh",
         1 => "q:quit  Tab:next  j/k:scroll  r:refresh",
         2 => "q:quit  Tab:next  j/k:scroll  r:refresh",
         3 => "q:quit  Tab:next  j/k:scroll  g:gaps only  r:refresh",
         4 => "q:quit  Tab:next  r:refresh",
         5 => "q:quit  Tab:next  j/k:scroll  p:pending only  a:all  r:refresh",
         6 => "q:quit  Tab:next  j/k:scroll  c:authored  r:ready  b:blocked  d:deferred  a:all",
+        7 => "q:quit  Tab:next  j/k:scroll  r:refresh",
         _ => "q:quit",
     };
     let test_str = match &app.live_test_count {

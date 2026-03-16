@@ -18,6 +18,7 @@ pub fn parse_all(root: &Path) -> DashboardData {
         reviews,
         scripts: count_scripts(root).unwrap_or_default(),
         cards: parse_card_worklist(root).unwrap_or_default(),
+        progress: parse_project_status(root).unwrap_or_default(),
     }
 }
 
@@ -893,4 +894,157 @@ fn parse_card_entry(item: &serde_json::Value, status: &str) -> CardWorklistEntry
         blocking_keywords,
         keyword_statuses,
     }
+}
+
+// ─── project-status.md parser ──────────────────────────────────────────────
+
+fn parse_project_status(root: &Path) -> Option<ProjectProgress> {
+    let path = root.join("docs/project-status.md");
+    let content = fs::read_to_string(path).ok()?;
+    let lines: Vec<&str> = content.lines().collect();
+    let mut progress = ProjectProgress::default();
+
+    let mut section = "";
+    let mut in_table = false;
+
+    for line in &lines {
+        let trimmed = line.trim();
+
+        // Detect sections
+        if trimmed.starts_with("## Primitive Batches") {
+            section = "batches";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Card Health") {
+            section = "health";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Workstreams") {
+            section = "workstreams";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Path to Alpha") {
+            section = "alpha";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Engine Test Summary") {
+            section = "tests";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Deferred Items") {
+            section = "deferred";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Review Backlog") {
+            section = "review";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## ") {
+            section = "";
+            in_table = false;
+            continue;
+        }
+
+        // Skip separator rows and empty lines
+        if trimmed.starts_with("|---") || trimmed.starts_with("| ---") {
+            in_table = true;
+            continue;
+        }
+        if !trimmed.starts_with('|') {
+            // Parse progress line
+            if section == "review" && trimmed.starts_with("**Progress**:") {
+                let parts: Vec<&str> = trimmed.split('/').collect();
+                if parts.len() == 2 {
+                    progress.review_progress_done = parts[0]
+                        .chars()
+                        .filter(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse()
+                        .unwrap_or(0);
+                    progress.review_progress_total = parts[1]
+                        .chars()
+                        .filter(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse()
+                        .unwrap_or(0);
+                }
+            }
+            continue;
+        }
+        if !in_table {
+            // This is the header row — skip it, wait for separator
+            continue;
+        }
+
+        let cells = table_cells(trimmed);
+
+        match section {
+            "batches" if cells.len() >= 7 => {
+                progress.primitive_batches.push(PrimitiveBatch {
+                    batch: cells[0].clone(),
+                    title: cells[1].clone(),
+                    status: cells[2].clone(),
+                    cards_fixed: cells[3].parse().unwrap_or(0),
+                    cards_remaining: cells[4].parse().unwrap_or(0),
+                    review: cells[5].clone(),
+                    ..Default::default()
+                });
+            }
+            "health" if cells.len() >= 2 => {
+                let val: u32 = cells[1].parse().unwrap_or(0);
+                let cat = cells[0].to_lowercase();
+                if cat.contains("complete") && !cat.contains("total") {
+                    progress.card_health.complete = val;
+                } else if cat.contains("todo") {
+                    progress.card_health.has_todos = val;
+                } else if cat.contains("wrong") {
+                    progress.card_health.wrong_state = val;
+                } else if cat.contains("not yet") {
+                    progress.card_health.not_authored = val;
+                } else if cat.contains("total universe") {
+                    progress.card_health.total_universe = val;
+                } else if cat.contains("total authored") {
+                    progress.card_health.total_authored = val;
+                }
+            }
+            "workstreams" if cells.len() >= 5 => {
+                progress.workstreams.push(WorkstreamEntry {
+                    number: cells[0].clone(),
+                    name: cells[1].clone(),
+                    status: cells[2].clone(),
+                    last_activity: cells[3].clone(),
+                    next_action: cells[4].clone(),
+                });
+            }
+            "alpha" if cells.len() >= 4 => {
+                progress.path_to_alpha.push(AlphaMilestone {
+                    name: cells[0].clone(),
+                    status: cells[1].clone(),
+                    blocked_by: cells[2].clone(),
+                    deliverable: cells[3].clone(),
+                });
+            }
+            "deferred" if cells.len() >= 4 => {
+                progress.deferred_items.push(DeferredItem {
+                    item: cells[0].clone(),
+                    deferred_from: cells[1].clone(),
+                    blocked_until: cells[2].clone(),
+                    impact: cells[3].clone(),
+                });
+            }
+            "review" if cells.len() >= 6 => {
+                progress.review_backlog.push(ReviewBacklogEntry {
+                    number: cells[0].parse().unwrap_or(0),
+                    batch: cells[1].clone(),
+                    title: cells[2].clone(),
+                    cards_fixed: cells[3].parse().unwrap_or(0),
+                    review_status: cells[4].clone(),
+                    findings: cells[5].clone(),
+                });
+            }
+            _ => {}
+        }
+    }
+
+    Some(progress)
 }

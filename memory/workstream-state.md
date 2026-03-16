@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: retroactive PB review | ACTIVE | 2026-03-16 | **PRIMARY OBJECTIVE**: review all 19 PB batches before forward progress. Use `/implement-primitive --review-only PB-<N>`. Tracker: `docs/project-status.md` Review Backlog. PB-19+ blocked until reviews complete. |
+| W6: Primitive + Card Authoring | W6-review: retroactive PB review | available | — | **PRIMARY OBJECTIVE**: review all 20 PB batches (PB-0 to PB-18) before forward progress. Use `/implement-primitive --review-only PB-<N>`. Tracker: `docs/project-status.md` Review Backlog. PB-19+ blocked until reviews complete. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,33 +24,38 @@
 ## Last Handoff
 
 **Date**: 2026-03-16
-**Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-18 — Stax/restriction framework
+**Workstream**: W6: Primitive + Card Authoring (project management session)
+**Task**: Project management restructuring — skills, agents, tracking, review pipeline
 
 **Completed**:
-- New `GameRestriction` enum (6 variants) + `ActiveRestriction` struct on GameState
-- `AbilityDefinition::StaticRestriction` variant (hash disc 69) for card defs
-- Registration via `register_static_continuous_effects` (replacement.rs)
-- `check_cast_restrictions()` in casting.rs — MaxSpellsPerTurn, OpponentsCantCast*, OpponentsCantCastFromNonHand
-- `check_activate_restrictions()` in abilities.rs — ArtifactAbilitiesCantBeActivated, OpponentsCantCastOrActivateDuringYourTurn
-- `is_cast_restricted_by_stax()` in simulator legal_actions.rs
-- 7 new card defs: Rule of Law, Drannith Magistrate, Propaganda, Ghostly Prison, Eidolon of Rhetoric, Collector Ouphe, Stony Silence
-- 3 card defs fixed: Archon of Emeria, Grand Abolisher, Dragonlord Dromoka
-- 10 new tests in restrictions.rs; 2144 total passing, 0 clippy warnings
-- Commit 9c037c6
-
-**Deferred from PB-18**:
-- CantAttackYouUnlessPay combat enforcement (Propaganda/Ghostly Prison) — data registered but interactive mana payment during attack declaration needs new Command variant
-- Silence (spell effect, not static), Myrel (needs attack trigger), Hope of Ghirapur (targeted sacrifice) — separate DSL gaps
-- Prior carried-forward deferrals from PB-13/14/17 still apply
+- Deep project review: assessed all 6 workstreams, TUI dashboard gaps, dependency chains
+- Created 3 new agents: `primitive-impl-planner` (Opus), `primitive-impl-runner` (Sonnet), `primitive-impl-reviewer` (Opus)
+- Created `/implement-primitive` skill with full pipeline + `--review-only` mode for retroactive reviews
+- Created `docs/project-status.md` — single source of truth (PB batches, card health, workstreams, review backlog)
+- Updated `/start-work` — W6-PB<N> subunit support, reads project-status.md
+- Updated `/implement-ability` and `/implement-primitive` — TaskCreate/TaskUpdate at each phase for TUI progress
+- All fix phases now address HIGH + MEDIUM + LOW findings (no more deferred LOWs)
+- Reviewer verdict changed: "clean" = zero findings at any severity
+- Set W6-review as PRIMARY OBJECTIVE: sequential review of PB-0 through PB-18 (20 batches)
+- PB-0 review started (in-review in project-status.md)
+- Commit 5d9b87a
 
 **Next**:
-1. **PB-19 (Mass destroy / board wipes)**: 12 cards — Effect::DestroyAll + Effect::ExileAll
-2. Continue through PB-20 to PB-21 per `docs/primitive-card-plan.md`
+1. `/start-work W6-review` then `/implement-primitive --review-only PB-0` (first of 20 retroactive reviews)
+2. Sequential through PB-1, PB-2, ... PB-18
+3. After all 20 reviews complete: resume PB-19 (board wipes)
 
-**Commit prefix used**: `W6-prim:`
+**Hazards**:
+- New agents require session restart to appear in agent registry
+- 2 unstaged files: `thousand_faced_shadow.rs`, `keywords.rs` (appear to be PB-18 leftovers)
+
+**Commit prefix used**: `chore:`
 
 ## Handoff History
+
+### 2026-03-16 — W6: PB-18 Stax/restrictions + project management
+- PB-18 complete (9c037c6): GameRestriction enum, 6 restriction types, 10 card defs, 10 tests; 2144 total
+- Project management: 3 new agents, /implement-primitive skill, docs/project-status.md, W6-review primary objective (5d9b87a)
 
 ### 2026-03-16 — W6: PB-17 Library search filters
 - max_cmc, min_cmc, has_card_types on TargetFilter; 9 card fixes; 8 tests; 2134 total; commit 894504e

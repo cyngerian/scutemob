@@ -84,6 +84,7 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('5') => app.jump_to_tab(4),
         KeyCode::Char('6') => app.jump_to_tab(5),
         KeyCode::Char('7') => app.jump_to_tab(6),
+        KeyCode::Char('8') => app.jump_to_tab(7),
         KeyCode::Char('r') => {
             if app.current_tab == 6 {
                 app.set_cards_filter("ready");
@@ -97,6 +98,7 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             3 => app.corner_case_scroll_down(),
             5 => app.scripts_scroll_down(),
             6 => app.cards_scroll_down(),
+            7 => app.progress_scroll_down(),
             _ => {}
         },
         KeyCode::Up | KeyCode::Char('k') => match app.current_tab {
@@ -105,6 +107,7 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             3 => app.corner_case_scroll_up(),
             5 => app.scripts_scroll_up(),
             6 => app.cards_scroll_up(),
+            7 => app.progress_scroll_up(),
             _ => {}
         },
         KeyCode::Char('J') => {

@@ -6,7 +6,7 @@ use ratatui::widgets::{ListState, TableState};
 use super::data::DashboardData;
 use super::parser;
 
-pub const TAB_COUNT: usize = 7;
+pub const TAB_COUNT: usize = 8;
 pub const TAB_NAMES: [&str; TAB_COUNT] = [
     "1:Overview",
     "2:Milestones",
@@ -15,6 +15,7 @@ pub const TAB_NAMES: [&str; TAB_COUNT] = [
     "5:Reviews",
     "6:Scripts",
     "7:Cards",
+    "8:Progress",
 ];
 
 pub enum LiveTestCount {
@@ -43,6 +44,9 @@ pub struct App {
 
     // Tab 7: Cards
     pub cards_table_state: TableState,
+
+    // Tab 8: Progress
+    pub progress_scroll: u16,
     /// "all", "ready", "blocked", "deferred"
     pub cards_filter: String,
     /// Scroll offset for the detail pane (DSL view)
@@ -75,6 +79,7 @@ impl App {
             cards_table_state: TableState::default(),
             cards_filter: "all".to_string(),
             cards_detail_scroll: 0,
+            progress_scroll: 0,
             live_test_count: LiveTestCount::Loading,
             test_count_rx: None,
             root,
@@ -282,6 +287,16 @@ impl App {
 
     pub fn cards_detail_scroll_up(&mut self) {
         self.cards_detail_scroll = self.cards_detail_scroll.saturating_sub(1);
+    }
+
+    // ─── progress tab scroll ──────────────────────────────────────────────
+
+    pub fn progress_scroll_down(&mut self) {
+        self.progress_scroll = self.progress_scroll.saturating_add(1);
+    }
+
+    pub fn progress_scroll_up(&mut self) {
+        self.progress_scroll = self.progress_scroll.saturating_sub(1);
     }
 }
 

@@ -8,6 +8,81 @@ pub struct DashboardData {
     pub reviews: ReviewStatistics,
     pub scripts: ScriptCounts,
     pub cards: CardWorklist,
+    pub progress: ProjectProgress,
+}
+
+/// Parsed from `docs/project-status.md`.
+#[derive(Debug, Default)]
+pub struct ProjectProgress {
+    pub primitive_batches: Vec<PrimitiveBatch>,
+    pub card_health: CardHealth,
+    pub workstreams: Vec<WorkstreamEntry>,
+    pub path_to_alpha: Vec<AlphaMilestone>,
+    pub deferred_items: Vec<DeferredItem>,
+    pub review_backlog: Vec<ReviewBacklogEntry>,
+    pub review_progress_done: u32,
+    pub review_progress_total: u32,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PrimitiveBatch {
+    pub batch: String,
+    pub title: String,
+    /// "done", "active", "planned"
+    pub status: String,
+    pub cards_fixed: u32,
+    pub cards_remaining: u32,
+    /// "clean", "fixed", "none", "—"
+    pub review: String,
+}
+
+#[derive(Debug, Default)]
+pub struct CardHealth {
+    pub complete: u32,
+    pub has_todos: u32,
+    pub wrong_state: u32,
+    pub not_authored: u32,
+    pub total_universe: u32,
+    pub total_authored: u32,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct WorkstreamEntry {
+    pub number: String,
+    pub name: String,
+    /// "done", "active", "stalled", "partial", "not-started", "retired"
+    pub status: String,
+    pub last_activity: String,
+    pub next_action: String,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct AlphaMilestone {
+    pub name: String,
+    pub status: String,
+    pub blocked_by: String,
+    pub deliverable: String,
+}
+
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct DeferredItem {
+    pub item: String,
+    pub deferred_from: String,
+    pub blocked_until: String,
+    pub impact: String,
+}
+
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub struct ReviewBacklogEntry {
+    pub number: u32,
+    pub batch: String,
+    pub title: String,
+    pub cards_fixed: u32,
+    /// "pending", "in-review", "needs-fix", "fixing", "clean", "fixed"
+    pub review_status: String,
+    pub findings: String,
 }
 
 /// Parsed from CLAUDE.md `## Current State` section.
