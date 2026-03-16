@@ -38,6 +38,91 @@ use super::casting;
 use super::events::{CombatDamageTarget, GameEvent};
 
 // ---------------------------------------------------------------------------
+// Restriction checks (PB-18)
+// ---------------------------------------------------------------------------
+
+/// PB-18: Check active game restrictions that would prevent ability activation.
+///
+/// Checks:
+/// - `ArtifactAbilitiesCantBeActivated` (Collector Ouphe, Stony Silence)
+/// - `OpponentsCantCastOrActivateDuringYourTurn` (Grand Abolisher, Myrel)
+fn check_activate_restrictions(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+) -> Result<(), GameStateError> {
+    use crate::state::stubs::GameRestriction;
+
+    let active_player = state.turn.active_player;
+
+    // Determine if the source is an artifact (for Collector Ouphe / Stony Silence).
+    let source_is_artifact = state
+        .objects
+        .get(&source)
+        .map(|_| {
+            crate::rules::layers::calculate_characteristics(state, source)
+                .map(|chars| chars.card_types.contains(&CardType::Artifact))
+                .unwrap_or(false)
+        })
+        .unwrap_or(false);
+
+    for restriction in state.restrictions.iter() {
+        // Skip restrictions whose source is no longer on the battlefield.
+        let source_on_bf = state
+            .objects
+            .get(&restriction.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !source_on_bf {
+            continue;
+        }
+
+        let controller = restriction.controller;
+
+        match &restriction.restriction {
+            // Collector Ouphe / Stony Silence:
+            // "Activated abilities of artifacts can't be activated."
+            GameRestriction::ArtifactAbilitiesCantBeActivated => {
+                if source_is_artifact {
+                    return Err(GameStateError::InvalidCommand(
+                        "restriction: activated abilities of artifacts can't be activated (CR 101.2)"
+                            .into(),
+                    ));
+                }
+            }
+
+            // Grand Abolisher / Myrel (ability activation component):
+            // "During your turn, opponents can't activate abilities of artifacts,
+            // creatures, or enchantments."
+            GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
+                if active_player == controller && player != controller {
+                    // Check if source is an artifact, creature, or enchantment.
+                    let is_restricted_type = crate::rules::layers::calculate_characteristics(
+                        state, source,
+                    )
+                    .map(|chars| {
+                        chars.card_types.contains(&CardType::Artifact)
+                            || chars.card_types.contains(&CardType::Creature)
+                            || chars.card_types.contains(&CardType::Enchantment)
+                    })
+                    .unwrap_or(false);
+                    if is_restricted_type {
+                        return Err(GameStateError::InvalidCommand(
+                            "restriction: opponents can't activate abilities of artifacts, creatures, or enchantments during your turn (CR 101.2)".into(),
+                        ));
+                    }
+                }
+            }
+
+            // Other restrictions don't affect ability activation.
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Activated ability handler
 // ---------------------------------------------------------------------------
 
@@ -73,6 +158,9 @@ pub fn handle_activate_ability(
             "a spell with split second is on the stack; non-mana abilities cannot be activated (CR 702.61a)".into(),
         ));
     }
+
+    // PB-18: Check active restrictions that prevent ability activation.
+    check_activate_restrictions(state, player, source)?;
 
     // Source must be on the battlefield (or in hand for Channel/DiscardSelf abilities).
     {

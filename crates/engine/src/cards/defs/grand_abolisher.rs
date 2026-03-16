@@ -14,13 +14,13 @@ pub fn card() -> CardDefinition {
         oracle_text: "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.".to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![],
-        // TODO: static ability restricting opponent actions during your turn
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
-        starting_loyalty: None,
-        meld_pair: None,
+        abilities: vec![
+            // PB-18: "During your turn, your opponents can't cast spells or activate
+            // abilities of artifacts, creatures, or enchantments."
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::OpponentsCantCastOrActivateDuringYourTurn,
+            },
+        ],
+        ..Default::default()
     }
 }

@@ -242,6 +242,12 @@ pub fn handle_cast_spell(
         ));
     }
 
+    // PB-18: Check active game restrictions that prevent casting (CR 101.2).
+    // Restriction check must happen early, before card validation, because some
+    // restrictions (MaxSpellsPerTurn, OpponentsCantCast*) apply regardless of
+    // the specific spell being cast.
+    check_cast_restrictions(state, player, card)?;
+
     // Fetch the card and validate it is in the player's hand, command zone, graveyard
     // (with flashback), or exile (with madness).
     // CR 903.8: A player may cast their commander from the command zone.
@@ -5496,6 +5502,100 @@ pub fn can_pay_cost_with_context(
 ///
 /// Uses `calculate_characteristics` to respect continuous effects that might
 /// grant or remove split second (layer system, CR 613).
+/// PB-18: Check active game restrictions that would prevent this player from casting a spell.
+///
+/// CR 101.2: "If a player can't take an action, that player can't take that action
+/// even if an effect says they can." Restrictions override permissions.
+///
+/// Called early in `handle_cast_spell` before card validation.
+fn check_cast_restrictions(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+) -> Result<(), GameStateError> {
+    use crate::state::stubs::GameRestriction;
+
+    let active_player = state.turn.active_player;
+
+    // Determine the zone the card is being cast from (for Drannith Magistrate).
+    let card_zone = state.object(card).map(|o| o.zone).ok();
+
+    for restriction in state.restrictions.iter() {
+        // Skip restrictions whose source is no longer on the battlefield.
+        let source_on_bf = state
+            .objects
+            .get(&restriction.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !source_on_bf {
+            continue;
+        }
+
+        let controller = restriction.controller;
+
+        match &restriction.restriction {
+            // Rule of Law / Archon of Emeria / Eidolon of Rhetoric:
+            // "Each player can't cast more than one spell each turn."
+            GameRestriction::MaxSpellsPerTurn { max } => {
+                let spells_cast = state
+                    .players
+                    .get(&player)
+                    .map(|ps| ps.spells_cast_this_turn)
+                    .unwrap_or(0);
+                if spells_cast >= *max {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "restriction: can't cast more than {} spell(s) per turn (CR 101.2)",
+                        max
+                    )));
+                }
+            }
+
+            // Dragonlord Dromoka: "Your opponents can't cast spells during your turn."
+            GameRestriction::OpponentsCantCastDuringYourTurn => {
+                // "Your turn" = controller is the active player.
+                // "Your opponents" = everyone except the controller.
+                if active_player == controller && player != controller {
+                    return Err(GameStateError::InvalidCommand(
+                        "restriction: opponents can't cast spells during your turn (CR 101.2)"
+                            .into(),
+                    ));
+                }
+            }
+
+            // Grand Abolisher / Myrel: "During your turn, your opponents can't cast spells
+            // or activate abilities of artifacts, creatures, or enchantments."
+            // The casting restriction part — ability activation checked separately.
+            GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
+                if active_player == controller && player != controller {
+                    return Err(GameStateError::InvalidCommand(
+                        "restriction: opponents can't cast spells or activate abilities during your turn (CR 101.2)".into(),
+                    ));
+                }
+            }
+
+            // Drannith Magistrate: "Your opponents can't cast spells from anywhere
+            // other than their hands."
+            GameRestriction::OpponentsCantCastFromNonHand => {
+                if player != controller {
+                    if let Some(zone) = card_zone {
+                        if zone != ZoneId::Hand(player) {
+                            return Err(GameStateError::InvalidCommand(
+                                "restriction: opponents can't cast spells from anywhere other than their hands (CR 101.2)".into(),
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Attack tax and artifact ability restrictions don't affect casting.
+            GameRestriction::CantAttackYouUnlessPay { .. }
+            | GameRestriction::ArtifactAbilitiesCantBeActivated => {}
+        }
+    }
+
+    Ok(())
+}
+
 pub fn has_split_second_on_stack(state: &GameState) -> bool {
     state.stack_objects.iter().any(|stack_obj| {
         if let StackObjectKind::Spell { source_object } = &stack_obj.kind {

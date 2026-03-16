@@ -29,8 +29,8 @@ use super::replacement_effect::{
 };
 use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use super::stubs::{
-    DelayedTrigger, ETBSuppressFilter, ETBSuppressor, PendingTrigger, TriggerDoubler,
-    TriggerDoublerFilter,
+    ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
+    PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
 };
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
@@ -1358,6 +1358,36 @@ impl HashInto for ETBSuppressor {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
         self.filter.hash_into(hasher);
+    }
+}
+
+// --- Active restriction type implementations (PB-18) ---
+
+impl HashInto for GameRestriction {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use GameRestriction::*;
+        match self {
+            MaxSpellsPerTurn { max } => {
+                0u8.hash_into(hasher);
+                max.hash_into(hasher);
+            }
+            OpponentsCantCastDuringYourTurn => 1u8.hash_into(hasher),
+            OpponentsCantCastOrActivateDuringYourTurn => 2u8.hash_into(hasher),
+            OpponentsCantCastFromNonHand => 3u8.hash_into(hasher),
+            CantAttackYouUnlessPay { cost_per_creature } => {
+                4u8.hash_into(hasher);
+                cost_per_creature.hash_into(hasher);
+            }
+            ArtifactAbilitiesCantBeActivated => 5u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for ActiveRestriction {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.restriction.hash_into(hasher);
     }
 }
 
@@ -4804,6 +4834,11 @@ impl HashInto for AbilityDefinition {
                 cost.hash_into(hasher);
                 abilities.hash_into(hasher);
             }
+            // StaticRestriction (discriminant 69) -- PB-18 stax
+            AbilityDefinition::StaticRestriction { restriction } => {
+                69u8.hash_into(hasher);
+                restriction.hash_into(hasher);
+            }
         }
     }
 }
@@ -4941,6 +4976,8 @@ impl GameState {
         self.trigger_doublers.hash_into(&mut hasher);
         // IG-2: etb_suppressors (CR 614.16a) — Torpor Orb-style ETB suppression
         self.etb_suppressors.hash_into(&mut hasher);
+        // PB-18: active restrictions (Rule of Law, Propaganda, etc.)
+        self.restrictions.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
 
         // 6. Combat state

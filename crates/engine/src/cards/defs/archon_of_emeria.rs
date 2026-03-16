@@ -14,8 +14,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — "each player can't cast more than one spell each turn" is a
-            // global spell-frequency restriction; no CastRestriction continuous effect type exists.
+            // PB-18: "Each player can't cast more than one spell each turn."
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::MaxSpellsPerTurn { max: 1 },
+            },
             // TODO: DSL gap — ETB-tapped replacement on nonbasic lands opponents control requires
             // a conditional ReplacementTrigger scoped to opponent-controlled nonbasic lands; not supported.
         ],

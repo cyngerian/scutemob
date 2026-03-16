@@ -550,3 +550,65 @@ pub struct ETBSuppressor {
     /// Which entering permanents are affected.
     pub filter: ETBSuppressFilter,
 }
+
+// ── Game Restrictions (PB-18: Stax / Action Restrictions) ────────────────────
+
+/// What kind of restriction is imposed on the game (CR 604).
+///
+/// Restrictions are static abilities that prevent players from taking certain actions.
+/// They are NOT continuous effects (they don't modify characteristics through the layer system).
+/// Instead, they are checked at action-legality time in casting.rs, combat.rs, and
+/// the simulator's legal_actions.rs.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GameRestriction {
+    /// "Each player can't cast more than one spell each turn."
+    /// (Rule of Law, Archon of Emeria, Eidolon of Rhetoric)
+    /// CR 101.2: restriction overrides permission.
+    MaxSpellsPerTurn {
+        max: u32,
+    },
+
+    /// "Your opponents can't cast spells during your turn."
+    /// (Dragonlord Dromoka, Grand Abolisher, Myrel)
+    /// The controller's opponents are restricted during the controller's turn.
+    OpponentsCantCastDuringYourTurn,
+
+    /// "Your opponents can't cast spells or activate abilities of artifacts,
+    /// creatures, or enchantments [during your turn]."
+    /// (Grand Abolisher, Myrel — superset of OpponentsCantCastDuringYourTurn)
+    OpponentsCantCastOrActivateDuringYourTurn,
+
+    /// "Your opponents can't cast spells from anywhere other than their hands."
+    /// (Drannith Magistrate)
+    OpponentsCantCastFromNonHand,
+
+    /// "Creatures can't attack you unless their controller pays {N} for each."
+    /// (Propaganda, Ghostly Prison)
+    CantAttackYouUnlessPay {
+        cost_per_creature: super::game_object::ManaCost,
+    },
+
+    /// "Activated abilities of artifacts can't be activated."
+    /// (Collector Ouphe, Stony Silence)
+    /// Mana abilities of artifacts are also restricted (CR 605.3b).
+    ArtifactAbilitiesCantBeActivated,
+}
+
+/// An active restriction in the game, registered from a static ability of a
+/// permanent on the battlefield.
+///
+/// Follows the same pattern as `TriggerDoubler` and `ETBSuppressor`:
+/// - `source: ObjectId` for cleanup when the source leaves the battlefield
+/// - `controller: PlayerId` to determine who "you" is in "your opponents"
+/// - Registered in `register_static_continuous_effects` from
+///   `AbilityDefinition::StaticRestriction`
+/// - Automatically cleaned up when the source leaves (checked via `state.objects`)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ActiveRestriction {
+    /// ObjectId of the permanent generating this restriction.
+    pub source: ObjectId,
+    /// The player who controls the source permanent.
+    pub controller: PlayerId,
+    /// The restriction being imposed.
+    pub restriction: GameRestriction,
+}

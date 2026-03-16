@@ -185,8 +185,11 @@ impl LegalActionProvider for StubProvider {
             }
         }
 
+        // PB-18: Pre-compute restriction flags for this player.
+        let cast_restricted = is_cast_restricted_by_stax(state, player);
+
         // Cast spells from hand
-        {
+        if !cast_restricted {
             let hand = ZoneId::Hand(player);
             for obj in state.objects_in_zone(&hand) {
                 let is_land = obj.characteristics.card_types.contains(&CardType::Land);
@@ -817,4 +820,56 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
 
     // Otherwise, check if mana solver can find a payment plan from untapped sources
     crate::mana_solver::solve_mana_payment(state, player, cost).is_some()
+}
+
+/// PB-18: Check whether any active restriction prevents this player from casting
+/// any spell at all (MaxSpellsPerTurn, OpponentsCantCast*).
+///
+/// Returns true if the player is completely restricted from casting.
+/// Does NOT check per-card restrictions (like Drannith Magistrate's zone restriction)
+/// — those need per-card checking at a deeper level.
+fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
+    use mtg_engine::GameRestriction;
+
+    let active_player = state.turn.active_player;
+
+    for restriction in state.restrictions.iter() {
+        // Skip restrictions whose source is no longer on the battlefield.
+        let source_on_bf = state
+            .objects
+            .get(&restriction.source)
+            .map(|o| matches!(o.zone, mtg_engine::ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !source_on_bf {
+            continue;
+        }
+
+        let controller = restriction.controller;
+
+        match &restriction.restriction {
+            GameRestriction::MaxSpellsPerTurn { max } => {
+                let spells_cast = state
+                    .players
+                    .get(&player)
+                    .map(|ps| ps.spells_cast_this_turn)
+                    .unwrap_or(0);
+                if spells_cast >= *max {
+                    return true;
+                }
+            }
+            GameRestriction::OpponentsCantCastDuringYourTurn => {
+                if active_player == controller && player != controller {
+                    return true;
+                }
+            }
+            GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
+                if active_player == controller && player != controller {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
 }

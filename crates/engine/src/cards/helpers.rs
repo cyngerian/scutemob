@@ -32,7 +32,7 @@ pub use crate::state::continuous_effect::{
 pub use crate::state::replacement_effect::{
     DamageTargetFilter, ObjectFilter, PlayerFilter, ReplacementModification, ReplacementTrigger,
 };
-pub use crate::state::stubs::TriggerDoublerFilter;
+pub use crate::state::stubs::{GameRestriction, TriggerDoublerFilter};
 pub use crate::state::zone::ZoneType;
 
 // ── Helper functions ─────────────────────────────────────────────────────────

@@ -1887,6 +1887,16 @@ pub fn register_static_continuous_effects(
                         filter: filter.clone(),
                     });
             }
+            // PB-18: Register a stax/action restriction (Rule of Law, Propaganda, etc.).
+            AbilityDefinition::StaticRestriction { restriction } => {
+                state
+                    .restrictions
+                    .push_back(crate::state::stubs::ActiveRestriction {
+                        source: new_id,
+                        controller,
+                        restriction: restriction.clone(),
+                    });
+            }
             _ => {}
         }
     }

@@ -42,8 +42,8 @@ pub use replacement_effect::{
 };
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 pub use stubs::{
-    DelayedTrigger, ETBSuppressFilter, ETBSuppressor, PendingTrigger, TriggerDoubler,
-    TriggerDoublerFilter,
+    ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
+    PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
 };
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
@@ -118,6 +118,14 @@ pub struct GameState {
     /// enters the battlefield and cleaned up when that permanent leaves.
     #[serde(default)]
     pub etb_suppressors: Vector<ETBSuppressor>,
+    /// Active game restrictions (stax effects, CR 604).
+    ///
+    /// Static abilities that prevent players from taking certain actions (casting spells,
+    /// attacking, activating abilities). Checked at action-legality time in casting.rs
+    /// and combat.rs. Registered when a permanent with `AbilityDefinition::StaticRestriction`
+    /// enters the battlefield; cleaned up when that permanent leaves.
+    #[serde(default)]
+    pub restrictions: Vector<ActiveRestriction>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

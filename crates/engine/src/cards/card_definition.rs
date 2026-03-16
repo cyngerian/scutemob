@@ -792,6 +792,20 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 64.
     Disguise { cost: ManaCost },
+
+    /// Static ability that imposes a game restriction while the source is on the
+    /// battlefield (CR 604). Unlike `Static` (layer-based continuous effects), these
+    /// are NOT applied through the layer system — they restrict player actions directly.
+    ///
+    /// Registered in `register_static_continuous_effects` into `state.restrictions`.
+    /// Automatically cleaned up when the source leaves the battlefield.
+    ///
+    /// Examples: Rule of Law, Propaganda, Drannith Magistrate, Collector Ouphe.
+    ///
+    /// Discriminant 65.
+    StaticRestriction {
+        restriction: crate::state::stubs::GameRestriction,
+    },
 }
 
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.

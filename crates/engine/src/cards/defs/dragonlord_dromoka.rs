@@ -10,10 +10,8 @@
 // which is used for instants/sorceries. Creature spells that can't be countered cannot be
 // expressed in the current DSL. This property is omitted.
 //
-// TODO: DSL gap — "Your opponents can't cast spells during your turn" requires a
-// static ability that restricts opponent actions based on whose turn it is. There is
-// no EffectFilter or continuous effect type that enforces casting restrictions on
-// opponents during the controller's turn. This ability is omitted.
+// PB-18: "Your opponents can't cast spells during your turn" — now implemented
+// via AbilityDefinition::StaticRestriction { GameRestriction::OpponentsCantCastDuringYourTurn }.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,6 +30,10 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
+            // PB-18: "Your opponents can't cast spells during your turn."
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::OpponentsCantCastDuringYourTurn,
+            },
         ],
         ..Default::default()
     }
