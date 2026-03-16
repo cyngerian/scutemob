@@ -3848,6 +3848,36 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
             return false;
         }
     }
+    // Mana value (CMC) filters — uses ManaCost::mana_value() (CR 202.3).
+    if let Some(max) = filter.max_cmc {
+        let mv = chars
+            .mana_cost
+            .as_ref()
+            .map(|c| c.mana_value())
+            .unwrap_or(0);
+        if mv > max {
+            return false;
+        }
+    }
+    if let Some(min) = filter.min_cmc {
+        let mv = chars
+            .mana_cost
+            .as_ref()
+            .map(|c| c.mana_value())
+            .unwrap_or(0);
+        if mv < min {
+            return false;
+        }
+    }
+    // OR-semantics card type filter: must have at least one of the listed types.
+    if !filter.has_card_types.is_empty()
+        && !filter
+            .has_card_types
+            .iter()
+            .any(|ct| chars.card_types.contains(ct))
+    {
+        return false;
+    }
     true
 }
 

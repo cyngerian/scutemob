@@ -1,10 +1,10 @@
 // Scion of the Ur-Dragon — {W}{U}{B}{R}{G}, Legendary Creature — Dragon Avatar 4/4
 // Flying
-// TODO: DSL gap — activated ability "{2}: Search your library for a Dragon permanent card and
-//   put it into your graveyard. If you do, Scion of the Ur-Dragon becomes a copy of that card
-//   until end of turn. Then shuffle."
-//   (library search to graveyard with subtype filter, plus self-copy effect, not supported
-//   in card DSL)
+// {2}: Search your library for a Dragon permanent card and put it into your graveyard.
+//   If you do, Scion of the Ur-Dragon becomes a copy of that card until end of turn.
+//   Then shuffle.
+// TODO: Copy-self effect ("becomes a copy of that card until end of turn") not in DSL.
+//   Search-to-graveyard portion is implemented; copy portion is a placeholder.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,6 +29,32 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            // {2}: Search for Dragon, put in graveyard, shuffle.
+            // TODO: Missing "becomes a copy of that card until end of turn"
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: TargetFilter {
+                            has_subtype: Some(SubType("Dragon".to_string())),
+                            ..Default::default()
+                        },
+                        reveal: false,
+                        destination: ZoneTarget::Graveyard {
+                            owner: PlayerTarget::Controller,
+                        },
+                    },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

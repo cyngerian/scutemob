@@ -1527,6 +1527,18 @@ pub struct TargetFilter {
     /// "search for a card named [name]" effects.
     #[serde(default)]
     pub has_name: Option<String>,
+    /// Max mana value (inclusive). None = no restriction.
+    /// Used for "search for a card with mana value N or less" (Urza's Saga, Chord of Calling).
+    #[serde(default)]
+    pub max_cmc: Option<u32>,
+    /// Min mana value (inclusive). None = no restriction.
+    #[serde(default)]
+    pub min_cmc: Option<u32>,
+    /// Card type constraint (OR semantics — must have at least one of these types).
+    /// Used for "instant or sorcery card" (Mystical Tutor), "artifact or enchantment" (Enlightened Tutor).
+    /// When both `has_card_type` and `has_card_types` are set, BOTH must be satisfied.
+    #[serde(default)]
+    pub has_card_types: Vec<CardType>,
 }
 
 /// Whose control an object must be under for a target filter.

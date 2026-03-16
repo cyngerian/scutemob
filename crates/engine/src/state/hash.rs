@@ -3592,6 +3592,9 @@ impl HashInto for TargetFilter {
         self.has_subtype.hash_into(hasher);
         self.has_subtypes.hash_into(hasher);
         self.has_name.hash_into(hasher);
+        self.max_cmc.hash_into(hasher);
+        self.min_cmc.hash_into(hasher);
+        self.has_card_types.hash_into(hasher);
     }
 }
 

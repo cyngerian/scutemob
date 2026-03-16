@@ -2,7 +2,10 @@
 // {T}: Add {C}.
 // {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
 // {2}, {T}, Sacrifice: Return target Dragon creature card or Ugin planeswalker card
-// from your graveyard to your hand.
+//   from your graveyard to your hand.
+// Third ability uses graveyard targeting (PB-10) with Dragon subtype filter.
+// TODO: "or Ugin planeswalker card" part of the target filter (name + type union)
+//   is not expressible. Currently only targets Dragon creature cards.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -33,9 +36,30 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {2}, {T}, Sacrifice: Return Dragon/Ugin from graveyard to hand.
-            // Blocked on: PB-17 SearchLibrary filter for creature subtype (Dragon) and
-            // targeted return-from-graveyard with type union filter (Dragon OR Ugin planeswalker).
+            // {2}, {T}, Sacrifice: Return target Dragon creature card from graveyard to hand.
+            // TODO: Also targets "Ugin planeswalker card" (name + type union not expressible)
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    has_subtype: Some(SubType("Dragon".to_string())),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

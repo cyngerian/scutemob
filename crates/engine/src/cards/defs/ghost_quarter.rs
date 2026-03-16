@@ -1,6 +1,9 @@
 // Ghost Quarter — Land
-// {T}: Add {C}. {T}, Sacrifice: Destroy target land (opponent may search for basic).
-// Sacrifice-as-cost ability not expressible in DSL.
+// {T}: Add {C}.
+// {T}, Sacrifice: Destroy target land. Its controller may search for basic land,
+//   put onto battlefield, shuffle.
+// CR 701.19: opponent search uses ControllerOf(DeclaredTarget).
+// Note: "may search" modeled as unconditional search (deterministic fallback).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +23,37 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {T}, Sacrifice: Destroy target land, opponent may search — PB-5 (targeted)
-            // Cost::SacrificeSelf available; blocked on targeted destroy + opponent search effect
+            // {T}, Sacrifice: Destroy target land, its controller searches for basic land.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
+                effect: Effect::Sequence(vec![
+                    Effect::DestroyPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Land),
+                            basic: true,
+                            ..Default::default()
+                        },
+                        reveal: false,
+                        destination: ZoneTarget::Battlefield { tapped: false },
+                    },
+                    Effect::Shuffle {
+                        player: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Land),
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }

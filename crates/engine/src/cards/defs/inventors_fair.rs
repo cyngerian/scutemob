@@ -1,4 +1,10 @@
-// Inventors' Fair — Legendary Land, {T}: Add {C}; upkeep life gain trigger (TODO); sacrifice to tutor (TODO)
+// Inventors' Fair — Legendary Land
+// {T}: Add {C}.
+// At the beginning of your upkeep, if you control three or more artifacts, you gain 1 life.
+// {4}, {T}, Sacrifice: Search for artifact card, reveal, put into hand, shuffle.
+//   Activate only if you control three or more artifacts.
+// TODO: Upkeep life gain trigger with intervening-if "control 3+ artifacts" (count_threshold gap)
+// TODO: Activation condition "only if you control three or more artifacts" (PB-18 stax/restrictions)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,13 +25,37 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: At the beginning of your upkeep, if you control three or more artifacts,
-            // you gain 1 life.
-            // DSL gap: intervening_if condition "control three or more artifacts" (count_threshold)
-            // not expressible.
-
-            // TODO: {4}, {T}, Sacrifice: Search for artifact, activate only with 3+ artifacts — PB-17
-            // Cost::SacrificeSelf available; blocked on typed search + conditional activation
+            // TODO: At the beginning of your upkeep, if you control 3+ artifacts, gain 1 life.
+            // {4}, {T}, Sacrifice: Search for artifact, reveal, put into hand, shuffle.
+            // TODO: Missing activation condition "only if you control 3+ artifacts"
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 4,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Artifact),
+                            ..Default::default()
+                        },
+                        reveal: true,
+                        destination: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
+                    },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

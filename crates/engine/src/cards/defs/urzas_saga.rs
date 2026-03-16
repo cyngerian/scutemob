@@ -2,9 +2,8 @@
 // CR 714: Saga chapter abilities with lore counters, sacrifice after III.
 // Chapter I: gains "{T}: Add {C}" — modeled as GainLife placeholder (ability-granting not in DSL)
 // Chapter II: gains Construct token creation — placeholder
-// Chapter III: search library for artifact with mana cost {0} or {1} — needs SearchFilter
+// Chapter III: search library for artifact with mana cost {0} or {1}, put onto battlefield.
 // TODO: Chapter I/II need "this Saga gains [ability]" (continuous effect granting activated ability)
-// TODO: Chapter III needs SearchLibrary with artifact CMC filter (PB-17)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -35,14 +34,25 @@ pub fn card() -> CardDefinition {
                 },
                 targets: vec![],
             },
-            // Chapter III: Search for artifact with CMC 0 or 1.
-            // TODO: Needs SearchLibrary with artifact CMC filter (PB-17)
+            // Chapter III: Search for artifact with CMC 0 or 1, put onto battlefield.
+            // CR 701.19 / CR 202.3
             AbilityDefinition::SagaChapter {
                 chapter: 3,
-                effect: Effect::GainLife {
-                    player: PlayerTarget::Controller,
-                    amount: EffectAmount::Fixed(0),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Artifact),
+                            max_cmc: Some(1),
+                            ..Default::default()
+                        },
+                        reveal: false,
+                        destination: ZoneTarget::Battlefield { tapped: false },
+                    },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
+                ]),
                 targets: vec![],
             },
         ],

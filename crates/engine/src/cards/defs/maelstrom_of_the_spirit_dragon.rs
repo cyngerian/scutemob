@@ -1,7 +1,7 @@
 // Maelstrom of the Spirit Dragon — Land
 // {T}: Add {C}.
 // {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell or an Omen spell.
-// {4}, {T}, Sacrifice: Search library for Dragon card, reveal, put into hand.
+// {4}, {T}, Sacrifice: Search library for Dragon card, reveal, put into hand, shuffle.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -36,9 +36,36 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {4}, {T}, Sacrifice this land: Search your library for a Dragon card,
-            // reveal it, put it into your hand, then shuffle.
-            // Blocked on: PB-17 SearchLibrary filter for creature subtype (Dragon).
+            // {4}, {T}, Sacrifice: Search for a Dragon card, put into hand, shuffle.
+            // CR 701.19
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 4,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: TargetFilter {
+                            has_subtype: Some(SubType("Dragon".to_string())),
+                            ..Default::default()
+                        },
+                        reveal: true,
+                        destination: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
+                    },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }
