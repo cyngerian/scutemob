@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-18: Stax/restrictions | ACTIVE | 2026-03-16 | **TOP PRIORITY**. PB-17 complete. ContinuousRestriction system. Plan: `docs/primitive-card-plan.md` |
+| W6: Primitive + Card Authoring | W6-review: retroactive PB review | ACTIVE | 2026-03-16 | **PRIMARY OBJECTIVE**: review all 19 PB batches before forward progress. Use `/implement-primitive --review-only PB-<N>`. Tracker: `docs/project-status.md` Review Backlog. PB-19+ blocked until reviews complete. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,35 +25,35 @@
 
 **Date**: 2026-03-16
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-17 — Library search filters
+**Task**: PB-18 — Stax/restriction framework
 
 **Completed**:
-- Added `max_cmc`, `min_cmc` (Option<u32>), `has_card_types` (Vec<CardType>, OR semantics) to TargetFilter
-- Updated `matches_filter()` in effects/mod.rs for CMC (CR 202.3) and OR card-type checks
-- Updated hash.rs for deterministic hashing of new fields
-- 8 new tests in library_search.rs (max_cmc, min_cmc, has_card_types OR, empty filter, combined, MV=0, no-match, top-of-library)
-- 9 card defs fixed: urzas_saga (artifact CMC≤1), maelstrom_of_the_spirit_dragon (Dragon search), scion_of_the_ur_dragon (Dragon to GY), inventors_fair (artifact tutor), assassins_trophy + ghost_quarter + boseiju_who_endures (opponent search via ControllerOf), haven_of_the_spirit_dragon (GY Dragon targeting), finale_of_devastation (partial creature search)
-- 2134 tests passing, 0 clippy warnings, full workspace builds clean
-- Commit 894504e
+- New `GameRestriction` enum (6 variants) + `ActiveRestriction` struct on GameState
+- `AbilityDefinition::StaticRestriction` variant (hash disc 69) for card defs
+- Registration via `register_static_continuous_effects` (replacement.rs)
+- `check_cast_restrictions()` in casting.rs — MaxSpellsPerTurn, OpponentsCantCast*, OpponentsCantCastFromNonHand
+- `check_activate_restrictions()` in abilities.rs — ArtifactAbilitiesCantBeActivated, OpponentsCantCastOrActivateDuringYourTurn
+- `is_cast_restricted_by_stax()` in simulator legal_actions.rs
+- 7 new card defs: Rule of Law, Drannith Magistrate, Propaganda, Ghostly Prison, Eidolon of Rhetoric, Collector Ouphe, Stony Silence
+- 3 card defs fixed: Archon of Emeria, Grand Abolisher, Dragonlord Dromoka
+- 10 new tests in restrictions.rs; 2144 total passing, 0 clippy warnings
+- Commit 9c037c6
 
-**Deferred from PB-13/14 (carried forward)**:
-- Equipment auto-attach (13d), Timing restriction (13i) → PB-18, Clone/copy ETB (13j), Adventure (13m), Coin flip/d20 (13h), Flicker (13l), PB-12 leftovers
-- Hanweir Garrison/Township attack triggers (tapped-and-attacking tokens not in DSL)
-
-**Deferred from PB-17**:
-- Tiamat: multi-card search with uniqueness constraint (up to 5 different Dragons)
-- Goblin Ringleader: "reveal top N, route by type" pattern (not SearchLibrary)
-- Finale of Devastation: graveyard search, X≥10 conditional pump + mass haste
-- Scion of the Ur-Dragon: copy-self effect after search
-- Inventors' Fair: activation condition "only if you control 3+ artifacts"
+**Deferred from PB-18**:
+- CantAttackYouUnlessPay combat enforcement (Propaganda/Ghostly Prison) — data registered but interactive mana payment during attack declaration needs new Command variant
+- Silence (spell effect, not static), Myrel (needs attack trigger), Hope of Ghirapur (targeted sacrifice) — separate DSL gaps
+- Prior carried-forward deferrals from PB-13/14/17 still apply
 
 **Next**:
-1. **PB-18 (Stax/restrictions)**: 13 cards — ContinuousRestriction system for casting/attacking limits
-2. Continue through PB-19 to PB-21 per `docs/primitive-card-plan.md`
+1. **PB-19 (Mass destroy / board wipes)**: 12 cards — Effect::DestroyAll + Effect::ExileAll
+2. Continue through PB-20 to PB-21 per `docs/primitive-card-plan.md`
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-16 — W6: PB-17 Library search filters
+- max_cmc, min_cmc, has_card_types on TargetFilter; 9 card fixes; 8 tests; 2134 total; commit 894504e
 
 ### 2026-03-15 — W6: PB-16 Meld mechanics
 - Full Meld framework per CR 701.42 / CR 712.4 / CR 712.8g; MeldPair, Effect::Meld, zone-change splitting; 3 card defs; 7 tests; 2126 total; commit 9d384a3
@@ -69,5 +69,3 @@
 ### 2026-03-15 — W6: PB-13 part 3 (Ascend condition + audit)
 - Condition::HasCitysBlessing + Arch of Orazca/Twilight Prophet fixes + 1 test; Dredge/Buyback/LivingWeapon confirmed done; coin flip/flicker deferred; 2096 tests
 
-### 2026-03-15 — W6: PB-13 part 2 (Channel + land animation)
-- Cost::DiscardSelf + hand-zone activation + 5 NEO lands + Blinkmoth/Inkmoth animate + 7 tests; commit 50758e5; 2095 tests

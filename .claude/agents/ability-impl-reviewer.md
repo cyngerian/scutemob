@@ -131,8 +131,8 @@ Write the review to `memory/abilities/ability-review-<name>.md`:
 
     ## Verdict: <clean / needs-fix>
 
-    <One paragraph summary. "Clean" means no HIGH or MEDIUM findings.
-    "Needs-fix" means at least one HIGH or MEDIUM exists.>
+    <One paragraph summary. "Clean" means zero findings at any severity.
+    "Needs-fix" means at least one finding exists (HIGH, MEDIUM, or LOW).>
 
     ## Findings
 

@@ -110,7 +110,7 @@ For each unchecked step (1 through 4):
 When `memory/ability-wip.md` shows `phase: fix`:
 
 1. **Read `memory/abilities/ability-review-<name>.md`** for the findings.
-2. For each HIGH or MEDIUM finding:
+2. For each HIGH, MEDIUM, or LOW finding:
    a. Read the cited file and line
    b. Apply the fix described in the finding's **Fix:** directive
    c. Keep changes minimal — fix only what's described
