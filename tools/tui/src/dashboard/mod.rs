@@ -41,6 +41,10 @@ pub fn run(_watch: bool) -> Result<()> {
 }
 
 fn main_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
+    use std::time::Instant;
+    let mut last_reload = Instant::now();
+    let reload_interval = Duration::from_secs(120); // auto-reload every 2 minutes
+
     loop {
         terminal.draw(|f| render::render(f, app))?;
 
@@ -62,6 +66,12 @@ fn main_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut Ap
                     }
                 }
             }
+        }
+
+        // Auto-reload data from disk every 2 minutes
+        if last_reload.elapsed() >= reload_interval {
+            app.reload();
+            last_reload = Instant::now();
         }
 
         if app.should_quit {
