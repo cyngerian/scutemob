@@ -253,7 +253,7 @@ fn render_workstreams(f: &mut Frame, area: Rect, app: &App) {
         };
         lines.push(Line::from(vec![
             Span::styled(format!("{} ", icon), Style::default().fg(status_color)),
-            Span::styled(format!("W{} ", w.number), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{} ", w.number), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(truncate(&w.name, 18)),
         ]));
     }
