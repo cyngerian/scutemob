@@ -42,5 +42,6 @@ When it attacks, sacrifice it at end of combat.)"
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     }
 }

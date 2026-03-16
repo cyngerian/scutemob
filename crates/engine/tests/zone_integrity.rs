@@ -226,6 +226,7 @@ fn test_add_object_to_state() {
         loyalty_ability_activated_this_turn: false,
         class_level: 0,
         designations: mtg_engine::Designations::default(),
+        meld_component: None,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

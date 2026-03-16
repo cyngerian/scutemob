@@ -290,6 +290,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     };
 
     let registry = CardRegistry::new(vec![double_toxic_def]);

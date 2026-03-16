@@ -141,6 +141,52 @@ pub fn calculate_characteristics(
         }
     }
 
+    // CR 712.8g: Melded permanent face resolution.
+    //
+    // When a permanent is melded (meld_component is Some), its effective characteristics
+    // are derived from the combined back face of the meld pair. The meld pair's back_face
+    // is stored on the melded CardDefinition (referenced by meld_pair.melded_card_id).
+    //
+    // CR 712.8g: Mana value of a melded permanent = sum of both front face mana values.
+    // CR 712.4c: Meld cards cannot be transformed — ignored by this code (is_transformed
+    // is never true for melded permanents since meld doesn't set it).
+    if obj.meld_component.is_some() {
+        if let Some(ref card_id) = obj.card_id {
+            if let Some(def) = state.card_registry.get(card_id.clone()) {
+                if let Some(ref meld_pair) = def.meld_pair {
+                    if let Some(melded_def) =
+                        state.card_registry.get(meld_pair.melded_card_id.clone())
+                    {
+                        if let Some(ref melded_face) = melded_def.back_face {
+                            chars.name = melded_face.name.clone();
+                            chars.mana_cost = melded_face.mana_cost.clone();
+                            chars.card_types = melded_face.types.card_types.clone();
+                            chars.subtypes = melded_face.types.subtypes.clone();
+                            chars.supertypes = melded_face.types.supertypes.clone();
+                            chars.keywords = OrdSet::new();
+                            for ability in &melded_face.abilities {
+                                if let crate::cards::card_definition::AbilityDefinition::Keyword(
+                                    kw,
+                                ) = ability
+                                {
+                                    chars.keywords.insert(kw.clone());
+                                }
+                            }
+                            chars.power = melded_face.power;
+                            chars.toughness = melded_face.toughness;
+                            if let Some(ref color_indicator) = melded_face.color_indicator {
+                                chars.colors =
+                                    color_indicator.iter().cloned().collect::<im::OrdSet<_>>();
+                            } else if let Some(ref mc) = melded_face.mana_cost {
+                                chars.colors = crate::rules::casting::colors_from_mana_cost(mc);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // CR 708.2 / 708.2a: Face-down permanent characteristic override.
     //
     // When a permanent is face-down AND has a face_down_as value (distinguishing

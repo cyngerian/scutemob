@@ -1,4 +1,8 @@
-// Hanweir Battlements — Land, {T}: Add {C}; {R},{T}: haste; meld ability (TODO)
+// Hanweir Battlements — Land
+// {T}: Add {C}.
+// {R}, {T}: Target creature gains haste until end of turn.
+// {3}{R}{R}, {T}: If you both own and control this land and a creature named
+// Hanweir Garrison, exile them, then meld them into Hanweir, the Writhing Township.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -38,8 +42,21 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
             },
-            // TODO: meld ability — Meld mechanic not implemented in DSL
+            // {3}{R}{R}, {T}: Meld with Hanweir Garrison (CR 701.42a / CR 712.4a)
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 3, red: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Meld,
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
+        meld_pair: Some(MeldPair {
+            pair_card_id: CardId("hanweir-garrison".to_string()),
+            melded_card_id: CardId("hanweir-the-writhing-township".to_string()),
+        }),
         ..Default::default()
     }
 }

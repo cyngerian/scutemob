@@ -1053,6 +1053,7 @@ impl GameStateBuilder {
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: Designations::default(),
+                meld_component: None,
             };
 
             state.add_object(object, zone)?;

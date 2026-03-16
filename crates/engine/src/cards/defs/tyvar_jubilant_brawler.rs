@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         starting_loyalty: Some(3),
+        meld_pair: None,
         ..Default::default()
     }
 }

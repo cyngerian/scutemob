@@ -845,11 +845,7 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             };
 
             // Check lore counter count.
-            let lore_count = obj
-                .counters
-                .get(&CounterType::Lore)
-                .copied()
-                .unwrap_or(0);
+            let lore_count = obj.counters.get(&CounterType::Lore).copied().unwrap_or(0);
 
             if lore_count >= final_ch {
                 Some((*id, obj.controller))
@@ -899,9 +895,7 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             None => continue,
         };
 
-        let Ok((new_id, _)) =
-            state.move_object_to_zone(saga_id, ZoneId::Graveyard(owner))
-        else {
+        let Ok((new_id, _)) = state.move_object_to_zone(saga_id, ZoneId::Graveyard(owner)) else {
             continue;
         };
         events.push(GameEvent::PermanentDestroyed {

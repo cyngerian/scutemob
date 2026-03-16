@@ -531,6 +531,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     };
 
     let registry = CardRegistry::new(vec![double_ingest_def]);

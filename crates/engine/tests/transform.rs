@@ -127,6 +127,7 @@ fn plain_creature_def() -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
         ..Default::default()
     }
 }

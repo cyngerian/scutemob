@@ -467,6 +467,8 @@ impl GameState {
             loyalty_ability_activated_this_turn: false,
             class_level: 0,
             designations: Designations::default(),
+            // CR 712.4a / CR 400.7: meld component is cleared on zone change.
+            meld_component: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -602,6 +604,8 @@ impl GameState {
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    // CR 712.4a / CR 400.7: meld pairing is cleared on zone change.
+                    meld_component: None,
                 };
                 // Add component to destination zone and objects map.
                 if let Some(zone_set) = self.zones.get_mut(&to) {
@@ -611,6 +615,108 @@ impl GameState {
                 // CR 702.69a: Track non-topmost components entering graveyard from battlefield.
                 if let ZoneId::Graveyard(_) = to {
                     self.permanents_put_into_graveyard_this_turn += 1;
+                }
+            }
+        }
+
+        // CR 712.4a: Meld zone-change splitting.
+        // When a melded permanent leaves the battlefield, the meld component card
+        // becomes a separate object in the destination zone (similar to Mutate splitting).
+        // The primary object (already created as `new_id`) keeps this card's identity.
+        // The meld_component card gets a fresh GameObject.
+        if old_object.zone == ZoneId::Battlefield {
+            if let Some(ref component_card_id) = old_object.meld_component {
+                // Clone component characteristics from card registry before mutable borrows.
+                let component_data = self
+                    .card_registry
+                    .get(component_card_id.clone())
+                    .map(|def| {
+                        let colors = if let Some(ref mc) = def.mana_cost {
+                            crate::rules::casting::colors_from_mana_cost(mc)
+                        } else {
+                            im::OrdSet::new()
+                        };
+                        Characteristics {
+                            name: def.name.clone(),
+                            mana_cost: def.mana_cost.clone(),
+                            card_types: def.types.card_types.clone(),
+                            subtypes: def.types.subtypes.clone(),
+                            supertypes: def.types.supertypes.clone(),
+                            power: def.power,
+                            toughness: def.toughness,
+                            colors,
+                            ..Default::default()
+                        }
+                    });
+                if let Some(component_chars) = component_data {
+                    let component_id = self.next_object_id();
+                    self.timestamp_counter += 1;
+                    let component_obj = GameObject {
+                        id: component_id,
+                        card_id: Some(component_card_id.clone()),
+                        characteristics: component_chars,
+                        controller: old_object.owner,
+                        owner: old_object.owner,
+                        zone: to,
+                        status: crate::state::game_object::ObjectStatus::default(),
+                        counters: OrdMap::new(),
+                        attachments: Vector::new(),
+                        attached_to: None,
+                        damage_marked: 0,
+                        deathtouch_damage: false,
+                        is_token: false,
+                        timestamp: self.timestamp_counter,
+                        has_summoning_sickness: to == ZoneId::Battlefield,
+                        goaded_by: im::Vector::new(),
+                        kicker_times_paid: 0,
+                        cast_alt_cost: None,
+                        foretold_turn: 0,
+                        was_unearthed: false,
+                        myriad_exile_at_eoc: false,
+                        decayed_sacrifice_at_eoc: false,
+                        ring_block_sacrifice_at_eoc: false,
+                        exiled_by_hideaway: None,
+                        encore_sacrifice_at_end_step: false,
+                        encore_must_attack: None,
+                        encore_activated_by: None,
+                        is_plotted: false,
+                        plotted_turn: 0,
+                        is_prototyped: false,
+                        was_bargained: false,
+                        evidence_collected: false,
+                        phased_out_indirectly: false,
+                        phased_out_controller: None,
+                        creatures_devoured: 0,
+                        champion_exiled_card: None,
+                        paired_with: None,
+                        tribute_was_paid: false,
+                        x_value: 0,
+                        squad_count: 0,
+                        offspring_paid: false,
+                        gift_was_given: false,
+                        gift_opponent: None,
+                        encoded_cards: im::Vector::new(),
+                        haunting_target: None,
+                        merged_components: im::Vector::new(),
+                        is_transformed: false,
+                        last_transform_timestamp: 0,
+                        was_cast_disturbed: false,
+                        craft_exiled_cards: im::Vector::new(),
+                        chosen_creature_type: None,
+                        face_down_as: None,
+                        loyalty_ability_activated_this_turn: false,
+                        class_level: 0,
+                        designations: Designations::default(),
+                        meld_component: None,
+                    };
+                    if let Some(zone_set) = self.zones.get_mut(&to) {
+                        zone_set.insert(component_id);
+                    }
+                    self.objects.insert(component_id, component_obj);
+                    // CR 702.69a: Track meld component entering graveyard from battlefield.
+                    if let ZoneId::Graveyard(_) = to {
+                        self.permanents_put_into_graveyard_this_turn += 1;
+                    }
                 }
             }
         }
@@ -791,6 +897,8 @@ impl GameState {
             loyalty_ability_activated_this_turn: false,
             class_level: 0,
             designations: Designations::default(),
+            // CR 712.4a / CR 400.7: meld component is cleared on zone change.
+            meld_component: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

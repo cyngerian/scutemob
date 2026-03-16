@@ -143,7 +143,10 @@ fn saga_etb_places_lore_counter_cr714_3a() {
         .get(&CounterType::Lore)
         .copied()
         .unwrap_or(0);
-    assert_eq!(lore, 1, "Precombat main TBA should add lore counter (CR 714.3b)");
+    assert_eq!(
+        lore, 1,
+        "Precombat main TBA should add lore counter (CR 714.3b)"
+    );
 
     // Should have queued a chapter 1 trigger.
     assert!(
@@ -174,7 +177,10 @@ fn saga_precombat_main_adds_lore_counter_cr714_3b() {
         .get(&CounterType::Lore)
         .copied()
         .unwrap_or(0);
-    assert_eq!(lore, 2, "Precombat main should increment lore counter from 1 to 2");
+    assert_eq!(
+        lore, 2,
+        "Precombat main should increment lore counter from 1 to 2"
+    );
 }
 
 #[test]
@@ -330,7 +336,9 @@ fn test_class_def() -> CardDefinition {
             card_types: im::ordset![CardType::Enchantment],
             subtypes: im::ordset![SubType("Class".to_string())],
         },
-        oracle_text: "Level 1: Gain 1 life when a land enters. Level 2: Extra land. Level 3: Animate land.".to_string(),
+        oracle_text:
+            "Level 1: Gain 1 life when a land enters. Level 2: Extra land. Level 3: Animate land."
+                .to_string(),
         abilities: vec![
             // Level 1 ability (always active — this is NOT a ClassLevel, it's a regular ability)
             AbilityDefinition::Triggered {

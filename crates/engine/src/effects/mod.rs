@@ -2268,6 +2268,153 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.42a: Meld the source permanent with its meld pair partner.
+        //
+        // 1. Look up the source's MeldPair to find the partner card_id
+        // 2. Find the partner on the battlefield (same owner+controller)
+        // 3. Exile both cards
+        // 4. Create a new permanent with meld_component set to the partner's card_id
+        //    The layer system handles melded face characteristics (CR 712.8g)
+        //
+        // CR 701.42c: If conditions aren't met, nothing happens.
+        Effect::Meld => {
+            let source_id = ctx.source;
+            let controller = ctx.controller;
+
+            // Look up source card's meld pair info.
+            let meld_info = state
+                .objects
+                .get(&source_id)
+                .and_then(|obj| obj.card_id.clone())
+                .and_then(|cid| {
+                    state.card_registry.get(cid.clone()).and_then(|def| {
+                        def.meld_pair
+                            .as_ref()
+                            .map(|mp| (cid, mp.pair_card_id.clone(), mp.melded_card_id.clone()))
+                    })
+                });
+
+            if let Some((source_card_id, pair_card_id, _melded_card_id)) = meld_info {
+                // Find the partner on the battlefield — must be owned AND controlled
+                // by the same player (CR 712.4a: "you both own and control").
+                let partner_id = state
+                    .objects
+                    .values()
+                    .find(|obj| {
+                        obj.zone == crate::state::zone::ZoneId::Battlefield
+                            && obj.card_id.as_ref() == Some(&pair_card_id)
+                            && obj.owner == controller
+                            && obj.controller == controller
+                    })
+                    .map(|obj| obj.id);
+
+                // Also verify source is still on the battlefield and owned+controlled.
+                let source_valid = state
+                    .objects
+                    .get(&source_id)
+                    .map(|obj| {
+                        obj.zone == crate::state::zone::ZoneId::Battlefield
+                            && obj.owner == controller
+                            && obj.controller == controller
+                    })
+                    .unwrap_or(false);
+
+                if let Some(partner_obj_id) = partner_id {
+                    if source_valid {
+                        // Exile both cards.
+                        let exile_zone = crate::state::zone::ZoneId::Exile;
+                        let _ = state.move_object_to_zone(source_id, exile_zone);
+                        let _ = state.move_object_to_zone(partner_obj_id, exile_zone);
+
+                        // Create the melded permanent on the battlefield.
+                        // The primary object uses the source card's identity;
+                        // meld_component stores the partner's CardId for zone-change splitting.
+                        // The layer system reads meld_component to apply melded face chars.
+                        let melded_id = state.next_object_id();
+                        state.timestamp_counter += 1;
+
+                        // Start with default characteristics — the layer system
+                        // will replace them with the melded back face (CR 712.8g).
+                        let melded_obj = crate::state::game_object::GameObject {
+                            id: melded_id,
+                            card_id: Some(source_card_id),
+                            characteristics: crate::state::game_object::Characteristics::default(),
+                            controller,
+                            owner: controller,
+                            zone: crate::state::zone::ZoneId::Battlefield,
+                            status: crate::state::game_object::ObjectStatus::default(),
+                            counters: im::OrdMap::new(),
+                            attachments: im::Vector::new(),
+                            attached_to: None,
+                            damage_marked: 0,
+                            deathtouch_damage: false,
+                            is_token: false,
+                            timestamp: state.timestamp_counter,
+                            has_summoning_sickness: true,
+                            goaded_by: im::Vector::new(),
+                            kicker_times_paid: 0,
+                            cast_alt_cost: None,
+                            foretold_turn: 0,
+                            was_unearthed: false,
+                            myriad_exile_at_eoc: false,
+                            decayed_sacrifice_at_eoc: false,
+                            ring_block_sacrifice_at_eoc: false,
+                            exiled_by_hideaway: None,
+                            encore_sacrifice_at_end_step: false,
+                            encore_must_attack: None,
+                            encore_activated_by: None,
+                            is_plotted: false,
+                            plotted_turn: 0,
+                            is_prototyped: false,
+                            was_bargained: false,
+                            evidence_collected: false,
+                            phased_out_indirectly: false,
+                            phased_out_controller: None,
+                            creatures_devoured: 0,
+                            champion_exiled_card: None,
+                            paired_with: None,
+                            tribute_was_paid: false,
+                            x_value: 0,
+                            squad_count: 0,
+                            offspring_paid: false,
+                            gift_was_given: false,
+                            gift_opponent: None,
+                            encoded_cards: im::Vector::new(),
+                            haunting_target: None,
+                            merged_components: im::Vector::new(),
+                            is_transformed: false,
+                            last_transform_timestamp: 0,
+                            was_cast_disturbed: false,
+                            craft_exiled_cards: im::Vector::new(),
+                            chosen_creature_type: None,
+                            face_down_as: None,
+                            loyalty_ability_activated_this_turn: false,
+                            class_level: 0,
+                            designations: crate::state::game_object::Designations::default(),
+                            meld_component: Some(pair_card_id),
+                        };
+
+                        // Add to battlefield zone.
+                        if let Some(zone_set) = state
+                            .zones
+                            .get_mut(&crate::state::zone::ZoneId::Battlefield)
+                        {
+                            zone_set.insert(melded_id);
+                        }
+                        state.objects.insert(melded_id, melded_obj);
+
+                        events.push(
+                            crate::rules::events::GameEvent::PermanentEnteredBattlefield {
+                                player: controller,
+                                object_id: melded_id,
+                            },
+                        );
+                    }
+                }
+                // CR 701.42c: If partner not found or conditions not met, nothing happens.
+            }
+        }
+
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
         // Hideaway ETB trigger without paying its mana cost.
         //
@@ -3443,6 +3590,7 @@ pub fn make_token(
         loyalty_ability_activated_this_turn: false,
         class_level: 0,
         designations: Designations::default(),
+        meld_component: None,
     }
 }
 

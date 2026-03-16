@@ -84,6 +84,7 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     }
 }
 
@@ -117,6 +118,7 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     }
 }
 
@@ -139,6 +141,7 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     }
 }
 

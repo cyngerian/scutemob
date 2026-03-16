@@ -95,6 +95,15 @@ pub struct CardDefinition {
     /// CR 306.5b: A planeswalker enters with this many loyalty counters.
     #[serde(default)]
     pub starting_loyalty: Option<u32>,
+    /// CR 712.4: Meld pair information. Present on both cards that form a meld pair.
+    ///
+    /// One card in each pair has an ability that exiles both cards and melds them
+    /// (CR 712.4a). The other card has `(Melds with <partner>.)` reminder text.
+    /// Both cards share the same `back_face` — the combined melded permanent's
+    /// characteristics. When melded, the permanent uses `back_face` characteristics
+    /// (CR 712.8g) and its mana value is the sum of both front face mana values.
+    #[serde(default)]
+    pub meld_pair: Option<MeldPair>,
 }
 
 impl Default for CardDefinition {
@@ -113,8 +122,26 @@ impl Default for CardDefinition {
             spell_cost_modifiers: vec![],
             self_cost_reduction: None,
             starting_loyalty: None,
+            meld_pair: None,
         }
     }
+}
+
+/// CR 712.4: Meld pair information for a card that participates in a meld.
+///
+/// Both cards in a meld pair carry this struct. The `pair_card_id` identifies
+/// the other card. The `melded_card_id` identifies the combined permanent's
+/// CardDefinition (whose `back_face` holds the melded characteristics).
+///
+/// CR 712.5: There are seven specific meld pairs in Magic.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MeldPair {
+    /// The CardId of the other card in this meld pair.
+    pub pair_card_id: CardId,
+    /// The CardId of the combined melded permanent's definition.
+    /// This definition's `back_face` holds the melded face characteristics.
+    /// Both cards in the pair reference the same melded_card_id.
+    pub melded_card_id: CardId,
 }
 
 /// Type line of a card: supertypes, card types, and subtypes (CR 205).
@@ -1335,6 +1362,17 @@ pub enum Effect {
     /// Deterministic fallback: choose the creature with the lowest ObjectId.
     /// If no creature is available, ring level still advances but no ring-bearer is chosen.
     TheRingTemptsYou,
+
+    /// CR 701.42a: Meld the source permanent with its meld pair partner.
+    ///
+    /// Exile this permanent and the named partner permanent (must both be on the
+    /// battlefield, owned and controlled by the same player). Then put them onto
+    /// the battlefield combined as the melded permanent. The melded permanent's
+    /// characteristics come from the meld pair's back_face (CR 712.8g).
+    ///
+    /// CR 701.42c: If the pair cannot be melded (partner not present, different
+    /// controllers, etc.), nothing happens — both stay in their current zone.
+    Meld,
 }
 
 // ── Effect Targets ────────────────────────────────────────────────────────────

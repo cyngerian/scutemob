@@ -1978,18 +1978,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
                             .and_then(|def| def.abilities.get(ability_index))
-                            .and_then(|abil| {
-                                match abil {
-                                    crate::cards::card_definition::AbilityDefinition::Triggered {
-                                        effect,
-                                        intervening_if,
-                                        ..
-                                    } => Some((effect.clone(), intervening_if.clone())),
-                                    crate::cards::card_definition::AbilityDefinition::SagaChapter {
-                                        effect, ..
-                                    } => Some((effect.clone(), None)),
-                                    _ => None,
-                                }
+                            .and_then(|abil| match abil {
+                                crate::cards::card_definition::AbilityDefinition::Triggered {
+                                    effect,
+                                    intervening_if,
+                                    ..
+                                } => Some((effect.clone(), intervening_if.clone())),
+                                crate::cards::card_definition::AbilityDefinition::SagaChapter {
+                                    effect,
+                                    ..
+                                } => Some((effect.clone(), None)),
+                                _ => None,
                             });
                         if let Some((eff, iif)) = result {
                             (Some(eff), iif)
@@ -4455,6 +4454,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         loyalty_ability_activated_this_turn: false,
                         class_level: 0,
                         designations: Designations::default(),
+                        meld_component: None,
                     };
 
                     // Add the token to the battlefield.
@@ -4653,6 +4653,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: Designations::default(),
+                meld_component: None,
             };
 
             // Add the token to the battlefield.
@@ -5426,6 +5427,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    meld_component: None,
                 };
 
                 // Add the token to the battlefield.
@@ -6209,6 +6211,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    meld_component: None,
                 };
 
                 // Add the token to the battlefield.
@@ -6425,6 +6428,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    meld_component: None,
                 };
 
                 // Add the token to the battlefield.
@@ -6659,6 +6663,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         loyalty_ability_activated_this_turn: false,
                         class_level: 0,
                         designations: Designations::default(),
+                        meld_component: None,
                     };
 
                     // Add the token to the battlefield.

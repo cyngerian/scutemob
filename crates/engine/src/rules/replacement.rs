@@ -1019,11 +1019,7 @@ pub fn apply_self_etb_from_definition(
         .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
     if has_saga_chapters {
         if let Some(obj) = state.objects.get_mut(&new_id) {
-            let current = obj
-                .counters
-                .get(&CounterType::Lore)
-                .copied()
-                .unwrap_or(0);
+            let current = obj.counters.get(&CounterType::Lore).copied().unwrap_or(0);
             obj.counters.insert(CounterType::Lore, current + 1);
         }
         // Fire chapter triggers for the initial lore counter (counter went from 0 to 1).

@@ -75,6 +75,7 @@ fn panharmonicon_def(id: &str, name: &str) -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     }
 }
 
@@ -133,6 +134,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -296,6 +298,7 @@ fn test_two_panharmonicons_triple_triggers() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -464,6 +467,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -619,6 +623,7 @@ fn test_panharmonicon_registration_via_resolution() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        meld_pair: None,
     };
     let entering_card_id = entering_def.card_id.clone();
 

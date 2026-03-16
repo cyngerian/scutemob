@@ -549,8 +549,7 @@ pub fn process_command(
         } => {
             validate_player_active(&state, player)?;
             loop_detection::reset_loop_detection(&mut state);
-            let mut events =
-                handle_level_up_class(&mut state, player, source, target_level)?;
+            let mut events = handle_level_up_class(&mut state, player, source, target_level)?;
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
@@ -1092,6 +1091,15 @@ fn handle_transform(
             "permanents with daybound/nightbound can only transform via their keyword ability"
                 .into(),
         ));
+    }
+
+    // CR 712.4c: Meld cards cannot be transformed or converted.
+    if let Some(ref cid) = obj.card_id {
+        if let Some(def) = state.card_registry.get(cid.clone()) {
+            if def.meld_pair.is_some() {
+                return Ok(events); // Silently ignore transform instruction
+            }
+        }
     }
 
     // CR 701.27c: Only DFCs can transform.
@@ -2645,8 +2653,9 @@ fn handle_level_up_class(
             let eff_id = state.next_object_id().0;
             let ts = state.timestamp_counter;
             state.timestamp_counter += 1;
-            state.continuous_effects.push_back(
-                crate::state::continuous_effect::ContinuousEffect {
+            state
+                .continuous_effects
+                .push_back(crate::state::continuous_effect::ContinuousEffect {
                     id: crate::state::continuous_effect::EffectId(eff_id),
                     source: Some(source),
                     timestamp: ts,
@@ -2655,8 +2664,7 @@ fn handle_level_up_class(
                     filter: continuous_effect.filter.clone(),
                     modification: continuous_effect.modification.clone(),
                     is_cda: false,
-                },
-            );
+                });
         }
     }
 

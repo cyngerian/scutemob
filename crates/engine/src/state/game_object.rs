@@ -908,6 +908,17 @@ pub struct GameObject {
     /// Reset to `None` on zone changes (CR 400.7). Cleared when turned face up.
     #[serde(default)]
     pub face_down_as: Option<FaceDownKind>,
+    /// CR 712.4a: The CardId of the other card composing this melded permanent.
+    ///
+    /// When `Some(card_id)`, this permanent is a melded permanent on the battlefield.
+    /// The layer system uses the meld pair's `back_face` for base characteristics
+    /// (CR 712.8g). The meld_component CardId identifies the second card for
+    /// zone-change splitting: when the melded permanent leaves the battlefield,
+    /// two cards go to the destination zone (this object's card + the component).
+    ///
+    /// Reset to `None` on zone changes (CR 400.7).
+    #[serde(default)]
+    pub meld_component: Option<crate::state::player::CardId>,
 }
 
 /// CR 729.2: A single component in a merged permanent.

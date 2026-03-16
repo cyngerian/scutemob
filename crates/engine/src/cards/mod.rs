@@ -17,9 +17,9 @@ pub use card_definition::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
     Condition, ContinuousEffectDef, Cost, CostModifierScope, CraftMaterials, EffectAmount,
-    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ModeSelection, PlayerTarget,
-    SelfCostReduction, SoulbondGrant, SpellCostFilter, SpellCostModifier, TargetController,
-    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
-    ZoneTarget,
+    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair, ModeSelection,
+    PlayerTarget, SelfCostReduction, SoulbondGrant, SpellCostFilter, SpellCostModifier,
+    TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
+    TriggerCondition, TypeLine, ZoneTarget,
 };
 pub use registry::CardRegistry;

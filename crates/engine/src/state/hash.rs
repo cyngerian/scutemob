@@ -1045,6 +1045,8 @@ impl HashInto for GameObject {
             Some(crate::state::types::FaceDownKind::Manifest) => 4u8.hash_into(hasher),
             Some(crate::state::types::FaceDownKind::Cloak) => 5u8.hash_into(hasher),
         }
+        // CR 712.4a: Meld component tracking
+        self.meld_component.hash_into(hasher);
     }
 }
 
@@ -4364,6 +4366,8 @@ impl HashInto for Effect {
                 52u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // Meld effect (discriminant 53) — CR 701.42
+            Effect::Meld => 53u8.hash_into(hasher),
         }
     }
 }
