@@ -1,4 +1,8 @@
-// Vault of the Archangel — Land, {T}: Add {C}. {2}{W}{B}, {T}: grant deathtouch+lifelink until EOT (TODO).
+// Vault of the Archangel — Land
+// {T}: Add {C}.
+// {2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.
+//
+// CR 604.2 / CR 613.1f: Activated ability produces two continuous keyword grants.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,6 +13,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Add {C}.\n{2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.".to_string(),
         abilities: vec![
+            // {T}: Add {C}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -18,9 +23,33 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.
-            // DSL gap: no ApplyContinuousEffect with AllCreaturesYouControl + EffectDuration::EndOfTurn
-            // and multi-keyword grant in one activation cost.
+            // {2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Lifelink),
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

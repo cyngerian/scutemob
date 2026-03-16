@@ -1,9 +1,11 @@
 // Archetype of Endurance — {6}{G}{G}, Enchantment Creature — Boar 6/5
 // Creatures you control have hexproof.
 // Creatures your opponents control lose hexproof and can't have or gain hexproof.
-// TODO: DSL gap — granting hexproof to all creatures you control and stripping it from opponents'
-// creatures requires a continuous effect on a filter; no ApplyContinuousEffect with
-// EffectFilter::CreaturesYouControl granting Hexproof is currently supported.
+//
+// CR 604.2 / CR 613.1f: Static ability — Layer 6 keyword grant to creatures you control.
+// TODO: DSL gap — "Creatures your opponents control lose hexproof and can't have or gain hexproof"
+// requires EffectFilter::CreaturesOpponentsControl and a RemoveKeyword + prevention effect,
+// neither of which exist in the DSL. Removal half omitted until those filters are added.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +21,17 @@ pub fn card() -> CardDefinition {
         oracle_text: "Creatures you control have hexproof.\nCreatures your opponents control lose hexproof and can't have or gain hexproof.".to_string(),
         power: Some(6),
         toughness: Some(5),
-        abilities: vec![],
-        // TODO: grant hexproof to all creatures you control (continuous effect, layer 6)
-        // TODO: strip hexproof from opponents' creatures (continuous effect, layer 6)
+        abilities: vec![
+            // "Creatures you control have hexproof." — grant half implemented.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Hexproof),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+        ],
         ..Default::default()
     }
 }

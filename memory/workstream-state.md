@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: retroactive PB review (PB-6 next) | ACTIVE | 2026-03-16 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 6/20 done. Use `/implement-primitive --review-only PB-<N>`. |
+| W6: Primitive + Card Authoring | W6-review: PB-6 retroactive review | ACTIVE | 2026-03-16 | Retroactive review of PB-6 (static grant with filter, 30 cards). 6/20 reviews done. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -46,11 +46,16 @@
 
 **Hazards**:
 - Pre-existing TUI compile warning in `parser.rs` (missing `progress` field on `DashboardData`)
-- Unstaged changes: `tools/tui/src/dashboard/` files (pre-existing from prior session)
+- Unstaged changes: `tools/tui/src/dashboard/` files, `.claude/skills/implement-primitive/SKILL.md`, `CLAUDE.md` (all pre-existing from prior sessions)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-16 — W6: PB-2 review
+- PB-2 retroactive review complete (3/20): 56 conditional ETB tapped land card defs reviewed
+- 1H fixed: 10 missed card defs; 1M fixed: Isolated Chapel; 1M+2L deferred
+- Commit: 8ecfe08
 
 ### 2026-03-16 — W6: PB-0 commit + PB-1 review
 - PB-0 fixes committed (14b4910): Ninjutsu fix, MustAttackEachCombat test
@@ -65,8 +70,5 @@
 
 ### 2026-03-16 — W6: PB-17 Library search filters
 - max_cmc, min_cmc, has_card_types on TargetFilter; 9 card fixes; 8 tests; 2134 total; commit 894504e
-
-### 2026-03-15 — W6: PB-16 Meld mechanics
-- Full Meld framework per CR 701.42 / CR 712.4 / CR 712.8g; MeldPair, Effect::Meld, zone-change splitting; 3 card defs; 7 tests; 2126 total; commit 9d384a3
 
 

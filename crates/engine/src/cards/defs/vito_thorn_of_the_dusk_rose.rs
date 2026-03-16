@@ -2,14 +2,10 @@
 // Whenever you gain life, target opponent loses that much life.
 // {3}{B}{B}: Creatures you control gain lifelink until end of turn.
 //
-// TODO: DSL gaps — two abilities omitted:
-// 1. "Whenever you gain life, target opponent loses that much life." — targeted trigger
-//    requiring tracking the amount gained and applying it as life loss to a chosen opponent.
-//    No TriggerCondition for WhenYouGainLife; no way to track "that much life" as EffectAmount.
-// 2. "{3}{B}{B}: Creatures you control gain lifelink until end of turn." — activated ability
-//    that applies a continuous effect to all creatures you control. The Activated ability DSL
-//    has no targets field, and ApplyContinuousEffect to EffectTarget::AllCreaturesYouControl
-//    is not currently supported.
+// CR 604.2 / CR 613.1f: Activated ability produces a continuous lifelink grant.
+// TODO: DSL gap — "Whenever you gain life, target opponent loses that much life." requires
+// TriggerCondition::WhenYouGainLife and a way to track "that much life" as EffectAmount;
+// neither exists in the DSL. Triggered ability omitted until those primitives are added.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,7 +21,22 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: Creatures you control gain lifelink until end of turn.".to_string(),
         power: Some(1),
         toughness: Some(3),
-        abilities: vec![],
+        abilities: vec![
+            // "{3}{B}{B}: Creatures you control gain lifelink until end of turn."
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 3, black: 2, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Lifelink),
+                        filter: EffectFilter::CreaturesYouControl,
+                        duration: EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
+        ],
         ..Default::default()
     }
 }

@@ -137,7 +137,7 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 4 | PB-3 | Shockland ETB | 10 | clean | clean |
 | 5 | PB-4 | Sacrifice as activation cost | 26 | fixed | 1M fixed; 1M 13M 6L deferred (other PBs) |
 | 6 | PB-5 | Targeted abilities | 32 | fixed | 1H 2M 1L fixed; 5M 5L deferred |
-| 7 | PB-6 | Static grant with filter | 30 | pending | — |
+| 7 | PB-6 | Static grant with filter | 30 | in-review | — |
 | 8 | PB-7 | Count-based scaling | 29 | pending | — |
 | 9 | PB-8 | Cost reduction statics | 10 | pending | — |
 | 10 | PB-9 | Hybrid mana & X costs | 7 | pending | — |

@@ -1,42 +1,41 @@
-# Primitive WIP: PB-5 -- Targeted Activated/Triggered Abilities (REVIEW-ONLY)
+# Primitive WIP: PB-6 -- Static Grant with Controller Filter (REVIEW-ONLY)
 
-batch: PB-5
-title: Targeted activated/triggered abilities
-cards_affected: 32
+batch: PB-6
+title: Static grant with controller filter
+cards_affected: 30
 mode: review-only
 started: 2026-03-16
-phase: closed
+phase: fix
 plan_file: n/a (retroactive review -- no plan needed)
 
 ## Review Scope
-Engine changes and card definition fixes from the original PB-5 implementation.
+Engine changes and card definition fixes from the original PB-6 implementation.
 Review against CR rules and oracle text. No plan file -- reviewer works from
 primitive-card-plan.md batch specification and the actual code.
 
-Cards: 32 cards with targeted activated or triggered abilities.
-Engine change: targets: Vec<TargetRequirement> on AbilityDefinition::Activated and ::Triggered.
-Target validation wired in command.rs (activated) and engine.rs/resolution.rs (triggered).
+Cards: 30 cards with static grant effects filtered by controller.
+Engine change: EffectFilter::CreaturesControlledBySource and
+EffectFilter::CreaturesYouControlWithSubtype(SubType). Source controller
+resolved at layer-application time in layers.rs.
 
 Key areas:
-- targets field on Activated and Triggered AbilityDefinition variants
-- Target validation in command.rs for activated abilities
-- Target validation in engine.rs/resolution.rs for triggered abilities
-- Oracle text accuracy for all 32 cards
-- Correct target requirements (creature, player, permanent, etc.)
+- EffectFilter variants for controller-scoped grants
+- Layer application logic in layers.rs for source controller resolution
+- continuous_effect.rs for new filter types
+- Oracle text accuracy for all 30 cards
+- Correct grant scoping (your creatures only vs all creatures)
 
 ## Review
-findings: 15 (HIGH: 1, MEDIUM: 8, LOW: 6)
+findings: 12 (HIGH: 1, MEDIUM: 5, LOW: 6)
 verdict: needs-fix
-review_file: memory/primitives/pb-review-5.md
+review_file: memory/primitives/pb-review-6.md
 
-Actionable findings (PB-5 scope):
-- [x] Finding 1 (HIGH): Triggered ability targets not populated from CardDef — FIXED in abilities.rs:6184 (auto-select logic in flush_pending_triggers else branch for Normal/CardDefETB)
-- [x] Finding 2 (MEDIUM): No fizzle check for CardDef triggered abilities — FIXED in resolution.rs:2009 (CR 608.2b check before condition_holds)
-- [x] Finding 3 (MEDIUM): No target validation for triggered abilities at trigger time — FIXED as part of Finding 1 (validate_target_protection called per object candidate in auto-select loop)
-- [x] Finding 5 (MEDIUM): Blinkmoth Nexus target too permissive — FIXED in blinkmoth_nexus.rs:85 (TargetCreatureWithFilter with has_subtype Blinkmoth)
-- [x] Finding 10 (LOW): Ghost Quarter verbose target — FIXED in ghost_quarter.rs:52 (replaced TargetPermanentWithFilter(Land) with TargetLand)
-
-Deferred findings (other PB scope or DSL gaps):
-- Finding 4 (MEDIUM): Forerunner colorless filter — DSL gap (is_colorless on TargetFilter)
-- Findings 6-9 (MEDIUM): Boseiju/Otawara/Eiganjo over-permissive — DSL gaps
-- Findings 11-15 (LOW): Various card def gaps — other DSL gaps
+Actionable findings (PB-6 scope):
+- [x] Finding 2 (HIGH): Goblin Warchief — added Keyword(Haste) intrinsic + kept OtherCreaturesYouControlWithSubtype for other Goblins (functionally equivalent to oracle)
+- [x] Finding 3 (MEDIUM): Archetype of Endurance — added Static with CreaturesYouControl + AddKeyword(Hexproof); updated TODO to removal-half-only
+- [x] Finding 4 (MEDIUM): Archetype of Imagination — added Static with CreaturesYouControl + AddKeyword(Flying); updated TODO to removal-half-only
+- [x] Finding 5 (MEDIUM): Iroas, God of Victory — added Static with CreaturesYouControl + AddKeyword(Menace); kept TODOs for devotion and damage prevention
+- [x] Finding 6 (MEDIUM): Vito, Thorn of the Dusk Rose — added Activated with Cost::Mana({3}{B}{B}) + ApplyContinuousEffect(Lifelink, CreaturesYouControl, UntilEndOfTurn); kept TODO for trigger
+- [x] Finding 7 (MEDIUM): Vault of the Archangel — added Activated with Cost::Sequence([Mana({2}{W}{B}), Tap]) + Effect::Sequence([Deathtouch, Lifelink] grants)
+- [x] Finding 1 (LOW): layers.rs comment typos already correct (// CR not / CR) — no change needed
+- [x] Findings 8-12 (LOW): TODO comments updated in all 5 card defs to reflect grant-half implemented; only blocked halves noted

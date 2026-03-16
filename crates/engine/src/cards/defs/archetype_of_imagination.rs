@@ -2,13 +2,10 @@
 // Creatures you control have flying.
 // Creatures your opponents control lose flying and can't have or gain flying.
 //
-// TODO: DSL gap — both abilities require controller-aware creature filters:
-// 1. "Creatures you control have flying" — requires EffectFilter::CreaturesYouControl
-//    (not available; only AllCreatures exists).
-// 2. "Creatures your opponents control lose flying and can't have or gain flying" —
-//    requires EffectFilter for opponent-controlled creatures and a RemoveKeyword +
-//    prevention effect not expressible in the current DSL.
-// Both abilities are omitted to avoid incorrect behavior.
+// CR 604.2 / CR 613.1f: Static ability — Layer 6 keyword grant to creatures you control.
+// TODO: DSL gap — "Creatures your opponents control lose flying and can't have or gain flying"
+// requires EffectFilter::CreaturesOpponentsControl and a RemoveKeyword + prevention effect,
+// neither of which exist in the DSL. Removal half omitted until those filters are added.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,7 +17,17 @@ pub fn card() -> CardDefinition {
         oracle_text: "Creatures you control have flying.\nCreatures your opponents control lose flying and can't have or gain flying.".to_string(),
         power: Some(3),
         toughness: Some(2),
-        abilities: vec![],
+        abilities: vec![
+            // "Creatures you control have flying." — grant half implemented.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Flying),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+        ],
         ..Default::default()
     }
 }

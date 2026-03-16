@@ -13,7 +13,13 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // "Goblins you control have haste" — static keyword grant.
+            // Goblin Warchief itself is a Goblin and benefits from its own haste grant.
+            // Since no CreaturesYouControlWithSubtype (self-inclusive) filter exists, we use
+            // the workaround: intrinsic Haste for self + OtherCreaturesYouControlWithSubtype
+            // for other Goblins. Functionally equivalent to "Goblins you control have haste."
+            // CR 604.2 / CR 613.1f: Layer 6 ability-granting effect.
+            AbilityDefinition::Keyword(KeywordAbility::Haste),
+            // "Goblins you control have haste" — static keyword grant to other Goblins.
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
