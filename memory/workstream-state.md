@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: retroactive PB review (PB-2 next) | available | — | **PRIMARY OBJECTIVE**: review all 20 PB batches (PB-0 to PB-18) before forward progress. 2/20 done. Use `/implement-primitive --review-only PB-<N>`. Tracker: `docs/project-status.md` Review Backlog. |
+| W6: Primitive + Card Authoring | W6-review: retroactive PB-2 review (conditional ETB tapped) | ACTIVE | 2026-03-16 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 2/20 done, PB-2 in progress. Use `/implement-primitive --review-only PB-<N>`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

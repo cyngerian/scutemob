@@ -133,7 +133,7 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 |---|-------|-------|-------------|---------------|----------|
 | 1 | PB-0 | Quick wins | 23 | fixed | 1M 1L fixed |
 | 2 | PB-1 | Mana with damage | 8 | fixed | 1M fixed |
-| 3 | PB-2 | Conditional ETB tapped | 56 | pending | — |
+| 3 | PB-2 | Conditional ETB tapped | 56 | in-review | — |
 | 4 | PB-3 | Shockland ETB | 10 | pending | — |
 | 5 | PB-4 | Sacrifice as activation cost | 26 | pending | — |
 | 6 | PB-5 | Targeted abilities | 32 | pending | — |

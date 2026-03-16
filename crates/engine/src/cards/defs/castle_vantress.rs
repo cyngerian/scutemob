@@ -1,4 +1,5 @@
-// Castle Vantress
+// Castle Vantress — This land enters tapped unless you control an Island. {T}: Add {U}.
+// {2}{U}{U}, {T}: Scry 2. (complex activated ability — TODO)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,7 +10,23 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control an Island.\n{T}: Add {U}.\n{2}{U}{U}, {T}: Scry 2.".to_string(),
         abilities: vec![
-            // TODO: Activated — {T}: Add {U}.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Island".to_string())])),
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 1, 0, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
             // TODO: Activated — {2}{U}{U}, {T}: Scry 2.
         ],
         ..Default::default()

@@ -1,4 +1,6 @@
-// Spymaster's Vault
+// Spymaster's Vault — This land enters tapped unless you control a Swamp. {T}: Add {B}.
+// {B}, {T}: Target creature you control connives X, where X is the number of creatures that died
+// this turn. (complex activated ability — TODO)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,7 +11,14 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control a Swamp.\n{T}: Add {B}.\n{B}, {T}: Target creature you control connives X, where X is the number of creatures that died this turn. (Draw X cards, then discard X cards. Put a +1/+1 counter on that creature for each nonland card discarded this way.)".to_string(),
         abilities: vec![
-            // DSL gap: conditional ETB tapped (no condition field on ReplacementModification::EntersTapped).
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+            },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -20,7 +29,6 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // TODO: Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn).
-            // DSL gap: targeted_trigger + death_count tracking per turn.
         ],
         ..Default::default()
     }
