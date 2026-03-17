@@ -4,13 +4,6 @@
 //
 // CR 702.127: Aftermath — the second half can only be cast from the graveyard,
 // then the card is exiled when it leaves the stack.
-//
-// TODO: DSL gap — ManaCost has no field for variable X costs. The Ribbons half
-// uses {X}{B}{B} in oracle, but X is approximated here as generic: 3 (paying
-// {3}{B}{B} total), which is a common mid-range value for Commander play.
-// A proper X-spell primitive (EffectAmount::X or ManaCost { x: bool, .. })
-// is required to faithfully represent this card. The LoseLife amount is also
-// approximated as Fixed(3) to match the generic placeholder.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

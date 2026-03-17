@@ -14,11 +14,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("brokkos-apex-of-forever"),
         name: "Brokkos, Apex of Forever".to_string(),
-        // Main cost {2}{U/B}{G}{G}
+        // Main cost {2}{B}{G}{U} — three separate colored pips, no hybrid.
+        // The hybrid {U/B} only appears in the mutate cost below (CR 702.140a).
         mana_cost: Some(ManaCost {
             generic: 2,
-            green: 2,
-            hybrid: vec![HybridMana::ColorColor(ManaColor::Blue, ManaColor::Black)],
+            blue: 1,
+            black: 1,
+            green: 1,
             ..Default::default()
         }),
         types: full_types(

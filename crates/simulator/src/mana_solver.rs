@@ -4,7 +4,9 @@
 //! For generic, tap any remaining source. Returns a sequence of
 //! `TapForMana` commands.
 
-use mtg_engine::{Command, GameState, ManaColor, ManaCost, ObjectId, PlayerId, ZoneId};
+use mtg_engine::{
+    Command, GameState, HybridMana, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, ZoneId,
+};
 
 /// A mana source on the battlefield: its ObjectId, ability index, and what it produces.
 #[derive(Clone, Debug)]
@@ -137,7 +139,7 @@ struct PipTracker {
 
 impl PipTracker {
     fn from_cost(cost: &ManaCost) -> Self {
-        Self {
+        let mut tracker = Self {
             white: cost.white,
             blue: cost.blue,
             black: cost.black,
@@ -145,6 +147,51 @@ impl PipTracker {
             green: cost.green,
             colorless: cost.colorless,
             generic: cost.generic,
+        };
+
+        // Flatten hybrid mana into colored pip requirements (CR 107.4e).
+        // Default: pay with the first color (ColorColor) or the specific color (GenericColor).
+        // GenericColor ({2/W} etc.) defaults to paying the color pip, not 2 generic.
+        for hybrid in &cost.hybrid {
+            match hybrid {
+                HybridMana::ColorColor(c1, _c2) => {
+                    // Default: pay with first color.
+                    tracker.add_color(*c1, 1);
+                }
+                HybridMana::GenericColor(c) => {
+                    // Default: pay with the color (not 2 generic).
+                    tracker.add_color(*c, 1);
+                }
+            }
+        }
+
+        // Flatten Phyrexian mana into colored pip requirements (CR 107.4f).
+        // Default: pay with mana (not 2 life).
+        for phyrexian in &cost.phyrexian {
+            match phyrexian {
+                PhyrexianMana::Single(c) => {
+                    tracker.add_color(*c, 1);
+                }
+                PhyrexianMana::Hybrid(c1, _c2) => {
+                    // Default: pay with first color.
+                    tracker.add_color(*c1, 1);
+                }
+            }
+        }
+
+        // x_count: X defaults to 0 for the solver (CR 202.3e), so no generic added.
+
+        tracker
+    }
+
+    fn add_color(&mut self, color: ManaColor, amount: u32) {
+        match color {
+            ManaColor::White => self.white += amount,
+            ManaColor::Blue => self.blue += amount,
+            ManaColor::Black => self.black += amount,
+            ManaColor::Red => self.red += amount,
+            ManaColor::Green => self.green += amount,
+            ManaColor::Colorless => self.colorless += amount,
         }
     }
 

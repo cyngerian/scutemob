@@ -1,38 +1,44 @@
-# Primitive WIP: PB-8 -- Cost Reduction Statics (REVIEW-ONLY)
+# Primitive WIP: PB-9 -- Hybrid Mana & X Costs (REVIEW-ONLY)
 
-batch: PB-8
-title: Cost reduction statics
-cards_affected: 10
+batch: PB-9
+title: Hybrid mana & X costs
+cards_affected: 7
 mode: review-only
-started: 2026-03-16
+started: 2026-03-17
 phase: fix
 plan_file: n/a (retroactive review -- no plan needed)
 
 ## Review Scope
-Engine changes and card definition fixes from the original PB-8 implementation.
+Engine changes and card definition fixes from the original PB-9 implementation.
 Review against CR rules and oracle text. No plan file -- reviewer works from
 primitive-card-plan.md batch specification and the actual code.
 
-Cards: 10 cards with cost reduction/increase statics ("Noncreature spells cost {1} more,"
-"Goblin spells cost {1} less," etc.)
+Cards: 7 cards with hybrid mana costs and/or X costs (brokkos_apex_of_forever,
+connive, nethroi_apex_of_death, cut_ribbons, mockingbird, + X-cost cards)
 
-Engine changes: LayerModification::ModifySpellCost { change: i32, filter: SpellCostFilter }.
-Applied in casting.rs at cast time.
+Engine changes: `hybrid: Vec<HybridMana>` and `x_count: u32` on `ManaCost`.
+Hybrid payment in casting.rs and mana_solver.rs.
 
 Key areas:
-- SpellCostFilter enum and ModifySpellCost layer modification
-- casting.rs cost calculation logic
-- continuous_effect.rs layer application
-- Oracle text accuracy for all 10 cards
-- Correct cost modification semantics (increase vs decrease, type filters)
+- HybridMana enum and ManaCost hybrid/x_count fields
+- casting.rs hybrid mana payment logic
+- mana_solver.rs hybrid handling
+- Oracle text accuracy for all 7 cards
+- Correct hybrid cost semantics (CR 107.4)
 
 ## Review
-findings: 7 (HIGH: 0, MEDIUM: 3, LOW: 4)
+findings: 15 (HIGH: 1, MEDIUM: 7, LOW: 7)
 verdict: needs-fix
-review_file: memory/primitives/pb-review-8.md
+review_file: memory/primitives/pb-review-9.md
 
-Actionable findings (PB-8 scope):
-- [x] Finding 1 (MEDIUM): Added `exclude_self: bool` to SpellCostModifier in card_definition.rs; updated apply_spell_cost_modifiers in casting.rs to accept spell_id: ObjectId and skip modifier when obj.id == spell_id && modifier.exclude_self; updated all 5 card defs + test file initializers with exclude_self: false.
-- [x] Finding 2 (MEDIUM): Added 3 tests to spell_cost_modification.rs: test_self_cost_reduction_card_types_in_graveyard (test 9), test_self_cost_reduction_basic_land_types (test 10), test_self_cost_reduction_total_mana_value (test 11). All pass.
-- [x] Finding 3 (MEDIUM): Set exclude_self: true on The Ur-Dragon's SpellCostModifier in the_ur_dragon.rs; added test_spell_cost_modifier_ur_dragon_exclude_self (test 12). 12/12 tests pass.
-- Findings 4-7 (LOW): TODOs on 4 cards (attack trigger, graveyard ability, color-conditional grant, protection+cast trigger) — legitimate DSL gaps, outside PB-8 scope
+Actionable findings (PB-9 scope):
+- [x] Finding 3 (HIGH): Brokkos main mana cost fixed — {2}{B}{G}{U} separate pips (brokkos_apex_of_forever.rs)
+- [x] Finding 1 (MEDIUM): mana_solver PipTracker::from_cost() now flattens hybrid/phyrexian/x_count (mana_solver.rs)
+- [x] Finding 4 (MEDIUM): Connive Concoct half added as AbilityDefinition::Fuse with {3}{U}{B} cost + Surveil 3 effect + TODO for return-creature (connive.rs)
+- [x] Finding 5 (MEDIUM): Connive spell ability added with TargetCreatureWithFilter(max_power:2) + Effect::Nothing placeholder + TODO for GainControl DSL gap (connive.rs)
+- [x] Finding 6 (MEDIUM): Revitalizing Repast front face effect implemented — Sequence(AddCounter +1/+1, ApplyContinuousEffect Indestructible UntilEOT) (revitalizing_repast.rs)
+- [x] Finding 7 (MEDIUM): Old-Growth Grove back face added — land with EntersTapped replacement + {T}: Add {G} activated ability (revitalizing_repast.rs)
+- [x] Finding 8 (MEDIUM — DEFER): Blade Historian already has proper DSL gap TODO; no change needed
+- [x] Finding 9 (MEDIUM — DEFER): Treasure Vault already has proper TODO; no change needed
+- [x] Finding 10 (MEDIUM): Cut // Ribbons stale TODO block removed (cut_ribbons.rs)
+- Findings 2, 11-17 (LOW): filter land approximations, PW stubs, DSL gaps — deferred
