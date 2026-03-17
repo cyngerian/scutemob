@@ -3111,7 +3111,7 @@ pub fn handle_cast_spell(
     // (and command zone for Eminence). Cost increases (+1 for Thalia) and reductions
     // (-1 for Goblin Warchief) are applied after base cost + tax + kicker, before
     // affinity/undaunted/convoke/improvise/delve.
-    let mana_cost = apply_spell_cost_modifiers(state, player, &chars, mana_cost);
+    let mana_cost = apply_spell_cost_modifiers(state, player, card, &chars, mana_cost);
 
     // CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
     // E.g. Blasphemous Act costs {1} less per creature on the battlefield.
@@ -6140,6 +6140,7 @@ fn reduce_cost_by_mv(cost: &ManaCost, mv: u32) -> ManaCost {
 fn apply_spell_cost_modifiers(
     state: &GameState,
     caster: PlayerId,
+    spell_id: ObjectId,
     spell_chars: &Characteristics,
     cost: Option<ManaCost>,
 ) -> Option<ManaCost> {
@@ -6177,6 +6178,12 @@ fn apply_spell_cost_modifiers(
                         continue;
                     }
                 }
+            }
+
+            // Self-exclusion: "other" semantics (e.g. The Ur-Dragon reduces OTHER Dragon spells).
+            // Skip when the spell being cast is the same object as the modifier's source.
+            if modifier.exclude_self && obj.id == spell_id {
+                continue;
             }
 
             // Filter check: does the spell match?

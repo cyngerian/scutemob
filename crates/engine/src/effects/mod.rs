@@ -3431,7 +3431,11 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                                             }
                                         }
                                         HybridMana::GenericColor(c) => {
-                                            if *c == mc_color { 1 } else { 0 }
+                                            if *c == mc_color {
+                                                1
+                                            } else {
+                                                0
+                                            }
                                         }
                                     }
                                 })
@@ -3452,7 +3456,11 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                                     };
                                     match p {
                                         PhyrexianMana::Single(c) => {
-                                            if *c == mc_color { 1 } else { 0 }
+                                            if *c == mc_color {
+                                                1
+                                            } else {
+                                                0
+                                            }
                                         }
                                         PhyrexianMana::Hybrid(c1, c2) => {
                                             if *c1 == mc_color || *c2 == mc_color {

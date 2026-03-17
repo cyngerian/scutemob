@@ -1,43 +1,38 @@
-# Primitive WIP: PB-7 -- Count-Based Scaling (REVIEW-ONLY)
+# Primitive WIP: PB-8 -- Cost Reduction Statics (REVIEW-ONLY)
 
-batch: PB-7
-title: Count-based scaling
-cards_affected: 29
+batch: PB-8
+title: Cost reduction statics
+cards_affected: 10
 mode: review-only
 started: 2026-03-16
 phase: fix
 plan_file: n/a (retroactive review -- no plan needed)
 
 ## Review Scope
-Engine changes and card definition fixes from the original PB-7 implementation.
+Engine changes and card definition fixes from the original PB-8 implementation.
 Review against CR rules and oracle text. No plan file -- reviewer works from
 primitive-card-plan.md batch specification and the actual code.
 
-Cards: 29 cards with count-based scaling effects ("for each creature you control,"
-"number of lands you control," devotion, counter counts, etc.)
+Cards: 10 cards with cost reduction/increase statics ("Noncreature spells cost {1} more,"
+"Goblin spells cost {1} less," etc.)
 
-Engine changes: EffectAmount extended with:
-- PermanentCount { filter: TargetFilter, controller: PlayerTarget }
-- DevotionTo(Color)
-- CounterCount { target: EffectTarget, counter: CounterType }
+Engine changes: LayerModification::ModifySpellCost { change: i32, filter: SpellCostFilter }.
+Applied in casting.rs at cast time.
 
 Key areas:
-- EffectAmount variants for count-based scaling
-- Effect evaluation logic in effects/mod.rs
-- Layer application for devotion-based effects
-- Oracle text accuracy for all 29 cards
-- Correct count semantics (your permanents vs all permanents)
+- SpellCostFilter enum and ModifySpellCost layer modification
+- casting.rs cost calculation logic
+- continuous_effect.rs layer application
+- Oracle text accuracy for all 10 cards
+- Correct cost modification semantics (increase vs decrease, type filters)
 
 ## Review
-findings: 8 (HIGH: 3, MEDIUM: 2, LOW: 3)
+findings: 7 (HIGH: 0, MEDIUM: 3, LOW: 4)
 verdict: needs-fix
-review_file: memory/primitives/pb-review-7.md
+review_file: memory/primitives/pb-review-8.md
 
-Actionable findings (PB-7 scope):
-- [x] Finding 1 (MEDIUM): DevotionTo ignores hybrid/phyrexian mana symbols (CR 700.5) — fixed in effects/mod.rs:3398-3465; added test_devotion_counts_hybrid_and_phyrexian_mana_symbols
-- [x] Finding 4 (HIGH): Nykthos — wrong Shrine subtype (oracle: Legendary Land, no subtypes) — changed full_types to supertypes in nykthos_shrine_to_nyx.rs
-- [x] Finding 5 (HIGH): Faeburrow Elder — P/T None/None should be 0/0 (not a CDA) — changed to Some(0)/Some(0), removed CDA comment
-- [x] Finding 6 (HIGH): Multani — P/T None/None should be 0/0 (not a CDA) — changed to Some(0)/Some(0), removed CDA comment
-- [x] Finding 7 (MEDIUM): Frodo — oracle text completely wrong — replaced with actual oracle text ({W/B}{W/B} Citizen→Scout/lifelink; {B}{B}{B} Scout→Rogue/ring-loss condition)
-- [x] Finding 8 (LOW): Toothy — explicit struct construction — migrated to ..Default::default()
-- Findings 2-3 (LOW): raw characteristics reads — systemic, deferred
+Actionable findings (PB-8 scope):
+- [x] Finding 1 (MEDIUM): Added `exclude_self: bool` to SpellCostModifier in card_definition.rs; updated apply_spell_cost_modifiers in casting.rs to accept spell_id: ObjectId and skip modifier when obj.id == spell_id && modifier.exclude_self; updated all 5 card defs + test file initializers with exclude_self: false.
+- [x] Finding 2 (MEDIUM): Added 3 tests to spell_cost_modification.rs: test_self_cost_reduction_card_types_in_graveyard (test 9), test_self_cost_reduction_basic_land_types (test 10), test_self_cost_reduction_total_mana_value (test 11). All pass.
+- [x] Finding 3 (MEDIUM): Set exclude_self: true on The Ur-Dragon's SpellCostModifier in the_ur_dragon.rs; added test_spell_cost_modifier_ur_dragon_exclude_self (test 12). 12/12 tests pass.
+- Findings 4-7 (LOW): TODOs on 4 cards (attack trigger, graveyard ability, color-conditional grant, protection+cast trigger) — legitimate DSL gaps, outside PB-8 scope

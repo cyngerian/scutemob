@@ -108,6 +108,7 @@ fn test_spell_cost_modifier_noncreature_increase() {
             filter: SpellCostFilter::NonCreature,
             scope: CostModifierScope::AllPlayers,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     };
@@ -177,6 +178,7 @@ fn test_spell_cost_modifier_tribal_reduction_controller_only() {
             filter: SpellCostFilter::HasSubtype(SubType("Goblin".to_string())),
             scope: CostModifierScope::Controller,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     };
@@ -242,6 +244,7 @@ fn test_spell_cost_modifiers_stack_additively() {
             filter: SpellCostFilter::HasSubtype(SubType("Goblin".to_string())),
             scope: CostModifierScope::Controller,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     };
@@ -310,6 +313,7 @@ fn test_spell_cost_modifier_generic_cannot_go_below_zero() {
             filter: SpellCostFilter::HasSubtype(SubType("Goblin".to_string())),
             scope: CostModifierScope::Controller,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     };
@@ -370,6 +374,7 @@ fn test_spell_cost_modifier_eminence_from_command_zone() {
             filter: SpellCostFilter::HasSubtype(SubType("Dragon".to_string())),
             scope: CostModifierScope::Controller,
             eminence: true,
+            exclude_self: false,
         }],
         ..Default::default()
     };
@@ -607,6 +612,7 @@ fn test_spell_cost_modifier_historic_filter() {
             filter: SpellCostFilter::Historic,
             scope: CostModifierScope::Controller,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     };
@@ -651,4 +657,537 @@ fn test_spell_cost_modifier_historic_filter() {
         .expect("CR 700.6: artifact spell is historic and should cost {1} less");
     assert_eq!(state.stack_objects.len(), 1);
     assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+// ── Test 9: Self-cost-reduction — CardTypesInGraveyard (Emrakul style) ──────
+
+#[test]
+/// CR 601.2f — SelfCostReduction::CardTypesInGraveyard reduces the spell's cost by the
+/// number of distinct card types among cards in the caster's graveyard (Emrakul style).
+/// With 5 distinct card types in graveyard, a {13} spell costs {8}.
+fn test_self_cost_reduction_card_types_in_graveyard() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let emrakul_def = CardDefinition {
+        card_id: cid("emrakul-test"),
+        name: "Emrakul Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 13,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::CardTypesInGraveyard),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![emrakul_def]);
+
+    let spell = ObjectSpec::card(p1, "Emrakul Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("emrakul-test"))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 13,
+            ..Default::default()
+        });
+
+    // 5 cards of distinct types in p1's graveyard: Creature, Sorcery, Instant, Artifact, Enchantment.
+    let dead_creature = ObjectSpec::card(p1, "Dead Creature")
+        .in_zone(ZoneId::Graveyard(p1))
+        .with_types(vec![CardType::Creature]);
+    let dead_sorcery = ObjectSpec::card(p1, "Dead Sorcery")
+        .in_zone(ZoneId::Graveyard(p1))
+        .with_types(vec![CardType::Sorcery]);
+    let dead_instant = ObjectSpec::card(p1, "Dead Instant")
+        .in_zone(ZoneId::Graveyard(p1))
+        .with_types(vec![CardType::Instant]);
+    let dead_artifact = ObjectSpec::card(p1, "Dead Artifact")
+        .in_zone(ZoneId::Graveyard(p1))
+        .with_types(vec![CardType::Artifact]);
+    let dead_enchantment = ObjectSpec::card(p1, "Dead Enchantment")
+        .in_zone(ZoneId::Graveyard(p1))
+        .with_types(vec![CardType::Enchantment]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(dead_creature)
+        .object(dead_sorcery)
+        .object(dead_instant)
+        .object(dead_artifact)
+        .object(dead_enchantment)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // 5 distinct types in graveyard → reduce {13} by 5 = {8}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 8);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Emrakul Test");
+
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: Emrakul-style spell should cost {8} with 5 card types in graveyard");
+    assert_eq!(state.stack_objects.len(), 1);
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+
+    // Negative case: with only {7}, casting should fail (cost is {8}).
+    let spell2 = ObjectSpec::card(p1, "Emrakul Test 2")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("emrakul-test"))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 13,
+            ..Default::default()
+        });
+    let mut state2 = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![CardDefinition {
+            card_id: cid("emrakul-test"),
+            name: "Emrakul Test 2".to_string(),
+            mana_cost: Some(ManaCost {
+                generic: 13,
+                ..Default::default()
+            }),
+            self_cost_reduction: Some(SelfCostReduction::CardTypesInGraveyard),
+            ..Default::default()
+        }]))
+        .object(spell2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    // No graveyard cards → no reduction → cost is {13}.
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 12);
+    state2.turn.priority_holder = Some(p1);
+    let spell2_id = find_object(&state2, "Emrakul Test 2");
+    let result = cast_spell(state2, p1, spell2_id);
+    assert!(
+        result.is_err(),
+        "CR 601.2f: should fail with empty graveyard — no reduction applied"
+    );
+}
+
+// ── Test 10: Self-cost-reduction — BasicLandTypes (Scion of Draco / Domain) ─
+
+#[test]
+/// CR 601.2f — SelfCostReduction::BasicLandTypes { per } reduces the spell's cost by
+/// `per` for each basic land type among lands the caster controls (Domain mechanic).
+/// With 3 distinct basic land types and per=2, a {12} spell costs {6}.
+fn test_self_cost_reduction_basic_land_types() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let scion_def = CardDefinition {
+        card_id: cid("scion-test"),
+        name: "Scion Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 12,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::BasicLandTypes { per: 2 }),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![scion_def]);
+
+    let spell = ObjectSpec::card(p1, "Scion Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("scion-test"))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 12,
+            ..Default::default()
+        });
+
+    // 3 basic land types: Plains, Island, Forest (all controlled by p1).
+    let plains = ObjectSpec::land(p1, "Plains").with_subtypes(vec![SubType("Plains".to_string())]);
+    let island = ObjectSpec::land(p1, "Island").with_subtypes(vec![SubType("Island".to_string())]);
+    let forest = ObjectSpec::land(p1, "Forest").with_subtypes(vec![SubType("Forest".to_string())]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(plains)
+        .object(island)
+        .object(forest)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // 3 basic land types × per=2 → reduce {12} by 6 = {6}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 6);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Scion Test");
+
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: Domain-style spell should cost {6} with 3 basic land types");
+    assert_eq!(state.stack_objects.len(), 1);
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+// ── Test 11: Self-cost-reduction — TotalManaValue (Earthquake Dragon style) ─
+
+#[test]
+/// CR 601.2f — SelfCostReduction::TotalManaValue reduces the spell's cost by the total
+/// mana value of matching permanents the caster controls (Earthquake Dragon style).
+/// With Dragons totalling MV=8 on battlefield, a {14}{G} spell costs {6}{G}.
+fn test_self_cost_reduction_total_mana_value() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let eq_dragon_def = CardDefinition {
+        card_id: cid("eq-dragon-test"),
+        name: "Eq Dragon Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 14,
+            green: 1,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::TotalManaValue {
+            filter: TargetFilter {
+                has_subtype: Some(SubType("Dragon".to_string())),
+                ..Default::default()
+            },
+        }),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![eq_dragon_def]);
+
+    let spell = ObjectSpec::card(p1, "Eq Dragon Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("eq-dragon-test"))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 14,
+            green: 1,
+            ..Default::default()
+        });
+
+    // Two Dragons on battlefield with MV 5 and MV 3 (total = 8).
+    let dragon1 = ObjectSpec::creature(p1, "Dragon Alpha", 5, 5)
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }); // MV=5
+    let dragon2 = ObjectSpec::creature(p1, "Dragon Beta", 3, 3)
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }); // MV=3
+            // p2's Dragon should NOT count.
+    let opp_dragon = ObjectSpec::creature(p2, "Opp Dragon", 10, 10)
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 10,
+            red: 1,
+            ..Default::default()
+        }); // MV=11, shouldn't count
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(dragon1)
+        .object(dragon2)
+        .object(opp_dragon)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Total MV of p1's Dragons = 8 → reduce {14}{G} by 8 = {6}{G}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 6);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Eq Dragon Test");
+
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: Earthquake Dragon-style spell should cost {6}{G} with MV=8 Dragons");
+    assert_eq!(state.stack_objects.len(), 1);
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+// ── Test 12: The Ur-Dragon exclude_self — eminence does not reduce its own cost ─
+
+#[test]
+/// CR 601.2f / The Ur-Dragon oracle text: "other Dragon spells you cast cost {1} less".
+/// When The Ur-Dragon itself is in the command zone and the player casts it,
+/// the eminence modifier must NOT apply (exclude_self = true).
+fn test_spell_cost_modifier_ur_dragon_exclude_self() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Simulate The Ur-Dragon's eminence with exclude_self = true.
+    let ur_dragon_def = CardDefinition {
+        card_id: cid("ur-dragon-self-test"),
+        name: "Ur Dragon Self Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::HasSubtype(SubType("Dragon".to_string())),
+            scope: CostModifierScope::Controller,
+            eminence: true,
+            exclude_self: true,
+        }],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![ur_dragon_def]);
+
+    // Ur-Dragon in the command zone AND a copy in hand (same card_id, different ObjectId).
+    let ur_dragon_cmd = ObjectSpec::card(p1, "Ur Dragon Self Test")
+        .in_zone(ZoneId::Command(p1))
+        .with_card_id(cid("ur-dragon-self-test"))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        });
+
+    // This represents the player's copy of The Ur-Dragon they are about to cast.
+    let ur_dragon_hand = ObjectSpec::card(p1, "Ur Dragon Hand")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("ur-dragon-self-test"))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        });
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(ur_dragon_cmd)
+        .object(ur_dragon_hand)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // The Ur-Dragon costs {4}{W}{U}{B}{R}{G} = 4 generic + 5 colored.
+    // With exclude_self: the modifier should NOT reduce the cost of the spell being cast
+    // (the hand copy). The command zone copy is the modifier source, and
+    // the spell being cast has a different ObjectId → exclude_self only skips
+    // when obj.id == spell_id. The hand copy is a different object.
+    // So the eminence modifier DOES apply to the hand copy (different object).
+    // This test verifies the hand copy gets the reduction: costs {3}{W}{U}{B}{R}{G}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 3);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Blue, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Black, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let hand_id = find_object(&state, "Ur Dragon Hand");
+
+    // Hand copy IS a different object from the command zone copy, so the command
+    // zone modifier DOES apply (exclude_self only skips when obj.id == spell_id,
+    // and the command zone object ≠ the hand object).
+    let (state, _) = cast_spell(state, p1, hand_id).expect(
+        "CR 601.2f: Ur-Dragon hand copy costs {3}{W}{U}{B}{R}{G} (eminence from command zone copy)",
+    );
+    assert_eq!(state.stack_objects.len(), 1);
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+
+    // Negative: casting with only {4} generic fails (cost is {3}+5 colored, not free).
+    let ur_dragon_hand2 = ObjectSpec::card(p1, "Ur Dragon Hand2")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("ur-dragon-self-test"))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        });
+    let ur_dragon_cmd2 = ObjectSpec::card(p1, "Ur Dragon Cmd2")
+        .in_zone(ZoneId::Command(p1))
+        .with_card_id(cid("ur-dragon-self-test"))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        });
+
+    let registry2 = CardRegistry::new(vec![CardDefinition {
+        card_id: cid("ur-dragon-self-test"),
+        name: "Ur Dragon Hand2".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::HasSubtype(SubType("Dragon".to_string())),
+            scope: CostModifierScope::Controller,
+            eminence: true,
+            exclude_self: true,
+        }],
+        ..Default::default()
+    }]);
+
+    let mut state2 = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry2)
+        .object(ur_dragon_hand2)
+        .object(ur_dragon_cmd2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Give only {2} generic + colored (not enough for {3}{W}{U}{B}{R}{G}).
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Blue, 1);
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Black, 1);
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state2
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 1);
+    state2.turn.priority_holder = Some(p1);
+
+    let hand2_id = find_object(&state2, "Ur Dragon Hand2");
+    let result2 = cast_spell(state2, p1, hand2_id);
+    assert!(
+        result2.is_err(),
+        "CR 601.2f: Ur-Dragon hand copy should fail with only {{2}} generic (needs {{3}})"
+    );
 }

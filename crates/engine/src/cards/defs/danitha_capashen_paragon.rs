@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             filter: SpellCostFilter::AuraOrEquipment,
             scope: CostModifierScope::Controller,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     }

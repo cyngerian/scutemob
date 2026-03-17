@@ -18,7 +18,7 @@
 | PB-4 | Sacrifice as activation cost | done | 26 | 0 | fixed | 2 |
 | PB-5 | Targeted activated/triggered abilities | done | 32 | 0 | fixed | 3 |
 | PB-6 | Static grant with controller filter | done | 30 | 0 | fixed | 2 |
-| PB-7 | Count-based scaling | done | 29 | 0 | none | 2 |
+| PB-7 | Count-based scaling | done | 29 | 0 | fixed | 2 |
 | PB-8 | Cost reduction statics | done | 10 | 0 | none | 2 |
 | PB-9 | Hybrid mana & X costs | done | 7 | 0 | none | 2 |
 | PB-9.5 | Architecture cleanup | done | 0 | 0 | none | 1 |
@@ -138,8 +138,8 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 5 | PB-4 | Sacrifice as activation cost | 26 | fixed | 1M fixed; 1M 13M 6L deferred (other PBs) |
 | 6 | PB-5 | Targeted abilities | 32 | fixed | 1H 2M 1L fixed; 5M 5L deferred |
 | 7 | PB-6 | Static grant with filter | 30 | fixed | 1H 5M 6L fixed |
-| 8 | PB-7 | Count-based scaling | 29 | in-review | — |
-| 9 | PB-8 | Cost reduction statics | 10 | pending | — |
+| 8 | PB-7 | Count-based scaling | 29 | fixed | 3H 2M fixed; 2L deferred |
+| 9 | PB-8 | Cost reduction statics | 10 | in-review | — |
 | 10 | PB-9 | Hybrid mana & X costs | 7 | pending | — |
 | 11 | PB-9.5 | Architecture cleanup | 0 | pending | — |
 | 12 | PB-10 | Return from zone | 8 | pending | — |
@@ -153,4 +153,4 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 20 | PB-18 | Stax / restrictions | 10 | pending | — |
 
 **Review Status values**: `pending`, `in-review`, `needs-fix`, `fixing`, `clean`, `fixed`
-**Progress**: 7 / 20 reviewed
+**Progress**: 8 / 20 reviewed

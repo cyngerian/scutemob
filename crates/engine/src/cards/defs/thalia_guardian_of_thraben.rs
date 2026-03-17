@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             filter: SpellCostFilter::NonCreature,
             scope: CostModifierScope::AllPlayers,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     }

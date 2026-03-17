@@ -2213,6 +2213,10 @@ pub struct SpellCostModifier {
     /// If true, this modifier applies from the command zone as well as the battlefield (Eminence).
     #[serde(default)]
     pub eminence: bool,
+    /// If true, skip this modifier when the spell being cast is the same object as the modifier's
+    /// source. Encodes "other" semantics (e.g. The Ur-Dragon: "other Dragon spells").
+    #[serde(default)]
+    pub exclude_self: bool,
 }
 
 /// Filter for which spells a cost modifier applies to.

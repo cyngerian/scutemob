@@ -31,6 +31,8 @@ pub fn card() -> CardDefinition {
             filter: SpellCostFilter::HasSubtype(SubType("Dragon".to_string())),
             scope: CostModifierScope::Controller,
             eminence: true,
+            // Oracle: "other Dragon spells" — skip the modifier when casting The Ur-Dragon itself.
+            exclude_self: true,
         }],
         ..Default::default()
     }

@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             filter: SpellCostFilter::HasSubtype(SubType("Goblin".to_string())),
             scope: CostModifierScope::Controller,
             eminence: false,
+            exclude_self: false,
         }],
         ..Default::default()
     }
