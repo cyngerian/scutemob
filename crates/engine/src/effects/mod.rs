@@ -30,7 +30,7 @@ use crate::cards::card_definition::{
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{
-    Characteristics, Designations, GameObject, ObjectId, ObjectStatus,
+    Characteristics, Designations, GameObject, HybridMana, ObjectId, ObjectStatus, PhyrexianMana,
 };
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
@@ -3399,12 +3399,72 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                     obj.characteristics
                         .mana_cost
                         .as_ref()
-                        .map(|mc| match color {
-                            Color::White => mc.white as i32,
-                            Color::Blue => mc.blue as i32,
-                            Color::Black => mc.black as i32,
-                            Color::Red => mc.red as i32,
-                            Color::Green => mc.green as i32,
+                        .map(|mc| {
+                            // CR 700.5: basic color pips
+                            let base = match color {
+                                Color::White => mc.white as i32,
+                                Color::Blue => mc.blue as i32,
+                                Color::Black => mc.black as i32,
+                                Color::Red => mc.red as i32,
+                                Color::Green => mc.green as i32,
+                            };
+                            // CR 700.5: hybrid mana symbols count toward each of their colors.
+                            // HybridMana::ColorColor(c1, c2) — counts if either color matches.
+                            // HybridMana::GenericColor(c) — counts if c matches.
+                            let hybrid_count: i32 = mc
+                                .hybrid
+                                .iter()
+                                .map(|h| {
+                                    let mc_color = match color {
+                                        Color::White => ManaColor::White,
+                                        Color::Blue => ManaColor::Blue,
+                                        Color::Black => ManaColor::Black,
+                                        Color::Red => ManaColor::Red,
+                                        Color::Green => ManaColor::Green,
+                                    };
+                                    match h {
+                                        HybridMana::ColorColor(c1, c2) => {
+                                            if *c1 == mc_color || *c2 == mc_color {
+                                                1
+                                            } else {
+                                                0
+                                            }
+                                        }
+                                        HybridMana::GenericColor(c) => {
+                                            if *c == mc_color { 1 } else { 0 }
+                                        }
+                                    }
+                                })
+                                .sum();
+                            // CR 700.5: Phyrexian mana symbols count toward their color(s).
+                            // PhyrexianMana::Single(c) — counts if c matches.
+                            // PhyrexianMana::Hybrid(c1, c2) — counts if either matches.
+                            let phyrexian_count: i32 = mc
+                                .phyrexian
+                                .iter()
+                                .map(|p| {
+                                    let mc_color = match color {
+                                        Color::White => ManaColor::White,
+                                        Color::Blue => ManaColor::Blue,
+                                        Color::Black => ManaColor::Black,
+                                        Color::Red => ManaColor::Red,
+                                        Color::Green => ManaColor::Green,
+                                    };
+                                    match p {
+                                        PhyrexianMana::Single(c) => {
+                                            if *c == mc_color { 1 } else { 0 }
+                                        }
+                                        PhyrexianMana::Hybrid(c1, c2) => {
+                                            if *c1 == mc_color || *c2 == mc_color {
+                                                1
+                                            } else {
+                                                0
+                                            }
+                                        }
+                                    }
+                                })
+                                .sum();
+                            base + hybrid_count + phyrexian_count
                         })
                         .unwrap_or(0)
                 })

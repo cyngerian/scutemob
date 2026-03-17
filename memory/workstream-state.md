@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-6 retroactive review | ACTIVE | 2026-03-16 | Retroactive review of PB-6 (static grant with filter, 30 cards). 6/20 reviews done. |
+| W6: Primitive + Card Authoring | W6-review: PB-7 retroactive review | ACTIVE | 2026-03-16 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 7/20 done. Use `/implement-primitive --review-only PB-<N>`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,23 +25,20 @@
 
 **Date**: 2026-03-16
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-3 + PB-4 + PB-5 reviews
+**Task**: W6-review — retroactive PB-6 review
 
 **Completed**:
-- PB-3 retroactive review (4/20): 10 shocklands — **clean**
-- PB-4 retroactive review (5/20): 26 sacrifice-cost cards — **fixed** (1M fixed, 1M+13M+6L deferred)
-- PB-5 retroactive review (6/20): 32 targeted ability cards — **fixed**
-  - 1H fixed: triggered ability targets now auto-populated from CardDef in flush_pending_triggers
-  - 2M fixed: fizzle check for CardDef triggered abilities (CR 608.2b) + target validation at trigger time (CR 603.3d)
-  - 1M fixed: Blinkmoth Nexus target narrowed to Blinkmoth subtype
-  - 1L fixed: Ghost Quarter simplified to TargetLand
-  - 5M + 5L deferred: DSL gaps (colorless filter, non-land filter, attacking/blocking filter, etc.)
-- Review files: `memory/primitives/pb-review-3.md`, `memory/primitives/pb-review-4.md`, `memory/primitives/pb-review-5.md`
+- PB-6 retroactive review (7/20): 30 static grant with filter cards — **fixed**
+  - 1H fixed: Goblin Warchief self-haste (added intrinsic Haste keyword)
+  - 5M fixed: Archetype of Endurance (Hexproof), Archetype of Imagination (Flying), Iroas God of Victory (Menace) static grants; Vito (activated Lifelink), Vault of the Archangel (activated Deathtouch+Lifelink)
+  - 6L fixed: stale TODO comments updated
+- Review file: `memory/primitives/pb-review-6.md`
 - 2147 tests passing
+- Commit: 6b13b50
 
 **Next**:
-1. `/implement-primitive --review-only PB-6` (Static grant with filter, 30 cards)
-2. Sequential through PB-7, PB-8, ... PB-18
+1. `/implement-primitive --review-only PB-7` (Count-based scaling, 29 cards)
+2. Sequential through PB-8, PB-9, ... PB-18
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
@@ -51,6 +48,12 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-16 — W6: PB-6 review
+- PB-6 retroactive review (7/20): 30 static grant cards — 1H 5M 6L fixed
+- Commit: 6b13b50
+
+
 
 ### 2026-03-16 — W6: PB-2 review
 - PB-2 retroactive review complete (3/20): 56 conditional ETB tapped land card defs reviewed

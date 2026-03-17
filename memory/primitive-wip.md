@@ -1,41 +1,43 @@
-# Primitive WIP: PB-6 -- Static Grant with Controller Filter (REVIEW-ONLY)
+# Primitive WIP: PB-7 -- Count-Based Scaling (REVIEW-ONLY)
 
-batch: PB-6
-title: Static grant with controller filter
-cards_affected: 30
+batch: PB-7
+title: Count-based scaling
+cards_affected: 29
 mode: review-only
 started: 2026-03-16
 phase: fix
 plan_file: n/a (retroactive review -- no plan needed)
 
 ## Review Scope
-Engine changes and card definition fixes from the original PB-6 implementation.
+Engine changes and card definition fixes from the original PB-7 implementation.
 Review against CR rules and oracle text. No plan file -- reviewer works from
 primitive-card-plan.md batch specification and the actual code.
 
-Cards: 30 cards with static grant effects filtered by controller.
-Engine change: EffectFilter::CreaturesControlledBySource and
-EffectFilter::CreaturesYouControlWithSubtype(SubType). Source controller
-resolved at layer-application time in layers.rs.
+Cards: 29 cards with count-based scaling effects ("for each creature you control,"
+"number of lands you control," devotion, counter counts, etc.)
+
+Engine changes: EffectAmount extended with:
+- PermanentCount { filter: TargetFilter, controller: PlayerTarget }
+- DevotionTo(Color)
+- CounterCount { target: EffectTarget, counter: CounterType }
 
 Key areas:
-- EffectFilter variants for controller-scoped grants
-- Layer application logic in layers.rs for source controller resolution
-- continuous_effect.rs for new filter types
-- Oracle text accuracy for all 30 cards
-- Correct grant scoping (your creatures only vs all creatures)
+- EffectAmount variants for count-based scaling
+- Effect evaluation logic in effects/mod.rs
+- Layer application for devotion-based effects
+- Oracle text accuracy for all 29 cards
+- Correct count semantics (your permanents vs all permanents)
 
 ## Review
-findings: 12 (HIGH: 1, MEDIUM: 5, LOW: 6)
+findings: 8 (HIGH: 3, MEDIUM: 2, LOW: 3)
 verdict: needs-fix
-review_file: memory/primitives/pb-review-6.md
+review_file: memory/primitives/pb-review-7.md
 
-Actionable findings (PB-6 scope):
-- [x] Finding 2 (HIGH): Goblin Warchief — added Keyword(Haste) intrinsic + kept OtherCreaturesYouControlWithSubtype for other Goblins (functionally equivalent to oracle)
-- [x] Finding 3 (MEDIUM): Archetype of Endurance — added Static with CreaturesYouControl + AddKeyword(Hexproof); updated TODO to removal-half-only
-- [x] Finding 4 (MEDIUM): Archetype of Imagination — added Static with CreaturesYouControl + AddKeyword(Flying); updated TODO to removal-half-only
-- [x] Finding 5 (MEDIUM): Iroas, God of Victory — added Static with CreaturesYouControl + AddKeyword(Menace); kept TODOs for devotion and damage prevention
-- [x] Finding 6 (MEDIUM): Vito, Thorn of the Dusk Rose — added Activated with Cost::Mana({3}{B}{B}) + ApplyContinuousEffect(Lifelink, CreaturesYouControl, UntilEndOfTurn); kept TODO for trigger
-- [x] Finding 7 (MEDIUM): Vault of the Archangel — added Activated with Cost::Sequence([Mana({2}{W}{B}), Tap]) + Effect::Sequence([Deathtouch, Lifelink] grants)
-- [x] Finding 1 (LOW): layers.rs comment typos already correct (// CR not / CR) — no change needed
-- [x] Findings 8-12 (LOW): TODO comments updated in all 5 card defs to reflect grant-half implemented; only blocked halves noted
+Actionable findings (PB-7 scope):
+- [x] Finding 1 (MEDIUM): DevotionTo ignores hybrid/phyrexian mana symbols (CR 700.5) — fixed in effects/mod.rs:3398-3465; added test_devotion_counts_hybrid_and_phyrexian_mana_symbols
+- [x] Finding 4 (HIGH): Nykthos — wrong Shrine subtype (oracle: Legendary Land, no subtypes) — changed full_types to supertypes in nykthos_shrine_to_nyx.rs
+- [x] Finding 5 (HIGH): Faeburrow Elder — P/T None/None should be 0/0 (not a CDA) — changed to Some(0)/Some(0), removed CDA comment
+- [x] Finding 6 (HIGH): Multani — P/T None/None should be 0/0 (not a CDA) — changed to Some(0)/Some(0), removed CDA comment
+- [x] Finding 7 (MEDIUM): Frodo — oracle text completely wrong — replaced with actual oracle text ({W/B}{W/B} Citizen→Scout/lifelink; {B}{B}{B} Scout→Rogue/ring-loss condition)
+- [x] Finding 8 (LOW): Toothy — explicit struct construction — migrated to ..Default::default()
+- Findings 2-3 (LOW): raw characteristics reads — systemic, deferred

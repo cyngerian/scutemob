@@ -6,7 +6,8 @@
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
     CardEffectTarget, CardType, Color, CounterType, Effect, EffectAmount, GameStateBuilder,
-    ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, TargetFilter, ZoneId,
+    HybridMana, ManaCost, ManaColor, ObjectId, ObjectSpec, PhyrexianMana, PlayerId, PlayerTarget,
+    TargetFilter, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -265,6 +266,62 @@ fn test_devotion_excludes_permanents_without_mana_cost() {
 
     // Only the Elf contributes: devotion = 1
     assert_eq!(state.players.get(&p1()).unwrap().life_total, 41);
+}
+
+/// CR 700.5: Hybrid and phyrexian mana symbols count toward devotion.
+/// A permanent with {G/W}{G/W} contributes 2 to both green and white devotion.
+/// A permanent with {G/P} (phyrexian green) contributes 1 to green devotion.
+#[test]
+fn test_devotion_counts_hybrid_and_phyrexian_mana_symbols() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        // {G/W}{G/W} — 2 hybrid symbols, each counting for both green and white
+        .object(
+            ObjectSpec::creature(p1(), "Hybrid Druid", 2, 2).with_mana_cost(ManaCost {
+                hybrid: vec![
+                    HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+                    HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+                ],
+                ..Default::default()
+            }),
+        )
+        // {2/G} — GenericColor hybrid, counts 1 toward green
+        .object(
+            ObjectSpec::creature(p1(), "Mono Hybrid Elf", 1, 1).with_mana_cost(ManaCost {
+                hybrid: vec![HybridMana::GenericColor(ManaColor::Green)],
+                ..Default::default()
+            }),
+        )
+        // {G/P} — phyrexian green, counts 1 toward green
+        .object(
+            ObjectSpec::creature(p1(), "Phyrexian Elf", 1, 1).with_mana_cost(ManaCost {
+                phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+                ..Default::default()
+            }),
+        )
+        .build()
+        .unwrap();
+
+    let source = find_on_battlefield(&state, "Hybrid Druid");
+
+    // Green devotion: 2 (from {G/W}{G/W}) + 1 (from {2/G}) + 1 (from {G/P}) = 4
+    let effect = Effect::GainLife {
+        player: PlayerTarget::Controller,
+        amount: EffectAmount::DevotionTo(Color::Green),
+    };
+    let mut ctx = EffectContext::new(p1(), source, vec![]);
+    execute_effect(&mut state, &effect, &mut ctx);
+    assert_eq!(state.players.get(&p1()).unwrap().life_total, 44);
+
+    // White devotion: 2 (from {G/W}{G/W}), none from the others
+    let effect_white = Effect::GainLife {
+        player: PlayerTarget::Controller,
+        amount: EffectAmount::DevotionTo(Color::White),
+    };
+    let mut ctx2 = EffectContext::new(p1(), source, vec![]);
+    execute_effect(&mut state, &effect_white, &mut ctx2);
+    assert_eq!(state.players.get(&p1()).unwrap().life_total, 46);
 }
 
 // ---------------------------------------------------------------------------

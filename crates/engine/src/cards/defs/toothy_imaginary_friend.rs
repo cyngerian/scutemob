@@ -37,11 +37,6 @@ pub fn card() -> CardDefinition {
             // TriggerCondition::WhenLeavesBattlefield and
             // Effect::DrawCards with EffectAmount::CounterCountOnSelf (not yet in DSL).
         ],
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
-        starting_loyalty: None,
-        meld_pair: None,
+        ..Default::default()
     }
 }

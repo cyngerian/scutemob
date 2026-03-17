@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("nykthos-shrine-to-nyx"),
         name: "Nykthos, Shrine to Nyx".to_string(),
         mana_cost: None,
-        types: full_types(&[SuperType::Legendary], &[CardType::Land], &["Shrine"]),
+        types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
         oracle_text: "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color. (Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)".to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
