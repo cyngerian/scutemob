@@ -46,7 +46,11 @@ pub struct App {
     pub cards_table_state: TableState,
 
     // Tab 8: Progress
+    pub progress_focus: u8, // 0=batches, 1=review backlog, 2=workstreams, 3=path to alpha
     pub progress_scroll: u16,
+    pub progress_backlog_scroll: u16,
+    pub progress_workstream_scroll: u16,
+    pub progress_alpha_scroll: u16,
     /// "all", "ready", "blocked", "deferred"
     pub cards_filter: String,
     /// Scroll offset for the detail pane (DSL view)
@@ -79,7 +83,11 @@ impl App {
             cards_table_state: TableState::default(),
             cards_filter: "all".to_string(),
             cards_detail_scroll: 0,
+            progress_focus: 0,
             progress_scroll: 0,
+            progress_backlog_scroll: 0,
+            progress_workstream_scroll: 0,
+            progress_alpha_scroll: 0,
             live_test_count: LiveTestCount::Loading,
             test_count_rx: None,
             root,
@@ -289,14 +297,38 @@ impl App {
         self.cards_detail_scroll = self.cards_detail_scroll.saturating_sub(1);
     }
 
-    // ─── progress tab scroll ──────────────────────────────────────────────
+    // ─── progress tab scroll & focus ─────────────────────────────────────
+
+    pub fn progress_focus_left(&mut self) {
+        self.progress_focus = self.progress_focus.saturating_sub(1);
+    }
+
+    pub fn progress_focus_right(&mut self) {
+        self.progress_focus = (self.progress_focus + 1).min(3);
+    }
 
     pub fn progress_scroll_down(&mut self) {
-        self.progress_scroll = self.progress_scroll.saturating_add(1);
+        match self.progress_focus {
+            0 => self.progress_scroll = self.progress_scroll.saturating_add(1),
+            1 => self.progress_backlog_scroll = self.progress_backlog_scroll.saturating_add(1),
+            2 => {
+                self.progress_workstream_scroll = self.progress_workstream_scroll.saturating_add(1)
+            }
+            3 => self.progress_alpha_scroll = self.progress_alpha_scroll.saturating_add(1),
+            _ => {}
+        }
     }
 
     pub fn progress_scroll_up(&mut self) {
-        self.progress_scroll = self.progress_scroll.saturating_sub(1);
+        match self.progress_focus {
+            0 => self.progress_scroll = self.progress_scroll.saturating_sub(1),
+            1 => self.progress_backlog_scroll = self.progress_backlog_scroll.saturating_sub(1),
+            2 => {
+                self.progress_workstream_scroll = self.progress_workstream_scroll.saturating_sub(1)
+            }
+            3 => self.progress_alpha_scroll = self.progress_alpha_scroll.saturating_sub(1),
+            _ => {}
+        }
     }
 }
 

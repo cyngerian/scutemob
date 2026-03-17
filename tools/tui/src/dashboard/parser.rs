@@ -987,7 +987,6 @@ fn parse_project_status(root: &Path) -> Option<ProjectProgress> {
                     cards_fixed: cells[3].parse().unwrap_or(0),
                     cards_remaining: cells[4].parse().unwrap_or(0),
                     review: cells[5].clone(),
-                    ..Default::default()
                 });
             }
             "health" if cells.len() >= 2 => {

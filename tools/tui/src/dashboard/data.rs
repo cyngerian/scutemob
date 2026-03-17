@@ -52,7 +52,9 @@ pub struct WorkstreamEntry {
     pub name: String,
     /// "done", "active", "stalled", "partial", "not-started", "retired"
     pub status: String,
+    #[allow(dead_code)]
     pub last_activity: String,
+    #[allow(dead_code)]
     pub next_action: String,
 }
 
@@ -60,7 +62,9 @@ pub struct WorkstreamEntry {
 pub struct AlphaMilestone {
     pub name: String,
     pub status: String,
+    #[allow(dead_code)]
     pub blocked_by: String,
+    #[allow(dead_code)]
     pub deliverable: String,
 }
 

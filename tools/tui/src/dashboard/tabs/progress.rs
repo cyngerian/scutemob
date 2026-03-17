@@ -14,7 +14,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         .constraints([
             Constraint::Length(7),  // pipeline funnel + card health
             Constraint::Length(12), // primitive batches (scrollable region)
-            Constraint::Min(0),    // review backlog + workstreams + deferred
+            Constraint::Min(0),     // review backlog + workstreams + deferred
         ])
         .split(area);
 
@@ -47,27 +47,50 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
 fn render_pipeline_funnel(f: &mut Frame, area: Rect, app: &App) {
     let p = &app.data.progress;
-    let batches_done = p.primitive_batches.iter().filter(|b| b.status == "done").count();
+    let batches_done = p
+        .primitive_batches
+        .iter()
+        .filter(|b| b.status == "done")
+        .count();
     let batches_total = p.primitive_batches.len();
-    let review_done = p.review_backlog.iter().filter(|r| r.review_status == "clean" || r.review_status == "fixed").count();
+    let review_done = p
+        .review_backlog
+        .iter()
+        .filter(|r| r.review_status == "clean" || r.review_status == "fixed")
+        .count();
 
     let mut lines = vec![
         Line::from(vec![
             Span::styled("Primitives: ", Style::default().fg(Color::Gray)),
             Span::styled(
                 format!("{}/{}", batches_done, batches_total),
-                Style::default().fg(if batches_done == batches_total { Color::Green } else { Color::Yellow }).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(if batches_done == batches_total {
+                        Color::Green
+                    } else {
+                        Color::Yellow
+                    })
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw("  "),
             Span::styled("Reviews: ", Style::default().fg(Color::Gray)),
             Span::styled(
                 format!("{}/{}", review_done, p.review_backlog.len()),
-                Style::default().fg(if review_done == p.review_backlog.len() { Color::Green } else { Color::Cyan }).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(if review_done == p.review_backlog.len() {
+                        Color::Green
+                    } else {
+                        Color::Cyan
+                    })
+                    .add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(vec![
             Span::styled("Tests: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{}", app.data.current_state.test_count), Style::default().fg(Color::Green)),
+            Span::styled(
+                format!("{}", app.data.current_state.test_count),
+                Style::default().fg(Color::Green),
+            ),
             Span::raw("  "),
             Span::styled("Abilities: ", Style::default().fg(Color::Gray)),
             Span::raw("194/204"),
@@ -78,10 +101,15 @@ fn render_pipeline_funnel(f: &mut Frame, area: Rect, app: &App) {
     ];
 
     // Progress bar for primitives
-    let pct = if batches_total > 0 { batches_done * 100 / batches_total } else { 0 };
+    let pct = if batches_total > 0 {
+        batches_done * 100 / batches_total
+    } else {
+        0
+    };
     let bar_width = (area.width as usize).saturating_sub(4).min(40);
     let filled = bar_width * pct / 100;
-    let bar: String = format!("[{}{}] {}%",
+    let bar: String = format!(
+        "[{}{}] {}%",
         "#".repeat(filled),
         "-".repeat(bar_width - filled),
         pct
@@ -105,48 +133,117 @@ fn render_card_health(f: &mut Frame, area: Rect, app: &App) {
     let lines = vec![
         Line::from(vec![
             Span::styled("Universe: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{}", h.total_universe), Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{}", h.total_universe),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
             Span::raw("  "),
             Span::styled("Authored: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{}", h.total_authored), Style::default().fg(Color::Cyan)),
-            Span::styled(format!(" ({}%)", h.total_authored * 100 / total), Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{}", h.total_authored),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::styled(
+                format!(" ({}%)", h.total_authored * 100 / total),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]),
         Line::from(vec![
-            Span::styled(" OK  ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                " OK  ",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(format!("{:<6}", h.complete)),
-            Span::styled(" TODO ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                " TODO ",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(format!("{:<6}", h.has_todos)),
-            Span::styled(" BAD  ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                " BAD  ",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
             Span::raw(format!("{:<6}", h.wrong_state)),
         ]),
         Line::from(vec![
             Span::styled("Not authored: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("{}", h.not_authored), Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{}", h.not_authored),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]),
     ];
 
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Card Health ")),
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Card Health "),
+        ),
         area,
     );
+}
+
+fn focused_block<'a>(title: String, is_focused: bool) -> Block<'a> {
+    let block = Block::default().borders(Borders::ALL).title(title);
+    if is_focused {
+        block.border_style(Style::default().fg(Color::Cyan))
+    } else {
+        block
+    }
 }
 
 fn render_primitive_batches(f: &mut Frame, area: Rect, app: &App) {
     let batches = &app.data.progress.primitive_batches;
     let scroll = app.progress_scroll as usize;
+    let max_scroll = batches.len().saturating_sub(1);
+    let scroll = scroll.min(max_scroll);
     let visible_rows = area.height.saturating_sub(3) as usize; // borders + header
 
     let mut lines: Vec<Line> = vec![];
 
     // Header
     lines.push(Line::from(vec![
-        Span::styled(format!("{:<8}", "Batch"), Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{:<35}", "Title"), Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{:<8}", "Status"), Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{:<7}", "Fixed"), Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{:<7}", "Left"), Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
-        Span::styled("Review", Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            format!("{:<8}", "Batch"),
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{:<35}", "Title"),
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{:<8}", "Status"),
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{:<7}", "Fixed"),
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{:<7}", "Left"),
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            "Review",
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ),
     ]));
 
     for batch in batches.iter().skip(scroll).take(visible_rows) {
@@ -170,26 +267,38 @@ fn render_primitive_batches(f: &mut Frame, area: Rect, app: &App) {
         };
 
         lines.push(Line::from(vec![
-            Span::styled(format!("{:<8}", batch.batch), Style::default().fg(Color::White)),
+            Span::styled(
+                format!("{:<8}", batch.batch),
+                Style::default().fg(Color::White),
+            ),
             Span::raw(format!("{:<35}", truncate(&batch.title, 34))),
-            Span::styled(format!("{:<8}", status_icon), Style::default().fg(status_color)),
+            Span::styled(
+                format!("{:<8}", status_icon),
+                Style::default().fg(status_color),
+            ),
             Span::raw(format!("{:<7}", batch.cards_fixed)),
             Span::raw(format!("{:<7}", batch.cards_remaining)),
-            Span::styled(format!("{}", batch.review), Style::default().fg(review_color)),
+            Span::styled(batch.review.to_string(), Style::default().fg(review_color)),
         ]));
     }
 
-    let title = format!(" Primitive Batches ({} total, scroll: j/k) ", batches.len());
+    let is_focused = app.progress_focus == 0;
+    let title = format!(" Primitive Batches ({} total) ", batches.len());
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(title)),
+        Paragraph::new(Text::from(lines)).block(focused_block(title, is_focused)),
         area,
     );
 }
 
 fn render_review_backlog(f: &mut Frame, area: Rect, app: &App) {
     let backlog = &app.data.progress.review_backlog;
-    let done_count = backlog.iter().filter(|r| r.review_status == "clean" || r.review_status == "fixed").count();
+    let done_count = backlog
+        .iter()
+        .filter(|r| r.review_status == "clean" || r.review_status == "fixed")
+        .count();
+    let scroll = app.progress_backlog_scroll as usize;
+    let max_scroll = backlog.len().saturating_sub(1);
+    let scroll = scroll.min(max_scroll);
 
     let mut lines: Vec<Line> = vec![];
 
@@ -203,11 +312,13 @@ fn render_review_backlog(f: &mut Frame, area: Rect, app: &App) {
     ]));
 
     let visible = area.height.saturating_sub(3) as usize;
-    for entry in backlog.iter().take(visible) {
+    for entry in backlog.iter().skip(scroll).take(visible) {
         let status_style = match entry.review_status.as_str() {
             "clean" => Style::default().fg(Color::Green),
             "fixed" => Style::default().fg(Color::Cyan),
-            "in-review" => Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            "in-review" => Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
             "needs-fix" | "fixing" => Style::default().fg(Color::Red),
             "pending" => Style::default().fg(Color::DarkGray),
             _ => Style::default(),
@@ -218,23 +329,27 @@ fn render_review_backlog(f: &mut Frame, area: Rect, app: &App) {
             Span::raw(format!("{:<8}", entry.batch)),
             Span::raw(format!("{:<22}", truncate(&entry.title, 21))),
             Span::raw(format!("{:<6}", entry.cards_fixed)),
-            Span::styled(format!("{}", entry.review_status), status_style),
+            Span::styled(entry.review_status.to_string(), status_style),
         ]));
     }
 
+    let is_focused = app.progress_focus == 1;
     let title = format!(" Review Backlog ({}/{}) ", done_count, backlog.len());
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(title)),
+        Paragraph::new(Text::from(lines)).block(focused_block(title, is_focused)),
         area,
     );
 }
 
 fn render_workstreams(f: &mut Frame, area: Rect, app: &App) {
     let ws = &app.data.progress.workstreams;
+    let scroll = app.progress_workstream_scroll as usize;
+    let max_scroll = ws.len().saturating_sub(1);
+    let scroll = scroll.min(max_scroll);
+    let visible = area.height.saturating_sub(2) as usize;
     let mut lines: Vec<Line> = vec![];
 
-    for w in ws {
+    for w in ws.iter().skip(scroll).take(visible) {
         let status_color = match w.status.as_str() {
             "done" => Color::Green,
             "active" => Color::Yellow,
@@ -253,23 +368,33 @@ fn render_workstreams(f: &mut Frame, area: Rect, app: &App) {
         };
         lines.push(Line::from(vec![
             Span::styled(format!("{} ", icon), Style::default().fg(status_color)),
-            Span::styled(format!("{} ", w.number), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{} ", w.number),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(truncate(&w.name, 18)),
         ]));
     }
 
+    let is_focused = app.progress_focus == 2;
     f.render_widget(
         Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Workstreams ")),
+            .block(focused_block(" Workstreams ".to_string(), is_focused)),
         area,
     );
 }
 
 fn render_path_to_alpha(f: &mut Frame, area: Rect, app: &App) {
     let milestones = &app.data.progress.path_to_alpha;
+    let scroll = app.progress_alpha_scroll as usize;
+    let max_scroll = milestones.len().saturating_sub(1);
+    let scroll = scroll.min(max_scroll);
+    let visible = area.height.saturating_sub(2) as usize;
     let mut lines: Vec<Line> = vec![];
 
-    for m in milestones {
+    for m in milestones.iter().skip(scroll).take(visible) {
         let color = match m.status.as_str() {
             "done" => Color::Green,
             "active" => Color::Yellow,
@@ -291,9 +416,10 @@ fn render_path_to_alpha(f: &mut Frame, area: Rect, app: &App) {
         ]));
     }
 
+    let is_focused = app.progress_focus == 3;
     f.render_widget(
         Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Path to Alpha ")),
+            .block(focused_block(" Path to Alpha ".to_string(), is_focused)),
         area,
     );
 }

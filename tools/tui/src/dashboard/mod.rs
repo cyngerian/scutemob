@@ -130,6 +130,16 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.cards_detail_scroll_up();
             }
         }
+        KeyCode::Char('h') | KeyCode::Left => {
+            if app.current_tab == 7 {
+                app.progress_focus_left();
+            }
+        }
+        KeyCode::Char('l') | KeyCode::Right => {
+            if app.current_tab == 7 {
+                app.progress_focus_right();
+            }
+        }
         KeyCode::Char('g') => {
             if app.current_tab == 3 {
                 app.toggle_gaps_only();

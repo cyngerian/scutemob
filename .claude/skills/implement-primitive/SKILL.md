@@ -186,6 +186,9 @@ After the runner completes:
     Start from scratch -- implement all unchecked steps now."
   - Run the build check again before proceeding.
 - Read `memory/primitive-wip.md` to confirm steps are checked off
+- **Commit**: Stage all changed files and create a commit:
+  `W6-prim: PB-<N> implement <title>`
+  Include a brief body listing what was added (engine changes, card fixes, tests).
 - Update `phase: review`
 - **TaskUpdate**: Set implement task to `completed`
 - **Continue immediately to Phase: review** (do not stop and report).
@@ -263,6 +266,8 @@ Agent tool:
 After the runner completes:
 - **Verification gate** -- run `~/.cargo/bin/cargo build --workspace 2>&1 | tail -10` directly.
   If it fails, re-invoke the runner with the fix findings and the build error. Run check again.
+- **Commit**: Stage all changed files and create a commit:
+  `W6-prim: PB-<N> review fixes — <summary of what was fixed>`
 - Update `phase: close` in `primitive-wip.md`
 - **TaskUpdate**: Set fix task to `completed`
 - Stop and report: review findings and what was fixed.
