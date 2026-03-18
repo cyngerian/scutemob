@@ -29,7 +29,7 @@ use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Characteristics, Designations, ManaCost, ObjectId};
-use crate::state::player::PlayerId;
+use crate::state::player::{PlayerId, SpellContext};
 use crate::state::stack::{StackObject, StackObjectKind, TriggerData};
 use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
@@ -3300,12 +3300,23 @@ pub fn handle_cast_spell(
         };
 
         if flat_cost.mana_value() > 0 {
+            // CR 106.6: Build a SpellContext so restricted mana (e.g., from Cavern of Souls)
+            // can be checked and spent when it matches the spell being cast.
+            let spell_context = SpellContext {
+                is_creature: chars.card_types.contains(&CardType::Creature),
+                subtypes: chars.subtypes.iter().cloned().collect(),
+            };
             // Check the player has enough mana.
             let player_state = state.player_mut(player)?;
-            if !can_pay_cost(&player_state.mana_pool, &flat_cost) {
+            if !can_pay_cost_with_context(&player_state.mana_pool, &flat_cost, Some(&spell_context))
+            {
                 return Err(GameStateError::InsufficientMana);
             }
-            pay_cost(&mut player_state.mana_pool, &flat_cost);
+            pay_cost_with_context(
+                &mut player_state.mana_pool,
+                &flat_cost,
+                Some(&spell_context),
+            );
         }
 
         // CR 107.4f: Pay life for Phyrexian mana symbols paid with life.

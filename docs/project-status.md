@@ -22,7 +22,7 @@
 | PB-8 | Cost reduction statics | done | 10 | 0 | fixed | 2 |
 | PB-9 | Hybrid mana & X costs | done | 7 | 0 | fixed | 2 |
 | PB-9.5 | Architecture cleanup | done | 0 | 0 | fixed | 1 |
-| PB-10 | Return from zone effects | done | 8 | 0 | none | 1 |
+| PB-10 | Return from zone effects | done | 8 | 0 | fixed | 1 |
 | PB-11 | Mana spending restrictions + ETB choice | done | 13 | 0 | none | 2 |
 | PB-12 | Complex replacement effects | done | 11 | 0 | none | 3 |
 | PB-13 | Specialized mechanics (10 sub-batches) | done | 19 | 0 | none | 4 |
@@ -93,7 +93,7 @@ until all reviews are complete and findings fixed.
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2152 |
+| Total tests | 2154 |
 | Test files | 209 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
@@ -142,8 +142,8 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 9 | PB-8 | Cost reduction statics | 10 | fixed | 3M fixed |
 | 10 | PB-9 | Hybrid mana & X costs | 7 | fixed | 1H 5M fixed; 2M 7L deferred |
 | 11 | PB-9.5 | Architecture cleanup | 0 | fixed | 1M 2L |
-| 12 | PB-10 | Return from zone | 8 | in-review | — |
-| 13 | PB-11 | Mana restrictions + ETB choice | 13 | pending | — |
+| 12 | PB-10 | Return from zone | 8 | fixed | 2H 5M fixed; 3L deferred |
+| 13 | PB-11 | Mana restrictions + ETB choice | 13 | in-review | — |
 | 14 | PB-12 | Complex replacements | 11 | pending | — |
 | 15 | PB-13 | Specialized mechanics | 19 | pending | — |
 | 16 | PB-14 | Planeswalker support | 31 | pending | — |
@@ -153,4 +153,4 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 20 | PB-18 | Stax / restrictions | 10 | pending | — |
 
 **Review Status values**: `pending`, `in-review`, `needs-fix`, `fixing`, `clean`, `fixed`
-**Progress**: 11 / 20 reviewed
+**Progress**: 12 / 20 reviewed

@@ -142,9 +142,13 @@ pub fn restriction_matches(restriction: &ManaRestriction, spell: &SpellContext) 
         ManaRestriction::CreatureSpellsOnly => spell.is_creature,
         ManaRestriction::SubtypeOnly(st) => spell.subtypes.iter().any(|s| s == st),
         ManaRestriction::SubtypeOrSubtype(a, b) => spell.subtypes.iter().any(|s| s == a || s == b),
+        // CR 106.6: "creature spell of the chosen type" — must be both a creature AND have the subtype.
+        ManaRestriction::CreatureWithSubtype(st) => {
+            spell.is_creature && spell.subtypes.iter().any(|s| s == st)
+        }
         ManaRestriction::ChosenTypeCreaturesOnly => {
             // The chosen type is resolved before calling restriction_matches —
-            // if this variant appears, it should have been resolved to SubtypeOnly
+            // if this variant appears, it should have been resolved to CreatureWithSubtype
             // by the effect executor. As a fallback, treat as creature-only.
             spell.is_creature
         }

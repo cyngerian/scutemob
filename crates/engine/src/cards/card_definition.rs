@@ -925,6 +925,11 @@ pub enum ManaRestriction {
     SubtypeOnly(SubType),
     /// "Spend this mana only to cast [subtype] or [subtype] spells." (e.g., Dragon or Omen)
     SubtypeOrSubtype(SubType, SubType),
+    /// "Spend this mana only to cast creature spells of the [subtype] type."
+    /// Checks both `is_creature` and `subtypes.contains(st)`.
+    /// Use this for oracle text like "cast a Dragon creature spell" (Haven of the Spirit Dragon)
+    /// rather than `SubtypeOnly` which would allow non-creature tribal spells.
+    CreatureWithSubtype(SubType),
     /// "Spend this mana only to cast creature spells of the chosen type."
     /// Uses `chosen_creature_type` from the source permanent.
     ChosenTypeCreaturesOnly,

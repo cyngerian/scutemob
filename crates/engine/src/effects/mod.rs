@@ -3264,7 +3264,15 @@ fn resolve_mana_restriction(
                 .ok()
                 .and_then(|obj| obj.chosen_creature_type.clone());
             match chosen {
-                Some(st) => Some(ManaRestriction::SubtypeOnly(st)),
+                Some(st) => match restriction.as_ref().unwrap() {
+                    // CR 106.6: "creature spell of the chosen type" requires both creature
+                    // AND subtype check. Use CreatureWithSubtype to enforce this.
+                    ManaRestriction::ChosenTypeCreaturesOnly => {
+                        Some(ManaRestriction::CreatureWithSubtype(st))
+                    }
+                    // ChosenTypeSpellsOnly: any spell of the subtype (no creature requirement).
+                    _ => Some(ManaRestriction::SubtypeOnly(st)),
+                },
                 // No chosen type set — fall back to creature-only as a safe restriction
                 None => match restriction.as_ref().unwrap() {
                     ManaRestriction::ChosenTypeCreaturesOnly => {

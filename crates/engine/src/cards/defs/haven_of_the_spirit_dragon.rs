@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Tap,
                 effect: Effect::AddManaAnyColorRestricted {
                     player: PlayerTarget::Controller,
-                    restriction: ManaRestriction::SubtypeOnly(SubType("Dragon".to_string())),
+                    restriction: ManaRestriction::CreatureWithSubtype(SubType("Dragon".to_string())),
                 },
                 timing_restriction: None,
                 targets: vec![],

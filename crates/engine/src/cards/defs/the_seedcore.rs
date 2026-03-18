@@ -23,12 +23,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // {T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.
-            // Note: "Phyrexian" is a creature type in MTG. Using SubtypeOnly for the restriction.
+            // Note: "Phyrexian" is a creature type in MTG. Using CreatureWithSubtype to enforce
+            // both the creature-spell and Phyrexian-subtype requirements per oracle text.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddManaAnyColorRestricted {
                     player: PlayerTarget::Controller,
-                    restriction: ManaRestriction::SubtypeOnly(SubType("Phyrexian".to_string())),
+                    restriction: ManaRestriction::CreatureWithSubtype(SubType(
+                        "Phyrexian".to_string(),
+                    )),
                 },
                 timing_restriction: None,
                 targets: vec![],

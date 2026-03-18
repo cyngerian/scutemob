@@ -326,7 +326,8 @@ pub fn process_command(
             validate_player_active(&state, player)?;
             // CR 104.4b: foretelling is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let events = foretell::handle_foretell_card(&mut state, player, card)?;
+            let mut events = foretell::handle_foretell_card(&mut state, player, card)?;
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 
@@ -335,7 +336,8 @@ pub fn process_command(
             validate_player_active(&state, player)?;
             // CR 104.4b: plotting is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let events = plot::handle_plot_card(&mut state, player, card)?;
+            let mut events = plot::handle_plot_card(&mut state, player, card)?;
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
             // CR 116.3: Special action => player receives priority afterward.
             // Priority is already set to the player since they have priority.
@@ -346,7 +348,8 @@ pub fn process_command(
             validate_player_active(&state, player)?;
             // CR 104.4b: suspending is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let events = suspend::handle_suspend_card(&mut state, player, card)?;
+            let mut events = suspend::handle_suspend_card(&mut state, player, card)?;
+            check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
 

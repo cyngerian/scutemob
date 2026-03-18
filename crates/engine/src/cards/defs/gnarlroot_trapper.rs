@@ -14,14 +14,15 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // {T}, Pay 1 life: Add {G}. Spend this mana only to cast an Elf creature spell.
-            // Note: Pay 1 life cost is not fully expressible (Cost enum lacks PayLife variant).
-            // Modeled as tap-only with the mana restriction applied.
+            // TODO: Pay 1 life cost is not expressible (Cost enum lacks Cost::PayLife variant).
+            // DSL gap: use Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]) when available.
+            // Modeled as tap-only until then; game state is incorrect (no life payment required).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddManaRestricted {
                     player: PlayerTarget::Controller,
                     mana: mana_pool(0, 0, 0, 0, 1, 0),
-                    restriction: ManaRestriction::SubtypeOnly(SubType("Elf".to_string())),
+                    restriction: ManaRestriction::CreatureWithSubtype(SubType("Elf".to_string())),
                 },
                 timing_restriction: None,
                 targets: vec![],

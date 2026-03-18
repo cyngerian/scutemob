@@ -874,8 +874,12 @@ impl HashInto for ManaRestriction {
                 a.0.hash_into(hasher);
                 b.0.hash_into(hasher);
             }
-            ManaRestriction::ChosenTypeCreaturesOnly => 3u8.hash_into(hasher),
-            ManaRestriction::ChosenTypeSpellsOnly => 4u8.hash_into(hasher),
+            ManaRestriction::CreatureWithSubtype(st) => {
+                3u8.hash_into(hasher);
+                st.0.hash_into(hasher);
+            }
+            ManaRestriction::ChosenTypeCreaturesOnly => 4u8.hash_into(hasher),
+            ManaRestriction::ChosenTypeSpellsOnly => 5u8.hash_into(hasher),
         }
     }
 }

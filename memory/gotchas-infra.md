@@ -78,11 +78,12 @@
 
 ## Command Handler Pattern Gotchas
 
-- **Every `Command` handler that can produce triggers must call `check_triggers()` +
-  `flush_pending_triggers()` after its action.** `CastSpell` does this; `ActivateAbility`
-  was missing it until M9.5 Ward work — activated abilities could not fire triggers at all.
-  When adding a new command variant, verify it ends with the trigger flush pair, or triggers
-  on the resulting state will silently never fire.
+- **Every `Command` handler that can produce triggers must call `check_and_flush_triggers()`
+  after its action.** This helper (engine.rs:34) runs `check_triggers` + `flush_pending_triggers`
+  in one call. When adding a new command variant, verify it ends with
+  `check_and_flush_triggers(&mut state, &mut events);` or triggers on the resulting state
+  will silently never fire. Commands that should NOT flush: PassPriority, Concede, TapForMana
+  (CR 605.3b), OrderBlockers, OrderReplacements, mulligan commands.
 
 ## Activated Ability Harness Gotchas (M9.5+)
 
@@ -176,6 +177,10 @@
 - **Aura attachment order in `resolution.rs`**: `set attached_to/attachments` MUST happen
   BEFORE `register_static_continuous_effects`. If continuous effects register before attachment,
   `EffectFilter::AttachedCreature` finds no target and the Aura's static effects never apply.
+- **`Effect::MoveZone` has `controller_override: Option<PlayerTarget>`.** For "under your control"
+  reanimation (Reanimate, Teneb, etc.), set `controller_override: Some(PlayerTarget::Controller)`.
+  Without this, `move_object_to_zone` resets controller to owner, so reanimating an opponent's
+  creature gives it back to the opponent. Added PB-10 review (2026-03-18).
 - **`ctx.source` is stale after `MoveZone` moves the source object.** `move_object_to_zone`
   creates a new `ObjectId` for the destination object (CR 400.7). Any subsequent effect in a
   `Sequence` that references `EffectTarget::Source` will fail silently unless `ctx.source` is

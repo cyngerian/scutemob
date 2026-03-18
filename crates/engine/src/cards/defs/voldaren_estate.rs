@@ -23,8 +23,9 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // {T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell.
-            // Note: Pay 1 life cost is not fully expressible (Cost enum lacks PayLife variant).
-            // Modeled as tap-only with the mana restriction applied.
+            // TODO: Pay 1 life cost is not expressible (Cost enum lacks Cost::PayLife variant).
+            // DSL gap: use Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]) when available.
+            // Modeled as tap-only until then; game state is incorrect (no life payment required).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddManaAnyColorRestricted {

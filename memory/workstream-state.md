@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-10 retroactive review | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 11/20 done. Use `/implement-primitive --review-only PB-<N>`. |
+| W6: Primitive + Card Authoring | W6-review: PB-11 retroactive review | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 12/20 done. Use `/implement-primitive --review-only PB-<N>`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,21 +23,21 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-17
+**Date**: 2026-03-18
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-9.5 review
+**Task**: W6-review — retroactive PB-10 review
 
 **Completed**:
-- PB-9.5 retroactive review (11/20): Architecture cleanup, 0 cards — **fixed**
-  - 1M fixed: Added check_and_flush_triggers to ForetellCard, PlotCard, SuspendCard (engine.rs)
-  - 1L fixed: Updated gotchas-infra.md trigger flush documentation
-  - 1L deferred: combat.rs inline trigger flush (functionally correct)
-- Review file: `memory/primitives/pb-review-9.5.md`
-- 2152 tests passing
+- PB-10 retroactive review (12/20): Return from zone effects, 8 cards — **fixed**
+  - 2H fixed: Hexproof zone gate on validate_target_protection (CR 702.11b); controller_override on MoveZone
+  - 5M fixed: Bladewing permanent card filter, Concoct half implemented, 3 DSL gaps documented
+  - 3L deferred: Bladewing pump, Den Protector evasion, Haven Ugin union target
+- Review file: `memory/primitives/pb-review-10.md`
+- 2154 tests passing
 
 **Next**:
-1. `/implement-primitive --review-only PB-10` (Return from zone effects, 8 cards)
-2. Sequential through PB-11, PB-12, ... PB-18
+1. `/implement-primitive --review-only PB-11` (Mana restrictions + ETB choice, 13 cards)
+2. Sequential through PB-12, PB-13, ... PB-18
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
@@ -46,6 +46,10 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-18 — W6: PB-10 review
+- PB-10 retroactive review (12/20): Return from zone effects, 8 cards — 2H 5M fixed; 3L deferred
+- Commit: a5e45c6
 
 ### 2026-03-17 — W6: PB-9.5 review
 - PB-9.5 retroactive review (11/20): Architecture cleanup, 0 cards — 1M 1L fixed; 1L deferred
