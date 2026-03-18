@@ -853,6 +853,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
                     to: ZoneTarget::Graveyard {
                         owner: PlayerTarget::Controller,
                     },
+                    controller_override: None,
                 },
                 // Step 2: Connive the target (now in graveyard via target_remaps[0]).
                 // CR 701.50c: No +1/+1 counter is placed since creature is off-battlefield.

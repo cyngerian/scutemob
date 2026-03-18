@@ -20,15 +20,18 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 603.1: Triggered — combat damage to player → optional mana payment → return.
-            // TODO: "you may pay {2}{B}" optional mana payment is not expressible as a trigger cost.
-            // The targeting + return from any GY is implemented; the conditional mana payment
-            // would need a Cost on triggered abilities or Effect::PayManaOrElse pattern.
-            // For now, the trigger fires unconditionally (conservative — always returns).
+            // DSL GAP (PB-10 Finding 5): "you may pay {2}{B}. If you do, ..." requires an optional
+            // mana payment on triggered abilities (Cost on triggers or Effect::PayManaOrElse), which
+            // does not exist in the DSL yet. The trigger fires unconditionally, returning a creature
+            // from any graveyard to the battlefield without the {2}{B} payment. This produces wrong
+            // game state — Teneb should only reanimate when the controller pays the additional cost.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Battlefield { tapped: false },
+                    // "under your control" — override controller to the Teneb owner.
+                    controller_override: Some(PlayerTarget::Controller),
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCardInGraveyard(TargetFilter {

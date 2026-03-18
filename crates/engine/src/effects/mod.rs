@@ -1333,7 +1333,11 @@ fn execute_effect_inner(
         }
 
         // ── Zone ──────────────────────────────────────────────────────────
-        Effect::MoveZone { target, to } => {
+        Effect::MoveZone {
+            target,
+            to,
+            controller_override,
+        } => {
             // MR-M7-04: resolve zone using owner PlayerTarget (not always controller).
             // MR-M7-01: emit destination-correct event instead of always ObjectExiled.
             let targets = resolve_effect_target_list_indexed(state, target, ctx);
@@ -1341,6 +1345,17 @@ fn execute_effect_inner(
                 if let ResolvedTarget::Object(id) = resolved {
                     let dest = resolve_zone_target(to, state, ctx);
                     if let Ok((new_id, _)) = state.move_object_to_zone(id, dest) {
+                        // Apply controller override for "under your control" effects (e.g. Reanimate).
+                        // move_object_to_zone always resets controller to owner; override after.
+                        if let Some(override_player_target) = controller_override {
+                            let override_players =
+                                resolve_player_target_list(state, override_player_target, ctx);
+                            if let (Some(new_obj), Some(&new_controller)) =
+                                (state.objects.get_mut(&new_id), override_players.first())
+                            {
+                                new_obj.controller = new_controller;
+                            }
+                        }
                         if let Some(idx) = idx_opt {
                             ctx.target_remaps.insert(idx, new_id);
                         }

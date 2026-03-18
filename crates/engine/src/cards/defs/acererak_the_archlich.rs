@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                     Effect::MoveZone {
                         target: EffectTarget::Source,
                         to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        controller_override: None,
                     },
                     // CR 701.49a-c: Venture into the dungeon.
                     Effect::VentureIntoDungeon,

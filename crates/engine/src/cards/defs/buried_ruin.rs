@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    controller_override: None,
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {

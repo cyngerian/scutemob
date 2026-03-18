@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     // TODO: should be owner of target, not caster — PlayerTarget::Controller
                     // is wrong in multiplayer when targeting opponent's permanent
                     to: ZoneTarget::Library { owner: PlayerTarget::Controller, position: LibraryPosition::ShuffledIn },
+                    controller_override: None,
                 },
                 // Shuffle is implicit with ShuffledIn position above
                 // TODO: DSL gap — reveal top card and conditionally put it onto the

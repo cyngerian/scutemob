@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                     to: ZoneTarget::Hand {
                         owner: PlayerTarget::Controller,
                     },
+                    controller_override: None,
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {

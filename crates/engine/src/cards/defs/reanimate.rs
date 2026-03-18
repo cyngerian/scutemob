@@ -14,12 +14,16 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Spell {
                 // CR 115.1: Target creature card in any graveyard.
                 // Moves target to battlefield under caster's control.
-                // TODO: "You lose life equal to its mana value" — needs EffectAmount::ManaValueOfTarget
-                // to express dynamic life loss. Defer to a future PB (dynamic target properties).
-                // The graveyard targeting + return is the PB-10 primitive.
+                // DSL GAP (PB-10 Finding 6): "You lose life equal to its mana value" requires
+                // EffectAmount::ManaValueOfTarget (or similar) to express dynamic life loss based on
+                // the reanimated card's converted mana cost. This variant does not exist yet.
+                // The life loss is omitted — produces wrong game state (no life penalty on reanimate).
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Battlefield { tapped: false },
+                    // "under your control" — CR 400.7 zone-change resets controller to owner,
+                    // so we override here to give the caster control of the reanimated creature.
+                    controller_override: Some(PlayerTarget::Controller),
                 },
                 targets: vec![TargetRequirement::TargetCardInGraveyard(TargetFilter {
                     has_card_type: Some(CardType::Creature),

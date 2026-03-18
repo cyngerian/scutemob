@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Battlefield { tapped: false },
+                    controller_override: None,
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {

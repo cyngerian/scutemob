@@ -5158,13 +5158,22 @@ pub(crate) fn validate_targets(
                     .get(id)
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
 
-                // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
-                super::validate_target_protection(
-                    &obj.characteristics.keywords,
-                    obj.controller,
-                    caster,
-                    source_chars,
-                )?;
+                // CR 702.11b / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
+                // These keyword abilities only apply to permanents on the battlefield (or spells
+                // on the stack for shroud). Cards in graveyard, exile, hand, library, and command
+                // zone do NOT have hexproof/shroud/protection for targeting purposes — those
+                // abilities are characteristic-defined but only enforced when the object is a
+                // permanent (battlefield) or spell (stack). CR 702.11b: "Hexproof on a permanent
+                // means this permanent can't be the target of spells or abilities your opponents
+                // control." Cards are not permanents; only battlefield objects are.
+                if matches!(obj.zone, ZoneId::Battlefield | ZoneId::Stack) {
+                    super::validate_target_protection(
+                        &obj.characteristics.keywords,
+                        obj.controller,
+                        caster,
+                        source_chars,
+                    )?;
+                }
 
                 // CR 601.2c: Validate the target satisfies the declared requirement.
                 if let Some(req) = req {

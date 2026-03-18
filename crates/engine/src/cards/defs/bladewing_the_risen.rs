@@ -31,10 +31,19 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Battlefield { tapped: false },
+                    controller_override: None,
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
                     has_subtypes: vec![SubType("Dragon".to_string())],
+                    // "permanent card" = has at least one permanent card type (CR 110.4a).
+                    has_card_types: vec![
+                        CardType::Creature,
+                        CardType::Artifact,
+                        CardType::Enchantment,
+                        CardType::Land,
+                        CardType::Planeswalker,
+                    ],
                     ..Default::default()
                 })],
             },

@@ -4203,10 +4203,15 @@ impl HashInto for Effect {
                 counter.hash_into(hasher);
                 count.hash_into(hasher);
             }
-            Effect::MoveZone { target, to } => {
+            Effect::MoveZone {
+                target,
+                to,
+                controller_override,
+            } => {
                 17u8.hash_into(hasher);
                 target.hash_into(hasher);
                 to.hash_into(hasher);
+                controller_override.hash_into(hasher);
             }
             Effect::SearchLibrary {
                 player,

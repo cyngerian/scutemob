@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    controller_override: None,
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter::default())],

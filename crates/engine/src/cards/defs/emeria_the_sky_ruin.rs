@@ -23,16 +23,19 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
             // CR 603.4: Upkeep trigger — if you control 7+ Plains, return creature from GY to BF.
-            // TODO: intervening_if needs Condition::YouControlNOrMorePermanentsWithSubtype { count: 7, subtype: Plains }
-            // which doesn't exist yet. The graveyard targeting is implemented; the count threshold
-            // condition is a separate DSL gap (deferred). Trigger fires unconditionally for now.
+            // DSL GAP (PB-10 Finding 4): "if you control seven or more Plains" is an intervening-if
+            // (CR 603.4) that needs Condition::YouControlNOrMorePermanentsWithSubtype { count: 7,
+            // subtype: "Plains" }, which does not exist yet. The graveyard targeting portion is
+            // implemented. The condition is deferred — trigger fires unconditionally for now,
+            // producing wrong game state (free reanimation every upkeep regardless of Plains count).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Battlefield { tapped: false },
+                    controller_override: None,
                 },
-                intervening_if: None, // TODO: Condition::YouControlNOrMorePermanentsWithSubtype
+                intervening_if: None, // TODO DSL gap: Condition::YouControlNOrMorePermanentsWithSubtype
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
                     has_card_type: Some(CardType::Creature),
                     ..Default::default()

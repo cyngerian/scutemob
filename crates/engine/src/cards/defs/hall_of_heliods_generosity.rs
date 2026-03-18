@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                         owner: PlayerTarget::Controller,
                         position: LibraryPosition::Top,
                     },
+                    controller_override: None,
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {

@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
                     to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    controller_override: None,
                 },
                 intervening_if: None,
                 targets: vec![],

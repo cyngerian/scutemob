@@ -14,7 +14,7 @@ use mtg_engine::state::turn::Step;
 use mtg_engine::state::{
     CardId, CardType, GameStateBuilder, ManaPool, ObjectSpec, PlayerId, SubType, Target, ZoneId,
 };
-use mtg_engine::{CardRegistry, GameState, ObjectId};
+use mtg_engine::{CardRegistry, GameState, KeywordAbility, ObjectId};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -71,6 +71,7 @@ fn return_from_gy_spell(
             effect: Effect::MoveZone {
                 target: EffectTarget::DeclaredTarget { index: 0 },
                 to,
+                controller_override: None,
             },
             targets: vec![target_req],
             modes: None,
@@ -832,6 +833,7 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
             effect: Effect::MoveZone {
                 target: EffectTarget::DeclaredTarget { index: 0 },
                 to: ZoneTarget::Exile,
+                controller_override: None,
             },
             targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
                 has_card_type: Some(CardType::Creature),
@@ -942,4 +944,208 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
         .values()
         .any(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Dead Bear");
     assert!(!bf_has_bear, "Dead Bear should NOT be on the battlefield");
+}
+
+// ---------------------------------------------------------------------------
+// CR 702.11b: Hexproof does not apply to cards in the graveyard (Finding 1)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 702.11b — Hexproof on a permanent applies only while it is on the battlefield.
+/// A creature with Hexproof in a graveyard can be freely targeted by opponent's spells.
+/// Before Finding 1 fix, validate_target_protection ran unconditionally and blocked this.
+fn test_702_11b_hexproof_in_graveyard_is_targetable() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // p2 will cast a reanimation spell targeting a hexproof creature in p1's graveyard.
+    let spell_def = return_from_gy_spell(
+        "Reanimate",
+        "reanimate_test",
+        TargetFilter {
+            has_card_type: Some(CardType::Creature),
+            ..Default::default()
+        },
+        ZoneTarget::Battlefield { tapped: false },
+        true, // any graveyard
+        false,
+    );
+    let spell_cid = spell_def.card_id.clone();
+    let registry = CardRegistry::new(vec![spell_def]);
+
+    let spell = ObjectSpec::card(p2, "Reanimate")
+        .with_card_id(spell_cid)
+        .with_types(vec![CardType::Sorcery])
+        .with_mana_cost(ManaCost {
+            black: 1,
+            ..ManaCost::default()
+        })
+        .in_zone(ZoneId::Hand(p2));
+
+    // Creature with Hexproof — in p1's graveyard. CR 702.11b: hexproof only applies on the
+    // battlefield. In the graveyard, this creature should be freely targetable by p2.
+    let dead_hexproof = ObjectSpec::creature(p1, "Dead Carnage Tyrant", 7, 6)
+        .with_keyword(KeywordAbility::Hexproof)
+        .in_zone(ZoneId::Graveyard(p1));
+
+    let state = GameStateBuilder::four_player()
+        .player_mana(
+            p2,
+            ManaPool {
+                black: 1,
+                ..ManaPool::default()
+            },
+        )
+        .active_player(p2)
+        .at_step(Step::PreCombatMain)
+        .object(spell)
+        .object(dead_hexproof)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let spell_id = *state
+        .zones
+        .get(&ZoneId::Hand(p2))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+    let creature_id = *state
+        .zones
+        .get(&ZoneId::Graveyard(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    // CR 702.11b: hexproof doesn't apply in the graveyard — p2 can target p1's hexproof creature.
+    let result = process_command(
+        state,
+        default_cast(p2, spell_id, vec![Target::Object(creature_id)]),
+    );
+    assert!(
+        result.is_ok(),
+        "Hexproof creature in graveyard SHOULD be targetable by opponents (CR 702.11b); \
+         hexproof only applies to permanents on the battlefield"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// "Under your control" — MoveZone controller_override (Finding 2)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// Finding 2 — Reanimate targeting opponent's graveyard creature puts it under the caster's control.
+/// Before the fix, move_object_to_zone reset controller to owner, giving the creature back to the
+/// opponent instead of the caster. The controller_override: Some(PlayerTarget::Controller) field
+/// now overrides this after the zone move.
+fn test_reanimate_from_opponent_gy_under_casters_control() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // p1 casts a "Reanimate" spell (any GY, under your control) targeting p2's creature.
+    let reanimate_def = CardDefinition {
+        name: "Reanimate".to_string(),
+        card_id: CardId("reanimate_ctrl_test".to_string()),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..ManaCost::default()
+        }),
+        types: TypeLine {
+            card_types: im::ordset![CardType::Sorcery],
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::MoveZone {
+                target: EffectTarget::DeclaredTarget { index: 0 },
+                to: ZoneTarget::Battlefield { tapped: false },
+                // "under your control" — override to give the caster control.
+                controller_override: Some(PlayerTarget::Controller),
+            },
+            targets: vec![TargetRequirement::TargetCardInGraveyard(TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            })],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+    let spell_cid = reanimate_def.card_id.clone();
+    let registry = CardRegistry::new(vec![reanimate_def]);
+
+    let spell = ObjectSpec::card(p1, "Reanimate")
+        .with_card_id(spell_cid)
+        .with_types(vec![CardType::Sorcery])
+        .with_mana_cost(ManaCost {
+            black: 1,
+            ..ManaCost::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    // p2 owns the Dragon; it's in p2's graveyard.
+    let dead_dragon =
+        ObjectSpec::creature(p2, "Stolen Dragon", 5, 5).in_zone(ZoneId::Graveyard(p2));
+
+    let state = GameStateBuilder::four_player()
+        .player_mana(
+            p1,
+            ManaPool {
+                black: 1,
+                ..ManaPool::default()
+            },
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(spell)
+        .object(dead_dragon)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let spell_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+    let creature_id = *state
+        .zones
+        .get(&ZoneId::Graveyard(p2))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    let (state, _) = process_command(
+        state,
+        default_cast(p1, spell_id, vec![Target::Object(creature_id)]),
+    )
+    .unwrap();
+
+    // Resolve: pass all priorities.
+    let turn_order = [p(1), p(2), p(3), p(4)];
+    let (state, _) = pass_all_four(state, turn_order);
+
+    // The dragon should be on the battlefield under p1's control (the caster), not p2's.
+    let dragon = state
+        .objects
+        .values()
+        .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Stolen Dragon");
+
+    assert!(
+        dragon.is_some(),
+        "Stolen Dragon should be on the battlefield after Reanimate"
+    );
+    let dragon = dragon.unwrap();
+    assert_eq!(
+        dragon.controller, p1,
+        "Stolen Dragon should be under p1's control (the caster), not p2's (the owner). \
+         Got controller={:?}",
+        dragon.controller
+    );
+    // Owner is still p2.
+    assert_eq!(dragon.owner, p2, "Stolen Dragon's owner should still be p2");
 }

@@ -1093,6 +1093,12 @@ pub enum Effect {
     MoveZone {
         target: EffectTarget,
         to: ZoneTarget,
+        /// If Some, override the controller of the destination object to this player.
+        /// Used for "under your control" reanimation effects (e.g. Reanimate, Teneb).
+        /// When None, controller defaults to owner as per normal zone-change rules.
+        /// Use `PlayerTarget::Controller` for "under your control" effects.
+        #[serde(default)]
+        controller_override: Option<PlayerTarget>,
     },
 
     // ── Library ─────────────────────────────────────────────────────────────

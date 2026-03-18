@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-8 retroactive review | ACTIVE | 2026-03-16 | Retroactive review PB-8 (cost reduction statics, 10 cards). 8/20 done. |
+| W6: Primitive + Card Authoring | W6-review: PB-10 retroactive review | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 11/20 done. Use `/implement-primitive --review-only PB-<N>`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,33 +23,40 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-16
+**Date**: 2026-03-17
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-7 review
+**Task**: W6-review — retroactive PB-9.5 review
 
 **Completed**:
-- PB-7 retroactive review (8/20): 29 count-based scaling cards — **fixed**
-  - 1M fixed: DevotionTo now counts hybrid/phyrexian mana symbols (CR 700.5)
-  - 3H fixed: Nykthos wrong Shrine subtype, Faeburrow Elder & Multani P/T None→0/0
-  - 1M fixed: Frodo oracle text replaced with actual card text
-  - 1L fixed: Toothy migrated to ..Default::default()
-  - 2L deferred: raw characteristics reads (systemic)
-- Review file: `memory/primitives/pb-review-7.md`
-- 2148 tests passing
-- Commit: 4ce344f
+- PB-9.5 retroactive review (11/20): Architecture cleanup, 0 cards — **fixed**
+  - 1M fixed: Added check_and_flush_triggers to ForetellCard, PlotCard, SuspendCard (engine.rs)
+  - 1L fixed: Updated gotchas-infra.md trigger flush documentation
+  - 1L deferred: combat.rs inline trigger flush (functionally correct)
+- Review file: `memory/primitives/pb-review-9.5.md`
+- 2152 tests passing
 
 **Next**:
-1. `/implement-primitive --review-only PB-8` (Cost reduction statics, 10 cards)
-2. Sequential through PB-9, PB-10, ... PB-18
+1. `/implement-primitive --review-only PB-10` (Return from zone effects, 8 cards)
+2. Sequential through PB-11, PB-12, ... PB-18
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
-- Pre-existing TUI compile warning in `parser.rs` (missing `progress` field on `DashboardData`)
-- Unstaged changes: `tools/tui/src/dashboard/` files, `.claude/skills/implement-primitive/SKILL.md`, `CLAUDE.md` (all pre-existing from prior sessions)
+- None known
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-17 — W6: PB-9.5 review
+- PB-9.5 retroactive review (11/20): Architecture cleanup, 0 cards — 1M 1L fixed; 1L deferred
+
+### 2026-03-17 — W6: PB-9 review
+- PB-9 retroactive review (10/20): 7 hybrid mana & X cost cards — 1H 5M fixed; 2M 7L deferred
+- Commit: 4132421
+
+### 2026-03-16 — W6: PB-8 review
+- PB-8 retroactive review (9/20): 10 cost reduction statics — 3M fixed; 4L deferred
+- Commit: 9a5ab65
 
 ### 2026-03-16 — W6: PB-7 review
 - PB-7 retroactive review (8/20): 29 count-based scaling cards — 3H 2M 1L fixed; 2L deferred

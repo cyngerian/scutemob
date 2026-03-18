@@ -653,6 +653,7 @@ impl GameStateBuilder {
                                 to: crate::cards::card_definition::ZoneTarget::Battlefield {
                                     tapped: false,
                                 },
+                                controller_override: None,
                             },
                             Effect::AddCounter {
                                 target: EffectTarget::Source,
@@ -688,6 +689,7 @@ impl GameStateBuilder {
                                 to: crate::cards::card_definition::ZoneTarget::Battlefield {
                                     tapped: false,
                                 },
+                                controller_override: None,
                             },
                             Effect::AddCounter {
                                 target: EffectTarget::Source,

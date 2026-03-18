@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    controller_override: None,
                 },
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
                     has_card_type: Some(CardType::Creature),
