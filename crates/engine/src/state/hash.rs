@@ -3820,6 +3820,8 @@ impl HashInto for EffectAmount {
                 target.hash_into(hasher);
                 counter.hash_into(hasher);
             }
+            // LastEffectCount (discriminant 9) — reads ctx.last_effect_count set by DestroyAll/ExileAll
+            EffectAmount::LastEffectCount => 9u8.hash_into(hasher),
         }
     }
 }
@@ -4425,6 +4427,31 @@ impl HashInto for Effect {
             }
             // Meld effect (discriminant 53) — CR 701.42
             Effect::Meld => 53u8.hash_into(hasher),
+            // CR 701.8: DestroyAll (discriminant 54)
+            Effect::DestroyAll {
+                filter,
+                cant_be_regenerated,
+            } => {
+                54u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                cant_be_regenerated.hash_into(hasher);
+            }
+            // CR 406.2: ExileAll (discriminant 55)
+            Effect::ExileAll { filter } => {
+                55u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            // CR 122: AddCounterAmount (discriminant 56) — dynamic count via EffectAmount
+            Effect::AddCounterAmount {
+                target,
+                counter,
+                count,
+            } => {
+                56u8.hash_into(hasher);
+                target.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }

@@ -48,9 +48,13 @@ pub fn card() -> CardDefinition {
                         // This mode has no effect when resolved (no-op placeholder).
                         Effect::Sequence(vec![]),
 
-                        // Mode 2 (+{3}{W}{W}): Destroy all creatures.
-                        Effect::DestroyPermanent {
-                            target: EffectTarget::AllCreatures,
+                        // Mode 2 (+{3}{W}{W}): Destroy all creatures (CR 701.8).
+                        Effect::DestroyAll {
+                            filter: TargetFilter {
+                                has_card_type: Some(CardType::Creature),
+                                ..Default::default()
+                            },
+                            cant_be_regenerated: false,
                         },
                     ],
                 }),

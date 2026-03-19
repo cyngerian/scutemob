@@ -3,15 +3,16 @@
   "metadata": {
     "id": "script_stack_145",
     "name": "Cleave — Path of Peril normal vs cleave cost",
-    "description": "Tests Path of Peril's Cleave mechanic (CR 702.148) in two sequential casts. Cast 1: p1 casts Path of Peril normally ({1}{B}{B}). Condition::WasCleaved is false — the if_false branch executes, destroying all creatures. Cast 2: p1 casts the second Path of Peril with the cleave cost ({4}{W}{B}) using the new 'cast_spell_cleave' harness action. Condition::WasCleaved is true — the if_true branch executes, destroying all creatures (p2 battlefield is already empty so nothing dies, but the cast and resolution succeed). Known card definition gap: the if_false branch uses AllPermanentsMatching(creature) which destroys ALL creatures regardless of mana value, not just those with mana value 2 or less as oracle text specifies. Script assertions reflect actual engine behavior.",
+    "description": "Tests Path of Peril's Cleave mechanic (CR 702.148) in two sequential casts. Cast 1: p1 casts Path of Peril normally ({1}{B}{B}). Condition::WasCleaved is false — the if_false branch executes, destroying only creatures with mana value <= 2 (the two Llanowar Elves). The two Bladetusk Boars (mana value 4) survive. Cast 2: p1 casts the second Path of Peril with the cleave cost ({4}{W}{B}) using the 'cast_spell_cleave' harness action. Condition::WasCleaved is true — the if_true branch (all creatures) executes, destroying the remaining Bladetusk Boars. Fixed in PB-19: path_of_peril.rs now uses DestroyAll { max_cmc: 2 } for the normal cast branch.",
     "cr_sections_tested": [
       "702.148a",
       "702.148b",
       "118.9",
       "601.2",
       "608.2",
-      "701.7a",
-      "704.5g",
+      "701.8a",
+      "702.12",
+      "202.3",
       "704.3",
       "116.3"
     ],
@@ -21,24 +22,15 @@
       "alternative-cost",
       "conditional-effect",
       "board-wipe",
-      "sorcery"
+      "sorcery",
+      "cmc-filter"
     ],
-    "confidence": "medium",
+    "confidence": "high",
     "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
-    "review_date": "2026-03-06",
-    "generation_notes": "Path of Peril (crates/engine/src/cards/defs/path_of_peril.rs): mana_cost {1}{B}{B}, Sorcery, Cleave {4}{W}{B}. Card definition uses AbilityDefinition::Keyword(KeywordAbility::Cleave), AbilityDefinition::Cleave { cost: ManaCost { generic: 4, white: 1, black: 1 } }, and AbilityDefinition::Spell { effect: Effect::Conditional { condition: Condition::WasCleaved, if_true: DestroyPermanent { target: AllCreatures }, if_false: DestroyPermanent { target: AllPermanentsMatching(creature) } }, targets: [] }.\n\nMana pool covers both casts: normal cast needs {1}{B}{B} (colorless:1, black:2), cleave cast needs {4}{W}{B} (colorless:4, white:1, black:1). Combined: colorless:5, white:1, black:3.\n\np2 starts with four creatures: two Llanowar Elves (1/1, mana value 1) and two Bladetusk Boar (3/2, mana value 4). After the normal cast (due to card def gap), all four die. p2 battlefield is empty for the cleave cast, so nothing is destroyed by cast 2 — this still validates that cast_spell_cleave resolves correctly.\n\nCard definition gap (if_false branch): oracle text 'Destroy all creatures [with mana value 2 or less]' — the square-bracketed restriction applies during normal cast only. TargetFilter lacks max_mana_value support, so if_false uses AllPermanentsMatching(creature) which destroys ALL creatures. Bladetusk Boar (mana value 4) should survive a normal cast but does not in the current engine.\n\nHarness: cast_spell_cleave was added to replay_harness.rs (CR 702.148a arm) — sets alt_cost: Some(AltCostKind::Cleave). Now fully executable.",
-    "disputes": [
-      {
-        "step_index": 0,
-        "action_index": null,
-        "raised_by": "claude-sonnet-4-6",
-        "description": "Card definition gap: path_of_peril.rs if_false branch uses AllPermanentsMatching(creature) instead of restricting to mana value <= 2. The oracle text 'Destroy all creatures [with mana value 2 or less]' should only destroy small creatures on a normal (non-cleaved) cast. TargetFilter lacks max_mana_value support, so the current engine destroys ALL creatures even on the normal cast — making both branches functionally identical. Script assertions reflect the actual (over-approximate) engine behavior. Bladetusk Boar (mana value 4) should survive the normal cast per CR 702.148a, but does not in the current engine. Fix: add max_mana_value: Option<u32> to TargetFilter.",
-        "resolution": null,
-        "resolved_by": null,
-        "resolved_date": null
-      }
-    ]
+    "review_date": "2026-03-19",
+    "generation_notes": "PB-19 fix: path_of_peril.rs now correctly uses DestroyAll { filter: { has_card_type: Creature, max_cmc: 2 }, cant_be_regenerated: false } for the if_false branch. Before PB-19, the if_false branch used AllPermanentsMatching(creature) which incorrectly destroyed all creatures regardless of mana value. The fix was made possible by TargetFilter.max_cmc (added in PB-17) and Effect::DestroyAll (added in PB-19). Updated assertions to reflect correct behavior: Bladetusk Boar (mana value 4 > 2) survives the normal cast; only Llanowar Elves (mana value 1 <= 2) die. The cleave cast then destroys the remaining Bladetusk Boars.",
+    "disputes": []
   },
   "initial_state": {
     "format": "commander",
@@ -93,7 +85,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "Cast 1: p1 casts Path of Peril normally ({1}{B}{B}) without cleave. Condition::WasCleaved is false — the if_false branch executes. Due to card definition gap, ALL four creatures on the battlefield are destroyed (should only destroy creatures with mana value <= 2 per oracle text).",
+      "step_note": "Cast 1: p1 casts Path of Peril normally ({1}{B}{B}) without cleave. Condition::WasCleaved is false — the if_false branch executes: DestroyAll { creature, max_cmc: 2 }. Only Llanowar Elves (mana value 1 <= 2) are destroyed. Bladetusk Boar (mana value 4 > 2) survives.",
       "actions": [
         {
           "type": "assert_state",
@@ -105,7 +97,7 @@
             "players.p2.life": 40,
             "zones.stack": { "is_empty": true }
           },
-          "note": "p1 has {colorless:5, white:1, black:3} in pool covering both casts. p2 controls 2x Llanowar Elves (mana value 1) and 2x Bladetusk Boar (mana value 4). Per CR 702.148a, normal cast should only destroy creatures with mana value <= 2 (the two Llanowar Elves), leaving the two Bladetusk Boars alive. Due to card def gap, all four die."
+          "note": "p1 has {colorless:5, white:1, black:3} covering both casts. p2 controls 2x Llanowar Elves (mana value 1) and 2x Bladetusk Boar (mana value 4)."
         },
         {
           "type": "player_action",
@@ -116,7 +108,7 @@
           "mana_paid": { "colorless": 1, "black": 2 },
           "mana_source": [],
           "cr_ref": "601.2",
-          "note": "CR 601.2: p1 casts Path of Peril paying the normal mana cost {1}{B}{B} (1 generic + 2 black). No alt_cost — this is a normal cast. Condition::WasCleaved will be false at resolution. CR 702.148a: cleave cost is NOT paid here."
+          "note": "CR 601.2: p1 casts Path of Peril paying the normal mana cost {1}{B}{B}. No alt_cost — this is a normal cast. Condition::WasCleaved will be false at resolution."
         },
         {
           "type": "assert_state",
@@ -125,7 +117,7 @@
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1
           },
-          "note": "Path of Peril is on the stack awaiting resolution with was_cleaved=false."
+          "note": "Path of Peril is on the stack with was_cleaved=false."
         },
         {
           "type": "priority_round",
@@ -139,15 +131,15 @@
           "resolution": [
             {
               "effect": "destroy_permanent",
-              "target": { "type": "all_creatures" },
+              "target": { "type": "all_creatures_max_cmc_2" },
               "amount": null,
               "card": null,
               "owner": null,
-              "cr_ref": "701.7a",
-              "note": "CR 702.148a + 701.7a: was_cleaved=false, Condition::WasCleaved takes the if_false branch. Per oracle text this should destroy only creatures with mana value <= 2 (the two Llanowar Elves), leaving the two Bladetusk Boars alive. Due to card definition gap (AllPermanentsMatching creature, no max_mana_value filter), all four creatures are destroyed."
+              "cr_ref": "701.8a",
+              "note": "CR 702.148a + 701.8a: was_cleaved=false, if_false branch executes: DestroyAll { creature, max_cmc: 2 }. Only Llanowar Elves (CMC 1) destroyed; Bladetusk Boar (CMC 4) spared per CR 202.3."
             }
           ],
-          "note": "CR 608.2: Path of Peril resolves. was_cleaved=false — Condition::WasCleaved selects if_false. All four creatures destroyed due to over-approximate AllPermanentsMatching(creature) effect. See dispute for card def gap."
+          "note": "CR 608.2: Path of Peril resolves. was_cleaved=false selects if_false (DestroyAll max_cmc:2). Two Llanowar Elves (mana value 1) are destroyed. Two Bladetusk Boars (mana value 4) survive because 4 > 2."
         },
         {
           "type": "sba_check",
@@ -155,60 +147,47 @@
             {
               "action": "creature_dies",
               "target": { "card": "Llanowar Elves", "controller": "p2" },
-              "cr_ref": "701.7a",
-              "note": "Llanowar Elves #1 destroyed by Path of Peril; moves to p2 graveyard."
+              "cr_ref": "701.8a",
+              "note": "Llanowar Elves #1 (CMC 1 <= 2) destroyed by Path of Peril normal cast; moves to p2 graveyard."
             },
             {
               "action": "creature_dies",
               "target": { "card": "Llanowar Elves", "controller": "p2" },
-              "cr_ref": "701.7a",
-              "note": "Llanowar Elves #2 destroyed by Path of Peril; moves to p2 graveyard."
-            },
-            {
-              "action": "creature_dies",
-              "target": { "card": "Bladetusk Boar", "controller": "p2" },
-              "cr_ref": "701.7a",
-              "note": "Bladetusk Boar #1 destroyed by Path of Peril; moves to p2 graveyard. Note: should survive a normal (non-cleaved) cast per oracle text — engine gap."
-            },
-            {
-              "action": "creature_dies",
-              "target": { "card": "Bladetusk Boar", "controller": "p2" },
-              "cr_ref": "701.7a",
-              "note": "Bladetusk Boar #2 destroyed by Path of Peril; moves to p2 graveyard. Note: should survive a normal (non-cleaved) cast per oracle text — engine gap."
+              "cr_ref": "701.8a",
+              "note": "Llanowar Elves #2 (CMC 1 <= 2) destroyed by Path of Peril normal cast; moves to p2 graveyard."
             }
           ],
-          "note": "CR 704.3: SBAs checked after resolution. All four creatures were destroyed by the DestroyPermanent effect. Bladetusk Boar deaths are an engine gap — they should survive the normal cast."
+          "note": "CR 704.3: SBAs checked. Only the two Llanowar Elves died. Bladetusk Boars (CMC 4 > 2) remain on battlefield per the max_cmc filter."
         },
         {
           "type": "assert_state",
-          "description": "After normal cast resolution: all four creatures destroyed and in p2 graveyard; first Path of Peril in p1 graveyard; p1 has 1 Path of Peril in hand",
+          "description": "After normal cast resolution: two Llanowar Elves destroyed in p2 graveyard; two Bladetusk Boars still on p2 battlefield; first Path of Peril in p1 graveyard; p1 has 1 Path of Peril in hand",
           "assertions": {
             "zones.stack": { "is_empty": true },
-            "zones.battlefield.p2.count": 0,
+            "zones.battlefield.p2.count": 2,
             "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
             "zones.graveyard.p1": { "includes": [{ "card": "Path of Peril" }] },
             "zones.hand.p1.count": 1,
             "players.p1.life": 40,
             "players.p2.life": 40
           },
-          "note": "All four creatures destroyed due to card def gap (AllPermanentsMatching creature over-approximates). Per correct CR 702.148a behavior, only the two Llanowar Elves (mana value 1, which is <= 2) should die; both Bladetusk Boars (mana value 4, which is > 2) should survive. See dispute."
+          "note": "CR 702.148a + CR 202.3: Normal (non-cleaved) cast only destroyed creatures with mana value <= 2 (the two Llanowar Elves). Bladetusk Boar (mana value 4) correctly survives. PB-19 fix: path_of_peril.rs if_false branch now uses DestroyAll { max_cmc: 2 }."
         }
       ]
     },
     {
       "step": "precombat_main",
-      "step_note": "Cast 2: p1 casts Path of Peril with the cleave cost ({4}{W}{B}) using cast_spell_cleave. Condition::WasCleaved is true — the if_true branch (AllCreatures) executes. p2 battlefield is empty so nothing dies, but the cast and resolution succeed, confirming the cleave mechanic works.",
+      "step_note": "Cast 2: p1 casts Path of Peril with the cleave cost ({4}{W}{B}) using cast_spell_cleave. Condition::WasCleaved is true — the if_true branch (destroy all creatures, no restriction) executes, destroying the remaining 2 Bladetusk Boars on p2 battlefield.",
       "actions": [
         {
           "type": "assert_state",
-          "description": "Before cleave cast: p1 has 1 Path of Peril in hand; p2 battlefield empty; stack empty",
+          "description": "Before cleave cast: p1 has 1 Path of Peril in hand; p2 has 2 Bladetusk Boars on battlefield (survived first cast); stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p2.count": 0,
+            "zones.battlefield.p2.count": 2,
             "zones.stack": { "is_empty": true }
           },
-          "note": "p1 still has the second Path of Peril. Remaining mana pool covers the cleave cost {4}{W}{B} (colorless:4, white:1, black:1)."
+          "note": "p1 still has the second Path of Peril. Remaining mana covers the cleave cost {4}{W}{B} (colorless:4, white:1, black:1). Two Bladetusk Boars remain from the first cast."
         },
         {
           "type": "player_action",
@@ -219,7 +198,7 @@
           "mana_paid": { "colorless": 4, "white": 1, "black": 1 },
           "mana_source": [],
           "cr_ref": "702.148a",
-          "note": "CR 702.148a: p1 pays the cleave cost {4}{W}{B} (4 generic + 1 white + 1 black) as an alternative cost (CR 118.9). The harness arm 'cast_spell_cleave' calls Command::CastSpell { alt_cost: Some(AltCostKind::Cleave), ... }. The resulting stack object has was_cleaved=true, so the bracketed text '[with mana value 2 or less]' is removed — Condition::WasCleaved will select if_true (AllCreatures) at resolution."
+          "note": "CR 702.148a: p1 pays the cleave cost {4}{W}{B} as an alternative cost (CR 118.9). was_cleaved=true — the if_true branch will select DestroyAll { creature } (no CMC restriction) at resolution."
         },
         {
           "type": "assert_state",
@@ -246,24 +225,43 @@
               "amount": null,
               "card": null,
               "owner": null,
-              "cr_ref": "701.7a",
-              "note": "CR 702.148a + 701.7a: was_cleaved=true, Condition::WasCleaved takes the if_true branch: DestroyPermanent { target: AllCreatures }. p2 battlefield is empty — no creatures to destroy. Resolution completes with no visible effect."
+              "cr_ref": "701.8a",
+              "note": "CR 702.148a + 701.8a: was_cleaved=true, if_true branch executes: DestroyAll { creature } (no CMC restriction). Both Bladetusk Boars are destroyed."
             }
           ],
-          "note": "CR 608.2: Cleaved Path of Peril resolves. was_cleaved=true — Condition::WasCleaved selects if_true (AllCreatures). p2 battlefield is empty so nothing is destroyed. Card goes to p1 graveyard."
+          "note": "CR 608.2: Cleaved Path of Peril resolves. was_cleaved=true — Condition::WasCleaved selects if_true (all creatures, no CMC filter). Both Bladetusk Boars (CMC 4) are destroyed."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": { "card": "Bladetusk Boar", "controller": "p2" },
+              "cr_ref": "701.8a",
+              "note": "Bladetusk Boar #1 destroyed by cleaved Path of Peril; moves to p2 graveyard."
+            },
+            {
+              "action": "creature_dies",
+              "target": { "card": "Bladetusk Boar", "controller": "p2" },
+              "cr_ref": "701.8a",
+              "note": "Bladetusk Boar #2 destroyed by cleaved Path of Peril; moves to p2 graveyard."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked. Both Bladetusk Boars destroyed by the cleaved cast."
         },
         {
           "type": "assert_state",
-          "description": "Final state: stack empty; hand empty; p1 graveyard has 2x Path of Peril; p2 battlefield still empty; both players at 40 life",
+          "description": "Final state: stack empty; hand empty; p1 graveyard has 2x Path of Peril; p2 graveyard has 2x Llanowar Elves and 2x Bladetusk Boar; both players at 40 life",
           "assertions": {
             "zones.stack": { "is_empty": true },
             "zones.hand.p1.count": 0,
             "zones.battlefield.p2.count": 0,
             "zones.graveyard.p1": { "includes": [{ "card": "Path of Peril" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
-          "note": "Both Path of Peril casts have resolved. The cleave cast (was_cleaved=true) confirms Condition::WasCleaved branching works. No creatures were on the battlefield during cast 2 so the AllCreatures destroy had no targets to act on. CR 702.148a validated: cleave cost pays as an alternative cost producing a different resolution branch."
+          "note": "Both casts resolved correctly. Normal cast destroyed only creatures with CMC <= 2 (Llanowar Elves). Cleaved cast destroyed all remaining creatures (Bladetusk Boars). CR 702.148a fully validated: cleave cost changes the effect scope from a CMC-restricted filter to an unrestricted all-creatures destroy."
         }
       ]
     }

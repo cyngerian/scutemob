@@ -19,9 +19,25 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // TODO: {2},{T}, Sacrifice a Desert: Exile all graveyards — PB-19 (mass exile)
-            // Cost: Cost::Sacrifice(TargetFilter { has_subtype: Desert }) available
-            // Blocked on exile-all-graveyards effect (no Effect::ExileAllGraveyards)
+            // CR 406.2: {2}, {T}, Sacrifice a Desert: Exile all cards from all graveyards.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Tap,
+                    Cost::Sacrifice(TargetFilter {
+                        has_subtype: Some(SubType("Desert".to_string())),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachCardInAllGraveyards,
+                    effect: Box::new(Effect::ExileObject {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

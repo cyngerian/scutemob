@@ -92,6 +92,10 @@ pub struct EffectContext {
     /// CR 702.174a: The opponent chosen to receive the gift.
     /// Set from `StackObject.gift_opponent` at spell resolution.
     pub gift_opponent: Option<crate::state::PlayerId>,
+    /// Count of permanents actually destroyed or exiled by the most recent DestroyAll/ExileAll.
+    /// Written by `Effect::DestroyAll` and `Effect::ExileAll`; read by `EffectAmount::LastEffectCount`.
+    /// Used for follow-up effects like Fumigate ("gain 1 life for each creature destroyed this way").
+    pub last_effect_count: u32,
 }
 
 impl EffectContext {
@@ -110,6 +114,7 @@ impl EffectContext {
             x_value: 0,
             gift_was_given: false,
             gift_opponent: None,
+            last_effect_count: 0,
         }
     }
 
@@ -133,6 +138,7 @@ impl EffectContext {
             x_value: 0,
             gift_was_given: false,
             gift_opponent: None,
+            last_effect_count: 0,
         }
     }
 
@@ -775,6 +781,284 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.8: Destroy all permanents matching the filter.
+        // CR 702.12b: Indestructible permanents are skipped.
+        // CR 701.19c: cant_be_regenerated=true bypasses regeneration shields.
+        Effect::DestroyAll {
+            filter,
+            cant_be_regenerated,
+        } => {
+            // Snapshot the list of matching objects BEFORE any destructions
+            // (CR 701.8: all checks happen against the pre-resolution game state).
+            let ids_to_destroy: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(_, obj)| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && matches_filter(&obj.characteristics, filter)
+                        && match filter.controller {
+                            TargetController::Any => true,
+                            TargetController::You => obj.controller == ctx.controller,
+                            TargetController::Opponent => obj.controller != ctx.controller,
+                        }
+                })
+                .map(|(&id, _)| id)
+                .collect();
+
+            let mut destroyed_count: u32 = 0;
+
+            for id in ids_to_destroy {
+                // CR 702.12b: Indestructible permanents can't be destroyed.
+                let indestructible = state
+                    .objects
+                    .get(&id)
+                    .map(|o| {
+                        o.characteristics
+                            .keywords
+                            .contains(&KeywordAbility::Indestructible)
+                    })
+                    .unwrap_or(false);
+                if indestructible {
+                    continue;
+                }
+
+                // CR 701.19c: If cant_be_regenerated, skip regeneration shields.
+                if !cant_be_regenerated {
+                    if let Some(shield_id) =
+                        crate::rules::replacement::check_regeneration_shield(state, id)
+                    {
+                        let regen_events =
+                            crate::rules::replacement::apply_regeneration(state, id, shield_id);
+                        events.extend(regen_events);
+                        continue;
+                    }
+                }
+
+                // CR 702.89a: Check umbra armor — Aura saves the enchanted permanent.
+                {
+                    let auras = crate::rules::replacement::check_umbra_armor(state, id);
+                    if !auras.is_empty() {
+                        let aura_id = auras[0];
+                        let umbra_events =
+                            crate::rules::replacement::apply_umbra_armor(state, id, aura_id);
+                        events.extend(umbra_events);
+                        continue;
+                    }
+                }
+
+                let (card_types, owner, pre_death_controller, pre_death_counters) = state
+                    .objects
+                    .get(&id)
+                    .map(|o| {
+                        (
+                            o.characteristics.card_types.clone(),
+                            o.owner,
+                            o.controller,
+                            o.counters.clone(),
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        (
+                            Default::default(),
+                            ctx.controller,
+                            ctx.controller,
+                            Default::default(),
+                        )
+                    });
+
+                // CR 614: Check replacement effects before moving to graveyard.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    id,
+                    ZoneType::Battlefield,
+                    ZoneType::Graveyard,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                            match dest {
+                                ZoneId::Exile => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: owner,
+                                        object_id: id,
+                                        new_exile_id: new_id,
+                                    });
+                                    destroyed_count += 1;
+                                }
+                                ZoneId::Command(_) => {
+                                    // Commander redirected — no destruction event.
+                                    // Does not count as destroyed (CR 701.8b).
+                                }
+                                _ => {
+                                    if card_types.contains(&CardType::Creature) {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: id,
+                                            new_grave_id: new_id,
+                                            controller: pre_death_controller,
+                                            pre_death_counters: pre_death_counters.clone(),
+                                        });
+                                    } else {
+                                        events.push(GameEvent::PermanentDestroyed {
+                                            object_id: id,
+                                            new_grave_id: new_id,
+                                        });
+                                    }
+                                    destroyed_count += 1;
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        use crate::state::replacement_effect::PendingZoneChange;
+                        state.pending_zone_changes.push_back(PendingZoneChange {
+                            object_id: id,
+                            original_from: ZoneType::Battlefield,
+                            original_destination: ZoneType::Graveyard,
+                            affected_player: player,
+                            already_applied: Vec::new(),
+                        });
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        if let Ok((new_id, _old)) =
+                            state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                        {
+                            if card_types.contains(&CardType::Creature) {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: id,
+                                    new_grave_id: new_id,
+                                    controller: pre_death_controller,
+                                    pre_death_counters: pre_death_counters.clone(),
+                                });
+                            } else {
+                                events.push(GameEvent::PermanentDestroyed {
+                                    object_id: id,
+                                    new_grave_id: new_id,
+                                });
+                            }
+                            destroyed_count += 1;
+                        }
+                    }
+                }
+            }
+
+            ctx.last_effect_count = destroyed_count;
+        }
+
+        // CR 406.2: Exile all permanents matching the filter.
+        // Stores count in ctx.last_effect_count for follow-up effects.
+        Effect::ExileAll { filter } => {
+            // Snapshot matching objects before any exiles.
+            let ids_to_exile: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(_, obj)| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && matches_filter(&obj.characteristics, filter)
+                        && match filter.controller {
+                            TargetController::Any => true,
+                            TargetController::You => obj.controller == ctx.controller,
+                            TargetController::Opponent => obj.controller != ctx.controller,
+                        }
+                })
+                .map(|(&id, _)| id)
+                .collect();
+
+            let mut exiled_count: u32 = 0;
+
+            for id in ids_to_exile {
+                let owner = state
+                    .objects
+                    .get(&id)
+                    .map(|o| o.owner)
+                    .unwrap_or(ctx.controller);
+
+                // CR 614: Check replacement effects before exiling.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    id,
+                    ZoneType::Battlefield,
+                    ZoneType::Exile,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                            match dest {
+                                ZoneId::Command(_) => {
+                                    // Commander redirected — no exile event.
+                                }
+                                _ => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: ctx.controller,
+                                        object_id: id,
+                                        new_exile_id: new_id,
+                                    });
+                                    exiled_count += 1;
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        use crate::state::replacement_effect::PendingZoneChange;
+                        state.pending_zone_changes.push_back(PendingZoneChange {
+                            object_id: id,
+                            original_from: ZoneType::Battlefield,
+                            original_destination: ZoneType::Exile,
+                            affected_player: player,
+                            already_applied: Vec::new(),
+                        });
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, ZoneId::Exile) {
+                            events.push(GameEvent::ObjectExiled {
+                                player: ctx.controller,
+                                object_id: id,
+                                new_exile_id: new_id,
+                            });
+                            exiled_count += 1;
+                        }
+                    }
+                }
+            }
+
+            ctx.last_effect_count = exiled_count;
+        }
+
         Effect::ExileObject { target } => {
             let targets = resolve_effect_target_list_indexed(state, target, ctx);
             for (idx_opt, resolved) in targets {
@@ -1138,6 +1422,43 @@ fn execute_effect_inner(
                                 counter: counter.clone(),
                                 count: modified_count,
                             });
+                        }
+                    }
+                }
+            }
+        }
+
+        // CR 122: Add N counters to a target where N is an EffectAmount (e.g. LastEffectCount).
+        Effect::AddCounterAmount {
+            target,
+            counter,
+            count,
+        } => {
+            let counter = counter.clone();
+            let count = resolve_amount(state, count, ctx).max(0) as u32;
+            if count > 0 {
+                let targets = resolve_effect_target_list(state, target, ctx);
+                for resolved in targets {
+                    if let ResolvedTarget::Object(id) = resolved {
+                        let (modified_count, repl_events) =
+                            crate::rules::replacement::apply_counter_replacement(
+                                state,
+                                ctx.controller,
+                                id,
+                                &counter,
+                                count,
+                            );
+                        events.extend(repl_events);
+                        if modified_count > 0 {
+                            if let Some(obj) = state.objects.get_mut(&id) {
+                                let cur = obj.counters.get(&counter).copied().unwrap_or(0);
+                                obj.counters.insert(counter.clone(), cur + modified_count);
+                                events.push(GameEvent::CounterAdded {
+                                    object_id: id,
+                                    counter: counter.clone(),
+                                    count: modified_count,
+                                });
+                            }
                         }
                     }
                 }
@@ -1713,6 +2034,7 @@ fn execute_effect_inner(
                             x_value: ctx.x_value,
                             gift_was_given: ctx.gift_was_given,
                             gift_opponent: ctx.gift_opponent,
+                            last_effect_count: ctx.last_effect_count,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1737,6 +2059,7 @@ fn execute_effect_inner(
                             x_value: ctx.x_value,
                             gift_was_given: ctx.gift_was_given,
                             gift_opponent: ctx.gift_opponent,
+                            last_effect_count: ctx.last_effect_count,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -3227,6 +3550,11 @@ fn resolve_effect_target_list_indexed(
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && matches_filter(&obj.characteristics, filter)
+                    && match filter.controller {
+                        TargetController::Any => true,
+                        TargetController::You => obj.controller == ctx.controller,
+                        TargetController::Opponent => obj.controller != ctx.controller,
+                    }
             })
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
             .collect(),
@@ -3583,6 +3911,9 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .next()
                 .unwrap_or(0)
         }
+        // Reads the count of permanents actually destroyed/exiled by the preceding
+        // DestroyAll or ExileAll effect (stored in ctx.last_effect_count).
+        EffectAmount::LastEffectCount => ctx.last_effect_count as i32,
     }
 }
 

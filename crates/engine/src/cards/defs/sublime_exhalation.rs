@@ -14,10 +14,14 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 702.125a: Undaunted keyword marker.
             AbilityDefinition::Keyword(KeywordAbility::Undaunted),
-            // Spell effect: destroy all creatures.
+            // CR 701.8: Destroy all creatures.
             AbilityDefinition::Spell {
-                effect: Effect::DestroyPermanent {
-                    target: EffectTarget::AllCreatures,
+                effect: Effect::DestroyAll {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
+                    cant_be_regenerated: false,
                 },
                 targets: vec![],
                 modes: None,

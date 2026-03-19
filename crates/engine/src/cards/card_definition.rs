@@ -1003,6 +1003,19 @@ pub enum Effect {
     Investigate { count: EffectAmount },
     /// CR 701.7: Destroy a permanent (does not apply to indestructible).
     DestroyPermanent { target: EffectTarget },
+    /// CR 701.8: Destroy all permanents on the battlefield matching the filter.
+    /// Respects indestructible (CR 702.12), regeneration (CR 701.19), and umbra armor (CR 702.89a).
+    /// Stores the count of actually-destroyed permanents in ctx.last_effect_count
+    /// for use by EffectAmount::LastEffectCount (e.g. Fumigate, Bane of Progress).
+    DestroyAll {
+        filter: TargetFilter,
+        /// CR 701.19c: If true, regeneration shields are not applied.
+        /// Used by Wrath of God, Damnation, etc.
+        cant_be_regenerated: bool,
+    },
+    /// CR 406.2: Exile all permanents on the battlefield matching the filter.
+    /// Stores the count of actually-exiled permanents in ctx.last_effect_count.
+    ExileAll { filter: TargetFilter },
     /// CR 701.5: Put an object into exile.
     ExileObject { target: EffectTarget },
     /// CR 701.5: Counter a spell or ability on the stack.
@@ -1054,6 +1067,14 @@ pub enum Effect {
         target: EffectTarget,
         counter: CounterType,
         count: u32,
+    },
+    /// CR 122: Add N counters to a target permanent, where N is determined dynamically
+    /// (e.g., via EffectAmount::LastEffectCount for "put a counter for each permanent
+    /// destroyed this way"). For static counts, prefer AddCounter.
+    AddCounterAmount {
+        target: EffectTarget,
+        counter: CounterType,
+        count: EffectAmount,
     },
     /// CR 122: Remove counters from a permanent or player.
     RemoveCounter {
@@ -1478,6 +1499,10 @@ pub enum EffectAmount {
         target: EffectTarget,
         counter: CounterType,
     },
+    /// The count of permanents affected by the preceding DestroyAll/ExileAll (stored in ctx).
+    /// Used for "gain 1 life for each creature destroyed this way" (Fumigate),
+    /// "put a +1/+1 counter for each permanent destroyed" (Bane of Progress), etc.
+    LastEffectCount,
 }
 
 // ── Target Requirements ───────────────────────────────────────────────────────

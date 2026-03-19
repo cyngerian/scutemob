@@ -21,19 +21,21 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Conditional {
                     condition: Condition::WasCleaved,
                     // Cleaved: destroy ALL creatures (no restriction)
-                    if_true: Box::new(Effect::DestroyPermanent {
-                        target: EffectTarget::AllCreatures,
-                    }),
-                    // Normal cast: destroy all creatures with mana value 2 or less
-                    // TODO: TargetFilter lacks max_mana_value field; AllPermanentsMatching
-                    // only filters by creature type, not mana value. This over-approximates
-                    // by destroying ALL creatures when cast normally. A proper implementation
-                    // requires adding `max_mana_value: Option<u32>` to TargetFilter.
-                    if_false: Box::new(Effect::DestroyPermanent {
-                        target: EffectTarget::AllPermanentsMatching(TargetFilter {
+                    if_true: Box::new(Effect::DestroyAll {
+                        filter: TargetFilter {
                             has_card_type: Some(CardType::Creature),
                             ..Default::default()
-                        }),
+                        },
+                        cant_be_regenerated: false,
+                    }),
+                    // Normal cast: destroy all creatures with mana value 2 or less (CR 202.3)
+                    if_false: Box::new(Effect::DestroyAll {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            max_cmc: Some(2),
+                            ..Default::default()
+                        },
+                        cant_be_regenerated: false,
                     }),
                 },
                 targets: vec![],

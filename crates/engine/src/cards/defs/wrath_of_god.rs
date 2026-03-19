@@ -10,11 +10,13 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Destroy all creatures. They can't be regenerated.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            effect: Effect::ForEach {
-                over: ForEachTarget::EachCreature,
-                effect: Box::new(Effect::DestroyPermanent {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                }),
+            // CR 701.8: Destroy all creatures. CR 701.19c: can't be regenerated.
+            effect: Effect::DestroyAll {
+                filter: TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                },
+                cant_be_regenerated: true,
             },
             targets: vec![],
             modes: None,
