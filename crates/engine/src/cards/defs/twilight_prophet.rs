@@ -1,6 +1,15 @@
 // Twilight Prophet — {2}{B}{B}, Creature — Vampire Cleric 2/4
 // Flying, Ascend; upkeep trigger (with city's blessing): reveal top, draw it, opponents lose X, gain X
-// TODO: Upkeep drain trigger requires reveal-top + mana-value-based DrainLife — DSL gap
+//
+// TODO: Upkeep trigger conditioned on HasCitysBlessing requires:
+//   1. TriggerCondition::AtBeginningOfYourUpkeep — EXISTS in DSL
+//   2. intervening_if: Some(Condition::HasCitysBlessing) — EXISTS in DSL
+//   3. Reveal top card and draw it — DrawCards EXISTS; reveal effect is cosmetic (no enforced reveal)
+//   4. "Each opponent loses X life and you gain X life where X is that card's mana value" —
+//      BLOCKED: no way to reference the mana value of "the card just drawn". EffectAmount::ManaValueOf
+//      takes an EffectTarget, but there is no EffectTarget::LastDrawnCard or similar. The drawn
+//      card's identity is not tracked in EffectContext. DSL gap.
+//   Full implementation deferred until EffectAmount::ManaValueOfLastDrawnCard or equivalent is added.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

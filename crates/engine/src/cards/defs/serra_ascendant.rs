@@ -4,10 +4,14 @@
 //
 // Lifelink is implemented.
 //
-// TODO: DSL gap — "as long as you have 30 or more life, this creature gets +5/+5 and has
-// flying" is a conditional static ability. EffectDuration has no "while condition X" variant,
-// so there is no way to register a P/T modify + Flying grant that is active only while
-// the controller's life total is >= 30. Omitted.
+// TODO: "As long as you have 30 or more life, this creature gets +5/+5 and has flying" —
+// conditional static ability. Condition::ControllerLifeAtLeast(30) EXISTS in the Condition enum
+// and InterveningIf enum, but there is no EffectDuration variant for "while condition X holds".
+// EffectDuration has: WhileSourceOnBattlefield, UntilEndOfTurn, Indefinite, WhilePaired.
+// No "WhileCondition(Condition)" variant exists. DSL gap.
+// Also, a +5/+5 PtModify + Flying Ability grant would require TWO ContinuousEffectDef entries
+// under a single conditional static, which AbilityDefinition::Static does not support.
+// Full implementation deferred until EffectDuration::WhileCondition is added to the layer system.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

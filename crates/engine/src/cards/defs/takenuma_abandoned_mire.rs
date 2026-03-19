@@ -19,23 +19,32 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // Channel — {3}{B}, Discard this card: Mill 3, then return creature/planeswalker from GY.
-            // Implementing the mill portion; return-from-graveyard is a separate effect.
-            // TODO: "return a creature or planeswalker card from your graveyard to your hand" —
-            //       requires MoveZone from graveyard with multi-type filter (creature OR planeswalker).
-            //       Deterministic fallback would pick first matching card. Using mill-only for now.
+            // Channel — {3}{B}, Discard this card: Mill 3, then return creature/planeswalker
+            // from graveyard to hand. Deterministic fallback picks highest-ObjectId matching card.
             // TODO: Cost reduction — {1} less per legendary creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 3, black: 1, ..Default::default() }),
                     Cost::DiscardSelf,
                 ]),
-                effect: Effect::MillCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(3),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::MillCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(3),
+                    },
+                    // CR 701.13: "return a creature or planeswalker card from your graveyard to
+                    // your hand" — uses has_card_types (OR semantics) for multi-type filter.
+                    Effect::MoveZone {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        controller_override: None,
+                    },
+                ]),
                 timing_restriction: None,
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                    ..Default::default()
+                })],
             },
         ],
         ..Default::default()

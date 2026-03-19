@@ -19,7 +19,10 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // Channel — {2}{W}, Discard this card: 4 damage to target creature.
-            // TODO: Target filter should restrict to "attacking or blocking creature".
+            // TODO: Target filter should restrict to "attacking or blocking creature" —
+            //   requires TargetFilter.is_attacking/is_blocking flags (combat state query).
+            //   DSL gap: TargetFilter has no field to constrain to attacking/blocking status.
+            //   Using TargetCreature as approximation (overly broad — can target non-combatants).
             // TODO: Cost reduction — {1} less per legendary creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![

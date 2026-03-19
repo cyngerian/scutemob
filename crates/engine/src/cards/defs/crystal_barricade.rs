@@ -19,7 +19,13 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Defender),
             // CR 702.11d: "You have hexproof" — controller can't be targeted by opponents.
             AbilityDefinition::Keyword(KeywordAbility::HexproofPlayer),
-            // TODO: prevent noncombat damage to other creatures you control
+            // TODO: "Prevent all noncombat damage that would be dealt to other creatures you
+            // control" — requires a global replacement effect filtering on damage source type
+            // (combat vs. noncombat) and target (other creatures controller controls).
+            // DSL gap: ReplacementTrigger has no variant for noncombat damage prevention.
+            // Existing replacements (DamagePreventionReplacement) are not implemented in
+            // card_definition.rs AbilityDefinition::Replacement yet for blanket prevention.
+            // Deferred until damage prevention replacement effects are added to the DSL.
         ],
         ..Default::default()
     }

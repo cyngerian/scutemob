@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
              Dredge 6 (If you would draw a card, you may mill six cards instead. If you do, return this card from your graveyard to your hand.)"
                 .to_string(),
         power: Some(0),
-        toughness: Some(4),
+        toughness: Some(0),
         abilities: vec![
             // CR 702.52a: Dredge 6 marker — checked in drawing logic to offer the
             // draw-replacement option when this card is in its owner's graveyard.

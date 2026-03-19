@@ -19,9 +19,9 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // Channel — {3}{U}, Discard this card: Return target permanent to owner's hand.
-            // TODO: Target filter should restrict to "artifact, creature, enchantment, or planeswalker"
-            //       (excludes lands). Using TargetPermanent as approximation.
+            // Channel — {3}{U}, Discard this card: Return target non-land permanent to
+            // owner's hand. "artifact, creature, enchantment, or planeswalker" = any permanent
+            // that is not a land. Using non_land filter to approximate (excludes lands).
             // TODO: Cost reduction — {1} less per legendary creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -34,7 +34,10 @@ pub fn card() -> CardDefinition {
                     controller_override: None,
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    non_land: true,
+                    ..Default::default()
+                })],
             },
         ],
         ..Default::default()

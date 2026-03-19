@@ -1,8 +1,18 @@
 // 74. Wayward Swordtooth — {2}{G}, Creature — Dinosaur 5/5;
 // Ascend. You may play an additional land on each of your turns.
 // Wayward Swordtooth can't attack or block unless you have the city's blessing.
-// (Additional land play and attack/block restriction noted in oracle_text;
-// Ascend keyword fully modeled.)
+//
+// Ascend keyword fully modeled.
+//
+// TODO: "You may play an additional land on each of your turns" — requires an
+// AdditionalLandPlay static effect that increments the per-turn land play allowance.
+// DSL gap: no AbilityDefinition or LayerModification for extra land plays.
+//
+// TODO: "can't attack or block unless you have the city's blessing" — requires either:
+// (a) Condition::Not(Box::new(Condition::HasCitysBlessing)) on an attack/block restriction
+//     static, or (b) enforcement in legal_actions.rs checking controller's has_citys_blessing.
+// DSL gap: no AbilityDefinition::Static for attack/block restrictions conditioned on
+// a game state predicate. PB-18 stax restrictions gate on PermanentFilter, not Condition.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

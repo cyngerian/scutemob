@@ -3,8 +3,12 @@
 // Channel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic
 //   land an opponent controls. That player may search for land with basic land type,
 //   put onto battlefield, shuffle. This ability costs {1} less per legendary creature you control.
-// TODO: Target filter should restrict to "artifact, enchantment, or nonbasic land an opponent
-//   controls" — using TargetPermanent as approximation.
+// Partial: target filter uses controller:Opponent. "artifact OR enchantment OR nonbasic land"
+// requires expressing multi-type OR with a nonbasic-land exclusion — DSL gap (TargetFilter
+// can express opponent control via TargetController::Opponent but cannot combine multiple
+// card type alternatives with a "nonbasic" land variant in a single filter).
+// TODO: Target filter should restrict to "artifact, enchantment, or nonbasic land" —
+//   needs has_card_types OR semantics combined with non_basic land filter. DSL gap.
 // TODO: Cost reduction — {1} less per legendary creature you control.
 use crate::cards::helpers::*;
 
@@ -26,8 +30,9 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // Channel — {1}{G}, Discard: Destroy target + opponent searches.
-            // TODO: Target filter needs "artifact, enchantment, or nonbasic land an opponent controls"
-            // TODO: Cost reduction per legendary creature
+            // Target filter restricts to opponent-controlled permanents (partial).
+            // TODO: Target filter needs "artifact, enchantment, or nonbasic land" type restriction.
+            // TODO: Cost reduction per legendary creature.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -60,7 +65,10 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    controller: TargetController::Opponent,
+                    ..Default::default()
+                })],
             },
         ],
         ..Default::default()

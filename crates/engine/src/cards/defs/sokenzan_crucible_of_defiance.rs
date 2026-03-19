@@ -19,8 +19,15 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
             },
-            // Channel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit tokens.
-            // TODO: Tokens should gain haste until end of turn (temporary keyword grant).
+            // Channel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit tokens
+            // with haste. Haste is baked into the token spec (permanent keyword, not temporary
+            // grant). Oracle text says "gain haste until end of turn" but baking it into the
+            // token definition is equivalent since the tokens are created with haste and any
+            // "until end of turn" temporary layer would also only matter this turn.
+            // TODO: Strictly, haste should be a temporary UntilEndOfTurn effect, not a permanent
+            // keyword on the token. This matters if an opponent gains control of the token via
+            // Insurrection — correct behavior would be haste expires at cleanup. DSL gap:
+            // CreateToken does not support post-creation continuous effects. Acceptable approximation.
             // TODO: Cost reduction — {1} less per legendary creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -36,7 +43,7 @@ pub fn card() -> CardDefinition {
                         supertypes: im::OrdSet::new(),
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
-                        keywords: im::OrdSet::new(),
+                        keywords: [KeywordAbility::Haste].into_iter().collect(),
                         count: 2,
                         tapped: false,
                         mana_color: None,

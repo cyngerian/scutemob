@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-12 retroactive review | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 13/20 done. Use `/implement-primitive --review-only PB-<N>`. |
+| W6: Primitive + Card Authoring | W6-review: retroactive PB-13 review | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 14/20 done → doing PB-13. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,20 +25,20 @@
 
 **Date**: 2026-03-18
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-11 review
+**Task**: W6-review — retroactive PB-12 review
 
 **Completed**:
-- PB-11 retroactive review (13/20): Mana restrictions + ETB choice, 13 cards — **fixed**
-  - 1H fixed: SpellContext wired into handle_cast_spell — restricted mana now usable during casting (CR 106.6)
-  - 6M fixed: CreatureWithSubtype variant added to ManaRestriction; Haven/Seedcore/Gnarlroot updated; Gnarlroot+Voldaren Pay 1 life DSL gap documented
-  - 1M deferred: AddManaAnyColorRestricted adds colorless (inherited limitation)
-  - 7L deferred: documented DSL gap TODOs in card defs
-- Review file: `memory/primitives/pb-review-11.md`
+- PB-12 retroactive review (14/20): Complex replacement effects, 11 cards — **fixed**
+  - 2H fixed: apply_life_loss_doubling wired into Effect::LoseLife/DrainLife; apply_damage_doubling wired into combat damage pre-prevention
+  - 4M fixed: Bloodletter "during your turn" condition enforced; Twinflame Tyrant ToOpponentOrTheirPermanent filter added
+  - 2M deferred: counter replacement on players (Vorinclex), Teysa WheneverCreatureDies doubling (infrastructure gap)
+  - 2M documented: Tekuthal activated ability + Teysa token grant (DSL gaps)
+- Review file: `memory/primitives/pb-review-12.md`
 - 2154 tests passing
 
 **Next**:
-1. `/implement-primitive --review-only PB-12` (Complex replacement effects, 11 cards)
-2. Sequential through PB-13, PB-14, ... PB-18
+1. `/implement-primitive --review-only PB-13` (Specialized mechanics, 19 cards)
+2. Sequential through PB-14, PB-15, ... PB-18
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
@@ -47,6 +47,10 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-18 — W6: PB-12 review
+- PB-12 retroactive review (14/20): Complex replacement effects, 11 cards — 2H 4M fixed; 2M deferred; 2M documented
+- Commit: 6ba09f1
 
 ### 2026-03-18 — W6: PB-11 review
 - PB-11 retroactive review (13/20): Mana restrictions + ETB choice, 13 cards — 1H 6M fixed; 1M 7L deferred
