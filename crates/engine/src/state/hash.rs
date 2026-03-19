@@ -1469,6 +1469,10 @@ impl HashInto for DamageTargetFilter {
                 4u8.hash_into(hasher);
                 pid.hash_into(hasher);
             }
+            DamageTargetFilter::ToOpponentOrTheirPermanent(pid) => {
+                5u8.hash_into(hasher);
+                pid.hash_into(hasher);
+            }
         }
     }
 }

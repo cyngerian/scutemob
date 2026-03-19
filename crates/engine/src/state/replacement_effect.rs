@@ -194,6 +194,10 @@ pub enum DamageTargetFilter {
     /// Only damage dealt by sources controlled by a specific player.
     /// Used by Twinflame Tyrant: "If a source you control would deal damage".
     FromControllerSources(PlayerId),
+    /// Only damage dealt to an opponent of `PlayerId` or a permanent they control.
+    /// Used by Twinflame Tyrant oracle: "to an opponent or a permanent an opponent controls".
+    /// The PlayerId is the Twinflame Tyrant controller; opponents are all other players.
+    ToOpponentOrTheirPermanent(PlayerId),
 }
 
 /// A replacement or prevention effect active in the game (CR 614, 615).

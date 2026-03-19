@@ -1785,6 +1785,11 @@ pub fn register_permanent_replacement_abilities(
                     } => ReplacementTrigger::DamageWouldBeDealt {
                         target_filter: DamageTargetFilter::FromControllerSources(controller),
                     },
+                    ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter: DamageTargetFilter::ToOpponentOrTheirPermanent(PlayerId(0)),
+                    } => ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter: DamageTargetFilter::ToOpponentOrTheirPermanent(controller),
+                    },
                     ReplacementTrigger::WouldProliferate { player_filter } => {
                         ReplacementTrigger::WouldProliferate {
                             player_filter: bind_player_filter(player_filter, controller),
@@ -2465,6 +2470,12 @@ pub fn apply_umbra_armor(
 /// the controller of the source that places them).
 /// `receiver_id` is the permanent receiving the counters.
 ///
+/// NOTE: Player receivers (poison counters, experience counters, energy counters)
+/// are NOT handled here. See `apply_counter_replacement_player` below.
+/// Vorinclex's oracle says "permanent or player" but only the permanent path is
+/// implemented. Fixing this requires adding `ObjectFilter::Player(PlayerId)` or
+/// a parallel `WouldPlaceCountersOnPlayer` trigger variant (PB-12 deferred item).
+///
 /// Multiple replacement effects are applied in controller order per CR 616.1
 /// (deterministic for now — interactive choice deferred to M10+).
 /// Each replacement applies at most once per event (CR 614.5).
@@ -2522,6 +2533,34 @@ pub fn apply_counter_replacement(
     }
 
     (modified_count, events)
+}
+
+/// CR 122.6 / CR 614.1: Apply counter-placement replacement effects for player receivers.
+///
+/// Vorinclex, Monstrous Raider oracle: "If you would put one or more counters on a
+/// **permanent or player**, put twice that many ... instead."
+///
+/// TODO (PB-12 deferred): Implement this function and call it from the infect/poison counter
+/// paths in effects/mod.rs (~line 215) and combat.rs (~line 1595). Requires either:
+///
+///   - Adding `ObjectFilter::Player(PlayerId)` and updating `event_object_matches_filter`
+///     to match player receivers, OR
+///
+///   - Adding a new `WouldPlaceCountersOnPlayer` trigger variant parallel to
+///     `WouldPlaceCounters` and updating registration in `register_permanent_replacements`.
+///
+/// Until this is fixed, Vorinclex does not double poison/experience/energy counters
+/// placed on players.
+#[allow(dead_code)]
+pub fn apply_counter_replacement_player(
+    _state: &GameState,
+    _placer: PlayerId,
+    _receiver_player: PlayerId,
+    _counter: &crate::state::types::CounterType,
+    count: u32,
+) -> (u32, Vec<GameEvent>) {
+    // TODO: implement player-receiver counter replacement (PB-12 deferred).
+    (count, Vec::new())
 }
 
 /// CR 111.1 / CR 614.1: Apply token-creation replacement effects.
@@ -2608,14 +2647,20 @@ pub fn apply_search_library_replacement(
 /// CR 614.1: Apply damage-doubling replacement effects.
 ///
 /// Checks for registered DamageWouldBeDealt replacements with DoubleDamage
-/// modification where the source is controlled by the matching player.
+/// modification where the source is controlled by the matching player and
+/// (optionally) the target matches the effect's target filter.
 /// Called before `apply_damage_prevention` in the damage path.
+///
+/// `damage_target`: the target of the damage event, used to match
+/// `DamageTargetFilter::ToOpponentOrTheirPermanent`. Pass `None` to skip
+/// target-side filtering (applies doubling regardless of target).
 ///
 /// Returns `(modified_amount, events)`.
 pub fn apply_damage_doubling(
     state: &GameState,
     source: ObjectId,
     amount: u32,
+    damage_target: Option<&CombatDamageTarget>,
 ) -> (u32, Vec<GameEvent>) {
     let mut events = Vec::new();
     if amount == 0 {
@@ -2627,22 +2672,64 @@ pub fn apply_damage_doubling(
     let mut modified = amount;
     for effect in state.replacement_effects.iter() {
         if let ReplacementModification::DoubleDamage = &effect.modification {
-            if let ReplacementTrigger::DamageWouldBeDealt {
-                target_filter: DamageTargetFilter::FromControllerSources(pid),
-            } = &effect.trigger
-            {
-                if source_controller == Some(*pid) {
-                    modified *= 2;
-                    events.push(GameEvent::ReplacementEffectApplied {
-                        effect_id: effect.id,
-                        description: format!("doubled damage: {} → {}", amount, modified),
-                    });
+            if let ReplacementTrigger::DamageWouldBeDealt { target_filter } = &effect.trigger {
+                let applies = match target_filter {
+                    DamageTargetFilter::FromControllerSources(pid) => {
+                        // Source-side only: doubles damage from controller's sources to any target.
+                        source_controller == Some(*pid)
+                    }
+                    DamageTargetFilter::ToOpponentOrTheirPermanent(controller_pid) => {
+                        // CR 614.1 / Twinflame Tyrant: "If a source you control would deal
+                        // damage to an opponent or a permanent an opponent controls."
+                        // Checks BOTH: source is controlled by controller_pid, AND target is
+                        // an opponent of controller_pid or a permanent they control.
+                        if source_controller != Some(*controller_pid) {
+                            false
+                        } else {
+                            match damage_target {
+                                Some(dt) => damage_target_is_opponent_or_their_permanent(
+                                    state,
+                                    dt,
+                                    *controller_pid,
+                                ),
+                                None => true, // No target info — apply conservatively.
+                            }
+                        }
+                    }
+                    DamageTargetFilter::Any => true,
+                    _ => false,
+                };
+                if !applies {
+                    continue;
                 }
+
+                modified *= 2;
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: effect.id,
+                    description: format!("doubled damage: {} → {}", amount, modified),
+                });
             }
         }
     }
 
     (modified, events)
+}
+
+/// Helper: check if a damage target is an opponent of `controller_pid` or a permanent
+/// they control. Used by `DamageTargetFilter::ToOpponentOrTheirPermanent`.
+fn damage_target_is_opponent_or_their_permanent(
+    state: &GameState,
+    target: &CombatDamageTarget,
+    controller_pid: PlayerId,
+) -> bool {
+    match target {
+        CombatDamageTarget::Player(p) => *p != controller_pid,
+        CombatDamageTarget::Creature(id) | CombatDamageTarget::Planeswalker(id) => state
+            .objects
+            .get(id)
+            .map(|o| o.controller != controller_pid)
+            .unwrap_or(false),
+    }
 }
 
 /// CR 614.1: Apply life-loss doubling replacement effects.
@@ -2675,6 +2762,11 @@ pub fn apply_life_loss_doubling(
             .find(|e| e.id == *effect_id)
         {
             if matches!(effect.modification, ReplacementModification::DoubleLifeLoss) {
+                // CR 614.1 / Bloodletter of Aclazotz: "during your turn" condition.
+                // The doubling only applies when the effect's controller is the active player.
+                if state.turn.active_player != effect.controller {
+                    continue;
+                }
                 modified *= 2;
                 events.push(GameEvent::ReplacementEffectApplied {
                     effect_id: *effect_id,

@@ -3,10 +3,9 @@
 // If a source you control would deal damage to an opponent or a permanent an
 // opponent controls, it deals double that damage instead.
 //
-// Note: The oracle text specifies "to an opponent or a permanent an opponent controls"
-// but the current DamageTargetFilter doesn't support target-side opponent filtering.
-// This implementation doubles ALL damage from the controller's sources to any target.
-// TODO: Add opponent-target filtering to damage doubling (DamageTargetFilter::ToOpponentOrTheirPermanent).
+// Target-side filtering: DamageTargetFilter::ToOpponentOrTheirPermanent enforces
+// "to an opponent or a permanent an opponent controls" per oracle text.
+// apply_damage_doubling in replacement.rs checks the target against this filter.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,12 +19,14 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // CR 614.1: Damage doubling for sources you control.
+            // CR 614.1: Damage doubling for sources you control targeting opponents.
             // PlayerId(0) placeholder — bound to controller at registration.
-            // NOTE: Missing opponent-target filter — see file header.
+            // ToOpponentOrTheirPermanent encodes BOTH conditions per oracle text:
+            //   1. Source must be controlled by PlayerId(0) (checked in apply_damage_doubling).
+            //   2. Target must be an opponent of PlayerId(0) or a permanent they control.
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::DamageWouldBeDealt {
-                    target_filter: DamageTargetFilter::FromControllerSources(PlayerId(0)),
+                    target_filter: DamageTargetFilter::ToOpponentOrTheirPermanent(PlayerId(0)),
                 },
                 modification: ReplacementModification::DoubleDamage,
                 is_self: false,

@@ -7277,10 +7277,19 @@ fn doubler_applies_to_trigger(
         TriggerDoublerFilter::CreatureDeath => {
             // CR 603.2d: The triggering event must be a creature dying.
             // Matches SelfDies triggers (the dying creature's own "when ~ dies" abilities).
-            // NOTE: WheneverCreatureDies CardDef triggers on other permanents are not yet
-            // doubled — they use PendingTriggerKind::Normal without a triggering_event.
-            // Full implementation requires propagating the triggering event through
-            // the CardDef trigger collection path.
+            //
+            // TODO (PB-12 deferred): Also double "whenever a creature dies" triggers on
+            // other permanents (e.g., Zulaport Cutthroat, Blood Artist). This requires:
+            //   1. Add TriggerEvent::AnyCreatureDies variant.
+            //   2. Wire TriggerCondition::WheneverCreatureDies → TriggerEvent::AnyCreatureDies
+            //      in enrich_spec_from_def (replay_harness.rs).
+            //   3. In the CreatureDied handler (abilities.rs), call collect_triggers_for_event
+            //      with TriggerEvent::AnyCreatureDies for all battlefield objects.
+            //   4. Update this filter arm to also match AnyCreatureDies triggers.
+            //
+            // Note: WheneverCreatureDies CardDef triggers currently do NOT fire at all
+            // (they're not wired in enrich_spec_from_def), so doubling them is moot
+            // until the underlying trigger infrastructure is fixed.
             matches!(trigger.triggering_event, Some(TriggerEvent::SelfDies))
         }
     }

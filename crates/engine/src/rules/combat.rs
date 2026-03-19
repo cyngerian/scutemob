@@ -1501,6 +1501,33 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         })
         .collect();
 
+    // --- CR 614.1: Apply damage-doubling replacement effects before prevention ---
+    // Doublers apply before preventers (CR 614.1 ordering: replacement effects modify
+    // the event first, then prevention effects can prevent the modified amount).
+    let mut doubling_events: Vec<GameEvent> = Vec::new();
+    let doubled_amounts: Vec<u32> = assignments
+        .iter()
+        .map(|a| {
+            let (doubled_dmg, devts) = crate::rules::replacement::apply_damage_doubling(
+                state,
+                a.source,
+                a.amount,
+                Some(&a.target),
+            );
+            doubling_events.extend(devts);
+            doubled_dmg
+        })
+        .collect();
+    // Update assignment amounts with doubled values.
+    let assignments: Vec<CombatDamageAssignment> = assignments
+        .into_iter()
+        .zip(doubled_amounts.iter())
+        .map(|(mut a, &amt)| {
+            a.amount = amt;
+            a
+        })
+        .collect();
+
     // --- CR 702.16e + CR 615: Apply protection then dynamic prevention ---
     // apply_damage_prevention checks protection (static) first, then dynamic shields.
     let mut prevention_events: Vec<GameEvent> = Vec::new();

@@ -2,13 +2,8 @@
 // Flying
 // If an opponent would lose life during your turn, they lose twice that much life instead.
 //
-// Note: The "during your turn" condition requires runtime checking of the active player.
-// The replacement is registered unconditionally; the apply_life_loss_doubling helper
-// will fire whenever life loss occurs. A proper implementation would add a turn-check
-// condition to the replacement. For now, the replacement fires on all opponent life loss
-// regardless of whose turn it is (conservative — doubles more than it should).
-// TODO: Add turn-condition checking to WouldLoseLife replacement (requires Condition support
-// on ReplacementEffect, similar to unless_condition on ETB replacements).
+// "During your turn" is enforced in apply_life_loss_doubling (replacement.rs):
+// DoubleLifeLoss only applies when effect.controller == state.turn.active_player.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,9 +17,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // CR 614.1: Life-loss doubling for opponents.
+            // CR 614.1: Life-loss doubling for opponents during controller's turn.
             // PlayerId(0) placeholder — bound to controller at registration.
-            // NOTE: Missing "during your turn" condition — see file header.
+            // "During your turn" check: apply_life_loss_doubling checks active_player == controller.
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldLoseLife {
                     player_filter: PlayerFilter::OpponentsOf(PlayerId(0)),

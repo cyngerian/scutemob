@@ -241,7 +241,7 @@ fn test_damage_doubling() {
         .unwrap();
 
     let (modified, events) =
-        mtg_engine::rules::replacement::apply_damage_doubling(&state, source_id, 3);
+        mtg_engine::rules::replacement::apply_damage_doubling(&state, source_id, 3, None);
     assert_eq!(modified, 6, "Damage doubler should double 3 → 6");
     assert!(!events.is_empty());
 }
@@ -278,7 +278,7 @@ fn test_damage_doubling_no_effect_on_opponent_sources() {
         .unwrap();
 
     let (modified, events) =
-        mtg_engine::rules::replacement::apply_damage_doubling(&state, source_id, 3);
+        mtg_engine::rules::replacement::apply_damage_doubling(&state, source_id, 3, None);
     assert_eq!(
         modified, 3,
         "Damage doubler should not affect opponent's sources"

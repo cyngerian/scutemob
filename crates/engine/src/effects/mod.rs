@@ -180,19 +180,26 @@ fn execute_effect_inner(
             if raw_dmg == 0 {
                 return;
             }
-            // CR 614.1: Apply damage-doubling replacement effects before prevention.
-            let (dmg, doubling_events) =
-                crate::rules::replacement::apply_damage_doubling(state, ctx.source, raw_dmg);
-            events.extend(doubling_events);
-            if dmg == 0 {
-                return;
-            }
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 match resolved {
                     ResolvedTarget::Player(p) => {
                         // CR 615: check prevention before applying damage.
                         let damage_target = CombatDamageTarget::Player(p);
+                        // CR 614.1: Apply damage-doubling replacement effects before prevention.
+                        // Doubling is per-target so target-side filters (e.g., Twinflame Tyrant)
+                        // can check whether the target is an opponent or their permanent.
+                        let (dmg, doubling_events) =
+                            crate::rules::replacement::apply_damage_doubling(
+                                state,
+                                ctx.source,
+                                raw_dmg,
+                                Some(&damage_target),
+                            );
+                        events.extend(doubling_events);
+                        if dmg == 0 {
+                            continue;
+                        }
                         let (final_dmg, prev_events) =
                             crate::rules::replacement::apply_damage_prevention(
                                 state,
@@ -260,6 +267,19 @@ fn execute_effect_inner(
                         } else {
                             CombatDamageTarget::Creature(id)
                         };
+
+                        // CR 614.1: Apply damage-doubling replacement effects before prevention.
+                        let (dmg, doubling_events) =
+                            crate::rules::replacement::apply_damage_doubling(
+                                state,
+                                ctx.source,
+                                raw_dmg,
+                                Some(&damage_target),
+                            );
+                        events.extend(doubling_events);
+                        if dmg == 0 {
+                            continue;
+                        }
 
                         // CR 702.16e + CR 615: apply_damage_prevention checks protection
                         // (static) then dynamic prevention shields in order.
@@ -375,14 +395,18 @@ fn execute_effect_inner(
             }
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
+                // CR 614.1: Apply life-loss doubling replacement effects before subtracting.
+                let (final_loss, doubling_events) =
+                    crate::rules::replacement::apply_life_loss_doubling(state, p, loss);
+                events.extend(doubling_events);
                 if let Some(ps) = state.players.get_mut(&p) {
-                    ps.life_total -= loss as i32;
+                    ps.life_total -= final_loss as i32;
                     // CR 702.137a: track life lost this turn for Spectacle.
-                    ps.life_lost_this_turn += loss;
+                    ps.life_lost_this_turn += final_loss;
                 }
                 events.push(GameEvent::LifeLost {
                     player: p,
-                    amount: loss,
+                    amount: final_loss,
                 });
             }
         }
@@ -403,9 +427,13 @@ fn execute_effect_inner(
             let opponents = resolve_player_target_list(state, &PlayerTarget::EachOpponent, ctx);
             let mut total_lost: u32 = 0;
             for &p in &opponents {
+                // CR 614.1: Apply life-loss doubling replacement effects before subtracting.
+                let (final_loss, doubling_events) =
+                    crate::rules::replacement::apply_life_loss_doubling(state, p, loss);
+                events.extend(doubling_events);
                 if let Some(ps) = state.players.get_mut(&p) {
                     let before = ps.life_total;
-                    ps.life_total -= loss as i32;
+                    ps.life_total -= final_loss as i32;
                     // Actual loss = pre-loss total minus post-loss total, clamped to >=0.
                     let actual = (before - ps.life_total).max(0) as u32;
                     total_lost += actual;
@@ -414,7 +442,7 @@ fn execute_effect_inner(
                 }
                 events.push(GameEvent::LifeLost {
                     player: p,
-                    amount: loss,
+                    amount: final_loss,
                 });
             }
             // Controller gains life equal to total actually lost by all opponents.
