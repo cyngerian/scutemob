@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-15 retroactive review (Saga & Class) | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 16/20 done. Use `/implement-primitive --review-only PB-<N>`. |
+| W6: Primitive + Card Authoring | W6-review: PB-16 retroactive review | ACTIVE | 2026-03-19 | Retroactive review of PB-16 (Meld). 17/20 done, 3 remaining. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,19 +25,20 @@
 
 **Date**: 2026-03-18
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-14 review
+**Task**: W6-review — retroactive PB-15 review
 
 **Completed**:
-- PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — **fixed**
-  - 1H fixed: Combat damage to planeswalkers used damage_marked instead of removing loyalty counters (CR 306.8). Fixed combat.rs to use CounterType::Loyalty subtraction. Added test.
-  - 1M deferred: Emblem creation (CR 114) not implemented — added to Deferred Items in project-status.md
-  - 2L deferred: Designations bitflag migration, -X harness wiring
-- Review file: `memory/primitives/pb-review-14.md`
+- PB-15 retroactive review (17/20): Saga & Class mechanics, 2 cards — **fixed**
+  - 1H fixed: Class level-up bypassed the stack (CR 716.2a). Added StackObjectKind::ClassLevelAbility, moved resolution to resolution.rs. Opponents can now respond to level-up.
+  - 1M fixed: Saga precombat main TBA missing is_phased_in() check for lore counter placement.
+  - 2M deferred: Card def TODOs (Urza's Saga chapters I/II, Druid Class levels 1/2/3) — DSL gaps
+  - 1L deferred: Urza's Saga chapter III mana cost vs mana value filter
+- Review file: `memory/primitives/pb-review-15.md`
 - 2155 tests passing
 
 **Next**:
-1. `/implement-primitive --review-only PB-15` (Saga & Class mechanics, 3 cards)
-2. Sequential through PB-16, PB-17, PB-18
+1. `/implement-primitive --review-only PB-16` (Meld, 1 card)
+2. Sequential through PB-17, PB-18
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
@@ -46,6 +47,10 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-18 — W6: PB-15 review
+- PB-15 retroactive review (17/20): Saga & Class, 2 cards — 1H 1M fixed; 2M 1L deferred (DSL gaps)
+- Commit: 013fddb
 
 ### 2026-03-18 — W6: PB-14 review
 - PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — 1H fixed; 1M 2L deferred

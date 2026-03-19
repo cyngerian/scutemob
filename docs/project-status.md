@@ -27,7 +27,7 @@
 | PB-12 | Complex replacement effects | done | 11 | 0 | fixed | 3 |
 | PB-13 | Specialized mechanics (10 sub-batches) | done | 19 | 0 | fixed | 4 |
 | PB-14 | Planeswalker support + emblems | done | 31 | 0 | fixed | 5 |
-| PB-15 | Saga & Class mechanics | done | 3 | 0 | none | 2 |
+| PB-15 | Saga & Class mechanics | done | 3 | 0 | fixed | 2 |
 | PB-16 | Meld | done | 1 | 0 | none | 1 |
 | PB-17 | Library search filters | done | 74 | 0 | none | 4 |
 | PB-18 | Stax / action restrictions | done | 10 | 0 | none | 2 |
@@ -149,7 +149,7 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 15 | PB-13 | Specialized mechanics | 19 | fixed | 2H 5M fixed; 9M 1L deferred |
 | 16 | PB-14 | Planeswalker support | 31 | fixed | 1H 1M fixed; 2L deferred |
 | 17 | PB-15 | Saga & Class | 3 | pending | — |
-| 18 | PB-16 | Meld | 1 | pending | — |
+| 18 | PB-16 | Meld | 1 | in-review | — |
 | 19 | PB-17 | Library search filters | 74 | pending | — |
 | 20 | PB-18 | Stax / restrictions | 10 | pending | — |
 

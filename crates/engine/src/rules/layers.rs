@@ -159,7 +159,24 @@ pub fn calculate_characteristics(
                     {
                         if let Some(ref melded_face) = melded_def.back_face {
                             chars.name = melded_face.name.clone();
-                            chars.mana_cost = melded_face.mana_cost.clone();
+                            // CR 712.8g: mana value = sum of both front face mana values.
+                            // The melded back face has no mana cost (None → 0), so we
+                            // compute the sum explicitly from both front faces and store it
+                            // as a synthetic ManaCost with generic = sum.
+                            let source_mv = def.mana_cost.as_ref().map(|c| c.mana_value()).unwrap_or(0);
+                            let partner_mv = obj.meld_component.as_ref()
+                                .and_then(|pid| state.card_registry.get(pid.clone()))
+                                .and_then(|pd| pd.mana_cost.as_ref().map(|c| c.mana_value()))
+                                .unwrap_or(0);
+                            let combined_mv = source_mv + partner_mv;
+                            chars.mana_cost = if combined_mv > 0 {
+                                Some(crate::state::game_object::ManaCost {
+                                    generic: combined_mv,
+                                    ..Default::default()
+                                })
+                            } else {
+                                None
+                            };
                             chars.card_types = melded_face.types.card_types.clone();
                             chars.subtypes = melded_face.types.subtypes.clone();
                             chars.supertypes = melded_face.types.supertypes.clone();

@@ -2364,10 +2364,19 @@ fn execute_effect_inner(
 
                 if let Some(partner_obj_id) = partner_id {
                     if source_valid {
-                        // Exile both cards.
+                        // Exile both cards transiently (zone-change bookkeeping for CR 400.7).
+                        // The exiled objects will be removed after the melded permanent is
+                        // created — they are phantom intermediaries, not real exile zone
+                        // residents (CR 701.42a: cards go directly onto the battlefield combined).
                         let exile_zone = crate::state::zone::ZoneId::Exile;
-                        let _ = state.move_object_to_zone(source_id, exile_zone);
-                        let _ = state.move_object_to_zone(partner_obj_id, exile_zone);
+                        let exiled_source_id = state
+                            .move_object_to_zone(source_id, exile_zone)
+                            .map(|(new_id, _)| new_id)
+                            .ok();
+                        let exiled_partner_id = state
+                            .move_object_to_zone(partner_obj_id, exile_zone)
+                            .map(|(new_id, _)| new_id)
+                            .ok();
 
                         // Create the melded permanent on the battlefield.
                         // The primary object uses the source card's identity;
@@ -2445,6 +2454,19 @@ fn execute_effect_inner(
                             zone_set.insert(melded_id);
                         }
                         state.objects.insert(melded_id, melded_obj);
+
+                        // Remove the two phantom exile objects that were created as
+                        // zone-change intermediaries. CR 701.42a puts both cards onto the
+                        // battlefield combined — they should not persist in exile.
+                        for phantom_id in [exiled_source_id, exiled_partner_id].into_iter().flatten() {
+                            state.objects.remove(&phantom_id);
+                            if let Some(exile_set) = state
+                                .zones
+                                .get_mut(&crate::state::zone::ZoneId::Exile)
+                            {
+                                exile_set.remove(&phantom_id);
+                            }
+                        }
 
                         events.push(
                             crate::rules::events::GameEvent::PermanentEnteredBattlefield {
