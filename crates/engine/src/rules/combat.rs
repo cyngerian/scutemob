@@ -1688,10 +1688,17 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 }
             }
             CombatDamageTarget::Planeswalker(pw_id) => {
-                // Planeswalkers receive damage as marked damage; SBA 704.5i
-                // handles the loyalty counter check separately.
+                // CR 306.8: Damage dealt to a planeswalker results in that many
+                // loyalty counters being removed from it. This matches the non-combat
+                // damage path in effects/mod.rs.
                 if let Some(obj) = state.objects.get_mut(pw_id) {
-                    obj.damage_marked += final_dmg;
+                    let cur = obj
+                        .counters
+                        .get(&CounterType::Loyalty)
+                        .copied()
+                        .unwrap_or(0);
+                    let new_val = cur.saturating_sub(final_dmg);
+                    obj.counters.insert(CounterType::Loyalty, new_val);
                 }
             }
         }

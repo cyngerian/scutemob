@@ -505,6 +505,88 @@ fn test_loyalty_ability_resolves_effect() {
     );
 }
 
+/// CR 306.8: Combat damage dealt to a planeswalker removes loyalty counters, not marked damage.
+///
+/// A 3/3 attacker with no blockers attacks a planeswalker with 5 loyalty. After the combat
+/// damage step, the planeswalker should have 2 loyalty remaining (5 - 3 = 2), not 5 loyalty
+/// with 3 damage_marked. This test catches the bug where damage_marked was set instead.
+#[test]
+fn test_combat_damage_to_planeswalker_removes_loyalty_cr306_8() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Use explicit CounterType::Loyalty counter so the loyalty system tracks via counters,
+    // matching how actual planeswalker cards work (via starting_loyalty ETB replacement).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Attacker", 3, 3))
+        .object(
+            ObjectSpec::planeswalker(p2, "Combat Target PW", 5)
+                .with_counter(CounterType::Loyalty, 5),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Attacker")
+        .unwrap()
+        .id;
+    let pw_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Combat Target PW")
+        .unwrap()
+        .id;
+
+    // Declare attacker targeting the planeswalker.
+    let (state, _) = rules::process_command(
+        state,
+        rules::Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Planeswalker(pw_id))],
+            enlist_choices: vec![],
+        },
+    )
+    .expect("declare attackers failed");
+
+    // Both players pass through DeclareAttackers → DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.turn.step, Step::DeclareBlockers);
+
+    // p2 declares no blockers.
+    let (state, _) = rules::process_command(
+        state,
+        rules::Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("declare blockers failed");
+
+    // Both pass → CombatDamage step — damage is applied automatically.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // CR 306.8: Planeswalker should have 5 - 3 = 2 loyalty counters remaining.
+    let pw = state.objects.get(&pw_id).unwrap();
+    let loyalty = pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0);
+    assert_eq!(
+        loyalty, 2,
+        "Combat damage should remove loyalty counters (CR 306.8): expected 2, got {}",
+        loyalty
+    );
+    // Sanity check: damage_marked should NOT be used for planeswalkers.
+    assert_eq!(
+        pw.damage_marked, 0,
+        "Planeswalkers should not use damage_marked (CR 306.8); damage_marked = {}",
+        pw.damage_marked
+    );
+}
+
 /// Can't activate loyalty ability on opponent's planeswalker.
 #[test]
 fn test_loyalty_only_own_planeswalker() {

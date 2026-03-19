@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: retroactive PB-13 review | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 14/20 done → doing PB-13. |
+| W6: Primitive + Card Authoring | W6-review: PB-14 retroactive review | ACTIVE | 2026-03-18 | Planeswalker support + emblems, 31 cards. 16/20 reviews. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,20 +25,19 @@
 
 **Date**: 2026-03-18
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-12 review
+**Task**: W6-review — retroactive PB-14 review
 
 **Completed**:
-- PB-12 retroactive review (14/20): Complex replacement effects, 11 cards — **fixed**
-  - 2H fixed: apply_life_loss_doubling wired into Effect::LoseLife/DrainLife; apply_damage_doubling wired into combat damage pre-prevention
-  - 4M fixed: Bloodletter "during your turn" condition enforced; Twinflame Tyrant ToOpponentOrTheirPermanent filter added
-  - 2M deferred: counter replacement on players (Vorinclex), Teysa WheneverCreatureDies doubling (infrastructure gap)
-  - 2M documented: Tekuthal activated ability + Teysa token grant (DSL gaps)
-- Review file: `memory/primitives/pb-review-12.md`
-- 2154 tests passing
+- PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — **fixed**
+  - 1H fixed: Combat damage to planeswalkers used damage_marked instead of removing loyalty counters (CR 306.8). Fixed combat.rs to use CounterType::Loyalty subtraction. Added test.
+  - 1M deferred: Emblem creation (CR 114) not implemented — added to Deferred Items in project-status.md
+  - 2L deferred: Designations bitflag migration, -X harness wiring
+- Review file: `memory/primitives/pb-review-14.md`
+- 2155 tests passing
 
 **Next**:
-1. `/implement-primitive --review-only PB-13` (Specialized mechanics, 19 cards)
-2. Sequential through PB-14, PB-15, ... PB-18
+1. `/implement-primitive --review-only PB-15` (Saga & Class mechanics, 3 cards)
+2. Sequential through PB-16, PB-17, PB-18
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
@@ -47,6 +46,14 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-18 — W6: PB-14 review
+- PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — 1H fixed; 1M 2L deferred
+- Commit: pending
+
+### 2026-03-18 — W6: PB-13 review
+- PB-13 retroactive review (15/20): Specialized mechanics, 19 cards — 2H 5M fixed; 9M 1L deferred
+- Commit: 9001176
 
 ### 2026-03-18 — W6: PB-12 review
 - PB-12 retroactive review (14/20): Complex replacement effects, 11 cards — 2H 4M fixed; 2M deferred; 2M documented

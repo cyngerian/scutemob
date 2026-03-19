@@ -46,7 +46,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(6),
                 // −6: Create emblem with triggered ability.
-                // TODO: Emblem creation not in DSL.
+                // TODO: Emblem creation (CR 114) is a known gap deferred to a dedicated
+                // session. Tracked in docs/project-status.md Deferred Items table.
                 effect: Effect::Sequence(vec![]),
                 targets: vec![],
             },
