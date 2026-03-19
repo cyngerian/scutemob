@@ -895,8 +895,11 @@ fn execute_effect_inner(
                                     destroyed_count += 1;
                                 }
                                 ZoneId::Command(_) => {
-                                    // Commander redirected — no destruction event.
-                                    // Does not count as destroyed (CR 701.8b).
+                                    // CR 903.9a: Commander goes to graveyard first, then
+                                    // an SBA moves it to the command zone. The destruction
+                                    // DID occur — count it so effects like Fumigate gain
+                                    // life even for destroyed commanders.
+                                    destroyed_count += 1;
                                 }
                                 _ => {
                                     if card_types.contains(&CardType::Creature) {
@@ -1015,7 +1018,7 @@ fn execute_effect_inner(
                                 }
                                 _ => {
                                     events.push(GameEvent::ObjectExiled {
-                                        player: ctx.controller,
+                                        player: owner,
                                         object_id: id,
                                         new_exile_id: new_id,
                                     });
@@ -1046,7 +1049,7 @@ fn execute_effect_inner(
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
                         if let Ok((new_id, _old)) = state.move_object_to_zone(id, ZoneId::Exile) {
                             events.push(GameEvent::ObjectExiled {
-                                player: ctx.controller,
+                                player: owner,
                                 object_id: id,
                                 new_exile_id: new_id,
                             });
@@ -2531,7 +2534,7 @@ fn execute_effect_inner(
                         .copied()
                         .unwrap_or(ctx.controller)
                 }
-                PlayerTarget::ControllerOf(_) => ctx.controller,
+                PlayerTarget::ControllerOf(_) | PlayerTarget::OwnerOf(_) => ctx.controller,
             };
             let lib_id = ZoneId::Library(manifest_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -2576,7 +2579,7 @@ fn execute_effect_inner(
                     .find(|&&pid| pid != ctx.controller)
                     .copied()
                     .unwrap_or(ctx.controller),
-                PlayerTarget::ControllerOf(_) => ctx.controller,
+                PlayerTarget::ControllerOf(_) | PlayerTarget::OwnerOf(_) => ctx.controller,
             };
             let lib_id = ZoneId::Library(cloak_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -3628,6 +3631,21 @@ fn resolve_player_target_list(
                             .iter()
                             .find(|so| so.id == id)
                             .map(|so| so.controller)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        }
+        PlayerTarget::OwnerOf(effect_target) => {
+            // CR 108.3: The owner of a card is the player who started the game with it in
+            // their deck. Used for bounce effects that say "return to its owner's hand."
+            let targets = resolve_effect_target_list(state, effect_target, ctx);
+            targets
+                .into_iter()
+                .filter_map(|t| {
+                    if let ResolvedTarget::Object(id) = t {
+                        state.objects.get(&id).map(|obj| obj.owner)
                     } else {
                         None
                     }

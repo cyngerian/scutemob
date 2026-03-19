@@ -1463,6 +1463,9 @@ pub enum PlayerTarget {
     /// The controller of the specified permanent (used for e.g. Swords to Plowshares:
     /// "its controller gains life equal to its power").
     ControllerOf(Box<EffectTarget>),
+    /// The owner of the specified permanent (used for bounce spells that say
+    /// "return to its owner's hand", e.g. Cyclonic Rift — CR 108.3).
+    OwnerOf(Box<EffectTarget>),
 }
 
 /// How an effect produces a numeric value.

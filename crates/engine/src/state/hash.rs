@@ -3736,6 +3736,10 @@ impl HashInto for PlayerTarget {
                 4u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
+            PlayerTarget::OwnerOf(target) => {
+                5u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
         }
     }
 }

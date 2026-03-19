@@ -27,8 +27,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Spell {
                 effect: Effect::Conditional {
                     condition: Condition::WasOverloaded,
-                    // Overloaded: bounce each nonland permanent opponents control (CR 702.96b).
-                    // ControllerOf approximates "owner's hand" (owner == controller in most cases).
+                    // Overloaded: bounce each nonland permanent opponents control to owner's hand
+                    // (CR 702.96b, CR 108.3: "owner's hand" uses OwnerOf, not ControllerOf).
                     if_true: Box::new(Effect::ForEach {
                         over: ForEachTarget::EachPermanentMatching(TargetFilter {
                             non_land: true,
@@ -38,18 +38,18 @@ pub fn card() -> CardDefinition {
                         effect: Box::new(Effect::MoveZone {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             to: ZoneTarget::Hand {
-                                owner: PlayerTarget::ControllerOf(Box::new(
+                                owner: PlayerTarget::OwnerOf(Box::new(
                                     EffectTarget::DeclaredTarget { index: 0 },
                                 )),
                             },
                             controller_override: None,
                         }),
                     }),
-                    // Normal cast: bounce the declared target.
+                    // Normal cast: bounce the declared target to its owner's hand.
                     if_false: Box::new(Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         to: ZoneTarget::Hand {
-                            owner: PlayerTarget::ControllerOf(Box::new(
+                            owner: PlayerTarget::OwnerOf(Box::new(
                                 EffectTarget::DeclaredTarget { index: 0 },
                             )),
                         },
