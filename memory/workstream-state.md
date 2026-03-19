@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-14 retroactive review | ACTIVE | 2026-03-18 | Planeswalker support + emblems, 31 cards. 16/20 reviews. |
+| W6: Primitive + Card Authoring | W6-review: PB-15 retroactive review (Saga & Class) | ACTIVE | 2026-03-18 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 16/20 done. Use `/implement-primitive --review-only PB-<N>`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -49,7 +49,7 @@
 
 ### 2026-03-18 — W6: PB-14 review
 - PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — 1H fixed; 1M 2L deferred
-- Commit: pending
+- Commit: b776522
 
 ### 2026-03-18 — W6: PB-13 review
 - PB-13 retroactive review (15/20): Specialized mechanics, 19 cards — 2H 5M fixed; 9M 1L deferred

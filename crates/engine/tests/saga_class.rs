@@ -132,7 +132,7 @@ fn saga_etb_places_lore_counter_cr714_3a() {
     assert_eq!(lore, 0, "Builder should not place lore counters");
 
     // Fire precombat main TBA.
-    let events = mtg_engine::rules::turn_actions::execute_turn_based_actions(&mut state).unwrap();
+    let _events = mtg_engine::rules::turn_actions::execute_turn_based_actions(&mut state).unwrap();
 
     // Should have added a lore counter.
     let lore = state
@@ -216,7 +216,7 @@ fn saga_multiple_chapters_can_trigger_cr714_2c() {
     // Use the fire_saga_chapter_triggers function directly.
     let registry = state.card_registry.clone();
     let def = registry.get(CardId("test-saga".to_string())).unwrap();
-    let events = mtg_engine::rules::replacement::fire_saga_chapter_triggers(
+    let _events = mtg_engine::rules::replacement::fire_saga_chapter_triggers(
         &mut state, saga_id, p1, 0, 2, &def,
     );
 
@@ -421,10 +421,12 @@ fn build_class_state() -> (GameState, ObjectId, PlayerId) {
 #[test]
 fn class_level_up_from_1_to_2_cr716_2a() {
     // CR 716.2a: Level up is sorcery-speed, only if Class is at level N-1.
+    // Level-up goes through the stack (Druid Class ruling: "uses the stack and can be responded to").
     let (mut state, class_id, p1) = build_class_state();
+    let p2 = PlayerId(2);
 
-    // Level up from 1 to 2.
-    let (new_state, events) = process_command(
+    // Level up from 1 to 2 — pushed onto the stack.
+    let (new_state, _events) = process_command(
         state,
         Command::LevelUpClass {
             player: p1,
@@ -435,8 +437,28 @@ fn class_level_up_from_1_to_2_cr716_2a() {
     .unwrap();
     state = new_state;
 
+    // Level is NOT set yet — it's on the stack.
     let class_level = state.objects.get(&class_id).unwrap().class_level;
-    assert_eq!(class_level, 2, "Class should be at level 2 after level-up");
+    assert_eq!(
+        class_level, 1,
+        "Level should still be 1 while level-up is on the stack"
+    );
+    assert!(
+        !state.stack_objects.is_empty(),
+        "ClassLevelAbility should be on the stack"
+    );
+
+    // Both players pass priority — stack resolves.
+    for &pl in &[p1, p2] {
+        let (s, _ev) = process_command(state, Command::PassPriority { player: pl }).unwrap();
+        state = s;
+    }
+
+    let class_level = state.objects.get(&class_id).unwrap().class_level;
+    assert_eq!(
+        class_level, 2,
+        "Class should be at level 2 after level-up resolves"
+    );
 }
 
 #[test]
@@ -551,9 +573,11 @@ fn class_level_up_requires_mana_payment_cr716_2a() {
 #[test]
 fn class_sequential_level_up_cr716_2a() {
     // Test leveling from 1 → 2 → 3 sequentially.
+    // Each level-up goes through the stack before taking effect.
     let (mut state, class_id, p1) = build_class_state();
+    let p2 = PlayerId(2);
 
-    // Level 1 → 2.
+    // Level 1 → 2 (pushed onto stack).
     let (s, _) = process_command(
         state,
         Command::LevelUpClass {
@@ -565,12 +589,15 @@ fn class_sequential_level_up_cr716_2a() {
     .unwrap();
     state = s;
 
+    // Resolve the stack: both players pass.
+    for &pl in &[p1, p2] {
+        let (s, _ev) = process_command(state, Command::PassPriority { player: pl }).unwrap();
+        state = s;
+    }
+
     assert_eq!(state.objects.get(&class_id).unwrap().class_level, 2);
 
-    // Reset priority so p1 can act again.
-    state.turn.players_passed = im::OrdSet::new();
-
-    // Level 2 → 3.
+    // Level 2 → 3 (pushed onto stack).
     let (s, _) = process_command(
         state,
         Command::LevelUpClass {
@@ -582,9 +609,15 @@ fn class_sequential_level_up_cr716_2a() {
     .unwrap();
     state = s;
 
+    // Resolve the stack: both players pass.
+    for &pl in &[p1, p2] {
+        let (s, _ev) = process_command(state, Command::PassPriority { player: pl }).unwrap();
+        state = s;
+    }
+
     assert_eq!(
         state.objects.get(&class_id).unwrap().class_level,
         3,
-        "Class should be at level 3 after two level-ups"
+        "Class should be at level 3 after two level-ups resolve"
     );
 }

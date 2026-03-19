@@ -827,4 +827,25 @@ pub enum StackObjectKind {
         /// The player who controls the ring.
         controller: crate::state::player::PlayerId,
     },
+
+    /// CR 716.2a: Class level-up activated ability on the stack.
+    ///
+    /// Level-up is an activated ability that uses the stack and can be responded
+    /// to. ("Gaining a level is a normal activated ability. It uses the stack and
+    /// can be responded to." — Druid Class rulings.)
+    ///
+    /// The mana cost was already paid at activation time (CR 602.2b).
+    /// At resolution: set `class_level = target_level` on `source_object` and
+    /// register any continuous effects declared at that level.
+    ///
+    /// If `source_object` is no longer on the battlefield at resolution time,
+    /// the ability does nothing (CR 608.2b analog for non-targeted abilities).
+    ///
+    /// Discriminant 68.
+    ClassLevelAbility {
+        /// The ObjectId of the Class permanent that is leveling up.
+        source_object: ObjectId,
+        /// The level the Class is leveling up to.
+        target_level: u32,
+    },
 }

@@ -153,6 +153,14 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::LoyaltyAbility { source_object, .. } => {
                     ("Loyalty: ".to_string(), Some(*source_object))
                 }
+                // CR 716.2a: Class level-up activated ability.
+                StackObjectKind::ClassLevelAbility {
+                    source_object,
+                    target_level,
+                } => (
+                    format!("Level Up (→{}): ", target_level),
+                    Some(*source_object),
+                ),
             };
 
             let (name, name_color) = source_id

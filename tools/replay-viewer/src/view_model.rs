@@ -545,6 +545,10 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::LoyaltyAbility { source_object, .. } => {
             ("loyalty_ability", Some(*source_object))
         }
+        // CR 716.2a: Class level-up activated ability.
+        StackObjectKind::ClassLevelAbility { source_object, .. } => {
+            ("class_level_ability", Some(*source_object))
+        }
     }
 }
 

@@ -609,6 +609,7 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
         .filter(|(_, obj)| {
             obj.controller == active
                 && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
+                && obj.is_phased_in()
                 && obj.card_id.is_some()
         })
         .filter_map(|(id, obj)| {

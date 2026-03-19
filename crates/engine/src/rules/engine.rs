@@ -2632,49 +2632,55 @@ fn handle_level_up_class(
         crate::rules::casting::pay_cost(&mut player_state.mana_pool, &level_cost);
     }
 
-    // Set the Class's level.
-    if let Some(obj) = state.objects.get_mut(&source) {
-        obj.class_level = target_level;
-    }
-
-    // CR 716.2a: Register static continuous effects from the new level's abilities.
-    // Find the ClassLevel abilities at the target level and register their sub-abilities.
-    let level_abilities: Vec<AbilityDefinition> = def
-        .abilities
-        .iter()
-        .filter_map(|a| match a {
-            AbilityDefinition::ClassLevel {
-                level, abilities, ..
-            } if *level == target_level => Some(abilities.clone()),
-            _ => None,
-        })
-        .flatten()
-        .collect();
-
-    for sub_ability in &level_abilities {
-        if let AbilityDefinition::Static { continuous_effect } = sub_ability {
-            let eff_id = state.next_object_id().0;
-            let ts = state.timestamp_counter;
-            state.timestamp_counter += 1;
-            state
-                .continuous_effects
-                .push_back(crate::state::continuous_effect::ContinuousEffect {
-                    id: crate::state::continuous_effect::EffectId(eff_id),
-                    source: Some(source),
-                    timestamp: ts,
-                    layer: continuous_effect.layer,
-                    duration: continuous_effect.duration,
-                    filter: continuous_effect.filter.clone(),
-                    modification: continuous_effect.modification.clone(),
-                    is_cda: false,
-                });
-        }
-    }
+    // CR 716.2a: Push the level-up as a stack object — it's a normal activated ability
+    // that uses the stack and can be responded to (Druid Class rulings 2021-09-24).
+    let stack_id = state.next_object_id();
+    let stack_obj = crate::state::stack::StackObject {
+        id: stack_id,
+        controller: player,
+        kind: crate::state::stack::StackObjectKind::ClassLevelAbility {
+            source_object: source,
+            target_level,
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        modes_chosen: vec![],
+        x_value: 0,
+        evidence_collected: false,
+        is_cast_transformed: false,
+        additional_costs: vec![],
+    };
+    state.stack_objects.push_back(stack_obj);
 
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: source,
-        stack_object_id: source, // No stack object — level-up doesn't use the stack.
+        stack_object_id: stack_id,
     });
 
     // Reset priority since this is a game action.

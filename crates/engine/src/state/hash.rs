@@ -2378,6 +2378,15 @@ impl HashInto for StackObjectKind {
                 ability_index.hash_into(hasher);
                 effect.hash_into(hasher);
             }
+            // ClassLevelAbility (discriminant 68) -- CR 716.2a Class level-up
+            StackObjectKind::ClassLevelAbility {
+                source_object,
+                target_level,
+            } => {
+                68u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                target_level.hash_into(hasher);
+            }
         }
     }
 }

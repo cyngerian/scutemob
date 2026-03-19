@@ -7237,6 +7237,79 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             events.extend(effect_events);
         }
 
+        // CR 716.2a: Class level-up activated ability resolution.
+        //
+        // Set the Class's level to `target_level` and register any continuous
+        // effects declared at that level. If the Class has left the battlefield
+        // since the ability was activated, do nothing (CR 608.2b analog).
+        StackObjectKind::ClassLevelAbility {
+            source_object,
+            target_level,
+        } => {
+            use crate::cards::card_definition::AbilityDefinition;
+
+            // CR 608.2b analog: if the Class is no longer on the battlefield, fizzle.
+            let still_on_bf = state
+                .objects
+                .get(&source_object)
+                .map(|o| o.zone == crate::state::zone::ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if still_on_bf {
+                // Set the class level.
+                if let Some(obj) = state.objects.get_mut(&source_object) {
+                    obj.class_level = target_level;
+                }
+
+                // Register static continuous effects from the new level's abilities.
+                let card_id = state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|o| o.card_id.clone());
+                if let Some(cid) = card_id {
+                    let registry = state.card_registry.clone();
+                    if let Some(def) = registry.get(cid) {
+                        let level_abilities: Vec<AbilityDefinition> = def
+                            .abilities
+                            .iter()
+                            .filter_map(|a| match a {
+                                AbilityDefinition::ClassLevel {
+                                    level, abilities, ..
+                                } if *level == target_level => Some(abilities.clone()),
+                                _ => None,
+                            })
+                            .flatten()
+                            .collect();
+
+                        for sub_ability in &level_abilities {
+                            if let AbilityDefinition::Static { continuous_effect } = sub_ability {
+                                let eff_id = state.next_object_id().0;
+                                let ts = state.timestamp_counter;
+                                state.timestamp_counter += 1;
+                                state.continuous_effects.push_back(
+                                    crate::state::continuous_effect::ContinuousEffect {
+                                        id: crate::state::continuous_effect::EffectId(eff_id),
+                                        source: Some(source_object),
+                                        timestamp: ts,
+                                        layer: continuous_effect.layer,
+                                        duration: continuous_effect.duration,
+                                        filter: continuous_effect.filter.clone(),
+                                        modification: continuous_effect.modification.clone(),
+                                        is_cda: false,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+
+                events.push(GameEvent::AbilityResolved {
+                    controller: stack_obj.controller,
+                    stack_object_id: stack_obj.id,
+                });
+            }
+        }
+
         // CR 309.4c: Room ability resolution — execute the room's effect.
         // The dungeon is in the command zone; the owner is the venture controller.
         StackObjectKind::RoomAbility {
@@ -7465,7 +7538,9 @@ pub fn counter_stack_object(
         | StackObjectKind::RoomAbility { .. }
         | StackObjectKind::RingAbility { .. }
         // CR 606: Loyalty ability countered — cost already paid, no effect.
-        | StackObjectKind::LoyaltyAbility { .. } => {
+        | StackObjectKind::LoyaltyAbility { .. }
+        // CR 716.2a: ClassLevelAbility countered — mana cost already paid, level stays unchanged.
+        | StackObjectKind::ClassLevelAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.
