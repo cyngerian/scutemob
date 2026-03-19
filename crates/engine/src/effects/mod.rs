@@ -1470,12 +1470,13 @@ fn execute_effect_inner(
             filter,
             reveal: _,
             destination,
+            shuffle_before_placing,
         } => {
             // M9+: interactive card search. For M7, deterministic fallback:
             // find the first matching card (by ObjectId, ascending) in the library.
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                // CR 701.19 / CR 614.1: Check search restriction replacements.
+                // CR 701.23 / CR 614.1: Check search restriction replacements.
                 let (search_restriction, repl_events) =
                     crate::rules::replacement::apply_search_library_replacement(state, p);
                 events.extend(repl_events);
@@ -1506,6 +1507,18 @@ fn execute_effect_inner(
                 }
 
                 if let Some(&card_id) = candidates.iter().min_by_key(|&&id| id.0) {
+                    // CR 701.23: "shuffle and put on top" pattern — shuffle FIRST, then place.
+                    // Vampiric Tutor/Worldly Tutor ruling (2016-06-08): "The 'shuffle and put
+                    // the card on top' is a single action." We implement this by shuffling while
+                    // the card is still in the library, then moving it to the destination.
+                    if *shuffle_before_placing {
+                        let seed = state.timestamp_counter;
+                        state.timestamp_counter += 1;
+                        if let Some(zone) = state.zones.get_mut(&ZoneId::Library(p)) {
+                            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                            zone.shuffle(&mut rng);
+                        }
+                    }
                     // MR-M7-10: check tapped flag before resolving to ZoneId.
                     // MR-M7-04: resolve owner from PlayerTarget, not blindly controller.
                     let tapped_opt = dest_tapped(destination);
@@ -2458,11 +2471,12 @@ fn execute_effect_inner(
                         // Remove the two phantom exile objects that were created as
                         // zone-change intermediaries. CR 701.42a puts both cards onto the
                         // battlefield combined — they should not persist in exile.
-                        for phantom_id in [exiled_source_id, exiled_partner_id].into_iter().flatten() {
+                        for phantom_id in
+                            [exiled_source_id, exiled_partner_id].into_iter().flatten()
+                        {
                             state.objects.remove(&phantom_id);
-                            if let Some(exile_set) = state
-                                .zones
-                                .get_mut(&crate::state::zone::ZoneId::Exile)
+                            if let Some(exile_set) =
+                                state.zones.get_mut(&crate::state::zone::ZoneId::Exile)
                             {
                                 exile_set.remove(&phantom_id);
                             }

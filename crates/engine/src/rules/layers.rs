@@ -163,8 +163,11 @@ pub fn calculate_characteristics(
                             // The melded back face has no mana cost (None → 0), so we
                             // compute the sum explicitly from both front faces and store it
                             // as a synthetic ManaCost with generic = sum.
-                            let source_mv = def.mana_cost.as_ref().map(|c| c.mana_value()).unwrap_or(0);
-                            let partner_mv = obj.meld_component.as_ref()
+                            let source_mv =
+                                def.mana_cost.as_ref().map(|c| c.mana_value()).unwrap_or(0);
+                            let partner_mv = obj
+                                .meld_component
+                                .as_ref()
                                 .and_then(|pid| state.card_registry.get(pid.clone()))
                                 .and_then(|pd| pd.mana_cost.as_ref().map(|c| c.mana_value()))
                                 .unwrap_or(0);

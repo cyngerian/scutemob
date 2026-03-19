@@ -1,7 +1,7 @@
 // Assassin's Trophy — {B}{G} Instant
-// Destroy target nonland permanent. Its controller may search their library for a
-// basic land card, put it onto the battlefield, then shuffle.
-// CR 701.19: opponent search portion uses ControllerOf(DeclaredTarget) for player target.
+// Destroy target permanent an opponent controls. Its controller may search their library
+// for a basic land card, put it onto the battlefield, then shuffle.
+// CR 701.23: opponent search portion uses ControllerOf(DeclaredTarget) for player target.
 // Note: "may search" is modeled as unconditional search (deterministic fallback).
 use crate::cards::helpers::*;
 
@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Destroy target nonland permanent. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {
@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                     },
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: false },
+                    shuffle_before_placing: false,
                 },
                 Effect::Shuffle {
                     player: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget {
@@ -40,7 +41,7 @@ pub fn card() -> CardDefinition {
                 },
             ]),
             targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                non_land: true,
+                controller: TargetController::Opponent,
                 ..Default::default()
             })],
             modes: None,

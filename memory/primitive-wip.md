@@ -1,43 +1,32 @@
-# Primitive WIP: PB-16 -- Meld (REVIEW-ONLY)
+# Primitive WIP: PB-17 -- Library Search Filters (REVIEW-ONLY)
 
-batch: PB-16
-title: Meld
-cards_affected: 1
+batch: PB-17
+title: Library Search Filters
+cards_affected: 27 (card defs using SearchLibrary; plan said 74 but most are unwritten)
 mode: review-only
 started: 2026-03-19
-phase: done
+phase: fix
 plan_file: n/a (retroactive review -- no plan needed)
 
-## Review Scope
-Engine changes and card definition fixes from the original PB-16 implementation.
-Review against CR rules and oracle text. No plan file -- reviewer works from
-primitive-card-plan.md batch specification and the actual code.
-
-- Meld pairs tracked on CardDefinition (front + paired card)
-- Command::Meld checks both cards present on battlefield
-- Melded permanent has combined characteristics
-- Zone-change splits back into individual cards (similar to Mutate)
-- Cards: hanweir_battlements (melds with Hanweir Garrison)
-- Files: card_definition.rs, game_object.rs, command.rs
-
 ## Review
-findings: 5 (HIGH: 1, MEDIUM: 2 fixable + 2 DSL-gap deferred, LOW: 1)
+findings: 9 (HIGH: 4, MEDIUM: 4, LOW: 1)
 verdict: needs-fix
-review_file: memory/primitives/pb-review-16.md
+review_file: memory/primitives/pb-review-17.md
 
-## Fix Phase (complete 2026-03-19)
+## Fix Checklist
 
-- [x] HIGH: Phantom exiled cards after meld (effects/mod.rs:2368-2370)
-      Captured new ObjectIds from move_object_to_zone calls; removed both phantom
-      objects from exile zone and objects map after melded permanent created.
-- [x] MEDIUM: Wrong mana value for melded permanents (rules/layers.rs:162)
-      Compute source_mv + partner_mv from both front face mana costs; store as
-      synthetic ManaCost { generic: combined_mv } per CR 712.8g.
-- [ ] MEDIUM: Hanweir Garrison attack trigger TODO (hanweir_garrison.rs:19-20)
-      DEFERRED -- DSL gap: "tapped and attacking" token creation not yet available.
-- [ ] MEDIUM: Hanweir, the Writhing Township attack trigger TODO (hanweir_the_writhing_township.rs:35-36)
-      DEFERRED -- DSL gap: "tapped and attacking" token creation not yet available.
-- [x] LOW: Oracle text mismatch (hanweir_the_writhing_township.rs:31)
-      Changed "Whenever Hanweir, the Writhing Township attacks" to "Whenever Hanweir attacks".
+### HIGH (wrong game state)
+- [x] 1. Vampiric Tutor: shuffle undoes top-of-library placement — added shuffle_before_placing: true, removed separate Shuffle step
+- [x] 2. Worldly Tutor: same shuffle-order bug — same fix as #1
+- [x] 3. Assassin's Trophy: target filter wrong — changed to TargetController::Opponent, removed non_land: true
+- [x] 4. Prismatic Vista: enters tapped, oracle says untapped — changed tapped: true to tapped: false
 
-All tests pass (2155+), clippy clean, workspace build clean.
+### MEDIUM
+- [x] 5. Boseiju: replaced basic: true with has_subtypes vec of 5 basic land type subtypes (CR 305.8)
+- [x] 6. Crop Rotation: wrapped SearchLibrary in Sequence with Shuffle step after
+- [x] 7. Kodama's Reach: changed types() to types_sub() with "Arcane" subtype
+- [x] 8. CR citation fix: all SearchLibrary contexts updated 701.19 → 701.23 (Regenerate references untouched)
+
+### DEFERRED
+- Urza's Saga mana value vs mana cost (DSL gap — exact_mana_cost filter needed)
+- All LOW items (known deferred TODOs)

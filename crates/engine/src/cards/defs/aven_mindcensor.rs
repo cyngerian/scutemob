@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // CR 701.19 / CR 614.1: Restrict opponent library searches to top 4.
+            // CR 701.23 / CR 614.1: Restrict opponent library searches to top 4.
             // PlayerId(0) placeholder — bound to controller at registration.
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldSearchLibrary {

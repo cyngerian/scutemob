@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                     },
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: false },
+                    shuffle_before_placing: false,
                 },
                 Effect::Shuffle {
                     player: PlayerTarget::Controller,

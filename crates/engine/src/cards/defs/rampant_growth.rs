@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
                     filter: basic_land_filter(),
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: true },
+                    shuffle_before_placing: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

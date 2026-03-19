@@ -18,8 +18,10 @@ pub fn card() -> CardDefinition {
                         owner: PlayerTarget::Controller,
                         position: LibraryPosition::Top,
                     },
+                    // CR 701.23: "shuffle and put that card on top" — shuffle first, then place on top.
+                    // Ruling 2016-06-08: this is a single action; card ends on top after shuffle.
+                    shuffle_before_placing: true,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
                 Effect::LoseLife {
                     player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(2),

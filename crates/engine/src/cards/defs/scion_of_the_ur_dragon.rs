@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
                         destination: ZoneTarget::Graveyard {
                             owner: PlayerTarget::Controller,
                         },
+                        shuffle_before_placing: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,

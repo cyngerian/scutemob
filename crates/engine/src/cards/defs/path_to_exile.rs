@@ -1,6 +1,6 @@
 // 21. Path to Exile — {W}, Instant; exile target creature, its controller may
 // search for a basic land and put it into play tapped.
-// CR 701.19: "may search" is modelled via MayPayOrElse with zero cost.
+// CR 701.23: "may search" is modelled via MayPayOrElse with zero cost.
 // M9.4 deterministic fallback: payer does not pay → or_else (search) fires.
 // The exiled creature's controller is the payer (ControllerOf target).
 use crate::cards::helpers::*;
@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                             destination: ZoneTarget::Battlefield {
                                 tapped: true,
                             },
+                            shuffle_before_placing: false,
                         },
                         Effect::Shuffle {
                             player: PlayerTarget::ControllerOf(Box::new(

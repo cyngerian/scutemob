@@ -1,4 +1,4 @@
-//! Tests for SearchLibrary TargetFilter extensions (CR 701.19, CR 202.3).
+//! Tests for SearchLibrary TargetFilter extensions (CR 701.23, CR 202.3).
 //!
 //! PB-17: max_cmc, min_cmc, has_card_types (OR) filters on TargetFilter.
 //! Validates that SearchLibrary correctly filters by mana value and card type
@@ -48,6 +48,7 @@ fn tutor_spell(name: &str, card_id: &str, filter: TargetFilter, to: ZoneTarget) 
                     filter,
                     reveal: false,
                     destination: to,
+                    shuffle_before_placing: false,
                 },
                 Effect::Shuffle {
                     player: PlayerTarget::Controller,
@@ -98,11 +99,11 @@ fn is_in_zone(state: &GameState, name: &str, zone_check: impl Fn(&ZoneId) -> boo
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 / CR 202.3 — max_cmc filter
+// CR 701.23 / CR 202.3 — max_cmc filter
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 / CR 202.3 — SearchLibrary with max_cmc filters by mana value
+/// CR 701.23 / CR 202.3 — SearchLibrary with max_cmc filters by mana value
 fn test_search_library_max_cmc_finds_matching_card() {
     let tutor = tutor_spell(
         "Low CMC Tutor",
@@ -206,11 +207,11 @@ fn test_search_library_max_cmc_finds_matching_card() {
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 / CR 202.3 — min_cmc filter
+// CR 701.23 / CR 202.3 — min_cmc filter
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 / CR 202.3 — SearchLibrary with min_cmc filters low-cost cards
+/// CR 701.23 / CR 202.3 — SearchLibrary with min_cmc filters low-cost cards
 fn test_search_library_min_cmc_filters_low_cost_cards() {
     let tutor = tutor_spell(
         "High CMC Tutor",
@@ -324,11 +325,11 @@ fn test_search_library_min_cmc_filters_low_cost_cards() {
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 — has_card_types OR semantics
+// CR 701.23 — has_card_types OR semantics
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 — SearchLibrary with has_card_types OR for "instant or sorcery"
+/// CR 701.23 — SearchLibrary with has_card_types OR for "instant or sorcery"
 fn test_search_library_has_card_types_or_semantics() {
     let tutor = tutor_spell(
         "Mystical Tutor Test",
@@ -439,11 +440,11 @@ fn test_search_library_has_card_types_or_semantics() {
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 — empty filter (any card)
+// CR 701.23 — empty filter (any card)
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 — Empty filter finds any card (Demonic Tutor pattern)
+/// CR 701.23 — Empty filter finds any card (Demonic Tutor pattern)
 fn test_search_library_empty_filter_finds_any() {
     let tutor = tutor_spell(
         "Demonic Tutor Test",
@@ -515,11 +516,11 @@ fn test_search_library_empty_filter_finds_any() {
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 / CR 202.3 — combined filter: creature + max CMC
+// CR 701.23 / CR 202.3 — combined filter: creature + max CMC
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 / CR 202.3 — Combined creature type + max CMC filter
+/// CR 701.23 / CR 202.3 — Combined creature type + max CMC filter
 fn test_search_library_combined_creature_max_cmc() {
     let tutor = tutor_spell(
         "Creature CMC Tutor",
@@ -753,11 +754,11 @@ fn test_search_library_no_mana_cost_has_mv_zero() {
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 — No match scenario
+// CR 701.23 — No match scenario
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 — SearchLibrary with no matching card finds nothing
+/// CR 701.23 — SearchLibrary with no matching card finds nothing
 fn test_search_library_no_match_finds_nothing() {
     let tutor = tutor_spell(
         "Enchantment Tutor",
@@ -842,11 +843,11 @@ fn test_search_library_no_match_finds_nothing() {
 }
 
 // ---------------------------------------------------------------------------
-// CR 701.19 — Top of library destination (Vampiric Tutor pattern)
+// CR 701.23 — Top of library destination (Vampiric Tutor pattern)
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 701.19 — SearchLibrary to top of library
+/// CR 701.23 — SearchLibrary to top of library
 fn test_search_library_to_top_of_library() {
     let tutor = tutor_spell(
         "Top Tutor",

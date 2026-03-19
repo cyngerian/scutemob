@@ -15,7 +15,7 @@
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | W6-review: PB-16 retroactive review | ACTIVE | 2026-03-19 | Retroactive review of PB-16 (Meld). 17/20 done, 3 remaining. |
+| W6: Primitive + Card Authoring | W6-review: PB-17 retroactive review | ACTIVE | 2026-03-19 | **PRIMARY OBJECTIVE**: review all 20 PB batches. 18/20 done. Use `/implement-primitive --review-only PB-<N>`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,22 +23,22 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-18
+**Date**: 2026-03-19
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-15 review
+**Task**: W6-review — retroactive PB-16 review
 
 **Completed**:
-- PB-15 retroactive review (17/20): Saga & Class mechanics, 2 cards — **fixed**
-  - 1H fixed: Class level-up bypassed the stack (CR 716.2a). Added StackObjectKind::ClassLevelAbility, moved resolution to resolution.rs. Opponents can now respond to level-up.
-  - 1M fixed: Saga precombat main TBA missing is_phased_in() check for lore counter placement.
-  - 2M deferred: Card def TODOs (Urza's Saga chapters I/II, Druid Class levels 1/2/3) — DSL gaps
-  - 1L deferred: Urza's Saga chapter III mana cost vs mana value filter
-- Review file: `memory/primitives/pb-review-15.md`
+- PB-16 retroactive review (18/20): Meld, 1 card — **fixed**
+  - 1H fixed: Phantom exiled cards after meld (CR 701.42a). Captured return values from move_object_to_zone, removed phantom exile objects after melded permanent created.
+  - 1M fixed: Melded permanent mana value was 0 instead of sum of front faces (CR 712.8g). Synthetic ManaCost with combined MV.
+  - 1L fixed: Oracle text mismatch on Hanweir back face.
+  - 2M deferred: Attack trigger TODOs on Garrison + Township (DSL gap — tapped-and-attacking tokens)
+- Review file: `memory/primitives/pb-review-16.md`
 - 2155 tests passing
 
 **Next**:
-1. `/implement-primitive --review-only PB-16` (Meld, 1 card)
-2. Sequential through PB-17, PB-18
+1. `/implement-primitive --review-only PB-17` (Library search filters, 74 cards)
+2. Then PB-18 (Stax / restrictions)
 3. After all 20 reviews complete: resume PB-19 (board wipes)
 
 **Hazards**:
@@ -47,6 +47,10 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-19 — W6: PB-16 review
+- PB-16 retroactive review (18/20): Meld, 1 card — 1H 1M 1L fixed; 2M deferred (DSL gap)
+- Commit: 6fce74c
 
 ### 2026-03-18 — W6: PB-15 review
 - PB-15 retroactive review (17/20): Saga & Class, 2 cards — 1H 1M fixed; 2M 1L deferred (DSL gaps)

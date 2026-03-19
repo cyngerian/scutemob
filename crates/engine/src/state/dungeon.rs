@@ -500,6 +500,7 @@ fn the_undercity() -> DungeonDef {
                     destination: ZoneTarget::Hand {
                         owner: PlayerTarget::Controller,
                     },
+                    shuffle_before_placing: false,
                 },
                 exits: &[1, 2],
             },

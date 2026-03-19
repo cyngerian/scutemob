@@ -50,13 +50,23 @@ pub fn card() -> CardDefinition {
                         player: PlayerTarget::ControllerOf(Box::new(
                             EffectTarget::DeclaredTarget { index: 0 },
                         )),
+                        // CR 305.8: "land card with a basic land type" means any land with
+                        // Plains/Island/Swamp/Mountain/Forest subtype — includes nonbasic lands
+                        // like shock lands. NOT the same as basic: true (Basic supertype).
                         filter: TargetFilter {
                             has_card_type: Some(CardType::Land),
-                            basic: true,
+                            has_subtypes: vec![
+                                SubType("Plains".to_string()),
+                                SubType("Island".to_string()),
+                                SubType("Swamp".to_string()),
+                                SubType("Mountain".to_string()),
+                                SubType("Forest".to_string()),
+                            ],
                             ..Default::default()
                         },
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
+                        shuffle_before_placing: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::ControllerOf(Box::new(

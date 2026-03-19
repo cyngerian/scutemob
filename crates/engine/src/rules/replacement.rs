@@ -2603,7 +2603,7 @@ pub fn apply_token_creation_replacement(
     (modified_count, events)
 }
 
-/// CR 701.19 / CR 614.1: Apply library-search replacement effects.
+/// CR 701.23 / CR 614.1: Apply library-search replacement effects.
 ///
 /// Before searching a library, check for registered WouldSearchLibrary
 /// replacement effects. Returns `Some(top_n)` if search should be restricted

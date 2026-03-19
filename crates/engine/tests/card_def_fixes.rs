@@ -3,7 +3,7 @@
 //! Session 1 covers:
 //! - Read the Bones: Scry 2 fires before drawing two cards (CR 701.18)
 //! - Dimir Guildgate: modal color choice (CR 106.6)
-//! - Path to Exile: optional search via deterministic MayPayOrElse (CR 701.19)
+//! - Path to Exile: optional search via deterministic MayPayOrElse (CR 701.23)
 //! - Thought Vessel / Reliquary Tower: no-maximum-hand-size skips cleanup discard (CR 402.2)
 //! - Alela, Cunning Conqueror: WheneverYouCastSpell has during_opponent_turn: true (CR 603.1)
 //!
@@ -226,10 +226,10 @@ fn test_dimir_guildgate_modal_color() {
     }
 }
 
-// ── CR 701.19: Path to Exile — optional search ───────────────────────────────
+// ── CR 701.23: Path to Exile — optional search ───────────────────────────────
 
 #[test]
-/// CR 701.19 / M9.4 — Path to Exile: target creature is exiled and the deterministic
+/// CR 701.23 / M9.4 — Path to Exile: target creature is exiled and the deterministic
 /// fallback fires the search branch (controller searches for a basic land).
 fn test_path_to_exile_optional_search() {
     let p1 = PlayerId(1);

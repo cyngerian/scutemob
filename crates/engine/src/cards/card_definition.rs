@@ -1149,12 +1149,17 @@ pub enum Effect {
         /// The zone to take cards from (typically the player's hand).
         from: ZoneTarget,
     },
-    /// CR 701.19: Search a library for a card matching a filter.
+    /// CR 701.23: Search a library for a card matching a filter.
     SearchLibrary {
         player: PlayerTarget,
         filter: TargetFilter,
         reveal: bool,
         destination: ZoneTarget,
+        /// When true, shuffle the library BEFORE moving the found card to its destination.
+        /// Used by "shuffle and put on top" effects (Vampiric Tutor, Worldly Tutor) where
+        /// the shuffle happens first, then the card is placed on top (CR 701.23 ruling).
+        #[serde(default)]
+        shuffle_before_placing: bool,
     },
     /// CR 701.20: Shuffle a player's library.
     Shuffle { player: PlayerTarget },

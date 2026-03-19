@@ -1788,7 +1788,7 @@ pub fn translate_player_action(
             })
         }
 
-        // CR 701.19a: Document a library search result in a script.
+        // CR 701.23a: Document a library search result in a script.
         // The engine resolves SearchLibrary effects deterministically (minimum ObjectId
         // matching the filter). This action is a documentation marker only — no Command
         // is issued. When M10 adds interactive search (Command::SelectLibraryCard),

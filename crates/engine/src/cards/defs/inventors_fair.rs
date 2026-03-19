@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                         destination: ZoneTarget::Hand {
                             owner: PlayerTarget::Controller,
                         },
+                        shuffle_before_placing: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,

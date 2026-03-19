@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // Chapter III: Search for artifact with CMC 0 or 1, put onto battlefield.
-            // CR 701.19 / CR 202.3
+            // CR 701.23 / CR 202.3
             AbilityDefinition::SagaChapter {
                 chapter: 3,
                 effect: Effect::Sequence(vec![
@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                         },
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
+                        shuffle_before_placing: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,

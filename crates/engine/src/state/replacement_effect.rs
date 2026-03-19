@@ -59,7 +59,7 @@ pub enum ReplacementTrigger {
     /// Tokens would be created (CR 111.1, 614.1).
     /// `controller_filter` matches the player who would create the tokens.
     WouldCreateTokens { controller_filter: PlayerFilter },
-    /// A player would search a library (CR 701.19, 614.1).
+    /// A player would search a library (CR 701.23, 614.1).
     /// `searcher_filter` matches the player who would search.
     WouldSearchLibrary { searcher_filter: PlayerFilter },
     /// A player would lose life (CR 614.1).
@@ -126,7 +126,7 @@ pub enum ReplacementModification {
     /// "If one or more tokens would be created, twice that many are created instead."
     /// Used by Adrix and Nev, Twincasters.
     DoubleTokens,
-    /// CR 614.1 / CR 701.19: Restrict library search to the top N cards.
+    /// CR 614.1 / CR 701.23: Restrict library search to the top N cards.
     /// "That player searches the top N cards instead."
     /// Used by Aven Mindcensor (top 4).
     RestrictSearchTopN(u32),

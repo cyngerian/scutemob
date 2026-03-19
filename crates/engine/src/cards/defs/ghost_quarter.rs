@@ -2,7 +2,7 @@
 // {T}: Add {C}.
 // {T}, Sacrifice: Destroy target land. Its controller may search for basic land,
 //   put onto battlefield, shuffle.
-// CR 701.19: opponent search uses ControllerOf(DeclaredTarget).
+// CR 701.23: opponent search uses ControllerOf(DeclaredTarget).
 // Note: "may search" modeled as unconditional search (deterministic fallback).
 use crate::cards::helpers::*;
 
@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                         },
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
+                        shuffle_before_placing: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::ControllerOf(Box::new(

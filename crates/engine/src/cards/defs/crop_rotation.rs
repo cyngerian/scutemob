@@ -12,15 +12,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            effect: Effect::SearchLibrary {
-                player: PlayerTarget::Controller,
-                filter: TargetFilter {
-                    has_card_type: Some(CardType::Land),
-                    ..Default::default()
+            // CR 701.23: Oracle says "put that card onto the battlefield, then shuffle."
+            effect: Effect::Sequence(vec![
+                Effect::SearchLibrary {
+                    player: PlayerTarget::Controller,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    reveal: false,
+                    destination: ZoneTarget::Battlefield { tapped: false },
+                    shuffle_before_placing: false,
                 },
-                reveal: false,
-                destination: ZoneTarget::Battlefield { tapped: false },
-            },
+                Effect::Shuffle { player: PlayerTarget::Controller },
+            ]),
             // TODO: sacrifice a land (spell additional cost, not PB-4 activated cost)
             targets: vec![],
             modes: None,

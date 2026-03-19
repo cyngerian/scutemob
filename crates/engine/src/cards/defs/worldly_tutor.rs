@@ -9,23 +9,21 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Search your library for a creature card, reveal it, then shuffle and put the card on top.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            effect: Effect::Sequence(vec![
-                Effect::SearchLibrary {
-                    player: PlayerTarget::Controller,
-                    filter: TargetFilter {
-                        has_card_type: Some(CardType::Creature),
-                        ..Default::default()
-                    },
-                    reveal: true,
-                    destination: ZoneTarget::Library {
-                        owner: PlayerTarget::Controller,
-                        position: LibraryPosition::Top,
-                    },
+            effect: Effect::SearchLibrary {
+                player: PlayerTarget::Controller,
+                filter: TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
                 },
-                Effect::Shuffle {
-                    player: PlayerTarget::Controller,
+                reveal: true,
+                destination: ZoneTarget::Library {
+                    owner: PlayerTarget::Controller,
+                    position: LibraryPosition::Top,
                 },
-            ]),
+                // CR 701.23: "shuffle and put the card on top" — shuffle first, then place on top.
+                // Ruling 2016-06-08: this is a single action; card ends on top after shuffle.
+                shuffle_before_placing: true,
+            },
             targets: vec![],
             modes: None,
             cant_be_countered: false,

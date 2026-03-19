@@ -1535,7 +1535,7 @@ impl HashInto for ReplacementTrigger {
                 7u8.hash_into(hasher);
                 controller_filter.hash_into(hasher);
             }
-            // CR 701.19/614.1: WouldSearchLibrary (discriminant 8)
+            // CR 701.23/614.1: WouldSearchLibrary (discriminant 8)
             ReplacementTrigger::WouldSearchLibrary { searcher_filter } => {
                 8u8.hash_into(hasher);
                 searcher_filter.hash_into(hasher);
@@ -1593,7 +1593,7 @@ impl HashInto for ReplacementModification {
             ReplacementModification::AddExtraCounter => 12u8.hash_into(hasher),
             // CR 111.1: DoubleTokens (discriminant 13)
             ReplacementModification::DoubleTokens => 13u8.hash_into(hasher),
-            // CR 701.19: RestrictSearchTopN (discriminant 14)
+            // CR 701.23: RestrictSearchTopN (discriminant 14)
             ReplacementModification::RestrictSearchTopN(n) => {
                 14u8.hash_into(hasher);
                 n.hash_into(hasher);
@@ -4235,12 +4235,14 @@ impl HashInto for Effect {
                 filter,
                 reveal,
                 destination,
+                shuffle_before_placing,
             } => {
                 18u8.hash_into(hasher);
                 player.hash_into(hasher);
                 filter.hash_into(hasher);
                 reveal.hash_into(hasher);
                 destination.hash_into(hasher);
+                shuffle_before_placing.hash_into(hasher);
             }
             Effect::Shuffle { player } => {
                 19u8.hash_into(hasher);

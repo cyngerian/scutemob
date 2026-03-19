@@ -144,7 +144,7 @@ fn make_search_restrictor_def() -> CardDefinition {
     }
 }
 
-/// CR 701.19 / CR 614.1 — search restriction limits opponent searches
+/// CR 701.23 / CR 614.1 — search restriction limits opponent searches
 #[test]
 fn test_search_restriction_opponents() {
     let registry = CardRegistry::new(vec![make_search_restrictor_def()]);

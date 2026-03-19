@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // {4}, {T}, Sacrifice: Search for a Dragon card, put into hand, shuffle.
-            // CR 701.19
+            // CR 701.23
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
                         destination: ZoneTarget::Hand {
                             owner: PlayerTarget::Controller,
                         },
+                        shuffle_before_placing: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,
