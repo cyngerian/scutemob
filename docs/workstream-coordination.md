@@ -312,7 +312,11 @@ Track progress across sessions by checking these off:
 - [x] W3 T2: Silent-default hardening (MR-M2-09, MR-M3-11, MR-M3-12, MR-M9-17)
 - [x] W3 T2: Performance micro-optimizations (MR-M4-10, MR-M5-06, MR-M9.4-09, MR-M9.5-11)
 - [ ] W3 T3: ManaPool::spend() encapsulated
-- [ ] Committed (T3 pending)
+- [ ] W3-LC S1: Layer correctness audit — classify 69 base-characteristic reads (see `memory/w3-layer-audit.md`)
+- [ ] W3-LC S2: Fix HIGH sites (abilities.rs, resolution.rs) + Humility interaction tests
+- [ ] W3-LC S3: Fix MEDIUM sites (effects/mod.rs, replacement.rs, sba.rs)
+- [ ] W3-LC S4: Fix LOW sites + regression test
+- [ ] Committed (T3 + LC pending)
 
 #### Phase 4: M10
 - [ ] Session plan created (`/start-milestone 10`)

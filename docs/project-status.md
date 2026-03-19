@@ -29,8 +29,8 @@
 | PB-14 | Planeswalker support + emblems | done | 31 | 0 | fixed | 5 |
 | PB-15 | Saga & Class mechanics | done | 3 | 0 | fixed | 2 |
 | PB-16 | Meld | done | 1 | 0 | fixed | 1 |
-| PB-17 | Library search filters | done | 74 | 0 | none | 4 |
-| PB-18 | Stax / action restrictions | done | 10 | 0 | none | 2 |
+| PB-17 | Library search filters | done | 74 | 0 | fixed | 4 |
+| PB-18 | Stax / action restrictions | done | 10 | 0 | fixed | 2 |
 | PB-19 | Mass destroy / board wipes | planned | 0 | 12 | — | 2 |
 | PB-20 | Additional combat phases | planned | 0 | 10 | — | 2 |
 | PB-21 | Fight & Bite | planned | 0 | 5 | — | 1 |
@@ -59,16 +59,15 @@
 |---|------|--------|---------------|-------------|
 | W1 | Abilities | done | 2026-03-11 | — |
 | W2 | TUI & Simulator | stalled | 2026-02-28 | Phase 2: blocker UI, ability targeting |
-| W3 | LOW Remediation | partial | 2026-03-03 | T3: ManaPool encapsulation |
+| W3 | LOW Remediation | partial | 2026-03-19 | T3: ManaPool + **W3-LC: layer correctness audit** (69 sites, 4 sessions) |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-03-16 | **W6-review**: retroactive review of PB-0 through PB-18 |
+| W6 | Primitive + Card Authoring | active | 2026-03-19 | **W6-review DONE**. Next: PB-19 board wipes |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
-**PRIMARY OBJECTIVE**: W6-review — retroactive review of all 19 completed PB batches
-(PB-0 through PB-18) before any new forward progress. No new PB batches or card authoring
-until all reviews are complete and findings fixed.
+**W6-review COMPLETE**: All 20/20 retroactive reviews done. Forward progress unblocked.
+**NEXT OBJECTIVE**: PB-19 (board wipes), PB-20 (extra combat), PB-21 (fight/bite), then Phase 2 card authoring.
 
 ---
 
@@ -78,8 +77,8 @@ until all reviews are complete and findings fixed.
 |-----------|--------|------------|-----------------|
 | M0-M9 | done | — | Engine core complete |
 | M9.5 | done | — | Replay viewer + type consolidation |
-| **W6-review** | **active** | **—** | **Retroactive review of PB-0 through PB-18 (PRIMARY)** |
-| W6 Phase 1 | blocked | W6-review | 3 remaining PB batches (PB-19 to PB-21) |
+| **W6-review** | **done** | **—** | **20/20 retroactive reviews complete** |
+| W6 Phase 1 | active | — | 3 remaining PB batches (PB-19 to PB-21) |
 | W6 Phase 2 | blocked | W6 Phase 1 | Author ~1,025 remaining cards |
 | W6 Phase 3 | blocked | W6 Phase 2 | Audit: zero TODOs, zero wrong game state |
 | M10 | blocked | W6 | Networking: WebSocket server, player choices |
@@ -93,7 +92,7 @@ until all reviews are complete and findings fixed.
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2155 |
+| Total tests | 2162 |
 | Test files | 209 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
@@ -119,6 +118,7 @@ Items explicitly deferred from completed PB batches. Must be addressed before Ph
 | Finale of Devastation graveyard search + X pump | PB-17 | dedicated session | 1 card |
 | Scion of the Ur-Dragon copy-self | PB-17 | copy subsystem | 1 card |
 | Inventors' Fair activation condition | PB-17 | Condition variant | 1 card |
+| Urza's Saga exact mana cost filter | PB-17 | TargetFilter exact_mana_cost field | 1 card |
 | Hanweir attack triggers (tapped-and-attacking tokens) | PB-14 | combat token primitive | 2 cards |
 | Emblem creation (CR 114) | PB-14 | dedicated session | 11 cards |
 
@@ -126,9 +126,7 @@ Items explicitly deferred from completed PB batches. Must be addressed before Ph
 
 ## Review Backlog (W6-review — PRIMARY OBJECTIVE)
 
-**All 19 completed PB batches must be reviewed before forward progress resumes.**
-Use `/implement-primitive --review-only PB-<N>` for each batch.
-Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
+**ALL 20 REVIEWS COMPLETE.** Forward progress unblocked — PB-19 through PB-21 can proceed.
 
 | # | Batch | Title | Cards Fixed | Review Status | Findings |
 |---|-------|-------|-------------|---------------|----------|
@@ -150,8 +148,8 @@ Order: sequential (PB-0 first, PB-18 last). Earlier batches are foundational.
 | 16 | PB-14 | Planeswalker support | 31 | fixed | 1H 1M fixed; 2L deferred |
 | 17 | PB-15 | Saga & Class | 3 | fixed | 1H 1M fixed; 2M 1L deferred |
 | 18 | PB-16 | Meld | 1 | fixed | 1H 1M 1L fixed; 2M deferred (DSL gap) |
-| 19 | PB-17 | Library search filters | 74 | in-review | — |
-| 20 | PB-18 | Stax / restrictions | 10 | pending | — |
+| 19 | PB-17 | Library search filters | 74 | fixed | 4H 4M fixed; 1M deferred (DSL gap) |
+| 20 | PB-18 | Stax / restrictions | 10 | fixed | 2H 4M fixed; 2M deferred (DSL gap) |
 
 **Review Status values**: `pending`, `in-review`, `needs-fix`, `fixing`, `clean`, `fixed`
-**Progress**: 18 / 20 reviewed
+**Progress**: 20 / 20 reviewed — ALL REVIEWS COMPLETE
