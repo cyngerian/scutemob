@@ -9,6 +9,7 @@
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
+use crate::state::stubs::GameRestriction;
 use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -34,6 +35,84 @@ pub fn handle_tap_for_mana(
             expected: state.turn.priority_holder,
             actual: player,
         });
+    }
+
+    // 1b. PB-18 review Finding 2: Check restrictions that block mana ability activation.
+    //
+    // CR 605.3: "Activating an activated mana ability follows the rules for activating
+    // any other activated ability." Therefore Stony Silence / Collector Ouphe block
+    // mana abilities of artifacts (per ruling: "including mana abilities").
+    // Grand Abolisher prevents opponents from activating mana abilities of artifacts,
+    // creatures, or enchantments during the controller's turn.
+    //
+    // Per Finding 3 (zone scope): only artifacts ON THE BATTLEFIELD are affected.
+    // "Stony Silence's ability affects only artifacts on the battlefield."
+    {
+        let active_player = state.turn.active_player;
+
+        // Determine source types (battlefield-only check per Finding 3).
+        let source_zone = state.objects.get(&source).map(|o| o.zone);
+        let source_on_bf = matches!(source_zone, Some(ZoneId::Battlefield));
+
+        let source_is_artifact = source_on_bf
+            && crate::rules::layers::calculate_characteristics(state, source)
+                .map(|chars| chars.card_types.contains(&CardType::Artifact))
+                .unwrap_or(false);
+
+        let source_is_restricted_type = source_on_bf
+            && crate::rules::layers::calculate_characteristics(state, source)
+                .map(|chars| {
+                    chars.card_types.contains(&CardType::Artifact)
+                        || chars.card_types.contains(&CardType::Creature)
+                        || chars.card_types.contains(&CardType::Enchantment)
+                })
+                .unwrap_or(false);
+
+        for restriction in state.restrictions.iter() {
+            // Skip restrictions whose source is no longer on the battlefield.
+            let restriction_source_on_bf = state
+                .objects
+                .get(&restriction.source)
+                .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                .unwrap_or(false);
+            if !restriction_source_on_bf {
+                continue;
+            }
+
+            let controller = restriction.controller;
+
+            match &restriction.restriction {
+                // Collector Ouphe / Stony Silence: blocks ALL activated abilities of artifacts
+                // including mana abilities (CR 605.3 + ruling).
+                GameRestriction::ArtifactAbilitiesCantBeActivated => {
+                    if source_is_artifact {
+                        return Err(GameStateError::InvalidCommand(
+                            "restriction: activated abilities of artifacts can't be activated, \
+                             including mana abilities (CR 605.3, Stony Silence)"
+                                .into(),
+                        ));
+                    }
+                }
+
+                // Grand Abolisher / Myrel: opponents can't activate mana abilities of
+                // artifact/creature/enchantment permanents during controller's turn.
+                GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
+                    if active_player == controller
+                        && player != controller
+                        && source_is_restricted_type
+                    {
+                        return Err(GameStateError::InvalidCommand(
+                            "restriction: opponents can't activate abilities of artifacts, \
+                             creatures, or enchantments during your turn, including mana abilities \
+                             (CR 605.3, Grand Abolisher)"
+                                .into(),
+                        ));
+                    }
+                }
+
+                _ => {}
+            }
+        }
     }
 
     // 2. Fetch a clone of the source object to avoid borrow conflicts.

@@ -6,8 +6,8 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, CounterType, FaceDownKind, GameState,
-    KeywordAbility, ManaCost, ObjectId, PlayerId, Step, TurnFaceUpMethod, ZoneId,
+    AbilityDefinition, AttackTarget, CardType, CounterType, FaceDownKind, GameRestriction,
+    GameState, KeywordAbility, ManaCost, ObjectId, PlayerId, Step, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -343,6 +343,11 @@ impl LegalActionProvider for StubProvider {
                     if !can_afford(state, player, cost) {
                         continue;
                     }
+                }
+                // PB-18 review Finding 4: filter abilities blocked by active restrictions.
+                // Mirrors check_activate_restrictions in rules/abilities.rs.
+                if is_ability_restricted_by_stax(state, player, obj.id) {
+                    continue;
                 }
                 actions.push(LegalAction::ActivateAbility {
                     source: obj.id,
@@ -820,6 +825,70 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
 
     // Otherwise, check if mana solver can find a payment plan from untapped sources
     crate::mana_solver::solve_mana_payment(state, player, cost).is_some()
+}
+
+/// PB-18 review Finding 4: Check whether any active restriction prevents this player
+/// from activating an ability of a specific source object.
+///
+/// Mirrors check_activate_restrictions in rules/abilities.rs. Only objects on the
+/// battlefield are affected (zone-scope fix from Finding 3).
+fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: ObjectId) -> bool {
+    let active_player = state.turn.active_player;
+
+    // Source must be on the battlefield for restrictions to apply (Finding 3).
+    let source_on_battlefield = state
+        .objects
+        .get(&source)
+        .map(|o| o.zone == ZoneId::Battlefield)
+        .unwrap_or(false);
+
+    if !source_on_battlefield {
+        return false;
+    }
+
+    // Compute source card types once.
+    let source_is_artifact = mtg_engine::rules::layers::calculate_characteristics(state, source)
+        .map(|c| c.card_types.contains(&CardType::Artifact))
+        .unwrap_or(false);
+
+    let source_is_restricted_type =
+        mtg_engine::rules::layers::calculate_characteristics(state, source)
+            .map(|c| {
+                c.card_types.contains(&CardType::Artifact)
+                    || c.card_types.contains(&CardType::Creature)
+                    || c.card_types.contains(&CardType::Enchantment)
+            })
+            .unwrap_or(false);
+
+    for restriction in state.restrictions.iter() {
+        let restriction_source_on_bf = state
+            .objects
+            .get(&restriction.source)
+            .map(|o| o.zone == ZoneId::Battlefield)
+            .unwrap_or(false);
+        if !restriction_source_on_bf {
+            continue;
+        }
+
+        let controller = restriction.controller;
+
+        match &restriction.restriction {
+            GameRestriction::ArtifactAbilitiesCantBeActivated => {
+                if source_is_artifact {
+                    return true;
+                }
+            }
+            GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
+                if active_player == controller && player != controller && source_is_restricted_type
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
 }
 
 /// PB-18: Check whether any active restriction prevents this player from casting

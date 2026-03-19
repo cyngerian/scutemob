@@ -13,6 +13,7 @@ use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::{CardId, PlayerId};
+use crate::state::stubs::GameRestriction;
 use crate::state::turn::Step;
 use crate::state::types::{CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType};
 use crate::state::zone::ZoneId;
@@ -174,6 +175,95 @@ pub fn handle_declare_attackers(
         }
 
         attacker_vigilance.push((*attacker_id, has_vigilance));
+    }
+
+    // CR 508.1 / PB-18 review Finding 1: CantAttackYouUnlessPay enforcement.
+    //
+    // Propaganda / Ghostly Prison: "Creatures can't attack you unless their
+    // controller pays {N} for each creature they control that's attacking you."
+    //
+    // Per ruling: payments are made during the declare attackers step. Costs are
+    // cumulative: if multiple Propaganda-type effects are active, the cost per
+    // attacker is the sum of all of them (ruling: "the cost is cumulative").
+    //
+    // Alpha implementation: reject the declaration if the attacking player's mana
+    // pool (already-present mana, not counting untapped sources) cannot cover the
+    // total cumulative attack tax. This is a conservative check — it cannot accept
+    // an attacker declaration that taxes beyond current mana. Interactive payment
+    // is deferred to post-alpha (requires a new DeclareAttackers command field).
+    {
+        // For each defending player, compute the cumulative per-creature tax.
+        // Build a map: defending_player -> total ManaCost per attacker.
+        let mut tax_per_attacker: std::collections::HashMap<PlayerId, u32> =
+            std::collections::HashMap::new();
+
+        for restriction in state.restrictions.iter() {
+            // Skip if source is no longer on the battlefield.
+            let source_on_bf = state
+                .objects
+                .get(&restriction.source)
+                .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                .unwrap_or(false);
+            if !source_on_bf {
+                continue;
+            }
+
+            if let GameRestriction::CantAttackYouUnlessPay { cost_per_creature } =
+                &restriction.restriction
+            {
+                let defending_player = restriction.controller;
+                // Only generic mana cost is supported for attack tax (Propaganda/Ghostly Prison
+                // both use generic mana). More complex costs are deferred.
+                let entry = tax_per_attacker.entry(defending_player).or_insert(0);
+                *entry += cost_per_creature.generic
+                    + cost_per_creature.white
+                    + cost_per_creature.blue
+                    + cost_per_creature.black
+                    + cost_per_creature.red
+                    + cost_per_creature.green
+                    + cost_per_creature.colorless;
+            }
+        }
+
+        if !tax_per_attacker.is_empty() {
+            // Count attackers targeting each defended player.
+            let mut attackers_per_player: std::collections::HashMap<PlayerId, u32> =
+                std::collections::HashMap::new();
+            for (_, target) in &attackers {
+                if let AttackTarget::Player(defending_pid) = target {
+                    if tax_per_attacker.contains_key(defending_pid) {
+                        *attackers_per_player.entry(*defending_pid).or_insert(0) += 1;
+                    }
+                }
+            }
+
+            // Compute total tax owed by the attacking player.
+            let mut total_tax: u32 = 0;
+            for (defending_pid, attacker_count) in &attackers_per_player {
+                if let Some(cost_per) = tax_per_attacker.get(defending_pid) {
+                    total_tax += cost_per * attacker_count;
+                }
+            }
+
+            if total_tax > 0 {
+                // Check if attacking player has enough mana in their pool.
+                let available_mana = state
+                    .players
+                    .get(&player)
+                    .map(|ps| ps.mana_pool.total_with_restricted())
+                    .unwrap_or(0);
+
+                if available_mana < total_tax {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "attack tax: attacking player must pay {} mana ({} per attacker) \
+                         but only has {} mana available (CR 508.1, Propaganda/Ghostly Prison)",
+                        total_tax,
+                        total_tax / attackers_per_player.values().sum::<u32>().max(1),
+                        available_mana
+                    )));
+                }
+            }
+        }
     }
 
     // CR 701.15b: A goaded creature must attack each combat if able.

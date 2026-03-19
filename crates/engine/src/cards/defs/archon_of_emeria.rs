@@ -18,8 +18,13 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::StaticRestriction {
                 restriction: GameRestriction::MaxSpellsPerTurn { max: 1 },
             },
-            // TODO: DSL gap — ETB-tapped replacement on nonbasic lands opponents control requires
-            // a conditional ReplacementTrigger scoped to opponent-controlled nonbasic lands; not supported.
+            // DEFERRED (PB-18 review Finding 5): "Nonbasic lands your opponents control enter tapped."
+            // This requires a conditional ETB-tapped replacement scoped to opponent-controlled
+            // nonbasic lands. The replacement framework currently has no ETBTappedFilter that
+            // checks (a) controller != self and (b) non-basic land type. Until a
+            // ReplacementEffect::ETBTapped variant with OpponentNonbasicLand filter is added,
+            // this ability produces wrong game state (nonbasic lands opponents control don't
+            // enter tapped). Defer to PB-2 or a dedicated replacement-framework fix session.
         ],
         ..Default::default()
     }

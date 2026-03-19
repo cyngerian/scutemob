@@ -55,16 +55,23 @@ fn check_activate_restrictions(
 
     let active_player = state.turn.active_player;
 
-    // Determine if the source is an artifact (for Collector Ouphe / Stony Silence).
-    let source_is_artifact = state
+    // PB-18 review Finding 3: Restrict zone scope — only battlefield objects are affected.
+    //
+    // Per Stony Silence ruling: "affects only artifacts on the battlefield. Activated
+    // abilities that work in other zones (such as cycling) can still be activated."
+    // Per Grand Abolisher ruling: "doesn't stop your opponents from activating abilities
+    // of artifact, creature, or enchantment cards in zones other than the battlefield."
+    let source_on_battlefield = state
         .objects
         .get(&source)
-        .map(|_| {
-            crate::rules::layers::calculate_characteristics(state, source)
-                .map(|chars| chars.card_types.contains(&CardType::Artifact))
-                .unwrap_or(false)
-        })
+        .map(|o| o.zone == ZoneId::Battlefield)
         .unwrap_or(false);
+
+    // Determine if the source is an artifact on the battlefield (for Collector Ouphe / Stony Silence).
+    let source_is_artifact = source_on_battlefield
+        && crate::rules::layers::calculate_characteristics(state, source)
+            .map(|chars| chars.card_types.contains(&CardType::Artifact))
+            .unwrap_or(false);
 
     for restriction in state.restrictions.iter() {
         // Skip restrictions whose source is no longer on the battlefield.
@@ -82,6 +89,7 @@ fn check_activate_restrictions(
         match &restriction.restriction {
             // Collector Ouphe / Stony Silence:
             // "Activated abilities of artifacts can't be activated."
+            // Only applies to artifacts on the battlefield (Finding 3 fix).
             GameRestriction::ArtifactAbilitiesCantBeActivated => {
                 if source_is_artifact {
                     return Err(GameStateError::InvalidCommand(
@@ -94,8 +102,9 @@ fn check_activate_restrictions(
             // Grand Abolisher / Myrel (ability activation component):
             // "During your turn, opponents can't activate abilities of artifacts,
             // creatures, or enchantments."
+            // Only applies to permanents on the battlefield (Finding 3 fix).
             GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
-                if active_player == controller && player != controller {
+                if active_player == controller && player != controller && source_on_battlefield {
                     // Check if source is an artifact, creature, or enchantment.
                     let is_restricted_type =
                         crate::rules::layers::calculate_characteristics(state, source)
