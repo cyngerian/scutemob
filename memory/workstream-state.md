@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | T3 + W3-LC layer correctness audit | available | — | T2 done; T3 ManaPool pending; **W3-LC added** (69 base-char reads to audit, 4 sessions). See `memory/w3-layer-audit.md` |
+| W3: LOW Remediation | T3 + W3-LC layer correctness audit | ACTIVE | 2026-03-19 | T2 done; T3 ManaPool pending; **W3-LC added** (69 base-char reads to audit, 4 sessions). See `memory/w3-layer-audit.md` |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | PB-19: Mass destroy / board wipes | ACTIVE | 2026-03-19 | 12 cards, DestroyAll + ExileAll effects |
@@ -25,23 +25,21 @@
 
 **Date**: 2026-03-19
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: W6-review — retroactive PB-18 review (FINAL — 20/20 complete!)
+**Task**: PB-19: Mass Destroy / Board Wipes (full pipeline: plan → implement → review → fix → close)
 
 **Completed**:
-- PB-18 retroactive review (20/20): Stax / action restrictions, 10 card defs reviewed — **fixed**
-  - Engine: Attack tax enforcement in combat.rs (CR 508.1), mana ability restrictions in mana.rs (CR 605.3), zone scope fix in abilities.rs (Stony Silence ruling), simulator legal_actions restriction filter
-  - 2H fixed: CantAttackYouUnlessPay enforcement, mana ability restriction checks
-  - 4M fixed: zone scope (battlefield-only), simulator filter, Archon ETB-tapped deferred, Dromoka can't-be-countered deferred
-  - 1L fixed: Grand Abolisher stale TODO removed
-  - 7 new tests, 2162 total
-- Review file: `memory/primitives/pb-review-18.md`
-- **ALL 20 RETROACTIVE REVIEWS COMPLETE** — forward progress unblocked
+- PB-19 complete: DestroyAll + ExileAll + OwnerOf + LastEffectCount + AddCounterAmount
+  - Engine: Effect::DestroyAll (indestructible/regen/umbra), Effect::ExileAll, EffectAmount::LastEffectCount, Effect::AddCounterAmount, PlayerTarget::OwnerOf, AllPermanentsMatching controller filter fix
+  - 7 card defs fixed: wrath_of_god, damnation, supreme_verdict, path_of_peril, sublime_exhalation, final_showdown, scavenger_grounds
+  - 5 new card defs: vanquish_the_horde, fumigate, bane_of_progress, ruinous_ultimatum, cyclonic_rift
+  - Review: 2M 2L — all fixed (commander destroy count CR 903.9a, OwnerOf for bounce, ExileAll owner events)
+  - 13 new tests, 2175 total
+- Commits: 224131d (implement), f934425 (review fixes)
 
 **Next**:
-1. PB-19: Mass Destroy / Board Wipes (12 cards, 1-2 sessions)
-2. PB-20: Additional Combat Phases (10 cards, 2 sessions)
-3. PB-21: Fight & Bite (5 cards, 1 session)
-4. Phase 2: Author ~1,025 remaining cards
+1. PB-20: Additional Combat Phases (10 cards, 2 sessions)
+2. PB-21: Fight & Bite (5 cards, 1 session)
+3. Phase 2: Author ~1,020 remaining cards
 
 **Hazards**:
 - None known

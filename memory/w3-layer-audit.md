@@ -22,118 +22,257 @@ with `calculate_characteristics()` call + add a Humility interaction test.
 
 ---
 
-## Scope: 69 base-characteristic reads across 12 files
+## S1 Audit Summary (2026-03-19)
 
-| File | Count | Priority | Notes |
-|------|-------|----------|-------|
-| `effects/mod.rs` | 25 | MEDIUM | Effect execution — filters, targeting |
-| `resolution.rs` | 15 | HIGH | Trigger/spell resolution — wrong chars = wrong game state |
-| `abilities.rs` | 7 | HIGH | Trigger checks — Flanking bug confirmed here |
-| `replacement.rs` | 5 | MEDIUM | Replacement effects fire during events |
-| `sba.rs` | 3 | MEDIUM | "Is this a creature with 0 toughness?" needs layer types |
-| `casting.rs` | 3 | LOW | Stack objects, not battlefield — usually correct |
-| `engine.rs` | 3 | LOW | Command dispatch |
-| `copy.rs` | 2 | LOW | Copiable values — base reads may be intentional (CR 706.2) |
-| `mana.rs` | 2 | LOW | Mana abilities — narrow scope |
-| `state/mod.rs` | 2 | LOW | Zone transitions |
-| `replay_harness.rs` | 1 | SKIP | Test infrastructure |
-| `layers.rs` | 1 | SKIP | Correct by definition |
+**Total standalone reads audited**: ~110
+**needs-layer-calc (bugs)**: 46 (43 original + Soulbond 3444-3446 + CardCount battlefield path + abilities.rs 6053-6056)
+**correct-base**: ~64 (+ replacement.rs 1187 resolved from ambiguous)
+**ambiguous**: 0 (all resolved)
 
-**Also counts**: 139 existing `calculate_characteristics()` calls — the engine already
-does this correctly in most places. The 69 sites are the gap.
+### Bug Distribution by Severity
+
+**HIGH** (visibly wrong results in normal gameplay):
+- `effects/mod.rs:3730,3747` — PowerOf/ToughnessOf reads base P/T, ignoring counters/equipment/anthems
+- `abilities.rs:6035` + `6053-6056` — collect_triggers_for_event reads base triggered abilities — Humility doesn't suppress triggers; ETB filter also reads base card_types
+- `mana.rs:154,157-159,181` — summoning sickness ignores animated permanents and layer-granted haste
+
+**MEDIUM** (require uncommon but real interactions):
+- `abilities.rs:222,246` — activated ability access bypasses Humility
+- `abilities.rs:706,6376` — hexproof/shroud/protection bypasses layer removal
+- `abilities.rs:4311,4323` — Flanking checks bypass layers (confirmed Humility bug)
+- `abilities.rs:6542-6543` — artifact creature check for Modular
+- `resolution.rs:1795,3661-3662,5159` — battlefield type checks (Cipher, Reconfigure, Ninjutsu)
+- `effects/mod.rs:268,673,855,2115` — destroy/damage/sacrifice type capture
+- `effects/mod.rs:3536` — AllCreatures filter
+- `effects/mod.rs:2304-2306` — ChooseCreatureType scan
+- `effects/mod.rs` condition block (4489-4643) — ETB-tapped land checks under Blood Moon
+- `replacement.rs:419,424` — object filter for replacement effects
+- `replacement.rs:1590-1595` — ChooseCreatureType scan
+- `sba.rs:932-939` — Legend rule supertype+name
+- `sba.rs:1047` — Aura pre-filter
+- `casting.rs:5182` — hexproof/protection targeting
+- `engine.rs:2262` — ring-bearer selection
+
+**LOW** (theoretically possible, extremely unlikely):
+- `effects/mod.rs` matches_filter callers for specific conditions
+
+### Key Structural Finding
+
+`matches_filter()` in effects/mod.rs takes `&Characteristics` — the function itself is correct.
+The bug is at **call sites** that pass `&obj.characteristics` for battlefield permanents instead
+of layer-calculated characteristics. A single fix strategy: calculate characteristics at each
+call site and pass the resolved version.
 
 ---
 
-## Classification Guide
+## Session Plan (revised after S1)
 
-Each site gets one of:
+### Session 1: Audit + Classify (read-only) — COMPLETE
+- Classified all sites across 10 files
+- Found 43 bugs, 3 ambiguous, ~64 correct
 
-- **`correct-base`** — Intentionally reads base characteristics:
-  - Inside `layers.rs` (building the layer result)
-  - Copy effects reading copiable values (CR 706.2)
-  - Objects not yet on the battlefield (stack, hand, exile without CDAs)
-  - Card registry / definition lookups (not game state)
-
-- **`needs-layer-calc`** — Bug. Must use `calculate_characteristics()`:
-  - Battlefield objects checked for keywords/types during triggers
-  - Battlefield objects checked during SBA evaluation
-  - Battlefield objects checked during effect execution
-  - Any object checked for CDAs (Devoid, Changeling) in non-battlefield zones
-
-- **`ambiguous`** — Needs case-by-case CR analysis
-
----
-
-## Session Plan
-
-### Session 1: Audit + Classify (read-only)
-- Read every site in priority order (HIGH → MEDIUM → LOW)
-- Classify each as `correct-base`, `needs-layer-calc`, or `ambiguous`
-- Fill in the Per-File Audit section below
-- No code changes
-
-### Session 2: Fix HIGH (`abilities.rs` + `resolution.rs`)
-- Fix all `needs-layer-calc` sites
-- Add Humility interaction test for each fixed trigger/resolution path
+### Session 2: Fix HIGH sites (3 files, 7 sites)
+- `effects/mod.rs:3730,3747` — PowerOf/ToughnessOf (line numbers corrected per review)
+- `abilities.rs:6035` + `6053-6056` — collect_triggers_for_event + ETB filter (fix together)
+- `mana.rs:154,157-159,181` — summoning sickness
+- Add Humility/animation interaction tests
 - `cargo test --all` + `cargo clippy -- -D warnings`
 
-### Session 3: Fix MEDIUM (`effects/mod.rs`, `replacement.rs`, `sba.rs`)
-- Same pattern
-- `effects/mod.rs` has 25 sites — may split if many need fixing
+### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs (14 sites)
+- `abilities.rs:222,246,706,3444-3446,4311,4323,6376,6542-6543`
+- `resolution.rs:1795,3661-3662,5159`
+- `casting.rs:5182`
+- `engine.rs:2262`
+- Tests for each fixed path
 
-### Session 4: Fix LOW + regression test
-- Remaining files
-- Add property test or grep-based CI check to prevent regression
+### Session 4: Fix MEDIUM sites — effects/mod.rs (22+ sites)
+- Condition block (4489-4643)
+- Destroy/damage/sacrifice type capture (268, 673, 855, 2115, 3536)
+- ChooseCreatureType (2304-2306)
+- matches_filter callers
+- Tests for each fixed path
+
+### Session 5: Fix MEDIUM sites — replacement.rs + sba.rs (7 sites)
+- `replacement.rs:419,424,1590-1595`
+- `sba.rs:932-939,1047`
+- Tests for each fixed path
+
+### Session 6: Regression prevention
+- All ambiguous sites resolved in S1 review
+- Add property test or grep-based CI check to prevent new base-characteristic reads
+- Final review
 
 ---
 
 ## Per-File Audit
 
-### abilities.rs (7 sites) — Priority: HIGH
+### abilities.rs — Priority: HIGH
+
+**Standalone reads (not fallback patterns):**
 
 | Line | Expression | Classification | Notes |
 |------|-----------|---------------|-------|
-| 706 | `obj.characteristics.keywords` | | |
-| 3444 | `obj.characteristics.card_types` | | |
-| 3446 | `obj.characteristics.keywords` | | |
-| 4311 | Flanking attacker check | **needs-layer-calc** | Confirmed bug: Humility breaks it |
-| 4323 | Flanking blocker check | **needs-layer-calc** | Confirmed bug: granted Flanking ignored |
-| 4435 | `obj.characteristics.keywords` | | |
-| 6376 | `obj.characteristics.keywords` | | |
-| 6542-6543 | `obj.characteristics.card_types` (×2) | | |
+| 222 | `obj.characteristics.activated_abilities[ability_index]` | **needs-layer-calc** | Activated ability sorcery_speed check on battlefield permanent; Humility removes abilities |
+| 246 | `obj.characteristics.activated_abilities[ability_index]` | **needs-layer-calc** | Cloning cost/effect of activated ability; downstream of 222 |
+| 706 | `obj.characteristics.keywords` | **needs-layer-calc** | Hexproof/shroud/protection check on target; Humility removes these |
+| 2476 | `obj.characteristics.name.clone()` | correct-base | Object in graveyard; names don't change in normal play |
+| 3444-3446 | `obj.characteristics.card_types` + `.keywords` | **needs-layer-calc** | Soulbond pairing — card_types bypasses layers (bug); keyword has partial OR-fallback but short-circuits on base (false positive path). Review resolved: MEDIUM |
+| 3964 | `obj.characteristics.triggered_abilities.get(t.ability_index)` | correct-base | Post-processing already-queued triggers (Myriad); CR 113.7a |
+| 3987 | `obj.characteristics.triggered_abilities.get(t.ability_index)` | correct-base | Already-queued triggers (Provoke) |
+| 4031 | `obj.characteristics.triggered_abilities.get(t.ability_index)` | correct-base | Already-queued triggers (Melee) |
+| 4065 | `obj.characteristics.triggered_abilities.get(t.ability_index)` | correct-base | Already-queued triggers (Enlist) |
+| 4311 | Flanking attacker check | **needs-layer-calc** | Confirmed bug: Humility breaks it (pre-existing) |
+| 4323 | Flanking blocker check | **needs-layer-calc** | Confirmed bug: granted Flanking ignored (pre-existing) |
+| 4429 | `obj.characteristics.triggered_abilities.get(t.ability_index)` | correct-base | Already-queued triggers (Rampage) |
+| 4435 | `obj.characteristics.keywords` | correct-base | Extracting Rampage(n) value from already-queued trigger |
+| 4520 | `obj.characteristics.triggered_abilities.iter().enumerate()` | correct-base | SelfDies trigger — object in graveyard (LKI) |
+| 4901 | `obj.characteristics.triggered_abilities.iter().enumerate()` | correct-base | Aura dies trigger — object in graveyard |
+| 5037 | `obj.characteristics.triggered_abilities.iter().enumerate()` | correct-base | Connive trigger — non-battlefield zone |
+| 6035 | `obj.characteristics.triggered_abilities.iter().enumerate()` | **needs-layer-calc** | **collect_triggers_for_event()** — general trigger collector for battlefield permanents; Humility should suppress |
+| 6376 | `obj.characteristics.keywords` | **needs-layer-calc** | Hexproof/shroud/protection on battlefield permanent |
+| 6542-6543 | `obj.characteristics.card_types` (×2) | **needs-layer-calc** | Modular target — artifact creature check on battlefield |
 
-### resolution.rs (15 sites) — Priority: HIGH
+**Fallback reads (correct — skipped):** 259, 298, 336, 370, 556, 627, 694, 3328, 3538, 3555, 3591, 3707, 3733, 6293, 6386, 7275, 7374, 7454, 7659, 7738
+
+**Totals**: 8 needs-layer-calc (incl. 2 pre-existing Flanking + 3444-3446 resolved from ambiguous) + 10 correct-base + 1 missed site (6053-6056, fix with 6035)
+
+### resolution.rs — Priority: HIGH
 
 | Line | Expression | Classification | Notes |
 |------|-----------|---------------|-------|
-| 632 | `obj.characteristics.card_types` (suspend haste) | | On ETB — just entered |
-| 1795 | `obj.characteristics.card_types` | | |
-| 3661-3662 | `obj.characteristics.card_types` (×2) | | |
-| 4005 | `obj.characteristics.card_types` | | |
-| 5159 | `o.characteristics.card_types` | | |
-| 5633 | `obj.characteristics.card_types` | | |
-| *(remaining 8 — locate during Session 1)* | | | |
+| 140 | `card.characteristics.card_types.clone()` | correct-base | Stack object (spell resolving) |
+| 600, 604 | `obj.characteristics.keywords.insert(Haste)` | correct-base | Mutation (Dash/Blitz haste grant) |
+| 610 | `obj.characteristics.triggered_abilities.push(...)` | correct-base | Mutation (Blitz draw trigger) |
+| 632 | `obj.characteristics.card_types.contains(Creature)` | correct-base | Just-created ETB object, pre-layer-calc |
+| 650-654 | `obj.characteristics.power/toughness/colors/mana_cost` | correct-base | Mutation (Prototype) |
+| 1608-1609 | `obj.characteristics.card_types.remove/insert` | correct-base | Mutation (Bestow type change) |
+| 1795 | `obj.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | Battlefield permanent type check (Cipher attachment) |
+| 1855 | `obj.characteristics.activated_abilities.get(idx)` | correct-base | Ability template lookup (stack, CR 113.7a) |
+| 1939, 2068, 2098 | `obj.characteristics.triggered_abilities.get(idx)` | correct-base | Trigger template lookup (stack) |
+| 3007 | `obj.characteristics.keywords.insert(Haste)` | correct-base | Mutation (Unearth haste grant) |
+| 3661-3662 | `obj.characteristics.card_types.contains(...)` (×2) | **needs-layer-calc** | Battlefield type check (Reconfigure target) |
+| 5159 | `o.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | Battlefield type check (Ninjutsu target) |
+| 5633 | `obj.characteristics.card_types.contains(Creature)` | correct-base | Stack object (Suspend free-cast) |
+| 5854 | `obj.characteristics.name` | correct-base | Library search by name |
+| 7019 | `target_obj.characteristics = top.characteristics.clone()` | correct-base | Mutation (Mutate merge) |
 
-### effects/mod.rs (25 sites) — Priority: MEDIUM
+**Fallback reads (correct — skipped):** 1003, 3725, 3735, 4005/4008, 4405, 4565, 5372, 6890, 6936, 6964, 7192
 
-*(Enumerate during Session 1)*
+**Totals**: 3 needs-layer-calc + 12 correct-base
 
-### replacement.rs (5 sites) — Priority: MEDIUM
+### effects/mod.rs — Priority: MEDIUM
 
 | Line | Expression | Classification | Notes |
 |------|-----------|---------------|-------|
-| 419 | `o.characteristics.card_types` | | |
-| 424 | `o.characteristics.card_types` | | |
-| 1642 | `o.characteristics.card_types` | | |
-| *(remaining 2 — locate during Session 1)* | | | |
+| 268 | `.characteristics.card_types.clone()` | **needs-layer-calc** | DealDamage — battlefield permanent Planeswalker/Creature check |
+| 673 | `.characteristics.card_types.clone()` | **needs-layer-calc** | DestroyTarget — pre-zone-move type capture |
+| 855 | `.characteristics.card_types.clone()` | **needs-layer-calc** | DestroyTarget variant — pre-zone-move type capture |
+| 1670-1671 | `obj.characteristics.subtypes` (mutation) | correct-base | Amass — intentional base modification |
+| 2115 | `obj.characteristics.card_types.clone()` | **needs-layer-calc** | SacrificeAll — pre-zone-move type capture |
+| 2304-2306 | `.characteristics.card_types/subtypes` | **needs-layer-calc** | ChooseCreatureType — battlefield creature scan |
+| 2852 | `.characteristics.card_types.contains(Land)` | correct-base | Hideaway play — card in exile |
+| 2888 | `&obj.characteristics.card_types` | correct-base | Hideaway cast — card in exile |
+| 3284 | `.characteristics.card_types.contains(Land)` | correct-base | Connive discard — card in hand |
+| 3536 | `.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | AllCreatures filter — battlefield |
+| 3712 | `obj.characteristics.power` | **needs-layer-calc** | **PowerOf** — ignores counters/equipment/anthems (HIGH) |
+| 3729 | `obj.characteristics.toughness` | **needs-layer-calc** | **ToughnessOf** — ignores counters/equipment/anthems (HIGH) |
+| 4489, 4492 | `.characteristics.card_types/subtypes` | **needs-layer-calc** | ControlLandWithSubtypes — battlefield |
+| 4505 | `.characteristics.card_types.contains(Land)` | **needs-layer-calc** | ControlAtMostNOtherLands — battlefield |
+| 4528 | `.characteristics.subtypes.contains(st)` | correct-base | CanRevealFromHandWithSubtype — hand |
+| 4541 | `.characteristics.card_types.contains(Land)` | **needs-layer-calc** | ControlBasicLandsAtLeast — battlefield |
+| 4561 | `.characteristics.card_types.contains(Land)` | **needs-layer-calc** | ControlAtLeastNOtherLands — battlefield |
+| 4577 | `.characteristics.subtypes.contains(subtype)` | **needs-layer-calc** | ControlAtLeastNOtherLandsWithSubtype — battlefield |
+| 4587 | `.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | ControlLegendaryCreature — battlefield |
+| 4598-4599 | `.characteristics.card_types/subtypes` | **needs-layer-calc** | ControlCreatureWithSubtype — battlefield |
+| 4621 | `.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | EachCreature — battlefield |
+| 4632 | `.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | EachCreatureYouControl — battlefield |
+| 4643 | `.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | EachOpponentsCreature — battlefield |
 
-### sba.rs (3 sites) — Priority: MEDIUM
+**Fallback reads (correct — skipped):** 2981, 3096, 3129
 
-*(Enumerate during Session 1)*
+**Additional matches_filter callers passing base characteristics** (battlefield):
+- Lines ~799 (DestroyAll), ~975 (ExileAll), ~3552 (AllPermanentsMatching), ~3796 (PermanentCount), ~4394 (YouControlPermanent), ~4400 (OpponentControlsPermanent), ~4656 (EachPermanentMatching)
 
-### casting.rs, engine.rs, copy.rs, mana.rs, state/mod.rs — Priority: LOW
+**Zone-conditional:** Line ~3780 (CardCount — correct-base for non-battlefield zones, needs-layer-calc when zone=Battlefield; fix: check zone_id and conditionally calculate)
 
-*(Enumerate during Session 1)*
+**Totals**: 22+ needs-layer-calc + 5 correct-base + 1 ambiguous
+
+### replacement.rs — Priority: MEDIUM
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 419 | `o.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | object_matches_filter — battlefield type check for replacement applicability |
+| 424 | `o.characteristics.card_types.contains(ct)` | **needs-layer-calc** | HasCardType filter — same function |
+| 549 | `obj.characteristics.keywords.iter().find_map(...)` | correct-base | Dredge — object in graveyard |
+| 1187 | `.map(|o| o.characteristics.clone())` | correct-base | Entering-battlefield object — base types represent what card "is" before entry. Review resolved: correct-base, LOW risk |
+| 1590-1595 | `.characteristics.card_types/subtypes` | **needs-layer-calc** | ChooseCreatureType scan — battlefield |
+| 1642 | `o.characteristics.card_types.contains(Creature)` | correct-base | Object just moved to graveyard |
+
+**Totals**: 4 needs-layer-calc + 3 correct-base (1187 resolved from ambiguous)
+
+### sba.rs — Priority: MEDIUM
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 932-935 | `obj.characteristics.supertypes.contains(Legendary)` | **needs-layer-calc** | Legend rule — type-changing effects could grant/remove Legendary |
+| 939 | `obj.characteristics.name.clone()` | **needs-layer-calc** | Legend rule groups by name — copy effects (Layer 1) can change name |
+| 1047 | `obj.characteristics.subtypes.contains(Aura)` | **needs-layer-calc** | Aura SBA pre-filter — type-changing effects |
+| 1088 | `.map(|o| o.characteristics.clone())` | correct-base | Fallback for calculate_characteristics at 1084 |
+| 1144 | `obj.characteristics.subtypes.remove(Aura)` | correct-base | Mutation (Bestow revert) |
+| 1149 | `obj.characteristics.card_types.insert(Creature)` | correct-base | Mutation (Bestow revert) |
+
+**Totals**: 3 needs-layer-calc + 3 correct-base
+
+### casting.rs — Priority: LOW
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 502 | `card_obj.characteristics.mana_cost.clone()` | correct-base | Card being cast from hand/graveyard |
+| 3826-3831 | `stack_source.characteristics.*` (mutations) | correct-base | Prototype base char modifications |
+| 5182 | `&obj.characteristics.keywords` | **needs-layer-calc** | Hexproof/protection targeting check — layer effects missed |
+| 6320 | `obj.characteristics.card_types` | correct-base | Graveyard card type (Delirium) |
+
+**All other casting.rs lines**: confirmed fallback patterns for nearby `calculate_characteristics` calls.
+
+**Totals**: 1 needs-layer-calc + many correct-base
+
+### engine.rs — Priority: LOW
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 1329 | `mat_obj.characteristics.card_types.contains(type)` | correct-base | Fallback for calculate_characteristics at 1327 (Craft battlefield material) |
+| 1331 | `mat_obj.characteristics.card_types.contains(type)` | correct-base | Non-battlefield Craft material (graveyard/exile) |
+| 2262 | `obj.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | Ring temptation — battlefield creature selection |
+
+**Totals**: 1 needs-layer-calc + 2 correct-base
+
+### mana.rs — Priority: LOW → upgraded to HIGH
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 154 | `obj.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | Summoning sickness — animated permanents bypass check |
+| 157-159 | `obj.characteristics.keywords.contains(Haste)` | **needs-layer-calc** | Summoning sickness — layer-granted haste (Fervor) ignored |
+| 181 | `obj.characteristics.card_types.contains(Creature)` | **needs-layer-calc** | Pre-sacrifice creature check — same animation issue |
+
+**Totals**: 3 needs-layer-calc
+
+### copy.rs — all correct-base
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 60 | `obj.characteristics.clone()` | correct-base | Copy-chain depth limit fallback |
+| 66 | `obj.characteristics.clone()` | correct-base | Copy starting point (CR 706.2) |
+| 374, 386, 583, 595 | card_types/mana_cost | correct-base | Fallback patterns for cascade/discover (exile zone) |
+
+### protection.rs — correct-base
+
+| Line | Expression | Classification | Notes |
+|------|-----------|---------------|-------|
+| 118 | `.map(|o| o.characteristics.clone())` | correct-base | Fallback for calculate_characteristics at 114 |
+
+### state/mod.rs — SKIP (zone transitions, object creation)
+### layers.rs — SKIP (layer building, correct by definition)
+### replay_harness.rs — SKIP (test infrastructure)
 
 ---
 
@@ -143,3 +282,6 @@ Each site gets one of:
 continuous effects. It's not free. For hot paths (SBA checks run every priority pass),
 consider caching or batching. However, correctness > performance — fix first, optimize
 if benchmarks regress.
+
+Key optimization opportunity: `matches_filter` callers in effects/mod.rs could batch
+calculate characteristics for all battlefield objects once, then filter the pre-computed list.
