@@ -1076,6 +1076,15 @@ pub enum Effect {
         counter: CounterType,
         count: EffectAmount,
     },
+    /// CR 500.8: Create an additional combat phase after the current phase.
+    ///
+    /// CR 500.10a: Only applies when the controller is the active player.
+    /// If `followed_by_main` is true, also inserts an additional postcombat main
+    /// phase after the extra combat (CR 505.1a: all additional mains are postcombat).
+    AdditionalCombatPhase {
+        /// If true, an additional main phase follows the additional combat phase.
+        followed_by_main: bool,
+    },
     /// CR 122: Remove counters from a permanent or player.
     RemoveCounter {
         target: EffectTarget,
@@ -1875,6 +1884,11 @@ pub enum Condition {
     /// True when the controller has the city's blessing designation (permanent,
     /// never removed once gained). Used by Ascend cards to gate abilities.
     HasCitysBlessing,
+    /// CR 500.8: True when not in an extra combat phase (first combat phase of turn).
+    ///
+    /// Evaluates `state.turn.in_extra_combat == false`.
+    /// Used by Karlach ('if it's the first combat phase of the turn').
+    IsFirstCombatPhase,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────
@@ -2211,6 +2225,10 @@ pub enum ForEachTarget {
     /// +1/+0 until end of turn." Queries `state.combat.attackers` and
     /// excludes `ctx.source`.
     EachOtherAttackingCreature,
+    /// Every attacking creature (including the source of the effect).
+    ///
+    /// Used by 'untap all attacking creatures' effects (Karlach, Hellkite Charger).
+    EachAttackingCreature,
 }
 
 // ── Timing Restriction ────────────────────────────────────────────────────────

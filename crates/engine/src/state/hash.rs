@@ -1136,7 +1136,7 @@ impl HashInto for TurnState {
         self.turn_number.hash_into(hasher);
         self.turn_order.hash_into(hasher);
         self.extra_turns.hash_into(hasher);
-        self.extra_combats.hash_into(hasher);
+        self.additional_phases.hash_into(hasher);
         self.in_extra_combat.hash_into(hasher);
         self.is_first_turn_of_game.hash_into(hasher);
         self.last_regular_active.hash_into(hasher);
@@ -3600,6 +3600,15 @@ impl HashInto for GameEvent {
                 119u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // AdditionalCombatPhaseCreated -- CR 500.8 (discriminant 120)
+            GameEvent::AdditionalCombatPhaseCreated {
+                controller,
+                followed_by_main,
+            } => {
+                120u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                followed_by_main.hash_into(hasher);
+            }
         }
     }
 }
@@ -3845,6 +3854,8 @@ impl HashInto for ForEachTarget {
             ForEachTarget::EachCardInAllGraveyards => 6u8.hash_into(hasher),
             // CR 702.91a: All attacking creatures except the source (battle cry source).
             ForEachTarget::EachOtherAttackingCreature => 7u8.hash_into(hasher),
+            // CR 500.8: EachAttackingCreature (discriminant 8)
+            ForEachTarget::EachAttackingCreature => 8u8.hash_into(hasher),
         }
     }
 }
@@ -4026,6 +4037,8 @@ impl HashInto for Condition {
                 subtype.hash_into(hasher);
             }
             Condition::HasCitysBlessing => 29u8.hash_into(hasher),
+            // CR 500.8: IsFirstCombatPhase (discriminant 30)
+            Condition::IsFirstCombatPhase => 30u8.hash_into(hasher),
         }
     }
 }
@@ -4455,6 +4468,11 @@ impl HashInto for Effect {
                 target.hash_into(hasher);
                 counter.hash_into(hasher);
                 count.hash_into(hasher);
+            }
+            // CR 500.8: AdditionalCombatPhase (discriminant 57)
+            Effect::AdditionalCombatPhase { followed_by_main } => {
+                57u8.hash_into(hasher);
+                followed_by_main.hash_into(hasher);
             }
         }
     }

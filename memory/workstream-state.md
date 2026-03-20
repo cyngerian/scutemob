@@ -12,10 +12,10 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | T3 + W3-LC layer correctness audit | ACTIVE | 2026-03-19 | T2 done; T3 ManaPool pending; **W3-LC added** (69 base-char reads to audit, 4 sessions). See `memory/w3-layer-audit.md` |
+| W3: LOW Remediation | T3 + W3-LC layer correctness audit | paused | — | T2 done; T3 ManaPool pending; **W3-LC S1 DONE** (46 bugs classified, 0 ambiguous). S2 next: fix 7 HIGH sites. See `memory/w3-layer-audit.md` |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-19: Mass destroy / board wipes | ACTIVE | 2026-03-19 | 12 cards, DestroyAll + ExileAll effects |
+| W6: Primitive + Card Authoring | PB-20: Additional Combat Phases | ACTIVE | 2026-03-19 | Feature branch: w6-pb20-additional-combat-phases |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
