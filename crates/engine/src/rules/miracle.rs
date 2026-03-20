@@ -21,6 +21,7 @@ use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::PlayerId;
+use crate::state::stack::TriggerData;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
@@ -106,48 +107,8 @@ pub fn handle_choose_miracle(
         .unwrap_or(card);
 
     state.pending_triggers.push_back(PendingTrigger {
-        source,
-        ability_index: 0, // unused for miracle triggers
-        controller: player,
-        kind: PendingTriggerKind::Miracle,
-        triggering_event: None,
-        entering_object_id: None,
-        targeting_stack_id: None,
-        triggering_player: None,
-        exalted_attacker_id: None,
-        defending_player_id: None,
-        madness_exiled_card: None,
-        madness_cost: None,
-        miracle_revealed_card: Some(card),
-        miracle_cost: Some(miracle_cost),
-        modular_counter_count: None,
-        evolve_entering_creature: None,
-        suspend_card_id: None,
-        hideaway_count: None,
-        partner_with_name: None,
-        ingest_target_player: None,
-        flanking_blocker_id: None,
-        rampage_n: None,
-        provoke_target_creature: None,
-        renown_n: None,
-        poisonous_n: None,
-        poisonous_target_player: None,
-        enlist_enlisted_creature: None,
-        encore_activator: None,
-        recover_cost: None,
-        recover_card: None,
-        graft_entering_creature: None,
-        backup_abilities: None,
-        backup_n: None,
-        champion_filter: None,
-        champion_exiled_card: None,
-        soulbond_pair_target: None,
-        squad_count: None,
-        gift_opponent: None,
-        cipher_encoded_card_id: None,
-        cipher_encoded_object_id: None,
-        haunt_source_object_id: None,
-        haunt_source_card_id: None,
+        data: Some(TriggerData::Miracle { revealed_card: card, cost: miracle_cost }),
+        ..PendingTrigger::blank(source, player, PendingTriggerKind::Miracle)
     });
 
     Ok(vec![])

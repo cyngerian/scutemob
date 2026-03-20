@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S4): 48 LOWs closed (83→35 open). 2229 tests. |
+| W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S4 + S6): 50 LOWs closed (83→33 open). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2 card authoring next |
@@ -25,26 +25,29 @@
 
 **Date**: 2026-03-20
 **Workstream**: W3: LOW Remediation
-**Task**: T3: ManaPool::spend() encapsulation (MR-M1-15 + MR-M1-07)
+**Task**: S6: TC-21 PendingTrigger Option field migration to TriggerData
 
 **Completed**:
-- Added `ManaPool::can_spend()`, `ManaPool::spend()`, `ManaPool::get()` methods to `state/player.rs`
-- Reduced `casting.rs` free functions (`can_pay_cost`, `pay_cost`, etc.) to thin 1-line wrappers
-- Migrated 2 call sites in `engine.rs` and `abilities.rs` to use methods directly
-- 17 new unit tests in `tests/mana_pool.rs` (colored, generic, colorless-specific, restricted mana CR 106.12, spend order)
-- No raw field manipulation of mana pool remains in engine source
-- 2223 tests, 0 clippy warnings
-- Commit: 0b5af81
-- Also committed housekeeping: stale session plan cleanup (54ddab1)
+- Migrated 19 Option fields from `PendingTrigger` struct into `TriggerData` variants
+  (madness, miracle, modular, evolve, suspend, hideaway, partner_with, graft, backup,
+  champion_etb, champion_ltb, soulbond, squad, gift, encore_activator, provoke)
+- Removed fields from struct definition and `blank()` constructor in `stubs.rs`
+- Removed 487 `fieldname: None,` lines from abilities.rs, turn_actions.rs, replacement.rs, resolution.rs
+- Updated `hash.rs` to remove stale hash lines for removed fields
+- Fixed accidental removal of `champion_exiled_card`/`gift_opponent` from `GameObject` struct literals in resolution.rs (6 token construction sites)
+- Updated `partner_with.rs` test to check `&trigger.data` instead of `trigger.partner_with_name`
+- MR-TC-21 closed, MR-M6-06 deferred (high refactor risk per remediation doc)
+- 2233 tests, 0 clippy warnings
+- Commit: 7e474d2
 
 **Next**:
-1. W3 is effectively complete — T1, T2, T3, W3-LC all done
-2. Update `docs/workstream-coordination.md` Phase 3 checkboxes (T3 + commit)
-3. Top priority: W6 Phase 2 card authoring (~1,025 remaining cards)
+1. W3 is complete — TC-21 done, all HIGH/MEDIUM resolved, remaining ~33 LOWs are deferred
+2. Top priority: W6 Phase 2 card authoring (~1,025 remaining cards)
+3. `docs/workstream-coordination.md` Phase 3 checkboxes may need updating
 
 **Hazards**:
+- `flanking_blocker_id`, `rampage_n`, `renown_n`, `poisonous_n`, `poisonous_target_player`, `enlist_enlisted_creature`, `recover_cost`, `recover_card`, `ingest_target_player` still remain as Option fields on PendingTrigger — not migrated (these are specific named PTK variants, not in the session plan)
 - ~30 remaining call sites still use `casting::can_pay_cost`/`casting::pay_cost` wrappers — functional but could be migrated to direct method calls opportunistically
-- `docs/workstream-coordination.md` Phase 3 checkbox for T3 not yet checked off
 
 **Commit prefix used**: `W3:`
 

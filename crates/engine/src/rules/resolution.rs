@@ -1352,39 +1352,20 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
                                 ingest_target_player: None,
                                 flanking_blocker_id: None,
                                 rampage_n: None,
-                                provoke_target_creature: None,
                                 renown_n: None,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
-                                encore_activator: None,
                                 recover_cost: None,
                                 recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                            });
+                                data: None,                            });
                     }
 
                     // CR 702.157a: Squad ETB trigger -- "When this creature enters, if its
@@ -1406,53 +1387,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .map(|o| o.squad_count)
                         .unwrap_or(0);
                     if has_squad && permanent_squad_count > 0 {
-                        state
-                            .pending_triggers
-                            .push_back(crate::state::stubs::PendingTrigger {
-                                source: new_id,
-                                ability_index: 0,
-                                controller: stack_obj.controller,
-                                kind: crate::state::stubs::PendingTriggerKind::SquadETB,
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                provoke_target_creature: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                encore_activator: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: Some(permanent_squad_count),
-                                // CR 702.174a: SquadETB triggers are not gift casts.
-                                gift_opponent: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                            });
+                        state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
+                            data: Some(crate::state::stack::TriggerData::ETBSquad {
+                                count: permanent_squad_count,
+                            }),
+                            ..crate::state::stubs::PendingTrigger::blank(
+                                new_id,
+                                stack_obj.controller,
+                                crate::state::stubs::PendingTriggerKind::SquadETB,
+                            )
+                        });
                     }
 
                     // CR 702.175a: Offspring ETB trigger -- "When this permanent enters, if its
@@ -1486,39 +1430,20 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
                                 ingest_target_player: None,
                                 flanking_blocker_id: None,
                                 rampage_n: None,
-                                provoke_target_creature: None,
                                 renown_n: None,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
-                                encore_activator: None,
                                 recover_cost: None,
                                 recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                            });
+                                data: None,                            });
                     }
 
                     // CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its
@@ -1541,52 +1466,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state.objects.get(&new_id).and_then(|o| o.gift_opponent);
                     if has_gift && permanent_gift_was_given {
                         if let Some(gift_opp) = permanent_gift_opponent {
-                            state
-                                .pending_triggers
-                                .push_back(crate::state::stubs::PendingTrigger {
-                                    source: new_id,
-                                    ability_index: 0,
-                                    controller: stack_obj.controller,
-                                    kind: crate::state::stubs::PendingTriggerKind::GiftETB,
-                                    triggering_event: None,
-                                    entering_object_id: None,
-                                    targeting_stack_id: None,
-                                    triggering_player: None,
-                                    exalted_attacker_id: None,
-                                    defending_player_id: None,
-                                    madness_exiled_card: None,
-                                    madness_cost: None,
-                                    miracle_revealed_card: None,
-                                    miracle_cost: None,
-                                    modular_counter_count: None,
-                                    evolve_entering_creature: None,
-                                    suspend_card_id: None,
-                                    hideaway_count: None,
-                                    partner_with_name: None,
-                                    ingest_target_player: None,
-                                    flanking_blocker_id: None,
-                                    rampage_n: None,
-                                    provoke_target_creature: None,
-                                    renown_n: None,
-                                    poisonous_n: None,
-                                    poisonous_target_player: None,
-                                    enlist_enlisted_creature: None,
-                                    encore_activator: None,
-                                    recover_cost: None,
-                                    recover_card: None,
-                                    graft_entering_creature: None,
-                                    backup_abilities: None,
-                                    backup_n: None,
-                                    champion_filter: None,
-                                    champion_exiled_card: None,
-                                    soulbond_pair_target: None,
-                                    squad_count: None,
-                                    gift_opponent: Some(gift_opp),
-                                    cipher_encoded_card_id: None,
-                                    cipher_encoded_object_id: None,
-                                    haunt_source_object_id: None,
-                                    haunt_source_card_id: None,
-                                });
+                            state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
+                                data: Some(crate::state::stack::TriggerData::ETBGift {
+                                    source_card_id: state.objects.get(&new_id).and_then(|o| o.card_id.clone()),
+                                    gift_opponent: gift_opp,
+                                }),
+                                ..crate::state::stubs::PendingTrigger::blank(
+                                    new_id,
+                                    stack_obj.controller,
+                                    crate::state::stubs::PendingTriggerKind::GiftETB,
+                                )
+                            });
                         }
                     }
                 }
@@ -2343,39 +2233,20 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
                                 ingest_target_player: None,
                                 flanking_blocker_id: None,
                                 rampage_n: None,
-                                provoke_target_creature: None,
                                 renown_n: None,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
-                                encore_activator: None,
                                 recover_cost: None,
                                 recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                            });
+                                data: None,                            });
                     }
                 }
             }
@@ -4457,7 +4328,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         phased_out_indirectly: false,
                         phased_out_controller: None,
                         creatures_devoured: 0,
-                        champion_exiled_card: None,
                         paired_with: None,
                         tribute_was_paid: false,
                         // CR 107.3m: Squad tokens are never cast, so x_value is always 0.
@@ -4468,8 +4338,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         offspring_paid: false,
                         // CR 702.174a: tokens/copies are never gift casts.
                         gift_was_given: false,
+                        champion_exiled_card: None,
                         gift_opponent: None,
-                        // CR 702.171b: tokens are not saddled by default.
+            // CR 702.171b: tokens are not saddled by default.
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
@@ -4656,7 +4527,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 phased_out_indirectly: false,
                 phased_out_controller: None,
                 creatures_devoured: 0,
-                champion_exiled_card: None,
                 paired_with: None,
                 tribute_was_paid: false,
                 // CR 107.3m: Offspring tokens are never cast, so x_value is always 0.
@@ -4667,8 +4537,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 offspring_paid: false,
                 // CR 702.174a: tokens/copies are never gift casts.
                 gift_was_given: false,
+                champion_exiled_card: None,
                 gift_opponent: None,
-                // CR 702.171b: tokens are not saddled by default.
+            // CR 702.171b: tokens are not saddled by default.
                 encoded_cards: im::Vector::new(),
                 haunting_target: None,
                 // CR 702.151b: tokens are not reconfigured by default.
@@ -5404,7 +5275,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
-                    champion_exiled_card: None,
                     paired_with: None,
                     tribute_was_paid: false,
                     // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
@@ -5415,8 +5285,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     offspring_paid: false,
                     // CR 702.174a: tokens/copies are never gift casts.
                     gift_was_given: false,
+                    champion_exiled_card: None,
                     gift_opponent: None,
-                    // CR 702.171b: tokens are not saddled by default.
+            // CR 702.171b: tokens are not saddled by default.
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
@@ -5529,52 +5400,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(&suspended_card)
                             .map(|obj| obj.owner)
                             .unwrap_or(controller);
-                        state
-                            .pending_triggers
-                            .push_back(crate::state::stubs::PendingTrigger {
-                                source: suspended_card,
-                                ability_index: 0,
-                                controller: owner,
-                                kind: PendingTriggerKind::SuspendCast,
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: Some(suspended_card),
-                                hideaway_count: None,
-                                partner_with_name: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                provoke_target_creature: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                encore_activator: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                            });
+                        state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
+                            data: Some(crate::state::stack::TriggerData::Suspend {
+                                card: suspended_card,
+                            }),
+                            ..crate::state::stubs::PendingTrigger::blank(
+                                suspended_card,
+                                owner,
+                                PendingTriggerKind::SuspendCast,
+                            )
+                        });
                     }
                 }
             }
@@ -6143,7 +5978,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
-                    champion_exiled_card: None,
                     paired_with: None,
                     tribute_was_paid: false,
                     // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
@@ -6154,8 +5988,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     offspring_paid: false,
                     // CR 702.174a: tokens/copies are never gift casts.
                     gift_was_given: false,
+                    champion_exiled_card: None,
                     gift_opponent: None,
-                    // CR 702.171b: tokens are not saddled by default.
+            // CR 702.171b: tokens are not saddled by default.
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
@@ -6360,7 +6195,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
-                    champion_exiled_card: None,
                     paired_with: None,
                     tribute_was_paid: false,
                     // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
@@ -6371,8 +6205,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     offspring_paid: false,
                     // CR 702.174a: tokens/copies are never gift casts.
                     gift_was_given: false,
+                    champion_exiled_card: None,
                     gift_opponent: None,
-                    // CR 702.171b: tokens are not saddled by default.
+            // CR 702.171b: tokens are not saddled by default.
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
@@ -6596,7 +6431,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         phased_out_indirectly: false,
                         phased_out_controller: None,
                         creatures_devoured: 0,
-                        champion_exiled_card: None,
                         paired_with: None,
                         tribute_was_paid: false,
                         // CR 107.3m: Tokens are never cast, so x_value is always 0.
@@ -6606,8 +6440,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         offspring_paid: false,
                         // CR 702.174a: tokens/copies are never gift casts.
                         gift_was_given: false,
+                        champion_exiled_card: None,
                         gift_opponent: None,
-                        // CR 702.171b: tokens are not saddled by default.
+            // CR 702.171b: tokens are not saddled by default.
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
