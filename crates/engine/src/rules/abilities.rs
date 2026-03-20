@@ -958,48 +958,11 @@ pub fn handle_cycle_card(
             })
         });
         state.pending_triggers.push_back(PendingTrigger {
-            source: new_grave_id,
-            ability_index: 0,
-            controller: player,
-            kind: PendingTriggerKind::Madness,
-            triggering_event: None,
-            entering_object_id: None,
-            targeting_stack_id: None,
-            triggering_player: None,
-            exalted_attacker_id: None,
-            defending_player_id: None,
-            madness_exiled_card: Some(new_grave_id),
-            madness_cost,
-            miracle_revealed_card: None,
-            miracle_cost: None,
-            modular_counter_count: None,
-            evolve_entering_creature: None,
-            suspend_card_id: None,
-            hideaway_count: None,
-            partner_with_name: None,
-            ingest_target_player: None,
-            flanking_blocker_id: None,
-            rampage_n: None,
-            provoke_target_creature: None,
-            renown_n: None,
-            poisonous_n: None,
-            poisonous_target_player: None,
-            enlist_enlisted_creature: None,
-            encore_activator: None,
-            recover_cost: None,
-            recover_card: None,
-            graft_entering_creature: None,
-            backup_abilities: None,
-            backup_n: None,
-            champion_filter: None,
-            champion_exiled_card: None,
-            soulbond_pair_target: None,
-            squad_count: None,
-            gift_opponent: None,
-            cipher_encoded_card_id: None,
-            cipher_encoded_object_id: None,
-            haunt_source_object_id: None,
-            haunt_source_card_id: None,
+            data: Some(TriggerData::Madness {
+                exiled_card: new_grave_id,
+                cost: madness_cost.unwrap_or_default(),
+            }),
+            ..PendingTrigger::blank(new_grave_id, player, PendingTriggerKind::Madness)
         });
     }
 
@@ -1433,52 +1396,13 @@ pub fn handle_activate_bloodrush(
                 })
             })
         });
-        state
-            .pending_triggers
-            .push_back(crate::state::stubs::PendingTrigger {
-                source: new_grave_id,
-                ability_index: 0,
-                controller: player,
-                kind: crate::state::stubs::PendingTriggerKind::Madness,
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                madness_exiled_card: Some(new_grave_id),
-                madness_cost,
-                miracle_revealed_card: None,
-                miracle_cost: None,
-                modular_counter_count: None,
-                evolve_entering_creature: None,
-                suspend_card_id: None,
-                hideaway_count: None,
-                partner_with_name: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                provoke_target_creature: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                encore_activator: None,
-                recover_cost: None,
-                recover_card: None,
-                graft_entering_creature: None,
-                backup_abilities: None,
-                backup_n: None,
-                champion_filter: None,
-                champion_exiled_card: None,
-                soulbond_pair_target: None,
-                squad_count: None,
-                gift_opponent: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-            });
+        state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
+            data: Some(TriggerData::Madness {
+                exiled_card: new_grave_id,
+                cost: madness_cost.unwrap_or_default(),
+            }),
+            ..PendingTrigger::blank(new_grave_id, player, crate::state::stubs::PendingTriggerKind::Madness)
+        });
     }
 
     // 8. Push BloodrushAbility onto stack (CR 602.2c).
@@ -2550,39 +2474,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
                             ingest_target_player: None,
                             flanking_blocker_id: None,
                             rampage_n: None,
-                            provoke_target_creature: None,
                             renown_n: None,
                             poisonous_n: None,
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
-                            encore_activator: None,
                             recover_cost: None,
                             recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                        };
+                            data: None,                        };
                         triggers.push(evoke_trigger);
                     }
                 }
@@ -2631,39 +2536,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
                                 ingest_target_player: None,
                                 flanking_blocker_id: None,
                                 rampage_n: None,
-                                provoke_target_creature: None,
                                 renown_n: None,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
-                                encore_activator: None,
                                 recover_cost: None,
                                 recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                            });
+                                data: None,                            });
                         }
                     }
                 }
@@ -2691,48 +2577,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .collect();
                     for n in hideaway_keywords {
                         triggers.push(PendingTrigger {
-                            source: *object_id,
-                            ability_index: 0, // unused for hideaway triggers
-                            controller,
-                            kind: PendingTriggerKind::Hideaway,
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                             entering_object_id: Some(*object_id),
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: Some(n),
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::ETBHideaway { count: n }),
+                            ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::Hideaway)
                         });
                     }
                 }
@@ -2763,48 +2611,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .collect();
                         for name in partner_with_names {
                             triggers.push(PendingTrigger {
-                                source: *object_id,
-                                ability_index: 0, // unused for partner-with triggers
-                                controller,
-                                kind: PendingTriggerKind::PartnerWith,
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: Some(name),
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                provoke_target_creature: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                encore_activator: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
+                                data: Some(TriggerData::ETBPartnerWith {
+                                    partner_name: name,
+                                    target_player: controller,
+                                }),
+                                ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::PartnerWith)
                             });
                         }
                     }
@@ -2847,50 +2660,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             .collect();
 
                                         triggers.push(PendingTrigger {
-                                            source: *object_id,
                                             ability_index: idx,
-                                            controller,
-                                            kind: PendingTriggerKind::Backup,
                                             triggering_event: Some(
                                                 TriggerEvent::SelfEntersBattlefield,
                                             ),
                                             entering_object_id: Some(*object_id),
-                                            targeting_stack_id: None,
-                                            triggering_player: None,
-                                            exalted_attacker_id: None,
-                                            defending_player_id: None,
-                                            madness_exiled_card: None,
-                                            madness_cost: None,
-                                            miracle_revealed_card: None,
-                                            miracle_cost: None,
-                                            modular_counter_count: None,
-                                            evolve_entering_creature: None,
-                                            suspend_card_id: None,
-                                            hideaway_count: None,
-                                            partner_with_name: None,
-                                            ingest_target_player: None,
-                                            flanking_blocker_id: None,
-                                            rampage_n: None,
-                                            provoke_target_creature: None,
-                                            renown_n: None,
-                                            poisonous_n: None,
-                                            poisonous_target_player: None,
-                                            enlist_enlisted_creature: None,
-                                            encore_activator: None,
-                                            recover_cost: None,
-                                            recover_card: None,
-                                            graft_entering_creature: None,
-                                            backup_abilities: Some(abilities_below),
-                                            backup_n: Some(*n),
-                                            champion_filter: None,
-                                            champion_exiled_card: None,
-                                            soulbond_pair_target: None,
-                                            squad_count: None,
-                gift_opponent: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
+                                            data: Some(TriggerData::ETBBackup {
+                                                target: *object_id,
+                                                count: *n,
+                                                abilities: abilities_below,
+                                            }),
+                                            ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::Backup)
                                         });
                                     }
                                 }
@@ -2930,48 +2710,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 .unwrap_or(ChampionFilter::AnyCreature);
 
                             triggers.push(PendingTrigger {
-                                source: *object_id,
-                                ability_index: 0,
-                                controller,
-                                kind: PendingTriggerKind::ChampionETB,
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                provoke_target_creature: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                encore_activator: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: Some(filter),
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
+                                data: Some(TriggerData::ETBChampion { filter }),
+                                ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::ChampionETB)
                             });
                         }
                     }
@@ -3037,50 +2779,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 
                                 if let Some(partner_id) = pair_target {
                                     triggers.push(PendingTrigger {
-                                        source: *object_id,
-                                        ability_index: 0,
-                                        controller,
-                                        kind: PendingTriggerKind::SoulbondSelfETB,
                                         triggering_event: Some(
                                             TriggerEvent::AnyPermanentEntersBattlefield,
                                         ),
                                         entering_object_id: Some(*object_id),
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        madness_exiled_card: None,
-                                        madness_cost: None,
-                                        miracle_revealed_card: None,
-                                        miracle_cost: None,
-                                        modular_counter_count: None,
-                                        evolve_entering_creature: None,
-                                        suspend_card_id: None,
-                                        hideaway_count: None,
-                                        partner_with_name: None,
-                                        ingest_target_player: None,
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        provoke_target_creature: None,
-                                        renown_n: None,
-                                        poisonous_n: None,
-                                        poisonous_target_player: None,
-                                        enlist_enlisted_creature: None,
-                                        encore_activator: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        graft_entering_creature: None,
-                                        backup_abilities: None,
-                                        backup_n: None,
-                                        champion_filter: None,
-                                        champion_exiled_card: None,
-                                        soulbond_pair_target: Some(partner_id),
-                                        squad_count: None,
-                                        gift_opponent: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
+                                        data: Some(TriggerData::ETBSoulbond { pair_target: partner_id }),
+                                        ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::SoulbondSelfETB)
                                     });
                                 }
                             }
@@ -3129,50 +2833,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         continue;
                                     }
                                     triggers.push(PendingTrigger {
-                                        source: sb_id,
-                                        ability_index: 0,
-                                        controller: sb_controller,
-                                        kind: PendingTriggerKind::SoulbondOtherETB,
                                         triggering_event: Some(
                                             TriggerEvent::AnyPermanentEntersBattlefield,
                                         ),
                                         entering_object_id: Some(*object_id),
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        madness_exiled_card: None,
-                                        madness_cost: None,
-                                        miracle_revealed_card: None,
-                                        miracle_cost: None,
-                                        modular_counter_count: None,
-                                        evolve_entering_creature: None,
-                                        suspend_card_id: None,
-                                        hideaway_count: None,
-                                        partner_with_name: None,
-                                        ingest_target_player: None,
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        provoke_target_creature: None,
-                                        renown_n: None,
-                                        poisonous_n: None,
-                                        poisonous_target_player: None,
-                                        enlist_enlisted_creature: None,
-                                        encore_activator: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        graft_entering_creature: None,
-                                        backup_abilities: None,
-                                        backup_n: None,
-                                        champion_filter: None,
-                                        champion_exiled_card: None,
-                                        soulbond_pair_target: Some(*object_id),
-                                        squad_count: None,
-                                        gift_opponent: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
+                                        data: Some(TriggerData::ETBSoulbond { pair_target: *object_id }),
+                                        ..PendingTrigger::blank(sb_id, sb_controller, PendingTriggerKind::SoulbondOtherETB)
                                     });
                                 }
                             }
@@ -3294,50 +2960,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 
                                     for _ in 0..evolve_count {
                                         triggers.push(PendingTrigger {
-                                            source: evolve_id,
-                                            ability_index: 0, // unused for evolve triggers
-                                            controller: evolve_controller,
-                                            kind: PendingTriggerKind::Evolve,
                                             triggering_event: Some(
                                                 TriggerEvent::AnyPermanentEntersBattlefield,
                                             ),
                                             entering_object_id: Some(*object_id),
-                                            targeting_stack_id: None,
-                                            triggering_player: None,
-                                            exalted_attacker_id: None,
-                                            defending_player_id: None,
-                                            madness_exiled_card: None,
-                                            madness_cost: None,
-                                            miracle_revealed_card: None,
-                                            miracle_cost: None,
-                                            modular_counter_count: None,
-                                            evolve_entering_creature: Some(*object_id),
-                                            suspend_card_id: None,
-                                            hideaway_count: None,
-                                            partner_with_name: None,
-                                            ingest_target_player: None,
-                                            flanking_blocker_id: None,
-                                            rampage_n: None,
-                                            provoke_target_creature: None,
-                                            renown_n: None,
-                                            poisonous_n: None,
-                                            poisonous_target_player: None,
-                                            enlist_enlisted_creature: None,
-                                            encore_activator: None,
-                                            recover_cost: None,
-                                            recover_card: None,
-                                            graft_entering_creature: None,
-                                            backup_abilities: None,
-                                            backup_n: None,
-                                            champion_filter: None,
-                                            champion_exiled_card: None,
-                                            soulbond_pair_target: None,
-                                            squad_count: None,
-                                            gift_opponent: None,
-                                            cipher_encoded_card_id: None,
-                                            cipher_encoded_object_id: None,
-                                            haunt_source_object_id: None,
-                                            haunt_source_card_id: None,
+                                            data: Some(TriggerData::ETBEvolve { entering_creature: *object_id }),
+                                            ..PendingTrigger::blank(evolve_id, evolve_controller, PendingTriggerKind::Evolve)
                                         });
                                     }
                                 }
@@ -3406,50 +3034,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         for (graft_id, graft_controller, graft_count) in graft_sources {
                             for _ in 0..graft_count {
                                 triggers.push(PendingTrigger {
-                                    source: graft_id,
-                                    ability_index: 0, // unused for graft triggers
-                                    controller: graft_controller,
-                                    kind: PendingTriggerKind::Graft,
                                     triggering_event: Some(
                                         TriggerEvent::AnyPermanentEntersBattlefield,
                                     ),
                                     entering_object_id: Some(*object_id),
-                                    targeting_stack_id: None,
-                                    triggering_player: None,
-                                    exalted_attacker_id: None,
-                                    defending_player_id: None,
-                                    madness_exiled_card: None,
-                                    madness_cost: None,
-                                    miracle_revealed_card: None,
-                                    miracle_cost: None,
-                                    modular_counter_count: None,
-                                    evolve_entering_creature: None,
-                                    suspend_card_id: None,
-                                    hideaway_count: None,
-                                    partner_with_name: None,
-                                    ingest_target_player: None,
-                                    flanking_blocker_id: None,
-                                    rampage_n: None,
-                                    provoke_target_creature: None,
-                                    renown_n: None,
-                                    poisonous_n: None,
-                                    poisonous_target_player: None,
-                                    enlist_enlisted_creature: None,
-                                    encore_activator: None,
-                                    recover_cost: None,
-                                    recover_card: None,
-                                    graft_entering_creature: Some(*object_id),
-                                    backup_abilities: None,
-                                    backup_n: None,
-                                    champion_filter: None,
-                                    champion_exiled_card: None,
-                                    soulbond_pair_target: None,
-                                    squad_count: None,
-                                    gift_opponent: None,
-                                    cipher_encoded_card_id: None,
-                                    cipher_encoded_object_id: None,
-                                    haunt_source_object_id: None,
-                                    haunt_source_card_id: None,
+                                    data: Some(TriggerData::ETBGraft { entering_creature: *object_id }),
+                                    ..PendingTrigger::blank(graft_id, graft_controller, PendingTriggerKind::Graft)
                                 });
                             }
                         }
@@ -3667,7 +3257,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .map(|o| o.id)
                                             .next(); // OrdMap iteration is by ObjectId order
-                                        t.provoke_target_creature = target;
+                                        t.data = target.map(|tgt| TriggerData::CombatProvoke { target: tgt });
                                         if let Some(tid) = target {
                                             provoke_targets_used.push(tid);
                                         }
@@ -3735,7 +3325,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         for &idx in &enlist_trigger_indices {
                             if let Some(&enlisted_id) = pairing_iter.next() {
                                 triggers[idx].kind = PendingTriggerKind::Enlist;
-                                triggers[idx].enlist_enlisted_creature = Some(enlisted_id);
+                                triggers[idx].data = Some(TriggerData::CombatEnlist { enlisted: enlisted_id });
                             } else {
                                 // No pairing for this Enlist instance -- mark for removal.
                                 indices_to_remove.push(idx);
@@ -3861,39 +3451,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
                                 ingest_target_player: None,
                                 flanking_blocker_id: None,
                                 rampage_n: None,
-                                provoke_target_creature: None,
                                 renown_n: None,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
-                                encore_activator: None,
                                 recover_cost: None,
                                 recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                            });
+                                data: None,                            });
                         }
                     }
                 }
@@ -4007,48 +3578,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let source_id = attacker_obj.id;
                     for _ in 0..flanking_count {
                         triggers.push(PendingTrigger {
-                            source: source_id,
-                            ability_index: 0, // unused for flanking triggers
-                            controller,
-                            kind: PendingTriggerKind::Flanking,
                             triggering_event: Some(TriggerEvent::SelfBlocks),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: Some(*blocker_id),
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::CombatFlanking { blocker: *blocker_id }),
+                            ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Flanking)
                         });
                     }
                 }
@@ -4094,7 +3626,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 .contains(&format!("Rampage {n}"))
                                             {
                                                 t.kind = PendingTriggerKind::Rampage;
-                                                t.rampage_n = Some(*n);
+                                                t.data = Some(TriggerData::CombatRampage { n: *n });
                                                 break;
                                             }
                                         }
@@ -4206,57 +3738,21 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             None
                         };
 
+                        let kind = if is_modular {
+                            PendingTriggerKind::Modular
+                        } else {
+                            PendingTriggerKind::Normal
+                        };
+                        let data = modular_counter_count.map(|n| TriggerData::DeathModular { counter_count: n });
                         triggers.push(PendingTrigger {
-                            source: *new_grave_id,
                             ability_index: idx,
                             // CR 603.3a: use the controller captured at death time (before
                             // move_object_to_zone reset it to owner). This correctly handles
                             // stolen creatures — if Player A controls Player B's creature and
                             // it dies, the trigger is controlled by Player A.
-                            controller: *death_controller,
-                            kind: if is_modular {
-                                PendingTriggerKind::Modular
-                            } else {
-                                PendingTriggerKind::Normal
-                            },
                             triggering_event: Some(TriggerEvent::SelfDies),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data,
+                            ..PendingTrigger::blank(*new_grave_id, *death_controller, kind)
                         });
                     }
                 }
@@ -4299,48 +3795,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 
                     for (recover_id, cost, card_owner) in recover_cards {
                         triggers.push(PendingTrigger {
-                            source: recover_id,
-                            ability_index: 0, // unused for recover triggers
-                            controller: card_owner,
-                            kind: PendingTriggerKind::Recover,
                             triggering_event: Some(TriggerEvent::SelfDies),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: Some(cost),
-                            recover_card: Some(recover_id),
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::DeathRecover {
+                                recover_card: recover_id,
+                                recover_cost: cost,
+                            }),
+                            ..PendingTrigger::blank(recover_id, card_owner, PendingTriggerKind::Recover)
                         });
                     }
                 }
@@ -4355,48 +3815,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = *death_controller;
                         triggers.push(PendingTrigger {
-                            source: *new_grave_id,
-                            ability_index: 0,
-                            controller: champion_controller,
-                            kind: PendingTriggerKind::ChampionLTB,
                             triggering_event: Some(TriggerEvent::SelfDies),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: Some(exiled_id),
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_id }),
+                            ..PendingTrigger::blank(*new_grave_id, champion_controller, PendingTriggerKind::ChampionLTB)
                         });
                     }
                 }
@@ -4414,48 +3835,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let haunt_controller = *death_controller;
                         let haunt_card_id = dead_obj.card_id.clone();
                         triggers.push(PendingTrigger {
-                            source: *new_grave_id,
-                            ability_index: 0,
-                            controller: haunt_controller,
-                            kind: PendingTriggerKind::HauntExile,
                             triggering_event: Some(TriggerEvent::SelfDies),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: Some(*new_grave_id),
-                            haunt_source_card_id: haunt_card_id,
+                            data: Some(TriggerData::DeathHauntExile {
+                                haunt_card: *new_grave_id,
+                                haunt_card_id,
+                            }),
+                            ..PendingTrigger::blank(*new_grave_id, haunt_controller, PendingTriggerKind::HauntExile)
                         });
                     }
                 }
@@ -4487,48 +3872,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 
                     for (haunt_obj_id, haunt_card_id, haunt_controller) in haunt_exiled {
                         triggers.push(PendingTrigger {
-                            source: haunt_obj_id,
-                            ability_index: 0,
-                            controller: haunt_controller,
-                            kind: PendingTriggerKind::HauntedCreatureDies,
                             triggering_event: Some(TriggerEvent::HauntedCreatureDies),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: Some(haunt_obj_id),
-                            haunt_source_card_id: haunt_card_id,
+                            data: Some(TriggerData::DeathHauntedCreatureDies {
+                                haunt_source: haunt_obj_id,
+                                haunt_card_id,
+                            }),
+                            ..PendingTrigger::blank(haunt_obj_id, haunt_controller, PendingTriggerKind::HauntedCreatureDies)
                         });
                     }
                 }
@@ -4567,39 +3916,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
                             ingest_target_player: None,
                             flanking_blocker_id: None,
                             rampage_n: None,
-                            provoke_target_creature: None,
                             renown_n: None,
                             poisonous_n: None,
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
-                            encore_activator: None,
                             recover_cost: None,
                             recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                        });
+                            data: None,                        });
                     }
                 }
             }
@@ -4699,39 +4029,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
                             ingest_target_player: None,
                             flanking_blocker_id: None,
                             rampage_n: None,
-                            provoke_target_creature: None,
                             renown_n: None,
                             poisonous_n: None,
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
-                            encore_activator: None,
                             recover_cost: None,
                             recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                        });
+                            data: None,                        });
                     }
                 }
             }
@@ -4801,50 +4112,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 let source_id = obj.id;
                                 for _ in 0..ingest_count {
                                     triggers.push(PendingTrigger {
-                                        source: source_id,
-                                        ability_index: 0, // unused for ingest triggers
-                                        controller,
-                                        kind: PendingTriggerKind::Ingest,
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
-                                        entering_object_id: None,
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        madness_exiled_card: None,
-                                        madness_cost: None,
-                                        miracle_revealed_card: None,
-                                        miracle_cost: None,
-                                        modular_counter_count: None,
-                                        evolve_entering_creature: None,
-                                        suspend_card_id: None,
-                                        hideaway_count: None,
-                                        partner_with_name: None,
-                                        ingest_target_player: Some(damaged_player),
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        provoke_target_creature: None,
-                                        renown_n: None,
-                                        poisonous_n: None,
-                                        poisonous_target_player: None,
-                                        enlist_enlisted_creature: None,
-                                        encore_activator: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        graft_entering_creature: None,
-                                        backup_abilities: None,
-                                        backup_n: None,
-                                        champion_filter: None,
-                                        champion_exiled_card: None,
-                                        soulbond_pair_target: None,
-                                        squad_count: None,
-                                        gift_opponent: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
+                                        data: Some(TriggerData::IngestExile { target_player: damaged_player }),
+                                        ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Ingest)
                                     });
                                 }
                             }
@@ -4897,50 +4169,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 let source_id = obj.id;
                                 for n in renown_values {
                                     triggers.push(PendingTrigger {
-                                        source: source_id,
-                                        ability_index: 0, // unused for renown triggers
-                                        controller,
-                                        kind: PendingTriggerKind::Renown,
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
-                                        entering_object_id: None,
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        madness_exiled_card: None,
-                                        madness_cost: None,
-                                        miracle_revealed_card: None,
-                                        miracle_cost: None,
-                                        modular_counter_count: None,
-                                        evolve_entering_creature: None,
-                                        suspend_card_id: None,
-                                        hideaway_count: None,
-                                        partner_with_name: None,
-                                        ingest_target_player: None,
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        provoke_target_creature: None,
-                                        renown_n: Some(n),
-                                        poisonous_n: None,
-                                        poisonous_target_player: None,
-                                        enlist_enlisted_creature: None,
-                                        encore_activator: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        graft_entering_creature: None,
-                                        backup_abilities: None,
-                                        backup_n: None,
-                                        champion_filter: None,
-                                        champion_exiled_card: None,
-                                        soulbond_pair_target: None,
-                                        squad_count: None,
-                                        gift_opponent: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
+                                        data: Some(TriggerData::RenownDamage { n }),
+                                        ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Renown)
                                     });
                                 }
                             }
@@ -4992,50 +4225,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 let source_id = obj.id;
                                 for n in poisonous_values {
                                     triggers.push(PendingTrigger {
-                                        source: source_id,
-                                        ability_index: 0, // unused for poisonous triggers
-                                        controller,
-                                        kind: PendingTriggerKind::Poisonous,
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
-                                        entering_object_id: None,
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        madness_exiled_card: None,
-                                        madness_cost: None,
-                                        miracle_revealed_card: None,
-                                        miracle_cost: None,
-                                        modular_counter_count: None,
-                                        evolve_entering_creature: None,
-                                        suspend_card_id: None,
-                                        hideaway_count: None,
-                                        partner_with_name: None,
-                                        ingest_target_player: None,
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        provoke_target_creature: None,
-                                        renown_n: None,
-                                        poisonous_n: Some(n),
-                                        poisonous_target_player: Some(damaged_player),
-                                        enlist_enlisted_creature: None,
-                                        encore_activator: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        graft_entering_creature: None,
-                                        backup_abilities: None,
-                                        backup_n: None,
-                                        champion_filter: None,
-                                        champion_exiled_card: None,
-                                        soulbond_pair_target: None,
-                                        squad_count: None,
-                                        gift_opponent: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
+                                        data: Some(TriggerData::CombatPoisonous { target_player: damaged_player, n }),
+                                        ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Poisonous)
                                     });
                                 }
                             }
@@ -5061,50 +4255,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         let encoded = obj.encoded_cards.clone();
                                         for (exiled_obj_id, card_id) in encoded {
                                             triggers.push(PendingTrigger {
-                                                source: source_id,
-                                                ability_index: 0,
-                                                controller,
-                                                kind: PendingTriggerKind::CipherCombatDamage,
                                                 triggering_event: Some(
                                                     TriggerEvent::SelfDealsCombatDamageToPlayer,
                                                 ),
-                                                entering_object_id: None,
-                                                targeting_stack_id: None,
-                                                triggering_player: None,
-                                                exalted_attacker_id: None,
-                                                defending_player_id: None,
-                                                madness_exiled_card: None,
-                                                madness_cost: None,
-                                                miracle_revealed_card: None,
-                                                miracle_cost: None,
-                                                modular_counter_count: None,
-                                                evolve_entering_creature: None,
-                                                suspend_card_id: None,
-                                                hideaway_count: None,
-                                                partner_with_name: None,
-                                                ingest_target_player: None,
-                                                flanking_blocker_id: None,
-                                                rampage_n: None,
-                                                provoke_target_creature: None,
-                                                renown_n: None,
-                                                poisonous_n: None,
-                                                poisonous_target_player: None,
-                                                enlist_enlisted_creature: None,
-                                                encore_activator: None,
-                                                recover_cost: None,
-                                                recover_card: None,
-                                                graft_entering_creature: None,
-                                                backup_abilities: None,
-                                                backup_n: None,
-                                                champion_filter: None,
-                                                champion_exiled_card: None,
-                                                soulbond_pair_target: None,
-                                                squad_count: None,
-                                                gift_opponent: None,
-                                                cipher_encoded_card_id: Some(card_id),
-                                                cipher_encoded_object_id: Some(exiled_obj_id),
-                                                haunt_source_object_id: None,
-                                                haunt_source_card_id: None,
+                                                data: Some(TriggerData::CipherDamage {
+                                                    source_creature: source_id,
+                                                    encoded_card_id: card_id,
+                                                    encoded_object_id: exiled_obj_id,
+                                                }),
+                                                ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::CipherCombatDamage)
                                             });
                                         }
                                     }
@@ -5181,39 +4340,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
                             ingest_target_player: None,
                             flanking_blocker_id: None,
                             rampage_n: None,
-                            provoke_target_creature: None,
                             renown_n: None,
                             poisonous_n: None,
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
-                            encore_activator: None,
                             recover_cost: None,
                             recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: None,
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                        });
+                            data: None,                        });
                     }
                 }
             }
@@ -5250,48 +4390,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = dead_obj.controller;
                         triggers.push(PendingTrigger {
-                            source: *new_grave_id,
-                            ability_index: 0,
-                            controller: champion_controller,
-                            kind: PendingTriggerKind::ChampionLTB,
-                            triggering_event: None,
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: Some(exiled_id),
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_id }),
+                            ..PendingTrigger::blank(*new_grave_id, champion_controller, PendingTriggerKind::ChampionLTB)
                         });
                     }
                 }
@@ -5301,56 +4401,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             // check champion_exiled_card on the exile-zone object.
             GameEvent::ObjectExiled { new_exile_id, .. } => {
                 if let Some(exiled_obj) = state.objects.get(new_exile_id) {
-                    // CR 607.2a / CR 603.10a: rely solely on champion_exiled_card (linked-ability
-                    // tracking), not on keyword presence. The keyword may have been removed (e.g.
-                    // Humility) before the permanent left the battlefield; the LTB trigger still
-                    // fires because the championed-card designation is a linked-ability state, not
-                    // a keyword-dependent state.
                     if let Some(exiled_card_id) = exiled_obj.champion_exiled_card {
                         let champion_controller = exiled_obj.controller;
                         triggers.push(PendingTrigger {
-                            source: *new_exile_id,
-                            ability_index: 0,
-                            controller: champion_controller,
-                            kind: PendingTriggerKind::ChampionLTB,
-                            triggering_event: None,
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: Some(exiled_card_id),
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_card_id }),
+                            ..PendingTrigger::blank(*new_exile_id, champion_controller, PendingTriggerKind::ChampionLTB)
                         });
                     }
                 }
@@ -5360,54 +4415,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             // check champion_exiled_card on the hand object.
             GameEvent::ObjectReturnedToHand { new_hand_id, .. } => {
                 if let Some(hand_obj) = state.objects.get(new_hand_id) {
-                    // CR 607.2a / CR 603.10a: rely solely on champion_exiled_card (linked-ability
-                    // tracking), not on keyword presence. The keyword may have been removed before
-                    // the permanent bounced; the LTB trigger still fires per CR 607.2a.
                     if let Some(exiled_id) = hand_obj.champion_exiled_card {
                         let champion_controller = hand_obj.controller;
                         triggers.push(PendingTrigger {
-                            source: *new_hand_id,
-                            ability_index: 0,
-                            controller: champion_controller,
-                            kind: PendingTriggerKind::ChampionLTB,
-                            triggering_event: None,
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            madness_exiled_card: None,
-                            madness_cost: None,
-                            miracle_revealed_card: None,
-                            miracle_cost: None,
-                            modular_counter_count: None,
-                            evolve_entering_creature: None,
-                            suspend_card_id: None,
-                            hideaway_count: None,
-                            partner_with_name: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            provoke_target_creature: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            encore_activator: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            graft_entering_creature: None,
-                            backup_abilities: None,
-                            backup_n: None,
-                            champion_filter: None,
-                            champion_exiled_card: Some(exiled_id),
-                            soulbond_pair_target: None,
-                            squad_count: None,
-                            gift_opponent: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
+                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_id }),
+                            ..PendingTrigger::blank(*new_hand_id, champion_controller, PendingTriggerKind::ChampionLTB)
                         });
                     }
                 }
@@ -5481,39 +4493,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     triggering_player: None,
                                     exalted_attacker_id: None,
                                     defending_player_id: None,
-                                    madness_exiled_card: None,
-                                    madness_cost: None,
-                                    miracle_revealed_card: None,
-                                    miracle_cost: None,
-                                    modular_counter_count: None,
-                                    evolve_entering_creature: None,
-                                    suspend_card_id: None,
-                                    hideaway_count: None,
-                                    partner_with_name: None,
                                     ingest_target_player: None,
                                     flanking_blocker_id: None,
                                     rampage_n: None,
-                                    provoke_target_creature: None,
                                     renown_n: None,
                                     poisonous_n: None,
                                     poisonous_target_player: None,
                                     enlist_enlisted_creature: None,
-                                    encore_activator: None,
                                     recover_cost: None,
                                     recover_card: None,
-                                    graft_entering_creature: None,
-                                    backup_abilities: None,
-                                    backup_n: None,
-                                    champion_filter: None,
-                                    champion_exiled_card: None,
-                                    soulbond_pair_target: None,
-                                    squad_count: None,
-                                    gift_opponent: None,
                                     cipher_encoded_card_id: None,
                                     cipher_encoded_object_id: None,
                                     haunt_source_object_id: None,
                                     haunt_source_card_id: None,
-                                });
+                                    data: None,                                });
                             }
                         }
                     }
@@ -5562,39 +4555,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                madness_exiled_card: None,
-                                madness_cost: None,
-                                miracle_revealed_card: None,
-                                miracle_cost: None,
-                                modular_counter_count: None,
-                                evolve_entering_creature: None,
-                                suspend_card_id: None,
-                                hideaway_count: None,
-                                partner_with_name: None,
                                 ingest_target_player: None,
                                 flanking_blocker_id: None,
                                 rampage_n: None,
-                                provoke_target_creature: None,
                                 renown_n: None,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
-                                encore_activator: None,
                                 recover_cost: None,
                                 recover_card: None,
-                                graft_entering_creature: None,
-                                backup_abilities: None,
-                                backup_n: None,
-                                champion_filter: None,
-                                champion_exiled_card: None,
-                                soulbond_pair_target: None,
-                                squad_count: None,
-                                gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                            });
+                                data: None,                            });
                         }
                     }
                 }
@@ -5720,39 +4694,20 @@ fn collect_triggers_for_event(
                 triggering_player: None,
                 exalted_attacker_id: None,
                 defending_player_id: None,
-                madness_exiled_card: None,
-                madness_cost: None,
-                miracle_revealed_card: None,
-                miracle_cost: None,
-                modular_counter_count: None,
-                evolve_entering_creature: None,
-                suspend_card_id: None,
-                hideaway_count: None,
-                partner_with_name: None,
                 ingest_target_player: None,
                 flanking_blocker_id: None,
                 rampage_n: None,
-                provoke_target_creature: None,
                 renown_n: None,
                 poisonous_n: None,
                 poisonous_target_player: None,
                 enlist_enlisted_creature: None,
-                encore_activator: None,
                 recover_cost: None,
                 recover_card: None,
-                graft_entering_creature: None,
-                backup_abilities: None,
-                backup_n: None,
-                champion_filter: None,
-                champion_exiled_card: None,
-                soulbond_pair_target: None,
-                squad_count: None,
-                gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-            });
+                data: None,            });
         }
     }
 }
@@ -5853,7 +4808,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         } else if trigger.kind == PendingTriggerKind::Provoke {
             // CR 702.39a: Provoke triggers target the provoked creature.
             // Set it as Target::Object so target legality can be checked at resolution.
-            if let Some(provoked) = trigger.provoke_target_creature {
+            let provoked = match &trigger.data {
+                Some(TriggerData::CombatProvoke { target }) => Some(*target),
+                _ => None,
+            };
+            if let Some(provoked) = provoked {
                 Some(vec![SpellTarget {
                     target: Target::Object(provoked),
                     zone_at_cast: Some(ZoneId::Battlefield),
@@ -6120,18 +5079,28 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     keyword: KeywordAbility::Evoke,
                     data: TriggerData::DelayedZoneChange,
                 },
-                PendingTriggerKind::Madness => StackObjectKind::MadnessTrigger {
-                    source_object: trigger.source,
-                    exiled_card: trigger.madness_exiled_card.unwrap_or(trigger.source),
-                    madness_cost: trigger.madness_cost.clone().unwrap_or_default(),
-                    owner: trigger.controller,
-                },
+                PendingTriggerKind::Madness => {
+                    let (exiled_card, madness_cost) = match &trigger.data {
+                        Some(TriggerData::Madness { exiled_card, cost }) => (*exiled_card, cost.clone()),
+                        _ => (trigger.source, Default::default()),
+                    };
+                    StackObjectKind::MadnessTrigger {
+                        source_object: trigger.source,
+                        exiled_card,
+                        madness_cost,
+                        owner: trigger.controller,
+                    }
+                }
                 PendingTriggerKind::Miracle => {
                     // CR 702.94a: Miracle trigger carries the revealed card and cost.
+                    let (revealed_card, miracle_cost) = match &trigger.data {
+                        Some(TriggerData::Miracle { revealed_card, cost }) => (*revealed_card, cost.clone()),
+                        _ => (trigger.source, Default::default()),
+                    };
                     StackObjectKind::MiracleTrigger {
                         source_object: trigger.source,
-                        revealed_card: trigger.miracle_revealed_card.unwrap_or(trigger.source),
-                        miracle_cost: trigger.miracle_cost.clone().unwrap_or_default(),
+                        revealed_card,
+                        miracle_cost,
                         owner: trigger.controller,
                     }
                 }
@@ -6188,7 +5157,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         zone_at_cast: Some(ZoneId::Battlefield),
                     }];
 
-                    let counter_count = trigger.modular_counter_count.unwrap_or(0);
+                    let counter_count = match trigger.data {
+                        Some(TriggerData::DeathModular { counter_count }) => counter_count,
+                        _ => 0,
+                    };
                     let stack_id = state.next_object_id();
                     // MR-TC-25: use trigger_default; override targets with modular target.
                     let mut stack_obj = StackObject::trigger_default(
@@ -6225,14 +5197,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // enters, if that creature's P > this creature's P and/or that creature's
                     // T > this creature's T, put a +1/+1 counter on this creature."
                     // The resolution handler re-checks the intervening-if (CR 603.4).
+                    let entering_creature = match trigger.data {
+                        Some(TriggerData::ETBEvolve { entering_creature }) => entering_creature,
+                        _ => trigger.source,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Evolve,
-                        data: TriggerData::ETBEvolve {
-                            entering_creature: trigger
-                                .evolve_entering_creature
-                                .unwrap_or(trigger.source),
-                        },
+                        data: TriggerData::ETBEvolve { entering_creature },
                     }
                 }
                 PendingTriggerKind::Myriad => {
@@ -6254,21 +5226,24 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 }
                 PendingTriggerKind::SuspendCounter => {
                     // CR 702.62a: Suspend upkeep counter-removal trigger.
-                    // "At the beginning of your upkeep, if this card is suspended, remove a
-                    // time counter from it." This trigger goes on the stack and can be
-                    // responded to (e.g., Stifle can counter it, preventing counter removal).
+                    let suspended_card = match trigger.data {
+                        Some(TriggerData::Suspend { card }) => card,
+                        _ => trigger.source,
+                    };
                     StackObjectKind::SuspendCounterTrigger {
                         source_object: trigger.source,
-                        suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
+                        suspended_card,
                     }
                 }
                 PendingTriggerKind::SuspendCast => {
                     // CR 702.62a: Suspend cast trigger (last time counter removed).
-                    // "When the last time counter is removed from this card, if it's exiled,
-                    // you may play it without paying its mana cost if able."
+                    let suspended_card = match trigger.data {
+                        Some(TriggerData::Suspend { card }) => card,
+                        _ => trigger.source,
+                    };
                     StackObjectKind::SuspendCastTrigger {
                         source_object: trigger.source,
-                        suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
+                        suspended_card,
                         owner: trigger.controller,
                     }
                 }
@@ -6276,7 +5251,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // CR 702.75a: Hideaway ETB trigger — "When this permanent enters,
                     // look at the top N cards of your library. Exile one of them face
                     // down and put the rest on the bottom of your library in a random order."
-                    let hide_count = trigger.hideaway_count.unwrap_or(4);
+                    let hide_count = match trigger.data {
+                        Some(TriggerData::ETBHideaway { count }) => count,
+                        _ => 4,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Hideaway(hide_count),
@@ -6288,41 +5266,48 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // target player may search their library for a card named [name], reveal
                     // it, put it into their hand, then shuffle."
                     // Target player: deterministic fallback = the trigger controller (owner).
+                    let (partner_name, target_player) = match &trigger.data {
+                        Some(TriggerData::ETBPartnerWith { partner_name, target_player }) => {
+                            (partner_name.clone(), *target_player)
+                        }
+                        _ => (String::new(), trigger.controller),
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        keyword: KeywordAbility::PartnerWith(
-                            trigger.partner_with_name.clone().unwrap_or_default(),
-                        ),
-                        data: TriggerData::ETBPartnerWith {
-                            partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
-                            target_player: trigger.controller,
-                        },
+                        keyword: KeywordAbility::PartnerWith(partner_name.clone()),
+                        data: TriggerData::ETBPartnerWith { partner_name, target_player },
                     }
                 }
                 PendingTriggerKind::Ingest => {
                     // CR 702.115a: Ingest combat damage trigger — "Whenever this creature
                     // deals combat damage to a player, that player exiles the top card of
                     // their library."
-                    // `ingest_target_player` carries the damaged player's ID.
+                    let target_player = match &trigger.data {
+                        Some(TriggerData::IngestExile { target_player }) => *target_player,
+                        _ => trigger.controller,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Ingest,
-                        data: TriggerData::IngestExile {
-                            target_player: trigger
-                                .ingest_target_player
-                                .unwrap_or(trigger.controller),
-                        },
+                        data: TriggerData::IngestExile { target_player },
                     }
                 }
-                PendingTriggerKind::Flanking => StackObjectKind::KeywordTrigger {
-                    source_object: trigger.source,
-                    keyword: KeywordAbility::Flanking,
-                    data: TriggerData::CombatFlanking {
-                        blocker: trigger.flanking_blocker_id.unwrap_or(trigger.source),
-                    },
-                },
+                PendingTriggerKind::Flanking => {
+                    let blocker = match &trigger.data {
+                        Some(TriggerData::CombatFlanking { blocker }) => *blocker,
+                        _ => trigger.source,
+                    };
+                    StackObjectKind::KeywordTrigger {
+                        source_object: trigger.source,
+                        keyword: KeywordAbility::Flanking,
+                        data: TriggerData::CombatFlanking { blocker },
+                    }
+                }
                 PendingTriggerKind::Rampage => {
-                    let n = trigger.rampage_n.unwrap_or(1);
+                    let n = match &trigger.data {
+                        Some(TriggerData::CombatRampage { n }) => *n,
+                        _ => 1,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Rampage(n),
@@ -6330,7 +5315,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     }
                 }
                 PendingTriggerKind::Provoke => {
-                    if let Some(provoked) = trigger.provoke_target_creature {
+                    if let Some(TriggerData::CombatProvoke { target: provoked }) = trigger.data {
                         StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
                             keyword: KeywordAbility::Provoke,
@@ -6341,7 +5326,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     }
                 }
                 PendingTriggerKind::Renown => {
-                    let n = trigger.renown_n.unwrap_or(1);
+                    let n = match &trigger.data {
+                        Some(TriggerData::RenownDamage { n }) => *n,
+                        _ => 1,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Renown(n),
@@ -6354,34 +5342,38 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     data: TriggerData::Simple,
                 },
                 PendingTriggerKind::Poisonous => {
-                    let n = trigger.poisonous_n.unwrap_or(1);
+                    let (target_player, n) = match &trigger.data {
+                        Some(TriggerData::CombatPoisonous { target_player, n }) => (*target_player, *n),
+                        _ => (trigger.controller, 1),
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Poisonous(n),
-                        data: TriggerData::CombatPoisonous {
-                            target_player: trigger
-                                .poisonous_target_player
-                                .unwrap_or(trigger.controller),
-                            n,
-                        },
+                        data: TriggerData::CombatPoisonous { target_player, n },
                     }
                 }
-                PendingTriggerKind::Enlist => StackObjectKind::KeywordTrigger {
-                    source_object: trigger.source,
-                    keyword: KeywordAbility::Enlist,
-                    data: TriggerData::CombatEnlist {
-                        enlisted: trigger.enlist_enlisted_creature.unwrap_or(trigger.source),
-                    },
-                },
+                PendingTriggerKind::Enlist => {
+                    let enlisted = match &trigger.data {
+                        Some(TriggerData::CombatEnlist { enlisted }) => *enlisted,
+                        _ => trigger.source,
+                    };
+                    StackObjectKind::KeywordTrigger {
+                        source_object: trigger.source,
+                        keyword: KeywordAbility::Enlist,
+                        data: TriggerData::CombatEnlist { enlisted },
+                    }
+                }
                 PendingTriggerKind::EncoreSacrifice => {
                     // CR 702.141a: Encore delayed sacrifice trigger -- "Sacrifice them
                     // at the beginning of the next end step."
+                    let activator = match trigger.data {
+                        Some(TriggerData::EncoreSacrifice { activator }) => activator,
+                        _ => trigger.controller,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Encore,
-                        data: TriggerData::EncoreSacrifice {
-                            activator: trigger.encore_activator.unwrap_or(trigger.controller),
-                        },
+                        data: TriggerData::EncoreSacrifice { activator },
                     }
                 }
                 PendingTriggerKind::DashReturn => {
@@ -6408,17 +5400,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // EchoUpkeep: migrated to KeywordTrigger
                 // CumulativeUpkeep: migrated to KeywordTrigger
                 PendingTriggerKind::Recover => {
-                    // CR 702.59a: Recover trigger.
-                    // "When a creature is put into your graveyard from the battlefield,
-                    // you may pay [cost]. If you do, return this card from your graveyard
-                    // to your hand. Otherwise, exile this card."
+                    // CR 702.59a: Recover trigger — data carries DeathRecover.
+                    let (recover_card, recover_cost) = match trigger.data.clone() {
+                        Some(TriggerData::DeathRecover { recover_card, recover_cost }) => {
+                            (recover_card, recover_cost)
+                        }
+                        _ => (trigger.source, Default::default()),
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Recover,
-                        data: TriggerData::DeathRecover {
-                            recover_card: trigger.recover_card.unwrap_or(trigger.source),
-                            recover_cost: trigger.recover_cost.clone().unwrap_or_default(),
-                        },
+                        data: TriggerData::DeathRecover { recover_card, recover_cost },
                     }
                 }
                 PendingTriggerKind::Graft => {
@@ -6426,31 +5418,35 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // "Whenever another creature enters, if this permanent has a +1/+1
                     // counter on it, you may move a +1/+1 counter from this permanent
                     // onto that creature."
+                    let entering_creature = match trigger.data {
+                        Some(TriggerData::ETBGraft { entering_creature }) => entering_creature,
+                        _ => trigger.source,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Graft(0),
-                        data: TriggerData::ETBGraft {
-                            entering_creature: trigger
-                                .graft_entering_creature
-                                .unwrap_or(trigger.source),
-                        },
+                        data: TriggerData::ETBGraft { entering_creature },
                     }
                 }
                 PendingTriggerKind::Backup => {
                     // CR 702.165a: Backup ETB trigger.
                     // Default target = self (gets counters but no abilities per CR 702.165a).
                     // In real play the controller chooses; deterministic default = source.
-                    let target = trigger.source;
-                    let n = trigger.backup_n.unwrap_or(1);
-                    let abilities = trigger.backup_abilities.clone().unwrap_or_default();
+                    let source = trigger.source;
+                    let (target, count, abilities) = match &trigger.data {
+                        Some(TriggerData::ETBBackup { target, count, abilities }) => {
+                            (*target, *count, abilities.clone())
+                        }
+                        _ => (source, 1, vec![]),
+                    };
                     StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Backup(n),
+                        source_object: source,
+                        keyword: KeywordAbility::Backup(count),
                         data: TriggerData::ETBBackup {
                             target,
-                            count: n,
+                            count,
                             // Self-targeting: no abilities granted (CR 702.165a "if that's another creature").
-                            abilities: if target == trigger.source {
+                            abilities: if target == source {
                                 vec![]
                             } else {
                                 abilities
@@ -6460,36 +5456,39 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 }
                 PendingTriggerKind::ChampionETB => {
                     // CR 702.72a: Champion ETB trigger.
+                    let filter = match &trigger.data {
+                        Some(TriggerData::ETBChampion { filter }) => filter.clone(),
+                        _ => ChampionFilter::AnyCreature,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Champion,
-                        data: TriggerData::ETBChampion {
-                            filter: trigger
-                                .champion_filter
-                                .clone()
-                                .unwrap_or(ChampionFilter::AnyCreature),
-                        },
+                        data: TriggerData::ETBChampion { filter },
                     }
                 }
                 PendingTriggerKind::ChampionLTB => {
                     // CR 702.72a: Champion LTB trigger.
+                    let exiled_card = match trigger.data {
+                        Some(TriggerData::LTBChampion { exiled_card }) => exiled_card,
+                        _ => trigger.source,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Champion,
-                        data: TriggerData::LTBChampion {
-                            exiled_card: trigger.champion_exiled_card.unwrap_or(trigger.source),
-                        },
+                        data: TriggerData::LTBChampion { exiled_card },
                     }
                 }
                 PendingTriggerKind::SoulbondSelfETB | PendingTriggerKind::SoulbondOtherETB => {
                     // CR 702.95a: Soulbond ETB triggers (self-ETB and other-ETB).
                     // source = soulbond creature; pair_target = the creature to pair with.
+                    let pair_target = match trigger.data {
+                        Some(TriggerData::ETBSoulbond { pair_target }) => pair_target,
+                        _ => trigger.source,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Soulbond,
-                        data: TriggerData::ETBSoulbond {
-                            pair_target: trigger.soulbond_pair_target.unwrap_or(trigger.source),
-                        },
+                        data: TriggerData::ETBSoulbond { pair_target },
                     }
                 }
                 PendingTriggerKind::RavenousDraw => {
@@ -6511,15 +5510,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     }
                 }
                 PendingTriggerKind::SquadETB => {
-                    // CR 702.157a: Squad ETB trigger. Read squad_count from the trigger
-                    // (stored at trigger-queue time from the permanent's squad_count field).
-                    // At resolution, creates squad_count token copies of the source creature.
+                    // CR 702.157a: Squad ETB trigger. Read squad_count from trigger.data.
+                    let count = match trigger.data {
+                        Some(TriggerData::ETBSquad { count }) => count,
+                        _ => 0,
+                    };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Squad,
-                        data: TriggerData::ETBSquad {
-                            count: trigger.squad_count.unwrap_or(0),
-                        },
+                        data: TriggerData::ETBSquad { count },
                     }
                 }
                 PendingTriggerKind::OffspringETB => {
@@ -6539,17 +5538,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     }
                 }
                 PendingTriggerKind::GiftETB => {
-                    // CR 702.174b: Gift ETB trigger. The source_object is the permanent
-                    // that entered with gift cost paid. At resolution, gives the chosen
-                    // opponent a gift defined by AbilityDefinition::Gift { gift_type }.
-                    // Capture source_card_id for LKI fallback.
-                    let source_card_id = state
-                        .objects
-                        .get(&trigger.source)
-                        .and_then(|o| o.card_id.clone());
-                    let gift_opponent = match trigger.gift_opponent {
-                        Some(p) => p,
-                        None => {
+                    // CR 702.174b: Gift ETB trigger. Data is ETBGift captured at queue time.
+                    let (source_card_id, gift_opponent) = match &trigger.data {
+                        Some(TriggerData::ETBGift { source_card_id, gift_opponent }) => {
+                            (source_card_id.clone(), *gift_opponent)
+                        }
+                        _ => {
                             // No gift opponent — skip this trigger (should not happen).
                             continue;
                         }
@@ -6557,60 +5551,64 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Gift,
-                        data: TriggerData::ETBGift {
-                            source_card_id,
-                            gift_opponent,
-                        },
+                        data: TriggerData::ETBGift { source_card_id, gift_opponent },
                     }
                 }
                 PendingTriggerKind::CipherCombatDamage => {
-                    // CR 702.99a: Cipher combat damage trigger -- "Whenever [encoded creature]
-                    // deals combat damage to a player, you may copy the encoded card and you
-                    // may cast the copy without paying its mana cost."
-                    //
-                    // The trigger carries the encoded card info (captured at trigger time).
-                    // At resolution, verify the encoded card still exists in exile (CR 702.99c).
-                    let encoded_card_id = match trigger.cipher_encoded_card_id.clone() {
-                        Some(id) => id,
-                        None => continue, // Missing card id — skip (should not happen).
-                    };
-                    let encoded_object_id = match trigger.cipher_encoded_object_id {
-                        Some(id) => id,
-                        None => continue, // Missing object id — skip (should not happen).
-                    };
-                    StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Cipher,
-                        data: TriggerData::CipherDamage {
-                            source_creature: trigger.source,
-                            encoded_card_id,
-                            encoded_object_id,
-                        },
+                    // CR 702.99a: Cipher combat damage trigger — the encoded card info is
+                    // carried in trigger.data as TriggerData::CipherDamage.
+                    match trigger.data.clone() {
+                        Some(TriggerData::CipherDamage { source_creature, encoded_card_id, encoded_object_id }) => {
+                            StackObjectKind::KeywordTrigger {
+                                source_object: trigger.source,
+                                keyword: KeywordAbility::Cipher,
+                                data: TriggerData::CipherDamage {
+                                    source_creature,
+                                    encoded_card_id,
+                                    encoded_object_id,
+                                },
+                            }
+                        }
+                        _ => continue, // Missing data — skip (should not happen).
                     }
                 }
                 PendingTriggerKind::HauntExile => {
-                    // CR 702.55a: Haunt exile trigger -- "When this creature dies / this spell
-                    // is put into a graveyard during its resolution, exile it haunting target
-                    // creature." The haunt_source_object_id is the graveyard ObjectId.
-                    StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Haunt,
-                        data: TriggerData::DeathHauntExile {
-                            haunt_card: trigger.haunt_source_object_id.unwrap_or(trigger.source),
-                            haunt_card_id: trigger.haunt_source_card_id.clone(),
+                    // CR 702.55a: Haunt exile trigger — data carries DeathHauntExile.
+                    match trigger.data.clone() {
+                        Some(TriggerData::DeathHauntExile { haunt_card, haunt_card_id }) => {
+                            StackObjectKind::KeywordTrigger {
+                                source_object: trigger.source,
+                                keyword: KeywordAbility::Haunt,
+                                data: TriggerData::DeathHauntExile { haunt_card, haunt_card_id },
+                            }
+                        }
+                        _ => StackObjectKind::KeywordTrigger {
+                            source_object: trigger.source,
+                            keyword: KeywordAbility::Haunt,
+                            data: TriggerData::DeathHauntExile {
+                                haunt_card: trigger.source,
+                                haunt_card_id: None,
+                            },
                         },
                     }
                 }
                 PendingTriggerKind::HauntedCreatureDies => {
-                    // CR 702.55c: Haunted creature dies trigger -- fires the haunt card's
-                    // effect from exile when the creature it haunts dies.
-                    // The haunt_source_object_id is the exiled haunt card's ObjectId.
-                    StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Haunt,
-                        data: TriggerData::DeathHauntedCreatureDies {
-                            haunt_source: trigger.haunt_source_object_id.unwrap_or(trigger.source),
-                            haunt_card_id: trigger.haunt_source_card_id.clone(),
+                    // CR 702.55c: Haunted creature dies trigger — data carries DeathHauntedCreatureDies.
+                    match trigger.data.clone() {
+                        Some(TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id }) => {
+                            StackObjectKind::KeywordTrigger {
+                                source_object: trigger.source,
+                                keyword: KeywordAbility::Haunt,
+                                data: TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id },
+                            }
+                        }
+                        _ => StackObjectKind::KeywordTrigger {
+                            source_object: trigger.source,
+                            keyword: KeywordAbility::Haunt,
+                            data: TriggerData::DeathHauntedCreatureDies {
+                                haunt_source: trigger.source,
+                                haunt_card_id: None,
+                            },
                         },
                     }
                 }

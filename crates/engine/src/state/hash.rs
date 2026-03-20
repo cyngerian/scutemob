@@ -1719,32 +1719,12 @@ impl HashInto for PendingTrigger {
         self.exalted_attacker_id.hash_into(hasher);
         // CR 508.5 / CR 702.86a: defending_player_id — the defending player for SelfAttacks triggers
         self.defending_player_id.hash_into(hasher);
-        // CR 702.35a: madness-specific fields
-        self.madness_exiled_card.hash_into(hasher);
-        self.madness_cost.hash_into(hasher);
-        // CR 702.94a: miracle-specific fields
-        self.miracle_revealed_card.hash_into(hasher);
-        self.miracle_cost.hash_into(hasher);
-        // CR 702.141a: encore-specific fields
-        self.encore_activator.hash_into(hasher);
-        // CR 702.43a: modular-specific field
-        self.modular_counter_count.hash_into(hasher);
-        // CR 702.100a: evolve-specific field
-        self.evolve_entering_creature.hash_into(hasher);
-        // CR 702.62a: suspend-specific field
-        self.suspend_card_id.hash_into(hasher);
-        // CR 702.75a: hideaway-specific field
-        self.hideaway_count.hash_into(hasher);
-        // CR 702.124j: partner-with-specific field
-        self.partner_with_name.hash_into(hasher);
         // CR 702.115a: ingest-specific field
         self.ingest_target_player.hash_into(hasher);
         // CR 702.25a: flanking-specific field
         self.flanking_blocker_id.hash_into(hasher);
         // CR 702.23a: rampage-specific field
         self.rampage_n.hash_into(hasher);
-        // CR 702.39a: provoke-specific field
-        self.provoke_target_creature.hash_into(hasher);
         // CR 702.112a: renown-specific field
         self.renown_n.hash_into(hasher);
         // CR 702.70a: poisonous-specific fields
@@ -1752,16 +1732,9 @@ impl HashInto for PendingTrigger {
         self.poisonous_target_player.hash_into(hasher);
         // CR 702.154a: enlist-specific field
         self.enlist_enlisted_creature.hash_into(hasher);
-        // CR 702.58a: graft-specific field
-        self.graft_entering_creature.hash_into(hasher);
         // CR 702.59a: recover-specific fields
         self.recover_cost.hash_into(hasher);
         self.recover_card.hash_into(hasher);
-        // CR 702.165a: backup-specific fields
-        self.backup_abilities.hash_into(hasher);
-        self.backup_n.hash_into(hasher);
-        // CR 702.174a: gift-specific field
-        self.gift_opponent.hash_into(hasher);
         // CR 702.99a: cipher-specific fields
         self.cipher_encoded_card_id.hash_into(hasher);
         self.cipher_encoded_object_id.hash_into(hasher);
@@ -2102,6 +2075,20 @@ impl HashInto for TriggerData {
             TriggerData::MyriadAttack { defending_player } => {
                 33u8.hash_into(hasher);
                 defending_player.hash_into(hasher);
+            }
+            TriggerData::Madness { exiled_card, cost } => {
+                34u8.hash_into(hasher);
+                exiled_card.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            TriggerData::Miracle { revealed_card, cost } => {
+                35u8.hash_into(hasher);
+                revealed_card.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            TriggerData::Suspend { card } => {
+                36u8.hash_into(hasher);
+                card.hash_into(hasher);
             }
         }
     }

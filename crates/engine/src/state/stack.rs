@@ -128,6 +128,17 @@ pub enum TriggerData {
     ETBEvolve { entering_creature: ObjectId },
     /// Myriad: create token copies attacking each other opponent.
     MyriadAttack { defending_player: PlayerId },
+    /// Madness: cast from exile using the madness cost.
+    /// `exiled_card` is the ObjectId in exile (== source in practice);
+    /// `cost` is the madness alternative mana cost.
+    Madness { exiled_card: ObjectId, cost: ManaCost },
+    /// Miracle: cast from hand using the miracle cost.
+    /// `revealed_card` is the ObjectId in hand (== source in practice);
+    /// `cost` is the miracle alternative mana cost.
+    Miracle { revealed_card: ObjectId, cost: ManaCost },
+    /// Suspend counter removal or cast trigger.
+    /// `card` is the exiled suspended card (== source in practice).
+    Suspend { card: ObjectId },
 }
 
 /// Cost payload for upkeep-cost triggers.

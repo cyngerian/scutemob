@@ -743,7 +743,11 @@ fn test_partner_with_etb_trigger_generated_by_check_triggers() {
     // There should be a PartnerWith trigger in the results.
     let has_pw_trigger = new_triggers.iter().any(|t| {
         t.kind == mtg_engine::state::stubs::PendingTriggerKind::PartnerWith
-            && t.partner_with_name.as_deref() == Some("Toothy, Imaginary Friend")
+            && matches!(
+                &t.data,
+                Some(mtg_engine::state::stack::TriggerData::ETBPartnerWith { partner_name, .. })
+                    if partner_name == "Toothy, Imaginary Friend"
+            )
     });
     assert!(
         has_pw_trigger,

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::game_object::{ManaCost, ObjectId};
 use super::player::PlayerId;
+use super::stack::TriggerData;
 
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
 
@@ -260,56 +261,6 @@ pub struct PendingTrigger {
     /// [effect on defending player]" trigger. `None` for all other trigger types.
     #[serde(default)]
     pub defending_player_id: Option<PlayerId>,
-    /// CR 702.35a: ObjectId of the card in exile (new ID after the discard replacement).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Madness`.
-    #[serde(default)]
-    pub madness_exiled_card: Option<ObjectId>,
-    /// CR 702.35a: The madness alternative cost captured at trigger time.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Madness`.
-    #[serde(default)]
-    pub madness_cost: Option<ManaCost>,
-    /// CR 702.94a: ObjectId of the revealed card in hand.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Miracle`.
-    #[serde(default)]
-    pub miracle_revealed_card: Option<ObjectId>,
-    /// CR 702.94a: The miracle alternative cost captured at trigger time.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Miracle`.
-    #[serde(default)]
-    pub miracle_cost: Option<ManaCost>,
-    /// CR 702.43a: Number of +1/+1 counters on the creature at death time.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Modular`. Captured from
-    /// `pre_death_counters[PlusOnePlusOne]` at trigger-check time (last-known
-    /// information per Arcbound Worker ruling 2006-09-25).
-    #[serde(default)]
-    pub modular_counter_count: Option<u32>,
-    /// CR 702.100a: ObjectId of the creature that entered the battlefield.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Evolve`. Used at resolution
-    /// time for the intervening-if re-check (P/T comparison, CR 603.4).
-    /// If this creature left the battlefield, use last-known information.
-    #[serde(default)]
-    pub evolve_entering_creature: Option<ObjectId>,
-    /// CR 702.62a: ObjectId of the suspended card in exile.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::SuspendCounter` or
-    /// `kind == PendingTriggerKind::SuspendCast`.
-    #[serde(default)]
-    pub suspend_card_id: Option<ObjectId>,
-    /// CR 702.75a: Number of cards to look at from the top of the library.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Hideaway`.
-    #[serde(default)]
-    pub hideaway_count: Option<u32>,
-    /// CR 702.124j: The exact name of the partner card to search for.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::PartnerWith`.
-    #[serde(default)]
-    pub partner_with_name: Option<String>,
     /// CR 702.115a: The player dealt combat damage (whose library top card is exiled).
     ///
     /// Only meaningful when `kind == PendingTriggerKind::Ingest`.
@@ -325,15 +276,6 @@ pub struct PendingTrigger {
     /// Only meaningful when `kind == PendingTriggerKind::Rampage`.
     #[serde(default)]
     pub rampage_n: Option<u32>,
-    /// CR 702.39a: The ObjectId of the creature that must block "if able".
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Provoke`. This is the target
-    /// creature the defending player controls. Set at trigger-collection time
-    /// in the AttackersDeclared handler in `abilities.rs`.
-    ///
-    /// If `None` (no eligible target exists), the trigger is not placed on the stack (CR 603.3d).
-    #[serde(default)]
-    pub provoke_target_creature: Option<ObjectId>,
     /// CR 702.112a: The N value from "Renown N" -- how many +1/+1 counters
     /// to place on the creature when the trigger resolves.
     ///
@@ -357,13 +299,6 @@ pub struct PendingTrigger {
     /// time to read the enlisted creature's power for the +X/+0 bonus.
     #[serde(default)]
     pub enlist_enlisted_creature: Option<ObjectId>,
-    /// CR 702.141a: The player who activated the encore ability.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::EncoreSacrifice`. Used at
-    /// resolution time to verify the token is still under this player's control
-    /// before sacrificing.
-    #[serde(default)]
-    pub encore_activator: Option<PlayerId>,
     // echo_cost: REMOVED — echo cost is read from KeywordAbility::Echo in the object's abilities
     // at KeywordTrigger (Echo) resolution time; no need to carry it in PendingTrigger.
     // cumulative_upkeep_cost: REMOVED — cumulative upkeep cost is read from KeywordAbility at
@@ -380,58 +315,6 @@ pub struct PendingTrigger {
     /// Carries the recover card id from trigger queueing to stack object creation.
     #[serde(default)]
     pub recover_card: Option<ObjectId>,
-    /// CR 702.58a: The ObjectId of the creature that entered the battlefield.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Graft`. Used at resolution
-    /// time for the intervening-if re-check (CR 603.4): source must still have a
-    /// +1/+1 counter and the entering creature must still be on the battlefield.
-    #[serde(default)]
-    pub graft_entering_creature: Option<ObjectId>,
-    /// CR 702.165d: The keyword abilities to grant to the target creature.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Backup`. Determined at
-    /// trigger time from the card definition's abilities printed below the Backup
-    /// keyword (CR 702.165a). Non-Backup keywords only (CR 702.165c).
-    #[serde(default)]
-    pub backup_abilities: Option<Vec<super::types::KeywordAbility>>,
-    /// CR 702.165a: The N value from Backup N -- how many +1/+1 counters to place.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Backup`.
-    #[serde(default)]
-    pub backup_n: Option<u32>,
-    /// CR 702.72a: The champion filter (creature, Faerie, etc.) for the ETB trigger.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::ChampionETB`.
-    /// Looked up from the card registry at trigger-collection time.
-    #[serde(default)]
-    pub champion_filter: Option<super::types::ChampionFilter>,
-    /// CR 702.72a: The ObjectId of the card exiled by the champion ETB trigger.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::ChampionLTB`.
-    /// Captured from `champion_exiled_card` on the post-move object at trigger time.
-    #[serde(default)]
-    pub champion_exiled_card: Option<ObjectId>,
-    /// CR 702.95a: The ObjectId of the creature selected as the pairing target.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::SoulbondSelfETB` or
-    /// `SoulbondOtherETB`. Auto-selected at trigger-collection time; carried
-    /// through to `flush_pending_triggers` to build the `SoulbondTrigger` SOK.
-    #[serde(default)]
-    pub soulbond_pair_target: Option<ObjectId>,
-    /// CR 702.157a: Number of times the squad cost was paid at cast time.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::SquadETB`.
-    /// Carried from resolution.rs (where it's read from the permanent's squad_count)
-    /// through to `flush_pending_triggers` to build the `SquadTrigger` SOK.
-    #[serde(default)]
-    pub squad_count: Option<u32>,
-    /// CR 702.174a: The opponent chosen to receive the gift at cast time.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::GiftETB`.
-    /// Carried from resolution.rs (where it's read from the permanent's gift_opponent)
-    /// through to `flush_pending_triggers` to build the `GiftETBTrigger` SOK.
-    #[serde(default)]
-    pub gift_opponent: Option<crate::state::PlayerId>,
     /// CR 702.99a: The CardId of the encoded cipher card.
     ///
     /// Only meaningful when `kind == PendingTriggerKind::CipherCombatDamage`.
@@ -457,6 +340,58 @@ pub struct PendingTrigger {
     /// `kind == PendingTriggerKind::HauntedCreatureDies`.
     #[serde(default)]
     pub haunt_source_card_id: Option<crate::state::player::CardId>,
+    /// Unified per-trigger payload. Replaces per-variant Option fields for
+    /// trigger kinds that carry structured data. When `Some(TriggerData::X)`,
+    /// `flush_pending_triggers` reads this field instead of the legacy per-field Options.
+    ///
+    /// Not serialized (same as `kind`) — triggers are transient within a turn.
+    #[serde(skip)]
+    pub data: Option<TriggerData>,
+}
+
+impl PendingTrigger {
+    /// Construct a PendingTrigger with all Option fields as `None` and default values.
+    ///
+    /// Use struct update syntax to override specific fields:
+    /// ```ignore
+    /// PendingTrigger {
+    ///     triggering_event: Some(TriggerEvent::SelfDies),
+    ///     data: Some(TriggerData::DeathModular { counter_count: n }),
+    ///     ..PendingTrigger::blank(source_id, controller_id, PendingTriggerKind::Modular)
+    /// }
+    /// ```
+    pub fn blank(
+        source: ObjectId,
+        controller: PlayerId,
+        kind: PendingTriggerKind,
+    ) -> PendingTrigger {
+        PendingTrigger {
+            source,
+            ability_index: 0,
+            controller,
+            kind,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            ingest_target_player: None,
+            flanking_blocker_id: None,
+            rampage_n: None,
+            renown_n: None,
+            poisonous_n: None,
+            poisonous_target_player: None,
+            enlist_enlisted_creature: None,
+            recover_cost: None,
+            recover_card: None,
+            cipher_encoded_card_id: None,
+            cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
+            data: None,
+        }
+    }
 }
 
 impl PendingTriggerKind {

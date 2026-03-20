@@ -33,6 +33,7 @@ use crate::state::game_object::{
     Characteristics, Designations, GameObject, HybridMana, ObjectId, ObjectStatus, PhyrexianMana,
 };
 use crate::state::player::PlayerId;
+use crate::state::stack::TriggerData;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Phase;
@@ -3385,48 +3386,11 @@ fn execute_effect_inner(
                                         })
                                     });
                                     state.pending_triggers.push_back(PendingTrigger {
-                                        source: new_id,
-                                        ability_index: 0,
-                                        controller,
-                                        kind: PendingTriggerKind::Madness,
-                                        triggering_event: None,
-                                        entering_object_id: None,
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        madness_exiled_card: Some(new_id),
-                                        madness_cost,
-                                        miracle_revealed_card: None,
-                                        miracle_cost: None,
-                                        modular_counter_count: None,
-                                        evolve_entering_creature: None,
-                                        suspend_card_id: None,
-                                        hideaway_count: None,
-                                        partner_with_name: None,
-                                        ingest_target_player: None,
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        provoke_target_creature: None,
-                                        renown_n: None,
-                                        poisonous_n: None,
-                                        poisonous_target_player: None,
-                                        enlist_enlisted_creature: None,
-                                        encore_activator: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        graft_entering_creature: None,
-                                        backup_abilities: None,
-                                        backup_n: None,
-                                        champion_filter: None,
-                                        champion_exiled_card: None,
-                                        soulbond_pair_target: None,
-                                        squad_count: None,
-                                        gift_opponent: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
+                                        data: Some(TriggerData::Madness {
+                                            exiled_card: new_id,
+                                            cost: madness_cost.unwrap_or_default(),
+                                        }),
+                                        ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::Madness)
                                     });
                                 }
                             }
@@ -4552,48 +4516,11 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         })
                     });
                     state.pending_triggers.push_back(PendingTrigger {
-                        source: new_id,
-                        ability_index: 0,
-                        controller: player,
-                        kind: PendingTriggerKind::Madness,
-                        triggering_event: None,
-                        entering_object_id: None,
-                        targeting_stack_id: None,
-                        triggering_player: None,
-                        exalted_attacker_id: None,
-                        defending_player_id: None,
-                        madness_exiled_card: Some(new_id),
-                        madness_cost,
-                        miracle_revealed_card: None,
-                        miracle_cost: None,
-                        modular_counter_count: None,
-                        evolve_entering_creature: None,
-                        suspend_card_id: None,
-                        hideaway_count: None,
-                        partner_with_name: None,
-                        ingest_target_player: None,
-                        flanking_blocker_id: None,
-                        rampage_n: None,
-                        provoke_target_creature: None,
-                        renown_n: None,
-                        poisonous_n: None,
-                        poisonous_target_player: None,
-                        enlist_enlisted_creature: None,
-                        encore_activator: None,
-                        recover_cost: None,
-                        recover_card: None,
-                        graft_entering_creature: None,
-                        backup_abilities: None,
-                        backup_n: None,
-                        champion_filter: None,
-                        champion_exiled_card: None,
-                        soulbond_pair_target: None,
-                        squad_count: None,
-                        gift_opponent: None,
-                        cipher_encoded_card_id: None,
-                        cipher_encoded_object_id: None,
-                        haunt_source_object_id: None,
-                        haunt_source_card_id: None,
+                        data: Some(TriggerData::Madness {
+                            exiled_card: new_id,
+                            cost: madness_cost.unwrap_or_default(),
+                        }),
+                        ..PendingTrigger::blank(new_id, player, PendingTriggerKind::Madness)
                     });
                 }
             }
