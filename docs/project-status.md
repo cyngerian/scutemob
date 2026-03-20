@@ -33,7 +33,7 @@
 | PB-18 | Stax / action restrictions | done | 10 | 0 | fixed | 2 |
 | PB-19 | Mass destroy / board wipes | done | 12 | 0 | fixed | 2 |
 | PB-20 | Additional combat phases | done | 3 | 0 | fixed | 1 |
-| PB-21 | Fight & Bite | planned | 0 | 5 | — | 1 |
+| PB-21 | Fight & Bite | done | 4 | 0 | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -59,15 +59,15 @@
 |---|------|--------|---------------|-------------|
 | W1 | Abilities | done | 2026-03-11 | — |
 | W2 | TUI & Simulator | stalled | 2026-02-28 | Phase 2: blocker UI, ability targeting |
-| W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S1 DONE** (46 layer bugs classified). S2: fix HIGH sites |
+| W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S2 DONE**. S3 next: fix MEDIUM sites |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-03-19 | PB-20 DONE. PB-21 next (fight/bite — last PB!) |
+| W6 | Primitive + Card Authoring | active | 2026-03-19 | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2: author ~1,025 remaining cards |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
-**W6-review COMPLETE**: All 20/20 retroactive reviews done.
-**NEXT OBJECTIVE**: PB-21 (fight/bite — last primitive batch!), then Phase 2 card authoring.
+**W6-review COMPLETE**: All 21/21 reviews done (20 retroactive + PB-21 inline).
+**NEXT OBJECTIVE**: Phase 2 card authoring (~1,025 remaining cards), then Phase 3 audit.
 
 ---
 
@@ -78,7 +78,7 @@
 | M0-M9 | done | — | Engine core complete |
 | M9.5 | done | — | Replay viewer + type consolidation |
 | **W6-review** | **done** | **—** | **20/20 retroactive reviews complete** |
-| W6 Phase 1 | active | — | 1 remaining PB batch (PB-21 fight/bite) |
+| **W6 Phase 1** | **done** | **—** | **ALL 22 primitive batches complete (PB-0 through PB-21)** |
 | W6 Phase 2 | blocked | W6 Phase 1 | Author ~1,025 remaining cards |
 | W6 Phase 3 | blocked | W6 Phase 2 | Audit: zero TODOs, zero wrong game state |
 | M10 | blocked | W6 | Networking: WebSocket server, player choices |
@@ -92,7 +92,7 @@
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2184 |
+| Total tests | 2206 |
 | Test files | 212 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

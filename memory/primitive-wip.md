@@ -1,75 +1,50 @@
-# Primitive WIP: PB-20 -- Additional Combat Phases
+# Primitive WIP: PB-21 -- Fight & Bite
 
-batch: PB-20
-title: Additional Combat Phases
-cards_affected: 10
+batch: PB-21
+title: Fight & Bite
+cards_affected: 5+
 started: 2026-03-19
 phase: closed
-plan_file: memory/primitives/pb-plan-20.md
+plan_file: memory/primitives/pb-plan-21.md
 
 ## Deferred from Prior PBs
 none
 
+## Review
+findings: 6 (HIGH: 0, MEDIUM: 3, LOW: 3)
+verdict: needs-fix → fixed
+review_file: memory/primitives/pb-review-21.md
+
+## Fix Phase (2026-03-19)
+- [x] Finding 1 (MEDIUM): is_creature_on_battlefield now calls calculate_characteristics(state, id) via layer system — effects/mod.rs:3835-3852
+- [x] Finding 5 (MEDIUM): bridgeworks_battle.rs: added back_face: Some(CardFace { ... }) for Tanglespan Bridgeworks (Land, enters tapped, {T}: Add {G}) — bridgeworks_battle.rs
+- [x] Finding 2 (LOW): Added test_fight_target_not_creature in fight_bite.rs — uses SetTypeLine ContinuousEffect to make Fighter B an Enchantment before resolution; verifies CR 701.14b all-or-nothing
+- [x] Finding 3 (LOW): Added test_bite_negative_power in fight_bite.rs — uses ModifyPower(-3) on a 2/2 for net -1 power; verifies clamped to 0 damage
+- [ ] Finding 4 (MEDIUM): "Up to one" optional targeting — DSL gap, TODO remains in bridgeworks_battle.rs
+- [ ] Finding 6 (LOW): "Another target" filter — DSL gap, documented in brash_taunter.rs
+- Post-fix verification: 14/14 fight_bite tests pass; cargo test --all clean (0 failures); cargo clippy -- -D warnings clean; cargo build --workspace clean; cargo fmt --check clean
+
 ## Step Checklist
-- [x] 1. Engine changes
-  - Added `additional_phases: Vector<Phase>` to TurnState (replacing `extra_combats: u32`)
-  - Added `Effect::AdditionalCombatPhase { followed_by_main: bool }` to card_definition.rs
-  - Added `ForEachTarget::EachAttackingCreature` to card_definition.rs
-  - Added `Condition::IsFirstCombatPhase` to card_definition.rs
-  - Modified `advance_step()` in turn_structure.rs: EndOfCombat and PostCombatMain now check `additional_phases` queue (LIFO pop_back)
-  - Added `execute_effect_inner` arm for `Effect::AdditionalCombatPhase` in effects/mod.rs
-  - Added `collect_for_each` arm for `ForEachTarget::EachAttackingCreature` in effects/mod.rs
-  - Added `check_condition` arm for `Condition::IsFirstCombatPhase` in effects/mod.rs
-  - Added `GameEvent::AdditionalCombatPhaseCreated` to events.rs
-  - Updated hash.rs: TurnState (additional_phases), Effect::AdditionalCombatPhase, ForEachTarget::EachAttackingCreature, Condition::IsFirstCombatPhase, GameEvent::AdditionalCombatPhaseCreated
-  - Updated builder.rs: additional_phases: Vector::new()
-  - Updated advance_turn() in turn_structure.rs: additional_phases = Vector::new()
-- [x] 2. Card definition fixes
-  - karlach_fury_of_avernus.rs: full triggered ability implemented (WhenAttacks + IsFirstCombatPhase + EachAttackingCreature untap + first strike + AdditionalCombatPhase)
-- [x] 3. New card definitions
-  - combat_celebrant.rs: authored (simplified -- Exert mechanic TODO)
-  - breath_of_fury.rs: authored (DSL gap TODOs -- Aura re-attachment not yet supported)
-- [x] 4. Unit tests
-  - crates/engine/tests/additional_combat.rs: 9 tests written and passing
-  - test_additional_combat_phase_basic
-  - test_additional_combat_phase_with_main
-  - test_additional_combat_lifo_ordering
-  - test_additional_combat_not_on_opponents_turn
-  - test_additional_combat_in_extra_combat_flag
-  - test_is_first_combat_phase_condition_flag
-  - test_additional_combat_phases_cleared_on_new_turn
-  - test_additional_combat_event_emitted
-  - test_no_extra_combats_normal_flow
+- [x] 1. Engine changes (Effect::Fight, Effect::Bite, dispatch in effects/mod.rs)
+  - Added Effect::Fight { attacker, defender } and Effect::Bite { source, target } to card_definition.rs (after Effect::Meld)
+  - Added deal_creature_power_damage() + is_creature_on_battlefield() + get_creature_power() helpers in effects/mod.rs
+  - Added Effect::Fight and Effect::Bite dispatch arms in execute_effect_inner
+  - Added hash discriminants 58 (Fight) and 59 (Bite) in state/hash.rs
+  - No exhaustive match changes needed in replay-viewer or TUI (Effect is not matched there)
+- [x] 2. Card definition fixes (existing cards with fight/bite TODOs)
+  - brash_taunter.rs: Added fight activated ability {2}{R},{T} with Cost::Sequence([Mana, Tap])
+  - bridgeworks_battle.rs: Added full Spell with PT boost + Fight effect (mandatory 2nd target, "up to one" TODO)
+  - ram_through.rs: Added Bite spell with TargetController::You/Opponent (trample overflow TODO remains)
+  - frontier_siege.rs: Updated TODO to clarify Fight is now available, modal ETB is the blocking gap
+- [x] 3. New card definitions (if any): N/A (plan specified none)
+- [x] 4. Unit tests: 12 tests in crates/engine/tests/fight_bite.rs — all pass
+  - test_fight_basic, test_fight_one_dies, test_fight_both_die, test_fight_self
+  - test_fight_creature_left_battlefield, test_fight_non_combat_damage
+  - test_fight_deathtouch, test_fight_lifelink
+  - test_bite_basic, test_bite_zero_power, test_bite_lifelink
+  - test_bite_source_creature_killed_before_resolution
 - [x] 5. Workspace build verification
-  - cargo test --all: 2184 tests passing (0 failed)
-  - cargo clippy -- -D warnings: 0 warnings
+  - cargo test --all: 2204 tests pass (was 2184 before PB-21)
+  - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean
-
-## Review
-findings: 4 (HIGH: 0, MEDIUM: 1, LOW: 3)
-verdict: needs-fix
-review_file: memory/primitives/pb-review-20.md
-
-## Fix Phase
-phase: complete
-fixed: 2026-03-19
-
-### Finding 2 (MEDIUM) -- combat_celebrant.rs untaps self
-- Added `ForEachTarget::EachOtherCreatureYouControl` variant to `cards/card_definition.rs`
-  (after `EachAttackingCreature`).
-- Added hash discriminant `9u8` in `state/hash.rs` `HashInto for ForEachTarget`.
-- Added `collect_for_each` arm in `effects/mod.rs`: filters `id != ctx.source`, same
-  controller, creature type, phased in.
-- Updated `cards/defs/combat_celebrant.rs` line 34: `EachCreatureYouControl` →
-  `EachOtherCreatureYouControl`.
-
-### Finding 1 (LOW) -- stale `in_extra_combat` during extra PostCombatMain
-- Added `turn.in_extra_combat = false;` before `Step::PostCombatMain` return in the
-  `Phase::PostCombatMain` arm of the `EndOfCombat` branch in `rules/turn_structure.rs`.
-
-### Verification
-- cargo build --workspace: clean
-- cargo clippy -- -D warnings: 0 warnings
-- cargo test --all: 2184 tests passing (0 failed)
-- cargo fmt --check: clean (no fmt changes needed)

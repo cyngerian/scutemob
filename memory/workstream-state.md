@@ -15,7 +15,7 @@
 | W3: LOW Remediation | T3 + W3-LC layer correctness audit | paused | — | **W3-LC S2 DONE** (7 HIGH sites fixed + 8 Humility tests). S3 next: fix MEDIUM sites. See `memory/w3-layer-audit.md` |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-20 DONE. Next: PB-21 Fight & Bite (last PB!) |
+| W6: Primitive + Card Authoring | PB-21: Fight & Bite | ACTIVE | 2026-03-19 | **ALL PBs DONE!** Phase 2 card authoring next |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,21 +25,22 @@
 
 **Date**: 2026-03-19
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-20: Additional Combat Phases (full pipeline: plan → implement → review → fix → close)
+**Task**: PB-21: Fight & Bite (full pipeline: plan → implement → review → fix → close) — LAST PRIMITIVE BATCH
 
 **Completed**:
-- PB-20 complete: AdditionalCombatPhase + EachAttackingCreature + EachOtherCreatureYouControl + IsFirstCombatPhase
-  - Engine: Effect::AdditionalCombatPhase { followed_by_main }, additional_phases LIFO queue on TurnState (CR 500.8), ForEachTarget::EachAttackingCreature, ForEachTarget::EachOtherCreatureYouControl, Condition::IsFirstCombatPhase, GameEvent::AdditionalCombatPhaseCreated
-  - 1 card def fixed: karlach_fury_of_avernus (full triggered ability)
-  - 2 new card defs: combat_celebrant, breath_of_fury
-  - Review: 1M 3L — 1M + 1L fixed (EachOtherCreatureYouControl for Combat Celebrant, stale in_extra_combat flag)
-  - 9 new tests, 2184 total
-- Commits: fd3d378 (implement), 901d514 (review fixes)
-- Feature branch: w6-pb20-additional-combat-phases (merged to main at close)
+- PB-21 complete: Effect::Fight + Effect::Bite with layer-resolved creature validation (CR 701.14)
+  - Engine: Effect::Fight { attacker, defender }, Effect::Bite { source, target }, deal_creature_power_damage() helper, is_creature_on_battlefield() (layer-resolved), get_creature_power() helpers in effects/mod.rs; hash discriminants 58-59
+  - 4 card defs fixed: brash_taunter (fight activated ability), bridgeworks_battle (pump + fight + MDFC back face), ram_through (bite spell), frontier_siege (TODO updated)
+  - Review: 3M 3L — 2M + 2L fixed (layer-resolved creature check, MDFC back face, 2 missing tests); 1M + 1L deferred (DSL gaps: optional targeting, "another" filter)
+  - 14 new tests, 2206 total
+- Commits: ba7bf39 (implement), 16be5df (review fixes)
+- Feature branch: w6-pb21-fight-bite (pending merge to main)
+- **ALL 22 PRIMITIVE BATCHES COMPLETE** (PB-0 through PB-21)
 
 **Next**:
-1. PB-21: Fight & Bite (5+ cards, 1 session) — LAST PRIMITIVE BATCH
-2. Phase 2: Author ~1,020 remaining cards
+1. Merge w6-pb21-fight-bite to main
+2. Phase 2: Author ~1,025 remaining cards (bulk authoring sessions)
+3. Phase 3: Final audit — zero TODOs, zero wrong game state
 
 **Hazards**:
 - None known
