@@ -1936,9 +1936,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         let resolved =
                             crate::rules::layers::calculate_characteristics(state, source_object)
                                 .unwrap_or_else(|| obj.characteristics.clone());
-                        if let Some(_ab) =
-                            resolved.triggered_abilities.get(ability_index)
-                        {
+                        if let Some(_ab) = resolved.triggered_abilities.get(ability_index) {
                             // Characteristics path — intervening_if handled below via original code.
                             (
                                 None::<crate::cards::card_definition::Effect>,
@@ -2067,13 +2065,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         Some(obj) => {
                             // CR 613.1f: Use layer-resolved triggered_abilities
                             // to match collect_triggers_for_event namespace.
-                            let resolved =
-                                crate::rules::layers::calculate_characteristics(
-                                    state, source_object,
-                                )
-                                .unwrap_or_else(|| obj.characteristics.clone());
-                            let ability_def =
-                                resolved.triggered_abilities.get(ability_index);
+                            let resolved = crate::rules::layers::calculate_characteristics(
+                                state,
+                                source_object,
+                            )
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                            let ability_def = resolved.triggered_abilities.get(ability_index);
                             match ability_def {
                                 Some(def) => def
                                     .intervening_if
@@ -2102,15 +2099,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if condition_holds {
                     // CR 613.1f: Use layer-resolved triggered_abilities to match
                     // collect_triggers_for_event namespace.
-                    let triggered_effect = state
-                        .objects
-                        .get(&source_object)
-                        .and_then(|obj| {
-                            let resolved =
-                                crate::rules::layers::calculate_characteristics(state, source_object)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
-                            resolved.triggered_abilities.get(ability_index).and_then(|ab| ab.effect.clone())
-                        });
+                    let triggered_effect = state.objects.get(&source_object).and_then(|obj| {
+                        let resolved =
+                            crate::rules::layers::calculate_characteristics(state, source_object)
+                                .unwrap_or_else(|| obj.characteristics.clone());
+                        resolved
+                            .triggered_abilities
+                            .get(ability_index)
+                            .and_then(|ab| ab.effect.clone())
+                    });
 
                     if let Some(effect) = triggered_effect {
                         let mut ctx = EffectContext::new(
@@ -3671,9 +3668,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 613.1d: Use layer-resolved types for artifact creature check.
                     let still_legal = state.objects.get(id).is_some_and(|obj| {
                         obj.zone == ZoneId::Battlefield && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, *id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::calculate_characteristics(state, *id)
+                                .unwrap_or_else(|| obj.characteristics.clone());
                             chars.card_types.contains(&CardType::Artifact)
                                 && chars.card_types.contains(&CardType::Creature)
                         }
@@ -4910,47 +4906,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // MVP: Cast the copy without selecting targets (no target selection
                 // for targeted copies -- deferred). Non-targeted cipher spells work correctly.
                 let copy_stack_id = state.next_object_id();
-                let copy_stack_obj = crate::state::stack::StackObject {
-                    id: copy_stack_id,
+                // MR-TC-25: use trigger_default; override is_copy = true (encoded card stays in exile).
+                let mut copy_stack_obj = crate::state::stack::StackObject::trigger_default(
+                    copy_stack_id,
                     controller,
-                    kind: StackObjectKind::Spell {
+                    StackObjectKind::Spell {
                         source_object: encoded_object_id,
                     },
-                    targets: vec![],
-                    cant_be_countered: false,
-                    // is_copy: true -- the encoded card stays in exile; this copy has no
-                    // physical card to move when it resolves (CR 702.99a / ruling 2013-04-15).
-                    is_copy: true,
-                    cast_with_flashback: false,
-                    kicker_times_paid: 0,
-                    was_evoked: false,
-                    was_bestowed: false,
-                    cast_with_madness: false,
-                    cast_with_miracle: false,
-                    was_escaped: false,
-                    cast_with_foretell: false,
-                    was_buyback_paid: false,
-                    was_suspended: false,
-                    was_overloaded: false,
-                    cast_with_jump_start: false,
-                    cast_with_aftermath: false,
-                    was_dashed: false,
-                    was_blitzed: false,
-                    was_plotted: false,
-                    was_prototyped: false,
-                    was_impended: false,
-                    was_bargained: false,
-                    evidence_collected: false,
-                    was_surged: false,
-                    was_casualty_paid: false,
-                    was_cleaved: false,
-                    spliced_effects: vec![],
-                    spliced_card_ids: vec![],
-                    modes_chosen: vec![],
-                    x_value: 0,
-                    is_cast_transformed: false,
-                    additional_costs: vec![],
-                };
+                );
+                // is_copy: true -- the encoded card stays in exile; this copy has no
+                // physical card to move when it resolves (CR 702.99a / ruling 2013-04-15).
+                copy_stack_obj.is_copy = true;
 
                 state.stack_objects.push_back(copy_stack_obj);
 
@@ -5654,61 +5620,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
                         // Create a StackObject for the suspended spell.
                         // CR 702.62a: suspend IS a cast — it triggers "whenever you cast a spell".
-                        let suspend_stack_obj = crate::state::stack::StackObject {
-                            id: stack_entry_id,
-                            controller: owner,
-                            kind: StackObjectKind::Spell {
-                                source_object: stack_source_id,
-                            },
-                            targets: vec![],
-                            cant_be_countered: false,
-                            is_copy: false,
-                            cast_with_flashback: false,
-                            kicker_times_paid: 0,
-                            was_evoked: false,
-                            was_bestowed: false,
-                            cast_with_madness: false,
-                            cast_with_miracle: false,
-                            was_escaped: false,
-                            cast_with_foretell: false,
-                            was_buyback_paid: false,
-                            // CR 702.62a: mark this spell as cast via suspend
-                            // so resolution.rs can clear summoning sickness on ETB.
-                            was_suspended: true,
-                            // CR 702.96a: suspend casts cannot be overloaded.
-                            was_overloaded: false,
-                            // CR 702.133a: suspend casts are not jump-start casts.
-                            cast_with_jump_start: false,
-                            // CR 702.127a: suspend casts are not aftermath casts.
-                            cast_with_aftermath: false,
-                            // CR 702.109a: suspend casts are not dash casts.
-                            was_dashed: false,
-                            // CR 702.152a: suspend casts are not blitz casts.
-                            was_blitzed: false,
-                            // CR 702.170d: suspend casts are not plot casts.
-                            was_plotted: false,
-                            was_prototyped: false,
-                            // CR 702.176a: suspend casts are not impending casts.
-                            was_impended: false,
-                            // CR 702.166b: suspend casts are not bargain casts.
-                            was_bargained: false,
-                            // CR 702.117a: suspend casts are not surge casts.
-                            was_surged: false,
-                            // CR 702.153a: suspend casts are not casualty casts.
-                            was_casualty_paid: false,
-                            // CR 702.148a: suspend casts are not cleave casts.
-                            was_cleaved: false,
-                            // CR 702.47a: suspend free-casts have no spliced effects.
-                            spliced_effects: vec![],
-                            spliced_card_ids: vec![],
-                            // CR 700.2a: suspend free-casts have no explicit mode choices.
-                            modes_chosen: vec![],
-                            x_value: 0,
-                            // CR 701.59c: suspend free-casts are not collect evidence casts.
-                            evidence_collected: false,
-                            is_cast_transformed: false,
-                            additional_costs: vec![],
-                        };
+                        // MR-TC-25: use trigger_default; override was_suspended = true.
+                        let mut suspend_stack_obj =
+                            crate::state::stack::StackObject::trigger_default(
+                                stack_entry_id,
+                                owner,
+                                StackObjectKind::Spell {
+                                    source_object: stack_source_id,
+                                },
+                            );
+                        // CR 702.62a: mark this spell as cast via suspend
+                        // so resolution.rs can clear summoning sickness on ETB.
+                        suspend_stack_obj.was_suspended = true;
                         state.stack_objects.push_back(suspend_stack_obj);
 
                         // CR 116.3b: Casting a spell resets priority. All players must

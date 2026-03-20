@@ -254,12 +254,15 @@ pub fn handle_activate_ability(
         let obj = state.object(source)?;
         let resolved = crate::rules::layers::calculate_characteristics(state, source)
             .unwrap_or_else(|| obj.characteristics.clone());
-        let ab = resolved.activated_abilities.get(ability_index).ok_or_else(|| {
-            GameStateError::InvalidCommand(format!(
-                "activated ability index {} not found (removed by continuous effect)",
-                ability_index
-            ))
-        })?;
+        let ab = resolved
+            .activated_abilities
+            .get(ability_index)
+            .ok_or_else(|| {
+                GameStateError::InvalidCommand(format!(
+                    "activated ability index {} not found (removed by continuous effect)",
+                    ability_index
+                ))
+            })?;
         (ab.cost.clone(), ab.effect.clone(), ab.targets.clone())
     };
 
@@ -719,9 +722,8 @@ pub fn handle_activate_ability(
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
                 // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
                 // CR 613.1f: Use layer-resolved keywords (Humility removes hexproof/shroud).
-                let target_chars =
-                    crate::rules::layers::calculate_characteristics(state, *id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                let target_chars = crate::rules::layers::calculate_characteristics(state, *id)
+                    .unwrap_or_else(|| obj.characteristics.clone());
                 super::validate_target_protection(
                     &target_chars.keywords,
                     obj.controller,
@@ -788,55 +790,17 @@ pub fn handle_activate_ability(
         })
         .collect();
 
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::ActivatedAbility {
+    // MR-TC-25: use trigger_default; override targets with the declared targets.
+    let mut stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::ActivatedAbility {
             source_object: source,
             ability_index,
             embedded_effect: embedded_effect.map(Box::new),
         },
-        targets: spell_targets,
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
+    stack_obj.targets = spell_targets;
     state.stack_objects.push_back(stack_obj);
 
     // CR 602.2e: After activating, the active player receives priority.
@@ -1047,55 +1011,16 @@ pub fn handle_cycle_card(
         player: crate::cards::card_definition::PlayerTarget::Controller,
         count: crate::cards::card_definition::EffectAmount::Fixed(1),
     };
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::ActivatedAbility {
+    // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::ActivatedAbility {
             source_object: card,
             ability_index: 0,
             embedded_effect: Some(Box::new(draw_effect)),
         },
-        targets: Vec::new(),
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // 8. Reset priority (CR 602.2e): active player gets priority.
@@ -1305,50 +1230,16 @@ pub fn handle_activate_forecast(
         })
         .collect();
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::ForecastAbility {
+    // MR-TC-25: use trigger_default; override targets with forecast targets.
+    let mut stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::ForecastAbility {
             source_object: card,
             embedded_effect: Box::new(forecast_effect),
         },
-        targets: spell_targets,
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        was_cleaved: false,
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: forecast abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: forecast abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: forecast abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
+    stack_obj.targets = spell_targets;
     state.stack_objects.push_back(stack_obj);
 
     // 12. Reset priority (CR 602.2e): active player gets priority.
@@ -1594,54 +1485,22 @@ pub fn handle_activate_bloodrush(
     //    The source card is now in the graveyard; source_object records the
     //    pre-discard ObjectId for attribution only.
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::BloodrushAbility {
+    // MR-TC-25: use trigger_default; override targets with bloodrush target.
+    let mut stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::BloodrushAbility {
             source_object: card,
             target_creature: target,
             power_boost,
             toughness_boost,
             grants_keyword,
         },
-        targets: vec![SpellTarget {
-            target: Target::Object(target),
-            zone_at_cast: state.objects.get(&target).map(|o| o.zone),
-        }],
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        was_cleaved: false,
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        modes_chosen: vec![],
-        x_value: 0,
-        // CR 701.59c: activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
+    stack_obj.targets = vec![SpellTarget {
+        target: Target::Object(target),
+        zone_at_cast: state.objects.get(&target).map(|o| o.zone),
+    }];
     state.stack_objects.push_back(stack_obj);
 
     // 9. Reset priority (CR 602.2e): active player gets priority.
@@ -1783,53 +1642,14 @@ pub fn handle_unearth_card(
     //    The card stays in the graveyard until the ability resolves (unlike cycling
     //    where the card is discarded as a cost).
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::UnearthAbility {
+    // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::UnearthAbility {
             source_object: card,
         },
-        targets: Vec::new(),
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // 9. Reset priority (CR 602.2e): active player gets priority.
@@ -2063,56 +1883,17 @@ pub fn handle_ninjutsu(
 
     // 12. Push ninjutsu ability onto stack as NinjutsuAbility.
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::NinjutsuAbility {
+    // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::NinjutsuAbility {
             source_object: ninja_card,
             ninja_card,
             attack_target: attack_target.clone(),
             from_command_zone,
         },
-        targets: Vec::new(),
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // 13. Reset priority (CR 602.2e): active player gets priority.
@@ -2283,51 +2064,12 @@ pub fn handle_embalm_card(
     //     We store source_card_id (the registry key) instead of the ObjectId
     //     because the card's ObjectId is now dead (zone change, CR 400.7).
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::EmbalmAbility { source_card_id },
-        targets: Vec::new(),
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::EmbalmAbility { source_card_id },
+    );
     state.stack_objects.push_back(stack_obj);
 
     // 11. Reset priority (CR 602.2e): active player gets priority.
@@ -2509,54 +2251,15 @@ pub fn handle_eternalize_card(
     //     because the card's ObjectId is now dead (zone change, CR 400.7).
     //     We also store source_name for TUI display purposes.
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::EternalizeAbility {
+    // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::EternalizeAbility {
             source_card_id,
             source_name,
         },
-        targets: Vec::new(),
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // 11. Reset priority (CR 602.2e): active player gets priority.
@@ -2737,54 +2440,15 @@ pub fn handle_encore_card(
     //     because the card's ObjectId is now dead (zone change, CR 400.7).
     //     We also store the activator to determine token targets at resolution.
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::EncoreAbility {
+    // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::EncoreAbility {
             source_card_id,
             activator: player,
         },
-        targets: Vec::new(),
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // 11. Reset priority (CR 602.2e): active player gets priority.
@@ -3340,17 +3004,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             // CR 613.1f: Use layer-resolved keywords only (Humility
                             // removes Soulbond; base OR layer was over-permissive).
                             let entering_has_soulbond =
-                                crate::rules::layers::calculate_characteristics(
-                                    state, *object_id,
-                                )
-                                .or_else(|| {
-                                    state
-                                        .objects
-                                        .get(object_id)
-                                        .map(|o| o.characteristics.clone())
-                                })
-                                .map(|c| c.keywords.contains(&KeywordAbility::Soulbond))
-                                .unwrap_or(false);
+                                crate::rules::layers::calculate_characteristics(state, *object_id)
+                                    .or_else(|| {
+                                        state
+                                            .objects
+                                            .get(object_id)
+                                            .map(|o| o.characteristics.clone())
+                                    })
+                                    .map(|c| c.keywords.contains(&KeywordAbility::Soulbond))
+                                    .unwrap_or(false);
 
                             if entering_has_soulbond {
                                 // Intervening-if: controller has another unpaired creature.
@@ -6504,15 +6166,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         .objects
                         .iter()
                         .find(|(id, obj)| {
-                            obj.zone == ZoneId::Battlefield
-                                && obj.is_phased_in()
-                                && {
-                                    let chars =
-                                        crate::rules::layers::calculate_characteristics(state, **id)
-                                            .unwrap_or_else(|| obj.characteristics.clone());
-                                    chars.card_types.contains(&CardType::Artifact)
-                                        && chars.card_types.contains(&CardType::Creature)
-                                }
+                            obj.zone == ZoneId::Battlefield && obj.is_phased_in() && {
+                                let chars =
+                                    crate::rules::layers::calculate_characteristics(state, **id)
+                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                chars.card_types.contains(&CardType::Artifact)
+                                    && chars.card_types.contains(&CardType::Creature)
+                            }
                         })
                         .map(|(id, _)| *id);
 
@@ -6530,57 +6190,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
 
                     let counter_count = trigger.modular_counter_count.unwrap_or(0);
                     let stack_id = state.next_object_id();
-                    let stack_obj = StackObject {
-                        id: stack_id,
-                        controller: trigger.controller,
-                        kind: StackObjectKind::KeywordTrigger {
+                    // MR-TC-25: use trigger_default; override targets with modular target.
+                    let mut stack_obj = StackObject::trigger_default(
+                        stack_id,
+                        trigger.controller,
+                        StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
                             keyword: KeywordAbility::Modular(counter_count),
                             data: TriggerData::DeathModular { counter_count },
                         },
-                        targets: modular_targets,
-                        cant_be_countered: false,
-                        is_copy: false,
-                        cast_with_flashback: false,
-                        kicker_times_paid: 0,
-                        was_evoked: false,
-                        was_bestowed: false,
-                        cast_with_madness: false,
-                        cast_with_miracle: false,
-                        was_escaped: false,
-                        cast_with_foretell: false,
-                        was_buyback_paid: false,
-                        was_suspended: false,
-                        was_overloaded: false,
-                        cast_with_jump_start: false,
-                        cast_with_aftermath: false,
-                        was_dashed: false,
-                        was_blitzed: false,
-                        was_plotted: false,
-                        was_prototyped: false,
-                        was_impended: false,
-                        was_bargained: false,
-                        was_surged: false,
-                        was_casualty_paid: false,
-                        // CR 702.148a: storm copies are not cleave casts.
-                        was_cleaved: false,
-                        // CR 702.42a: storm copies are not entwine casts.
-                        // CR 702.120a: storm copies have no escalate modes paid.
-                        // CR 702.47a: storm copies have no spliced effects.
-                        spliced_effects: vec![],
-                        spliced_card_ids: vec![],
-                        // CR 700.2g: storm copies inherit modes_chosen from the original.
-                        // (Storm copies are handled via copy_spell_on_stack in copy.rs
-                        //  which propagates modes_chosen; this site is a fallback stub.)
-                        modes_chosen: vec![],
-                        // CR 702.102a: storm copies are never fused spells.
-                        x_value: 0,
-                        // CR 701.59c: storm copies are never collect evidence casts.
-                        evidence_collected: false,
-                        // CR 702.174a: triggered ability stack objects are never gift casts.
-                        is_cast_transformed: false,
-                        additional_costs: vec![],
-                    };
+                    );
+                    stack_obj.targets = modular_targets;
                     state.stack_objects.push_back(stack_obj);
 
                     events.push(GameEvent::AbilityTriggered {
@@ -7075,52 +6695,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     data: data.clone(),
                 },
             };
-            let stack_obj = StackObject {
-                id: stack_id,
-                controller: trigger.controller,
-                kind,
-                targets: trigger_targets.clone(),
-                cant_be_countered: false,
-                is_copy: false,
-                cast_with_flashback: false,
-                kicker_times_paid: 0,
-                was_evoked: false,
-                was_bestowed: false,
-                cast_with_madness: false,
-                cast_with_miracle: false,
-                was_escaped: false,
-                cast_with_foretell: false,
-                was_buyback_paid: false,
-                was_suspended: false,
-                was_overloaded: false,
-                cast_with_jump_start: false,
-                cast_with_aftermath: false,
-                was_dashed: false,
-                was_blitzed: false,
-                was_plotted: false,
-                was_prototyped: false,
-                was_impended: false,
-                was_bargained: false,
-                was_surged: false,
-                was_casualty_paid: false,
-                // CR 702.148a: myriad copies are not cleave casts.
-                was_cleaved: false,
-                // CR 702.42a: myriad copies are not entwine casts.
-                // CR 702.120a: myriad copies have no escalate modes paid.
-                // CR 702.47a: myriad copies have no spliced effects.
-                spliced_effects: vec![],
-                spliced_card_ids: vec![],
-                // CR 700.2a: myriad attack copies are not modal spells; no modes chosen.
-                modes_chosen: vec![],
-                // CR 702.102a: myriad attack copies are never fused spells.
-                x_value: 0,
-                // CR 701.59c: myriad attack copies are never collect evidence casts.
-                evidence_collected: false,
-                // CR 702.157a: triggered ability stack objects have no squad cost payments.
-                // CR 702.174a: triggered ability stack objects are never gift casts.
-                is_cast_transformed: false,
-                additional_costs: vec![],
-            };
+            // MR-TC-25: use trigger_default; override targets if non-empty.
+            let mut stack_obj = StackObject::trigger_default(stack_id, trigger.controller, kind);
+            stack_obj.targets = trigger_targets.clone();
             state.stack_objects.push_back(stack_obj);
 
             events.push(GameEvent::AbilityTriggered {
@@ -7476,55 +7053,16 @@ pub fn handle_crew_vehicle(
         effect_def: Box::new(effect_def),
     };
 
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::ActivatedAbility {
+    // MR-TC-25: use trigger_default for the boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::ActivatedAbility {
             source_object: vehicle,
             ability_index: 0, // synthetic — crew ability has no index in activated_abilities
             embedded_effect: Some(Box::new(embedded_effect)),
         },
-        targets: vec![],
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        // CR 702.148a: triggered abilities are not cleave casts.
-        was_cleaved: false,
-        // CR 702.42a: triggered/copy abilities are not entwine casts.
-        // CR 702.120a: triggered abilities have no escalate modes paid.
-        // CR 702.47a: triggered abilities have no spliced effects.
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: triggered abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
@@ -7748,45 +7286,14 @@ pub fn handle_saddle_mount(
     // When resolved, `SaddleAbility` sets `is_saddled = true` on the Mount (resolution.rs).
     let stack_id = state.next_object_id();
 
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::SaddleAbility {
+    // MR-TC-25: use trigger_default for the boilerplate cast-specific fields.
+    let stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::SaddleAbility {
             source_object: mount,
         },
-        targets: vec![],
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        was_cleaved: false,
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        modes_chosen: vec![],
-        x_value: 0,
-        evidence_collected: false,
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
     state.stack_objects.push_back(stack_obj);
 
     // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
@@ -7991,54 +7498,20 @@ pub fn handle_scavenge_card(
     });
 
     // 11. Push the ScavengeAbility onto the stack with the target creature.
+    // MR-TC-25: use trigger_default; override targets with the scavenge target.
     let stack_id = state.next_object_id();
-    let stack_obj = StackObject {
-        id: stack_id,
-        controller: player,
-        kind: StackObjectKind::ScavengeAbility {
+    let mut stack_obj = StackObject::trigger_default(
+        stack_id,
+        player,
+        StackObjectKind::ScavengeAbility {
             source_card_id,
             power_snapshot,
         },
-        targets: vec![SpellTarget {
-            target: Target::Object(target_creature),
-            zone_at_cast: Some(ZoneId::Battlefield),
-        }],
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        was_cleaved: false,
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        // CR 700.2a: scavenge abilities are not modal spells; no modes chosen.
-        modes_chosen: vec![],
-        // CR 702.102a: scavenge abilities are never fused spells.
-        x_value: 0,
-        // CR 701.59c: scavenge abilities are never collect evidence casts.
-        evidence_collected: false,
-        // CR 702.174a: triggered ability stack objects are never gift casts.
-        is_cast_transformed: false,
-        additional_costs: vec![],
-    };
+    );
+    stack_obj.targets = vec![SpellTarget {
+        target: Target::Object(target_creature),
+        zone_at_cast: Some(ZoneId::Battlefield),
+    }];
     state.stack_objects.push_back(stack_obj);
 
     // 12. Reset priority (CR 602.2e): active player gets priority.

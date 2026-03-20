@@ -410,6 +410,67 @@ pub struct StackObject {
     pub additional_costs: Vec<AdditionalCost>,
 }
 
+impl StackObject {
+    /// Build a triggered-ability StackObject with all cast-specific fields set to
+    /// their "not-a-spell" defaults (false/empty/zero). Use this for keyword triggers
+    /// (Storm, Gravestorm, Cascade, Casualty, Replicate, etc.) to eliminate boilerplate.
+    ///
+    /// Required fields that must still be supplied by the caller:
+    /// - `id`: unique ObjectId for this stack entry
+    /// - `controller`: the player who controls the ability
+    /// - `kind`: the specific StackObjectKind (KeywordTrigger, etc.)
+    ///
+    /// Optional fields left at caller's discretion:
+    /// - `targets`: defaults to empty; set if the trigger has targets
+    /// - `cant_be_countered`: defaults to false; set if the trigger can't be countered
+    ///
+    /// MR-TC-25: Eliminates ~400 lines of repeated boilerplate across Storm / Gravestorm /
+    /// Cascade / Casualty / Replicate trigger constructors in casting.rs.
+    pub fn trigger_default(
+        id: super::game_object::ObjectId,
+        controller: super::PlayerId,
+        kind: StackObjectKind,
+    ) -> Self {
+        Self {
+            id,
+            controller,
+            kind,
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            x_value: 0,
+            evidence_collected: false,
+            is_cast_transformed: false,
+            additional_costs: vec![],
+        }
+    }
+}
+
 /// The kind of object on the stack.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum StackObjectKind {

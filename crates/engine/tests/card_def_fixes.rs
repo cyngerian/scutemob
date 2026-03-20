@@ -463,7 +463,7 @@ fn test_thought_vessel_only_affects_its_controller_other_players_discard() {
     // P1 has a Thought Vessel on the battlefield (but P1 is NOT active during cleanup).
     // P2 has 9 cards in hand and no Thought Vessel — P2 MUST discard during cleanup.
     let mut builder = GameStateBuilder::four_player()
-        .active_player(p2)  // P2 is active — it's P2's turn
+        .active_player(p2) // P2 is active — it's P2's turn
         .at_step(Step::End);
 
     // P1: Thought Vessel on battlefield (P1 is NOT active — their cleanup does not fire here).
@@ -475,9 +475,8 @@ fn test_thought_vessel_only_affects_its_controller_other_players_discard() {
 
     // P2: 9 cards in hand, no Thought Vessel → must discard 2 at cleanup.
     for i in 0..9 {
-        builder = builder.object(
-            ObjectSpec::card(p2, &format!("P2 Hand {}", i)).in_zone(ZoneId::Hand(p2)),
-        );
+        builder = builder
+            .object(ObjectSpec::card(p2, &format!("P2 Hand {}", i)).in_zone(ZoneId::Hand(p2)));
     }
 
     let state = builder.build().unwrap();
@@ -499,13 +498,7 @@ fn test_thought_vessel_only_affects_its_controller_other_players_discard() {
         },
     )
     .unwrap();
-    let (state, events) = process_command(
-        state,
-        Command::PassPriority {
-            player: p1,
-        },
-    )
-    .unwrap();
+    let (state, events) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
 
     // P2 (without Thought Vessel, 9 cards, ACTIVE player) MUST discard during cleanup.
     let p2_discards: Vec<_> = events

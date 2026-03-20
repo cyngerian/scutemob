@@ -73,98 +73,79 @@ pub fn handle_cast_spell(
     hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
     phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    // RC-1 Session 3: Extract individual additional-cost values from the consolidated vec.
-    // These local variables replace the old individual parameters.
+    // MR-TC-24: Single-pass extraction of all additional-cost values.
+    // Most spells have empty additional_costs, making this loop a no-op.
+    // Previously, ~12 separate iterator scans iterated the vec independently.
     use crate::state::types::AdditionalCost;
 
-    let retrace_discard_land: Option<ObjectId> = additional_costs.iter().find_map(|c| match c {
-        AdditionalCost::Discard(ids) => ids.first().copied(),
-        _ => None,
-    });
+    let mut retrace_discard_land: Option<ObjectId> = None;
+    let mut escape_exile_cards: Vec<ObjectId> = vec![];
+    let mut collect_evidence_cards: Vec<ObjectId> = vec![];
+    let mut assist_player: Option<PlayerId> = None;
+    let mut assist_amount: u32 = 0;
+    let mut replicate_count: u32 = 0;
+    let mut squad_count: u32 = 0;
+    let mut escalate_modes: u32 = 0;
+    let mut splice_cards: Vec<ObjectId> = vec![];
+    let mut entwine_paid: bool = false;
+    let mut fuse: bool = false;
+    let mut offspring_paid: bool = false;
+    let mut gift_opponent: Option<crate::state::PlayerId> = None;
+    let mut mutate_target: Option<ObjectId> = None;
+    let mut _mutate_on_top: bool = false;
+
+    for cost in &additional_costs {
+        match cost {
+            AdditionalCost::Discard(ids) => {
+                retrace_discard_land = ids.first().copied();
+            }
+            AdditionalCost::EscapeExile { cards } => {
+                escape_exile_cards = cards.clone();
+            }
+            AdditionalCost::CollectEvidenceExile { cards } => {
+                collect_evidence_cards = cards.clone();
+            }
+            AdditionalCost::Assist { player, amount } => {
+                assist_player = Some(*player);
+                assist_amount = *amount;
+            }
+            AdditionalCost::Replicate { count } => {
+                replicate_count = *count;
+            }
+            AdditionalCost::Squad { count } => {
+                squad_count = *count;
+            }
+            AdditionalCost::EscalateModes { count } => {
+                escalate_modes = *count;
+            }
+            AdditionalCost::Splice { cards } => {
+                splice_cards = cards.clone();
+            }
+            AdditionalCost::Entwine => {
+                entwine_paid = true;
+            }
+            AdditionalCost::Fuse => {
+                fuse = true;
+            }
+            AdditionalCost::Offspring => {
+                offspring_paid = true;
+            }
+            AdditionalCost::Gift { opponent } => {
+                gift_opponent = Some(*opponent);
+            }
+            AdditionalCost::Mutate { target, on_top } => {
+                mutate_target = Some(*target);
+                _mutate_on_top = *on_top;
+            }
+            // Sacrifice: used for Bargain/Emerge/Casualty/Devour — extracted later by
+            // pattern-matching against `additional_costs` in the sections that need it.
+            AdditionalCost::Sacrifice(_) => {}
+        }
+    }
+
     // Jump-start discard: same Discard variant. Retrace and Jump-Start are mutually exclusive
     // (retrace requires AltCostKind::Retrace, jump-start requires AltCostKind::JumpStart).
     let jump_start_discard: Option<ObjectId> = retrace_discard_land;
-
-    let escape_exile_cards: Vec<ObjectId> = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::EscapeExile { cards } => Some(cards.clone()),
-            _ => None,
-        })
-        .unwrap_or_default();
-    let collect_evidence_cards: Vec<ObjectId> = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::CollectEvidenceExile { cards } => Some(cards.clone()),
-            _ => None,
-        })
-        .unwrap_or_default();
-
-    let (assist_player, assist_amount): (Option<PlayerId>, u32) = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::Assist { player, amount } => Some((Some(*player), *amount)),
-            _ => None,
-        })
-        .unwrap_or((None, 0));
-
-    let replicate_count: u32 = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::Replicate { count } => Some(*count),
-            _ => None,
-        })
-        .unwrap_or(0);
-
-    let squad_count: u32 = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::Squad { count } => Some(*count),
-            _ => None,
-        })
-        .unwrap_or(0);
-
-    let escalate_modes: u32 = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::EscalateModes { count } => Some(*count),
-            _ => None,
-        })
-        .unwrap_or(0);
-
-    let splice_cards: Vec<ObjectId> = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::Splice { cards } => Some(cards.clone()),
-            _ => None,
-        })
-        .unwrap_or_default();
-
-    let entwine_paid: bool = additional_costs
-        .iter()
-        .any(|c| matches!(c, AdditionalCost::Entwine));
-
-    let fuse: bool = additional_costs
-        .iter()
-        .any(|c| matches!(c, AdditionalCost::Fuse));
-
-    let offspring_paid: bool = additional_costs
-        .iter()
-        .any(|c| matches!(c, AdditionalCost::Offspring));
-
-    let gift_opponent: Option<crate::state::PlayerId> =
-        additional_costs.iter().find_map(|c| match c {
-            AdditionalCost::Gift { opponent } => Some(*opponent),
-            _ => None,
-        });
-
-    let (mutate_target, _mutate_on_top): (Option<ObjectId>, bool) = additional_costs
-        .iter()
-        .find_map(|c| match c {
-            AdditionalCost::Mutate { target, on_top } => Some((Some(*target), *on_top)),
-            _ => None,
-        })
-        .unwrap_or((None, false));
 
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -3920,10 +3901,11 @@ pub fn handle_cast_spell(
     if chars.keywords.contains(&KeywordAbility::Storm) {
         let count = crate::rules::copy::storm_count(state, player);
         let trigger_id = state.next_object_id();
-        let trigger_obj = StackObject {
-            id: trigger_id,
-            controller: player,
-            kind: StackObjectKind::KeywordTrigger {
+        // MR-TC-25: use trigger_default to avoid repeating ~30 false/empty fields.
+        let trigger_obj = StackObject::trigger_default(
+            trigger_id,
+            player,
+            StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
                 keyword: KeywordAbility::Storm,
                 data: TriggerData::SpellCopy {
@@ -3931,48 +3913,7 @@ pub fn handle_cast_spell(
                     copy_count: count,
                 },
             },
-            targets: vec![],
-            cant_be_countered: false,
-            is_copy: false,
-            cast_with_flashback: false,
-            kicker_times_paid: 0,
-            was_evoked: false,
-            was_bestowed: false,
-            cast_with_madness: false,
-            cast_with_miracle: false,
-            was_escaped: false,
-            cast_with_foretell: false,
-            was_buyback_paid: false,
-            was_suspended: false,
-            was_overloaded: false,
-            cast_with_jump_start: false,
-            cast_with_aftermath: false,
-            was_dashed: false,
-            was_blitzed: false,
-            was_plotted: false,
-            was_prototyped: false,
-            was_impended: false,
-            was_bargained: false,
-            was_surged: false,
-            was_casualty_paid: false,
-            // CR 702.148a: trigger/copy stack objects are not cleave casts.
-            was_cleaved: false,
-            // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            // CR 702.47a: trigger/copy stack objects have no spliced effects.
-            spliced_effects: vec![],
-            spliced_card_ids: vec![],
-            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-            modes_chosen: vec![],
-            // CR 702.102a: trigger/copy stack objects are never fused spells.
-            x_value: 0,
-            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
-            evidence_collected: false,
-            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            // CR 702.174a: trigger/copy stack objects are never gift casts.
-            is_cast_transformed: false,
-            additional_costs: vec![],
-        };
+        );
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
             controller: player,
@@ -3992,10 +3933,11 @@ pub fn handle_cast_spell(
     if chars.keywords.contains(&KeywordAbility::Gravestorm) {
         let count = state.permanents_put_into_graveyard_this_turn;
         let trigger_id = state.next_object_id();
-        let trigger_obj = StackObject {
-            id: trigger_id,
-            controller: player,
-            kind: StackObjectKind::KeywordTrigger {
+        // MR-TC-25: use trigger_default to avoid repeating ~30 false/empty fields.
+        let trigger_obj = StackObject::trigger_default(
+            trigger_id,
+            player,
+            StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
                 keyword: KeywordAbility::Gravestorm,
                 data: TriggerData::SpellCopy {
@@ -4003,48 +3945,7 @@ pub fn handle_cast_spell(
                     copy_count: count,
                 },
             },
-            targets: vec![],
-            cant_be_countered: false,
-            is_copy: false,
-            cast_with_flashback: false,
-            kicker_times_paid: 0,
-            was_evoked: false,
-            was_bestowed: false,
-            cast_with_madness: false,
-            cast_with_miracle: false,
-            was_escaped: false,
-            cast_with_foretell: false,
-            was_buyback_paid: false,
-            was_suspended: false,
-            was_overloaded: false,
-            cast_with_jump_start: false,
-            cast_with_aftermath: false,
-            was_dashed: false,
-            was_blitzed: false,
-            was_plotted: false,
-            was_prototyped: false,
-            was_impended: false,
-            was_bargained: false,
-            was_surged: false,
-            was_casualty_paid: false,
-            // CR 702.148a: trigger/copy stack objects are not cleave casts.
-            was_cleaved: false,
-            // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            // CR 702.47a: trigger/copy stack objects have no spliced effects.
-            spliced_effects: vec![],
-            spliced_card_ids: vec![],
-            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-            modes_chosen: vec![],
-            // CR 702.102a: trigger/copy stack objects are never fused spells.
-            x_value: 0,
-            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
-            evidence_collected: false,
-            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            // CR 702.174a: trigger/copy stack objects are never gift casts.
-            is_cast_transformed: false,
-            additional_costs: vec![],
-        };
+        );
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
             controller: player,
@@ -4066,58 +3967,18 @@ pub fn handle_cast_spell(
             .map(|mc| mc.mana_value())
             .unwrap_or(0);
         let trigger_id = state.next_object_id();
-        let trigger_obj = StackObject {
-            id: trigger_id,
-            controller: player,
-            kind: StackObjectKind::KeywordTrigger {
+        // MR-TC-25: use trigger_default to avoid repeating ~30 false/empty fields.
+        let trigger_obj = StackObject::trigger_default(
+            trigger_id,
+            player,
+            StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
                 keyword: KeywordAbility::Cascade,
                 data: TriggerData::CascadeExile {
                     spell_mana_value: spell_mv,
                 },
             },
-            targets: vec![],
-            cant_be_countered: false,
-            is_copy: false,
-            cast_with_flashback: false,
-            kicker_times_paid: 0,
-            was_evoked: false,
-            was_bestowed: false,
-            cast_with_madness: false,
-            cast_with_miracle: false,
-            was_escaped: false,
-            cast_with_foretell: false,
-            was_buyback_paid: false,
-            was_suspended: false,
-            was_overloaded: false,
-            cast_with_jump_start: false,
-            cast_with_aftermath: false,
-            was_dashed: false,
-            was_blitzed: false,
-            was_plotted: false,
-            was_prototyped: false,
-            was_impended: false,
-            was_bargained: false,
-            was_surged: false,
-            was_casualty_paid: false,
-            // CR 702.148a: trigger/copy stack objects are not cleave casts.
-            was_cleaved: false,
-            // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            // CR 702.47a: trigger/copy stack objects have no spliced effects.
-            spliced_effects: vec![],
-            spliced_card_ids: vec![],
-            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-            modes_chosen: vec![],
-            // CR 702.102a: trigger/copy stack objects are never fused spells.
-            x_value: 0,
-            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
-            evidence_collected: false,
-            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            // CR 702.174a: trigger/copy stack objects are never gift casts.
-            is_cast_transformed: false,
-            additional_costs: vec![],
-        };
+        );
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
             controller: player,
@@ -4133,58 +3994,18 @@ pub fn handle_cast_spell(
     // cast a spell" abilities and does not increment spells_cast_this_turn.
     if casualty_sacrifice_id.is_some() {
         let trigger_id = state.next_object_id();
-        let trigger_obj = StackObject {
-            id: trigger_id,
-            controller: player,
-            kind: StackObjectKind::KeywordTrigger {
+        // MR-TC-25: use trigger_default to avoid repeating ~30 false/empty fields.
+        let trigger_obj = StackObject::trigger_default(
+            trigger_id,
+            player,
+            StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
                 keyword: KeywordAbility::Casualty(0),
                 data: TriggerData::CasualtyCopy {
                     original_stack_id: stack_entry_id,
                 },
             },
-            targets: vec![],
-            cant_be_countered: false,
-            is_copy: false,
-            cast_with_flashback: false,
-            kicker_times_paid: 0,
-            was_evoked: false,
-            was_bestowed: false,
-            cast_with_madness: false,
-            cast_with_miracle: false,
-            was_escaped: false,
-            cast_with_foretell: false,
-            was_buyback_paid: false,
-            was_suspended: false,
-            was_overloaded: false,
-            cast_with_jump_start: false,
-            cast_with_aftermath: false,
-            was_dashed: false,
-            was_blitzed: false,
-            was_plotted: false,
-            was_prototyped: false,
-            was_impended: false,
-            was_bargained: false,
-            was_surged: false,
-            was_casualty_paid: false,
-            // CR 702.148a: trigger/copy stack objects are not cleave casts.
-            was_cleaved: false,
-            // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            // CR 702.47a: trigger/copy stack objects have no spliced effects.
-            spliced_effects: vec![],
-            spliced_card_ids: vec![],
-            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-            modes_chosen: vec![],
-            // CR 702.102a: trigger/copy stack objects are never fused spells.
-            x_value: 0,
-            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
-            evidence_collected: false,
-            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            // CR 702.174a: trigger/copy stack objects are never gift casts.
-            is_cast_transformed: false,
-            additional_costs: vec![],
-        };
+        );
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
             controller: player,
@@ -4201,10 +4022,11 @@ pub fn handle_cast_spell(
     // "whenever you cast a spell" abilities and do not increment spells_cast_this_turn.
     if replicate_count > 0 {
         let trigger_id = state.next_object_id();
-        let trigger_obj = StackObject {
-            id: trigger_id,
-            controller: player,
-            kind: StackObjectKind::KeywordTrigger {
+        // MR-TC-25: use trigger_default to avoid repeating ~30 false/empty fields.
+        let trigger_obj = StackObject::trigger_default(
+            trigger_id,
+            player,
+            StackObjectKind::KeywordTrigger {
                 source_object: new_card_id,
                 keyword: KeywordAbility::Replicate,
                 data: TriggerData::SpellCopy {
@@ -4212,48 +4034,7 @@ pub fn handle_cast_spell(
                     copy_count: replicate_count,
                 },
             },
-            targets: vec![],
-            cant_be_countered: false,
-            is_copy: false,
-            cast_with_flashback: false,
-            kicker_times_paid: 0,
-            was_evoked: false,
-            was_bestowed: false,
-            cast_with_madness: false,
-            cast_with_miracle: false,
-            was_escaped: false,
-            cast_with_foretell: false,
-            was_buyback_paid: false,
-            was_suspended: false,
-            was_overloaded: false,
-            cast_with_jump_start: false,
-            cast_with_aftermath: false,
-            was_dashed: false,
-            was_blitzed: false,
-            was_plotted: false,
-            was_prototyped: false,
-            was_impended: false,
-            was_bargained: false,
-            was_surged: false,
-            was_casualty_paid: false,
-            // CR 702.148a: trigger/copy stack objects are not cleave casts.
-            was_cleaved: false,
-            // CR 702.42a: trigger/copy stack objects are not entwine casts.
-            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
-            // CR 702.47a: trigger/copy stack objects have no spliced effects.
-            spliced_effects: vec![],
-            spliced_card_ids: vec![],
-            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
-            modes_chosen: vec![],
-            // CR 702.102a: trigger/copy stack objects are never fused spells.
-            x_value: 0,
-            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
-            evidence_collected: false,
-            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
-            // CR 702.174a: trigger/copy stack objects are never gift casts.
-            is_cast_transformed: false,
-            additional_costs: vec![],
-        };
+        );
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
             controller: player,
@@ -5178,9 +4959,8 @@ pub(crate) fn validate_targets(
                 if matches!(obj.zone, ZoneId::Battlefield | ZoneId::Stack) {
                     // CR 613.1f: Use layer-resolved keywords for hexproof/shroud/protection
                     // (Humility removes them; equipment can grant them).
-                    let target_chars =
-                        crate::rules::layers::calculate_characteristics(state, *id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                    let target_chars = crate::rules::layers::calculate_characteristics(state, *id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                     super::validate_target_protection(
                         &target_chars.keywords,
                         obj.controller,

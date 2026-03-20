@@ -229,7 +229,10 @@ fn spend_prefers_restricted_mana() {
     // Cost: {G} — should spend restricted green first, leaving unrestricted green intact
     p.spend(&cost(0, 0, 0, 0, 1, 0, 0), Some(&ctx));
     assert_eq!(p.green, 2, "unrestricted green should be untouched");
-    assert!(p.restricted.is_empty(), "restricted entry should be depleted and removed");
+    assert!(
+        p.restricted.is_empty(),
+        "restricted entry should be depleted and removed"
+    );
 }
 
 /// ManaPool::get() returns the unrestricted amount for each color.

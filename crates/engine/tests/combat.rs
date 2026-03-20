@@ -2442,12 +2442,10 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
         .add_player(p1)
         .add_player(p2)
         .object(
-            ObjectSpec::creature(p1, "FS Attacker", 2, 2)
-                .with_keyword(KeywordAbility::FirstStrike),
+            ObjectSpec::creature(p1, "FS Attacker", 2, 2).with_keyword(KeywordAbility::FirstStrike),
         )
         .object(
-            ObjectSpec::creature(p2, "FS Blocker", 2, 2)
-                .with_keyword(KeywordAbility::FirstStrike),
+            ObjectSpec::creature(p2, "FS Blocker", 2, 2).with_keyword(KeywordAbility::FirstStrike),
         )
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
