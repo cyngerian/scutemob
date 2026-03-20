@@ -14,11 +14,13 @@
 //! - Lifelink applies to fight/bite damage.
 //! - Bite is one-sided: only the source deals damage; target does not deal damage back.
 
+use im::OrdSet;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
-    CardType, Command, Effect, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost,
-    ObjectId, ObjectSpec, PlayerId, Step, TargetController, TargetFilter, TargetRequirement,
-    TypeLine, ZoneId,
+    CardType, Command, ContinuousEffect, Effect, EffectDuration, EffectFilter, EffectId,
+    EffectLayer, GameEvent, GameState, GameStateBuilder, KeywordAbility, LayerModification,
+    ManaCost, ObjectId, ObjectSpec, PlayerId, Step, TargetController, TargetFilter,
+    TargetRequirement, TypeLine, ZoneId,
 };
 
 // ── Helper functions ──────────────────────────────────────────────────────────
@@ -955,5 +957,184 @@ fn test_fight_creature_left_battlefield() {
     assert_eq!(
         dmg_events, 0,
         "CR 701.14b: No DamageDealt events when one fight target left the battlefield"
+    );
+}
+
+#[test]
+/// CR 701.14b — Fight: one target stops being a creature before the fight resolves.
+/// Neither creature deals damage (all-or-nothing). Verified using `is_creature_on_battlefield`
+/// which now calls `calculate_characteristics()` (layer system), so a permanent whose
+/// Creature type was removed by a continuous effect is not treated as a creature.
+fn test_fight_target_not_creature() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![fight_spell_def()]);
+
+    let spell = ObjectSpec::card(p1, "Test Fight Spell")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("test-fight-spell".to_string()))
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            generic: 1,
+            ..Default::default()
+        });
+    let creature_a = ObjectSpec::creature(p1, "Fighter A", 3, 3).in_zone(ZoneId::Battlefield);
+    // Creature B starts as a creature, but will lose its creature type before the fight resolves.
+    let creature_b = ObjectSpec::creature(p2, "Fighter B", 2, 2).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(creature_a)
+        .object(creature_b)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Test Fight Spell");
+    let a_id = find_object(&state, "Fighter A");
+    let b_id = find_object(&state, "Fighter B");
+
+    // Cast fight spell onto the stack.
+    let mut state = cast_spell_two_targets(state, p1, spell_id, a_id, b_id);
+
+    // Before resolution: apply a continuous effect that removes Creature type from Fighter B.
+    // SetTypeLine replaces the type line entirely — Fighter B is now an Enchantment, not a creature.
+    // This simulates a response effect (e.g., Opalescence being removed, animation ending).
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(9001),
+        source: None,
+        timestamp: 1000,
+        layer: EffectLayer::TypeChange,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::SingleObject(b_id),
+        modification: LayerModification::SetTypeLine {
+            supertypes: OrdSet::new(),
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            subtypes: OrdSet::new(),
+        },
+        is_cda: false,
+    });
+
+    // Resolve the fight spell.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // CR 701.14b: Fighter B is no longer a creature → neither creature fights.
+    // Fighter A should have taken NO damage.
+    let a_on_bf = find_object_on_battlefield(&state, "Fighter A");
+    assert!(
+        a_on_bf.is_some(),
+        "Fighter A should still be on battlefield"
+    );
+    let a_dmg = a_on_bf
+        .and_then(|id| state.objects.get(&id))
+        .map(|o| o.damage_marked)
+        .unwrap_or(0);
+    assert_eq!(
+        a_dmg, 0,
+        "CR 701.14b: Fighter A should take 0 damage when Fighter B lost creature type before fight"
+    );
+
+    // No DamageDealt events should have fired.
+    let dmg_events = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::DamageDealt { .. }))
+        .count();
+    assert_eq!(
+        dmg_events, 0,
+        "CR 701.14b: No DamageDealt events when one fight target is no longer a creature"
+    );
+}
+
+#[test]
+/// CR 701.14 — Bite: source creature with negative power deals 0 damage (not negative).
+/// A 2/2 creature with a -3 power continuous effect (net -1/2) bites a 3/3.
+/// The code clamps negative power to 0, so no damage is dealt.
+fn test_bite_negative_power() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![bite_spell_def()]);
+
+    let spell = ObjectSpec::card(p1, "Test Bite Spell")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("test-bite-spell".to_string()))
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            generic: 1,
+            ..Default::default()
+        });
+    // Source is a 2/2 creature. A -3 power modifier will make it -1/2 (net power = -1).
+    let source = ObjectSpec::creature(p1, "Weakened Biter", 2, 2).in_zone(ZoneId::Battlefield);
+    let target = ObjectSpec::creature(p2, "Sturdy Target", 3, 3).in_zone(ZoneId::Battlefield);
+
+    let src_id_pre;
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(source)
+        .object(target)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Find IDs before adding the continuous effect.
+    src_id_pre = find_object(&state, "Weakened Biter");
+    let spell_id = find_object(&state, "Test Bite Spell");
+    let tgt_id = find_object(&state, "Sturdy Target");
+
+    // Apply a -3 power modifier: 2 base - 3 = -1 effective power.
+    // get_creature_power() clamps this to 0, so the bite deals 0 damage.
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(9002),
+        source: None,
+        timestamp: 1000,
+        layer: EffectLayer::PtModify,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::SingleObject(src_id_pre),
+        modification: LayerModification::ModifyPower(-3),
+        is_cda: false,
+    });
+
+    state.turn.priority_holder = Some(p1);
+
+    let state = cast_spell_two_targets(state, p1, spell_id, src_id_pre, tgt_id);
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // Sturdy Target should have taken 0 damage (negative power clamped to 0).
+    let tgt_dmg = state
+        .objects
+        .get(&tgt_id)
+        .map(|o| o.damage_marked)
+        .unwrap_or(0);
+    assert_eq!(
+        tgt_dmg, 0,
+        "Bite: source with -1 effective power (clamped to 0) should deal 0 damage"
+    );
+
+    // No DamageDealt events should fire since power is 0.
+    let dmg_events = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::DamageDealt { .. }))
+        .count();
+    assert_eq!(
+        dmg_events, 0,
+        "Bite: no DamageDealt events when source power is negative (clamped to 0)"
+    );
+
+    // Sturdy Target (3/3) should survive.
+    let tgt_on_bf = find_object_on_battlefield(&state, "Sturdy Target");
+    assert!(
+        tgt_on_bf.is_some(),
+        "Sturdy Target (3/3) should survive a 0-damage bite"
     );
 }

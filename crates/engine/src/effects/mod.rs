@@ -3832,15 +3832,21 @@ fn add_mana_with_restriction(
 // ── Fight/Bite damage helpers ─────────────────────────────────────────────────
 
 /// Check if the given object is a creature currently on the battlefield (and phased in).
+///
+/// Uses `calculate_characteristics()` (the full layer system) so that animated lands
+/// and permanents that have gained or lost the Creature type via continuous effects are
+/// handled correctly (CR 701.14b).
 fn is_creature_on_battlefield(state: &GameState, id: ObjectId) -> bool {
-    state
+    let on_bf = state
         .objects
         .get(&id)
-        .map(|obj| {
-            obj.zone == ZoneId::Battlefield
-                && obj.is_phased_in()
-                && obj.characteristics.card_types.contains(&CardType::Creature)
-        })
+        .map(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
+        .unwrap_or(false);
+    if !on_bf {
+        return false;
+    }
+    crate::rules::layers::calculate_characteristics(state, id)
+        .map(|c| c.card_types.contains(&CardType::Creature))
         .unwrap_or(false)
 }
 

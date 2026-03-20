@@ -49,6 +49,42 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        ..Default::default()
+        power: None,
+        toughness: None,
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "Tanglespan Bridgeworks".to_string(),
+            mana_cost: None,
+            types: types(&[CardType::Land]),
+            oracle_text: "Tanglespan Bridgeworks enters tapped.\n{T}: Add {G}.".to_string(),
+            power: None,
+            toughness: None,
+            abilities: vec![
+                // CR 614.1c: enters-tapped self-replacement.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldEnterBattlefield {
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::EntersTapped,
+                    is_self: true,
+                    unless_condition: None,
+                },
+                // {T}: Add {G}.
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 0, 0, 1, 0),
+                    },
+                    timing_restriction: None,
+                    targets: vec![],
+                },
+            ],
+            color_indicator: None,
+        }),
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        meld_pair: None,
     }
 }
