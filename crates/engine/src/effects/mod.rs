@@ -91,7 +91,7 @@ pub struct EffectContext {
     /// at spell resolution.
     pub gift_was_given: bool,
     /// CR 702.174a: The opponent chosen to receive the gift.
-    /// Set from `StackObject.gift_opponent` at spell resolution.
+    /// Set from `AdditionalCost::Gift { opponent }` in the additional_costs vec at spell resolution.
     pub gift_opponent: Option<crate::state::PlayerId>,
     /// Count of permanents actually destroyed or exiled by the most recent DestroyAll/ExileAll.
     /// Written by `Effect::DestroyAll` and `Effect::ExileAll`; read by `EffectAmount::LastEffectCount`.
@@ -3416,8 +3416,6 @@ fn execute_effect_inner(
                                         poisonous_target_player: None,
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
-                                        echo_cost: None,
-                                        cumulative_upkeep_cost: None,
                                         recover_cost: None,
                                         recover_card: None,
                                         graft_entering_creature: None,
@@ -4587,8 +4585,6 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         poisonous_target_player: None,
                         enlist_enlisted_creature: None,
                         encore_activator: None,
-                        echo_cost: None,
-                        cumulative_upkeep_cost: None,
                         recover_cost: None,
                         recover_card: None,
                         graft_entering_creature: None,

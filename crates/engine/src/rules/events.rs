@@ -958,7 +958,7 @@ pub enum GameEvent {
     // ── Hideaway event (CR 702.75a) ────────────────────────────────────────
     /// A card was exiled face-down by a Hideaway ETB trigger (CR 702.75a).
     ///
-    /// Emitted when `StackObjectKind::HideawayTrigger` resolves and one card
+    /// Emitted when `StackObjectKind::KeywordTrigger` (Hideaway) resolves and one card
     /// from the top N is exiled face-down.  The exiled card's `exiled_by_hideaway`
     /// is set to `source`.  Opponents cannot see the identity of the exiled card
     /// (it is face-down per CR 406.3); this event is private to the controller.

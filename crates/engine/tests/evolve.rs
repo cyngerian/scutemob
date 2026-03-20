@@ -365,7 +365,7 @@ fn test_evolve_basic_greater_power() {
                 ..
             }
         ),
-        "CR 702.100a: stack entry should be EvolveTrigger"
+        "CR 702.100a: stack entry should be ETBEvolve"
     );
 
     // Resolve the trigger — both players pass.
@@ -466,7 +466,7 @@ fn test_evolve_basic_greater_toughness() {
                 ..
             }
         ),
-        "CR 702.100a: stack entry should be EvolveTrigger"
+        "CR 702.100a: stack entry should be ETBEvolve"
     );
 
     // Resolve the trigger.
@@ -1058,7 +1058,7 @@ fn test_evolve_intervening_if_fails_at_resolution() {
                 ..
             }
         ),
-        "CR 603.4: stack entry should be EvolveTrigger"
+        "CR 603.4: stack entry should be ETBEvolve"
     );
 
     // Before the trigger resolves, pump the evolve creature to 4/4 via counters.

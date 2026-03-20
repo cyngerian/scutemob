@@ -125,7 +125,7 @@ pub enum TriggerData {
     /// Renown N: place N +1/+1 counters and become renowned.
     RenownDamage { n: u32 },
     /// Evolve: put +1/+1 counter if entering creature has greater P or T.
-    EvolveTrigger { entering_creature: ObjectId },
+    ETBEvolve { entering_creature: ObjectId },
     /// Myriad: create token copies attacking each other opponent.
     MyriadAttack { defending_player: PlayerId },
 }

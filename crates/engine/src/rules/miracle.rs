@@ -134,8 +134,6 @@ pub fn handle_choose_miracle(
         poisonous_target_player: None,
         enlist_enlisted_creature: None,
         encore_activator: None,
-        echo_cost: None,
-        cumulative_upkeep_cost: None,
         recover_cost: None,
         recover_card: None,
         graft_entering_creature: None,

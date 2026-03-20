@@ -364,18 +364,10 @@ pub struct PendingTrigger {
     /// before sacrificing.
     #[serde(default)]
     pub encore_activator: Option<PlayerId>,
-    /// CR 702.30a: The echo cost to pay (from KeywordAbility::Echo(cost)).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::EchoUpkeep`.
-    /// Carries the echo cost from trigger queueing to stack object creation.
-    #[serde(default)]
-    pub echo_cost: Option<ManaCost>,
-    /// CR 702.24a: The per-counter cumulative upkeep cost.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::CumulativeUpkeep`.
-    /// Carries the cost from trigger queueing to stack object creation.
-    #[serde(default)]
-    pub cumulative_upkeep_cost: Option<crate::state::types::CumulativeUpkeepCost>,
+    // echo_cost: REMOVED — echo cost is read from KeywordAbility::Echo in the object's abilities
+    // at KeywordTrigger (Echo) resolution time; no need to carry it in PendingTrigger.
+    // cumulative_upkeep_cost: REMOVED — cumulative upkeep cost is read from KeywordAbility at
+    // KeywordTrigger (CumulativeUpkeep) resolution time; no need to carry it in PendingTrigger.
     /// CR 702.59a: The recover cost to pay (from AbilityDefinition::Recover { cost }).
     ///
     /// Only meaningful when `kind == PendingTriggerKind::Recover`.
