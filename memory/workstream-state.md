@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S4 + S6): 50 LOWs closed (83→33 open). TC-21 done. 2233 tests. |
+| W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2 card authoring next |
@@ -25,31 +25,30 @@
 
 **Date**: 2026-03-20
 **Workstream**: W3: LOW Remediation
-**Task**: S6: TC-21 PendingTrigger Option field migration to TriggerData
+**Task**: Full LOW cleanup sprint S1-S6 + bookkeeping + reviews
 
 **Completed**:
-- Migrated 19 Option fields from `PendingTrigger` struct into `TriggerData` variants
-  (madness, miracle, modular, evolve, suspend, hideaway, partner_with, graft, backup,
-  champion_etb, champion_ltb, soulbond, squad, gift, encore_activator, provoke)
-- Removed fields from struct definition and `blank()` constructor in `stubs.rs`
-- Removed 487 `fieldname: None,` lines from abilities.rs, turn_actions.rs, replacement.rs, resolution.rs
-- Updated `hash.rs` to remove stale hash lines for removed fields
-- Fixed accidental removal of `champion_exiled_card`/`gift_opponent` from `GameObject` struct literals in resolution.rs (6 token construction sites)
-- Updated `partner_with.rs` test to check `&trigger.data` instead of `trigger.partner_with_name`
-- MR-TC-21 closed, MR-M6-06 deferred (high refactor risk per remediation doc)
-- 2233 tests, 0 clippy warnings
-- Commit: 7e474d2
+- S1: 20 stale doc comments, dead fields (echo_cost/cumulative_upkeep_cost), EvolveTrigger→ETBEvolve rename, AdditionalCost+Designations exports
+- S2: 6 test gaps (protection multicolor/subtype, first-strike, Thought Vessel, combat script)
+- S3: 8 perf/schema/viewer (LazyLock SubType, SBA name move, ON DELETE CASCADE, FTS triggers, bind 127.0.0.1)
+- S4: 4 behavioral (StackObject::trigger_default -788 lines, single-pass AdditionalCost, check_condition delegation)
+- S5: 8 quick+medium (saturating_add, AltCostKind hash discriminants, mutate/alliance edge case tests)
+- S6: TC-21 PendingTrigger 19 Option fields → TriggerData variants (-1738 lines), hash fix (W3S6-01 HIGH)
+- Bookkeeping: closed 29 items in reviews doc that were done in prior sessions but never marked
+- Final stats: 83→29 LOW open, 119 LOW closed, 2233 tests, 0 clippy
+- All reviews clean except S6 HIGH (hash gap, fixed immediately)
 
 **Next**:
-1. W3 is complete — TC-21 done, all HIGH/MEDIUM resolved, remaining ~33 LOWs are deferred
+1. W3 is effectively complete — remaining 29 LOWs are permanently deferred or DSL-blocked
 2. Top priority: W6 Phase 2 card authoring (~1,025 remaining cards)
-3. `docs/workstream-coordination.md` Phase 3 checkboxes may need updating
+3. `docs/workstream-coordination.md` Phase 3 checkboxes need updating (T3 done, LC done)
+4. `docs/mtg-engine-low-issues-remediation.md` summary stats are stale (still says 39 open)
 
 **Hazards**:
-- `flanking_blocker_id`, `rampage_n`, `renown_n`, `poisonous_n`, `poisonous_target_player`, `enlist_enlisted_creature`, `recover_cost`, `recover_card`, `ingest_target_player` still remain as Option fields on PendingTrigger — not migrated (these are specific named PTK variants, not in the session plan)
-- ~30 remaining call sites still use `casting::can_pay_cost`/`casting::pay_cost` wrappers — functional but could be migrated to direct method calls opportunistically
+- 9 PendingTrigger Option fields remain (flanking, rampage, renown, poisonous, enlist, recover, ingest) — named PTK variants, not KeywordTrigger
+- MR-M6-06 (combat refactor) deferred — only do when combat needs new features
 
-**Commit prefix used**: `W3:`
+**Commit prefix used**: `W3:`, `chore:`
 
 ## Handoff History
 
