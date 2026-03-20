@@ -439,6 +439,101 @@ fn test_no_thought_vessel_discards_to_hand_size() {
     );
 }
 
+#[test]
+/// MR-M9.4-15 / CR 402.2 / CR 514.1 — Counter-assertion: Thought Vessel only benefits
+/// its CONTROLLER; another player without Thought Vessel still discards to hand size
+/// during THEIR OWN cleanup step.
+///
+/// CR 514.1a: During the Cleanup step, the ACTIVE player discards to hand size.
+/// So we need two separate scenarios:
+/// (a) P1 is active with a Thought Vessel AND 9 cards → does NOT discard (tests the
+///     controller benefit). This is already covered by `test_thought_vessel_no_max_hand_size`.
+/// (b) P2 is active with 9 cards AND NO Thought Vessel → DOES discard (tests that a player
+///     without NoMaxHandSize discards normally). The Thought Vessel is on P1's battlefield
+///     but P2 is the active player — NoMaxHandSize is per-player, not global.
+///
+/// This test exercises scenario (b): P2 active, 9 cards, no Thought Vessel.
+/// P1 controls a Thought Vessel but P1 is NOT the active player — the effect
+/// doesn't extend to P2.
+fn test_thought_vessel_only_affects_its_controller_other_players_discard() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Build a four-player game at the End step with P2 as the ACTIVE player.
+    // P1 has a Thought Vessel on the battlefield (but P1 is NOT active during cleanup).
+    // P2 has 9 cards in hand and no Thought Vessel — P2 MUST discard during cleanup.
+    let mut builder = GameStateBuilder::four_player()
+        .active_player(p2)  // P2 is active — it's P2's turn
+        .at_step(Step::End);
+
+    // P1: Thought Vessel on battlefield (P1 is NOT active — their cleanup does not fire here).
+    builder = builder.object(
+        ObjectSpec::artifact(p1, "Thought Vessel")
+            .with_keyword(KeywordAbility::NoMaxHandSize)
+            .in_zone(ZoneId::Battlefield),
+    );
+
+    // P2: 9 cards in hand, no Thought Vessel → must discard 2 at cleanup.
+    for i in 0..9 {
+        builder = builder.object(
+            ObjectSpec::card(p2, &format!("P2 Hand {}", i)).in_zone(ZoneId::Hand(p2)),
+        );
+    }
+
+    let state = builder.build().unwrap();
+
+    // Pass all 4 players through the End step to trigger P2's cleanup.
+    // In a 4-player game, all players get priority in the End step before cleanup fires.
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, _) = process_command(
+        state,
+        Command::PassPriority {
+            player: PlayerId(3),
+        },
+    )
+    .unwrap();
+    let (state, _) = process_command(
+        state,
+        Command::PassPriority {
+            player: PlayerId(4),
+        },
+    )
+    .unwrap();
+    let (state, events) = process_command(
+        state,
+        Command::PassPriority {
+            player: p1,
+        },
+    )
+    .unwrap();
+
+    // P2 (without Thought Vessel, 9 cards, ACTIVE player) MUST discard during cleanup.
+    let p2_discards: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::DiscardedToHandSize { player, .. } if *player == p2))
+        .collect();
+    assert!(
+        !p2_discards.is_empty(),
+        "MR-M9.4-15: P2 (active, no Thought Vessel, 9 cards) MUST discard to hand size; \
+         events: {:?}",
+        events
+    );
+
+    // P2 should end up with exactly 7 cards (max hand size).
+    let p2_hand_count = state.objects_in_zone(&ZoneId::Hand(p2)).len();
+    assert_eq!(
+        p2_hand_count, 7,
+        "MR-M9.4-15: P2 should have exactly 7 cards after cleanup discard; got {}",
+        p2_hand_count
+    );
+
+    // Verify P1's Thought Vessel did NOT grant NoMaxHandSize to P2:
+    // P2 discarded while P1's Thought Vessel is on the battlefield — the keyword
+    // is per-controller only (CR 402.2: "a player has no maximum hand size" applies
+    // to the controller of the permanent with NoMaxHandSize).
+    // The discard events above already confirm P2 discarded normally.
+}
+
 // ── CR 603.1: Alela trigger scoping — during_opponent_turn flag ───────────────
 
 #[test]
