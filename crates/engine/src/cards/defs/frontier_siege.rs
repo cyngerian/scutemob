@@ -16,9 +16,11 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the beginning of each of your main phases, add {G}{G}.\n• Dragons — Whenever a creature you control with flying enters, you may have it fight target creature you don't control.".to_string(),
         abilities: vec![
-            // TODO: modal ETB choice mechanic not in DSL.
+            // TODO: modal ETB choice mechanic not in DSL (blocking gap — not Fight/Bite).
             // Khans mode: mana add at beginning of each main phase (not a standard trigger condition).
-            // Dragons mode: flying creature ETB → conditional fight target — no Fight Effect in DSL.
+            // Dragons mode: flying creature ETB → conditional fight target.
+            //   Effect::Fight is now available (PB-21), but the modal ETB choice and the
+            //   "whenever creature with flying ETB" conditional trigger pattern remain blocking gaps.
         ],
         ..Default::default()
     }

@@ -2,13 +2,6 @@
 // Target creature you control deals damage equal to its power to target creature you
 // don't control. If the creature you control has trample, excess damage is dealt to
 // that creature's controller instead.
-//
-// TODO: DSL gap — this spell's effect uses target[0]'s power to deal damage to target[1],
-// where target[0] must be controlled by the caster and target[1] must not be. TargetRequirement
-// has no "you control" / "you don't control" variants, so both targets are modeled as
-// TargetCreature. The trample excess-damage clause is also not expressible in the DSL.
-// The effect is approximated: target[0]'s power damages target[1]; controller restriction
-// and trample excess are omitted.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +12,29 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Target creature you control deals damage equal to its power to target creature you don't control. If the creature you control has trample, excess damage is dealt to that creature's controller instead.".to_string(),
         abilities: vec![
-            // TODO: DSL gap — TargetRequirement has no "creature you control" / "creature you
-            // don't control" variants. The trample excess-damage clause is also not expressible.
-            // Approximate targeting (both TargetCreature) would allow illegal targets in multiplayer.
+            // CR 701.14 (one-sided Bite): target[0] (you control) deals damage equal to its
+            // power to target[1] (opponent controls). Only one creature deals damage (no fight).
+            // TODO: The trample excess-damage clause ("if the creature you control has trample,
+            // excess damage is dealt to that creature's controller instead") is a Ram Through-
+            // specific behavior not expressible in the current DSL — deferred to card authoring phase.
+            AbilityDefinition::Spell {
+                effect: Effect::Bite {
+                    source: EffectTarget::DeclaredTarget { index: 0 },
+                    target: EffectTarget::DeclaredTarget { index: 1 },
+                },
+                targets: vec![
+                    TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::Opponent,
+                        ..Default::default()
+                    }),
+                ],
+                modes: None,
+                cant_be_countered: false,
+            },
         ],
         ..Default::default()
     }

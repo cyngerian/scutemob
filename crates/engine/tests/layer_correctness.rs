@@ -168,7 +168,11 @@ fn test_w3lc_toughness_of_uses_layer_resolved_under_humility() {
     let creature_id = find_object_by_name(&state, "Big Creature");
     let chars = calculate_characteristics(&state, creature_id).unwrap();
     assert_eq!(chars.power, Some(1), "Humility should set power to 1");
-    assert_eq!(chars.toughness, Some(1), "Humility should set toughness to 1");
+    assert_eq!(
+        chars.toughness,
+        Some(1),
+        "Humility should set toughness to 1"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -197,10 +201,7 @@ fn test_w3lc_humility_suppresses_triggered_abilities() {
     let state = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
-        .object(
-            ObjectSpec::creature(p1(), "Trigger Bear", 2, 2)
-                .with_triggered_ability(trigger),
-        )
+        .object(ObjectSpec::creature(p1(), "Trigger Bear", 2, 2).with_triggered_ability(trigger))
         .add_continuous_effect(humility_effect(1, 10))
         .build()
         .unwrap();
@@ -263,9 +264,8 @@ fn test_w3lc_animated_land_summoning_sickness_blocks_mana() {
         .add_player(p1())
         .add_player(p2())
         .object(
-            ObjectSpec::land(p1(), "Fresh Forest").with_mana_ability(ManaAbility::tap_for(
-                ManaColor::Green,
-            )),
+            ObjectSpec::land(p1(), "Fresh Forest")
+                .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
         .add_continuous_effect(animate_lands_effect(1, 10))
         .build()
@@ -308,9 +308,8 @@ fn test_w3lc_fervor_grants_haste_allows_mana_tap() {
         .add_player(p1())
         .add_player(p2())
         .object(
-            ObjectSpec::land(p1(), "Hasty Forest").with_mana_ability(ManaAbility::tap_for(
-                ManaColor::Green,
-            )),
+            ObjectSpec::land(p1(), "Hasty Forest")
+                .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
         .add_continuous_effect(animate_lands_effect(1, 10))
         .add_continuous_effect(fervor_effect(2, 11))
@@ -353,9 +352,8 @@ fn test_w3lc_non_animated_land_ignores_summoning_sickness() {
         .add_player(p1())
         .add_player(p2())
         .object(
-            ObjectSpec::land(p1(), "Normal Forest").with_mana_ability(ManaAbility::tap_for(
-                ManaColor::Green,
-            )),
+            ObjectSpec::land(p1(), "Normal Forest")
+                .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
         .build()
         .unwrap();

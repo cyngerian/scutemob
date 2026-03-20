@@ -1,6 +1,5 @@
 // Brash Taunter — {4}{R}, Creature — Goblin 1/1
 // Indestructible; when dealt damage deals that much to target opponent; activated fight
-// TODO: damage-reflection triggered ability and fight activated ability with target opponent
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +19,24 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
             // TODO: WhenDealtDamage trigger redirecting that amount to a target opponent
             // requires a targeted_trigger with a damage-amount variable — not in DSL.
-            // TODO: Activated fight ability with {2}{R},{T} cost requires
-            // activated_ability_targets (Activated has no targets field) — not in DSL.
+            // {2}{R}, {T}: This creature fights another target creature.
+            // CR 701.14a: Fight — each creature deals damage equal to its power to the other.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        red: 1,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Fight {
+                    attacker: EffectTarget::Source,
+                    defender: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         ..Default::default()
     }

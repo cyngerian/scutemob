@@ -1433,6 +1433,41 @@ pub enum Effect {
     /// CR 701.42c: If the pair cannot be melded (partner not present, different
     /// controllers, etc.), nothing happens — both stay in their current zone.
     Meld,
+
+    /// CR 701.14a: Two creatures fight each other. Each deals damage equal to
+    /// its power to the other creature simultaneously.
+    ///
+    /// CR 701.14b: If either creature is no longer on the battlefield or is no
+    /// longer a creature at resolution, neither deals damage (all-or-nothing).
+    /// CR 701.14c: If a creature fights itself, it deals damage to itself equal
+    /// to twice its power.
+    /// CR 701.14d: Fight damage is non-combat damage.
+    ///
+    /// The creature is the damage source (not the spell) — relevant for
+    /// deathtouch, lifelink, infect, and protection checks.
+    Fight {
+        /// The first creature (typically "target creature you control").
+        attacker: EffectTarget,
+        /// The second creature (typically "target creature you don't control").
+        defender: EffectTarget,
+    },
+
+    /// One-sided power-based damage: the source creature deals damage equal to
+    /// its power to the target creature. Only the source deals damage; the
+    /// target does not deal damage back.
+    ///
+    /// CR 701.14b (by analogy): If the source creature is no longer on the
+    /// battlefield or is no longer a creature, no damage is dealt.
+    /// CR 701.14d: This damage is non-combat damage.
+    ///
+    /// The source creature is the damage source (relevant for deathtouch,
+    /// lifelink, infect — see Warstorm Surge ruling 2011-09-22).
+    Bite {
+        /// The creature dealing damage (its power determines the amount).
+        source: EffectTarget,
+        /// The creature or permanent receiving damage.
+        target: EffectTarget,
+    },
 }
 
 // ── Effect Targets ────────────────────────────────────────────────────────────
