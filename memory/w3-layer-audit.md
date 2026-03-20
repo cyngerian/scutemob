@@ -114,10 +114,13 @@ call site and pass the resolved version.
 - `sba.rs:1047` — Aura pre-filter reuses already-computed layer-resolved chars
 - 2183 tests passing, 0 clippy warnings
 
-### Session 6: Regression prevention
-- All ambiguous sites resolved in S1 review
-- Add property test or grep-based CI check to prevent new base-characteristic reads
-- Final review
+### Session 6: Regression prevention — DEFERRED (no CI infrastructure)
+- No CI pipeline exists yet. A grep-based lint for `obj.characteristics.` on battlefield
+  objects would be the right regression gate, but it should be part of a broader CI setup
+  (likely M10 timeframe when networking makes automated checks more valuable).
+- **Pattern to catch**: `obj.characteristics.(card_types|keywords|subtypes|supertypes|power|toughness)`
+  reads on objects known to be on the battlefield — should use `calculate_characteristics()` instead.
+- Revisit when CI is set up. Until then, this audit doc serves as the reference for reviewers.
 
 ---
 
