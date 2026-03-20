@@ -322,7 +322,7 @@ impl GameStateBuilder {
             turn_number: self.turn_number,
             turn_order: player_ids.iter().copied().collect(),
             extra_turns: Vector::new(),
-            extra_combats: 0,
+            additional_phases: Vector::new(),
             in_extra_combat: false,
             is_first_turn_of_game: self.is_first_turn_of_game,
             last_regular_active: active_player,

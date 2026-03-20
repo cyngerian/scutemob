@@ -1285,6 +1285,13 @@ pub enum GameEvent {
         /// The player who is now the monarch.
         player: PlayerId,
     },
+    /// An additional combat phase was added to the turn (CR 500.8).
+    AdditionalCombatPhaseCreated {
+        /// The player whose turn is gaining the extra phase.
+        controller: PlayerId,
+        /// Whether an additional main phase follows the extra combat.
+        followed_by_main: bool,
+    },
 }
 
 impl GameEvent {

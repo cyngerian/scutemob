@@ -1,6 +1,6 @@
 //! Turn structure FSM: step ordering, turn advancement (CR 500-514).
 
-use im::OrdSet;
+use im::{OrdSet, Vector};
 
 use crate::state::player::PlayerId;
 use crate::state::turn::{Phase, Step, TurnState};
@@ -10,7 +10,7 @@ use super::combat;
 use super::events::GameEvent;
 
 /// All steps in a normal turn, in order.
-/// FirstStrikeDamage is excluded — M6 will conditionally insert it.
+/// FirstStrikeDamage is excluded -- M6 will conditionally insert it.
 pub const STEP_ORDER: &[Step] = &[
     Step::Untap,
     Step::Upkeep,
@@ -33,6 +33,15 @@ pub const STEP_ORDER: &[Step] = &[
 /// When leaving `DeclareBlockers`, checks whether any combatant has FirstStrike
 /// or DoubleStrike (CR 510.4); if so, inserts `Step::FirstStrikeDamage` before
 /// the normal `Step::CombatDamage`.
+///
+/// CR 500.8: When leaving `EndOfCombat`, checks `additional_phases`. If the next
+/// queued entry is `Phase::Combat`, redirects to `BeginningOfCombat` (extra combat).
+/// If it is `Phase::PostCombatMain`, redirects to `PostCombatMain` (extra main).
+/// LIFO ordering: most recently created phase occurs first.
+///
+/// CR 500.8: When leaving `PostCombatMain`, checks `additional_phases`. If the next
+/// queued entry is `Phase::Combat`, redirects to `BeginningOfCombat` (for effects
+/// that say "after this main phase, there is an additional combat phase").
 pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
     // CR 508.8: If no creatures are declared as attackers, skip the declare
     // blockers and combat damage steps and proceed to end of combat.
@@ -42,19 +51,60 @@ pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
         .map(|c| c.attackers.is_empty())
         .unwrap_or(true);
 
-    let next = if state.turn.step == Step::DeclareAttackers && no_attackers {
-        Step::EndOfCombat
-    } else if state.turn.step == Step::DeclareBlockers
-        && combat::should_have_first_strike_step(state)
-    {
-        // CR 510.4: Conditionally insert FirstStrikeDamage between DeclareBlockers and CombatDamage.
-        Step::FirstStrikeDamage
-    } else {
-        state.turn.step.next()?
-    };
-
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
+
+    let next = if turn.step == Step::DeclareAttackers && no_attackers {
+        Step::EndOfCombat
+    } else if turn.step == Step::DeclareBlockers && combat::should_have_first_strike_step(state) {
+        // CR 510.4: Conditionally insert FirstStrikeDamage.
+        Step::FirstStrikeDamage
+    } else if turn.step == Step::EndOfCombat {
+        // CR 500.8: If additional phases are queued, consume the next one (LIFO pop_back).
+        if let Some(phase) = turn.additional_phases.pop_back() {
+            match phase {
+                Phase::Combat => {
+                    // Enter a new extra combat phase.
+                    turn.in_extra_combat = true;
+                    Step::BeginningOfCombat
+                }
+                Phase::PostCombatMain => {
+                    // Insert an extra main phase (from followed_by_main effects).
+                    // CR 500.8: Clear in_extra_combat -- main phases are not combat phases.
+                    turn.in_extra_combat = false;
+                    Step::PostCombatMain
+                }
+                _ => {
+                    // Other phases are not insertable this way; skip and fall through.
+                    turn.in_extra_combat = false;
+                    Step::PostCombatMain
+                }
+            }
+        } else {
+            // No more extra phases: restore normal flow.
+            turn.in_extra_combat = false;
+            Step::PostCombatMain
+        }
+    } else if turn.step == Step::PostCombatMain {
+        // CR 500.8: After a postcombat main phase, check for queued Combat phases.
+        if let Some(phase) = turn.additional_phases.pop_back() {
+            match phase {
+                Phase::Combat => {
+                    turn.in_extra_combat = true;
+                    Step::BeginningOfCombat
+                }
+                _ => {
+                    // Not a combat phase -- push it back and advance normally.
+                    turn.additional_phases.push_back(phase);
+                    turn.step.next()?
+                }
+            }
+        } else {
+            turn.step.next()?
+        }
+    } else {
+        turn.step.next()?
+    };
 
     turn.step = next;
     turn.phase = next.phase();
@@ -83,10 +133,10 @@ pub fn advance_turn(
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
 
-    // Determine who takes the next turn — MR-M2-02: typed error instead of expect.
+    // Determine who takes the next turn -- MR-M2-02: typed error instead of expect.
     let next_player = if let Some(extra_turn_player) = turn.extra_turns.pop_back() {
         // LIFO: most recently added extra turn goes first.
-        // Don't update last_regular_active — extra turns don't advance normal order.
+        // Don't update last_regular_active -- extra turns don't advance normal order.
         extra_turn_player
     } else {
         // Normal turn order: resume from last regular active player.
@@ -102,7 +152,7 @@ pub fn advance_turn(
     turn.phase = Phase::Beginning;
     turn.priority_holder = None;
     turn.players_passed = OrdSet::new();
-    turn.extra_combats = 0;
+    turn.additional_phases = Vector::new();
     turn.in_extra_combat = false;
     turn.cleanup_sba_rounds = 0;
     // After the first turn of the game, this flag stays false.

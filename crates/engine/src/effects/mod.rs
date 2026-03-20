@@ -35,6 +35,7 @@ use crate::state::game_object::{
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::targeting::{SpellTarget, Target};
+use crate::state::turn::Phase;
 use crate::state::types::{CardType, Color, KeywordAbility, ManaColor, SubType, SuperType};
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
@@ -1465,6 +1466,28 @@ fn execute_effect_inner(
                         }
                     }
                 }
+            }
+        }
+
+        // CR 500.8: Additional combat phase (CR 500.10a: only applies on active player's turn).
+        Effect::AdditionalCombatPhase { followed_by_main } => {
+            if state.turn.active_player == ctx.controller {
+                if *followed_by_main {
+                    // Push main phase first (consumed second due to LIFO pop_back).
+                    // CR 505.1a: all additional main phases are postcombat main phases.
+                    state
+                        .turn
+                        .additional_phases
+                        .push_back(Phase::PostCombatMain);
+                }
+                // Push combat phase (consumed first due to LIFO).
+                state.turn.additional_phases.push_back(Phase::Combat);
+                events.push(
+                    crate::rules::events::GameEvent::AdditionalCombatPhaseCreated {
+                        controller: ctx.controller,
+                        followed_by_main: *followed_by_main,
+                    },
+                );
             }
         }
 
@@ -4622,6 +4645,8 @@ pub(crate) fn check_condition(
             .get(&ctx.controller)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
+        // CR 500.8: True when not in an extra combat phase (first combat phase of turn).
+        Condition::IsFirstCombatPhase => !state.turn.in_extra_combat,
     }
 }
 
@@ -4708,5 +4733,28 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                 vec![]
             }
         }
+        // All attacking creatures including the source.
+        // Used by 'untap all attacking creatures' effects (Karlach, Hellkite Charger).
+        ForEachTarget::EachAttackingCreature => {
+            if let Some(ref combat) = state.combat {
+                combat.attackers.keys().copied().collect()
+            } else {
+                vec![]
+            }
+        }
+        // CR 702.61a: All creatures the controller controls, excluding the source.
+        // Used by Combat Celebrant: "untap all other creatures you control."
+        ForEachTarget::EachOtherCreatureYouControl => state
+            .objects
+            .iter()
+            .filter(|(&id, obj)| {
+                id != ctx.source
+                    && obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
+                    && obj.controller == ctx.controller
+                    && obj.characteristics.card_types.contains(&CardType::Creature)
+            })
+            .map(|(&id, _)| id)
+            .collect(),
     }
 }

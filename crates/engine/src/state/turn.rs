@@ -107,10 +107,14 @@ pub struct TurnState {
     pub turn_number: u32,
     /// Player order for the current game (clockwise from starting player).
     pub turn_order: Vector<PlayerId>,
-    /// Queue of players who will get extra turns (LIFO — most recently added goes first).
+    /// Queue of players who will get extra turns (LIFO -- most recently added goes first).
     pub extra_turns: Vector<PlayerId>,
-    /// Number of additional combat phases remaining this turn.
-    pub extra_combats: u32,
+    /// Queue of additional phases to insert into the turn (CR 500.8 LIFO ordering).
+    ///
+    /// Each entry is Phase::Combat or Phase::PostCombatMain. When EndOfCombat
+    /// or PostCombatMain transitions, the engine pops the back entry and redirects
+    /// the step accordingly. LIFO: most recently created phase occurs first.
+    pub additional_phases: Vector<Phase>,
     /// Whether we are currently in an extra combat phase.
     pub in_extra_combat: bool,
     /// Whether this is the very first turn of the game (first player skips draw).
