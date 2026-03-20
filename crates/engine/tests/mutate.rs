@@ -19,7 +19,7 @@
 //! - CR 729.2c: ETB triggers do NOT fire on merge (same object, not new entry).
 
 use mtg_engine::state::game_object::{Characteristics, TriggerEvent, TriggeredAbilityDef};
-use mtg_engine::state::types::AltCostKind;
+use mtg_engine::state::types::{AltCostKind, FaceDownKind};
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
@@ -1311,4 +1311,246 @@ fn test_mutate_bounce_returns_all_cards() {
             "CR 400.7 / CR 729.3: each component in hand starts with empty merged_components"
         );
     }
+}
+
+// ── Test 10: Mutate onto a face-down creature ─────────────────────────────────
+
+#[test]
+/// CR 702.140a / CR 708.2 / CR 729.6: A face-down creature (Morph) IS a legal
+/// Mutate target.
+///
+/// CR 708.2: A face-down permanent has no name, mana cost, color, or type —
+/// its subtypes are not visible. Since a face-down creature has no visible Human
+/// subtype, the CR 702.140a "non-Human" check passes. The engine checks the
+/// CURRENT characteristics (face-down = no subtypes = not Human).
+///
+/// This behavior is correct per CR: the controller takes the risk that the
+/// face-down creature might be an illegal target once turned face-up
+/// (but at cast time, the engine evaluates legality from visible characteristics).
+///
+/// MR-Mutate-02: Verifies that mutating onto a face-down creature is ACCEPTED by
+/// the engine (face-down creatures have no visible Human subtype). The spell goes
+/// onto the stack successfully.
+///
+/// Source: CR 702.140a, CR 708.2, CR 729.6
+fn test_mutate_onto_face_down_creature_accepted() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![mock_mutating_beast_def(), mock_wolf_def()]);
+
+    // Beast in hand (potential mutating spell).
+    let mut mutating_beast = ObjectSpec::card(p1, "Mock Mutating Beast")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("mock-mutating-beast".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Beast".to_string())])
+        .with_keyword(KeywordAbility::Mutate)
+        .with_mana_cost(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        });
+    mutating_beast.power = Some(4);
+    mutating_beast.toughness = Some(4);
+
+    // Wolf on battlefield, will be set face-down as a Morph after building state.
+    let mut face_down_wolf = ObjectSpec::card(p1, "Mock Wolf")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(CardId("mock-wolf".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Wolf".to_string())]);
+    face_down_wolf.power = Some(2);
+    face_down_wolf.toughness = Some(3);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(mutating_beast)
+        .object(face_down_wolf)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Mark the wolf as face-down (Morph) by setting face_down_as on the GameObject.
+    // This makes the wolf's printed subtypes hidden (CR 708.2).
+    let wolf_game_id = find_object(&state, "Mock Wolf");
+    if let Some(wolf_obj) = state.objects.get_mut(&wolf_game_id) {
+        wolf_obj.face_down_as = Some(FaceDownKind::Morph);
+    }
+
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 4);
+    state.turn.priority_holder = Some(p1);
+
+    let hand_beast_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| {
+            o.zone == ZoneId::Hand(p1) && o.characteristics.name == "Mock Mutating Beast"
+        })
+        .map(|(id, _)| *id)
+        .expect("beast should be in hand");
+
+    // CR 702.140a / CR 708.2: Mutating onto a face-down creature should be ACCEPTED.
+    // The face-down permanent has no visible subtypes (CR 708.2), so the non-Human
+    // check passes (no Human subtype visible = not Human). The spell goes on the stack.
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: hand_beast_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: Some(AltCostKind::Mutate),
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            additional_costs: vec![AdditionalCost::Mutate {
+                target: wolf_game_id, // the face-down wolf
+                on_top: true,
+            }],
+            face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+    // CR 708.2: Face-down creature has no visible Human subtype, so mutate IS legal.
+    // The engine checks current visible characteristics, not printed characteristics.
+    assert!(
+        result.is_ok(),
+        "CR 702.140a / CR 708.2: mutating onto a face-down creature should succeed — \
+         face-down creatures have no visible Human subtype, passing the non-Human check \
+         (engine evaluates current visible characteristics per CR 708.2)"
+    );
+    let (state, _) = result.unwrap();
+    // The spell should be on the stack as a MutatingCreatureSpell targeting the face-down wolf.
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "CR 729.6: mutating creature spell targeting face-down permanent should be on stack"
+    );
+}
+
+// ── Test 11: Copy of a mutating creature spell (documentation) ────────────────
+
+#[test]
+/// CR 729.8: If a copy of a mutating creature spell is put onto the stack,
+/// the copy is also a mutating creature spell. However, a copy cannot be cast
+/// from hand — the copy would resolve as a new creature entering the battlefield
+/// (it has no associated card object to merge). The copy targets the same base
+/// creature if the original does; if the original's target has become illegal,
+/// the copy also fizzles.
+///
+/// MR-Mutate-01: This test documents the expected behavior per CR 729.8 and
+/// verifies that a MutatingCreatureSpell on the stack has an associated target
+/// in its additional_costs. Setting up a true copy-of-spell is complex because
+/// it requires the copy effect from the rules, so this test validates the
+/// data model invariant: a mutating spell on the stack must have a Mutate
+/// AdditionalCost entry.
+///
+/// Source: CR 729.8, CR 706.10
+fn test_mutate_stack_object_has_mutate_additional_cost() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![mock_mutating_beast_def(), mock_wolf_def()]);
+
+    let mut mutating_beast = ObjectSpec::card(p1, "Mock Mutating Beast")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("mock-mutating-beast".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Beast".to_string())])
+        .with_keyword(KeywordAbility::Mutate)
+        .with_mana_cost(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        });
+    mutating_beast.power = Some(4);
+    mutating_beast.toughness = Some(4);
+
+    let mut wolf = ObjectSpec::card(p1, "Mock Wolf")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(CardId("mock-wolf".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Wolf".to_string())]);
+    wolf.power = Some(2);
+    wolf.toughness = Some(3);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(mutating_beast)
+        .object(wolf)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 4);
+    state.turn.priority_holder = Some(p1);
+
+    let beast_id = find_object(&state, "Mock Mutating Beast");
+    let wolf_id = find_object(&state, "Mock Wolf");
+
+    // Cast the beast for its mutate cost targeting the Wolf.
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: beast_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: Some(AltCostKind::Mutate),
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            additional_costs: vec![AdditionalCost::Mutate {
+                target: wolf_id,
+                on_top: true,
+            }],
+            face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
+
+    // CR 729.8: The stack object for a mutating spell must record its Mutate target.
+    // This invariant must hold for any copy of the spell as well — the copy would
+    // inherit the same additional_costs (including the Mutate target).
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "mutating spell should be on stack"
+    );
+    let stack_obj = &state.stack_objects[0];
+    let has_mutate_cost = stack_obj
+        .additional_costs
+        .iter()
+        .any(|c| matches!(c, AdditionalCost::Mutate { target, .. } if *target == wolf_id));
+    assert!(
+        has_mutate_cost,
+        "CR 729.8: MutatingCreatureSpell on stack must have AdditionalCost::Mutate \
+         recording the target — a copy of this spell would inherit the same cost data"
+    );
 }

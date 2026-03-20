@@ -14,10 +14,10 @@
 //!   (per Gala Greeters ruling 2022-04-29 — verified via the creature_only=true filter).
 
 use mtg_engine::{
-    process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    ETBTriggerFilter, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaCost,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, TriggerEvent,
-    TriggeredAbilityDef, TypeLine, ZoneId,
+    process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
+    Command, ETBTriggerFilter, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
+    ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, SubType,
+    TokenSpec, TriggerCondition, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -622,5 +622,134 @@ fn test_alliance_fires_on_token_creature_etb() {
         final_life,
         initial_life + 1,
         "CR 207.2c: P1 should gain 1 life from Alliance trigger firing on creature token ETB."
+    );
+}
+
+// ── Test 6: Alliance fires when a creature token is created via Effect::CreateToken ─
+
+#[test]
+/// CR 207.2c / CR 111.1 -- Alliance fires when a creature token is CREATED (not cast).
+///
+/// This test uses a card with an ETB trigger that creates a 1/1 creature token via
+/// Effect::CreateToken. A separate Alliance creature on the battlefield should have
+/// its trigger fire when the token enters — this validates the creature_only ETB
+/// filter recognizes tokens created via Effect::CreateToken.
+///
+/// MR-B12-06: Verifies that Alliance fires on true token creation (via CreateToken
+/// effect), not just on cast creatures. Per CR 603.2, "enters the battlefield" triggers
+/// fire on any permanent entering, regardless of whether it was cast or created.
+///
+/// Source: CR 207.2c, CR 603.2, CR 111.1, Gala Greeters ruling 2022-04-29
+fn test_alliance_fires_on_create_token_effect() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // A card with an ETB trigger that creates a 1/1 green Saproling token.
+    // This simulates cards like Tendershoot Dryad or Verdant Force.
+    let token_creator_def = CardDefinition {
+        card_id: CardId("token-creator".to_string()),
+        name: "Token Creator".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "When Token Creator enters, create a 1/1 green Saproling creature token."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::CreateToken {
+                spec: TokenSpec {
+                    name: "Saproling".to_string(),
+                    power: 1,
+                    toughness: 1,
+                    colors: [Color::Green].into_iter().collect(),
+                    supertypes: Default::default(),
+                    card_types: [CardType::Creature].into_iter().collect(),
+                    subtypes: [SubType("Saproling".to_string())].into_iter().collect(),
+                    keywords: Default::default(),
+                    count: 1,
+                    tapped: false,
+                    mana_color: None,
+                    mana_abilities: vec![],
+                    activated_abilities: vec![],
+                },
+            },
+            intervening_if: None,
+            targets: vec![],
+        }],
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![token_creator_def]);
+
+    // Alliance creature starts on the battlefield.
+    let alliance_creature = ObjectSpec::creature(p1, "Alliance Innkeeper", 1, 1)
+        .with_triggered_ability(alliance_gain_life_trigger());
+
+    // Token Creator starts in P1's hand.
+    let token_creator = ObjectSpec::creature(p1, "Token Creator", 2, 2)
+        .with_card_id(CardId("token-creator".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(alliance_creature)
+        .object(token_creator)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let alliance_id = find_object(&state, "Alliance Innkeeper");
+    let initial_life = life_total(&state, p1);
+
+    // Cast Token Creator from hand.
+    let (state, _) = cast_creature(state, p1, "Token Creator", 2);
+
+    // All players pass → Token Creator enters the battlefield, ETB trigger queues.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // ETB trigger resolves → creates a 1/1 Saproling token. The token entering should
+    // fire the Alliance trigger on Alliance Innkeeper.
+    // Resolve the ETB trigger (create token).
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Token has now entered. Alliance trigger should be queued/on stack.
+    let alliance_trigger_count = count_alliance_triggers_for(&state, alliance_id);
+    assert!(
+        alliance_trigger_count > 0 || {
+            // The Alliance trigger may have already resolved — check life total.
+            life_total(&state, p1) > initial_life
+        },
+        "CR 207.2c / CR 603.2: Alliance trigger should fire when a Saproling token enters \
+         via Effect::CreateToken (tokens are permanents entering the battlefield per CR 111.1)"
+    );
+
+    // Resolve any remaining triggers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let final_life = life_total(&state, p1);
+    // Alliance fires twice: once for Token Creator entering, once for the Saproling token.
+    // Both are creature ETBs under P1's control, neither is the Alliance Innkeeper itself.
+    assert_eq!(
+        final_life,
+        initial_life + 2,
+        "CR 207.2c: P1 should gain 2 life — Alliance fires once for Token Creator entering \
+         and once for the Saproling token created via Effect::CreateToken (MR-B12-06). \
+         CR 603.2: Both are creature permanents entering the battlefield under P1's control."
     );
 }

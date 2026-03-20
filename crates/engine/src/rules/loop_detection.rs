@@ -58,6 +58,15 @@ pub const LOOP_DETECTION_THRESHOLD: u32 = 3;
 ///
 /// The `loop_detection_hashes` field in `GameState` tracks occurrence counts.
 /// This function both checks and updates that field.
+///
+/// ## MR-M9.4-12: Why &mut GameState
+///
+/// Conceptually this is a read-only check, but it mutates `state.loop_detection_hashes`
+/// as a side effect to record the observation. Separating check from update would require
+/// returning both the result and the new hash table and having the caller apply it — a
+/// more complex interface for little gain. The mutation is intentional: `loop_detection_hashes`
+/// is explicitly excluded from the public state hash (see gotchas-infra.md) and from the
+/// HashInto implementation, so this mutation does not affect distributed consistency.
 pub fn check_for_mandatory_loop(state: &mut GameState) -> Option<GameEvent> {
     let hash = compute_mandatory_state_hash(state);
 

@@ -953,7 +953,13 @@ impl HashInto for GameObject {
         // Kicker (CR 702.33d) — times kicker was paid when this permanent was cast
         self.kicker_times_paid.hash_into(hasher);
         // Alt cost (CR 702.74a / CR 702.138b / CR 702.109a) — which alternative cost was paid
-        self.cast_alt_cost.map(|k| k as u8).hash_into(hasher);
+        // TC-23: use explicit HashInto impl (not `k as u8`) to prevent silent discriminant shifts.
+        if let Some(k) = self.cast_alt_cost {
+            true.hash_into(hasher);
+            k.hash_into(hasher);
+        } else {
+            false.hash_into(hasher);
+        }
         // Designations bitfield (Renowned, Suspected, Saddled, Echo, Bestow, Foretold, Suspended, Reconfigured)
         (self.designations.bits() as u32).hash_into(hasher);
         // Foretell turn number
@@ -2512,6 +2518,45 @@ impl HashInto for CombatState {
         }
         // CR 509.1h: blocked_attackers -- set at declare-blockers, never cleared
         self.blocked_attackers.hash_into(hasher);
+    }
+}
+
+/// TC-23: Explicit hash discriminants for AltCostKind to prevent silent hash changes
+/// if variants are reordered. These constants MUST NOT be changed once set — doing so
+/// invalidates all persisted game-state hashes and distributed peer consistency.
+impl HashInto for crate::state::types::AltCostKind {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::types::AltCostKind;
+        let disc: u8 = match self {
+            AltCostKind::Flashback => 0,
+            AltCostKind::Buyback => 1,
+            AltCostKind::Escape => 2,
+            AltCostKind::Evoke => 3,
+            AltCostKind::Bestow => 4,
+            AltCostKind::Miracle => 5,
+            AltCostKind::Foretell => 6,
+            AltCostKind::Overload => 7,
+            AltCostKind::Retrace => 8,
+            AltCostKind::JumpStart => 9,
+            AltCostKind::Aftermath => 10,
+            AltCostKind::Dash => 11,
+            AltCostKind::Blitz => 12,
+            AltCostKind::Plot => 13,
+            AltCostKind::Impending => 14,
+            AltCostKind::Emerge => 15,
+            AltCostKind::Spectacle => 16,
+            AltCostKind::Surge => 17,
+            AltCostKind::Cleave => 18,
+            AltCostKind::Mutate => 19,
+            AltCostKind::Disturb => 20,
+            AltCostKind::Morph => 21,
+            AltCostKind::Embalm => 22,
+            AltCostKind::Eternalize => 23,
+            AltCostKind::Encore => 24,
+            AltCostKind::Unearth => 25,
+            AltCostKind::Prototype => 26,
+        };
+        disc.hash_into(hasher);
     }
 }
 

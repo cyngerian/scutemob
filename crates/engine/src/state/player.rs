@@ -58,22 +58,27 @@ pub struct ManaPool {
 impl ManaPool {
     /// Total unrestricted mana in the pool.
     pub fn total(&self) -> u32 {
-        self.white + self.blue + self.black + self.red + self.green + self.colorless
+        self.white
+            .saturating_add(self.blue)
+            .saturating_add(self.black)
+            .saturating_add(self.red)
+            .saturating_add(self.green)
+            .saturating_add(self.colorless)
     }
 
     /// Total mana including restricted entries.
     pub fn total_with_restricted(&self) -> u32 {
-        self.total() + self.restricted.iter().map(|r| r.amount).sum::<u32>()
+        self.total().saturating_add(self.restricted.iter().map(|r| r.amount).sum::<u32>())
     }
 
     pub fn add(&mut self, color: ManaColor, amount: u32) {
         match color {
-            ManaColor::White => self.white += amount,
-            ManaColor::Blue => self.blue += amount,
-            ManaColor::Black => self.black += amount,
-            ManaColor::Red => self.red += amount,
-            ManaColor::Green => self.green += amount,
-            ManaColor::Colorless => self.colorless += amount,
+            ManaColor::White => self.white = self.white.saturating_add(amount),
+            ManaColor::Blue => self.blue = self.blue.saturating_add(amount),
+            ManaColor::Black => self.black = self.black.saturating_add(amount),
+            ManaColor::Red => self.red = self.red.saturating_add(amount),
+            ManaColor::Green => self.green = self.green.saturating_add(amount),
+            ManaColor::Colorless => self.colorless = self.colorless.saturating_add(amount),
         }
     }
 

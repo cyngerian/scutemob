@@ -457,6 +457,43 @@ fn test_doctors_companion_doctor_missing_time_lord_subtype_rejected() {
 }
 
 #[test]
+/// CR 702.124m — Doctor creature has only "Time Lord" subtype but NOT "Doctor": invalid.
+///
+/// is_time_lord_doctor() requires BOTH subtypes present. A creature that is a Time Lord
+/// but not explicitly subtyped as Doctor fails the check.
+fn test_doctors_companion_doctor_missing_doctor_subtype_rejected() {
+    let companion = legendary_creature_with_ability(
+        "rosalind",
+        "Rosalind, the Companion",
+        KeywordAbility::DoctorsCompanion,
+    );
+    // A creature with only "Time Lord" subtype but NOT "Doctor".
+    let time_lord_not_doctor = CardDefinition {
+        card_id: CardId("time-lord-only".to_string()),
+        name: "Time Lord Only".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            supertypes: [SuperType::Legendary].into_iter().collect(),
+            subtypes: [SubType("Time Lord".to_string())].into_iter().collect(),
+        },
+        oracle_text: String::new(),
+        abilities: vec![],
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    };
+    let result = validate_partner_commanders(&companion, &time_lord_not_doctor);
+    assert!(
+        result.is_err(),
+        "CR 702.124m: Time Lord missing 'Doctor' subtype should fail validation"
+    );
+}
+
+#[test]
 /// CR 702.124m — Doctor creature has extra creature types beyond {Time Lord, Doctor}: invalid.
 /// "No other creature types" means exactly {Time Lord, Doctor} — no more.
 fn test_doctors_companion_doctor_has_extra_creature_types_rejected() {
