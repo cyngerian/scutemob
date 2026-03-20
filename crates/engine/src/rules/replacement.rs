@@ -413,15 +413,26 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
             .get(&obj_id)
             .map(|o| o.controller == *player)
             .unwrap_or(false),
+        // CR 613.1d: Use layer-resolved types for replacement effect applicability.
         ObjectFilter::AnyCreature => state
             .objects
             .get(&obj_id)
-            .map(|o| o.characteristics.card_types.contains(&CardType::Creature))
+            .map(|o| {
+                crate::rules::layers::calculate_characteristics(state, obj_id)
+                    .unwrap_or_else(|| o.characteristics.clone())
+                    .card_types
+                    .contains(&CardType::Creature)
+            })
             .unwrap_or(false),
         ObjectFilter::HasCardType(ct) => state
             .objects
             .get(&obj_id)
-            .map(|o| o.characteristics.card_types.contains(ct))
+            .map(|o| {
+                crate::rules::layers::calculate_characteristics(state, obj_id)
+                    .unwrap_or_else(|| o.characteristics.clone())
+                    .card_types
+                    .contains(ct)
+            })
             .unwrap_or(false),
         ObjectFilter::Commander => state
             .objects
@@ -1584,16 +1595,21 @@ fn emit_etb_modification(
                     crate::state::types::SubType,
                     usize,
                 > = std::collections::HashMap::new();
+                // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
                     if obj.controller == controller
                         && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
-                        && obj
-                            .characteristics
+                    {
+                        let chars =
+                            crate::rules::layers::calculate_characteristics(state, obj.id)
+                                .unwrap_or_else(|| obj.characteristics.clone());
+                        if chars
                             .card_types
                             .contains(&crate::state::types::CardType::Creature)
-                    {
-                        for st in &obj.characteristics.subtypes {
-                            *type_counts.entry(st.clone()).or_insert(0usize) += 1;
+                        {
+                            for st in &chars.subtypes {
+                                *type_counts.entry(st.clone()).or_insert(0usize) += 1;
+                            }
                         }
                     }
                 }

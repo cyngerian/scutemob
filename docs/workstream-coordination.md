@@ -315,7 +315,8 @@ Track progress across sessions by checking these off:
 - [x] W3-LC S1: Layer correctness audit — classify 69 base-characteristic reads (see `memory/w3-layer-audit.md`)
 - [x] W3-LC S2: Fix HIGH sites (effects/mod.rs, abilities.rs, mana.rs) + 8 Humility/animation interaction tests
 - [x] W3-LC S3: Fix MEDIUM sites (abilities.rs, resolution.rs, casting.rs, engine.rs) — 19 sites + 2 review fixes
-- [ ] W3-LC S4: Fix LOW sites + regression test
+- [x] W3-LC S4: Fix MEDIUM sites (effects/mod.rs) — 22 sites
+- [x] W3-LC S5: Fix MEDIUM sites (replacement.rs, sba.rs) — 7 sites
 - [ ] Committed (T3 + LC pending)
 
 #### Phase 4: M10

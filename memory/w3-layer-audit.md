@@ -107,10 +107,12 @@ call site and pass the resolved version.
 - Condition block — ControlLandWithSubtypes, ControlAtMostNOtherLands, ControlBasicLandsAtLeast, ControlAtLeastNOtherLands, ControlAtLeastNOtherLandsWithSubtype, ControlLegendaryCreature, ControlCreatureWithSubtype (7 sites)
 - 2183 tests passing, 0 clippy warnings
 
-### Session 5: Fix MEDIUM sites — replacement.rs + sba.rs (7 sites)
-- `replacement.rs:419,424,1590-1595`
-- `sba.rs:932-939,1047`
-- Tests for each fixed path
+### Session 5: Fix MEDIUM sites — replacement.rs + sba.rs (7 sites) — COMPLETE
+- `replacement.rs:419,424` — object_matches_filter AnyCreature/HasCardType uses layer-resolved types
+- `replacement.rs:1590-1606` — ChooseCreatureType scan uses layer-resolved types + subtypes
+- `sba.rs:932-939` — Legend rule uses layer-resolved supertypes + name (copy effects change name)
+- `sba.rs:1047` — Aura pre-filter reuses already-computed layer-resolved chars
+- 2183 tests passing, 0 clippy warnings
 
 ### Session 6: Regression prevention
 - All ambiguous sites resolved in S1 review
