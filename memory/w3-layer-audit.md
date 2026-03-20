@@ -80,29 +80,47 @@ call site and pass the resolved version.
 - 8 new tests in `crates/engine/tests/layer_correctness.rs` (Humility, animation, Fervor, anthem interactions)
 - 2183 tests passing, 0 clippy warnings
 
-### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs (14+ sites)
-- `abilities.rs:222,246,706,3444-3446,4311,4323,6376,6542-6543`
-- `resolution.rs:1795,1939,2068,2098,3661-3662,5159` (1939/2068/2098 added: ability_index namespace alignment from S2 review — see `memory/primitives/w3-lc-s2-review.md` Finding 1)
-- `casting.rs:5182`
-- `engine.rs:2262`
-- Tests for each fixed path
+### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs + casting.rs + engine.rs (17 sites) — COMPLETE
+- `abilities.rs:222,246` — activated ability access uses layer-resolved (Humility removes activated abilities)
+- `abilities.rs:706→722` — hexproof/shroud/protection target check uses layer-resolved keywords
+- `abilities.rs:3444-3466` — Soulbond pairing uses layer-resolved types + keywords (replaced partial OR fallback)
+- `abilities.rs:4311,4323` — Flanking attacker/blocker checks use layer-resolved keywords
+- `abilities.rs:6376→6403` — hexproof/shroud/protection target check reordered to use pre-computed layer chars
+- `abilities.rs:6542→6571-6572` — Modular artifact creature target uses layer-resolved types
+- `resolution.rs:1795` — Cipher creature attachment uses layer-resolved types
+- `resolution.rs:1939,2077,2114` — triggered ability resolution uses layer-resolved triggered_abilities (namespace alignment with collect_triggers_for_event)
+- `resolution.rs:3683-3684` — Modular target resolution uses layer-resolved types
+- `resolution.rs:5181` — Ninjutsu creature target uses layer-resolved types
+- `casting.rs:5182` — hexproof/protection targeting uses layer-resolved keywords
+- `engine.rs:2262` — ring-bearer creature selection uses layer-resolved types
+- 2183 tests passing, 0 clippy warnings
 
-### Session 4: Fix MEDIUM sites — effects/mod.rs (22+ sites)
-- Condition block (4489-4643)
-- Destroy/damage/sacrifice type capture (268, 673, 855, 2115, 3536)
-- ChooseCreatureType (2304-2306)
-- matches_filter callers
-- Tests for each fixed path
+### Session 4: Fix MEDIUM sites — effects/mod.rs (22 sites) — COMPLETE
+- DealDamage type capture (268) — layer-resolved Planeswalker/Creature check
+- DestroyTarget type capture (673, 855) — layer-resolved pre-zone-move types
+- SacrificeAll type capture (2115) — layer-resolved pre-zone-move types
+- ChooseCreatureType (2321-2323) — layer-resolved types + subtypes
+- AllCreatures filter (3558) — layer-resolved creature check
+- matches_filter callers — DestroyAll, ExileAll, AllPermanentsMatching, PermanentCount, YouControlPermanent, OpponentControlsPermanent, EachPermanentMatching (7 sites)
+- CardCount zone-conditional (3851) — battlefield uses layer-resolved, other zones use base
+- ForEach creature targets — EachCreature, EachCreatureYouControl, EachOpponentsCreature (3 sites)
+- Condition block — ControlLandWithSubtypes, ControlAtMostNOtherLands, ControlBasicLandsAtLeast, ControlAtLeastNOtherLands, ControlAtLeastNOtherLandsWithSubtype, ControlLegendaryCreature, ControlCreatureWithSubtype (7 sites)
+- 2183 tests passing, 0 clippy warnings
 
-### Session 5: Fix MEDIUM sites — replacement.rs + sba.rs (7 sites)
-- `replacement.rs:419,424,1590-1595`
-- `sba.rs:932-939,1047`
-- Tests for each fixed path
+### Session 5: Fix MEDIUM sites — replacement.rs + sba.rs (7 sites) — COMPLETE
+- `replacement.rs:419,424` — object_matches_filter AnyCreature/HasCardType uses layer-resolved types
+- `replacement.rs:1590-1606` — ChooseCreatureType scan uses layer-resolved types + subtypes
+- `sba.rs:932-939` — Legend rule uses layer-resolved supertypes + name (copy effects change name)
+- `sba.rs:1047` — Aura pre-filter reuses already-computed layer-resolved chars
+- 2183 tests passing, 0 clippy warnings
 
-### Session 6: Regression prevention
-- All ambiguous sites resolved in S1 review
-- Add property test or grep-based CI check to prevent new base-characteristic reads
-- Final review
+### Session 6: Regression prevention — DEFERRED (no CI infrastructure)
+- No CI pipeline exists yet. A grep-based lint for `obj.characteristics.` on battlefield
+  objects would be the right regression gate, but it should be part of a broader CI setup
+  (likely M10 timeframe when networking makes automated checks more valuable).
+- **Pattern to catch**: `obj.characteristics.(card_types|keywords|subtypes|supertypes|power|toughness)`
+  reads on objects known to be on the battlefield — should use `calculate_characteristics()` instead.
+- Revisit when CI is set up. Until then, this audit doc serves as the reference for reviewers.
 
 ---
 

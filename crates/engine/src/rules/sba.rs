@@ -929,14 +929,14 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         if obj.status.phased_out {
             continue;
         }
-        if !obj
-            .characteristics
-            .supertypes
-            .contains(&SuperType::Legendary)
-        {
+        // CR 613.1d/613.1: Use layer-resolved supertypes and name for legend rule.
+        // Copy effects (Layer 1) can change name; type-changing can grant/remove Legendary.
+        let chars = crate::rules::layers::calculate_characteristics(state, *id)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        if !chars.supertypes.contains(&SuperType::Legendary) {
             continue;
         }
-        let key = (obj.controller, obj.characteristics.name.clone());
+        let key = (obj.controller, chars.name.clone());
         by_controller_name.entry(key).or_default().push(*id);
     }
 
@@ -1044,15 +1044,14 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             if obj.status.phased_out {
                 return false;
             }
-            if !obj.characteristics.subtypes.contains(&subtype_aura) {
+            // CR 613.1d: Use layer-resolved subtypes for Aura check (type-changing effects).
+            let aura_chars = calculate_characteristics(state, **aura_id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            if !aura_chars.subtypes.contains(&subtype_aura) {
                 return false;
             }
             // CR 303.4d: An Aura that's also a creature can't enchant anything.
-            // Check layer-computed characteristics so type-changing effects apply
-            // (e.g., a global "all permanents are creatures" effect).
-            let aura_card_types = calculate_characteristics(state, **aura_id)
-                .map(|c| c.card_types)
-                .unwrap_or_default();
+            let aura_card_types = aura_chars.card_types;
             if aura_card_types.contains(&CardType::Creature) {
                 return true;
             }

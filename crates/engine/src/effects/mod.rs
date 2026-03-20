@@ -263,10 +263,15 @@ fn execute_effect_inner(
                         }
                     }
                     ResolvedTarget::Object(id) => {
+                        // CR 613.1d: Use layer-resolved types for damage target classification.
                         let card_types = state
                             .objects
                             .get(&id)
-                            .map(|o| o.characteristics.card_types.clone())
+                            .map(|o| {
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .unwrap_or_else(|| o.characteristics.clone())
+                                    .card_types
+                            })
                             .unwrap_or_default();
 
                         let damage_target = if card_types.contains(&CardType::Planeswalker) {
@@ -666,12 +671,15 @@ fn execute_effect_inner(
                         }
                     }
 
+                    // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
                     let (card_types, owner, pre_death_controller, pre_death_counters) = state
                         .objects
                         .get(&id)
                         .map(|o| {
                             (
-                                o.characteristics.card_types.clone(),
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .unwrap_or_else(|| o.characteristics.clone())
+                                    .card_types,
                                 o.owner,
                                 // CR 603.3a: capture controller before move_object_to_zone resets it.
                                 o.controller,
@@ -791,13 +799,19 @@ fn execute_effect_inner(
         } => {
             // Snapshot the list of matching objects BEFORE any destructions
             // (CR 701.8: all checks happen against the pre-resolution game state).
+            // CR 613.1d: Use layer-resolved characteristics for filter matching.
             let ids_to_destroy: Vec<ObjectId> = state
                 .objects
                 .iter()
-                .filter(|(_, obj)| {
+                .filter(|(id, obj)| {
                     obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
-                        && matches_filter(&obj.characteristics, filter)
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, **id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            matches_filter(&chars, filter)
+                        }
                         && match filter.controller {
                             TargetController::Any => true,
                             TargetController::You => obj.controller == ctx.controller,
@@ -848,12 +862,15 @@ fn execute_effect_inner(
                     }
                 }
 
+                // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
                 let (card_types, owner, pre_death_controller, pre_death_counters) = state
                     .objects
                     .get(&id)
                     .map(|o| {
                         (
-                            o.characteristics.card_types.clone(),
+                            crate::rules::layers::calculate_characteristics(state, id)
+                                .unwrap_or_else(|| o.characteristics.clone())
+                                .card_types,
                             o.owner,
                             o.controller,
                             o.counters.clone(),
@@ -970,13 +987,19 @@ fn execute_effect_inner(
         // Stores count in ctx.last_effect_count for follow-up effects.
         Effect::ExileAll { filter } => {
             // Snapshot matching objects before any exiles.
+            // CR 613.1d: Use layer-resolved characteristics for filter matching.
             let ids_to_exile: Vec<ObjectId> = state
                 .objects
                 .iter()
-                .filter(|(_, obj)| {
+                .filter(|(id, obj)| {
                     obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
-                        && matches_filter(&obj.characteristics, filter)
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, **id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            matches_filter(&chars, filter)
+                        }
                         && match filter.controller {
                             TargetController::Any => true,
                             TargetController::You => obj.controller == ctx.controller,
@@ -2135,10 +2158,13 @@ fn execute_effect_inner(
                 let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
                 for id in to_sacrifice {
                     // CR 701.17a: sacrifice is NOT destruction — no indestructible check.
+                    // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
                     let (card_types, owner, pre_sacrifice_controller, pre_death_counters) =
                         match state.objects.get(&id) {
                             Some(obj) => (
-                                obj.characteristics.card_types.clone(),
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .unwrap_or_else(|| obj.characteristics.clone())
+                                    .card_types,
                                 obj.owner,
                                 obj.controller,
                                 // CR 702.79a: capture counters before move_object_to_zone resets them.
@@ -2324,13 +2350,18 @@ fn execute_effect_inner(
                 // Find the most common creature subtype among creatures the controller controls.
                 let mut type_counts: std::collections::HashMap<SubType, usize> =
                     std::collections::HashMap::new();
+                // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
                     if obj.controller == ctx.controller
                         && matches!(obj.zone, ZoneId::Battlefield)
-                        && obj.characteristics.card_types.contains(&CardType::Creature)
                     {
-                        for st in &obj.characteristics.subtypes {
-                            *type_counts.entry(st.clone()).or_insert(0usize) += 1;
+                        let chars =
+                            crate::rules::layers::calculate_characteristics(state, obj.id)
+                                .unwrap_or_else(|| obj.characteristics.clone());
+                        if chars.card_types.contains(&CardType::Creature) {
+                            for st in &chars.subtypes {
+                                *type_counts.entry(st.clone()).or_insert(0usize) += 1;
+                            }
                         }
                     }
                 }
@@ -3650,13 +3681,17 @@ fn resolve_effect_target_list_indexed(
             .map(|&p| (None, ResolvedTarget::Player(p)))
             .collect(),
         // CR 702.26b: phased-out permanents are treated as nonexistent.
+        // CR 613.1d: Use layer-resolved types for creature check.
         EffectTarget::AllCreatures => state
             .objects
             .iter()
-            .filter(|(_, obj)| {
+            .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
-                    && obj.characteristics.card_types.contains(&CardType::Creature)
+                    && crate::rules::layers::calculate_characteristics(state, **id)
+                        .unwrap_or_else(|| obj.characteristics.clone())
+                        .card_types
+                        .contains(&CardType::Creature)
             })
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
             .collect(),
@@ -3666,13 +3701,19 @@ fn resolve_effect_target_list_indexed(
             .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
             .collect(),
+        // CR 613.1d: Use layer-resolved characteristics for filter matching.
         EffectTarget::AllPermanentsMatching(filter) => state
             .objects
             .iter()
-            .filter(|(_, obj)| {
+            .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
-                    && matches_filter(&obj.characteristics, filter)
+                    && {
+                        let chars =
+                            crate::rules::layers::calculate_characteristics(state, **id)
+                                .unwrap_or_else(|| obj.characteristics.clone());
+                        matches_filter(&chars, filter)
+                    }
                     && match filter.controller {
                         TargetController::Any => true,
                         TargetController::You => obj.controller == ctx.controller,
@@ -4066,6 +4107,8 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
             // MR-M7-07: count objects in the specified zone matching the filter.
             // Resolve the zone target using the current controller context.
             let zone_id = resolve_zone_target(zone, state, ctx);
+            // CR 613.1d: Use layer-resolved characteristics for battlefield objects;
+            // base characteristics are correct for non-battlefield zones.
             state
                 .objects
                 .values()
@@ -4073,7 +4116,18 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                     obj.zone == zone_id
                         && filter
                             .as_ref()
-                            .map(|f| matches_filter(&obj.characteristics, f))
+                            .map(|f| {
+                                if zone_id == ZoneId::Battlefield {
+                                    let chars =
+                                        crate::rules::layers::calculate_characteristics(
+                                            state, obj.id,
+                                        )
+                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                    matches_filter(&chars, f)
+                                } else {
+                                    matches_filter(&obj.characteristics, f)
+                                }
+                            })
                             .unwrap_or(true)
                 })
                 .count() as i32
@@ -4082,6 +4136,7 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
             // Count permanents on the battlefield matching filter, controlled by the
             // resolved player. Phased-out permanents are excluded (CR 702.26d).
             let players = resolve_player_target_list(state, controller, ctx);
+            // CR 613.1d: Use layer-resolved characteristics for filter matching.
             state
                 .objects
                 .values()
@@ -4089,7 +4144,12 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                     obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
-                        && matches_filter(&obj.characteristics, filter)
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            matches_filter(&chars, filter)
+                        }
                 })
                 .count() as i32
         }
@@ -4683,17 +4743,28 @@ pub(crate) fn check_condition(
             .get(&ctx.source)
             .map(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
             .unwrap_or(false),
+        // CR 613.1d: Use layer-resolved characteristics for filter matching.
         Condition::YouControlPermanent(filter) => state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
-                && matches_filter(&obj.characteristics, filter)
+                && {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                    matches_filter(&chars, filter)
+                }
         }),
         Condition::OpponentControlsPermanent(filter) => state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
                 && obj.is_phased_in()
                 && obj.controller != ctx.controller
-                && matches_filter(&obj.characteristics, filter)
+                && {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                    matches_filter(&chars, filter)
+                }
         }),
         Condition::TargetIsLegal { index } => {
             // The target is legal if its object still exists.
@@ -4778,14 +4849,19 @@ pub(crate) fn check_condition(
 
         // "unless you control a [Plains/Island/etc.]" — check-lands, castles.
         // True if the controller controls a land with ANY of the listed subtypes.
+        // CR 613.1d: Use layer-resolved types/subtypes for battlefield checks
+        // (Blood Moon changes land types; type-changing effects apply).
         Condition::ControlLandWithSubtypes(subtypes) => state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
-                && obj.characteristics.card_types.contains(&CardType::Land)
-                && subtypes
-                    .iter()
-                    .any(|st| obj.characteristics.subtypes.contains(st))
+                && {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                    chars.card_types.contains(&CardType::Land)
+                        && subtypes.iter().any(|st| chars.subtypes.contains(st))
+                }
         }),
         // "unless you control N or fewer other lands" — fast-lands.
         // True if the controller controls <= N OTHER lands (excluding source).
@@ -4798,7 +4874,10 @@ pub(crate) fn check_condition(
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && obj.characteristics.card_types.contains(&CardType::Land)
+                        && crate::rules::layers::calculate_characteristics(state, id)
+                            .unwrap_or_else(|| obj.characteristics.clone())
+                            .card_types
+                            .contains(&CardType::Land)
                 })
                 .count();
             other_land_count <= *n as usize
@@ -4834,11 +4913,15 @@ pub(crate) fn check_condition(
                     obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && obj.characteristics.card_types.contains(&CardType::Land)
-                        && obj
-                            .characteristics
-                            .supertypes
-                            .contains(&crate::state::types::SuperType::Basic)
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            chars.card_types.contains(&CardType::Land)
+                                && chars
+                                    .supertypes
+                                    .contains(&crate::state::types::SuperType::Basic)
+                        }
                 })
                 .count();
             basic_land_count >= *n as usize
@@ -4854,7 +4937,10 @@ pub(crate) fn check_condition(
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && obj.characteristics.card_types.contains(&CardType::Land)
+                        && crate::rules::layers::calculate_characteristics(state, id)
+                            .unwrap_or_else(|| obj.characteristics.clone())
+                            .card_types
+                            .contains(&CardType::Land)
                 })
                 .count();
             other_land_count >= *n as usize
@@ -4870,7 +4956,10 @@ pub(crate) fn check_condition(
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && obj.characteristics.subtypes.contains(subtype)
+                        && crate::rules::layers::calculate_characteristics(state, id)
+                            .unwrap_or_else(|| obj.characteristics.clone())
+                            .subtypes
+                            .contains(subtype)
                 })
                 .count();
             matching_count >= *count as usize
@@ -4880,19 +4969,26 @@ pub(crate) fn check_condition(
             obj.zone == ZoneId::Battlefield
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
-                && obj.characteristics.card_types.contains(&CardType::Creature)
-                && obj
-                    .characteristics
-                    .supertypes
-                    .contains(&SuperType::Legendary)
+                && {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                    chars.card_types.contains(&CardType::Creature)
+                        && chars.supertypes.contains(&SuperType::Legendary)
+                }
         }),
         // "unless you control a [creature subtype]" — Temple of the Dragon Queen.
         Condition::ControlCreatureWithSubtype(subtype) => state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
-                && obj.characteristics.card_types.contains(&CardType::Creature)
-                && obj.characteristics.subtypes.contains(subtype)
+                && {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                    chars.card_types.contains(&CardType::Creature)
+                        && chars.subtypes.contains(subtype)
+                }
         }),
         // CR 702.131c: the city's blessing is permanent once gained.
         Condition::HasCitysBlessing => state
@@ -4910,48 +5006,61 @@ pub(crate) fn check_condition(
 fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext) -> Vec<ObjectId> {
     match over {
         // CR 702.26b: phased-out permanents are treated as nonexistent.
+        // CR 613.1d: Use layer-resolved types for creature checks.
         ForEachTarget::EachCreature => state
             .objects
             .iter()
-            .filter(|(_, obj)| {
+            .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
-                    && obj.characteristics.card_types.contains(&CardType::Creature)
+                    && crate::rules::layers::calculate_characteristics(state, **id)
+                        .unwrap_or_else(|| obj.characteristics.clone())
+                        .card_types
+                        .contains(&CardType::Creature)
             })
             .map(|(&id, _)| id)
             .collect(),
         ForEachTarget::EachCreatureYouControl => state
             .objects
             .iter()
-            .filter(|(_, obj)| {
+            .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && obj.controller == ctx.controller
-                    && obj.characteristics.card_types.contains(&CardType::Creature)
+                    && crate::rules::layers::calculate_characteristics(state, **id)
+                        .unwrap_or_else(|| obj.characteristics.clone())
+                        .card_types
+                        .contains(&CardType::Creature)
             })
             .map(|(&id, _)| id)
             .collect(),
         ForEachTarget::EachOpponentsCreature => state
             .objects
             .iter()
-            .filter(|(_, obj)| {
+            .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && obj.controller != ctx.controller
-                    && obj.characteristics.card_types.contains(&CardType::Creature)
+                    && crate::rules::layers::calculate_characteristics(state, **id)
+                        .unwrap_or_else(|| obj.characteristics.clone())
+                        .card_types
+                        .contains(&CardType::Creature)
             })
             .map(|(&id, _)| id)
             .collect(),
         // CR 702.96a: TargetFilter.controller is applied here to enforce "you don't control"
         // constraints from overload cards and similar effects.
+        // CR 613.1d: Use layer-resolved characteristics for filter matching.
         ForEachTarget::EachPermanentMatching(filter) => state
             .objects
             .iter()
-            .filter(|(_, obj)| {
+            .filter(|(id, obj)| {
                 if obj.zone != ZoneId::Battlefield {
                     return false;
                 }
-                if !matches_filter(&obj.characteristics, filter) {
+                let chars = crate::rules::layers::calculate_characteristics(state, **id)
+                    .unwrap_or_else(|| obj.characteristics.clone());
+                if !matches_filter(&chars, filter) {
                     return false;
                 }
                 match filter.controller {

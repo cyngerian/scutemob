@@ -217,9 +217,17 @@ pub fn handle_activate_ability(
     }
 
     // CR 602.5d: Check sorcery-speed restriction before paying any costs.
+    // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
     {
         let obj = state.object(source)?;
-        let ab = &obj.characteristics.activated_abilities[ability_index];
+        let resolved = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        let ab = resolved.activated_abilities.get(ability_index).ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "activated ability index {} not found (may have been removed by a continuous effect)",
+                ability_index
+            ))
+        })?;
         if ab.sorcery_speed {
             // Must be active player's main phase with empty stack.
             if state.turn.active_player != player {
@@ -241,9 +249,17 @@ pub fn handle_activate_ability(
 
     // Clone the cost, effect, and target requirements before mutating state.
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
+    // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
     let (ability_cost, embedded_effect, target_requirements) = {
         let obj = state.object(source)?;
-        let ab = &obj.characteristics.activated_abilities[ability_index];
+        let resolved = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        let ab = resolved.activated_abilities.get(ability_index).ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "activated ability index {} not found (removed by continuous effect)",
+                ability_index
+            ))
+        })?;
         (ab.cost.clone(), ab.effect.clone(), ab.targets.clone())
     };
 
@@ -702,8 +718,12 @@ pub fn handle_activate_ability(
                     .get(id)
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
                 // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
+                // CR 613.1f: Use layer-resolved keywords (Humility removes hexproof/shroud).
+                let target_chars =
+                    crate::rules::layers::calculate_characteristics(state, *id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                 super::validate_target_protection(
-                    &obj.characteristics.keywords,
+                    &target_chars.keywords,
                     obj.controller,
                     player,
                     source_chars.as_ref(),
@@ -3333,26 +3353,24 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if entering_is_creature {
                         if let Some(controller) = entering_controller {
                             // Trigger 1 (SoulbondSelfETB): entering creature itself has Soulbond.
-                            let entering_has_soulbond = {
-                                let base = state
-                                    .objects
-                                    .get(object_id)
-                                    .map(|o| {
-                                        o.characteristics
-                                            .keywords
-                                            .contains(&KeywordAbility::Soulbond)
-                                    })
-                                    .unwrap_or(false);
-                                let layer = crate::rules::layers::calculate_characteristics(
+                            // CR 613.1f: Use layer-resolved keywords only (Humility
+                            // removes Soulbond; base OR layer was over-permissive).
+                            let entering_has_soulbond =
+                                crate::rules::layers::calculate_characteristics(
                                     state, *object_id,
                                 )
+                                .or_else(|| {
+                                    state
+                                        .objects
+                                        .get(object_id)
+                                        .map(|o| o.characteristics.clone())
+                                })
                                 .map(|c| c.keywords.contains(&KeywordAbility::Soulbond))
                                 .unwrap_or(false);
-                                base || layer
-                            };
 
                             if entering_has_soulbond {
                                 // Intervening-if: controller has another unpaired creature.
+                                // CR 613.1d: Use layer-resolved types for creature check.
                                 let pair_target: Option<ObjectId> = state
                                     .objects
                                     .values()
@@ -3362,10 +3380,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             && obj.controller == controller
                                             && obj.id != *object_id
                                             && obj.paired_with.is_none()
-                                            && obj
-                                                .characteristics
-                                                .card_types
-                                                .contains(&CardType::Creature)
+                                            && crate::rules::layers::calculate_characteristics(
+                                                state, obj.id,
+                                            )
+                                            .unwrap_or_else(|| obj.characteristics.clone())
+                                            .card_types
+                                            .contains(&CardType::Creature)
                                     })
                                     .map(|obj| obj.id);
 
@@ -3441,17 +3461,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             && obj.controller == controller
                                             && obj.id != *object_id
                                             && obj.paired_with.is_none()
-                                            && obj.characteristics.card_types
-                                                .contains(&CardType::Creature)
-                                            && (obj.characteristics.keywords
-                                                .contains(&KeywordAbility::Soulbond)
-                                                || crate::rules::layers::calculate_characteristics(
+                                            // CR 613.1d/613.1f: Use layer-resolved types and
+                                            // keywords for Soulbond pairing candidates.
+                                            && {
+                                                let chars = crate::rules::layers::calculate_characteristics(
                                                     state, obj.id,
                                                 )
-                                                .map(|c| {
-                                                    c.keywords.contains(&KeywordAbility::Soulbond)
-                                                })
-                                                .unwrap_or(false))
+                                                .unwrap_or_else(|| obj.characteristics.clone());
+                                                chars.card_types.contains(&CardType::Creature)
+                                                    && chars.keywords.contains(&KeywordAbility::Soulbond)
+                                            }
                                         })
                                         .map(|obj| (obj.id, obj.controller))
                                         .collect();
@@ -4305,11 +4324,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                         _ => continue,
                     };
-                    if !attacker_obj
-                        .characteristics
-                        .keywords
-                        .contains(&KeywordAbility::Flanking)
-                    {
+                    // CR 613.1f: Use layer-resolved keywords for Flanking checks
+                    // (Humility removes Flanking; equipment/Auras can grant it).
+                    let attacker_chars =
+                        crate::rules::layers::calculate_characteristics(state, *attacker_id)
+                            .unwrap_or_else(|| attacker_obj.characteristics.clone());
+                    if !attacker_chars.keywords.contains(&KeywordAbility::Flanking) {
                         continue;
                     }
 
@@ -4318,7 +4338,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .objects
                         .get(blocker_id)
                         .map(|b| {
-                            b.characteristics
+                            crate::rules::layers::calculate_characteristics(state, *blocker_id)
+                                .unwrap_or_else(|| b.characteristics.clone())
                                 .keywords
                                 .contains(&KeywordAbility::Flanking)
                         })
@@ -6377,9 +6398,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         if obj.zone != ZoneId::Battlefield || !obj.is_phased_in() {
                                             return false;
                                         }
+                                        // CR 613.1f: Use layer-resolved keywords for
+                                        // hexproof/shroud/protection (Humility removes them).
+                                        let chars = calculate_characteristics(state, obj.id)
+                                            .unwrap_or_else(|| obj.characteristics.clone());
                                         // Check protection/hexproof/shroud (CR 603.3d).
                                         if super::validate_target_protection(
-                                            &obj.characteristics.keywords,
+                                            &chars.keywords,
                                             obj.controller,
                                             trigger.controller,
                                             src_chars_ref,
@@ -6388,8 +6413,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         {
                                             return false;
                                         }
-                                        let chars = calculate_characteristics(state, obj.id)
-                                            .unwrap_or_else(|| obj.characteristics.clone());
                                         let is_creature =
                                             chars.card_types.contains(&CT::Creature);
                                         let is_artifact =
@@ -6539,14 +6562,21 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // battlefield by ObjectId ascending (OrdMap is sorted by key).
                     // CR 603.3d: If no legal artifact creature target exists, the trigger
                     // is not placed on the stack. Use `continue` to skip this trigger.
+                    // CR 613.1d: Use layer-resolved types for artifact creature check
+                    // (animated artifacts are creatures; type-changing effects apply).
                     let target_id = state
                         .objects
                         .iter()
-                        .find(|(_, obj)| {
+                        .find(|(id, obj)| {
                             obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
-                                && obj.characteristics.card_types.contains(&CardType::Artifact)
-                                && obj.characteristics.card_types.contains(&CardType::Creature)
+                                && {
+                                    let chars =
+                                        crate::rules::layers::calculate_characteristics(state, **id)
+                                            .unwrap_or_else(|| obj.characteristics.clone());
+                                    chars.card_types.contains(&CardType::Artifact)
+                                        && chars.card_types.contains(&CardType::Creature)
+                                }
                         })
                         .map(|(id, _)| *id);
 

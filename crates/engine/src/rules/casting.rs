@@ -5178,8 +5178,13 @@ pub(crate) fn validate_targets(
                 // means this permanent can't be the target of spells or abilities your opponents
                 // control." Cards are not permanents; only battlefield objects are.
                 if matches!(obj.zone, ZoneId::Battlefield | ZoneId::Stack) {
+                    // CR 613.1f: Use layer-resolved keywords for hexproof/shroud/protection
+                    // (Humility removes them; equipment can grant them).
+                    let target_chars =
+                        crate::rules::layers::calculate_characteristics(state, *id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
                     super::validate_target_protection(
-                        &obj.characteristics.keywords,
+                        &target_chars.keywords,
                         obj.controller,
                         caster,
                         source_chars,

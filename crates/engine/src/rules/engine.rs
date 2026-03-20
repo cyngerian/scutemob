@@ -2258,8 +2258,13 @@ pub fn handle_ring_tempts_you(
             .values()
             .filter(|obj| {
                 obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
                     && obj.controller == player
-                    && obj.characteristics.card_types.contains(&CardType::Creature)
+                    // CR 613.1d: Use layer-resolved types (animated permanents are creatures).
+                    && crate::rules::layers::calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone())
+                        .card_types
+                        .contains(&CardType::Creature)
             })
             .map(|obj| obj.id)
             .collect();
