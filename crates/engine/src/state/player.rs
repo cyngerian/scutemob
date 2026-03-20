@@ -68,7 +68,7 @@ impl ManaPool {
 
     /// Total mana including restricted entries.
     pub fn total_with_restricted(&self) -> u32 {
-        self.total() + self.restricted.iter().map(|r| r.amount).sum::<u32>()
+        self.total().saturating_add(self.restricted.iter().map(|r| r.amount).sum::<u32>())
     }
 
     pub fn add(&mut self, color: ManaColor, amount: u32) {
