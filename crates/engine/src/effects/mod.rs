@@ -3449,6 +3449,103 @@ fn execute_effect_inner(
                 }
             }
         }
+
+        // CR 701.14a: Fight — two creatures each deal damage equal to their power to each other.
+        // CR 701.14b: If either creature is not on the battlefield or not a creature, neither fights.
+        // CR 701.14c: If a creature fights itself, it takes 2x its power in damage.
+        // CR 701.14d: Fight damage is non-combat damage.
+        Effect::Fight { attacker, defender } => {
+            // Resolve both targets to ObjectIds.
+            let attacker_targets = resolve_effect_target_list(state, attacker, ctx);
+            let defender_targets = resolve_effect_target_list(state, defender, ctx);
+
+            let attacker_id = attacker_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+            let defender_id = defender_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+
+            let (Some(att_id), Some(def_id)) = (attacker_id, defender_id) else {
+                // CR 701.14b: if either target is gone (resolved to nothing), neither fights.
+                return;
+            };
+
+            // CR 701.14b: Both must be on the battlefield and be creatures.
+            let att_valid = is_creature_on_battlefield(state, att_id);
+            let def_valid = is_creature_on_battlefield(state, def_id);
+            if !att_valid || !def_valid {
+                return;
+            }
+
+            // CR 701.14c: self-fight — read power once, deal 2x to self.
+            if att_id == def_id {
+                let power = get_creature_power(state, att_id);
+                let double_power = power.saturating_mul(2);
+                deal_creature_power_damage(state, att_id, att_id, double_power, events);
+                return;
+            }
+
+            // CR 701.14a: Read both powers BEFORE applying any damage (simultaneous).
+            let att_power = get_creature_power(state, att_id);
+            let def_power = get_creature_power(state, def_id);
+
+            // Deal damage in both directions — creatures are the damage sources.
+            deal_creature_power_damage(state, att_id, def_id, att_power, events);
+            deal_creature_power_damage(state, def_id, att_id, def_power, events);
+        }
+
+        // CR 701.14 (one-sided): Bite — source creature deals damage equal to its power to target.
+        // CR 701.14b (by analogy): If source is not on the battlefield or not a creature, nothing happens.
+        // CR 701.14d: This damage is non-combat damage.
+        Effect::Bite { source, target } => {
+            let source_targets = resolve_effect_target_list(state, source, ctx);
+            let target_targets = resolve_effect_target_list(state, target, ctx);
+
+            let source_id = source_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+            let target_id = target_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+
+            let (Some(src_id), Some(tgt_id)) = (source_id, target_id) else {
+                return;
+            };
+
+            // Source must be on the battlefield and be a creature (CR 701.14b analog).
+            if !is_creature_on_battlefield(state, src_id) {
+                return;
+            }
+            // Target must still exist on the battlefield.
+            if !state
+                .objects
+                .get(&tgt_id)
+                .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                .unwrap_or(false)
+            {
+                return;
+            }
+
+            let power = get_creature_power(state, src_id);
+            deal_creature_power_damage(state, src_id, tgt_id, power, events);
+        }
     }
 }
 
@@ -3729,6 +3826,152 @@ fn add_mana_with_restriction(
     match restriction {
         Some(r) => ps.mana_pool.add_restricted(color, amount, r.clone()),
         None => ps.mana_pool.add(color, amount),
+    }
+}
+
+// ── Fight/Bite damage helpers ─────────────────────────────────────────────────
+
+/// Check if the given object is a creature currently on the battlefield (and phased in).
+///
+/// Uses `calculate_characteristics()` (the full layer system) so that animated lands
+/// and permanents that have gained or lost the Creature type via continuous effects are
+/// handled correctly (CR 701.14b).
+fn is_creature_on_battlefield(state: &GameState, id: ObjectId) -> bool {
+    let on_bf = state
+        .objects
+        .get(&id)
+        .map(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
+        .unwrap_or(false);
+    if !on_bf {
+        return false;
+    }
+    crate::rules::layers::calculate_characteristics(state, id)
+        .map(|c| c.card_types.contains(&CardType::Creature))
+        .unwrap_or(false)
+}
+
+/// Get the layer-calculated power of a creature, clamped to 0 if negative.
+/// Returns 0 if the object is not found or has no power.
+fn get_creature_power(state: &GameState, id: ObjectId) -> u32 {
+    crate::rules::layers::calculate_characteristics(state, id)
+        .and_then(|c| c.power)
+        .unwrap_or(0)
+        .max(0) as u32
+}
+
+/// Deal non-combat damage from one creature to another, using the creature as the
+/// damage source (CR 701.14d). Handles deathtouch, lifelink, wither/infect, damage
+/// doubling, and damage prevention — all keyed off the creature source, not the spell.
+///
+/// The `power` argument should already be clamped to 0 (no negative damage).
+fn deal_creature_power_damage(
+    state: &mut GameState,
+    creature_source: ObjectId,
+    target_creature: ObjectId,
+    power: u32,
+    events: &mut Vec<GameEvent>,
+) {
+    if power == 0 {
+        return;
+    }
+
+    let damage_target = CombatDamageTarget::Creature(target_creature);
+
+    // CR 614.1: Apply damage-doubling replacement effects before prevention.
+    // The creature is the source (not the spell) — matters for source-based doublers.
+    let (dmg, doubling_events) = crate::rules::replacement::apply_damage_doubling(
+        state,
+        creature_source,
+        power,
+        Some(&damage_target),
+    );
+    events.extend(doubling_events);
+    if dmg == 0 {
+        return;
+    }
+
+    // CR 615: Apply damage prevention, keyed off the creature as source.
+    let (final_dmg, prev_events) = crate::rules::replacement::apply_damage_prevention(
+        state,
+        creature_source,
+        &damage_target,
+        dmg,
+    );
+    events.extend(prev_events);
+
+    if final_dmg == 0 {
+        return;
+    }
+
+    // CR 120.3d/e: Check creature source for wither and/or infect.
+    // CR 702.80a: wither applies to damage dealt to creatures.
+    // CR 702.90c: infect also places -1/-1 counters on creatures.
+    let source_chars = crate::rules::layers::calculate_characteristics(state, creature_source);
+    let source_has_wither = source_chars
+        .as_ref()
+        .map(|c| c.keywords.contains(&KeywordAbility::Wither))
+        .unwrap_or(false);
+    let source_has_infect = source_chars
+        .as_ref()
+        .map(|c| c.keywords.contains(&KeywordAbility::Infect))
+        .unwrap_or(false);
+    let source_has_deathtouch = source_chars
+        .as_ref()
+        .map(|c| c.keywords.contains(&KeywordAbility::Deathtouch))
+        .unwrap_or(false);
+    let source_has_lifelink = source_chars
+        .as_ref()
+        .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
+        .unwrap_or(false);
+
+    // Apply damage to the target creature.
+    if let Some(obj) = state.objects.get_mut(&target_creature) {
+        if source_has_wither || source_has_infect {
+            // CR 702.80a / CR 702.90c: wither/infect damage to creatures = -1/-1 counters.
+            let cur = obj
+                .counters
+                .get(&crate::state::types::CounterType::MinusOneMinusOne)
+                .copied()
+                .unwrap_or(0);
+            obj.counters.insert(
+                crate::state::types::CounterType::MinusOneMinusOne,
+                cur + final_dmg,
+            );
+        } else {
+            // CR 120.3e: normal damage marking.
+            obj.damage_marked += final_dmg;
+        }
+        // CR 702.2b: deathtouch — flag that this creature received deathtouch damage.
+        if source_has_deathtouch {
+            obj.deathtouch_damage = true;
+        }
+    }
+
+    if source_has_wither || source_has_infect {
+        events.push(GameEvent::CounterAdded {
+            object_id: target_creature,
+            counter: crate::state::types::CounterType::MinusOneMinusOne,
+            count: final_dmg,
+        });
+    }
+
+    events.push(GameEvent::DamageDealt {
+        source: creature_source,
+        target: damage_target,
+        amount: final_dmg,
+    });
+
+    // CR 702.15b: Lifelink — controller of the creature source gains life.
+    if source_has_lifelink {
+        if let Some(controller_id) = state.objects.get(&creature_source).map(|o| o.controller) {
+            if let Some(ps) = state.players.get_mut(&controller_id) {
+                ps.life_total += final_dmg as i32;
+            }
+            events.push(GameEvent::LifeGained {
+                player: controller_id,
+                amount: final_dmg,
+            });
+        }
     }
 }
 

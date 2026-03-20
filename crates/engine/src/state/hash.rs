@@ -4476,6 +4476,18 @@ impl HashInto for Effect {
                 57u8.hash_into(hasher);
                 followed_by_main.hash_into(hasher);
             }
+            // CR 701.14a: Fight (discriminant 58)
+            Effect::Fight { attacker, defender } => {
+                58u8.hash_into(hasher);
+                attacker.hash_into(hasher);
+                defender.hash_into(hasher);
+            }
+            // CR 701.14 (one-sided): Bite (discriminant 59)
+            Effect::Bite { source, target } => {
+                59u8.hash_into(hasher);
+                source.hash_into(hasher);
+                target.hash_into(hasher);
+            }
         }
     }
 }
