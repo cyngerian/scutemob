@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_205",
+    "name": "Combat: 3/3 attacker kills 2/2 blocker, attacker survives with 2 damage marked",
+    "description": "MR-M6-08 / MR-M7-16 — p1 controls a 3/3 Grizzly Bears, p2 controls a 2/2 Bear Cub. p1 declares Grizzly Bears as an attacker targeting p2. p2 declares Bear Cub as a blocker. In the combat damage step, Grizzly Bears (power 3) deals 3 damage to Bear Cub (lethal on toughness 2) and Bear Cub (power 2) deals 2 damage to Grizzly Bears (non-lethal on toughness 3). SBA 704.5g destroys Bear Cub; Grizzly Bears survives with 2 damage marked. p2 takes 0 damage (attacker was blocked). This script exercises the full combat sequence: declare_attackers → priority_round → declare_blockers → priority_round → combat_damage → SBAs.",
+    "cr_sections_tested": ["508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1a", "509.1g", "509.1h", "510.1c", "510.1d", "510.2", "704.5g"],
+    "corner_case_ref": null,
+    "tags": ["combat", "declare-attackers", "declare-blockers", "blocked", "lethal-damage", "sba", "creature-dies", "attacker-survives"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "MR-M6-08 / MR-M7-16 gap: a combat script where the attacker survives with damage marked but the blocker dies. Grizzly Bears (3/3) blocks Bear Cub (2/2): Bears deals 3 to Cub (lethal), Cub deals 2 to Bears (non-lethal). SBA destroys Cub only. Grizzly Bears stays on battlefield with 2 damage marked; damage resets at cleanup (CR 514.2).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Grizzly Bears", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Bear Cub", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Grizzly Bears as attacker targeting p2. Bears becomes tapped (CR 508.1f).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Grizzly Bears (untapped) on p1 battlefield, Bear Cub (untapped) on p2 battlefield, life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Grizzly Bears" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Bear Cub" }] },
+            "permanent.Grizzly Bears.tapped": false,
+            "permanent.Bear Cub.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Both creatures are untapped with no summoning sickness (placed via builder which sets has_summoning_sickness: false). Legal attacker and blocker state."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Grizzly Bears", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1a: Grizzly Bears is untapped and free of summoning sickness — legal attacker. CR 508.1f: Grizzly Bears becomes tapped as a side effect of attacking. CR 508.1k: Grizzly Bears becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Grizzly Bears is tapped, stack empty",
+          "assertions": {
+            "permanent.Grizzly Bears.tapped": true,
+            "permanent.Bear Cub.tapped": false,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Grizzly Bears tapped on attack declaration. Bear Cub not yet affected."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack → advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 declares Bear Cub as blocker for Grizzly Bears. Grizzly Bears becomes a blocked creature (CR 509.1h).",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [
+            { "card": "Bear Cub", "blocking": "Grizzly Bears" }
+          ],
+          "cr_ref": "509.1",
+          "note": "CR 509.1a: Bear Cub is untapped — legal blocker. CR 509.1g: Bear Cub becomes a blocking creature. CR 509.1h: Grizzly Bears has one blocker declared — becomes a blocked creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_blockers: both creatures on battlefield, Bear Cub not tapped, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Grizzly Bears" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Bear Cub" }] },
+            "permanent.Bear Cub.tapped": false,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Bear Cub does not tap for blocking. No triggers fire. Stack remains empty."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority → advance to CombatDamage step. Engine executes combat_damage_step as turn-based action: Grizzly Bears (power 3, blocked by Bear Cub) assigns 3 damage to Bear Cub (CR 510.1c). Bear Cub (power 2, blocking Grizzly Bears) assigns 2 damage to Grizzly Bears (CR 510.1d). Damage is simultaneous (CR 510.2). SBA 704.5g: Bear Cub has toughness 2 and receives 3 damage (≥ toughness) → lethal → destroyed. Grizzly Bears has toughness 3 and receives 2 damage (< toughness) → not lethal → survives."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "Grizzly Bears (3 power) kills Bear Cub (toughness 2). Bear Cub (2 power) marks 2 damage on Grizzly Bears (toughness 3, survives). p2 takes 0 damage (blocked attacker).",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Bear Cub has toughness 2 and received 3 damage from Grizzly Bears — lethal damage — destroyed",
+              "object": "Bear Cub",
+              "controller": "p2",
+              "result": "moved to p2 graveyard",
+              "cr_ref": "704.5g"
+            }
+          ],
+          "note": "CR 704.5g: Bear Cub (toughness 2) received 3 damage (≥ toughness) → lethal → destroyed and moved to p2 graveyard. Grizzly Bears (toughness 3) received 2 damage (< toughness) → NOT lethal → stays on battlefield."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both players pass priority after combat damage and SBAs. Stack empty → advance to EndOfCombat."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat: p2 at 40 life (no player damage — attacker was blocked), Bear Cub in graveyard, Grizzly Bears still on battlefield",
+          "assertions": {
+            "players.p2.life": 40,
+            "players.p1.life": 40,
+            "zones.graveyard.p2": { "includes": [{ "card": "Bear Cub" }] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Grizzly Bears" }] },
+            "zones.battlefield.p2": { "excludes": [{ "card": "Bear Cub" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1c: Grizzly Bears (blocked) assigned all 3 damage to the blocker, not to p2. p2 life remains 40. Bear Cub destroyed by SBA 704.5g. Grizzly Bears survives (2 damage marked, toughness 3 — non-lethal). Damage marked on Grizzly Bears resets at cleanup (CR 514.2)."
+        }
+      ]
+    }
+  ]
+}

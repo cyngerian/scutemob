@@ -814,6 +814,338 @@ fn test_protection_player_damage_prevented() {
     );
 }
 
+// ── SR-PRO-03: Multicolor source triggers protection when ANY color matches ────
+
+#[test]
+/// SR-PRO-03 / CR 702.16a — Protection from red is triggered by ANY red source,
+/// including multicolor sources. A source that shares even one color with the
+/// protection quality is blocked.
+///
+/// Scenario: target has protection from red. Source is a green/red multicolor spell.
+/// The source shares red with the protection quality → targeting is blocked.
+/// Source: CR 702.16a ("having that quality")
+fn test_protection_from_red_blocks_multicolor_red_source() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Target: creature with protection from red.
+    let target_spec = ObjectSpec::creature(p1, "White Knight Multicolor Test", 2, 2)
+        .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(
+            Color::Red,
+        )));
+
+    // Source: a multicolor (red+green) instant spell.
+    let multicolor_spec = ObjectSpec::card(p2, "Gruul Bolt")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            red: 1,
+            green: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Red, Color::Green])
+        .in_zone(ZoneId::Hand(p2));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(target_spec)
+        .object(multicolor_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 1);
+    state.turn.priority_holder = Some(p2);
+
+    let target_id = find_object(&state, "White Knight Multicolor Test");
+    let spell_id = find_object(&state, "Gruul Bolt");
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: spell_id,
+            targets: vec![Target::Object(target_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "SR-PRO-03 / CR 702.16a: a red+green multicolor spell should not target \
+         a creature with protection from red (source shares red)"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("protection"),
+        "Error should mention protection, got: {}",
+        err_msg
+    );
+}
+
+#[test]
+/// SR-PRO-03 / CR 702.16a — A pure-green spell targeting a creature with protection
+/// from red is NOT blocked (the source doesn't share the red quality).
+///
+/// Positive control for `test_protection_from_red_blocks_multicolor_red_source`.
+fn test_protection_from_red_allows_green_only_multicolor_source() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let target_spec = ObjectSpec::creature(p1, "White Knight Green Test", 2, 2)
+        .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(
+            Color::Red,
+        )));
+
+    let green_only_spec = ObjectSpec::card(p2, "Giant Growth")
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            green: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Green])
+        .in_zone(ZoneId::Hand(p2));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(target_spec)
+        .object(green_only_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Green, 1);
+    state.turn.priority_holder = Some(p2);
+
+    let target_id = find_object(&state, "White Knight Green Test");
+    let spell_id = find_object(&state, "Giant Growth");
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: spell_id,
+            targets: vec![Target::Object(target_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "SR-PRO-03: a green-only spell should be able to target a creature \
+         with protection from red (no shared color); got: {:?}",
+        result.err()
+    );
+}
+
+// ── SR-PRO-04: Subtype-based protection ───────────────────────────────────────
+
+#[test]
+/// SR-PRO-04 / CR 702.16b — Protection from a subtype (e.g. "Goblins") blocks targeting
+/// by sources that have that subtype.
+///
+/// A source with creature subtype Goblin cannot target a permanent with
+/// protection from Goblins (ProtectionQuality::FromSubType(SubType("Goblin"))).
+/// Source: CR 702.16b ("having that quality" — applies to any property)
+fn test_protection_from_subtype_goblin_blocks_goblin_source() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Target: creature with protection from Goblins.
+    let target_spec = ObjectSpec::creature(p1, "Goblin-Hater", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromSubType(SubType(
+            "Goblin".to_string(),
+        ))),
+    );
+
+    // Source: a Goblin instant (creature subtype = Goblin).
+    let goblin_spell_spec = ObjectSpec::card(p2, "Goblin Grenade")
+        .with_types(vec![CardType::Instant])
+        .with_subtypes(vec![SubType("Goblin".to_string())])
+        .with_mana_cost(ManaCost {
+            red: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Red])
+        .in_zone(ZoneId::Hand(p2));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(target_spec)
+        .object(goblin_spell_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p2);
+
+    let target_id = find_object(&state, "Goblin-Hater");
+    let spell_id = find_object(&state, "Goblin Grenade");
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: spell_id,
+            targets: vec![Target::Object(target_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "SR-PRO-04 / CR 702.16b: a Goblin-subtype spell should not target a \
+         creature with protection from Goblins"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("protection"),
+        "Error should mention protection, got: {}",
+        err_msg
+    );
+}
+
+#[test]
+/// SR-PRO-04 / CR 702.16b — A non-Goblin spell CAN target a creature with protection
+/// from Goblins (the source doesn't share the subtype quality).
+///
+/// Positive control: a Wizard instant has no Goblin subtype → targeting allowed.
+fn test_protection_from_subtype_goblin_allows_wizard_source() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Target: creature with protection from Goblins.
+    let target_spec = ObjectSpec::creature(p1, "Goblin-Hater Positive", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromSubType(SubType(
+            "Goblin".to_string(),
+        ))),
+    );
+
+    // Source: a Wizard instant (no Goblin subtype).
+    let wizard_spell_spec = ObjectSpec::card(p2, "Wizard Bolt")
+        .with_types(vec![CardType::Instant])
+        .with_subtypes(vec![SubType("Wizard".to_string())])
+        .with_mana_cost(ManaCost {
+            blue: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Blue])
+        .in_zone(ZoneId::Hand(p2));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(target_spec)
+        .object(wizard_spell_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state
+        .players
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Blue, 1);
+    state.turn.priority_holder = Some(p2);
+
+    let target_id = find_object(&state, "Goblin-Hater Positive");
+    let spell_id = find_object(&state, "Wizard Bolt");
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: spell_id,
+            targets: vec![Target::Object(target_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "SR-PRO-04: a Wizard-subtype (non-Goblin) spell should be able to target \
+         a creature with protection from Goblins; got: {:?}",
+        result.err()
+    );
+}
+
 #[test]
 /// CR 702.16e — Damage from a green source to a player with protection from red is NOT prevented.
 ///

@@ -2418,3 +2418,183 @@ fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
         "CR 702.7c: FSBlocker (1 toughness) should be dead after taking 3 regular damage"
     );
 }
+
+// ── SR-FS-03: First-strike attacker vs first-strike blocker ───────────────────
+
+#[test]
+/// SR-FS-03 / CR 702.7b — When both attacker AND blocker have first strike, both
+/// deal their damage simultaneously in the first-strike damage step. Neither
+/// creature appears in the regular combat damage step.
+///
+/// Scenario: p1 attacks with a 2/2 FirstStrike creature; p2 blocks with a 2/2
+/// FirstStrike creature. Both deal 2 damage simultaneously in the FS step
+/// (both die, since 2 damage ≥ toughness 2). No creature deals damage in the
+/// regular step.
+///
+/// CR 702.7b: "A creature with first strike deals combat damage before creatures
+/// without first strike." Since both have first strike, they deal simultaneously
+/// in the first-strike step.
+fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "FS Attacker", 2, 2)
+                .with_keyword(KeywordAbility::FirstStrike),
+        )
+        .object(
+            ObjectSpec::creature(p2, "FS Blocker", 2, 2)
+                .with_keyword(KeywordAbility::FirstStrike),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "FS Attacker")
+        .unwrap()
+        .id;
+    let blocker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "FS Blocker")
+        .unwrap()
+        .id;
+
+    // Declare attacker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    // Pass through DeclareAttackers → DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // p2 declares the FS Blocker as blocker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Pass through DeclareBlockers → FirstStrikeDamage step.
+    // Both creatures have first strike → both deal damage in this step.
+    let (state, fs_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::FirstStrikeDamage,
+        "SR-FS-03: should be in FirstStrikeDamage step"
+    );
+
+    // SR-FS-03: Both deal 2 damage simultaneously in the FS step.
+    // Both have 2 toughness → both die from 2 damage.
+    let deaths_in_fs_step = fs_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CreatureDied { .. }))
+        .count();
+    assert_eq!(
+        deaths_in_fs_step, 2,
+        "SR-FS-03 / CR 702.7b: both first-strike creatures should die in the \
+         first-strike step (simultaneous damage); got {}",
+        deaths_in_fs_step
+    );
+
+    // Verify total first-strike damage was 2+2=4 (each dealing 2 power).
+    let fs_damage_total: u32 = fs_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+    assert_eq!(
+        fs_damage_total, 4,
+        "SR-FS-03: total first-strike damage should be 4 (2 from each creature); got {}",
+        fs_damage_total
+    );
+
+    // Pass through FirstStrikeDamage → CombatDamage.
+    // Both creatures are now dead → neither deals regular damage.
+    let (state, regular_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::CombatDamage,
+        "SR-FS-03: should advance to CombatDamage step"
+    );
+
+    // SR-FS-03: No creature should deal regular damage (both are dead).
+    let regular_damage_total: u32 = regular_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+    assert_eq!(
+        regular_damage_total, 0,
+        "SR-FS-03 / CR 702.7b: neither first-strike creature should deal regular \
+         combat damage (both died in the first-strike step); got {}",
+        regular_damage_total
+    );
+
+    // Both creatures must be off the battlefield.
+    // Check using original ObjectIds (CR 400.7: zone change creates new object ID).
+    // After death, the original IDs are gone from state.objects.
+    let attacker_alive = state.objects.values().any(|o| o.id == attacker_id);
+    let blocker_alive = state.objects.values().any(|o| o.id == blocker_id);
+    assert!(
+        !attacker_alive,
+        "SR-FS-03: FS Attacker should have died in the first-strike step (original ID {} gone)",
+        attacker_id.0
+    );
+    assert!(
+        !blocker_alive,
+        "SR-FS-03: FS Blocker should have died in the first-strike step (original ID {} gone)",
+        blocker_id.0
+    );
+}
+
+// ── SR-FS-02: First strike gained mid-combat (documentation note) ─────────────
+//
+// SR-FS-02: A creature gaining first strike between the two combat damage steps.
+// CR 702.7c states that the first-strike snapshot is taken at the START of the
+// first-strike damage step. A creature that gains first strike AFTER that snapshot
+// is taken (i.e., between the two steps) would already have missed the FS step and
+// would participate in the regular step only.
+//
+// However, this scenario requires a mechanism to grant first strike mid-combat
+// (e.g., a spell cast at instant speed during the gap between damage steps, such
+// as "Giant Growth with First Strike" or an activated ability). In this engine,
+// there is currently no way to grant keywords mid-step via test commands without
+// an activated ability or instant spell infrastructure.
+//
+// The snapshot-exclusion logic IS tested by `test_702_7b_first_strike_snapshot_*`
+// tests which verify that:
+// (a) creatures in the snapshot don't deal regular damage, and
+// (b) creatures NOT in the snapshot DO deal regular damage.
+//
+// SR-FS-02 is therefore deferred: the underlying mechanism (snapshot-based exclusion)
+// is validated, but the specific mid-combat-grant scenario requires additional
+// infrastructure (instant-speed keyword grants mid-step). Will be tested when such
+// a card definition (e.g., a flash creature with "until end of turn, target creature
+// gains first strike") is authored. Issue SR-FS-02 remains deferred.
