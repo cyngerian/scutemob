@@ -2352,12 +2352,9 @@ fn execute_effect_inner(
                     std::collections::HashMap::new();
                 // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
-                    if obj.controller == ctx.controller
-                        && matches!(obj.zone, ZoneId::Battlefield)
-                    {
-                        let chars =
-                            crate::rules::layers::calculate_characteristics(state, obj.id)
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                    if obj.controller == ctx.controller && matches!(obj.zone, ZoneId::Battlefield) {
+                        let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
                         if chars.card_types.contains(&CardType::Creature) {
                             for st in &chars.subtypes {
                                 *type_counts.entry(st.clone()).or_insert(0usize) += 1;
@@ -3707,9 +3704,8 @@ fn resolve_effect_target_list_indexed(
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && {
-                        let chars =
-                            crate::rules::layers::calculate_characteristics(state, **id)
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                        let chars = crate::rules::layers::calculate_characteristics(state, **id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
                         matches_filter(&chars, filter)
                     }
                     && match filter.controller {
@@ -4116,11 +4112,10 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                             .as_ref()
                             .map(|f| {
                                 if zone_id == ZoneId::Battlefield {
-                                    let chars =
-                                        crate::rules::layers::calculate_characteristics(
-                                            state, obj.id,
-                                        )
-                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                    let chars = crate::rules::layers::calculate_characteristics(
+                                        state, obj.id,
+                                    )
+                                    .unwrap_or_else(|| obj.characteristics.clone());
                                     matches_filter(&chars, f)
                                 } else {
                                     matches_filter(&obj.characteristics, f)
@@ -4745,9 +4740,8 @@ pub(crate) fn check_condition(
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars =
-                        crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                     matches_filter(&chars, filter)
                 }
         }),
@@ -4756,9 +4750,8 @@ pub(crate) fn check_condition(
                 && obj.is_phased_in()
                 && obj.controller != ctx.controller
                 && {
-                    let chars =
-                        crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                     matches_filter(&chars, filter)
                 }
         }),
@@ -4852,9 +4845,8 @@ pub(crate) fn check_condition(
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars =
-                        crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                     chars.card_types.contains(&CardType::Land)
                         && subtypes.iter().any(|st| chars.subtypes.contains(st))
                 }
@@ -4966,9 +4958,8 @@ pub(crate) fn check_condition(
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars =
-                        crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                     chars.card_types.contains(&CardType::Creature)
                         && chars.supertypes.contains(&SuperType::Legendary)
                 }
@@ -4979,9 +4970,8 @@ pub(crate) fn check_condition(
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars =
-                        crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                     chars.card_types.contains(&CardType::Creature)
                         && chars.subtypes.contains(subtype)
                 }

@@ -829,10 +829,9 @@ fn test_protection_from_red_blocks_multicolor_red_source() {
     let p2 = PlayerId(2);
 
     // Target: creature with protection from red.
-    let target_spec = ObjectSpec::creature(p1, "White Knight Multicolor Test", 2, 2)
-        .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(
-            Color::Red,
-        )));
+    let target_spec = ObjectSpec::creature(p1, "White Knight Multicolor Test", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+    );
 
     // Source: a multicolor (red+green) instant spell.
     let multicolor_spec = ObjectSpec::card(p2, "Gruul Bolt")
@@ -916,10 +915,9 @@ fn test_protection_from_red_allows_green_only_multicolor_source() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
 
-    let target_spec = ObjectSpec::creature(p1, "White Knight Green Test", 2, 2)
-        .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(
-            Color::Red,
-        )));
+    let target_spec = ObjectSpec::creature(p1, "White Knight Green Test", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+    );
 
     let green_only_spec = ObjectSpec::card(p2, "Giant Growth")
         .with_types(vec![CardType::Instant])

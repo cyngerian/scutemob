@@ -1258,19 +1258,13 @@ pub fn queue_carddef_etb_triggers(
                 ..
             } => {
                 // CR 603.4: Check intervening-if condition at trigger time.
-                // CR 207.2c (Corrupted): "if an opponent has N or more poison counters."
+                // Delegate to the shared check_condition function in effects/mod.rs,
+                // which handles all Condition variants correctly (MR-B12-07/08 fix:
+                // eliminates the inline duplicate that only handled OpponentHasPoisonCounters
+                // and silently passed all other Condition variants via `_ => true`).
                 if let Some(cond) = intervening_if {
-                    use crate::cards::card_definition::Condition;
-                    let condition_met = match cond {
-                        Condition::OpponentHasPoisonCounters(n) => {
-                            state.players.iter().any(|(pid, ps)| {
-                                *pid != controller && !ps.has_lost && ps.poison_counters >= *n
-                            })
-                        }
-                        // Other conditions: treat as satisfied at trigger time (safe default).
-                        _ => true,
-                    };
-                    if !condition_met {
+                    let ctx = crate::effects::EffectContext::new(controller, new_id, vec![]);
+                    if !crate::effects::check_condition(state, cond, &ctx) {
                         continue;
                     }
                 }
@@ -1594,9 +1588,8 @@ fn emit_etb_modification(
                     if obj.controller == controller
                         && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
                     {
-                        let chars =
-                            crate::rules::layers::calculate_characteristics(state, obj.id)
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                        let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
                         if chars
                             .card_types
                             .contains(&crate::state::types::CardType::Creature)
