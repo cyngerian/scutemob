@@ -15,7 +15,7 @@
 | W3: LOW Remediation | T3 + W3-LC layer correctness audit | paused | — | **W3-LC S2 DONE** (7 HIGH sites fixed + 8 Humility tests). S3 next: fix MEDIUM sites. See `memory/w3-layer-audit.md` |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-21: Fight & Bite | ACTIVE | 2026-03-19 | **ALL PBs DONE!** Phase 2 card authoring next |
+| W6: Primitive + Card Authoring | — | available | — | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2 card authoring next |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -34,13 +34,12 @@
   - Review: 3M 3L — 2M + 2L fixed (layer-resolved creature check, MDFC back face, 2 missing tests); 1M + 1L deferred (DSL gaps: optional targeting, "another" filter)
   - 14 new tests, 2206 total
 - Commits: ba7bf39 (implement), 16be5df (review fixes)
-- Feature branch: w6-pb21-fight-bite (pending merge to main)
+- Feature branch: w6-pb21-fight-bite (merged to main)
 - **ALL 22 PRIMITIVE BATCHES COMPLETE** (PB-0 through PB-21)
 
 **Next**:
-1. Merge w6-pb21-fight-bite to main
-2. Phase 2: Author ~1,025 remaining cards (bulk authoring sessions)
-3. Phase 3: Final audit — zero TODOs, zero wrong game state
+1. Phase 2: Author ~1,025 remaining cards (bulk authoring sessions)
+2. Phase 3: Final audit — zero TODOs, zero wrong game state
 
 **Hazards**:
 - None known
@@ -76,8 +75,4 @@
 ### 2026-03-18 — W6: PB-15 review
 - PB-15 retroactive review (17/20): Saga & Class, 2 cards — 1H 1M fixed; 2M 1L deferred (DSL gaps)
 - Commit: 013fddb
-
-### 2026-03-18 — W6: PB-14 review
-- PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — 1H fixed; 1M 2L deferred
-- Commit: b776522
 
