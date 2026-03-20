@@ -12,10 +12,10 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
-- **Status**: 2223 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; ~79 LOW deferred
+- **Status**: 2229 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~35 LOW open** (was 83; 48 closed by W3 LOW sprint S1-S4)
 - **Active Plan**: **W6 Primitive + Card Authoring** — `docs/primitive-card-plan.md` (21 primitive batches PB-0 to PB-21, then bulk authoring, then final audit). W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs. DSL gap audit: `memory/card-authoring/dsl-gap-audit.md`
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-20 (W3 T3 ManaPool::spend() encapsulation DONE — MR-M1-15 + MR-M1-07; 2223 tests)
+- **Last Updated**: 2026-03-20 (W3 LOW sprint S1-S4 DONE — 48 LOWs closed: stale docs, dead code, test gaps, perf, schema, StackObject boilerplate; 2229 tests)
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 453 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior), CardRegistry

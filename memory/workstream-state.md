@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | LOW cleanup S1: doc comments + dead code + clippy | ACTIVE | 2026-03-20 | Clearing all ~83 open LOWs before W6 card push |
+| W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S4): 48 LOWs closed (83→35 open). 2229 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2 card authoring next |
