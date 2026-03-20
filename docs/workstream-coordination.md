@@ -314,7 +314,7 @@ Track progress across sessions by checking these off:
 - [ ] W3 T3: ManaPool::spend() encapsulated
 - [x] W3-LC S1: Layer correctness audit — classify 69 base-characteristic reads (see `memory/w3-layer-audit.md`)
 - [x] W3-LC S2: Fix HIGH sites (effects/mod.rs, abilities.rs, mana.rs) + 8 Humility/animation interaction tests
-- [ ] W3-LC S3: Fix MEDIUM sites (effects/mod.rs, replacement.rs, sba.rs)
+- [x] W3-LC S3: Fix MEDIUM sites (abilities.rs, resolution.rs, casting.rs, engine.rs) — 19 sites + 2 review fixes
 - [ ] W3-LC S4: Fix LOW sites + regression test
 - [ ] Committed (T3 + LC pending)
 

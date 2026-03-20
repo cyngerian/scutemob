@@ -1792,7 +1792,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
                                 && obj.controller == controller
-                                && obj.characteristics.card_types.contains(&CardType::Creature)
+                                // CR 613.1d: Use layer-resolved types (animated permanents).
+                                && crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone())
+                                    .card_types
+                                    .contains(&CardType::Creature)
                         })
                         .map(|obj| obj.id)
                 } else {
@@ -1935,8 +1939,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let obj = state.objects.get(&source_object);
                 if let Some(obj) = obj {
                     if !is_carddef_etb {
+                        // CR 613.1f: Use layer-resolved triggered_abilities to match
+                        // the namespace used by collect_triggers_for_event (S2 fix).
+                        let resolved =
+                            crate::rules::layers::calculate_characteristics(state, source_object)
+                                .unwrap_or_else(|| obj.characteristics.clone());
                         if let Some(_ab) =
-                            obj.characteristics.triggered_abilities.get(ability_index)
+                            resolved.triggered_abilities.get(ability_index)
                         {
                             // Characteristics path — intervening_if handled below via original code.
                             (
@@ -2064,8 +2073,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     let source_obj = state.objects.get(&source_object);
                     match source_obj {
                         Some(obj) => {
+                            // CR 613.1f: Use layer-resolved triggered_abilities
+                            // to match collect_triggers_for_event namespace.
+                            let resolved =
+                                crate::rules::layers::calculate_characteristics(
+                                    state, source_object,
+                                )
+                                .unwrap_or_else(|| obj.characteristics.clone());
                             let ability_def =
-                                obj.characteristics.triggered_abilities.get(ability_index);
+                                resolved.triggered_abilities.get(ability_index);
                             match ability_def {
                                 Some(def) => def
                                     .intervening_if
@@ -2092,11 +2108,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
                 // CR 608.3b: Execute effect if condition holds.
                 if condition_holds {
+                    // CR 613.1f: Use layer-resolved triggered_abilities to match
+                    // collect_triggers_for_event namespace.
                     let triggered_effect = state
                         .objects
                         .get(&source_object)
-                        .and_then(|obj| obj.characteristics.triggered_abilities.get(ability_index))
-                        .and_then(|ab| ab.effect.clone());
+                        .and_then(|obj| {
+                            let resolved =
+                                crate::rules::layers::calculate_characteristics(state, source_object)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            resolved.triggered_abilities.get(ability_index).and_then(|ab| ab.effect.clone())
+                        });
 
                     if let Some(effect) = triggered_effect {
                         let mut ctx = EffectContext::new(
@@ -3656,10 +3678,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // on the battlefield. If it is not, the trigger fizzles with no effect.
             let target_id_opt = stack_obj.targets.first().and_then(|t| match &t.target {
                 Target::Object(id) => {
+                    // CR 613.1d: Use layer-resolved types for artifact creature check.
                     let still_legal = state.objects.get(id).is_some_and(|obj| {
-                        obj.zone == ZoneId::Battlefield
-                            && obj.characteristics.card_types.contains(&CardType::Artifact)
-                            && obj.characteristics.card_types.contains(&CardType::Creature)
+                        obj.zone == ZoneId::Battlefield && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, *id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            chars.card_types.contains(&CardType::Artifact)
+                                && chars.card_types.contains(&CardType::Creature)
+                        }
                     });
                     if still_legal {
                         Some(*id)
@@ -5151,12 +5178,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
             // CR 608.2b: Check target legality at resolution.
             // The target must still be on the battlefield as a creature AND still attacking.
+            // CR 613.1d: Use layer-resolved types for creature check (animated permanents).
             let is_on_battlefield = state
                 .objects
                 .get(&target_creature)
                 .map(|o| {
                     matches!(o.zone, crate::state::zone::ZoneId::Battlefield)
-                        && o.characteristics.card_types.contains(&CardType::Creature)
+                        && crate::rules::layers::calculate_characteristics(state, target_creature)
+                            .unwrap_or_else(|| o.characteristics.clone())
+                            .card_types
+                            .contains(&CardType::Creature)
                 })
                 .unwrap_or(false);
             let is_attacking = state

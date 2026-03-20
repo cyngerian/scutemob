@@ -80,12 +80,20 @@ call site and pass the resolved version.
 - 8 new tests in `crates/engine/tests/layer_correctness.rs` (Humility, animation, Fervor, anthem interactions)
 - 2183 tests passing, 0 clippy warnings
 
-### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs (14+ sites)
-- `abilities.rs:222,246,706,3444-3446,4311,4323,6376,6542-6543`
-- `resolution.rs:1795,1939,2068,2098,3661-3662,5159` (1939/2068/2098 added: ability_index namespace alignment from S2 review — see `memory/primitives/w3-lc-s2-review.md` Finding 1)
-- `casting.rs:5182`
-- `engine.rs:2262`
-- Tests for each fixed path
+### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs + casting.rs + engine.rs (17 sites) — COMPLETE
+- `abilities.rs:222,246` — activated ability access uses layer-resolved (Humility removes activated abilities)
+- `abilities.rs:706→722` — hexproof/shroud/protection target check uses layer-resolved keywords
+- `abilities.rs:3444-3466` — Soulbond pairing uses layer-resolved types + keywords (replaced partial OR fallback)
+- `abilities.rs:4311,4323` — Flanking attacker/blocker checks use layer-resolved keywords
+- `abilities.rs:6376→6403` — hexproof/shroud/protection target check reordered to use pre-computed layer chars
+- `abilities.rs:6542→6571-6572` — Modular artifact creature target uses layer-resolved types
+- `resolution.rs:1795` — Cipher creature attachment uses layer-resolved types
+- `resolution.rs:1939,2077,2114` — triggered ability resolution uses layer-resolved triggered_abilities (namespace alignment with collect_triggers_for_event)
+- `resolution.rs:3683-3684` — Modular target resolution uses layer-resolved types
+- `resolution.rs:5181` — Ninjutsu creature target uses layer-resolved types
+- `casting.rs:5182` — hexproof/protection targeting uses layer-resolved keywords
+- `engine.rs:2262` — ring-bearer creature selection uses layer-resolved types
+- 2183 tests passing, 0 clippy warnings
 
 ### Session 4: Fix MEDIUM sites — effects/mod.rs (22+ sites)
 - Condition block (4489-4643)
