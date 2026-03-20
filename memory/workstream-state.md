@@ -15,7 +15,7 @@
 | W3: LOW Remediation | T3 + W3-LC layer correctness audit | paused | — | **W3-LC S2 DONE** (7 HIGH sites fixed + 8 Humility tests). S3 next: fix MEDIUM sites. See `memory/w3-layer-audit.md` |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-20: Additional Combat Phases | ACTIVE | 2026-03-19 | Feature branch: w6-pb20-additional-combat-phases |
+| W6: Primitive + Card Authoring | — | available | — | PB-20 DONE. Next: PB-21 Fight & Bite (last PB!) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -80,10 +80,3 @@
 - PB-14 retroactive review (16/20): Planeswalker support + emblems, 31 cards — 1H fixed; 1M 2L deferred
 - Commit: b776522
 
-### 2026-03-18 — W6: PB-13 review
-- PB-13 retroactive review (15/20): Specialized mechanics, 19 cards — 2H 5M fixed; 9M 1L deferred
-- Commit: 9001176
-
-### 2026-03-18 — W6: PB-12 review
-- PB-12 retroactive review (14/20): Complex replacement effects, 11 cards — 2H 4M fixed; 2M deferred
-- Commit: 6ba09f1
