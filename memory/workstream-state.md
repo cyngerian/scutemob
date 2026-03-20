@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | T3: ManaPool::spend() encapsulation | ACTIVE | 2026-03-20 | **W3-LC COMPLETE** (S1-S6, 46 bugs fixed). T3 ManaPool next (last W3 item) |
+| W3: LOW Remediation | — | available | — | **W3 T3 DONE** — ManaPool::spend() encapsulated. W3-LC S1-S6 done. All W3 items complete. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2 card authoring next |
@@ -23,30 +23,37 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-19
-**Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-21: Fight & Bite (full pipeline: plan → implement → review → fix → close) — LAST PRIMITIVE BATCH
+**Date**: 2026-03-20
+**Workstream**: W3: LOW Remediation
+**Task**: T3: ManaPool::spend() encapsulation (MR-M1-15 + MR-M1-07)
 
 **Completed**:
-- PB-21 complete: Effect::Fight + Effect::Bite with layer-resolved creature validation (CR 701.14)
-  - Engine: Effect::Fight { attacker, defender }, Effect::Bite { source, target }, deal_creature_power_damage() helper, is_creature_on_battlefield() (layer-resolved), get_creature_power() helpers in effects/mod.rs; hash discriminants 58-59
-  - 4 card defs fixed: brash_taunter (fight activated ability), bridgeworks_battle (pump + fight + MDFC back face), ram_through (bite spell), frontier_siege (TODO updated)
-  - Review: 3M 3L — 2M + 2L fixed (layer-resolved creature check, MDFC back face, 2 missing tests); 1M + 1L deferred (DSL gaps: optional targeting, "another" filter)
-  - 14 new tests, 2206 total
-- Commits: ba7bf39 (implement), 16be5df (review fixes)
-- Feature branch: w6-pb21-fight-bite (merged to main)
-- **ALL 22 PRIMITIVE BATCHES COMPLETE** (PB-0 through PB-21)
+- Added `ManaPool::can_spend()`, `ManaPool::spend()`, `ManaPool::get()` methods to `state/player.rs`
+- Reduced `casting.rs` free functions (`can_pay_cost`, `pay_cost`, etc.) to thin 1-line wrappers
+- Migrated 2 call sites in `engine.rs` and `abilities.rs` to use methods directly
+- 17 new unit tests in `tests/mana_pool.rs` (colored, generic, colorless-specific, restricted mana CR 106.12, spend order)
+- No raw field manipulation of mana pool remains in engine source
+- 2223 tests, 0 clippy warnings
+- Commit: 0b5af81
+- Also committed housekeeping: stale session plan cleanup (54ddab1)
 
 **Next**:
-1. Phase 2: Author ~1,025 remaining cards (bulk authoring sessions)
-2. Phase 3: Final audit — zero TODOs, zero wrong game state
+1. W3 is effectively complete — T1, T2, T3, W3-LC all done
+2. Update `docs/workstream-coordination.md` Phase 3 checkboxes (T3 + commit)
+3. Top priority: W6 Phase 2 card authoring (~1,025 remaining cards)
 
 **Hazards**:
-- None known
+- ~30 remaining call sites still use `casting::can_pay_cost`/`casting::pay_cost` wrappers — functional but could be migrated to direct method calls opportunistically
+- `docs/workstream-coordination.md` Phase 3 checkbox for T3 not yet checked off
 
-**Commit prefix used**: `W6-prim:`
+**Commit prefix used**: `W3:`
 
 ## Handoff History
+
+### 2026-03-19 — W6: PB-21 Fight & Bite
+- PB-21 complete: Effect::Fight + Effect::Bite, 4 card defs fixed, 14 new tests, 2206 total
+- ALL 22 PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)
+- Next: Phase 2 card authoring (~1,025 remaining cards)
 
 ### 2026-03-19 — Exploratory: Rules audit + W3-LC plan
 - Audited 4 abilities (Devoid, Flanking, Fabricate, Suspend) against CR rules
@@ -72,7 +79,4 @@
 - PB-16 retroactive review (18/20): Meld, 1 card — 1H 1M 1L fixed; 2M deferred (DSL gap)
 - Commit: 6fce74c
 
-### 2026-03-18 — W6: PB-15 review
-- PB-15 retroactive review (17/20): Saga & Class, 2 cards — 1H 1M fixed; 2M 1L deferred (DSL gaps)
-- Commit: 013fddb
 
