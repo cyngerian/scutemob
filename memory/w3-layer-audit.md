@@ -95,12 +95,17 @@ call site and pass the resolved version.
 - `engine.rs:2262` — ring-bearer creature selection uses layer-resolved types
 - 2183 tests passing, 0 clippy warnings
 
-### Session 4: Fix MEDIUM sites — effects/mod.rs (22+ sites)
-- Condition block (4489-4643)
-- Destroy/damage/sacrifice type capture (268, 673, 855, 2115, 3536)
-- ChooseCreatureType (2304-2306)
-- matches_filter callers
-- Tests for each fixed path
+### Session 4: Fix MEDIUM sites — effects/mod.rs (22 sites) — COMPLETE
+- DealDamage type capture (268) — layer-resolved Planeswalker/Creature check
+- DestroyTarget type capture (673, 855) — layer-resolved pre-zone-move types
+- SacrificeAll type capture (2115) — layer-resolved pre-zone-move types
+- ChooseCreatureType (2321-2323) — layer-resolved types + subtypes
+- AllCreatures filter (3558) — layer-resolved creature check
+- matches_filter callers — DestroyAll, ExileAll, AllPermanentsMatching, PermanentCount, YouControlPermanent, OpponentControlsPermanent, EachPermanentMatching (7 sites)
+- CardCount zone-conditional (3851) — battlefield uses layer-resolved, other zones use base
+- ForEach creature targets — EachCreature, EachCreatureYouControl, EachOpponentsCreature (3 sites)
+- Condition block — ControlLandWithSubtypes, ControlAtMostNOtherLands, ControlBasicLandsAtLeast, ControlAtLeastNOtherLands, ControlAtLeastNOtherLandsWithSubtype, ControlLegendaryCreature, ControlCreatureWithSubtype (7 sites)
+- 2183 tests passing, 0 clippy warnings
 
 ### Session 5: Fix MEDIUM sites — replacement.rs + sba.rs (7 sites)
 - `replacement.rs:419,424,1590-1595`
