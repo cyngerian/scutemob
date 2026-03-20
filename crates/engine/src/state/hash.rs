@@ -1738,6 +1738,8 @@ impl HashInto for PendingTrigger {
         // CR 702.99a: cipher-specific fields
         self.cipher_encoded_card_id.hash_into(hasher);
         self.cipher_encoded_object_id.hash_into(hasher);
+        // Structured trigger data (TC-21 migration)
+        self.data.hash_into(hasher);
     }
 }
 
