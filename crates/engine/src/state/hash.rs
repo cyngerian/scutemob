@@ -3856,6 +3856,8 @@ impl HashInto for ForEachTarget {
             ForEachTarget::EachOtherAttackingCreature => 7u8.hash_into(hasher),
             // CR 500.8: EachAttackingCreature (discriminant 8)
             ForEachTarget::EachAttackingCreature => 8u8.hash_into(hasher),
+            // CR 702.61a: All creatures the controller controls except the source (discriminant 9)
+            ForEachTarget::EachOtherCreatureYouControl => 9u8.hash_into(hasher),
         }
     }
 }

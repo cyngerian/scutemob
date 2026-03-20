@@ -4742,5 +4742,19 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                 vec![]
             }
         }
+        // CR 702.61a: All creatures the controller controls, excluding the source.
+        // Used by Combat Celebrant: "untap all other creatures you control."
+        ForEachTarget::EachOtherCreatureYouControl => state
+            .objects
+            .iter()
+            .filter(|(&id, obj)| {
+                id != ctx.source
+                    && obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
+                    && obj.controller == ctx.controller
+                    && obj.characteristics.card_types.contains(&CardType::Creature)
+            })
+            .map(|(&id, _)| id)
+            .collect(),
     }
 }

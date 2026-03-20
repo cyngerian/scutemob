@@ -29,9 +29,9 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenAttacks,
                 intervening_if: Some(Condition::IsFirstCombatPhase),
                 effect: Effect::Sequence(vec![
-                    // Untap all other creatures you control.
+                    // Untap all other creatures you control (excludes Combat Celebrant itself).
                     Effect::ForEach {
-                        over: ForEachTarget::EachCreatureYouControl,
+                        over: ForEachTarget::EachOtherCreatureYouControl,
                         effect: Box::new(Effect::UntapPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                         }),

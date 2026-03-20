@@ -70,6 +70,8 @@ pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
                 }
                 Phase::PostCombatMain => {
                     // Insert an extra main phase (from followed_by_main effects).
+                    // CR 500.8: Clear in_extra_combat -- main phases are not combat phases.
+                    turn.in_extra_combat = false;
                     Step::PostCombatMain
                 }
                 _ => {

@@ -4,7 +4,7 @@ batch: PB-20
 title: Additional Combat Phases
 cards_affected: 10
 started: 2026-03-19
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-20.md
 
 ## Deferred from Prior PBs
@@ -45,3 +45,31 @@ none
   - cargo clippy -- -D warnings: 0 warnings
   - cargo build --workspace: clean
   - cargo fmt --check: clean
+
+## Review
+findings: 4 (HIGH: 0, MEDIUM: 1, LOW: 3)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-20.md
+
+## Fix Phase
+phase: complete
+fixed: 2026-03-19
+
+### Finding 2 (MEDIUM) -- combat_celebrant.rs untaps self
+- Added `ForEachTarget::EachOtherCreatureYouControl` variant to `cards/card_definition.rs`
+  (after `EachAttackingCreature`).
+- Added hash discriminant `9u8` in `state/hash.rs` `HashInto for ForEachTarget`.
+- Added `collect_for_each` arm in `effects/mod.rs`: filters `id != ctx.source`, same
+  controller, creature type, phased in.
+- Updated `cards/defs/combat_celebrant.rs` line 34: `EachCreatureYouControl` →
+  `EachOtherCreatureYouControl`.
+
+### Finding 1 (LOW) -- stale `in_extra_combat` during extra PostCombatMain
+- Added `turn.in_extra_combat = false;` before `Step::PostCombatMain` return in the
+  `Phase::PostCombatMain` arm of the `EndOfCombat` branch in `rules/turn_structure.rs`.
+
+### Verification
+- cargo build --workspace: clean
+- cargo clippy -- -D warnings: 0 warnings
+- cargo test --all: 2184 tests passing (0 failed)
+- cargo fmt --check: clean (no fmt changes needed)

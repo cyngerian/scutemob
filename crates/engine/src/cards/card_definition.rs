@@ -2229,6 +2229,12 @@ pub enum ForEachTarget {
     ///
     /// Used by 'untap all attacking creatures' effects (Karlach, Hellkite Charger).
     EachAttackingCreature,
+    /// Every creature the controller controls, excluding the source of the effect.
+    ///
+    /// Used by Combat Celebrant (CR 702.61a): "untap all other creatures you control."
+    /// Queries the battlefield for creatures with `obj.controller == ctx.controller`
+    /// and excludes `ctx.source`.
+    EachOtherCreatureYouControl,
 }
 
 // ── Timing Restriction ────────────────────────────────────────────────────────
