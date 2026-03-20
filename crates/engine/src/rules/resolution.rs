@@ -4361,6 +4361,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 702.156a: "draw a card" — controller of the Ravenous permanent.
                 // draw_card returns Ok(events) on success; if the library is empty,
                 // it returns Ok(vec![GameEvent::PlayerLost { ... }]).
+                // MR-B12-09: The Err case is intentionally discarded here. Attempting
+                // to draw from an empty library is NOT an immediate game loss inline —
+                // it is handled as a State-Based Action (CR 121.3, CR 704.5b): the
+                // next SBA check after this trigger resolves will detect the empty
+                // library and emit the PlayerLost event. Dropping the Err is correct.
                 if let Ok(drawn_events) = crate::rules::turn_actions::draw_card(state, controller) {
                     events.extend(drawn_events);
                 }
