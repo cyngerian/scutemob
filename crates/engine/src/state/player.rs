@@ -127,6 +127,140 @@ impl ManaPool {
         spent
     }
 
+    /// Get the unrestricted amount of a specific color.
+    pub fn get(&self, color: ManaColor) -> u32 {
+        match color {
+            ManaColor::White => self.white,
+            ManaColor::Blue => self.blue,
+            ManaColor::Black => self.black,
+            ManaColor::Red => self.red,
+            ManaColor::Green => self.green,
+            ManaColor::Colorless => self.colorless,
+        }
+    }
+
+    /// Deduct unrestricted mana of a specific color.
+    fn deduct(&mut self, color: ManaColor, amount: u32) {
+        match color {
+            ManaColor::White => self.white -= amount,
+            ManaColor::Blue => self.blue -= amount,
+            ManaColor::Black => self.black -= amount,
+            ManaColor::Red => self.red -= amount,
+            ManaColor::Green => self.green -= amount,
+            ManaColor::Colorless => self.colorless -= amount,
+        }
+    }
+
+    /// Check if the pool has enough mana to pay a cost (CR 118.3).
+    ///
+    /// When a `SpellContext` is provided, restricted mana matching the spell
+    /// is included in the available total (CR 106.12).
+    pub fn can_spend(
+        &self,
+        cost: &crate::state::game_object::ManaCost,
+        spell: Option<&SpellContext>,
+    ) -> bool {
+        let available = |color: ManaColor| -> u32 {
+            self.get(color) + spell.map_or(0, |s| self.restricted_available(color, s))
+        };
+
+        let colors = [
+            (ManaColor::White, cost.white),
+            (ManaColor::Blue, cost.blue),
+            (ManaColor::Black, cost.black),
+            (ManaColor::Red, cost.red),
+            (ManaColor::Green, cost.green),
+            (ManaColor::Colorless, cost.colorless),
+        ];
+
+        for &(color, required) in &colors {
+            if available(color) < required {
+                return false;
+            }
+        }
+
+        // Remaining mana after paying colored and colorless requirements.
+        let remaining: u32 = colors
+            .iter()
+            .map(|&(color, required)| available(color) - required)
+            .sum();
+
+        remaining >= cost.generic
+    }
+
+    /// Deduct a mana cost from the pool (CR 118.3). Caller must verify
+    /// `can_spend` first.
+    ///
+    /// When a `SpellContext` is provided, restricted mana matching the spell
+    /// is spent first (CR 106.12), then unrestricted mana fills the remainder.
+    ///
+    /// For generic mana, remaining mana is taken in order: colorless, green,
+    /// red, black, blue, white. The specific order doesn't affect correctness
+    /// since generic can use any color.
+    pub fn spend(
+        &mut self,
+        cost: &crate::state::game_object::ManaCost,
+        spell: Option<&SpellContext>,
+    ) {
+        // Spend a required amount of a color, using restricted mana first.
+        let spend_color = |pool: &mut ManaPool, color: ManaColor, required: u32| {
+            let mut remaining = required;
+            if let Some(s) = spell {
+                let spent = pool.spend_restricted(color, remaining, s);
+                remaining -= spent;
+            }
+            if remaining > 0 {
+                pool.deduct(color, remaining);
+            }
+        };
+
+        spend_color(self, ManaColor::White, cost.white);
+        spend_color(self, ManaColor::Blue, cost.blue);
+        spend_color(self, ManaColor::Black, cost.black);
+        spend_color(self, ManaColor::Red, cost.red);
+        spend_color(self, ManaColor::Green, cost.green);
+        spend_color(self, ManaColor::Colorless, cost.colorless);
+
+        // Pay generic cost from remaining mana (restricted first, then unrestricted).
+        let mut remaining = cost.generic;
+
+        // Try restricted mana first for generic
+        if let Some(s) = spell {
+            for color in [
+                ManaColor::Colorless,
+                ManaColor::Green,
+                ManaColor::Red,
+                ManaColor::Black,
+                ManaColor::Blue,
+                ManaColor::White,
+            ] {
+                if remaining == 0 {
+                    break;
+                }
+                let spent = self.spend_restricted(color, remaining, s);
+                remaining -= spent;
+            }
+        }
+
+        // Then unrestricted
+        for color in [
+            ManaColor::Colorless,
+            ManaColor::Green,
+            ManaColor::Red,
+            ManaColor::Black,
+            ManaColor::Blue,
+            ManaColor::White,
+        ] {
+            let avail = self.get(color);
+            let take = remaining.min(avail);
+            self.deduct(color, take);
+            remaining -= take;
+            if remaining == 0 {
+                break;
+            }
+        }
+    }
+
     pub fn empty(&mut self) {
         *self = ManaPool::default();
     }

@@ -463,10 +463,10 @@ pub fn handle_activate_ability(
     if let Some(ref mana_cost) = ability_cost.mana_cost {
         if mana_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
-            if !casting::can_pay_cost(&player_state.mana_pool, mana_cost) {
+            if !player_state.mana_pool.can_spend(mana_cost, None) {
                 return Err(GameStateError::InsufficientMana);
             }
-            casting::pay_cost(&mut player_state.mana_pool, mana_cost);
+            player_state.mana_pool.spend(mana_cost, None);
             events.push(GameEvent::ManaCostPaid {
                 player,
                 cost: mana_cost.clone(),

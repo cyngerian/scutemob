@@ -5477,7 +5477,7 @@ pub fn can_pay_cost(
     pool: &crate::state::player::ManaPool,
     cost: &crate::state::game_object::ManaCost,
 ) -> bool {
-    can_pay_cost_with_context(pool, cost, None)
+    pool.can_spend(cost, None)
 }
 
 /// Check if the pool has enough mana to pay a cost, including restricted mana
@@ -5487,35 +5487,7 @@ pub fn can_pay_cost_with_context(
     cost: &crate::state::game_object::ManaCost,
     spell: Option<&crate::state::player::SpellContext>,
 ) -> bool {
-    use crate::state::types::ManaColor;
-
-    // Helper: available mana of a color = unrestricted + matching restricted
-    let available = |color: ManaColor, unrestricted: u32| -> u32 {
-        unrestricted + spell.map_or(0, |s| pool.restricted_available(color, s))
-    };
-
-    let colors = [
-        (ManaColor::White, pool.white, cost.white),
-        (ManaColor::Blue, pool.blue, cost.blue),
-        (ManaColor::Black, pool.black, cost.black),
-        (ManaColor::Red, pool.red, cost.red),
-        (ManaColor::Green, pool.green, cost.green),
-        (ManaColor::Colorless, pool.colorless, cost.colorless),
-    ];
-
-    for &(color, unrestricted, required) in &colors {
-        if available(color, unrestricted) < required {
-            return false;
-        }
-    }
-
-    // Remaining mana after paying colored and colorless requirements.
-    let remaining: u32 = colors
-        .iter()
-        .map(|&(color, unrestricted, required)| available(color, unrestricted) - required)
-        .sum();
-
-    remaining >= cost.generic
+    pool.can_spend(cost, spell)
 }
 
 /// CR 702.61a: Check if any spell on the stack has split second.
@@ -5638,94 +5610,20 @@ pub fn has_split_second_on_stack(state: &GameState) -> bool {
 }
 
 /// Deduct a mana cost from the mana pool. Caller must verify `can_pay_cost` first.
-///
-/// For generic mana, mana is taken from remaining colored/colorless in order:
-/// colorless, then green, red, black, blue, white. The specific order doesn't
-/// affect correctness since generic can use any color.
 pub fn pay_cost(
     pool: &mut crate::state::player::ManaPool,
     cost: &crate::state::game_object::ManaCost,
 ) {
-    pay_cost_with_context(pool, cost, None);
+    pool.spend(cost, None);
 }
 
 /// Deduct a mana cost, preferring restricted mana that matches the spell context.
-///
-/// When a spell context is provided, restricted mana matching the spell is spent
-/// first (CR 106.12), then unrestricted mana fills the remainder.
 pub fn pay_cost_with_context(
     pool: &mut crate::state::player::ManaPool,
     cost: &crate::state::game_object::ManaCost,
     spell: Option<&crate::state::player::SpellContext>,
 ) {
-    use crate::state::types::ManaColor;
-
-    // Helper: spend a required amount of a color, using restricted mana first if applicable.
-    let spend_color =
-        |pool: &mut crate::state::player::ManaPool, color: ManaColor, required: u32| {
-            let mut remaining = required;
-            // Spend matching restricted mana first
-            if let Some(s) = spell {
-                let spent = pool.spend_restricted(color, remaining, s);
-                remaining -= spent;
-            }
-            // Then spend unrestricted
-            if remaining > 0 {
-                match color {
-                    ManaColor::White => pool.white -= remaining,
-                    ManaColor::Blue => pool.blue -= remaining,
-                    ManaColor::Black => pool.black -= remaining,
-                    ManaColor::Red => pool.red -= remaining,
-                    ManaColor::Green => pool.green -= remaining,
-                    ManaColor::Colorless => pool.colorless -= remaining,
-                }
-            }
-        };
-
-    spend_color(pool, ManaColor::White, cost.white);
-    spend_color(pool, ManaColor::Blue, cost.blue);
-    spend_color(pool, ManaColor::Black, cost.black);
-    spend_color(pool, ManaColor::Red, cost.red);
-    spend_color(pool, ManaColor::Green, cost.green);
-    spend_color(pool, ManaColor::Colorless, cost.colorless);
-
-    // Pay generic cost from remaining mana (restricted first, then unrestricted).
-    let mut remaining = cost.generic;
-
-    // Try restricted mana first for generic
-    if let Some(s) = spell {
-        for color in [
-            ManaColor::Colorless,
-            ManaColor::Green,
-            ManaColor::Red,
-            ManaColor::Black,
-            ManaColor::Blue,
-            ManaColor::White,
-        ] {
-            if remaining == 0 {
-                break;
-            }
-            let spent = pool.spend_restricted(color, remaining, s);
-            remaining -= spent;
-        }
-    }
-
-    // Then unrestricted
-    for slot in [
-        &mut pool.colorless,
-        &mut pool.green,
-        &mut pool.red,
-        &mut pool.black,
-        &mut pool.blue,
-        &mut pool.white,
-    ] {
-        let take = remaining.min(*slot);
-        *slot -= take;
-        remaining -= take;
-        if remaining == 0 {
-            break;
-        }
-    }
+    pool.spend(cost, spell);
 }
 
 /// CR 702.41a: Apply affinity cost reduction to the total mana cost.

@@ -1539,12 +1539,12 @@ fn handle_turn_face_up(
             .players
             .get_mut(&player)
             .ok_or(GameStateError::PlayerNotFound(player))?;
-        if !casting::can_pay_cost(&player_state.mana_pool, &mana_cost) {
+        if !player_state.mana_pool.can_spend(&mana_cost, None) {
             return Err(GameStateError::InvalidCommand(
                 "TurnFaceUp: player cannot pay the turn-face-up cost".into(),
             ));
         }
-        casting::pay_cost(&mut player_state.mana_pool, &mana_cost);
+        player_state.mana_pool.spend(&mana_cost, None);
     }
 
     // Check if this is a Megamorph turned face up via MorphCost (gets +1/+1 counter).
