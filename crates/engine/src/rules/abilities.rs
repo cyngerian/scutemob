@@ -6032,7 +6032,11 @@ fn collect_triggers_for_event(
             continue;
         }
 
-        for (idx, trigger_def) in obj.characteristics.triggered_abilities.iter().enumerate() {
+        // CR 613.1f (Layer 6): Use layer-resolved triggered abilities so that
+        // ability-removing effects (Humility, Dress Down) suppress triggers.
+        let resolved_chars = crate::rules::layers::calculate_characteristics(state, obj_id)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        for (idx, trigger_def) in resolved_chars.triggered_abilities.iter().enumerate() {
             if trigger_def.trigger_on != event_type {
                 continue;
             }
@@ -6048,12 +6052,14 @@ fn collect_triggers_for_event(
                         continue;
                     }
                     if let Some(entering_obj) = state.objects.get(&entering_id) {
+                        // CR 613.1d (Layer 4): Use layer-resolved card types so
+                        // animated permanents are recognized as creatures.
+                        let entering_chars =
+                            crate::rules::layers::calculate_characteristics(state, entering_id)
+                                .unwrap_or_else(|| entering_obj.characteristics.clone());
                         // creature_only: entering permanent must be a creature.
                         if etb_filter.creature_only
-                            && !entering_obj
-                                .characteristics
-                                .card_types
-                                .contains(&CardType::Creature)
+                            && !entering_chars.card_types.contains(&CardType::Creature)
                         {
                             continue;
                         }

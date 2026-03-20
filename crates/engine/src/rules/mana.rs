@@ -151,12 +151,14 @@ pub fn handle_tap_for_mana(
         }
         // CR 302.6 / CR 702.10: Summoning sickness prevents using {T} mana abilities
         // on creatures unless they have haste.
-        if obj.characteristics.card_types.contains(&CardType::Creature)
+        // CR 613.1d/613.1f: Use layer-resolved types and keywords so animated
+        // permanents (e.g., Nissa-animated lands) respect summoning sickness and
+        // layer-granted haste (e.g., Fervor) is recognized.
+        let tap_chars = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        if tap_chars.card_types.contains(&CardType::Creature)
             && obj.has_summoning_sickness
-            && !obj
-                .characteristics
-                .keywords
-                .contains(&KeywordAbility::Haste)
+            && !tap_chars.keywords.contains(&KeywordAbility::Haste)
         {
             return Err(GameStateError::InvalidCommand(format!(
                 "object {:?} has summoning sickness and cannot tap for mana (no haste)",
@@ -177,8 +179,12 @@ pub fn handle_tap_for_mana(
     if ability.sacrifice_self {
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(source)?;
+            // CR 613.1d: Use layer-resolved types for sacrifice creature check
+            // (animated artifacts/lands are creatures per layer 4).
+            let sac_chars = crate::rules::layers::calculate_characteristics(state, source)
+                .unwrap_or_else(|| obj.characteristics.clone());
             (
-                obj.characteristics.card_types.contains(&CardType::Creature),
+                sac_chars.card_types.contains(&CardType::Creature),
                 obj.owner,
                 obj.controller,
                 obj.counters.clone(),

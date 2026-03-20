@@ -3746,11 +3746,17 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        // Use remap to find the object even if it has moved zones.
-                        state
-                            .objects
-                            .get(&id)
-                            .and_then(|obj| obj.characteristics.power)
+                        // CR 613.1: Use layer-resolved P/T for battlefield permanents
+                        // (includes counters, equipment, anthems, P/T setting).
+                        state.objects.get(&id).and_then(|obj| {
+                            if obj.zone == ZoneId::Battlefield {
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .unwrap_or_else(|| obj.characteristics.clone())
+                                    .power
+                            } else {
+                                obj.characteristics.power
+                            }
+                        })
                     } else {
                         None
                     }
@@ -3764,10 +3770,16 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        state
-                            .objects
-                            .get(&id)
-                            .and_then(|obj| obj.characteristics.toughness)
+                        // CR 613.1: Use layer-resolved P/T for battlefield permanents.
+                        state.objects.get(&id).and_then(|obj| {
+                            if obj.zone == ZoneId::Battlefield {
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .unwrap_or_else(|| obj.characteristics.clone())
+                                    .toughness
+                            } else {
+                                obj.characteristics.toughness
+                            }
+                        })
                     } else {
                         None
                     }

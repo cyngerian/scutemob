@@ -71,16 +71,18 @@ call site and pass the resolved version.
 - Classified all sites across 10 files
 - Found 43 bugs, 3 ambiguous, ~64 correct
 
-### Session 2: Fix HIGH sites (3 files, 7 sites)
-- `effects/mod.rs:3730,3747` — PowerOf/ToughnessOf (line numbers corrected per review)
-- `abilities.rs:6035` + `6053-6056` — collect_triggers_for_event + ETB filter (fix together)
-- `mana.rs:154,157-159,181` — summoning sickness
-- Add Humility/animation interaction tests
-- `cargo test --all` + `cargo clippy -- -D warnings`
+### Session 2: Fix HIGH sites (3 files, 7 sites) — COMPLETE
+- `effects/mod.rs:3730,3747` — PowerOf/ToughnessOf: zone-aware layer calc (battlefield → layer-resolved, other → base)
+- `abilities.rs:6035` — collect_triggers_for_event: use layer-resolved triggered_abilities (Humility suppresses)
+- `abilities.rs:6053-6056` — ETB filter creature_only: use layer-resolved card_types (animated lands recognized)
+- `mana.rs:154,157-159` — summoning sickness: layer-resolved creature type + haste (Fervor, animated lands)
+- `mana.rs:181` — sacrifice creature check: layer-resolved types (animated artifacts emit CreatureDied)
+- 8 new tests in `crates/engine/tests/layer_correctness.rs` (Humility, animation, Fervor, anthem interactions)
+- 2183 tests passing, 0 clippy warnings
 
-### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs (14 sites)
+### Session 3: Fix MEDIUM sites — abilities.rs + resolution.rs (14+ sites)
 - `abilities.rs:222,246,706,3444-3446,4311,4323,6376,6542-6543`
-- `resolution.rs:1795,3661-3662,5159`
+- `resolution.rs:1795,1939,2068,2098,3661-3662,5159` (1939/2068/2098 added: ability_index namespace alignment from S2 review — see `memory/primitives/w3-lc-s2-review.md` Finding 1)
 - `casting.rs:5182`
 - `engine.rs:2262`
 - Tests for each fixed path
