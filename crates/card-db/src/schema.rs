@@ -21,6 +21,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             power TEXT,
             toughness TEXT,
             loyalty TEXT,
+            -- MR-M0-09: SQLite has no native JSON type; these store JSON arrays/objects as TEXT.
+            -- Validated as well-formed JSON at import time (scryfall-import).
             colors TEXT,
             color_identity TEXT,
             keywords TEXT,
@@ -45,7 +47,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             power TEXT,
             toughness TEXT,
             colors TEXT,
-            FOREIGN KEY (card_id) REFERENCES cards(id)
+            -- MR-M0-08: CASCADE so deleting a card removes its faces automatically.
+            FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
         );
 
         CREATE INDEX IF NOT EXISTS idx_card_faces_card_id ON card_faces(card_id);

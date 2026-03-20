@@ -66,6 +66,17 @@ pub fn create_fts_tables(conn: &Connection) -> rusqlite::Result<()> {
             INSERT INTO rulings_fts(rowid, oracle_id, comment)
             VALUES (new.id, new.oracle_id, new.comment);
         END;
+        -- MR-M0-15: Keep rulings FTS in sync on updates and deletes (mirrors rules_fts pattern).
+        CREATE TRIGGER IF NOT EXISTS rulings_fts_ad AFTER DELETE ON rulings BEGIN
+            INSERT INTO rulings_fts(rulings_fts, rowid, oracle_id, comment)
+            VALUES('delete', old.id, old.oracle_id, old.comment);
+        END;
+        CREATE TRIGGER IF NOT EXISTS rulings_fts_au AFTER UPDATE ON rulings BEGIN
+            INSERT INTO rulings_fts(rulings_fts, rowid, oracle_id, comment)
+            VALUES('delete', old.id, old.oracle_id, old.comment);
+            INSERT INTO rulings_fts(rowid, oracle_id, comment)
+            VALUES (new.id, new.oracle_id, new.comment);
+        END;
         ",
     )?;
     Ok(())

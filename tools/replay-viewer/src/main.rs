@@ -42,8 +42,9 @@ struct Cli {
     #[arg(long, default_value = "3030")]
     port: u16,
 
-    /// Host address to bind to. Use 0.0.0.0 to expose on the local network.
-    #[arg(long, default_value = "0.0.0.0")]
+    /// Host address to bind to. Default is localhost-only. Use 0.0.0.0 to expose on the local network.
+    /// MR-M9.5-06: default changed from 0.0.0.0 to 127.0.0.1 to avoid unintended network exposure.
+    #[arg(long, default_value = "127.0.0.1")]
     host: String,
 }
 

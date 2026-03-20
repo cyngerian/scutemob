@@ -46,6 +46,18 @@ use super::events::{GameEvent, LossReason};
 use super::layers::calculate_characteristics;
 use super::replacement;
 
+// ── Module-level constants ───────────────────────────────────────────────────
+
+// MR-M4-10: Lazily-initialized SubType singletons used in hot SBA loops.
+// Without these, every SBA pass allocates a new String for each comparison.
+// std::sync::LazyLock is stable since Rust 1.80.
+static SUBTYPE_AURA: std::sync::LazyLock<SubType> =
+    std::sync::LazyLock::new(|| SubType("Aura".to_string()));
+static SUBTYPE_EQUIPMENT: std::sync::LazyLock<SubType> =
+    std::sync::LazyLock::new(|| SubType("Equipment".to_string()));
+static SUBTYPE_FORTIFICATION: std::sync::LazyLock<SubType> =
+    std::sync::LazyLock::new(|| SubType("Fortification".to_string()));
+
 // ── Public interface ────────────────────────────────────────────────────────
 
 /// CR 704.3: Check and apply all applicable state-based actions as a fixed-point loop.
@@ -936,7 +948,8 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         if !chars.supertypes.contains(&SuperType::Legendary) {
             continue;
         }
-        let key = (obj.controller, chars.name.clone());
+        // MR-M4-09: move name out of chars (avoid String clone — chars is not used after this).
+        let key = (obj.controller, chars.name);
         by_controller_name.entry(key).or_default().push(*id);
     }
 
@@ -1029,8 +1042,8 @@ pub(crate) fn matches_enchant_target(
 /// 4. CR 702.16c: target has protection from a quality the aura matches → illegal.
 fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-    // MR-M4-10: hoist SubType to avoid per-object-per-SBA-pass String allocation.
-    let subtype_aura = SubType("Aura".to_string());
+    // MR-M4-10: use module-level static to avoid String allocation per SBA pass.
+    let subtype_aura = &*SUBTYPE_AURA;
 
     let illegal_auras: Vec<ObjectId> = state
         .objects
@@ -1047,7 +1060,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             // CR 613.1d: Use layer-resolved subtypes for Aura check (type-changing effects).
             let aura_chars = calculate_characteristics(state, **aura_id)
                 .unwrap_or_else(|| obj.characteristics.clone());
-            if !aura_chars.subtypes.contains(&subtype_aura) {
+            if !aura_chars.subtypes.contains(subtype_aura) {
                 return false;
             }
             // CR 303.4d: An Aura that's also a creature can't enchant anything.
@@ -1140,7 +1153,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             obj.attached_to = None;
             obj.designations.remove(Designations::BESTOWED);
             // Remove Aura subtype and enchant creature keyword.
-            obj.characteristics.subtypes.remove(&subtype_aura);
+            obj.characteristics.subtypes.remove(subtype_aura);
             obj.characteristics
                 .keywords
                 .remove(&KeywordAbility::Enchant(EnchantTarget::Creature));
@@ -1181,9 +1194,9 @@ fn check_equipment_sbas(
     chars_map: &HashMap<ObjectId, Characteristics>,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
-    // MR-M4-10: hoist SubType values to avoid per-object-per-SBA-pass String allocations.
-    let subtype_equipment = SubType("Equipment".to_string());
-    let subtype_fortification = SubType("Fortification".to_string());
+    // MR-M4-10: use module-level statics to avoid String allocations per SBA pass.
+    let subtype_equipment = &*SUBTYPE_EQUIPMENT;
+    let subtype_fortification = &*SUBTYPE_FORTIFICATION;
 
     // MR-M5-02: use layer-computed characteristics for both the equipment's own
     // subtypes (could be added by effects) and the target's card types (e.g., a
@@ -1198,8 +1211,8 @@ fn check_equipment_sbas(
             let Some(chars) = chars_map.get(id) else {
                 return false;
             };
-            let is_equipment = chars.subtypes.contains(&subtype_equipment);
-            let is_fortification = chars.subtypes.contains(&subtype_fortification);
+            let is_equipment = chars.subtypes.contains(subtype_equipment);
+            let is_fortification = chars.subtypes.contains(subtype_fortification);
             if !is_equipment && !is_fortification {
                 return false;
             }
