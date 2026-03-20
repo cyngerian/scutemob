@@ -25,21 +25,21 @@
 
 **Date**: 2026-03-19
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-19: Mass Destroy / Board Wipes (full pipeline: plan → implement → review → fix → close)
+**Task**: PB-20: Additional Combat Phases (full pipeline: plan → implement → review → fix → close)
 
 **Completed**:
-- PB-19 complete: DestroyAll + ExileAll + OwnerOf + LastEffectCount + AddCounterAmount
-  - Engine: Effect::DestroyAll (indestructible/regen/umbra), Effect::ExileAll, EffectAmount::LastEffectCount, Effect::AddCounterAmount, PlayerTarget::OwnerOf, AllPermanentsMatching controller filter fix
-  - 7 card defs fixed: wrath_of_god, damnation, supreme_verdict, path_of_peril, sublime_exhalation, final_showdown, scavenger_grounds
-  - 5 new card defs: vanquish_the_horde, fumigate, bane_of_progress, ruinous_ultimatum, cyclonic_rift
-  - Review: 2M 2L — all fixed (commander destroy count CR 903.9a, OwnerOf for bounce, ExileAll owner events)
-  - 13 new tests, 2175 total
-- Commits: 224131d (implement), f934425 (review fixes)
+- PB-20 complete: AdditionalCombatPhase + EachAttackingCreature + EachOtherCreatureYouControl + IsFirstCombatPhase
+  - Engine: Effect::AdditionalCombatPhase { followed_by_main }, additional_phases LIFO queue on TurnState (CR 500.8), ForEachTarget::EachAttackingCreature, ForEachTarget::EachOtherCreatureYouControl, Condition::IsFirstCombatPhase, GameEvent::AdditionalCombatPhaseCreated
+  - 1 card def fixed: karlach_fury_of_avernus (full triggered ability)
+  - 2 new card defs: combat_celebrant, breath_of_fury
+  - Review: 1M 3L — 1M + 1L fixed (EachOtherCreatureYouControl for Combat Celebrant, stale in_extra_combat flag)
+  - 9 new tests, 2184 total
+- Commits: fd3d378 (implement), 901d514 (review fixes)
+- Feature branch: w6-pb20-additional-combat-phases (merged to main at close)
 
 **Next**:
-1. PB-20: Additional Combat Phases (10 cards, 2 sessions)
-2. PB-21: Fight & Bite (5 cards, 1 session)
-3. Phase 2: Author ~1,020 remaining cards
+1. PB-21: Fight & Bite (5+ cards, 1 session) — LAST PRIMITIVE BATCH
+2. Phase 2: Author ~1,020 remaining cards
 
 **Hazards**:
 - None known

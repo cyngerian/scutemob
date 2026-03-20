@@ -31,8 +31,8 @@
 | PB-16 | Meld | done | 1 | 0 | fixed | 1 |
 | PB-17 | Library search filters | done | 74 | 0 | fixed | 4 |
 | PB-18 | Stax / action restrictions | done | 10 | 0 | fixed | 2 |
-| PB-19 | Mass destroy / board wipes | planned | 0 | 12 | — | 2 |
-| PB-20 | Additional combat phases | planned | 0 | 10 | — | 2 |
+| PB-19 | Mass destroy / board wipes | done | 12 | 0 | fixed | 2 |
+| PB-20 | Additional combat phases | done | 3 | 0 | fixed | 1 |
 | PB-21 | Fight & Bite | planned | 0 | 5 | — | 1 |
 
 **Status values**: `done`, `active`, `planned`
@@ -59,15 +59,15 @@
 |---|------|--------|---------------|-------------|
 | W1 | Abilities | done | 2026-03-11 | — |
 | W2 | TUI & Simulator | stalled | 2026-02-28 | Phase 2: blocker UI, ability targeting |
-| W3 | LOW Remediation | partial | 2026-03-19 | T3: ManaPool + **W3-LC: layer correctness audit** (69 sites, 4 sessions) |
+| W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S1 DONE** (46 layer bugs classified). S2: fix HIGH sites |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-03-19 | **W6-review DONE**. Next: PB-19 board wipes |
+| W6 | Primitive + Card Authoring | active | 2026-03-19 | PB-20 DONE. PB-21 next (fight/bite — last PB!) |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
-**W6-review COMPLETE**: All 20/20 retroactive reviews done. Forward progress unblocked.
-**NEXT OBJECTIVE**: PB-19 (board wipes), PB-20 (extra combat), PB-21 (fight/bite), then Phase 2 card authoring.
+**W6-review COMPLETE**: All 20/20 retroactive reviews done.
+**NEXT OBJECTIVE**: PB-21 (fight/bite — last primitive batch!), then Phase 2 card authoring.
 
 ---
 
@@ -78,7 +78,7 @@
 | M0-M9 | done | — | Engine core complete |
 | M9.5 | done | — | Replay viewer + type consolidation |
 | **W6-review** | **done** | **—** | **20/20 retroactive reviews complete** |
-| W6 Phase 1 | active | — | 3 remaining PB batches (PB-19 to PB-21) |
+| W6 Phase 1 | active | — | 1 remaining PB batch (PB-21 fight/bite) |
 | W6 Phase 2 | blocked | W6 Phase 1 | Author ~1,025 remaining cards |
 | W6 Phase 3 | blocked | W6 Phase 2 | Audit: zero TODOs, zero wrong game state |
 | M10 | blocked | W6 | Networking: WebSocket server, player choices |
@@ -92,8 +92,8 @@
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2162 |
-| Test files | 209 |
+| Total tests | 2184 |
+| Test files | 212 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
 | Abilities validated | 194 / 204 |

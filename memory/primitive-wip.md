@@ -4,7 +4,7 @@ batch: PB-20
 title: Additional Combat Phases
 cards_affected: 10
 started: 2026-03-19
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-20.md
 
 ## Deferred from Prior PBs
