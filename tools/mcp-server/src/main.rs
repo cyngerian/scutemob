@@ -231,6 +231,11 @@ impl MtgServer {
 
         // Try exact match first, then LIKE. Exclude non-game layouts
         // (art_series, token, double_faced_token, emblem, etc.)
+        // MR-M0-10: LIKE '%name%' matches substrings broadly. This is intentional
+        // for the MCP tool (callers may supply partial names). Results are capped at
+        // 5 and sorted exact-first, so short queries return the most relevant card first.
+        // No minimum query length is enforced here; the LLM caller is expected to supply
+        // meaningful names (not single characters).
         let mut stmt = db
             .prepare(
                 "SELECT id, oracle_id, name, mana_cost, type_line, oracle_text,

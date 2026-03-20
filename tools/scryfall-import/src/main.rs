@@ -196,6 +196,9 @@ fn import_cards(conn: &mut rusqlite::Connection, path: &Path) -> Result<()> {
             let card: ScryfallCard = serde_json::from_str(raw.get())
                 .with_context(|| format!("failed to parse card at index {}", idx))?;
 
+            // MR-M0-16: Cards without oracle_id (tokens, art cards) store empty string.
+            // These are filtered out at query time by layout exclusion (art_series, token, etc.).
+            // NULL would be semantically cleaner but empty string is safe given the layout filter.
             let oracle_id = card.oracle_id.as_deref().unwrap_or("");
             let type_line = card.type_line.as_deref().unwrap_or("");
 
