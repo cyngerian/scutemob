@@ -157,7 +157,7 @@ pub struct GameState {
     pub permanents_put_into_graveyard_this_turn: u32,
     /// CR 702.30a: Pending echo payment choices.
     ///
-    /// When an EchoTrigger resolves, the controller must choose to pay or sacrifice.
+    /// When a KeywordTrigger (Echo) resolves, the controller must choose to pay or sacrifice.
     /// The game pauses until a `Command::PayEcho` is received for each entry.
     /// Each entry is `(player, permanent_id, echo_cost)`.
     ///
@@ -167,7 +167,7 @@ pub struct GameState {
     pub pending_echo_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// CR 702.24a: Pending cumulative upkeep payment choices.
     ///
-    /// When a CumulativeUpkeepTrigger resolves (after adding the age counter), the
+    /// When a KeywordTrigger (CumulativeUpkeep) resolves (after adding the age counter), the
     /// controller must choose to pay or sacrifice. The game pauses until a
     /// `Command::PayCumulativeUpkeep` is received for each entry.
     /// Each entry is `(player, permanent_id, per_counter_cost)`.

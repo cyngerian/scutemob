@@ -1748,10 +1748,6 @@ impl HashInto for PendingTrigger {
         self.enlist_enlisted_creature.hash_into(hasher);
         // CR 702.58a: graft-specific field
         self.graft_entering_creature.hash_into(hasher);
-        // CR 702.30a: echo-specific field
-        self.echo_cost.hash_into(hasher);
-        // CR 702.24a: cumulative upkeep-specific field
-        self.cumulative_upkeep_cost.hash_into(hasher);
         // CR 702.59a: recover-specific fields
         self.recover_cost.hash_into(hasher);
         self.recover_card.hash_into(hasher);
@@ -2093,7 +2089,7 @@ impl HashInto for TriggerData {
                 31u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
-            TriggerData::EvolveTrigger { entering_creature } => {
+            TriggerData::ETBEvolve { entering_creature } => {
                 32u8.hash_into(hasher);
                 entering_creature.hash_into(hasher);
             }

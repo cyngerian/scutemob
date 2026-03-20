@@ -589,7 +589,7 @@ pub struct GameObject {
     /// CR 702.116a: If true, this token was created by a myriad ability and must
     /// be exiled at end of combat.
     ///
-    /// Set when a MyriadTrigger resolves and creates the token. Checked in
+    /// Set when a KeywordTrigger (Myriad) resolves and creates the token. Checked in
     /// `end_combat()` in turn_actions.rs. Reset on zone changes (CR 400.7).
     #[serde(default)]
     pub myriad_exile_at_eoc: bool,
@@ -619,7 +619,7 @@ pub struct GameObject {
     ///
     /// Used by the linked "play the exiled card" ability (`Effect::PlayExiledCard`)
     /// to identify which exiled card belongs to which Hideaway source.  Set when
-    /// the HideawayTrigger resolves.  Cleared when the card is played out of
+    /// the KeywordTrigger (Hideaway) resolves.  Cleared when the card is played out of
     /// exile or leaves exile for any other reason.
     ///
     /// The ObjectId stored here is the Hideaway permanent's ObjectId on the
@@ -764,13 +764,13 @@ pub struct GameObject {
     pub x_value: u32,
     /// CR 702.157a: Number of times the squad cost was paid when this permanent was cast.
     /// Used by the SquadETB trigger to create N token copies at resolution.
-    /// Reset to 0 on zone changes (CR 400.7). Copied from StackObject.squad_count at resolution.
+    /// Reset to 0 on zone changes (CR 400.7). Extracted from AdditionalCost::Squad in additional_costs at resolution.
     /// Tokens created by Squad themselves have squad_count: 0 (not cast).
     #[serde(default)]
     pub squad_count: u32,
     /// CR 702.175a: Whether the offspring cost was paid when this permanent was cast.
     /// Used by the OffspringETB trigger to create 1 token copy (except 1/1) at resolution.
-    /// Reset to false on zone changes (CR 400.7). Copied from StackObject.offspring_paid at resolution.
+    /// Reset to false on zone changes (CR 400.7). Extracted from AdditionalCost::Offspring in additional_costs at resolution.
     /// Tokens created by Offspring themselves have offspring_paid: false (not cast).
     #[serde(default)]
     pub offspring_paid: bool,

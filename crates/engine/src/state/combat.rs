@@ -62,7 +62,7 @@ pub struct CombatState {
     ///
     /// Each entry maps a provoked creature (ObjectId) to the attacker it must block
     /// (ObjectId of the provoking creature) "if able". Populated when a
-    /// `StackObjectKind::ProvokeTrigger` resolves. Checked in `handle_declare_blockers`
+    /// `StackObjectKind::KeywordTrigger` (Provoke) resolves. Checked in `handle_declare_blockers`
     /// to enforce CR 509.1c (blocking requirements cannot override restrictions).
     ///
     /// Cleared naturally when `CombatState` is dropped at end of combat.

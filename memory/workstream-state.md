@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | — | available | — | **W3 T3 DONE** — ManaPool::spend() encapsulated. W3-LC S1-S6 done. All W3 items complete. |
+| W3: LOW Remediation | LOW cleanup S1: doc comments + dead code + clippy | ACTIVE | 2026-03-20 | Clearing all ~83 open LOWs before W6 card push |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2 card authoring next |

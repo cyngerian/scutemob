@@ -714,7 +714,7 @@ pub enum KeywordAbility {
     /// Triggered ability keyword. `abilities.rs` detects this keyword at trigger-
     /// scan time (ETB event) and queues a `PendingTrigger` with
     /// `is_hideaway_trigger = true`.  Resolution creates a
-    /// `StackObjectKind::HideawayTrigger` and executes the look/exile/put-back
+    /// `StackObjectKind::KeywordTrigger` (Hideaway) and executes the look/exile/put-back
     /// sequence in `resolution.rs`.
     ///
     /// The N parameter specifies how many cards to look at.
@@ -806,7 +806,7 @@ pub enum KeywordAbility {
     /// Adding/removing blockers after resolution does not change the bonus.
     /// CR 702.23c: Multiple instances trigger separately.
     ///
-    /// Implemented via a custom `StackObjectKind::RampageTrigger` so that
+    /// Implemented via a custom `StackObjectKind::KeywordTrigger` (Rampage) so that
     /// the blocker count can be queried from `state.combat` at resolution time.
     Rampage(u32),
     /// CR 702.39: Provoke -- triggered ability.
@@ -815,7 +815,7 @@ pub enum KeywordAbility {
     ///
     /// CR 702.39b: Multiple instances of provoke each trigger separately.
     ///
-    /// Implemented via a custom `StackObjectKind::ProvokeTrigger`. At trigger
+    /// Implemented via a custom `StackObjectKind::KeywordTrigger` (Provoke). At trigger
     /// collection time (AttackersDeclared handler), a target creature controlled
     /// by the defending player is selected deterministically (first by ObjectId
     /// order). The trigger is not placed on the stack if no valid target exists
@@ -839,7 +839,7 @@ pub enum KeywordAbility {
     ///
     /// Renowned is a designation tracked as `is_renowned` on `GameObject`
     /// (CR 702.112b). Not a copiable value. Resets on zone change (CR 400.7).
-    /// Implemented via custom `StackObjectKind::RenownTrigger` with intervening-if
+    /// Implemented via custom `StackObjectKind::KeywordTrigger` (Renown) with intervening-if
     /// checked at both trigger time and resolution time (CR 603.4).
     Renown(u32),
     /// CR 702.149: Training -- "Whenever this creature and at least one other creature
@@ -856,7 +856,7 @@ pub enum KeywordAbility {
     ///
     /// CR 702.121b: Multiple instances trigger separately.
     ///
-    /// Implemented via a custom `StackObjectKind::MeleeTrigger` because the
+    /// Implemented via a custom `StackObjectKind::KeywordTrigger` (Melee) because the
     /// bonus is computed at resolution time from `state.combat` (ruling
     /// 2016-08-23: "You determine the size of the bonus as the melee ability
     /// resolves"). The trigger fires on `TriggerEvent::SelfAttacks`.
@@ -1027,7 +1027,7 @@ pub enum KeywordAbility {
     ///
     /// Marker for quick presence-checking (`keywords.contains`).
     /// No `AbilityDefinition::Bargain` needed -- bargain has no per-card cost
-    /// to store. The sacrifice target is provided via `CastSpell.bargain_sacrifice`.
+    /// to store. The sacrifice target is provided via `AdditionalCost::Sacrifice`.
     ///
     /// Cards check "if this spell was bargained" via `Condition::WasBargained`.
     /// CR 702.166c: Multiple instances are redundant.
@@ -1037,7 +1037,7 @@ pub enum KeywordAbility {
     ///
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The emerge cost is stored in `AbilityDefinition::Emerge { cost }`.
-    /// The sacrifice target is provided via `CastSpell.emerge_sacrifice`.
+    /// The sacrifice target is provided via `AdditionalCost::Sacrifice` (for Emerge).
     Emerge,
     /// CR 702.137a: Spectacle [cost] -- alternative cost if an opponent lost life this turn.
     ///
@@ -1056,7 +1056,7 @@ pub enum KeywordAbility {
     /// greater." and "When you cast this spell, if a casualty cost was paid for it, copy it."
     ///
     /// The `u32` value is N (the minimum power of the sacrificed creature).
-    /// The sacrifice target is provided via `CastSpell.casualty_sacrifice`.
+    /// The sacrifice target is provided via `AdditionalCost::Sacrifice` (for Casualty).
     ///
     /// CR 702.153b: Multiple instances are each paid separately.
     Casualty(u32),
@@ -1068,8 +1068,7 @@ pub enum KeywordAbility {
     ///
     /// Static ability. Marker for quick presence-checking (`keywords.contains`).
     /// No `AbilityDefinition::Assist` needed -- assist has no per-card data to store.
-    /// The assisting player and amount are provided via `CastSpell.assist_player` and
-    /// `CastSpell.assist_amount`.
+    /// The assisting player and amount are provided via `AdditionalCost::Assist`.
     /// CR 702.132a: Multiple instances are redundant.
     Assist,
     /// CR 702.56a: Replicate [cost] -- optional additional cost: pay [cost] any
@@ -1118,7 +1117,7 @@ pub enum KeywordAbility {
     ///
     /// Static ability. Marker for quick presence-checking (`keywords.contains`).
     /// Unlike Entwine (pay once, choose ALL modes), Escalate scales with the number
-    /// of extra modes chosen. `escalate_modes` in `Command::CastSpell` tracks
+    /// of extra modes chosen. `AdditionalCost::EscalateModes` in `Command::CastSpell` tracks
     /// how many additional modes beyond the first are chosen.
     Escalate,
     /// CR 702.59a: Recover [cost] -- triggered ability from graveyard.
@@ -1387,7 +1386,7 @@ pub enum KeywordAbility {
     ///
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The gift type is stored in `AbilityDefinition::Gift { gift_type }`.
-    /// The chosen opponent is provided via `CastSpell.gift_opponent`.
+    /// The chosen opponent is provided via `AdditionalCost::Gift`.
     /// Cards check "if gift was given" via `Condition::GiftWasGiven`.
     ///
     /// CR 702.174a: Multiple instances are redundant (only one opponent can be chosen).

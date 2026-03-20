@@ -656,7 +656,7 @@ pub enum AbilityDefinition {
     /// the squad cost itself (e.g., `{2}` for "Squad {2}").
     ///
     /// At cast time: the player pays `cost` N times as an additional cost (CR 601.2b).
-    /// N is stored in `CastSpell.squad_count` and `StackObject.squad_count`.
+    /// N is stored in `AdditionalCost::Squad { count }` in the additional_costs vec.
     /// At ETB: a trigger creates N token copies if N > 0 and the permanent still has Squad.
     ///
     /// Discriminant 54.
@@ -692,7 +692,7 @@ pub enum AbilityDefinition {
     /// the offspring cost itself (e.g., `{2}` for "Offspring {2}").
     ///
     /// At cast time: the player optionally pays `cost` once as an additional cost (CR 601.2b).
-    /// Binary: paid or not paid. If paid, `CastSpell.offspring_paid` is true.
+    /// Binary: paid or not paid. If paid, `AdditionalCost::Offspring` is in the additional_costs vec.
     /// At ETB: a trigger creates 1 token copy (except 1/1) if paid and permanent still has Offspring.
     ///
     /// Discriminant 55.

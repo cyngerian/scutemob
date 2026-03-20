@@ -66,7 +66,7 @@ pub fn calculate_characteristics(
     // abilities, it loses menace, but the suspected designation itself persists.
     //
     // "Can't block" is enforced separately in combat.rs (like Decayed) by checking
-    // `obj.is_suspected` directly. The designation persists through ability-removal;
+    // `obj.designations.contains(Designations::SUSPECTED)` directly. The designation persists through ability-removal;
     // only the GRANTS (menace, can't-block) are affected by ability removal.
     if obj.designations.contains(Designations::SUSPECTED) && obj.zone == ZoneId::Battlefield {
         chars.keywords.insert(KeywordAbility::Menace);

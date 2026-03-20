@@ -580,7 +580,7 @@ impl GameStateBuilder {
                 // creature this combat."
                 // Each keyword instance generates one TriggeredAbilityDef (CR 702.121b).
                 // The effect is None because resolution is handled by the custom
-                // MeleeTrigger StackObjectKind -- the bonus is computed at resolution
+                // KeywordTrigger (Melee) StackObjectKind -- the bonus is computed at resolution
                 // time from combat state (ruling 2016-08-23).
                 if matches!(kw, KeywordAbility::Melee) {
                     triggered_abilities.push(TriggeredAbilityDef {
@@ -592,7 +592,7 @@ impl GameStateBuilder {
                                       gets +1/+1 until end of turn for each opponent you \
                                       attacked with a creature this combat."
                             .to_string(),
-                        effect: None, // Custom resolution via MeleeTrigger
+                        effect: None, // Custom resolution via KeywordTrigger (Melee)
                     });
                 }
 
@@ -804,7 +804,7 @@ impl GameStateBuilder {
                 // Each Modular instance generates one TriggeredAbilityDef (CR 702.43b).
                 // The effect is NOT encoded here because the counter count is dynamic
                 // (based on pre_death_counters, not the static N). Resolution is handled
-                // by StackObjectKind::ModularTrigger.
+                // by StackObjectKind::KeywordTrigger (Modular).
                 if let KeywordAbility::Modular(_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
@@ -816,7 +816,7 @@ impl GameStateBuilder {
                                       on target artifact creature for each +1/+1 counter on this \
                                       permanent."
                             .to_string(),
-                        effect: None, // Handled by ModularTrigger resolution
+                        effect: None, // Handled by KeywordTrigger (Modular) resolution
                     });
                 }
 
@@ -826,7 +826,7 @@ impl GameStateBuilder {
                 // control. If one or more tokens are created this way, exile the tokens at
                 // end of combat."
                 // Each keyword instance generates one TriggeredAbilityDef (CR 702.116b).
-                // Token creation logic is handled by StackObjectKind::MyriadTrigger at
+                // Token creation logic is handled by StackObjectKind::KeywordTrigger (Myriad) at
                 // resolution time in resolution.rs. End-of-combat exile is handled by
                 // end_combat() in turn_actions.rs.
                 if matches!(kw, KeywordAbility::Myriad) {
@@ -840,7 +840,7 @@ impl GameStateBuilder {
                                       token copy tapped and attacking that player. Exile tokens \
                                       at end of combat."
                             .to_string(),
-                        effect: None, // Handled by MyriadTrigger resolution
+                        effect: None, // Handled by KeywordTrigger (Myriad) resolution
                     });
                 }
 
@@ -891,7 +891,7 @@ impl GameStateBuilder {
                 // Each Rampage(n) keyword instance generates one TriggeredAbilityDef
                 // (CR 702.23c: multiple instances trigger separately).
                 // The effect is None because resolution is handled by the custom
-                // RampageTrigger StackObjectKind -- the bonus is computed at resolution
+                // KeywordTrigger (Rampage) StackObjectKind -- the bonus is computed at resolution
                 // time from combat state (CR 702.23b).
                 if let KeywordAbility::Rampage(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
@@ -904,7 +904,7 @@ impl GameStateBuilder {
                              it gets +{n}/+{n} until end of turn for each creature blocking \
                              it beyond the first."
                         ),
-                        effect: None, // Custom resolution via RampageTrigger
+                        effect: None, // Custom resolution via KeywordTrigger (Rampage)
                     });
                 }
 
@@ -912,7 +912,7 @@ impl GameStateBuilder {
                 // have target creature defending player controls untap and block this
                 // creature this combat if able."
                 // Each keyword instance generates one TriggeredAbilityDef (CR 702.39b).
-                // The actual untap + forced-block logic is in StackObjectKind::ProvokeTrigger
+                // The actual untap + forced-block logic is in StackObjectKind::KeywordTrigger (Provoke)
                 // resolution. The description starts with "Provoke" so abilities.rs can
                 // identify and tag it as a provoke trigger at collection time.
                 if matches!(kw, KeywordAbility::Provoke) {
@@ -925,7 +925,7 @@ impl GameStateBuilder {
                                       you may have target creature defending player controls \
                                       untap and block this creature this combat if able."
                             .to_string(),
-                        effect: None, // Handled by ProvokeTrigger resolution
+                        effect: None, // Handled by KeywordTrigger (Provoke) resolution
                     });
                 }
 
