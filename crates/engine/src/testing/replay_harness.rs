@@ -1968,6 +1968,7 @@ pub fn enrich_spec_from_def(
             effect,
             timing_restriction,
             targets: ab_targets,
+            activation_condition,
         } = ability
         {
             // Skip ALL tap-for-mana abilities (fixed-mana, any-color, and pain-land
@@ -1993,6 +1994,8 @@ pub fn enrich_spec_from_def(
                         Some(TimingRestriction::SorcerySpeed)
                     ),
                     targets: ab_targets.clone(),
+                    // CR 602.5b: Propagate activation condition ("activate only if ...").
+                    activation_condition: activation_condition.clone(),
                 };
                 spec = spec.with_activated_ability(ab);
             }
@@ -2057,6 +2060,7 @@ pub fn enrich_spec_from_def(
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
                 }),
                 sorcery_speed: true,
+                activation_condition: None,
             };
             spec = spec.with_activated_ability(attach_ab);
 
@@ -2071,6 +2075,7 @@ pub fn enrich_spec_from_def(
                     equipment: CardEffectTarget::Source,
                 }),
                 sorcery_speed: true,
+                activation_condition: None,
             };
             spec = spec.with_activated_ability(detach_ab);
         }
@@ -2099,6 +2104,7 @@ pub fn enrich_spec_from_def(
                     count: 1,
                 }),
                 sorcery_speed: true,
+                activation_condition: None,
             };
             spec = spec.with_activated_ability(ab);
         }

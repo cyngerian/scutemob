@@ -271,6 +271,10 @@ pub struct ActivatedAbility {
     /// Empty = no targets required.
     #[serde(default)]
     pub targets: Vec<crate::cards::card_definition::TargetRequirement>,
+    /// CR 602.5b: "Activate only if [condition]" — checked at activation time.
+    /// None = no condition (always activatable if costs can be paid).
+    #[serde(default)]
+    pub activation_condition: Option<crate::cards::card_definition::Condition>,
 }
 
 /// Trigger event patterns for triggered abilities (CR 603).

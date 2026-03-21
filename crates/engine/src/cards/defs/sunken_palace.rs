@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 1, 0, 0, 0, 0) },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — {1}{U}, {T}, Exile seven cards from your graveyard: Add {U}. When you spend this mana to cast a spell or ability, copy that spell or ability.
         ],

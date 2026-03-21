@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.
         ],

@@ -115,6 +115,7 @@ fn battlements_def() -> CardDefinition {
             effect: Effect::Meld,
             timing_restriction: None,
             targets: vec![],
+            activation_condition: None,
         }],
         power: None,
         toughness: None,

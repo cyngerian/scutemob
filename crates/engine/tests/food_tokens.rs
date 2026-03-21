@@ -80,6 +80,7 @@ fn food_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 amount: EffectAmount::Fixed(3),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .token()
 }

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Regenerate { target: EffectTarget::Source },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         color_indicator: None,

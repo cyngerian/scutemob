@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // CR 509.1 / CR 702 (CantBeBlocked): {4}, {T}: target creature can't be
             // blocked this turn. Applies a UntilEndOfTurn continuous effect granting
@@ -40,6 +41,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
             },
         ],
         ..Default::default()

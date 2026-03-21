@@ -167,6 +167,11 @@ pub enum AbilityDefinition {
         /// Empty = no targets required.
         #[serde(default)]
         targets: Vec<TargetRequirement>,
+        /// If Some, the ability can only be activated when this condition is true.
+        /// CR 602.5b: "Activate only if [condition]" restrictions.
+        /// Checked at activation time (not resolution time).
+        #[serde(default)]
+        activation_condition: Option<Condition>,
     },
     /// Triggered ability: "When/Whenever/At [event], [Effect]" (CR 603).
     Triggered {
@@ -2058,6 +2063,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 amount: EffectAmount::Fixed(3),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         }],
         count,
         tapped: false,
@@ -2101,6 +2107,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 count: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         }],
         count,
         tapped: false,
@@ -2147,6 +2154,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 count: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         }],
         count,
         tapped: false,

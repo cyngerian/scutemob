@@ -41,6 +41,7 @@ fn targeted_activated_ability_valid_creature_target() {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
         })
         .in_zone(ZoneId::Battlefield);
@@ -108,6 +109,7 @@ fn targeted_activated_ability_rejects_non_creature() {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
         })
         .in_zone(ZoneId::Battlefield);
@@ -177,6 +179,7 @@ fn targeted_activated_ability_target_player() {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![TargetRequirement::TargetPlayer],
         })
         .in_zone(ZoneId::Battlefield);
@@ -234,6 +237,7 @@ fn activated_ability_no_targets_backward_compatible() {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![], // No target requirements
         })
         .in_zone(ZoneId::Battlefield);
@@ -409,6 +413,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
         })
         .in_zone(ZoneId::Battlefield);
@@ -468,6 +473,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
         })
         .in_zone(ZoneId::Battlefield);

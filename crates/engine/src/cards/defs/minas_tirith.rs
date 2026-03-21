@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(1, 0, 0, 0, 0, 0) },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — {1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.
         ],

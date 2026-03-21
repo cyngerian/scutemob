@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {T}: Add {W} or {B}, Activate only if you control a Swamp —
             // conditional activation restriction (requires controlling a subtype

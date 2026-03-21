@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}
             // TODO: Triple-choice mana output not expressible; defaulting to {R}{W}.
@@ -34,6 +35,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

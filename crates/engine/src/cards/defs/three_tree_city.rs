@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {2}, {T}: Choose a color. Add mana of that color equal to the number
             // of creatures you control of the chosen type.

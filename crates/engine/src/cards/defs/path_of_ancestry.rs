@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 // TODO: conditional scry on creature-type match
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {T}, Sacrifice this land: Destroy target nonbasic land — PB-5
             // Cost::SacrificeSelf is available; blocked on targeted land destruction effect

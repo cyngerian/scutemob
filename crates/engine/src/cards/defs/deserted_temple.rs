@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {1},{T}: Untap target land — UntapPermanent effect not in DSL
         ],

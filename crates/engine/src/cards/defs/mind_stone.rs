@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

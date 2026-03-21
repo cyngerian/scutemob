@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // Channel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit tokens
             // with haste. Haste is baked into the token spec (permanent keyword, not temporary
@@ -53,6 +54,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {2}, {T}: Add {B} for each black creature card in your graveyard.
             AbilityDefinition::Activated {
@@ -54,6 +55,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

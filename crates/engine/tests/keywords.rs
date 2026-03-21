@@ -1989,6 +1989,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             }),
         }),
         sorcery_speed: false,
+            activation_condition: None,
     };
 
     let mut state = GameStateBuilder::new()

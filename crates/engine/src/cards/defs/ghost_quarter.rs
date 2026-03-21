@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}, Sacrifice: Destroy target land, its controller searches for basic land.
             AbilityDefinition::Activated {
@@ -51,6 +52,7 @@ pub fn card() -> CardDefinition {
                 ]),
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetLand],
+                activation_condition: None,
             },
         ],
         ..Default::default()

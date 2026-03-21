@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Triggered — When this land enters untapped, you may put target creature card from your graveyard on top of your library.
         ],

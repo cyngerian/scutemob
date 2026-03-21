@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // Channel — {3}{U}, Discard this card: Return target non-land permanent to
             // owner's hand. "artifact, creature, enchantment, or planeswalker" = any permanent
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
                     non_land: true,
                     ..Default::default()
                 })],
+                activation_condition: None,
             },
         ],
         ..Default::default()

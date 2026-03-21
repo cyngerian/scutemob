@@ -245,6 +245,29 @@ pub fn handle_activate_ability(
                 return Err(GameStateError::StackNotEmpty);
             }
         }
+        // CR 602.5b: "Activate only if [condition]" — check activation condition.
+        if let Some(condition) = &ab.activation_condition {
+            let ctx = crate::effects::EffectContext {
+                source,
+                controller: player,
+                targets: vec![],
+                target_remaps: Default::default(),
+                kicker_times_paid: 0,
+                was_overloaded: false,
+                was_bargained: false,
+                was_cleaved: false,
+                evidence_collected: false,
+                x_value: 0,
+                gift_was_given: false,
+                gift_opponent: None,
+                last_effect_count: 0,
+            };
+            if !crate::effects::check_condition(state, condition, &ctx) {
+                return Err(GameStateError::InvalidCommand(
+                    "activation condition not met".into(),
+                ));
+            }
+        }
     }
 
     // Clone the cost, effect, and target requirements before mutating state.

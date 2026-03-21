@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}: Add {B}. This land deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -34,6 +35,7 @@ pub fn card() -> CardDefinition {
                 ]),
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}: Add {R}. This land deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -50,6 +52,7 @@ pub fn card() -> CardDefinition {
                 ]),
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

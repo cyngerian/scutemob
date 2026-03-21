@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell.
             // TODO: Pay 1 life cost is not expressible (Cost enum lacks Cost::PayLife variant).
@@ -34,6 +35,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {5}, {T}: Create a Blood token. This ability costs {1} less to activate for
             // each Vampire you control. DSL gap: no variable cost reduction based on board state.

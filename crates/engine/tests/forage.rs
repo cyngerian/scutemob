@@ -98,6 +98,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
             amount: EffectAmount::Fixed(2),
         }),
         sorcery_speed: false,
+            activation_condition: None,
     })
 }
 
@@ -121,6 +122,7 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
                 amount: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         },
     )
 }

@@ -169,6 +169,7 @@ fn mock_hideaway_with_play_ability_def() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()
@@ -578,6 +579,7 @@ fn test_hideaway_play_exiled_card() {
             if_false: Box::new(Effect::Nothing),
         }),
         sorcery_speed: false,
+            activation_condition: None,
     };
 
     let mut state = GameStateBuilder::new()

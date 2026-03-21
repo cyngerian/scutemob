@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.
             // Note: "Phyrexian" is a creature type in MTG. Using CreatureWithSubtype to enforce
@@ -35,6 +36,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
             // DSL gap: activated ability with targets + conditional activation

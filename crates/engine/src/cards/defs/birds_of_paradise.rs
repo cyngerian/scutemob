@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         color_indicator: None,

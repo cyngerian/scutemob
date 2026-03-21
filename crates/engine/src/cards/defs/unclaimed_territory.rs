@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}: Add one mana of any color (restricted to chosen creature type spells)
             AbilityDefinition::Activated {
@@ -41,6 +42,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

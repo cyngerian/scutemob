@@ -258,6 +258,7 @@ fn test_split_second_blocks_activated_abilities() {
             description: "{T}: Does something".to_string(),
             effect: None,
             sorcery_speed: false,
+            activation_condition: None,
         })
         .in_zone(ZoneId::Battlefield);
 

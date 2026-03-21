@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {U/B},{T}: Add {U}{U}, {U}{B}, or {B}{B} — hybrid cost and triple-choice filter ability not in DSL
         ],

@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // CR 702.29: Cycling {R}.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),

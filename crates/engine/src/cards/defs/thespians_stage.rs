@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {2}, {T}: This land becomes a copy of target land, except it has this ability
             // — "become a copy of target land" copy effect not expressible in DSL

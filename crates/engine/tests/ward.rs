@@ -492,6 +492,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             target: CardEffectTarget::DeclaredTarget { index: 0 },
         }),
         sorcery_speed: false,
+            activation_condition: None,
     };
     let ability_creature =
         ObjectSpec::creature(p2, "Assassin", 1, 1).with_activated_ability(ability);

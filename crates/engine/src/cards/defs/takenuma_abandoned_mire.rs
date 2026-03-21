@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // Channel — {3}{B}, Discard this card: Mill 3, then return creature/planeswalker
             // from graveyard to hand. Deterministic fallback picks highest-ObjectId matching card.
@@ -45,6 +46,7 @@ pub fn card() -> CardDefinition {
                     has_card_types: vec![CardType::Creature, CardType::Planeswalker],
                     ..Default::default()
                 })],
+                activation_condition: None,
             },
         ],
         ..Default::default()

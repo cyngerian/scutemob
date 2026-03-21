@@ -98,6 +98,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
             if_false: Box::new(Effect::Nothing),
         }),
         sorcery_speed: false,
+            activation_condition: None,
     }
 }
 

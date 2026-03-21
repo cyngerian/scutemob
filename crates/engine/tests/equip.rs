@@ -78,6 +78,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
             target: CardEffectTarget::DeclaredTarget { index: 0 },
         }),
         sorcery_speed: true,
+            activation_condition: None,
     }
 }
 

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {1}{W},{T}: Prevent all combat damage from target attacking creature — prevention effect not in DSL
         ],

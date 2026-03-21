@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {B}, {T}: Target legendary creature gains fear until end of turn
             // — targeted activated ability not expressible in DSL (no targets field on Activated);

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {3}, {T}: Investigate.
             AbilityDefinition::Activated {
@@ -32,6 +33,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

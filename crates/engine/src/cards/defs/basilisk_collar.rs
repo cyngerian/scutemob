@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

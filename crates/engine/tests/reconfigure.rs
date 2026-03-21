@@ -76,6 +76,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
             target: CardEffectTarget::DeclaredTarget { index: 0 },
         }),
         sorcery_speed: true,
+            activation_condition: None,
     }
 }
 
@@ -104,6 +105,7 @@ fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
             equipment: CardEffectTarget::Source,
         }),
         sorcery_speed: true,
+            activation_condition: None,
     }
 }
 

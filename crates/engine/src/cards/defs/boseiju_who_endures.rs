@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // Channel — {1}{G}, Discard: Destroy target + opponent searches.
             // Target filter restricts to opponent-controlled permanents (partial).
@@ -79,6 +80,7 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::Opponent,
                     ..Default::default()
                 })],
+                activation_condition: None,
             },
         ],
         ..Default::default()

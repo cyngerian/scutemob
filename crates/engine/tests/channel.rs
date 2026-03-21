@@ -58,6 +58,7 @@ fn channel_card(owner: PlayerId, name: &str, mana: ManaCost, effect: Effect) -> 
             description: "Channel — discard, pay mana: effect".to_string(),
             effect: Some(effect),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![],
         })
 }
@@ -204,6 +205,7 @@ fn test_channel_cannot_activate_from_battlefield() {
             description: "Channel".to_string(),
             effect: Some(channel_effect),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![],
         });
 

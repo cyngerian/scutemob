@@ -80,6 +80,7 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 count: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .token()
 }

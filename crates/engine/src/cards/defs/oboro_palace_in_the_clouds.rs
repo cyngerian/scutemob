@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {1}: return this land to owner's hand — self-bounce activated ability
             // not expressible in current DSL.

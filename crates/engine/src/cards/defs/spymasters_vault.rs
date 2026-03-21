@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn).
         ],

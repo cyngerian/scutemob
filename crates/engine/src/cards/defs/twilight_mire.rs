@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G}.
             // TODO: Triple-choice mana output not expressible with current DSL.
@@ -35,6 +36,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

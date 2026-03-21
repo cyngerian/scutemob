@@ -598,6 +598,7 @@ fn test_condition_has_citys_blessing() {
                 if_false: Box::new(Effect::Nothing),
             }),
             sorcery_speed: false,
+            activation_condition: None,
             targets: vec![],
         })
         .in_zone(ZoneId::Battlefield);

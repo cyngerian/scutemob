@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — Delirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn.
         ],

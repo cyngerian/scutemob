@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
             },
         ],
         color_indicator: None,

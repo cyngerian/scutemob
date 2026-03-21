@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {T}, Sacrifice: Put your commander into your hand from the command zone
             // — Cost::SacrificeSelf available; blocked on command-zone-to-hand effect

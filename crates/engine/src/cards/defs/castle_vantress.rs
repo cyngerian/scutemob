@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — {2}{U}{U}, {T}: Scry 2.
         ],

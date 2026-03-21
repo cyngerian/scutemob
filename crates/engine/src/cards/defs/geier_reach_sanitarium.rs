@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {2},{T}: Each player draws a card then discards a card — ForEach EachPlayer with Sequence draw+discard not in DSL
         ],

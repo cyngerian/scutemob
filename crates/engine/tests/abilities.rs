@@ -34,6 +34,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         description: description.to_string(),
         effect: None,
         sorcery_speed: false,
+            activation_condition: None,
     }
 }
 
@@ -53,6 +54,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         description: description.to_string(),
         effect: None,
         sorcery_speed: false,
+            activation_condition: None,
     }
 }
 
@@ -1016,6 +1018,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             description: "Sacrifice: Draw a card.".into(),
             effect: Some(draw_effect),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1140,6 +1143,7 @@ fn test_sacrifice_filter_creature_valid() {
                 amount: EffectAmount::Fixed(2),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1221,6 +1225,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
                 amount: EffectAmount::Fixed(2),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1289,6 +1294,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
                 amount: EffectAmount::Fixed(2),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1357,6 +1363,7 @@ fn test_sacrifice_filter_missing_target_errors() {
                 amount: EffectAmount::Fixed(2),
             }),
             sorcery_speed: false,
+            activation_condition: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1697,6 +1704,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             description: "Sacrifice: trigger dies".to_string(),
             effect: None,
             sorcery_speed: false,
+            activation_condition: None,
         })
         .with_triggered_ability(dies_trigger("When ~ dies (CR 700.4)"))
         .in_zone(ZoneId::Battlefield);

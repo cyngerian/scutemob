@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {U},{T}: Untap target legendary permanent — tap-plus-pay-mana
             // cost with untap-permanent effect is not expressible in the DSL

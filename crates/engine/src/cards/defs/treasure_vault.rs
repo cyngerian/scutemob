@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {X}{X}, {T}, Sacrifice: Create X Treasure tokens.
             // TODO: X-scaled token creation (EffectAmount::XValue in token count) not yet wired.
@@ -34,6 +35,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

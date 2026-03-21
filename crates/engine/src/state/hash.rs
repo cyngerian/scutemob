@@ -1778,6 +1778,8 @@ impl HashInto for ActivatedAbility {
         // CR 602.5d: sorcery-speed restriction field
         self.sorcery_speed.hash_into(hasher);
         self.targets.hash_into(hasher);
+        // CR 602.5b: activation condition
+        self.activation_condition.hash_into(hasher);
     }
 }
 
@@ -4530,12 +4532,14 @@ impl HashInto for AbilityDefinition {
                 effect,
                 timing_restriction,
                 targets,
+                activation_condition,
             } => {
                 0u8.hash_into(hasher);
                 cost.hash_into(hasher);
                 effect.hash_into(hasher);
                 timing_restriction.hash_into(hasher);
                 targets.hash_into(hasher);
+                activation_condition.hash_into(hasher);
             }
             AbilityDefinition::Triggered {
                 trigger_condition,

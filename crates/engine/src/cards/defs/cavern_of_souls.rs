@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a creature
             // spell of the chosen type.
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: "and that spell can't be countered" — uncounterability rider on the
             // mana restriction is not yet expressible. Requires linking mana source to

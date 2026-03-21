@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {G},{T}: Untap target Elf — tap-plus-pay-mana cost with
             // untap-creature effect targeting a specific subtype is not

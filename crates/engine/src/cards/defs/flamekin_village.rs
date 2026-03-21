@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 1, 0, 0) },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // {R}, {T}: Target creature gains haste until end of turn.
             AbilityDefinition::Activated {
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
             },
         ],
         ..Default::default()

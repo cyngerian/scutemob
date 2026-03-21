@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: At the beginning of your upkeep, if you control 3+ artifacts, gain 1 life.
             // {4}, {T}, Sacrifice: Search for artifact, reveal, put into hand, shuffle.
@@ -56,6 +57,7 @@ pub fn card() -> CardDefinition {
                 ]),
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
         ],
         ..Default::default()

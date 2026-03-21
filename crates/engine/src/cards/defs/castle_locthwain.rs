@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: Activated — {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand.
         ],

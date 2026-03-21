@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
+                activation_condition: None,
             },
             // TODO: {1}, {T}: Put a storage counter on this land.
             // DSL gap: no Effect::AddCounter targeting self with CounterType::Storage.
