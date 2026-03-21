@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-22 S5: Copy/clone primitives | ACTIVE | 2026-03-21 | PB-22 S1-S4 done. S5-S7 remain. Plan: `memory/primitives/pb-22-session-plan.md` |
+| W6: Primitive + Card Authoring | — | available | — | PB-22 S1-S5 done. S6-S7 remain. Plan: `memory/primitives/pb-22-session-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,22 +25,24 @@
 
 **Date**: 2026-03-21
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-22 S4 — Tapped-and-attacking tokens + equipment auto-attach
+**Task**: PB-22 S5 — Copy/clone primitives (BecomeCopyOf, CreateTokenCopy)
 
 **Completed**:
-- Added `TokenSpec.enters_attacking: bool` — tokens register in combat.attackers inheriting source's attack target (CR 508.4)
-- Added `EffectTarget::LastCreatedPermanent` — resolves to most recently created token/permanent via EffectContext
-- Added `EffectContext.last_created_permanent: Option<ObjectId>` — set by CreateToken, Cloak, Manifest, CreateTokenAndAttachSource
-- Hash entries: EffectTarget disc 8, TokenSpec.enters_attacking
-- Fixed Hanweir Garrison card def: attack trigger with tapped+attacking Human tokens
-- Fixed Hanweir Township back face: attack trigger with tapped+attacking Eldrazi Horror tokens
-- Fixed Cryptic Coat card def: cloak + auto-attach via Sequence + LastCreatedPermanent
-- Self-review: fixed MEDIUM (CreateTokenAndAttachSource missing last_created_permanent tracking)
-- 6 new tests (tapped_and_attacking.rs), 2260 total
+- Added `Effect::BecomeCopyOf { copier, target, duration }` — registers Layer 1 CopyOf CE with configurable duration (CR 707.2)
+- Added `Effect::CreateTokenCopy { source, enters_tapped_and_attacking }` — creates blank token with CopyOf CE (CR 707.2 + CR 508.4)
+- Added `Condition::CardTypesInGraveyardAtLeast(u32)` for Delirium activation conditions
+- Added `GameEvent::BecameCopyOf { copier, source }` (disc 123)
+- Hash: Effect disc 64-65, GameEvent disc 123, Condition disc 31
+- Fixed Thespian's Stage: full {2},{T} BecomeCopyOf (Indefinite, target land)
+- Fixed Shifting Woodland: Delirium {2}{G}{G} BecomeCopyOf (UntilEndOfTurn, 4+ card types)
+- Fixed Thousand-Faced Shadow: ETB CreateTokenCopy (tapped+attacking)
+- Scion of the Ur-Dragon: TODO improved (needs EffectTarget::LastSearchResult)
+- Review: 0 HIGH, 2 MEDIUM (target filter TODOs documented), 3 LOW
+- 5 new tests in copy_effects.rs, 2265 total
 
 **Next**:
-1. PB-22 S5: Copy/clone primitives (BecomeCopyOf, CreateTokenCopy)
-2. PB-22 S6-S7: Emblems, adventure
+1. PB-22 S6: Emblem creation (CR 114) — 11 planeswalker cards
+2. PB-22 S7: Adventure + dual-zone search
 3. After PB-22: Phase 2 card authoring (~1,025 remaining cards)
 
 **Hazards**:
@@ -49,6 +51,12 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-21 — W6: PB-22 S5 (Copy/Clone Primitives)
+- Added Effect::BecomeCopyOf + Effect::CreateTokenCopy + Condition::CardTypesInGraveyardAtLeast
+- Fixed Thespian's Stage, Shifting Woodland, Thousand-Faced Shadow card defs
+- Review: 0H 2M 3L, fixes applied (TODO documentation)
+- 5 new tests, 2265 total
 
 ### 2026-03-21 — W6: PB-22 S3 (RevealAndRoute + Flicker)
 - Added Effect::RevealAndRoute + Effect::Flicker (CR 701.16a, CR 400.7)

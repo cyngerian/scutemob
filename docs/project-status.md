@@ -92,7 +92,7 @@
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2206 |
+| Total tests | 2265 |
 | Test files | 212 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
@@ -105,22 +105,22 @@
 
 Items explicitly deferred from completed PB batches. Must be addressed before Phase 2 authoring.
 
-| Item | Deferred From | Blocked Until | Impact |
-|------|---------------|---------------|--------|
-| Equipment auto-attach | PB-13d | PB-18 or dedicated | 2 cards |
-| Timing restriction (sorcery-speed activation) | PB-13i | PB-18 or dedicated | 2 cards |
-| Clone/copy ETB choice | PB-13j | dedicated session | 2 cards |
-| Adventure (split-card from exile) | PB-13m | dedicated session | 1 card |
-| Coin flip / d20 | PB-13h | dedicated session | 2 cards |
-| Flicker (exile + return) | PB-13l | dedicated session | 1+ cards |
-| Tiamat multi-card search | PB-17 | M10 (player choice) | 1 card |
-| Goblin Ringleader reveal-route pattern | PB-17 | dedicated primitive | 1 card |
-| Finale of Devastation graveyard search + X pump | PB-17 | dedicated session | 1 card |
-| Scion of the Ur-Dragon copy-self | PB-17 | copy subsystem | 1 card |
-| Inventors' Fair activation condition | PB-17 | Condition variant | 1 card |
-| Urza's Saga exact mana cost filter | PB-17 | TargetFilter exact_mana_cost field | 1 card |
-| Hanweir attack triggers (tapped-and-attacking tokens) | PB-14 | combat token primitive | 2 cards |
-| Emblem creation (CR 114) | PB-14 | dedicated session | 11 cards |
+| Item | Deferred From | Blocked Until | Impact | Status |
+|------|---------------|---------------|--------|--------|
+| ~~Equipment auto-attach~~ | PB-13d | ~~PB-22 S4~~ | 2 cards | **DONE (S4)** |
+| ~~Timing restriction (sorcery-speed activation)~~ | PB-13i | ~~PB-22 S1~~ | 2 cards | **DONE (S1)** |
+| Clone/copy ETB choice | PB-13j | dedicated session | 2 cards | Partial (BecomeCopyOf exists, choose-target gap remains) |
+| Adventure (split-card from exile) | PB-13m | PB-22 S7 | 1 card | |
+| ~~Coin flip / d20~~ | PB-13h | ~~PB-22 S2~~ | 2 cards | **DONE (S2)** |
+| ~~Flicker (exile + return)~~ | PB-13l | ~~PB-22 S3~~ | 1+ cards | **DONE (S3)** |
+| Tiamat multi-card search | PB-17 | M10 (player choice) | 1 card | |
+| ~~Goblin Ringleader reveal-route pattern~~ | PB-17 | ~~PB-22 S3~~ | 1 card | **DONE (S3)** |
+| Finale of Devastation graveyard search + X pump | PB-17 | dedicated session | 1 card | |
+| Scion of the Ur-Dragon copy-self | PB-17 | EffectTarget::LastSearchResult | 1 card | Partial (BecomeCopyOf exists, needs LastSearchResult) |
+| ~~Inventors' Fair activation condition~~ | PB-17 | ~~PB-22 S1~~ | 1 card | **DONE (S1)** |
+| Urza's Saga exact mana cost filter | PB-17 | TargetFilter exact_mana_cost field | 1 card | |
+| ~~Hanweir attack triggers (tapped-and-attacking tokens)~~ | PB-14 | ~~PB-22 S4~~ | 2 cards | **DONE (S4)** |
+| Emblem creation (CR 114) | PB-14 | PB-22 S6 | 11 cards | |
 
 ---
 

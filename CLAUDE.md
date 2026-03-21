@@ -12,10 +12,10 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
-- **Status**: 2260 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; **PB-22 deferred cleanup S4/7 done** (activation_condition, coin flip/d20, reveal-route/flicker, tapped-attacking tokens/auto-attach); W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~29 LOW open**; W3 LOW sprint COMPLETE
+- **Status**: 2265 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; **PB-22 deferred cleanup S5/7 done** (activation_condition, coin flip/d20, reveal-route/flicker, tapped-attacking tokens/auto-attach, copy/clone); W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~29 LOW open**; W3 LOW sprint COMPLETE
 - **Active Plan**: **W6 Primitive + Card Authoring** — `docs/primitive-card-plan.md` (PB-0 to PB-21 done, PB-22 deferred cleanup in progress, then bulk authoring, then final audit). PB-22 plan: `memory/primitives/pb-22-session-plan.md`. W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-21 (PB-22 S4: tapped-and-attacking tokens + EffectTarget::LastCreatedPermanent, CR 508.4; 2260 tests)
+- **Last Updated**: 2026-03-21 (PB-22 S5: BecomeCopyOf + CreateTokenCopy + Delirium condition, CR 707.2/508.4; 2265 tests)
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 453 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior), CardRegistry

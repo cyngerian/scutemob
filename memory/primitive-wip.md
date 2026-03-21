@@ -5,7 +5,7 @@ session: S5
 title: Copy/Clone Primitives (BecomeCopyOf, CreateTokenCopy)
 cards_affected: 4 (Scion of the Ur-Dragon, Thespian's Stage, Shifting Woodland, Thousand-Faced Shadow)
 started: 2026-03-21
-phase: review
+phase: closed
 plan_file: memory/primitives/pb-22-session-plan.md (Session 5 section)
 
 ## Deferred from Prior PBs
