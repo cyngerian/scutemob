@@ -1,4 +1,11 @@
-// Thespian's Stage — Land, {T}: Add {C}; {2},{T}: become copy of target land (TODO)
+// Thespian's Stage — Land
+// {T}: Add {C}.
+// {2}, {T}: This land becomes a copy of target land, except it has this ability.
+// CR 707.2: Copy effect with Indefinite duration (no end-of-turn expiry).
+// Ruling 2018-12-07: "The copy effect doesn't have a duration. It will last until
+// Thespian's Stage leaves the battlefield or another copy effect overwrites it."
+// TODO: "except it has this ability" — retained ability after copy not yet expressible.
+//   Currently the copy overwrites all abilities including the {2},{T} copy ability.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +27,28 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {2}, {T}: This land becomes a copy of target land, except it has this ability
-            // — "become a copy of target land" copy effect not expressible in DSL
+            // {2}, {T}: This land becomes a copy of target land.
+            // CR 707.2: Indefinite copy effect (no duration).
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::BecomeCopyOf {
+                    copier: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    duration: EffectDuration::Indefinite,
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Land),
+                    ..Default::default()
+                })],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

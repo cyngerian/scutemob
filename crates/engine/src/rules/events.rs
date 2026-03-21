@@ -1320,6 +1320,18 @@ pub enum GameEvent {
         /// Whether an additional main phase follows the extra combat.
         followed_by_main: bool,
     },
+
+    /// CR 707.2: A permanent became a copy of another permanent.
+    ///
+    /// Emitted by `Effect::BecomeCopyOf` when the Layer 1 copy effect is registered.
+    ///
+    /// Discriminant: 123.
+    BecameCopyOf {
+        /// The permanent that became a copy.
+        copier: crate::state::game_object::ObjectId,
+        /// The permanent it became a copy of.
+        source: crate::state::game_object::ObjectId,
+    },
 }
 
 impl GameEvent {

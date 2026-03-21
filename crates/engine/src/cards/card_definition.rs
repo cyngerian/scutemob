@@ -10,7 +10,7 @@
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
 
-use crate::state::continuous_effect::{EffectLayer, LayerModification};
+use crate::state::continuous_effect::{EffectDuration, EffectLayer, LayerModification};
 use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::types::AltCostKind;
@@ -1537,6 +1537,40 @@ pub enum Effect {
         /// The creature or permanent receiving damage.
         target: EffectTarget,
     },
+
+    /// CR 707.2 / CR 706.9a: A permanent becomes a copy of another permanent.
+    ///
+    /// Registers a Layer 1 CopyOf continuous effect on the source permanent,
+    /// targeting the specified object. The source gains all copiable values
+    /// (name, types, subtypes, P/T, abilities, etc.) of the target.
+    ///
+    /// Duration: `UntilEndOfTurn` — the copy effect wears off at end of turn.
+    /// For permanent copy effects (e.g., Thespian's Stage), use `Indefinite`.
+    ///
+    /// Used by: Scion of the Ur-Dragon, Thespian's Stage, Shifting Woodland.
+    BecomeCopyOf {
+        /// The permanent that should become a copy. Typically `EffectTarget::Source`.
+        copier: EffectTarget,
+        /// The permanent to copy. Typically a declared target.
+        target: EffectTarget,
+        /// Duration of the copy effect.
+        duration: EffectDuration,
+    },
+
+    /// CR 707.2 / CR 111.10: Create a token that's a copy of a permanent.
+    ///
+    /// Creates a blank token on the battlefield, then applies a Layer 1
+    /// CopyOf continuous effect so the token gains the copiable values of
+    /// the source permanent. Optionally enters tapped and attacking (CR 508.4).
+    ///
+    /// Used by: Thousand-Faced Shadow, Myriad (future migration), etc.
+    CreateTokenCopy {
+        /// The permanent to copy.
+        source: EffectTarget,
+        /// If true, the token enters tapped and attacking (inherits attack
+        /// target from the effect controller's current attack, per CR 508.4).
+        enters_tapped_and_attacking: bool,
+    },
 }
 
 // ── Effect Targets ────────────────────────────────────────────────────────────
@@ -2000,6 +2034,13 @@ pub enum Condition {
     /// Evaluates `state.turn.in_extra_combat == false`.
     /// Used by Karlach ('if it's the first combat phase of the turn').
     IsFirstCombatPhase,
+
+    /// "if there are N or more card types among cards in your graveyard" — Delirium.
+    ///
+    /// CR 700.2: Checks the number of distinct card types (Creature, Instant, Sorcery,
+    /// Artifact, Enchantment, Land, Planeswalker, Tribal, Battle) among all cards in
+    /// the controller's graveyard. Used by Delirium cards like Shifting Woodland.
+    CardTypesInGraveyardAtLeast(u32),
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

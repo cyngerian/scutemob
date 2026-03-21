@@ -3661,6 +3661,12 @@ impl HashInto for GameEvent {
                 sides.hash_into(hasher);
                 result.hash_into(hasher);
             }
+            // BecameCopyOf -- CR 707.2 (discriminant 123)
+            GameEvent::BecameCopyOf { copier, source } => {
+                123u8.hash_into(hasher);
+                copier.hash_into(hasher);
+                source.hash_into(hasher);
+            }
         }
     }
 }
@@ -4096,6 +4102,11 @@ impl HashInto for Condition {
             Condition::HasCitysBlessing => 29u8.hash_into(hasher),
             // CR 500.8: IsFirstCombatPhase (discriminant 30)
             Condition::IsFirstCombatPhase => 30u8.hash_into(hasher),
+            // Delirium: CardTypesInGraveyardAtLeast (discriminant 31)
+            Condition::CardTypesInGraveyardAtLeast(n) => {
+                31u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -4583,6 +4594,26 @@ impl HashInto for Effect {
                 63u8.hash_into(hasher);
                 target.hash_into(hasher);
                 return_tapped.hash_into(hasher);
+            }
+            // CR 707.2: BecomeCopyOf (discriminant 64)
+            Effect::BecomeCopyOf {
+                copier,
+                target,
+                duration,
+            } => {
+                64u8.hash_into(hasher);
+                copier.hash_into(hasher);
+                target.hash_into(hasher);
+                duration.hash_into(hasher);
+            }
+            // CR 707.2: CreateTokenCopy (discriminant 65)
+            Effect::CreateTokenCopy {
+                source,
+                enters_tapped_and_attacking,
+            } => {
+                65u8.hash_into(hasher);
+                source.hash_into(hasher);
+                enters_tapped_and_attacking.hash_into(hasher);
             }
         }
     }

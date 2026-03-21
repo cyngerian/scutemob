@@ -337,3 +337,324 @@ fn test_copy_does_not_copy_counters_or_status() {
         "Bear should still have its counter-boosted power (4)"
     );
 }
+
+// ── PB-22 S5: Effect::BecomeCopyOf and Effect::CreateTokenCopy ──────────────
+
+/// CR 707.2: Effect::BecomeCopyOf — test the full effect execution path.
+#[test]
+fn test_effect_become_copy_of() {
+    use mtg_engine::cards::card_definition::{Effect, EffectTarget};
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::state::{SpellTarget, Target};
+
+    let p = p1();
+    let bear_spec = ObjectSpec::creature(p, "Grizzly Bears", 2, 2);
+    let clone_spec = ObjectSpec::creature(p, "Shapeshifter", 0, 0);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p)
+        .object(bear_spec)
+        .object(clone_spec)
+        .build()
+        .unwrap();
+
+    let bear_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
+        .map(|(id, _)| *id)
+        .unwrap();
+    let clone_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shapeshifter")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let effect = Effect::BecomeCopyOf {
+        copier: EffectTarget::Source,
+        target: EffectTarget::DeclaredTarget { index: 0 },
+        duration: EffectDuration::UntilEndOfTurn,
+    };
+
+    let target = SpellTarget {
+        target: Target::Object(bear_id),
+        zone_at_cast: Some(mtg_engine::state::zone::ZoneId::Battlefield),
+    };
+    let mut ctx = EffectContext::new(p, clone_id, vec![target]);
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Verify BecameCopyOf event was emitted.
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            mtg_engine::GameEvent::BecameCopyOf { copier, source }
+            if *copier == clone_id && *source == bear_id
+        )),
+        "should emit BecameCopyOf event"
+    );
+
+    // Verify the copy took effect via the layer system.
+    let chars = calculate_characteristics(&state, clone_id).unwrap();
+    assert_eq!(chars.name, "Grizzly Bears", "should have Bear's name");
+    assert_eq!(chars.power, Some(2), "should have Bear's power");
+}
+
+/// CR 707.2: Effect::BecomeCopyOf with UntilEndOfTurn — verify reversion.
+#[test]
+fn test_effect_become_copy_reverts_at_eot() {
+    use mtg_engine::cards::card_definition::{Effect, EffectTarget};
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::state::{SpellTarget, Target};
+
+    let p = p1();
+    let bear_spec = ObjectSpec::creature(p, "Grizzly Bears", 2, 2);
+    let clone_spec = ObjectSpec::creature(p, "Shapeshifter", 0, 0);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p)
+        .object(bear_spec)
+        .object(clone_spec)
+        .build()
+        .unwrap();
+
+    let bear_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
+        .map(|(id, _)| *id)
+        .unwrap();
+    let clone_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shapeshifter")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let effect = Effect::BecomeCopyOf {
+        copier: EffectTarget::Source,
+        target: EffectTarget::DeclaredTarget { index: 0 },
+        duration: EffectDuration::UntilEndOfTurn,
+    };
+
+    let target = SpellTarget {
+        target: Target::Object(bear_id),
+        zone_at_cast: Some(mtg_engine::state::zone::ZoneId::Battlefield),
+    };
+    let mut ctx = EffectContext::new(p, clone_id, vec![target]);
+    mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Confirm copy is active.
+    let chars = calculate_characteristics(&state, clone_id).unwrap();
+    assert_eq!(chars.name, "Grizzly Bears");
+
+    // Simulate EOT cleanup: remove UntilEndOfTurn effects.
+    state
+        .continuous_effects
+        .retain(|e| e.duration != EffectDuration::UntilEndOfTurn);
+
+    // Should revert to original.
+    let chars_after = calculate_characteristics(&state, clone_id).unwrap();
+    assert_eq!(chars_after.name, "Shapeshifter", "should revert after EOT");
+    assert_eq!(chars_after.power, Some(0));
+}
+
+/// CR 707.2 / CR 111.10: Effect::CreateTokenCopy — create a token copy.
+#[test]
+fn test_effect_create_token_copy() {
+    use mtg_engine::cards::card_definition::{Effect, EffectTarget};
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::state::zone::ZoneId;
+    use mtg_engine::state::{SpellTarget, Target};
+
+    let p = p1();
+    let dragon_spec = ObjectSpec::creature(p, "Shivan Dragon", 5, 5);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p)
+        .object(dragon_spec)
+        .build()
+        .unwrap();
+
+    let dragon_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shivan Dragon")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let effect = Effect::CreateTokenCopy {
+        source: EffectTarget::DeclaredTarget { index: 0 },
+        enters_tapped_and_attacking: false,
+    };
+
+    let target = SpellTarget {
+        target: Target::Object(dragon_id),
+        zone_at_cast: Some(mtg_engine::state::zone::ZoneId::Battlefield),
+    };
+    let mut ctx = EffectContext::new(p, dragon_id, vec![target]);
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Find the token.
+    let tokens: Vec<_> = state
+        .objects
+        .values()
+        .filter(|o| o.is_token && o.zone == ZoneId::Battlefield)
+        .collect();
+    assert_eq!(tokens.len(), 1, "should create one token");
+    assert!(!tokens[0].status.tapped, "should not be tapped");
+
+    // Verify copy characteristics.
+    let chars = calculate_characteristics(&state, tokens[0].id).unwrap();
+    assert_eq!(chars.name, "Shivan Dragon");
+    assert_eq!(chars.power, Some(5));
+    assert_eq!(chars.toughness, Some(5));
+
+    // Verify events.
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, mtg_engine::GameEvent::TokenCreated { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, mtg_engine::GameEvent::PermanentEnteredBattlefield { .. })));
+}
+
+/// CR 508.4: CreateTokenCopy with enters_tapped_and_attacking.
+#[test]
+fn test_effect_create_token_copy_tapped_attacking() {
+    use mtg_engine::cards::card_definition::{Effect, EffectTarget};
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::state::combat::{AttackTarget, CombatState};
+    use mtg_engine::state::zone::ZoneId;
+    use mtg_engine::state::{SpellTarget, Target};
+
+    let p = p1();
+    let p2 = PlayerId(2);
+    let warrior_spec = ObjectSpec::creature(p, "Elite Warrior", 3, 3);
+    let ninja_spec = ObjectSpec::creature(p, "Shadow Ninja", 1, 1);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p)
+        .add_player(p2)
+        .object(warrior_spec)
+        .object(ninja_spec)
+        .build()
+        .unwrap();
+
+    let warrior_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Elite Warrior")
+        .map(|(id, _)| *id)
+        .unwrap();
+    let ninja_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shadow Ninja")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // Set up combat: ninja attacking p2.
+    let mut combat = CombatState::new(p);
+    combat.attackers.insert(ninja_id, AttackTarget::Player(p2));
+    state.combat = Some(combat);
+
+    let effect = Effect::CreateTokenCopy {
+        source: EffectTarget::DeclaredTarget { index: 0 },
+        enters_tapped_and_attacking: true,
+    };
+
+    let target = SpellTarget {
+        target: Target::Object(warrior_id),
+        zone_at_cast: Some(mtg_engine::state::zone::ZoneId::Battlefield),
+    };
+    let mut ctx = EffectContext::new(p, ninja_id, vec![target]);
+    mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Find the token.
+    let tokens: Vec<_> = state
+        .objects
+        .values()
+        .filter(|o| o.is_token && o.zone == ZoneId::Battlefield)
+        .collect();
+    assert_eq!(tokens.len(), 1);
+
+    // Token should be tapped and attacking p2.
+    assert!(tokens[0].status.tapped, "token should be tapped");
+    let combat = state.combat.as_ref().unwrap();
+    assert!(combat.attackers.contains_key(&tokens[0].id));
+    assert_eq!(
+        *combat.attackers.get(&tokens[0].id).unwrap(),
+        AttackTarget::Player(p2)
+    );
+
+    // Token should have warrior's characteristics.
+    let chars = calculate_characteristics(&state, tokens[0].id).unwrap();
+    assert_eq!(chars.name, "Elite Warrior");
+    assert_eq!(chars.power, Some(3));
+}
+
+/// Condition::CardTypesInGraveyardAtLeast (Delirium) evaluation.
+#[test]
+fn test_delirium_condition_evaluation() {
+    use mtg_engine::cards::card_definition::Condition;
+    use mtg_engine::effects::EffectContext;
+
+    let p = p1();
+
+    let creature_spec = ObjectSpec::creature(p, "Test Creature", 1, 1);
+    let land_spec = ObjectSpec::card(p, "Test Land").with_types(vec![CardType::Land]);
+    let instant_spec = ObjectSpec::card(p, "Test Instant").with_types(vec![CardType::Instant]);
+    let source_spec = ObjectSpec::creature(p, "Source", 1, 1);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p)
+        .object(creature_spec)
+        .object(land_spec)
+        .object(instant_spec)
+        .object(source_spec)
+        .build()
+        .unwrap();
+
+    let source_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Source")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // Move 3 objects to graveyard for 3 distinct card types.
+    let ids_to_move: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| obj.characteristics.name.starts_with("Test"))
+        .map(|(id, _)| *id)
+        .collect();
+    for id in ids_to_move {
+        let _ = state.move_object_to_zone(id, mtg_engine::state::zone::ZoneId::Graveyard(p));
+    }
+
+    let ctx = EffectContext::new(p, source_id, vec![]);
+
+    // 3 card types (Creature, Land, Instant) — delirium(4) = false.
+    assert!(
+        !mtg_engine::effects::check_condition(
+            &state,
+            &Condition::CardTypesInGraveyardAtLeast(4),
+            &ctx,
+        ),
+        "3 card types < 4"
+    );
+
+    // delirium(3) = true.
+    assert!(
+        mtg_engine::effects::check_condition(
+            &state,
+            &Condition::CardTypesInGraveyardAtLeast(3),
+            &ctx,
+        ),
+        "3 card types >= 3"
+    );
+}

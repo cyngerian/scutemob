@@ -1,7 +1,9 @@
-// Shifting Woodland — This land enters tapped unless you control a Forest. {T}: Add {G}.
-// Delirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until
-// end of turn. Activate only if there are four or more card types among cards in your graveyard.
-// (channel/delirium ability — TODO)
+// Shifting Woodland — Land
+// This land enters tapped unless you control a Forest.
+// {T}: Add {G}.
+// Delirium — {2}{G}{G}: This land becomes a copy of target permanent card in your
+// graveyard until end of turn. Activate only if there are four or more card types
+// among cards in your graveyard.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -12,14 +14,18 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard.".to_string(),
         abilities: vec![
+            // ETB tapped unless you control a Forest.
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
-                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Forest".to_string())])),
+                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType(
+                    "Forest".to_string(),
+                )])),
             },
+            // {T}: Add {G}
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -30,7 +36,25 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — Delirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn.
+            // Delirium — {2}{G}{G}: Become a copy of target permanent card in your graveyard
+            // until end of turn. Activation condition: 4+ card types in graveyard.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    green: 2,
+                    ..Default::default()
+                }),
+                effect: Effect::BecomeCopyOf {
+                    copier: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    duration: EffectDuration::UntilEndOfTurn,
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(
+                    TargetFilter::default(),
+                )],
+                activation_condition: Some(Condition::CardTypesInGraveyardAtLeast(4)),
+            },
         ],
         ..Default::default()
     }

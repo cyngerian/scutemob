@@ -3,8 +3,9 @@
 // {2}: Search your library for a Dragon permanent card and put it into your graveyard.
 //   If you do, Scion of the Ur-Dragon becomes a copy of that card until end of turn.
 //   Then shuffle.
-// TODO: Copy-self effect ("becomes a copy of that card until end of turn") not in DSL.
-//   Search-to-graveyard portion is implemented; copy portion is a placeholder.
+// TODO: "becomes a copy of that card until end of turn" — needs EffectTarget::LastSearchResult
+//   to reference the card found by SearchLibrary. BecomeCopyOf infrastructure exists but
+//   can't wire to the search result yet. Search-to-graveyard + shuffle works correctly.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,8 +30,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // {2}: Search for Dragon, put in graveyard, shuffle.
-            // TODO: Missing "becomes a copy of that card until end of turn"
+            // {2}: Search for Dragon → graveyard, become copy until EOT, shuffle.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost {
                     generic: 2,

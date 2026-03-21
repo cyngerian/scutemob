@@ -1,50 +1,44 @@
-# Primitive WIP: PB-21 -- Fight & Bite
+# Primitive WIP: PB-22 S5 -- Copy/Clone Primitives
 
-batch: PB-21
-title: Fight & Bite
-cards_affected: 5+
-started: 2026-03-19
-phase: closed
-plan_file: memory/primitives/pb-plan-21.md
+batch: PB-22
+session: S5
+title: Copy/Clone Primitives (BecomeCopyOf, CreateTokenCopy)
+cards_affected: 4 (Scion of the Ur-Dragon, Thespian's Stage, Shifting Woodland, Thousand-Faced Shadow)
+started: 2026-03-21
+phase: review
+plan_file: memory/primitives/pb-22-session-plan.md (Session 5 section)
 
 ## Deferred from Prior PBs
-none
-
-## Review
-findings: 6 (HIGH: 0, MEDIUM: 3, LOW: 3)
-verdict: needs-fix → fixed
-review_file: memory/primitives/pb-review-21.md
-
-## Fix Phase (2026-03-19)
-- [x] Finding 1 (MEDIUM): is_creature_on_battlefield now calls calculate_characteristics(state, id) via layer system — effects/mod.rs:3835-3852
-- [x] Finding 5 (MEDIUM): bridgeworks_battle.rs: added back_face: Some(CardFace { ... }) for Tanglespan Bridgeworks (Land, enters tapped, {T}: Add {G}) — bridgeworks_battle.rs
-- [x] Finding 2 (LOW): Added test_fight_target_not_creature in fight_bite.rs — uses SetTypeLine ContinuousEffect to make Fighter B an Enchantment before resolution; verifies CR 701.14b all-or-nothing
-- [x] Finding 3 (LOW): Added test_bite_negative_power in fight_bite.rs — uses ModifyPower(-3) on a 2/2 for net -1 power; verifies clamped to 0 damage
-- [ ] Finding 4 (MEDIUM): "Up to one" optional targeting — DSL gap, TODO remains in bridgeworks_battle.rs
-- [ ] Finding 6 (LOW): "Another target" filter — DSL gap, documented in brash_taunter.rs
-- Post-fix verification: 14/14 fight_bite tests pass; cargo test --all clean (0 failures); cargo clippy -- -D warnings clean; cargo build --workspace clean; cargo fmt --check clean
+- Clone/copy ETB choice (PB-13j) — 2 cards (partial, S5 covers become-copy but not ETB choose-what-to-copy)
+- Scion of the Ur-Dragon copy-self (PB-17) — partially covered (search works, copy needs EffectTarget::LastSearchResult)
 
 ## Step Checklist
-- [x] 1. Engine changes (Effect::Fight, Effect::Bite, dispatch in effects/mod.rs)
-  - Added Effect::Fight { attacker, defender } and Effect::Bite { source, target } to card_definition.rs (after Effect::Meld)
-  - Added deal_creature_power_damage() + is_creature_on_battlefield() + get_creature_power() helpers in effects/mod.rs
-  - Added Effect::Fight and Effect::Bite dispatch arms in execute_effect_inner
-  - Added hash discriminants 58 (Fight) and 59 (Bite) in state/hash.rs
-  - No exhaustive match changes needed in replay-viewer or TUI (Effect is not matched there)
-- [x] 2. Card definition fixes (existing cards with fight/bite TODOs)
-  - brash_taunter.rs: Added fight activated ability {2}{R},{T} with Cost::Sequence([Mana, Tap])
-  - bridgeworks_battle.rs: Added full Spell with PT boost + Fight effect (mandatory 2nd target, "up to one" TODO)
-  - ram_through.rs: Added Bite spell with TargetController::You/Opponent (trample overflow TODO remains)
-  - frontier_siege.rs: Updated TODO to clarify Fight is now available, modal ETB is the blocking gap
-- [x] 3. New card definitions (if any): N/A (plan specified none)
-- [x] 4. Unit tests: 12 tests in crates/engine/tests/fight_bite.rs — all pass
-  - test_fight_basic, test_fight_one_dies, test_fight_both_die, test_fight_self
-  - test_fight_creature_left_battlefield, test_fight_non_combat_damage
-  - test_fight_deathtouch, test_fight_lifelink
-  - test_bite_basic, test_bite_zero_power, test_bite_lifelink
-  - test_bite_source_creature_killed_before_resolution
-- [x] 5. Workspace build verification
-  - cargo test --all: 2204 tests pass (was 2184 before PB-21)
+- [x] 1. Engine changes: Effect::BecomeCopyOf (Layer 1 continuous effect, configurable EffectDuration)
+  - Added Effect::BecomeCopyOf { copier, target, duration } in card_definition.rs
+  - Dispatch in effects/mod.rs: resolves targets, verifies copier on BF, creates CopyOf CE with specified duration
+  - GameEvent::BecameCopyOf { copier, source } (discriminant 123)
+  - Hash discriminant 64 (Effect), 123 (GameEvent)
+- [x] 2. Engine changes: Effect::CreateTokenCopy (token copy + optional tapped-and-attacking)
+  - Added Effect::CreateTokenCopy { source, enters_tapped_and_attacking } in card_definition.rs
+  - Dispatch in effects/mod.rs: creates blank token, applies CopyOf CE, registers combat if attacking
+  - Applies token replacement effects, tracks last_created_permanent
+  - Hash discriminant 65
+- [x] 3. Bonus: Condition::CardTypesInGraveyardAtLeast(u32) for Delirium activation conditions
+  - Added to Condition enum, check_condition dispatch, hash discriminant 31
+  - check_condition made pub (was pub(crate)) for external test access
+- [x] 4. Card definition fixes
+  - Thespian's Stage: full {2},{T} copy ability with BecomeCopyOf (Indefinite duration, target land)
+  - Shifting Woodland: full Delirium {2}{G}{G} copy ability (UntilEndOfTurn, activation condition)
+  - Thousand-Faced Shadow: ETB trigger with CreateTokenCopy (tapped and attacking)
+  - Scion of the Ur-Dragon: TODO improved (search works, copy needs LastSearchResult target)
+- [x] 5. Unit tests (5 new tests in copy_effects.rs)
+  - test_effect_become_copy_of: BecomeCopyOf via execute_effect, verifies BecameCopyOf event + layer resolution
+  - test_effect_become_copy_reverts_at_eot: UntilEndOfTurn copy reverts after cleanup
+  - test_effect_create_token_copy: CreateTokenCopy creates token with copied characteristics
+  - test_effect_create_token_copy_tapped_attacking: token enters tapped+attacking in combat
+  - test_delirium_condition_evaluation: CardTypesInGraveyardAtLeast true/false checks
+- [x] 6. Workspace build verification
+  - cargo test --all: 2265 tests pass (was 2260, +5 new)
   - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean

@@ -3719,6 +3719,196 @@ fn execute_effect_inner(
 
         // CR 400.7: Exile target permanent, then return it to the battlefield
         // under its owner's control as a new object. ETB triggers fire on return.
+        // CR 707.2: A permanent becomes a copy of another permanent.
+        // Registers a Layer 1 CopyOf continuous effect on the copier.
+        Effect::BecomeCopyOf {
+            copier,
+            target,
+            duration,
+        } => {
+            let copier_targets = resolve_effect_target_list(state, copier, ctx);
+            let source_targets = resolve_effect_target_list(state, target, ctx);
+
+            let copier_id = copier_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+            let source_id = source_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+
+            let (Some(c_id), Some(s_id)) = (copier_id, source_id) else {
+                return;
+            };
+
+            // Verify copier is on the battlefield.
+            let copier_on_bf = state
+                .objects
+                .get(&c_id)
+                .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                .unwrap_or(false);
+            if !copier_on_bf {
+                return;
+            }
+
+            // Create the Layer 1 copy effect with the specified duration.
+            let mut copy_effect =
+                crate::rules::copy::create_copy_effect(state, c_id, s_id, ctx.controller);
+            copy_effect.duration = *duration;
+
+            state.continuous_effects.push_back(copy_effect);
+
+            events.push(GameEvent::BecameCopyOf {
+                copier: c_id,
+                source: s_id,
+            });
+        }
+
+        // CR 707.2 / CR 111.10: Create a token that's a copy of a permanent.
+        Effect::CreateTokenCopy {
+            source,
+            enters_tapped_and_attacking,
+        } => {
+            let source_targets = resolve_effect_target_list(state, source, ctx);
+            let source_id = source_targets.iter().find_map(|t| {
+                if let ResolvedTarget::Object(id) = t {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+
+            let Some(s_id) = source_id else {
+                return;
+            };
+
+            // CR 508.4: Resolve attack target before creating tokens.
+            let attack_target = if *enters_tapped_and_attacking {
+                state
+                    .combat
+                    .as_ref()
+                    .and_then(|c| c.attackers.get(&ctx.source).cloned())
+            } else {
+                None
+            };
+
+            // CR 614.1: Apply token-creation replacement effects.
+            let (token_count, repl_events) =
+                crate::rules::replacement::apply_token_creation_replacement(
+                    state,
+                    ctx.controller,
+                    1,
+                );
+            events.extend(repl_events);
+
+            for _ in 0..token_count {
+                // Build a blank token — characteristics will come from CopyOf effect.
+                let base_chars = state
+                    .objects
+                    .get(&s_id)
+                    .map(|o| o.characteristics.clone())
+                    .unwrap_or_default();
+
+                let token_obj = crate::state::game_object::GameObject {
+                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                    card_id: None,
+                    characteristics: base_chars,
+                    controller: ctx.controller,
+                    owner: ctx.controller,
+                    zone: ZoneId::Battlefield,
+                    status: crate::state::game_object::ObjectStatus {
+                        tapped: *enters_tapped_and_attacking,
+                        ..crate::state::game_object::ObjectStatus::default()
+                    },
+                    counters: im::OrdMap::new(),
+                    attachments: im::Vector::new(),
+                    attached_to: None,
+                    damage_marked: 0,
+                    deathtouch_damage: false,
+                    is_token: true,
+                    timestamp: 0, // replaced by add_object
+                    has_summoning_sickness: true,
+                    goaded_by: im::Vector::new(),
+                    kicker_times_paid: 0,
+                    cast_alt_cost: None,
+                    foretold_turn: 0,
+                    was_unearthed: false,
+                    myriad_exile_at_eoc: false,
+                    decayed_sacrifice_at_eoc: false,
+                    ring_block_sacrifice_at_eoc: false,
+                    exiled_by_hideaway: None,
+                    encore_sacrifice_at_end_step: false,
+                    encore_must_attack: None,
+                    encore_activated_by: None,
+                    is_plotted: false,
+                    plotted_turn: 0,
+                    is_prototyped: false,
+                    was_bargained: false,
+                    evidence_collected: false,
+                    phased_out_indirectly: false,
+                    phased_out_controller: None,
+                    creatures_devoured: 0,
+                    paired_with: None,
+                    tribute_was_paid: false,
+                    x_value: 0,
+                    squad_count: 0,
+                    offspring_paid: false,
+                    gift_was_given: false,
+                    champion_exiled_card: None,
+                    gift_opponent: None,
+                    encoded_cards: im::Vector::new(),
+                    haunting_target: None,
+                    merged_components: im::Vector::new(),
+                    is_transformed: false,
+                    last_transform_timestamp: 0,
+                    was_cast_disturbed: false,
+                    craft_exiled_cards: im::Vector::new(),
+                    chosen_creature_type: None,
+                    face_down_as: None,
+                    loyalty_ability_activated_this_turn: false,
+                    class_level: 0,
+                    designations: crate::state::game_object::Designations::default(),
+                    meld_component: None,
+                };
+
+                let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
+                    Ok(id) => id,
+                    Err(_) => continue,
+                };
+
+                // CR 707.2: Apply Layer 1 CopyOf continuous effect.
+                let copy_effect =
+                    crate::rules::copy::create_copy_effect(state, token_id, s_id, ctx.controller);
+                state.continuous_effects.push_back(copy_effect);
+
+                // CR 508.4: Register as attacking if enters_tapped_and_attacking.
+                if let Some(ref atk_target) = attack_target {
+                    if let Some(combat) = state.combat.as_mut() {
+                        combat.attackers.insert(token_id, atk_target.clone());
+                    }
+                }
+
+                events.push(GameEvent::TokenCreated {
+                    player: ctx.controller,
+                    object_id: token_id,
+                });
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: ctx.controller,
+                    object_id: token_id,
+                });
+
+                // Track last created permanent for EffectTarget::LastCreatedPermanent.
+                ctx.last_created_permanent = Some(token_id);
+            }
+        }
+
         Effect::Flicker {
             target,
             return_tapped,
@@ -4955,11 +5145,7 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
 
 // ── Condition checking ────────────────────────────────────────────────────────
 
-pub(crate) fn check_condition(
-    state: &GameState,
-    condition: &Condition,
-    ctx: &EffectContext,
-) -> bool {
+pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext) -> bool {
     match condition {
         Condition::Always => true,
         Condition::ControllerLifeAtLeast(n) => state
@@ -5223,6 +5409,19 @@ pub(crate) fn check_condition(
             .unwrap_or(false),
         // CR 500.8: True when not in an extra combat phase (first combat phase of turn).
         Condition::IsFirstCombatPhase => !state.turn.in_extra_combat,
+        // Delirium: count distinct card types among cards in the controller's graveyard.
+        Condition::CardTypesInGraveyardAtLeast(n) => {
+            let gy_zone = ZoneId::Graveyard(ctx.controller);
+            let mut type_set = im::OrdSet::new();
+            for obj in state.objects.values() {
+                if obj.zone == gy_zone {
+                    for ct in &obj.characteristics.card_types {
+                        type_set.insert(*ct);
+                    }
+                }
+            }
+            type_set.len() >= *n as usize
+        }
     }
 }
 
