@@ -50,6 +50,9 @@ pub fn card() -> CardDefinition {
                     duration: EffectDuration::UntilEndOfTurn,
                 },
                 timing_restriction: None,
+                // TODO: TargetFilter lacks "permanent card" constraint. Currently allows
+                // instants/sorceries as targets. Oracle says "target permanent card in
+                // your graveyard." Needs TargetFilter.permanent_only or similar.
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(
                     TargetFilter::default(),
                 )],

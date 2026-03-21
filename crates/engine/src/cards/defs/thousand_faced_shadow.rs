@@ -37,6 +37,9 @@ pub fn card() -> CardDefinition {
                     source: EffectTarget::DeclaredTarget { index: 0 },
                     enters_tapped_and_attacking: true,
                 },
+                // TODO: TargetFilter lacks is_attacking and exclude_source constraints.
+                // Oracle says "another target attacking creature" but filter allows
+                // self-targeting and non-attacking creatures.
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     has_card_type: Some(CardType::Creature),
                     ..Default::default()

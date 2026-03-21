@@ -3790,6 +3790,8 @@ fn execute_effect_inner(
             };
 
             // CR 508.4: Resolve attack target before creating tokens.
+            // Simplification: inherits attack target from ctx.source. Full CR 508.4
+            // says "controller chooses" — interactive choice deferred to M10.
             let attack_target = if *enters_tapped_and_attacking {
                 state
                     .combat
