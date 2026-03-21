@@ -28,12 +28,37 @@ pub fn card() -> CardDefinition {
                 &[CardType::Creature],
                 &["Eldrazi", "Ooze"],
             ),
-            oracle_text: "Trample, haste\nWhenever Hanweir attacks, create two 3/2 colorless Eldrazi Horror creature tokens that are tapped and attacking.".to_string(),
+            oracle_text: "Trample, haste\nWhenever Hanweir, the Writhing Township attacks, create two 3/2 colorless Eldrazi Horror creature tokens that are tapped and attacking.".to_string(),
             abilities: vec![
                 AbilityDefinition::Keyword(KeywordAbility::Trample),
                 AbilityDefinition::Keyword(KeywordAbility::Haste),
-                // TODO: attack trigger — create two 3/2 colorless Eldrazi Horror creature tokens
-                // tapped and attacking. Requires "tapped and attacking" token creation.
+                // CR 508.4: Attack trigger — create two 3/2 colorless Eldrazi Horror tokens
+                // tapped and attacking. Tokens inherit the attack target (CR 508.4).
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenAttacks,
+                    effect: Effect::CreateToken {
+                        spec: TokenSpec {
+                            name: "Eldrazi Horror".to_string(),
+                            power: 3,
+                            toughness: 2,
+                            colors: im::OrdSet::new(), // colorless
+                            card_types: [CardType::Creature].iter().copied().collect(),
+                            subtypes: [
+                                SubType("Eldrazi".to_string()),
+                                SubType("Horror".to_string()),
+                            ]
+                            .iter()
+                            .cloned()
+                            .collect(),
+                            count: 2,
+                            tapped: true,
+                            enters_attacking: true,
+                            ..Default::default()
+                        },
+                    },
+                    intervening_if: None,
+                    targets: vec![],
+                },
             ],
             power: Some(7),
             toughness: Some(4),

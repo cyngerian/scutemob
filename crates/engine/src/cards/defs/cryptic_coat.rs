@@ -6,11 +6,10 @@
 // Equipped creature gets +1/+0 and can't be blocked.
 // {1}{U}: Return this Equipment to its owner's hand.
 //
-// DSL gaps:
-// - "then attach this Equipment to it" — no AttachToNewlyCreated effect primitive. TODO.
+// DSL gaps remaining:
 // - Static grant (+1/+0, can't be blocked) — no EquippedCreatureGrant continuous effect. TODO.
 // - {1}{U}: Return to hand — no ReturnToHand activated ability. TODO.
-// Core Cloak mechanic (ETB Cloak) is fully represented.
+// Core Cloak mechanic (ETB Cloak) + auto-attach are fully represented.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,11 +25,16 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
 {1}{U}: Return this Equipment to its owner's hand."
             .to_string(),
         abilities: vec![
-            // CR 701.58a: ETB trigger — cloak the top card of the controller's library.
-            // TODO: "then attach this Equipment to it" has no DSL primitive. Deferred.
+            // CR 701.58a: ETB trigger — cloak the top card, then attach this Equipment to it.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Cloak { player: PlayerTarget::Controller },
+                effect: Effect::Sequence(vec![
+                    Effect::Cloak { player: PlayerTarget::Controller },
+                    Effect::AttachEquipment {
+                        equipment: EffectTarget::Source,
+                        target: EffectTarget::LastCreatedPermanent,
+                    },
+                ]),
                 intervening_if: None,
                 targets: vec![],
             },

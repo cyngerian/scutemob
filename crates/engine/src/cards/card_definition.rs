@@ -1560,6 +1560,10 @@ pub enum EffectTarget {
     AllPermanentsMatching(TargetFilter),
     /// The spell/ability's source object.
     Source,
+    /// CR 508.4 / CR 701.58a: The most recently created token or permanent from
+    /// a prior effect in the same Sequence. Tracked via `EffectContext::last_created_permanent`.
+    /// Used for "create a token, then attach this Equipment to it" patterns.
+    LastCreatedPermanent,
 }
 
 /// How an effect identifies a player.
@@ -2040,6 +2044,12 @@ pub struct TokenSpec {
     pub count: u32,
     /// True if the tokens enter the battlefield tapped.
     pub tapped: bool,
+    /// CR 508.4: True if the tokens enter the battlefield attacking.
+    /// When set, tokens are registered as attacking in combat state.
+    /// The attack target is inherited from the source creature (via EffectContext).
+    /// If no combat is active or the source has no attack target, tokens enter
+    /// but are not registered as attacking (CR 508.4a).
+    pub enters_attacking: bool,
     /// Color override: all created under the controller's control.
     pub mana_color: Option<ManaColor>,
     /// Mana abilities to populate on each created token (CR 605).
@@ -2066,6 +2076,7 @@ impl Default for TokenSpec {
             keywords: OrdSet::new(),
             count: 1,
             tapped: false,
+            enters_attacking: false,
             mana_color: None,
             mana_abilities: Vec::new(),
             activated_abilities: Vec::new(),
@@ -2091,6 +2102,7 @@ pub fn treasure_token_spec(count: u32) -> TokenSpec {
         activated_abilities: vec![],
         count,
         tapped: false,
+        enters_attacking: false,
         mana_color: None,
     }
 }
@@ -2134,6 +2146,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
         }],
         count,
         tapped: false,
+        enters_attacking: false,
         mana_color: None,
     }
 }
@@ -2178,6 +2191,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
         }],
         count,
         tapped: false,
+        enters_attacking: false,
         mana_color: None,
     }
 }
@@ -2225,6 +2239,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
         }],
         count,
         tapped: false,
+        enters_attacking: false,
         mana_color: None,
     }
 }
@@ -2248,6 +2263,7 @@ pub fn army_token_spec(subtype: &str) -> TokenSpec {
         keywords: OrdSet::new(),
         count: 1,
         tapped: false,
+        enters_attacking: false,
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
@@ -2271,6 +2287,7 @@ pub fn zombie_decayed_token_spec(count: u32) -> TokenSpec {
         keywords: [KeywordAbility::Decayed].into_iter().collect(),
         count,
         tapped: false,
+        enters_attacking: false,
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],

@@ -27,6 +27,7 @@ fn everywhere_token_spec() -> TokenSpec {
         keywords: OrdSet::new(),
         count: 1,
         tapped: true,
+        enters_attacking: false,
         mana_color: None,
         mana_abilities: vec![
             ManaAbility::tap_for(ManaColor::White),

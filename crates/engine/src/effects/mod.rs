@@ -102,6 +102,11 @@ pub struct EffectContext {
     /// Written by `Effect::RollDice`; read by `EffectAmount::LastDiceRoll`.
     /// Used for "draw cards equal to the result" (Ancient Silver Dragon), etc.
     pub last_dice_roll: u32,
+    /// CR 508.4 / CR 701.58a: ObjectId of the most recently created token or
+    /// permanent from a prior effect in the same Sequence. Written by
+    /// `Effect::CreateToken`, `Effect::Cloak`, `Effect::Manifest`. Read by
+    /// `EffectTarget::LastCreatedPermanent` for "then attach this Equipment to it".
+    pub last_created_permanent: Option<ObjectId>,
 }
 
 impl EffectContext {
@@ -122,6 +127,7 @@ impl EffectContext {
             gift_opponent: None,
             last_effect_count: 0,
             last_dice_roll: 0,
+            last_created_permanent: None,
         }
     }
 
@@ -147,6 +153,7 @@ impl EffectContext {
             gift_opponent: None,
             last_effect_count: 0,
             last_dice_roll: 0,
+            last_created_permanent: None,
         }
     }
 
@@ -515,6 +522,20 @@ fn execute_effect_inner(
                     spec.count,
                 );
             events.extend(repl_events);
+
+            // CR 508.4: If enters_attacking, resolve the attack target from the
+            // source creature's current attack target in combat state. If combat
+            // is not active or source is not attacking, tokens enter but are not
+            // registered as attacking (CR 508.4a).
+            let attack_target = if spec.enters_attacking {
+                state
+                    .combat
+                    .as_ref()
+                    .and_then(|c| c.attackers.get(&ctx.source).cloned())
+            } else {
+                None
+            };
+
             for _ in 0..token_count {
                 let obj = make_token(spec, ctx.controller);
                 if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
@@ -526,6 +547,17 @@ fn execute_effect_inner(
                         player: ctx.controller,
                         object_id: id,
                     });
+                    // CR 508.4: Register token as attacking if enters_attacking
+                    // and a valid attack target was found. The token is already
+                    // tapped (via spec.tapped = true). CR 508.4c: not affected
+                    // by attack requirements/restrictions.
+                    if let Some(ref target) = attack_target {
+                        if let Some(combat) = state.combat.as_mut() {
+                            combat.attackers.insert(id, target.clone());
+                        }
+                    }
+                    // Track last created permanent for EffectTarget::LastCreatedPermanent.
+                    ctx.last_created_permanent = Some(id);
                 }
             }
         }
@@ -595,6 +627,8 @@ fn execute_effect_inner(
                         controller: ctx.controller,
                     });
                 }
+                // Track for EffectTarget::LastCreatedPermanent.
+                ctx.last_created_permanent = Some(token_id);
             }
         }
 
@@ -2092,6 +2126,7 @@ fn execute_effect_inner(
                             gift_opponent: ctx.gift_opponent,
                             last_effect_count: ctx.last_effect_count,
                             last_dice_roll: ctx.last_dice_roll,
+                            last_created_permanent: ctx.last_created_permanent,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2118,6 +2153,7 @@ fn execute_effect_inner(
                             gift_opponent: ctx.gift_opponent,
                             last_effect_count: ctx.last_effect_count,
                             last_dice_roll: ctx.last_dice_roll,
+                            last_created_permanent: ctx.last_created_permanent,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2615,6 +2651,8 @@ fn execute_effect_inner(
                         player: manifest_player,
                         object_id: new_id,
                     });
+                    // Track for EffectTarget::LastCreatedPermanent.
+                    ctx.last_created_permanent = Some(new_id);
                 }
             }
             // If library is empty, the effect does nothing (CR 701.40f).
@@ -2658,6 +2696,8 @@ fn execute_effect_inner(
                         player: cloak_player,
                         object_id: new_id,
                     });
+                    // Track for EffectTarget::LastCreatedPermanent.
+                    ctx.last_created_permanent = Some(new_id);
                 }
             }
             // If library is empty, the effect does nothing.
@@ -3897,6 +3937,19 @@ fn resolve_effect_target_list_indexed(
             })
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
             .collect(),
+        // CR 508.4 / CR 701.58a: The most recently created permanent from a prior
+        // effect in the same Sequence. Used for "then attach this Equipment to it".
+        EffectTarget::LastCreatedPermanent => {
+            if let Some(id) = ctx.last_created_permanent {
+                if state.objects.contains_key(&id) {
+                    vec![(None, ResolvedTarget::Object(id))]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        }
     }
 }
 

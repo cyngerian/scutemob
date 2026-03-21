@@ -1390,6 +1390,7 @@ pub fn queue_carddef_etb_triggers(
                         keywords: im::OrdSet::new(),
                         count: n,
                         tapped: false,
+                        enters_attacking: false,
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],

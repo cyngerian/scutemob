@@ -16,8 +16,27 @@ pub fn card() -> CardDefinition {
         ),
         oracle_text: "Whenever Hanweir Garrison attacks, create two 1/1 red Human creature tokens that are tapped and attacking.\n(Melds with Hanweir Battlements.)".to_string(),
         abilities: vec![
-            // TODO: attack trigger — create two 1/1 red Human creature tokens tapped and attacking
-            // Requires "tapped and attacking" token creation which is not yet in the DSL
+            // CR 508.4: Attack trigger — create two 1/1 red Human tokens tapped and attacking.
+            // Tokens inherit the attack target of the source creature (CR 508.4).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenAttacks,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Human".to_string(),
+                        power: 1,
+                        toughness: 1,
+                        colors: [Color::Red].iter().copied().collect(),
+                        card_types: [CardType::Creature].iter().copied().collect(),
+                        subtypes: [SubType("Human".to_string())].iter().cloned().collect(),
+                        count: 2,
+                        tapped: true,
+                        enters_attacking: true,
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         power: Some(2),
         toughness: Some(3),

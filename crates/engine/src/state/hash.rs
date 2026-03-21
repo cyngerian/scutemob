@@ -3756,6 +3756,7 @@ impl HashInto for TokenSpec {
         self.keywords.hash_into(hasher);
         self.count.hash_into(hasher);
         self.tapped.hash_into(hasher);
+        self.enters_attacking.hash_into(hasher);
         self.mana_color.hash_into(hasher);
         self.mana_abilities.hash_into(hasher);
         self.activated_abilities.hash_into(hasher);
@@ -3779,6 +3780,7 @@ impl HashInto for EffectTarget {
                 filter.hash_into(hasher);
             }
             EffectTarget::Source => 7u8.hash_into(hasher),
+            EffectTarget::LastCreatedPermanent => 8u8.hash_into(hasher),
         }
     }
 }

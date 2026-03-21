@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
                         keywords: [KeywordAbility::Haste].into_iter().collect(),
                         count: 2,
                         tapped: false,
+                        enters_attacking: false,
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],

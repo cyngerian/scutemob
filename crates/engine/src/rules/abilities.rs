@@ -262,6 +262,7 @@ pub fn handle_activate_ability(
                 gift_opponent: None,
                 last_effect_count: 0,
                 last_dice_roll: 0,
+                last_created_permanent: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(

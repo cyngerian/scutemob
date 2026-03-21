@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
                                 keywords: [KeywordAbility::Flying].into_iter().collect(),
                                 count: 1,
                                 tapped: false,
+                                enters_attacking: false,
                                 mana_color: None,
                                 mana_abilities: vec![],
                                 activated_abilities: vec![],

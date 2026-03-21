@@ -673,6 +673,7 @@ fn test_alliance_fires_on_create_token_effect() {
                     keywords: Default::default(),
                     count: 1,
                     tapped: false,
+                    enters_attacking: false,
                     mana_color: None,
                     mana_abilities: vec![],
                     activated_abilities: vec![],
