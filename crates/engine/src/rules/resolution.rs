@@ -1365,7 +1365,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                                data: None,                            });
+                                data: None,
+                            });
                     }
 
                     // CR 702.157a: Squad ETB trigger -- "When this creature enters, if its
@@ -1387,16 +1388,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .map(|o| o.squad_count)
                         .unwrap_or(0);
                     if has_squad && permanent_squad_count > 0 {
-                        state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
-                            data: Some(crate::state::stack::TriggerData::ETBSquad {
-                                count: permanent_squad_count,
-                            }),
-                            ..crate::state::stubs::PendingTrigger::blank(
-                                new_id,
-                                stack_obj.controller,
-                                crate::state::stubs::PendingTriggerKind::SquadETB,
-                            )
-                        });
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                data: Some(crate::state::stack::TriggerData::ETBSquad {
+                                    count: permanent_squad_count,
+                                }),
+                                ..crate::state::stubs::PendingTrigger::blank(
+                                    new_id,
+                                    stack_obj.controller,
+                                    crate::state::stubs::PendingTriggerKind::SquadETB,
+                                )
+                            });
                     }
 
                     // CR 702.175a: Offspring ETB trigger -- "When this permanent enters, if its
@@ -1443,7 +1446,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                                data: None,                            });
+                                data: None,
+                            });
                     }
 
                     // CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its
@@ -1466,17 +1470,22 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state.objects.get(&new_id).and_then(|o| o.gift_opponent);
                     if has_gift && permanent_gift_was_given {
                         if let Some(gift_opp) = permanent_gift_opponent {
-                            state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
-                                data: Some(crate::state::stack::TriggerData::ETBGift {
-                                    source_card_id: state.objects.get(&new_id).and_then(|o| o.card_id.clone()),
-                                    gift_opponent: gift_opp,
-                                }),
-                                ..crate::state::stubs::PendingTrigger::blank(
-                                    new_id,
-                                    stack_obj.controller,
-                                    crate::state::stubs::PendingTriggerKind::GiftETB,
-                                )
-                            });
+                            state
+                                .pending_triggers
+                                .push_back(crate::state::stubs::PendingTrigger {
+                                    data: Some(crate::state::stack::TriggerData::ETBGift {
+                                        source_card_id: state
+                                            .objects
+                                            .get(&new_id)
+                                            .and_then(|o| o.card_id.clone()),
+                                        gift_opponent: gift_opp,
+                                    }),
+                                    ..crate::state::stubs::PendingTrigger::blank(
+                                        new_id,
+                                        stack_obj.controller,
+                                        crate::state::stubs::PendingTriggerKind::GiftETB,
+                                    )
+                                });
                         }
                     }
                 }
@@ -2246,7 +2255,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                                data: None,                            });
+                                data: None,
+                            });
                     }
                 }
             }
@@ -4340,7 +4350,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         gift_was_given: false,
                         champion_exiled_card: None,
                         gift_opponent: None,
-            // CR 702.171b: tokens are not saddled by default.
+                        // CR 702.171b: tokens are not saddled by default.
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
@@ -4539,7 +4549,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 gift_was_given: false,
                 champion_exiled_card: None,
                 gift_opponent: None,
-            // CR 702.171b: tokens are not saddled by default.
+                // CR 702.171b: tokens are not saddled by default.
                 encoded_cards: im::Vector::new(),
                 haunting_target: None,
                 // CR 702.151b: tokens are not reconfigured by default.
@@ -5287,7 +5297,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_was_given: false,
                     champion_exiled_card: None,
                     gift_opponent: None,
-            // CR 702.171b: tokens are not saddled by default.
+                    // CR 702.171b: tokens are not saddled by default.
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
@@ -5400,16 +5410,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(&suspended_card)
                             .map(|obj| obj.owner)
                             .unwrap_or(controller);
-                        state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
-                            data: Some(crate::state::stack::TriggerData::Suspend {
-                                card: suspended_card,
-                            }),
-                            ..crate::state::stubs::PendingTrigger::blank(
-                                suspended_card,
-                                owner,
-                                PendingTriggerKind::SuspendCast,
-                            )
-                        });
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                data: Some(crate::state::stack::TriggerData::Suspend {
+                                    card: suspended_card,
+                                }),
+                                ..crate::state::stubs::PendingTrigger::blank(
+                                    suspended_card,
+                                    owner,
+                                    PendingTriggerKind::SuspendCast,
+                                )
+                            });
                     }
                 }
             }
@@ -5990,7 +6002,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_was_given: false,
                     champion_exiled_card: None,
                     gift_opponent: None,
-            // CR 702.171b: tokens are not saddled by default.
+                    // CR 702.171b: tokens are not saddled by default.
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
@@ -6207,7 +6219,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_was_given: false,
                     champion_exiled_card: None,
                     gift_opponent: None,
-            // CR 702.171b: tokens are not saddled by default.
+                    // CR 702.171b: tokens are not saddled by default.
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
@@ -6442,7 +6454,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         gift_was_given: false,
                         champion_exiled_card: None,
                         gift_opponent: None,
-            // CR 702.171b: tokens are not saddled by default.
+                        // CR 702.171b: tokens are not saddled by default.
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.

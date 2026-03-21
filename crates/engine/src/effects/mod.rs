@@ -98,6 +98,10 @@ pub struct EffectContext {
     /// Written by `Effect::DestroyAll` and `Effect::ExileAll`; read by `EffectAmount::LastEffectCount`.
     /// Used for follow-up effects like Fumigate ("gain 1 life for each creature destroyed this way").
     pub last_effect_count: u32,
+    /// Result of the most recent dice roll (CR 706.2).
+    /// Written by `Effect::RollDice`; read by `EffectAmount::LastDiceRoll`.
+    /// Used for "draw cards equal to the result" (Ancient Silver Dragon), etc.
+    pub last_dice_roll: u32,
 }
 
 impl EffectContext {
@@ -117,6 +121,7 @@ impl EffectContext {
             gift_was_given: false,
             gift_opponent: None,
             last_effect_count: 0,
+            last_dice_roll: 0,
         }
     }
 
@@ -141,6 +146,7 @@ impl EffectContext {
             gift_was_given: false,
             gift_opponent: None,
             last_effect_count: 0,
+            last_dice_roll: 0,
         }
     }
 
@@ -2085,6 +2091,7 @@ fn execute_effect_inner(
                             gift_was_given: ctx.gift_was_given,
                             gift_opponent: ctx.gift_opponent,
                             last_effect_count: ctx.last_effect_count,
+                            last_dice_roll: ctx.last_dice_roll,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2110,6 +2117,7 @@ fn execute_effect_inner(
                             gift_was_given: ctx.gift_was_given,
                             gift_opponent: ctx.gift_opponent,
                             last_effect_count: ctx.last_effect_count,
+                            last_dice_roll: ctx.last_dice_roll,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2653,6 +2661,63 @@ fn execute_effect_inner(
                 }
             }
             // If library is empty, the effect does nothing.
+        }
+
+        // CR 705.1: Flip a coin — deterministic RNG from timestamp counter.
+        // The result is derived from the current timestamp (odd = win, even = lose),
+        // ensuring reproducible replays. Emits CoinFlipped event, then executes
+        // the appropriate branch.
+        Effect::CoinFlip { on_win, on_lose } => {
+            let controller = ctx.controller;
+            // Deterministic: use timestamp_counter to derive result.
+            // This advances the counter to ensure subsequent flips differ.
+            let seed = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            let result = seed % 2 == 1; // odd = heads (win), even = tails (lose)
+
+            events.push(GameEvent::CoinFlipped {
+                player: controller,
+                result,
+            });
+
+            if result {
+                execute_effect_inner(state, on_win, ctx, events);
+            } else {
+                execute_effect_inner(state, on_lose, ctx, events);
+            }
+        }
+
+        // CR 706.2: Roll a die — deterministic RNG from timestamp counter.
+        // Result is derived from the current timestamp modulo the number of sides,
+        // mapped to 1..=sides. Emits DiceRolled event, then executes the first
+        // matching range.
+        Effect::RollDice { sides, results } => {
+            let controller = ctx.controller;
+            let sides_val = *sides;
+            if sides_val == 0 {
+                return;
+            }
+            // Deterministic: use timestamp_counter to derive result.
+            let seed = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            let result = (seed % sides_val as u64) as u32 + 1; // 1..=sides
+
+            events.push(GameEvent::DiceRolled {
+                player: controller,
+                sides: sides_val,
+                result,
+            });
+
+            // Store result in context for EffectAmount::LastDiceRoll.
+            ctx.last_dice_roll = result;
+
+            // Find the first matching range and execute its effect.
+            for (low, high, effect) in results {
+                if result >= *low && result <= *high {
+                    execute_effect_inner(state, effect, ctx, events);
+                    break;
+                }
+            }
         }
 
         Effect::Nothing => {}
@@ -3390,7 +3455,11 @@ fn execute_effect_inner(
                                             exiled_card: new_id,
                                             cost: madness_cost.unwrap_or_default(),
                                         }),
-                                        ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::Madness)
+                                        ..PendingTrigger::blank(
+                                            new_id,
+                                            controller,
+                                            PendingTriggerKind::Madness,
+                                        )
                                     });
                                 }
                             }
@@ -4227,6 +4296,8 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         // Reads the count of permanents actually destroyed/exiled by the preceding
         // DestroyAll or ExileAll effect (stored in ctx.last_effect_count).
         EffectAmount::LastEffectCount => ctx.last_effect_count as i32,
+        // CR 706.2: Result of the most recent dice roll (stored in ctx.last_dice_roll).
+        EffectAmount::LastDiceRoll => ctx.last_dice_roll as i32,
     }
 }
 

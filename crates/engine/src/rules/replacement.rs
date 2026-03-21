@@ -1099,7 +1099,8 @@ pub fn fire_saga_chapter_triggers(
                     cipher_encoded_object_id: None,
                     haunt_source_object_id: None,
                     haunt_source_card_id: None,
-                    data: None,                });
+                    data: None,
+                });
             }
         }
     }
@@ -1280,7 +1281,8 @@ pub fn queue_carddef_etb_triggers(
                     cipher_encoded_object_id: None,
                     haunt_source_object_id: None,
                     haunt_source_card_id: None,
-                    data: None,                });
+                    data: None,
+                });
             }
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::TributeNotPaid,
@@ -1315,7 +1317,8 @@ pub fn queue_carddef_etb_triggers(
                         cipher_encoded_object_id: None,
                         haunt_source_object_id: None,
                         haunt_source_card_id: None,
-                        data: None,                    });
+                        data: None,
+                    });
                 }
             }
             _ => {}

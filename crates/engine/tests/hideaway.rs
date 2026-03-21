@@ -579,7 +579,7 @@ fn test_hideaway_play_exiled_card() {
             if_false: Box::new(Effect::Nothing),
         }),
         sorcery_speed: false,
-            activation_condition: None,
+        activation_condition: None,
     };
 
     let mut state = GameStateBuilder::new()

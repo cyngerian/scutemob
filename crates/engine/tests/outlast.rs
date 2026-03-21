@@ -90,7 +90,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
             count: 1,
         }),
         sorcery_speed: true,
-            activation_condition: None,
+        activation_condition: None,
     }
 }
 

@@ -34,7 +34,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         description: description.to_string(),
         effect: None,
         sorcery_speed: false,
-            activation_condition: None,
+        activation_condition: None,
     }
 }
 
@@ -54,7 +54,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         description: description.to_string(),
         effect: None,
         sorcery_speed: false,
-            activation_condition: None,
+        activation_condition: None,
     }
 }
 

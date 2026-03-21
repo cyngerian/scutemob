@@ -107,7 +107,10 @@ pub fn handle_choose_miracle(
         .unwrap_or(card);
 
     state.pending_triggers.push_back(PendingTrigger {
-        data: Some(TriggerData::Miracle { revealed_card: card, cost: miracle_cost }),
+        data: Some(TriggerData::Miracle {
+            revealed_card: card,
+            cost: miracle_cost,
+        }),
         ..PendingTrigger::blank(source, player, PendingTriggerKind::Miracle)
     });
 

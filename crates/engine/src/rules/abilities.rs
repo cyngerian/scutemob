@@ -261,6 +261,7 @@ pub fn handle_activate_ability(
                 gift_was_given: false,
                 gift_opponent: None,
                 last_effect_count: 0,
+                last_dice_roll: 0,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -1419,13 +1420,19 @@ pub fn handle_activate_bloodrush(
                 })
             })
         });
-        state.pending_triggers.push_back(crate::state::stubs::PendingTrigger {
-            data: Some(TriggerData::Madness {
-                exiled_card: new_grave_id,
-                cost: madness_cost.unwrap_or_default(),
-            }),
-            ..PendingTrigger::blank(new_grave_id, player, crate::state::stubs::PendingTriggerKind::Madness)
-        });
+        state
+            .pending_triggers
+            .push_back(crate::state::stubs::PendingTrigger {
+                data: Some(TriggerData::Madness {
+                    exiled_card: new_grave_id,
+                    cost: madness_cost.unwrap_or_default(),
+                }),
+                ..PendingTrigger::blank(
+                    new_grave_id,
+                    player,
+                    crate::state::stubs::PendingTriggerKind::Madness,
+                )
+            });
     }
 
     // 8. Push BloodrushAbility onto stack (CR 602.2c).
@@ -2510,7 +2517,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                            data: None,                        };
+                            data: None,
+                        };
                         triggers.push(evoke_trigger);
                     }
                 }
@@ -2572,7 +2580,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                                data: None,                            });
+                                data: None,
+                            });
                         }
                     }
                 }
@@ -2603,7 +2612,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                             entering_object_id: Some(*object_id),
                             data: Some(TriggerData::ETBHideaway { count: n }),
-                            ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::Hideaway)
+                            ..PendingTrigger::blank(
+                                *object_id,
+                                controller,
+                                PendingTriggerKind::Hideaway,
+                            )
                         });
                     }
                 }
@@ -2640,7 +2653,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     partner_name: name,
                                     target_player: controller,
                                 }),
-                                ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::PartnerWith)
+                                ..PendingTrigger::blank(
+                                    *object_id,
+                                    controller,
+                                    PendingTriggerKind::PartnerWith,
+                                )
                             });
                         }
                     }
@@ -2736,7 +2753,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
                                 data: Some(TriggerData::ETBChampion { filter }),
-                                ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::ChampionETB)
+                                ..PendingTrigger::blank(
+                                    *object_id,
+                                    controller,
+                                    PendingTriggerKind::ChampionETB,
+                                )
                             });
                         }
                     }
@@ -2806,8 +2827,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             TriggerEvent::AnyPermanentEntersBattlefield,
                                         ),
                                         entering_object_id: Some(*object_id),
-                                        data: Some(TriggerData::ETBSoulbond { pair_target: partner_id }),
-                                        ..PendingTrigger::blank(*object_id, controller, PendingTriggerKind::SoulbondSelfETB)
+                                        data: Some(TriggerData::ETBSoulbond {
+                                            pair_target: partner_id,
+                                        }),
+                                        ..PendingTrigger::blank(
+                                            *object_id,
+                                            controller,
+                                            PendingTriggerKind::SoulbondSelfETB,
+                                        )
                                     });
                                 }
                             }
@@ -2860,8 +2887,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             TriggerEvent::AnyPermanentEntersBattlefield,
                                         ),
                                         entering_object_id: Some(*object_id),
-                                        data: Some(TriggerData::ETBSoulbond { pair_target: *object_id }),
-                                        ..PendingTrigger::blank(sb_id, sb_controller, PendingTriggerKind::SoulbondOtherETB)
+                                        data: Some(TriggerData::ETBSoulbond {
+                                            pair_target: *object_id,
+                                        }),
+                                        ..PendingTrigger::blank(
+                                            sb_id,
+                                            sb_controller,
+                                            PendingTriggerKind::SoulbondOtherETB,
+                                        )
                                     });
                                 }
                             }
@@ -2987,8 +3020,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 TriggerEvent::AnyPermanentEntersBattlefield,
                                             ),
                                             entering_object_id: Some(*object_id),
-                                            data: Some(TriggerData::ETBEvolve { entering_creature: *object_id }),
-                                            ..PendingTrigger::blank(evolve_id, evolve_controller, PendingTriggerKind::Evolve)
+                                            data: Some(TriggerData::ETBEvolve {
+                                                entering_creature: *object_id,
+                                            }),
+                                            ..PendingTrigger::blank(
+                                                evolve_id,
+                                                evolve_controller,
+                                                PendingTriggerKind::Evolve,
+                                            )
                                         });
                                     }
                                 }
@@ -3061,8 +3100,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         TriggerEvent::AnyPermanentEntersBattlefield,
                                     ),
                                     entering_object_id: Some(*object_id),
-                                    data: Some(TriggerData::ETBGraft { entering_creature: *object_id }),
-                                    ..PendingTrigger::blank(graft_id, graft_controller, PendingTriggerKind::Graft)
+                                    data: Some(TriggerData::ETBGraft {
+                                        entering_creature: *object_id,
+                                    }),
+                                    ..PendingTrigger::blank(
+                                        graft_id,
+                                        graft_controller,
+                                        PendingTriggerKind::Graft,
+                                    )
                                 });
                             }
                         }
@@ -3280,7 +3325,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .map(|o| o.id)
                                             .next(); // OrdMap iteration is by ObjectId order
-                                        t.data = target.map(|tgt| TriggerData::CombatProvoke { target: tgt });
+                                        t.data = target
+                                            .map(|tgt| TriggerData::CombatProvoke { target: tgt });
                                         if let Some(tid) = target {
                                             provoke_targets_used.push(tid);
                                         }
@@ -3348,7 +3394,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         for &idx in &enlist_trigger_indices {
                             if let Some(&enlisted_id) = pairing_iter.next() {
                                 triggers[idx].kind = PendingTriggerKind::Enlist;
-                                triggers[idx].data = Some(TriggerData::CombatEnlist { enlisted: enlisted_id });
+                                triggers[idx].data = Some(TriggerData::CombatEnlist {
+                                    enlisted: enlisted_id,
+                                });
                             } else {
                                 // No pairing for this Enlist instance -- mark for removal.
                                 indices_to_remove.push(idx);
@@ -3487,7 +3535,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                                data: None,                            });
+                                data: None,
+                            });
                         }
                     }
                 }
@@ -3602,8 +3651,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     for _ in 0..flanking_count {
                         triggers.push(PendingTrigger {
                             triggering_event: Some(TriggerEvent::SelfBlocks),
-                            data: Some(TriggerData::CombatFlanking { blocker: *blocker_id }),
-                            ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Flanking)
+                            data: Some(TriggerData::CombatFlanking {
+                                blocker: *blocker_id,
+                            }),
+                            ..PendingTrigger::blank(
+                                source_id,
+                                controller,
+                                PendingTriggerKind::Flanking,
+                            )
                         });
                     }
                 }
@@ -3766,7 +3821,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         } else {
                             PendingTriggerKind::Normal
                         };
-                        let data = modular_counter_count.map(|n| TriggerData::DeathModular { counter_count: n });
+                        let data = modular_counter_count
+                            .map(|n| TriggerData::DeathModular { counter_count: n });
                         triggers.push(PendingTrigger {
                             ability_index: idx,
                             // CR 603.3a: use the controller captured at death time (before
@@ -3823,7 +3879,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 recover_card: recover_id,
                                 recover_cost: cost,
                             }),
-                            ..PendingTrigger::blank(recover_id, card_owner, PendingTriggerKind::Recover)
+                            ..PendingTrigger::blank(
+                                recover_id,
+                                card_owner,
+                                PendingTriggerKind::Recover,
+                            )
                         });
                     }
                 }
@@ -3839,8 +3899,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let champion_controller = *death_controller;
                         triggers.push(PendingTrigger {
                             triggering_event: Some(TriggerEvent::SelfDies),
-                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_id }),
-                            ..PendingTrigger::blank(*new_grave_id, champion_controller, PendingTriggerKind::ChampionLTB)
+                            data: Some(TriggerData::LTBChampion {
+                                exiled_card: exiled_id,
+                            }),
+                            ..PendingTrigger::blank(
+                                *new_grave_id,
+                                champion_controller,
+                                PendingTriggerKind::ChampionLTB,
+                            )
                         });
                     }
                 }
@@ -3863,7 +3929,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 haunt_card: *new_grave_id,
                                 haunt_card_id,
                             }),
-                            ..PendingTrigger::blank(*new_grave_id, haunt_controller, PendingTriggerKind::HauntExile)
+                            ..PendingTrigger::blank(
+                                *new_grave_id,
+                                haunt_controller,
+                                PendingTriggerKind::HauntExile,
+                            )
                         });
                     }
                 }
@@ -3900,7 +3970,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 haunt_source: haunt_obj_id,
                                 haunt_card_id,
                             }),
-                            ..PendingTrigger::blank(haunt_obj_id, haunt_controller, PendingTriggerKind::HauntedCreatureDies)
+                            ..PendingTrigger::blank(
+                                haunt_obj_id,
+                                haunt_controller,
+                                PendingTriggerKind::HauntedCreatureDies,
+                            )
                         });
                     }
                 }
@@ -3952,7 +4026,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                            data: None,                        });
+                            data: None,
+                        });
                     }
                 }
             }
@@ -4065,7 +4140,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                            data: None,                        });
+                            data: None,
+                        });
                     }
                 }
             }
@@ -4138,8 +4214,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
-                                        data: Some(TriggerData::IngestExile { target_player: damaged_player }),
-                                        ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Ingest)
+                                        data: Some(TriggerData::IngestExile {
+                                            target_player: damaged_player,
+                                        }),
+                                        ..PendingTrigger::blank(
+                                            source_id,
+                                            controller,
+                                            PendingTriggerKind::Ingest,
+                                        )
                                     });
                                 }
                             }
@@ -4196,7 +4278,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
                                         data: Some(TriggerData::RenownDamage { n }),
-                                        ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Renown)
+                                        ..PendingTrigger::blank(
+                                            source_id,
+                                            controller,
+                                            PendingTriggerKind::Renown,
+                                        )
                                     });
                                 }
                             }
@@ -4251,8 +4337,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
-                                        data: Some(TriggerData::CombatPoisonous { target_player: damaged_player, n }),
-                                        ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::Poisonous)
+                                        data: Some(TriggerData::CombatPoisonous {
+                                            target_player: damaged_player,
+                                            n,
+                                        }),
+                                        ..PendingTrigger::blank(
+                                            source_id,
+                                            controller,
+                                            PendingTriggerKind::Poisonous,
+                                        )
                                     });
                                 }
                             }
@@ -4286,7 +4379,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                     encoded_card_id: card_id,
                                                     encoded_object_id: exiled_obj_id,
                                                 }),
-                                                ..PendingTrigger::blank(source_id, controller, PendingTriggerKind::CipherCombatDamage)
+                                                ..PendingTrigger::blank(
+                                                    source_id,
+                                                    controller,
+                                                    PendingTriggerKind::CipherCombatDamage,
+                                                )
                                             });
                                         }
                                     }
@@ -4376,7 +4473,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
-                            data: None,                        });
+                            data: None,
+                        });
                     }
                 }
             }
@@ -4413,8 +4511,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = dead_obj.controller;
                         triggers.push(PendingTrigger {
-                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_id }),
-                            ..PendingTrigger::blank(*new_grave_id, champion_controller, PendingTriggerKind::ChampionLTB)
+                            data: Some(TriggerData::LTBChampion {
+                                exiled_card: exiled_id,
+                            }),
+                            ..PendingTrigger::blank(
+                                *new_grave_id,
+                                champion_controller,
+                                PendingTriggerKind::ChampionLTB,
+                            )
                         });
                     }
                 }
@@ -4427,8 +4531,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if let Some(exiled_card_id) = exiled_obj.champion_exiled_card {
                         let champion_controller = exiled_obj.controller;
                         triggers.push(PendingTrigger {
-                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_card_id }),
-                            ..PendingTrigger::blank(*new_exile_id, champion_controller, PendingTriggerKind::ChampionLTB)
+                            data: Some(TriggerData::LTBChampion {
+                                exiled_card: exiled_card_id,
+                            }),
+                            ..PendingTrigger::blank(
+                                *new_exile_id,
+                                champion_controller,
+                                PendingTriggerKind::ChampionLTB,
+                            )
                         });
                     }
                 }
@@ -4441,8 +4551,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if let Some(exiled_id) = hand_obj.champion_exiled_card {
                         let champion_controller = hand_obj.controller;
                         triggers.push(PendingTrigger {
-                            data: Some(TriggerData::LTBChampion { exiled_card: exiled_id }),
-                            ..PendingTrigger::blank(*new_hand_id, champion_controller, PendingTriggerKind::ChampionLTB)
+                            data: Some(TriggerData::LTBChampion {
+                                exiled_card: exiled_id,
+                            }),
+                            ..PendingTrigger::blank(
+                                *new_hand_id,
+                                champion_controller,
+                                PendingTriggerKind::ChampionLTB,
+                            )
                         });
                     }
                 }
@@ -4529,7 +4645,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     cipher_encoded_object_id: None,
                                     haunt_source_object_id: None,
                                     haunt_source_card_id: None,
-                                    data: None,                                });
+                                    data: None,
+                                });
                             }
                         }
                     }
@@ -4591,7 +4708,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
-                                data: None,                            });
+                                data: None,
+                            });
                         }
                     }
                 }
@@ -4730,7 +4848,8 @@ fn collect_triggers_for_event(
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 }
@@ -5104,7 +5223,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 },
                 PendingTriggerKind::Madness => {
                     let (exiled_card, madness_cost) = match &trigger.data {
-                        Some(TriggerData::Madness { exiled_card, cost }) => (*exiled_card, cost.clone()),
+                        Some(TriggerData::Madness { exiled_card, cost }) => {
+                            (*exiled_card, cost.clone())
+                        }
                         _ => (trigger.source, Default::default()),
                     };
                     StackObjectKind::MadnessTrigger {
@@ -5117,7 +5238,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 PendingTriggerKind::Miracle => {
                     // CR 702.94a: Miracle trigger carries the revealed card and cost.
                     let (revealed_card, miracle_cost) = match &trigger.data {
-                        Some(TriggerData::Miracle { revealed_card, cost }) => (*revealed_card, cost.clone()),
+                        Some(TriggerData::Miracle {
+                            revealed_card,
+                            cost,
+                        }) => (*revealed_card, cost.clone()),
                         _ => (trigger.source, Default::default()),
                     };
                     StackObjectKind::MiracleTrigger {
@@ -5290,15 +5414,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // it, put it into their hand, then shuffle."
                     // Target player: deterministic fallback = the trigger controller (owner).
                     let (partner_name, target_player) = match &trigger.data {
-                        Some(TriggerData::ETBPartnerWith { partner_name, target_player }) => {
-                            (partner_name.clone(), *target_player)
-                        }
+                        Some(TriggerData::ETBPartnerWith {
+                            partner_name,
+                            target_player,
+                        }) => (partner_name.clone(), *target_player),
                         _ => (String::new(), trigger.controller),
                     };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::PartnerWith(partner_name.clone()),
-                        data: TriggerData::ETBPartnerWith { partner_name, target_player },
+                        data: TriggerData::ETBPartnerWith {
+                            partner_name,
+                            target_player,
+                        },
                     }
                 }
                 PendingTriggerKind::Ingest => {
@@ -5366,7 +5494,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 },
                 PendingTriggerKind::Poisonous => {
                     let (target_player, n) = match &trigger.data {
-                        Some(TriggerData::CombatPoisonous { target_player, n }) => (*target_player, *n),
+                        Some(TriggerData::CombatPoisonous { target_player, n }) => {
+                            (*target_player, *n)
+                        }
                         _ => (trigger.controller, 1),
                     };
                     StackObjectKind::KeywordTrigger {
@@ -5425,15 +5555,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 PendingTriggerKind::Recover => {
                     // CR 702.59a: Recover trigger — data carries DeathRecover.
                     let (recover_card, recover_cost) = match trigger.data.clone() {
-                        Some(TriggerData::DeathRecover { recover_card, recover_cost }) => {
-                            (recover_card, recover_cost)
-                        }
+                        Some(TriggerData::DeathRecover {
+                            recover_card,
+                            recover_cost,
+                        }) => (recover_card, recover_cost),
                         _ => (trigger.source, Default::default()),
                     };
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Recover,
-                        data: TriggerData::DeathRecover { recover_card, recover_cost },
+                        data: TriggerData::DeathRecover {
+                            recover_card,
+                            recover_cost,
+                        },
                     }
                 }
                 PendingTriggerKind::Graft => {
@@ -5457,9 +5591,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // In real play the controller chooses; deterministic default = source.
                     let source = trigger.source;
                     let (target, count, abilities) = match &trigger.data {
-                        Some(TriggerData::ETBBackup { target, count, abilities }) => {
-                            (*target, *count, abilities.clone())
-                        }
+                        Some(TriggerData::ETBBackup {
+                            target,
+                            count,
+                            abilities,
+                        }) => (*target, *count, abilities.clone()),
                         _ => (source, 1, vec![]),
                     };
                     StackObjectKind::KeywordTrigger {
@@ -5469,11 +5605,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             target,
                             count,
                             // Self-targeting: no abilities granted (CR 702.165a "if that's another creature").
-                            abilities: if target == source {
-                                vec![]
-                            } else {
-                                abilities
-                            },
+                            abilities: if target == source { vec![] } else { abilities },
                         },
                     }
                 }
@@ -5563,9 +5695,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 PendingTriggerKind::GiftETB => {
                     // CR 702.174b: Gift ETB trigger. Data is ETBGift captured at queue time.
                     let (source_card_id, gift_opponent) = match &trigger.data {
-                        Some(TriggerData::ETBGift { source_card_id, gift_opponent }) => {
-                            (source_card_id.clone(), *gift_opponent)
-                        }
+                        Some(TriggerData::ETBGift {
+                            source_card_id,
+                            gift_opponent,
+                        }) => (source_card_id.clone(), *gift_opponent),
                         _ => {
                             // No gift opponent — skip this trigger (should not happen).
                             continue;
@@ -5574,37 +5707,46 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Gift,
-                        data: TriggerData::ETBGift { source_card_id, gift_opponent },
+                        data: TriggerData::ETBGift {
+                            source_card_id,
+                            gift_opponent,
+                        },
                     }
                 }
                 PendingTriggerKind::CipherCombatDamage => {
                     // CR 702.99a: Cipher combat damage trigger — the encoded card info is
                     // carried in trigger.data as TriggerData::CipherDamage.
                     match trigger.data.clone() {
-                        Some(TriggerData::CipherDamage { source_creature, encoded_card_id, encoded_object_id }) => {
-                            StackObjectKind::KeywordTrigger {
-                                source_object: trigger.source,
-                                keyword: KeywordAbility::Cipher,
-                                data: TriggerData::CipherDamage {
-                                    source_creature,
-                                    encoded_card_id,
-                                    encoded_object_id,
-                                },
-                            }
-                        }
+                        Some(TriggerData::CipherDamage {
+                            source_creature,
+                            encoded_card_id,
+                            encoded_object_id,
+                        }) => StackObjectKind::KeywordTrigger {
+                            source_object: trigger.source,
+                            keyword: KeywordAbility::Cipher,
+                            data: TriggerData::CipherDamage {
+                                source_creature,
+                                encoded_card_id,
+                                encoded_object_id,
+                            },
+                        },
                         _ => continue, // Missing data — skip (should not happen).
                     }
                 }
                 PendingTriggerKind::HauntExile => {
                     // CR 702.55a: Haunt exile trigger — data carries DeathHauntExile.
                     match trigger.data.clone() {
-                        Some(TriggerData::DeathHauntExile { haunt_card, haunt_card_id }) => {
-                            StackObjectKind::KeywordTrigger {
-                                source_object: trigger.source,
-                                keyword: KeywordAbility::Haunt,
-                                data: TriggerData::DeathHauntExile { haunt_card, haunt_card_id },
-                            }
-                        }
+                        Some(TriggerData::DeathHauntExile {
+                            haunt_card,
+                            haunt_card_id,
+                        }) => StackObjectKind::KeywordTrigger {
+                            source_object: trigger.source,
+                            keyword: KeywordAbility::Haunt,
+                            data: TriggerData::DeathHauntExile {
+                                haunt_card,
+                                haunt_card_id,
+                            },
+                        },
                         _ => StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
                             keyword: KeywordAbility::Haunt,
@@ -5618,13 +5760,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 PendingTriggerKind::HauntedCreatureDies => {
                     // CR 702.55c: Haunted creature dies trigger — data carries DeathHauntedCreatureDies.
                     match trigger.data.clone() {
-                        Some(TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id }) => {
-                            StackObjectKind::KeywordTrigger {
-                                source_object: trigger.source,
-                                keyword: KeywordAbility::Haunt,
-                                data: TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id },
-                            }
-                        }
+                        Some(TriggerData::DeathHauntedCreatureDies {
+                            haunt_source,
+                            haunt_card_id,
+                        }) => StackObjectKind::KeywordTrigger {
+                            source_object: trigger.source,
+                            keyword: KeywordAbility::Haunt,
+                            data: TriggerData::DeathHauntedCreatureDies {
+                                haunt_source,
+                                haunt_card_id,
+                            },
+                        },
                         _ => StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
                             keyword: KeywordAbility::Haunt,

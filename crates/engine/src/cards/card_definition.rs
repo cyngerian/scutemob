@@ -1401,6 +1401,39 @@ pub enum Effect {
         /// The player whose top library card is cloaked (usually the controller).
         player: PlayerTarget,
     },
+    /// CR 705.1: Flip a coin — execute one of two effects based on the result.
+    ///
+    /// Uses deterministic RNG seeded from the game's timestamp counter for
+    /// reproducible replays. Emits `GameEvent::CoinFlipped` before executing
+    /// the chosen branch.
+    ///
+    /// CR 705.2: The player who flips is the controller of the spell/ability.
+    /// CR 705.3: "Win the flip" = called correctly; "lose the flip" = called incorrectly.
+    /// Deterministic fallback: always "calls heads" — result determines win/lose.
+    CoinFlip {
+        /// Effect to execute if the player wins the flip.
+        on_win: Box<Effect>,
+        /// Effect to execute if the player loses the flip.
+        on_lose: Box<Effect>,
+    },
+
+    /// CR 706.2: Roll one or more dice — execute an effect based on the result.
+    ///
+    /// Uses deterministic RNG seeded from the game's timestamp counter for
+    /// reproducible replays. Emits `GameEvent::DiceRolled` before executing
+    /// the matched branch.
+    ///
+    /// CR 706.2a: The number of sides determines the range (1..=sides).
+    /// Each entry in `results` maps an inclusive range to an effect. The first
+    /// matching range is executed. If no range matches (shouldn't happen with
+    /// correct card data), nothing happens.
+    RollDice {
+        /// Number of sides on the die (typically 20 for d20).
+        sides: u32,
+        /// Mapping from result ranges to effects. Evaluated in order; first match wins.
+        results: Vec<(u32, u32, Effect)>,
+    },
+
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 
@@ -1555,6 +1588,9 @@ pub enum EffectAmount {
     /// Used for "gain 1 life for each creature destroyed this way" (Fumigate),
     /// "put a +1/+1 counter for each permanent destroyed" (Bane of Progress), etc.
     LastEffectCount,
+    /// The result of the most recent dice roll (stored in ctx.last_dice_roll).
+    /// Used for "draw cards equal to the result" (Ancient Silver Dragon), etc.
+    LastDiceRoll,
 }
 
 // ── Target Requirements ───────────────────────────────────────────────────────

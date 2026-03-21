@@ -6,9 +6,9 @@
 // the result.
 //
 // Flying is implemented.
-// TODO: DSL gap — the combat damage trigger involves a d20 roll and variable
-// reanimation from graveyards based on the roll result. No dice-roll mechanic
-// or variable-count reanimation exists in the DSL.
+// TODO: DSL gap — variable-count graveyard reanimation with total mana value
+// constraint based on dice roll result. The d20 roll is expressible but the
+// multi-target reanimation with cumulative MV budget is not.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,7 +22,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — d20 roll + variable reanimation not expressible.
+            // TODO: DSL gap — d20 roll + variable multi-target reanimation with cumulative MV
+            // budget not expressible. Roll infrastructure exists (Effect::RollDice) but
+            // the reanimation selection requires M10 interactive player choice.
         ],
         ..Default::default()
     }

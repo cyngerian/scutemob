@@ -2085,7 +2085,10 @@ impl HashInto for TriggerData {
                 exiled_card.hash_into(hasher);
                 cost.hash_into(hasher);
             }
-            TriggerData::Miracle { revealed_card, cost } => {
+            TriggerData::Miracle {
+                revealed_card,
+                cost,
+            } => {
                 35u8.hash_into(hasher);
                 revealed_card.hash_into(hasher);
                 cost.hash_into(hasher);
@@ -3641,6 +3644,23 @@ impl HashInto for GameEvent {
                 controller.hash_into(hasher);
                 followed_by_main.hash_into(hasher);
             }
+            // CoinFlipped -- CR 705.1 (discriminant 121)
+            GameEvent::CoinFlipped { player, result } => {
+                121u8.hash_into(hasher);
+                player.hash_into(hasher);
+                result.hash_into(hasher);
+            }
+            // DiceRolled -- CR 706.2 (discriminant 122)
+            GameEvent::DiceRolled {
+                player,
+                sides,
+                result,
+            } => {
+                122u8.hash_into(hasher);
+                player.hash_into(hasher);
+                sides.hash_into(hasher);
+                result.hash_into(hasher);
+            }
         }
     }
 }
@@ -3867,6 +3887,7 @@ impl HashInto for EffectAmount {
             }
             // LastEffectCount (discriminant 9) — reads ctx.last_effect_count set by DestroyAll/ExileAll
             EffectAmount::LastEffectCount => 9u8.hash_into(hasher),
+            EffectAmount::LastDiceRoll => 10u8.hash_into(hasher),
         }
     }
 }
@@ -4519,6 +4540,23 @@ impl HashInto for Effect {
                 59u8.hash_into(hasher);
                 source.hash_into(hasher);
                 target.hash_into(hasher);
+            }
+            // CR 705.1: CoinFlip (discriminant 60)
+            Effect::CoinFlip { on_win, on_lose } => {
+                60u8.hash_into(hasher);
+                on_win.hash_into(hasher);
+                on_lose.hash_into(hasher);
+            }
+            // CR 706.2: RollDice (discriminant 61)
+            Effect::RollDice { sides, results } => {
+                61u8.hash_into(hasher);
+                sides.hash_into(hasher);
+                (results.len() as u32).hash_into(hasher);
+                for (low, high, effect) in results {
+                    low.hash_into(hasher);
+                    high.hash_into(hasher);
+                    effect.hash_into(hasher);
+                }
             }
         }
     }

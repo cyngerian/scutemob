@@ -4,9 +4,9 @@
 // cards equal to the result. You have no maximum hand size for the rest of
 // the game.
 //
-// Flying is implemented.
-// TODO: DSL gap — d20 roll with variable card draw and "no maximum hand size"
-// continuous effect not expressible. No dice-roll mechanic exists in the DSL.
+// Flying is implemented. D20 roll + variable card draw implemented.
+// TODO: DSL gap — "no maximum hand size for the rest of the game" requires
+// a permanent player designation (not a continuous effect from a permanent).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,7 +20,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(8),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — d20 roll + variable card draw + no hand size limit not expressible.
+            // CR 706.2: Roll d20 on combat damage to a player, draw cards equal to result.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::RollDice {
+                    sides: 20,
+                    results: vec![
+                        // All results 1-20: draw cards equal to the roll result.
+                        (1, 20, Effect::DrawCards {
+                            player: PlayerTarget::Controller,
+                            count: EffectAmount::LastDiceRoll,
+                        }),
+                    ],
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "no maximum hand size for the rest of the game" — needs permanent player designation
         ],
         ..Default::default()
     }

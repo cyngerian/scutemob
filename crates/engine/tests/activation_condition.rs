@@ -19,8 +19,10 @@ fn activate(
     state: mtg_engine::GameState,
     player: PlayerId,
     source: mtg_engine::state::game_object::ObjectId,
-) -> Result<(mtg_engine::GameState, Vec<mtg_engine::GameEvent>), mtg_engine::state::error::GameStateError>
-{
+) -> Result<
+    (mtg_engine::GameState, Vec<mtg_engine::GameEvent>),
+    mtg_engine::state::error::GameStateError,
+> {
     process_command(
         state,
         Command::ActivateAbility {
@@ -80,10 +82,17 @@ fn test_activation_condition_met_allows_activation() {
 
     // Activate — should succeed because P1 controls a creature
     let result = activate(state, p(1), artifact_id);
-    assert!(result.is_ok(), "activation should succeed when condition is met");
+    assert!(
+        result.is_ok(),
+        "activation should succeed when condition is met"
+    );
 
     let (state, _) = result.unwrap();
-    assert_eq!(state.stack_objects.len(), 1, "ability should be on the stack");
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "ability should be on the stack"
+    );
 }
 
 /// CR 602.5b — activation condition NOT met: ability activation is rejected.

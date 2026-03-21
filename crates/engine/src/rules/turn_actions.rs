@@ -137,7 +137,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 
@@ -203,7 +204,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 
@@ -275,7 +277,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 
@@ -342,7 +345,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 
@@ -424,7 +428,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 
@@ -555,7 +560,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
-            data: None,        });
+            data: None,
+        });
     }
 
     // CR 702.141a: Queue sacrifice triggers for all encore tokens on the battlefield.
@@ -627,7 +633,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
-            data: None,        });
+            data: None,
+        });
     }
 
     // CR 702.152a: Queue sacrifice triggers for all blitzed permanents.
@@ -669,7 +676,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
-            data: None,        });
+            data: None,
+        });
     }
 
     // CR 702.176a: Queue counter-removal triggers for all impending permanents.
@@ -723,7 +731,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
-            data: None,        });
+            data: None,
+        });
     }
 
     // Fire AbilityDefinition::Triggered abilities with AtBeginningOfYourEndStep (for active
@@ -796,7 +805,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
-                data: None,            });
+                data: None,
+            });
         }
     }
 

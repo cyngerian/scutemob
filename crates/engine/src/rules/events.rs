@@ -1285,6 +1285,34 @@ pub enum GameEvent {
         /// The player who is now the monarch.
         player: PlayerId,
     },
+    // ── Coin flip / dice roll events (CR 705 / CR 706) ─────────────────────
+    /// CR 705.1: A coin was flipped.
+    ///
+    /// Emitted by `Effect::CoinFlip` before executing the win/lose branch.
+    /// `result` is true for heads (win), false for tails (lose).
+    ///
+    /// Discriminant: 121.
+    CoinFlipped {
+        /// The player who flipped the coin.
+        player: PlayerId,
+        /// True = heads (win), false = tails (lose).
+        result: bool,
+    },
+
+    /// CR 706.2: A die was rolled.
+    ///
+    /// Emitted by `Effect::RollDice` before executing the matched branch.
+    ///
+    /// Discriminant: 122.
+    DiceRolled {
+        /// The player who rolled the die.
+        player: PlayerId,
+        /// Number of sides on the die.
+        sides: u32,
+        /// The result of the roll (1..=sides).
+        result: u32,
+    },
+
     /// An additional combat phase was added to the turn (CR 500.8).
     AdditionalCombatPhaseCreated {
         /// The player whose turn is gaining the extra phase.
