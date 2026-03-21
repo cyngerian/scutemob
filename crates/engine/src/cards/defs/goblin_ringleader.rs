@@ -1,9 +1,8 @@
 // Goblin Ringleader — {3}{R}, Creature — Goblin 2/2
 // Haste
-// TODO: DSL gap — ETB triggered ability "reveal top four cards of your library, put all Goblin
-//   cards into your hand and the rest on the bottom in any order."
-//   (reveal with subtype filter into hand not supported; SearchLibrary only supports basic lands
-//   to battlefield)
+// When this creature enters, reveal the top four cards of your library. Put all
+// Goblin cards revealed this way into your hand and the rest on the bottom of
+// your library in any order.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,6 +20,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::RevealAndRoute {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(4),
+                    filter: TargetFilter {
+                        has_subtype: Some(SubType("Goblin".to_string())),
+                        ..Default::default()
+                    },
+                    matched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                    unmatched_dest: ZoneTarget::Library {
+                        owner: PlayerTarget::Controller,
+                        position: LibraryPosition::Bottom,
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

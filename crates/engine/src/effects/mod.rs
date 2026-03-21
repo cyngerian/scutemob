@@ -3605,6 +3605,154 @@ fn execute_effect_inner(
             let power = get_creature_power(state, src_id);
             deal_creature_power_damage(state, src_id, tgt_id, power, events);
         }
+
+        // CR 701.16a: Reveal top N cards of a player's library, then route by filter.
+        // Matched cards go to matched_dest, unmatched to unmatched_dest.
+        Effect::RevealAndRoute {
+            player,
+            count,
+            filter,
+            matched_dest,
+            unmatched_dest,
+        } => {
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                let lib_zone = ZoneId::Library(p);
+                // Collect the top N cards of the library (ordered from top).
+                let top_ids: Vec<ObjectId> = state
+                    .zones
+                    .get(&lib_zone)
+                    .map(|z| z.object_ids())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .take(n)
+                    .collect();
+
+                if top_ids.is_empty() {
+                    continue;
+                }
+
+                // Partition into matched and unmatched based on the filter.
+                // Use base characteristics (library cards have no layer modifications).
+                let mut matched_ids = Vec::new();
+                let mut unmatched_ids = Vec::new();
+                for &id in &top_ids {
+                    if let Some(obj) = state.objects.get(&id) {
+                        if matches_filter(&obj.characteristics, filter) {
+                            matched_ids.push(id);
+                        } else {
+                            unmatched_ids.push(id);
+                        }
+                    }
+                }
+
+                // Deterministic ordering: sort by ObjectId ascending within each group.
+                matched_ids.sort_by_key(|id| id.0);
+                unmatched_ids.sort_by_key(|id| id.0);
+
+                // Move matched cards to their destination.
+                let matched_zone = resolve_zone_target(matched_dest, state, ctx);
+                let matched_tapped = dest_tapped(matched_dest);
+                for id in &matched_ids {
+                    if let Ok((new_id, _)) = state.move_object_to_zone(*id, matched_zone) {
+                        if let Some(tapped) = matched_tapped {
+                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                                obj.status.tapped = tapped;
+                            }
+                        }
+                        let event = zone_move_event(ctx.controller, *id, new_id, matched_zone);
+                        events.push(event);
+                    }
+                }
+
+                // Move unmatched cards to their destination.
+                let unmatched_zone = resolve_zone_target(unmatched_dest, state, ctx);
+                for id in &unmatched_ids {
+                    if let Ok((new_id, _)) = state.move_object_to_zone(*id, unmatched_zone) {
+                        let event = zone_move_event(ctx.controller, *id, new_id, unmatched_zone);
+                        events.push(event);
+                    }
+                }
+            }
+        }
+
+        // CR 400.7: Exile target permanent, then return it to the battlefield
+        // under its owner's control as a new object. ETB triggers fire on return.
+        Effect::Flicker {
+            target,
+            return_tapped,
+        } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    // Verify the target is on the battlefield.
+                    let is_on_bf = state
+                        .objects
+                        .get(&id)
+                        .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                        .unwrap_or(false);
+                    if !is_on_bf {
+                        continue;
+                    }
+
+                    // Step 1: Exile the permanent.
+                    if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
+                        events.push(GameEvent::ObjectExiled {
+                            player: ctx.controller,
+                            object_id: id,
+                            new_exile_id: exile_id,
+                        });
+
+                        // Step 2: Return from exile to battlefield under owner's control.
+                        if let Ok((new_bf_id, _)) =
+                            state.move_object_to_zone(exile_id, ZoneId::Battlefield)
+                        {
+                            if let Some(obj) = state.objects.get_mut(&new_bf_id) {
+                                obj.controller = obj.owner;
+                                if *return_tapped {
+                                    obj.status.tapped = true;
+                                }
+                            }
+
+                            // Register static continuous effects so the returned
+                            // permanent's static abilities work in the layer system.
+                            let card_id_opt = state
+                                .objects
+                                .get(&new_bf_id)
+                                .and_then(|o| o.card_id.clone());
+                            let registry = std::sync::Arc::clone(&state.card_registry);
+                            crate::rules::replacement::register_static_continuous_effects(
+                                state,
+                                new_bf_id,
+                                card_id_opt.as_ref(),
+                                &registry,
+                            );
+
+                            // Queue CardDef ETB triggers (CR 603.3).
+                            let controller = state
+                                .objects
+                                .get(&new_bf_id)
+                                .map(|o| o.controller)
+                                .unwrap_or(ctx.controller);
+                            let etb_events = crate::rules::replacement::queue_carddef_etb_triggers(
+                                state,
+                                new_bf_id,
+                                controller,
+                                card_id_opt.as_ref(),
+                                &registry,
+                            );
+                            events.extend(etb_events);
+
+                            events.push(GameEvent::PermanentEnteredBattlefield {
+                                player: ctx.controller,
+                                object_id: new_bf_id,
+                            });
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -4330,6 +4478,46 @@ fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
         Some(*tapped)
     } else {
         None
+    }
+}
+
+/// Produce the appropriate `GameEvent` for a zone move given the destination.
+fn zone_move_event(
+    controller: PlayerId,
+    old_id: ObjectId,
+    new_id: ObjectId,
+    dest: ZoneId,
+) -> GameEvent {
+    match dest {
+        ZoneId::Exile => GameEvent::ObjectExiled {
+            player: controller,
+            object_id: old_id,
+            new_exile_id: new_id,
+        },
+        ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
+            player: controller,
+            object_id: new_id,
+        },
+        ZoneId::Graveyard(_) => GameEvent::ObjectPutInGraveyard {
+            player: controller,
+            object_id: old_id,
+            new_grave_id: new_id,
+        },
+        ZoneId::Hand(_) => GameEvent::ObjectReturnedToHand {
+            player: controller,
+            object_id: old_id,
+            new_hand_id: new_id,
+        },
+        ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
+            player: controller,
+            object_id: old_id,
+            new_lib_id: new_id,
+        },
+        ZoneId::Command(_) | ZoneId::Stack => GameEvent::ObjectExiled {
+            player: controller,
+            object_id: old_id,
+            new_exile_id: new_id,
+        },
     }
 }
 

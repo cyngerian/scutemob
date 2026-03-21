@@ -1434,6 +1434,37 @@ pub enum Effect {
         results: Vec<(u32, u32, Effect)>,
     },
 
+    /// Reveal the top N cards of a player's library, then route them by filter.
+    /// Cards matching the filter go to `matched_dest`; non-matching cards go to
+    /// `unmatched_dest`. All revealed cards are visible to all players (CR 701.16a).
+    ///
+    /// Used by Goblin Ringleader (Goblins → hand, rest → bottom of library),
+    /// Chaos Warp (permanent card → battlefield, non-permanent stays on top),
+    /// and similar "reveal top N, sort by type" effects.
+    ///
+    /// Deterministic ordering: within each group, cards are moved in ObjectId
+    /// ascending order.
+    RevealAndRoute {
+        player: PlayerTarget,
+        count: EffectAmount,
+        filter: TargetFilter,
+        matched_dest: ZoneTarget,
+        unmatched_dest: ZoneTarget,
+    },
+
+    /// Exile target permanent, then return it to the battlefield under its
+    /// owner's control (CR 400.7: the returned permanent is a new object).
+    ///
+    /// ETB triggers fire on return. Static continuous effects are re-registered.
+    /// Used by Ephemerate, Restoration Angel, Conjurer's Closet, etc.
+    ///
+    /// If `return_tapped` is true, the permanent returns tapped (e.g.,
+    /// Thassa, Deep-Dwelling).
+    Flicker {
+        target: EffectTarget,
+        return_tapped: bool,
+    },
+
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 

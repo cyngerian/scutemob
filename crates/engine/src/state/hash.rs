@@ -4558,6 +4558,30 @@ impl HashInto for Effect {
                     effect.hash_into(hasher);
                 }
             }
+            // CR 701.16a: RevealAndRoute (discriminant 62)
+            Effect::RevealAndRoute {
+                player,
+                count,
+                filter,
+                matched_dest,
+                unmatched_dest,
+            } => {
+                62u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+                filter.hash_into(hasher);
+                matched_dest.hash_into(hasher);
+                unmatched_dest.hash_into(hasher);
+            }
+            // CR 400.7: Flicker (discriminant 63)
+            Effect::Flicker {
+                target,
+                return_tapped,
+            } => {
+                63u8.hash_into(hasher);
+                target.hash_into(hasher);
+                return_tapped.hash_into(hasher);
+            }
         }
     }
 }
