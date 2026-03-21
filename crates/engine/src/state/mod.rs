@@ -391,6 +391,7 @@ impl GameState {
             damage_marked: 0,
             deathtouch_damage: false,
             is_token: old_object.is_token,
+            is_emblem: old_object.is_emblem,
             timestamp: self.timestamp_counter,
             // CR 302.6: a permanent entering the battlefield has summoning sickness
             // until the beginning of its controller's next untap step.
@@ -567,6 +568,7 @@ impl GameState {
                     damage_marked: 0,
                     deathtouch_damage: false,
                     is_token: false, // Non-tokens only (tokens were filtered above)
+                    is_emblem: false,
                     timestamp: self.timestamp_counter,
                     has_summoning_sickness: to == ZoneId::Battlefield,
                     goaded_by: im::Vector::new(),
@@ -673,6 +675,7 @@ impl GameState {
                         damage_marked: 0,
                         deathtouch_damage: false,
                         is_token: false,
+                        is_emblem: false,
                         timestamp: self.timestamp_counter,
                         has_summoning_sickness: to == ZoneId::Battlefield,
                         goaded_by: im::Vector::new(),
@@ -827,6 +830,7 @@ impl GameState {
             damage_marked: 0,
             deathtouch_damage: false,
             is_token: old_object.is_token,
+            is_emblem: old_object.is_emblem,
             timestamp: self.timestamp_counter,
             has_summoning_sickness: to == ZoneId::Battlefield,
             goaded_by: im::Vector::new(),

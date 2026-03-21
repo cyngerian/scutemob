@@ -4316,6 +4316,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         damage_marked: 0,
                         deathtouch_damage: false,
                         is_token: true,
+                        is_emblem: false,
                         timestamp: 0, // replaced by add_object
                         has_summoning_sickness: true,
                         goaded_by: im::Vector::new(),
@@ -4515,6 +4516,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 damage_marked: 0,
                 deathtouch_damage: false,
                 is_token: true,
+                is_emblem: false,
                 timestamp: 0, // replaced by add_object
                 has_summoning_sickness: true,
                 goaded_by: im::Vector::new(),
@@ -5258,6 +5260,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     damage_marked: 0,
                     deathtouch_damage: false,
                     is_token: true,
+                    is_emblem: false,
                     timestamp: 0, // replaced by add_object
                     // CR 302.6: Tokens have summoning sickness; they are already attacking
                     // so sickness does not prevent combat participation this turn.
@@ -5966,6 +5969,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     damage_marked: 0,
                     deathtouch_damage: false,
                     is_token: true,
+                    is_emblem: false,
                     timestamp: 0, // replaced by add_object
                     // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
                     has_summoning_sickness: true,
@@ -6183,6 +6187,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     damage_marked: 0,
                     deathtouch_damage: false,
                     is_token: true,
+                    is_emblem: false,
                     timestamp: 0, // replaced by add_object
                     // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
                     has_summoning_sickness: true,
@@ -6416,6 +6421,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         damage_marked: 0,
                         deathtouch_damage: false,
                         is_token: true,
+                        is_emblem: false,
                         timestamp: 0, // replaced by add_object
                         // CR 302.6: Tokens have summoning sickness when they enter.
                         // Has Haste so can attack despite summoning sickness.

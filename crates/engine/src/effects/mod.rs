@@ -2897,6 +2897,7 @@ fn execute_effect_inner(
                             damage_marked: 0,
                             deathtouch_damage: false,
                             is_token: false,
+                            is_emblem: false,
                             timestamp: state.timestamp_counter,
                             has_summoning_sickness: true,
                             goaded_by: im::Vector::new(),
@@ -3835,6 +3836,7 @@ fn execute_effect_inner(
                     damage_marked: 0,
                     deathtouch_damage: false,
                     is_token: true,
+                    is_emblem: false,
                     timestamp: 0, // replaced by add_object
                     has_summoning_sickness: true,
                     goaded_by: im::Vector::new(),
@@ -3909,6 +3911,118 @@ fn execute_effect_inner(
                 // Track last created permanent for EffectTarget::LastCreatedPermanent.
                 ctx.last_created_permanent = Some(token_id);
             }
+        }
+
+        // CR 114.1-114.4: Create an emblem in the command zone.
+        //
+        // Emblems are non-card, non-permanent objects that have no types, mana cost,
+        // or color (CR 114.3). They are owned and controlled by the effect's controller
+        // (CR 114.2) and persist for the rest of the game. Their abilities function from
+        // the command zone (CR 113.6p, CR 114.4).
+        Effect::CreateEmblem {
+            triggered_abilities,
+            static_effects,
+        } => {
+            use crate::state::game_object::ObjectStatus;
+
+            let ctrl = ctx.controller;
+            let command_zone = ZoneId::Command(ctrl);
+
+            // Build emblem characteristics — no types, mana cost, or color (CR 114.3).
+            // Triggered abilities are stored in the characteristics so the trigger scanner
+            // finds them when iterating command zone emblem objects.
+            let emblem_chars = crate::state::game_object::Characteristics {
+                triggered_abilities: triggered_abilities.clone(),
+                ..crate::state::game_object::Characteristics::default()
+            };
+
+            let emblem_obj = crate::state::game_object::GameObject {
+                id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                card_id: None,
+                characteristics: emblem_chars,
+                controller: ctrl,
+                owner: ctrl,
+                zone: command_zone,
+                status: ObjectStatus::default(),
+                counters: im::OrdMap::new(),
+                attachments: im::Vector::new(),
+                attached_to: None,
+                damage_marked: 0,
+                deathtouch_damage: false,
+                is_token: false,
+                is_emblem: true,
+                timestamp: 0, // replaced by add_object
+                has_summoning_sickness: false,
+                goaded_by: im::Vector::new(),
+                kicker_times_paid: 0,
+                cast_alt_cost: None,
+                foretold_turn: 0,
+                was_unearthed: false,
+                myriad_exile_at_eoc: false,
+                decayed_sacrifice_at_eoc: false,
+                ring_block_sacrifice_at_eoc: false,
+                exiled_by_hideaway: None,
+                encore_sacrifice_at_end_step: false,
+                encore_must_attack: None,
+                encore_activated_by: None,
+                is_plotted: false,
+                plotted_turn: 0,
+                is_prototyped: false,
+                was_bargained: false,
+                evidence_collected: false,
+                phased_out_indirectly: false,
+                phased_out_controller: None,
+                creatures_devoured: 0,
+                champion_exiled_card: None,
+                paired_with: None,
+                tribute_was_paid: false,
+                x_value: 0,
+                squad_count: 0,
+                offspring_paid: false,
+                gift_was_given: false,
+                gift_opponent: None,
+                encoded_cards: im::Vector::new(),
+                haunting_target: None,
+                merged_components: im::Vector::new(),
+                is_transformed: false,
+                last_transform_timestamp: 0,
+                was_cast_disturbed: false,
+                craft_exiled_cards: im::Vector::new(),
+                chosen_creature_type: None,
+                face_down_as: None,
+                loyalty_ability_activated_this_turn: false,
+                class_level: 0,
+                designations: crate::state::game_object::Designations::default(),
+                meld_component: None,
+            };
+
+            let emblem_id = match state.add_object(emblem_obj, command_zone) {
+                Ok(id) => id,
+                Err(_) => return,
+            };
+
+            // Register static continuous effects from the emblem.
+            // Duration is Indefinite since emblems never leave the command zone.
+            for se in static_effects {
+                let eff_id_inner = state.next_object_id().0;
+                let ts = state.timestamp_counter;
+                let eff = crate::state::continuous_effect::ContinuousEffect {
+                    id: crate::state::continuous_effect::EffectId(eff_id_inner),
+                    source: Some(emblem_id),
+                    layer: se.layer,
+                    modification: se.modification.clone(),
+                    filter: se.filter.clone(),
+                    duration: crate::state::continuous_effect::EffectDuration::Indefinite,
+                    is_cda: false,
+                    timestamp: ts,
+                };
+                state.continuous_effects.push_back(eff);
+            }
+
+            events.push(GameEvent::EmblemCreated {
+                player: ctrl,
+                object_id: emblem_id,
+            });
         }
 
         Effect::Flicker {
@@ -4842,6 +4956,7 @@ pub fn make_token(
         damage_marked: 0,
         deathtouch_damage: false,
         is_token: true,
+        is_emblem: false,
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
         goaded_by: im::Vector::new(),

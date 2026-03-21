@@ -1332,6 +1332,19 @@ pub enum GameEvent {
         /// The permanent it became a copy of.
         source: crate::state::game_object::ObjectId,
     },
+
+    /// CR 114.2: A player gets an emblem with abilities.
+    ///
+    /// Emitted by `Effect::CreateEmblem` when the emblem GameObject is placed
+    /// into the command zone. Emblems persist for the rest of the game (CR 114.1).
+    ///
+    /// Discriminant: 124.
+    EmblemCreated {
+        /// The player who controls and owns the emblem (CR 114.2).
+        player: crate::state::player::PlayerId,
+        /// The ObjectId of the emblem in the command zone.
+        object_id: crate::state::game_object::ObjectId,
+    },
 }
 
 impl GameEvent {

@@ -1571,6 +1571,21 @@ pub enum Effect {
         /// target from the effect controller's current attack, per CR 508.4).
         enters_tapped_and_attacking: bool,
     },
+
+    /// CR 114.1-114.4: Create an emblem in the command zone with the specified abilities.
+    ///
+    /// Emblems are non-card, non-permanent objects that have no types, mana cost, or color
+    /// (CR 114.3). They live in the command zone and cannot be removed (CR 114.1). Their
+    /// abilities function from the command zone (CR 113.6p, CR 114.4).
+    ///
+    /// The emblem is both owned and controlled by the effect's controller (CR 114.2).
+    /// Multiple emblems from the same source stack independently (CR 113.2c).
+    CreateEmblem {
+        /// Triggered abilities on the emblem (CR 114.2).
+        triggered_abilities: Vec<crate::state::game_object::TriggeredAbilityDef>,
+        /// Static continuous effects on the emblem (e.g., "Ninjas you control get +1/+1").
+        static_effects: Vec<ContinuousEffectDef>,
+    },
 }
 
 // ── Effect Targets ────────────────────────────────────────────────────────────

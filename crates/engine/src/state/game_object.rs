@@ -528,6 +528,17 @@ pub struct GameObject {
     /// Set during combat damage assignment (M6+). Cleared with other damage in cleanup (CR 514.1).
     pub deathtouch_damage: bool,
     pub is_token: bool,
+    /// CR 114.1 / CR 114.5: True if this object is an emblem in the command zone.
+    ///
+    /// Emblems are non-card, non-permanent objects that live in the command zone (CR 114.1).
+    /// They have no types, mana cost, or color (CR 114.3), but may have abilities defined
+    /// by the effect that created them (CR 114.2). They persist for the rest of the game
+    /// and cannot be destroyed, exiled, or otherwise removed.
+    ///
+    /// Distinct from `is_token`: emblems have `is_token: false` (CR 114.5).
+    /// Distinct from commanders: emblems have `card_id: None`.
+    #[serde(default)]
+    pub is_emblem: bool,
     /// Timestamp for continuous effect ordering (CR 613.7).
     pub timestamp: u64,
     /// True if this permanent has summoning sickness (CR 302.6).

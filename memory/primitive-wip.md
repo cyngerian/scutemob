@@ -1,44 +1,43 @@
-# Primitive WIP: PB-22 S5 -- Copy/Clone Primitives
+# Primitive WIP: PB-22 S6 -- Emblem Creation (CR 114)
 
 batch: PB-22
-session: S5
-title: Copy/Clone Primitives (BecomeCopyOf, CreateTokenCopy)
-cards_affected: 4 (Scion of the Ur-Dragon, Thespian's Stage, Shifting Woodland, Thousand-Faced Shadow)
+session: S6
+title: Emblem Creation (CR 114)
+cards_affected: 11 (Ajani Sleeper Agent + ~10 planeswalker cards)
 started: 2026-03-21
-phase: closed
-plan_file: memory/primitives/pb-22-session-plan.md (Session 5 section)
+phase: implement
+plan_file: memory/primitives/pb-plan-22-s6.md
 
 ## Deferred from Prior PBs
-- Clone/copy ETB choice (PB-13j) — 2 cards (partial, S5 covers become-copy but not ETB choose-what-to-copy)
-- Scion of the Ur-Dragon copy-self (PB-17) — partially covered (search works, copy needs EffectTarget::LastSearchResult)
+- Emblem creation (PB-14) — 11 planeswalker cards blocked on emblem infrastructure
 
 ## Step Checklist
-- [x] 1. Engine changes: Effect::BecomeCopyOf (Layer 1 continuous effect, configurable EffectDuration)
-  - Added Effect::BecomeCopyOf { copier, target, duration } in card_definition.rs
-  - Dispatch in effects/mod.rs: resolves targets, verifies copier on BF, creates CopyOf CE with specified duration
-  - GameEvent::BecameCopyOf { copier, source } (discriminant 123)
-  - Hash discriminant 64 (Effect), 123 (GameEvent)
-- [x] 2. Engine changes: Effect::CreateTokenCopy (token copy + optional tapped-and-attacking)
-  - Added Effect::CreateTokenCopy { source, enters_tapped_and_attacking } in card_definition.rs
-  - Dispatch in effects/mod.rs: creates blank token, applies CopyOf CE, registers combat if attacking
-  - Applies token replacement effects, tracks last_created_permanent
-  - Hash discriminant 65
-- [x] 3. Bonus: Condition::CardTypesInGraveyardAtLeast(u32) for Delirium activation conditions
-  - Added to Condition enum, check_condition dispatch, hash discriminant 31
-  - check_condition made pub (was pub(crate)) for external test access
-- [x] 4. Card definition fixes
-  - Thespian's Stage: full {2},{T} copy ability with BecomeCopyOf (Indefinite duration, target land)
-  - Shifting Woodland: full Delirium {2}{G}{G} copy ability (UntilEndOfTurn, activation condition)
-  - Thousand-Faced Shadow: ETB trigger with CreateTokenCopy (tapped and attacking)
-  - Scion of the Ur-Dragon: TODO improved (search works, copy needs LastSearchResult target)
-- [x] 5. Unit tests (5 new tests in copy_effects.rs)
-  - test_effect_become_copy_of: BecomeCopyOf via execute_effect, verifies BecameCopyOf event + layer resolution
-  - test_effect_become_copy_reverts_at_eot: UntilEndOfTurn copy reverts after cleanup
-  - test_effect_create_token_copy: CreateTokenCopy creates token with copied characteristics
-  - test_effect_create_token_copy_tapped_attacking: token enters tapped+attacking in combat
-  - test_delirium_condition_evaluation: CardTypesInGraveyardAtLeast true/false checks
-- [x] 6. Workspace build verification
-  - cargo test --all: 2265 tests pass (was 2260, +5 new)
+- [x] 1. Engine changes: Effect::CreateEmblem (emblem game object in command zone)
+  - Added `is_emblem: bool` to `GameObject` (game_object.rs) with `#[serde(default)]`
+  - Added `Effect::CreateEmblem { triggered_abilities, static_effects }` (card_definition.rs, disc 66)
+  - Added `GameEvent::EmblemCreated { player, object_id }` (events.rs, disc 124)
+  - Added hash support (hash.rs) — Effect disc 66, GameEvent disc 124, is_emblem field
+  - Implemented CreateEmblem dispatch (effects/mod.rs) — creates emblem in command zone, registers static CEs, emits event
+  - Added `collect_emblem_triggers_for_event` helper in abilities.rs; called from SpellCast handler (CR 113.6p, CR 114.4)
+  - Exported `TriggeredAbilityDef`, `TriggerEvent`, `ETBTriggerFilter`, `InterveningIf` in helpers.rs
+- [x] 2. Emblem zone placement + SBA immunity (CR 114.1-114.4)
+  - Emblems use `is_token: false` — token SBA does not fire for emblems
+  - `ZoneId::Command(ctrl)` used for emblem placement (verified no other SBAs target command zone)
+  - Static CEs registered with `EffectDuration::Indefinite` (emblems never leave command zone)
+- [x] 3. Card definition fixes (Ajani Sleeper Agent + other planeswalker emblem abilities)
+  - ajani_sleeper_agent.rs: -6 TODO replaced with Effect::CreateEmblem (AnySpellCast trigger)
+  - basri_ket.rs: new card def (5 abilities, emblem on -6)
+  - kaito_bane_of_nightmares.rs: new card def (4 abilities, emblem with static P/T on +1)
+  - tyvar_kell.rs: new card def (3 abilities, emblem on -6)
+  - wrenn_and_realmbreaker.rs: new card def (3 abilities, emblem on -7 with TODO for play-from-graveyard)
+  - wrenn_and_seven.rs: new card def (4 abilities, emblem with NoMaxHandSize static on -8)
+- [x] 4. Unit tests (5+ tests)
+  - 7 tests in crates/engine/tests/emblem_tests.rs — all passing
+  - test_emblem_creation_basic, test_emblem_triggered_ability_fires, test_emblem_survives_board_wipe
+  - test_emblem_not_removed_by_token_sba, test_multiple_emblems_stack, test_emblem_static_effect
+  - test_emblem_persists_after_source_removed
+- [x] 5. Workspace build verification
+  - cargo test --all: all tests pass (7 new emblem tests + all prior tests)
   - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean

@@ -947,6 +947,7 @@ impl HashInto for GameObject {
         self.damage_marked.hash_into(hasher);
         self.deathtouch_damage.hash_into(hasher);
         self.is_token.hash_into(hasher);
+        self.is_emblem.hash_into(hasher);
         self.timestamp.hash_into(hasher);
         self.has_summoning_sickness.hash_into(hasher);
         self.goaded_by.hash_into(hasher);
@@ -3667,6 +3668,12 @@ impl HashInto for GameEvent {
                 copier.hash_into(hasher);
                 source.hash_into(hasher);
             }
+            // EmblemCreated -- CR 114.2 (discriminant 124)
+            GameEvent::EmblemCreated { player, object_id } => {
+                124u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -4614,6 +4621,21 @@ impl HashInto for Effect {
                 65u8.hash_into(hasher);
                 source.hash_into(hasher);
                 enters_tapped_and_attacking.hash_into(hasher);
+            }
+            // CR 114.1-114.4: CreateEmblem (discriminant 66)
+            Effect::CreateEmblem {
+                triggered_abilities,
+                static_effects,
+            } => {
+                66u8.hash_into(hasher);
+                (triggered_abilities.len() as u32).hash_into(hasher);
+                for ta in triggered_abilities {
+                    ta.hash_into(hasher);
+                }
+                (static_effects.len() as u32).hash_into(hasher);
+                for se in static_effects {
+                    se.hash_into(hasher);
+                }
             }
         }
     }

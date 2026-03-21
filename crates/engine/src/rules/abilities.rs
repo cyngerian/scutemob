@@ -3226,6 +3226,22 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         t.triggering_player = Some(*player);
                     }
                 }
+
+                // CR 113.6p / CR 114.4: Emblem triggers from command zone emblems.
+                // Emblems fire "whenever you cast" triggers for their controlling player.
+                // Only scan the caster's emblems (emblem abilities say "whenever YOU cast").
+                collect_emblem_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::AnySpellCast,
+                    Some(*player),
+                );
+                collect_emblem_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::ControllerCastsSpell,
+                    Some(*player),
+                );
             }
 
             GameEvent::PermanentTapped { object_id, .. } => {
@@ -4832,6 +4848,85 @@ fn collect_triggers_for_event(
                 kind: PendingTriggerKind::Normal,
                 triggering_event: Some(event_type.clone()),
                 entering_object_id: entering_object,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                recover_cost: None,
+                recover_card: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
+                data: None,
+            });
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Emblem trigger scanning (CR 113.6p, CR 114.4)
+// ---------------------------------------------------------------------------
+
+/// Scan all emblem objects in the command zone for triggered abilities matching `event_type`.
+///
+/// CR 113.6p / CR 114.4: Abilities of emblems function in the command zone.
+/// This function mirrors `collect_triggers_for_event` but targets emblems instead of
+/// battlefield permanents.
+///
+/// `caster_player`: if `Some(p)`, only fires emblem triggers owned by player `p`
+/// (for "whenever YOU cast" semantics). If `None`, fires all matching emblem triggers.
+fn collect_emblem_triggers_for_event(
+    state: &GameState,
+    triggers: &mut Vec<PendingTrigger>,
+    event_type: TriggerEvent,
+    caster_player: Option<PlayerId>,
+) {
+    let emblem_ids: Vec<ObjectId> = state
+        .objects
+        .values()
+        .filter(|obj| obj.is_emblem && matches!(obj.zone, ZoneId::Command(_)))
+        .map(|obj| obj.id)
+        .collect();
+
+    for obj_id in emblem_ids {
+        let Some(obj) = state.objects.get(&obj_id) else {
+            continue;
+        };
+
+        // If a caster filter is given, only fire triggers for that player's emblems.
+        if let Some(caster) = caster_player {
+            if obj.controller != caster {
+                continue;
+            }
+        }
+
+        for (idx, trigger_def) in obj.characteristics.triggered_abilities.iter().enumerate() {
+            if trigger_def.trigger_on != event_type {
+                continue;
+            }
+
+            // CR 603.4: Check intervening-if at trigger time.
+            if let Some(ref cond) = trigger_def.intervening_if {
+                if !check_intervening_if(state, cond, obj.controller, None) {
+                    continue;
+                }
+            }
+
+            triggers.push(PendingTrigger {
+                source: obj_id,
+                ability_index: idx,
+                controller: obj.controller,
+                kind: PendingTriggerKind::Normal,
+                triggering_event: Some(event_type.clone()),
+                entering_object_id: None,
                 targeting_stack_id: None,
                 triggering_player: None,
                 exalted_attacker_id: None,

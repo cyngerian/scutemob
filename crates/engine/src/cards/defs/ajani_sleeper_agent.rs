@@ -45,10 +45,29 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(6),
-                // −6: Create emblem with triggered ability.
-                // TODO: Emblem creation (CR 114) is a known gap deferred to a dedicated
-                // session. Tracked in docs/project-status.md Deferred Items table.
-                effect: Effect::Sequence(vec![]),
+                // −6: You get an emblem with "Whenever you cast a creature or planeswalker
+                // spell, target opponent gets two poison counters." (CR 114.1-114.4)
+                // NOTE: The emblem trigger fires on AnySpellCast for the controller.
+                // The spell-type filter (creature/planeswalker only) is not enforced here
+                // due to DSL limitations — the trigger fires on any spell cast by the
+                // controller. Precise filtering is a known LOW gap.
+                effect: Effect::CreateEmblem {
+                    triggered_abilities: vec![
+                        TriggeredAbilityDef {
+                            trigger_on: TriggerEvent::AnySpellCast,
+                            intervening_if: None,
+                            description: "Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters.".to_string(),
+                            effect: Some(Effect::AddCounter {
+                                target: EffectTarget::DeclaredTarget { index: 0 },
+                                counter: CounterType::Poison,
+                                count: 2,
+                            }),
+                            etb_filter: None,
+                            targets: vec![TargetRequirement::TargetPlayer],
+                        },
+                    ],
+                    static_effects: vec![],
+                },
                 targets: vec![],
             },
         ],

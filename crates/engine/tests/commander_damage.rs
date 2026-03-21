@@ -412,6 +412,7 @@ fn test_commander_damage_survives_zone_change() {
                 damage_marked: 0,
                 deathtouch_damage: false,
                 is_token: false,
+                is_emblem: false,
                 timestamp: 0,
                 has_summoning_sickness: false,
                 goaded_by: im::Vector::new(),

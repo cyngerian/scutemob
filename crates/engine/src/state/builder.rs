@@ -998,6 +998,7 @@ impl GameStateBuilder {
                 damage_marked: spec.damage_marked,
                 deathtouch_damage: spec.deathtouch_damage,
                 is_token: spec.is_token,
+                is_emblem: false,
                 timestamp: 0, // Assigned by add_object
                 // Summoning sickness is set based on zone when the object is added.
                 // test-placed permanents on the battlefield are treated as having
