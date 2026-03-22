@@ -95,7 +95,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        starting_loyalty: Some(5),
+        starting_loyalty: Some(3),
         meld_pair: None,
         ..Default::default()
     }

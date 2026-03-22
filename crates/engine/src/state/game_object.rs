@@ -389,6 +389,27 @@ pub enum TriggerEvent {
     ///
     /// Fired from `check_triggers` on `GameEvent::PermanentTurnedFaceUp`.
     SelfTurnedFaceUp,
+    // ── Step/phase-based triggers (primarily used by emblem triggered abilities) ──
+    //
+    // These are fired from the step-transition turn actions (upkeep_actions,
+    // begin_combat, end_step_actions in rules/turn_actions.rs) via
+    // collect_emblem_triggers_for_event. They are not dispatched by check_triggers
+    // (which handles event-driven triggers); instead they are queued directly
+    // when the engine enters the relevant step.
+    //
+    // CR 114.4: Abilities of emblems function in the command zone.
+    /// "At the beginning of your upkeep." — fires for the active player's emblems.
+    /// CR 603: Triggers at the start of the active player's upkeep step.
+    AtBeginningOfYourUpkeep,
+    /// "At the beginning of each player's upkeep." — fires for all players' emblems.
+    /// CR 603: Triggers at the start of every player's upkeep step.
+    AtBeginningOfEachUpkeep,
+    /// "At the beginning of your end step." — fires for the active player's emblems.
+    /// CR 603: Triggers at the start of the active player's end step.
+    AtBeginningOfYourEndStep,
+    /// "At the beginning of combat on your turn." — fires for the active player's emblems.
+    /// CR 603: Triggers at the start of the active player's beginning of combat step.
+    AtBeginningOfCombat,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

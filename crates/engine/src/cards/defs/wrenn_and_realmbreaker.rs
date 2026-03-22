@@ -1,8 +1,9 @@
-// Wrenn and Realmbreaker — {2}{G}{G}{G}, Legendary Planeswalker — Wrenn
+// Wrenn and Realmbreaker — {1}{G}{G}, Legendary Planeswalker — Wrenn
+// Oracle text (Scryfall verified):
 // Lands you control have "{T}: Add one mana of any color."
-// +1: Up to two target lands become 3/3 Elemental creatures with trample, haste, and indestructible
-//     until end of turn. They're still lands.
-// −2: Return target permanent card from your graveyard to your hand.
+// +1: Up to one target land you control becomes a 3/3 Elemental creature with vigilance,
+//     hexproof, and haste until your next turn. It's still a land.
+// −2: Mill three cards. You may put a permanent card from among the milled cards into your hand.
 // −7: You get an emblem with "You may play lands and cast permanent spells from your graveyard."
 use crate::cards::helpers::*;
 
@@ -11,8 +12,8 @@ pub fn card() -> CardDefinition {
         card_id: cid("wrenn-and-realmbreaker"),
         name: "Wrenn and Realmbreaker".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 2,
-            green: 3,
+            generic: 1,
+            green: 2,
             ..Default::default()
         }),
         types: full_types(
@@ -20,36 +21,33 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Wrenn"],
         ),
-        oracle_text: "Lands you control have \"{T}: Add one mana of any color.\"\n+1: Up to two target lands become 3/3 Elemental creatures with trample, haste, and indestructible until end of turn. They're still lands.\n\u{2212}2: Return target permanent card from your graveyard to your hand.\n\u{2212}7: You get an emblem with \"You may play lands and cast permanent spells from your graveyard.\"".to_string(),
+        oracle_text: "Lands you control have \"{T}: Add one mana of any color.\"\n+1: Up to one target land you control becomes a 3/3 Elemental creature with vigilance, hexproof, and haste until your next turn. It's still a land.\n\u{2212}2: Mill three cards. You may put a permanent card from among the milled cards into your hand.\n\u{2212}7: You get an emblem with \"You may play lands and cast permanent spells from your graveyard.\"".to_string(),
         abilities: vec![
             // Static: "Lands you control have '{T}: Add one mana of any color.'"
             // TODO: Granting arbitrary mana abilities to permanents is a complex DSL
             // pattern (AnyColor mana production from lands). Known DSL gap.
 
-            // +1: Up to two target lands become 3/3 Elemental creatures until EOT.
-            // TODO: Complex type-changing + P/T-setting continuous effect for this turn.
-            // Known DSL gap for loyalty ability effects.
+            // +1: Up to one target land you control becomes a 3/3 Elemental creature with
+            // vigilance, hexproof, and haste until your next turn. It's still a land.
+            // TODO: Type-changing (add Elemental creature type) + P/T-setting continuous
+            // effect + keyword grants (vigilance, hexproof, haste) until next turn is a
+            // multi-layer continuous effect. Known DSL gap for loyalty ability effects.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
                 effect: Effect::Sequence(vec![]),
-                targets: vec![
-                    TargetRequirement::TargetLand,
-                    TargetRequirement::TargetLand,
-                ],
+                targets: vec![TargetRequirement::TargetLand],
             },
-            // −2: Return target permanent card from your graveyard to your hand.
+            // −2: Mill three cards. You may put a permanent card from among the milled
+            // cards into your hand.
+            // TODO: Mill + conditional return from milled cards requires tracking which
+            // cards were milled and offering a player choice from among them. Known DSL gap.
+            // The MoveZone approximation below does not match the oracle text — the -2
+            // mills first, then allows putting a permanent card from among the milled cards
+            // into hand (not a target from the existing graveyard). Placeholder only.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
-                effect: Effect::MoveZone {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand {
-                        owner: PlayerTarget::Controller,
-                    },
-                    controller_override: None,
-                },
-                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
-                    ..Default::default()
-                })],
+                effect: Effect::Sequence(vec![]),
+                targets: vec![],
             },
             // −7: You get an emblem with "You may play lands and cast permanent spells
             // from your graveyard." (CR 114.1-114.4)
@@ -69,7 +67,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        starting_loyalty: Some(7),
+        starting_loyalty: Some(4),
         meld_pair: None,
         ..Default::default()
     }

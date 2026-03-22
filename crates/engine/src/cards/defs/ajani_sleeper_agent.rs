@@ -48,9 +48,14 @@ pub fn card() -> CardDefinition {
                 // −6: You get an emblem with "Whenever you cast a creature or planeswalker
                 // spell, target opponent gets two poison counters." (CR 114.1-114.4)
                 // NOTE: The emblem trigger fires on AnySpellCast for the controller.
-                // The spell-type filter (creature/planeswalker only) is not enforced here
-                // due to DSL limitations — the trigger fires on any spell cast by the
-                // controller. Precise filtering is a known LOW gap.
+                // TODO: Spell-type filter (creature/planeswalker only) is not enforced —
+                // TriggeredAbilityDef lacks a spell_type_filter field. The emblem fires
+                // on any spell cast by the controller (instants, sorceries, etc. also
+                // trigger it). Known DSL gap — MEDIUM severity per PB-22 S6 review.
+                //
+                // TODO: Target should be TargetRequirement::TargetOpponent (i.e., only
+                // opponents may be chosen). TargetRequirement has no Opponent variant;
+                // TargetPlayer allows targeting oneself. Known DSL gap — MEDIUM severity.
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![
                         TriggeredAbilityDef {
@@ -63,6 +68,7 @@ pub fn card() -> CardDefinition {
                                 count: 2,
                             }),
                             etb_filter: None,
+                            // TODO: Should be TargetOpponent; TargetPlayer is an approximation.
                             targets: vec![TargetRequirement::TargetPlayer],
                         },
                     ],

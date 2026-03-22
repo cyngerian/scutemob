@@ -1829,6 +1829,12 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfMutates => 22u8.hash_into(hasher),
             // CR 708.8: "When this permanent is turned face up" — discriminant 23
             TriggerEvent::SelfTurnedFaceUp => 23u8.hash_into(hasher),
+            // Step-based emblem trigger events — discriminants 24-27
+            // CR 114.4: Abilities of emblems function in the command zone.
+            TriggerEvent::AtBeginningOfYourUpkeep => 24u8.hash_into(hasher),
+            TriggerEvent::AtBeginningOfEachUpkeep => 25u8.hash_into(hasher),
+            TriggerEvent::AtBeginningOfYourEndStep => 26u8.hash_into(hasher),
+            TriggerEvent::AtBeginningOfCombat => 27u8.hash_into(hasher),
         }
     }
 }

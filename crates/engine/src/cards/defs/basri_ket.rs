@@ -47,13 +47,12 @@ pub fn card() -> CardDefinition {
                 // −6: You get an emblem with "At the beginning of combat on your turn,
                 // create a 1/1 white Soldier creature token, then put a +1/+1 counter
                 // on each creature you control." (CR 114.1-114.4)
-                // NOTE: This emblem fires on AnySpellCast as a placeholder. The correct
-                // trigger (AtBeginningOfCombat) requires extending emblem scanning to
-                // cover StepChanged(Combat) game events. This is a known LOW gap.
+                // NOTE: Uses TriggerEvent::AtBeginningOfCombat. Emblem scanning for
+                // step-based trigger events is wired in begin_combat() in turn_actions.rs.
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![
                         TriggeredAbilityDef {
-                            trigger_on: TriggerEvent::AnySpellCast,
+                            trigger_on: TriggerEvent::AtBeginningOfCombat,
                             intervening_if: None,
                             description: "At the beginning of combat on your turn, create a 1/1 white Soldier creature token, then put a +1/+1 counter on each creature you control.".to_string(),
                             // TODO: Full effect (create token + distribute counters on all creatures)

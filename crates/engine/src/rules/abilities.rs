@@ -4883,7 +4883,7 @@ fn collect_triggers_for_event(
 ///
 /// `caster_player`: if `Some(p)`, only fires emblem triggers owned by player `p`
 /// (for "whenever YOU cast" semantics). If `None`, fires all matching emblem triggers.
-fn collect_emblem_triggers_for_event(
+pub(crate) fn collect_emblem_triggers_for_event(
     state: &GameState,
     triggers: &mut Vec<PendingTrigger>,
     event_type: TriggerEvent,

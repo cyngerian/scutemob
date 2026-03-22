@@ -5,7 +5,7 @@ use im::OrdSet;
 use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
 use crate::state::combat::CombatState;
 use crate::state::error::GameStateError;
-use crate::state::game_object::{Designations, ObjectId};
+use crate::state::game_object::{Designations, ObjectId, TriggerEvent};
 use crate::state::player::PlayerId;
 use crate::state::stack::TriggerData;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
@@ -15,6 +15,7 @@ use crate::state::types::{CounterType, CumulativeUpkeepCost, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
+use super::abilities::collect_emblem_triggers_for_event;
 use super::events::{GameEvent, LossReason};
 
 /// Execute turn-based actions for the current step.
@@ -447,6 +448,29 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         }
     }
 
+    // CR 114.4: Emblem triggers for AtBeginningOfYourUpkeep and AtBeginningOfEachUpkeep.
+    // Scan emblems in the command zone and queue any matching triggered abilities.
+    // For AtBeginningOfYourUpkeep, only the active player's emblems fire.
+    // For AtBeginningOfEachUpkeep, all players' emblems fire.
+    {
+        let mut emblem_triggers = Vec::new();
+        collect_emblem_triggers_for_event(
+            state,
+            &mut emblem_triggers,
+            TriggerEvent::AtBeginningOfYourUpkeep,
+            Some(active),
+        );
+        collect_emblem_triggers_for_event(
+            state,
+            &mut emblem_triggers,
+            TriggerEvent::AtBeginningOfEachUpkeep,
+            None,
+        );
+        for trigger in emblem_triggers {
+            state.pending_triggers.push_back(trigger);
+        }
+    }
+
     events // No direct events beyond venture; triggers are flushed by enter_step
 }
 
@@ -817,6 +841,21 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
     if state.monarch == Some(active) {
         if let Ok(draw_events) = draw_card(state, active) {
             direct_events.extend(draw_events);
+        }
+    }
+
+    // CR 114.4: Emblem triggers for AtBeginningOfYourEndStep.
+    // Scan emblems in the command zone and queue any matching triggered abilities.
+    {
+        let mut emblem_triggers = Vec::new();
+        collect_emblem_triggers_for_event(
+            state,
+            &mut emblem_triggers,
+            TriggerEvent::AtBeginningOfYourEndStep,
+            Some(active),
+        );
+        for trigger in emblem_triggers {
+            state.pending_triggers.push_back(trigger);
         }
     }
 
@@ -1527,6 +1566,21 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
     if state.combat.is_none() {
         state.combat = Some(CombatState::new(active));
     }
+
+    // CR 114.4: Emblem triggers for AtBeginningOfCombat (e.g., Basri Ket emblem).
+    // Scan emblems in the command zone for "at the beginning of combat on your turn" triggers.
+    // Only the active player's emblems fire (the trigger is controller-scoped).
+    let mut emblem_triggers = Vec::new();
+    collect_emblem_triggers_for_event(
+        state,
+        &mut emblem_triggers,
+        TriggerEvent::AtBeginningOfCombat,
+        Some(active),
+    );
+    for trigger in emblem_triggers {
+        state.pending_triggers.push_back(trigger);
+    }
+
     Vec::new()
 }
 

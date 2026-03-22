@@ -80,12 +80,15 @@ pub fn card() -> CardDefinition {
                     static_effects: vec![
                         ContinuousEffectDef {
                             layer: EffectLayer::Ability,
-                            // Grant NoMaxHandSize keyword to all permanents you control.
-                            // This is an approximation — the real effect modifies the player,
-                            // not permanents. The cleanup step hand-size check currently only
-                            // checks NoMaxHandSize on permanents. This grants the keyword to
-                            // permanents you control as a proxy until player-level flags exist.
-                            // TODO: Add player.no_max_hand_size flag and check in cleanup step.
+                            // TODO: INCORRECT APPROXIMATION — "You have no maximum hand size"
+                            // is a player-level rule modification (CR 402.3), not a keyword
+                            // granted to permanents. The cleanup step should check whether the
+                            // active player has a no_max_hand_size flag and skip discard if so.
+                            // This grants NoMaxHandSize to permanents you control as a proxy,
+                            // which fails when the player controls no permanents (the emblem
+                            // would have no effect). Correct fix: add player.no_max_hand_size
+                            // flag to PlayerState and check it in the cleanup step discard loop.
+                            // Known DSL gap — MEDIUM severity per PB-22 S6 review.
                             modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::Indefinite,
