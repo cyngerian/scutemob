@@ -13,9 +13,9 @@
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
 - **Status**: 2281 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; **PB-22 deferred cleanup ALL 7 SESSIONS DONE** (activation_condition, coin flip/d20, reveal-route/flicker, tapped-attacking tokens/auto-attach, copy/clone, emblem creation, adventure/dual-zone search); W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~29 LOW open**; W3 LOW sprint COMPLETE
-- **Active Plan**: **W6 Primitive + Card Authoring** — primitives DONE; **card authoring operations**: `docs/card-authoring-operations.md` (Phase 0 triage DONE, Phase 1 fix next). W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs. **Triage results**: 569 TODOs (143 fixable now), 168/190 sessions ready, 15 blocked (true DSL gaps).
+- **Active Plan**: **W6 Primitive + Card Authoring** — primitives DONE; **card authoring operations**: `docs/card-authoring-operations.md` (**Phase 1 COMPLETE** — F-1 through F-7 done; Phase 2 authoring next: A-01 through A-42). W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs. **Triage results**: 569 TODOs (143 fixable now), 168/190 sessions ready, 15 blocked (true DSL gaps).
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-22 (Phase 0 triage complete; DSL gap audit, session reclassification, consolidated fix list; 2281 tests)
+- **Last Updated**: 2026-03-22 (Phase 1 COMPLETE — F-4 through F-7 done; 2281 tests, 0 clippy)
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 453 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior), CardRegistry

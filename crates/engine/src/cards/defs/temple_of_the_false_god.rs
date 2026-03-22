@@ -1,4 +1,5 @@
-// Temple of the False God — Land, {T}: Add {C}{C} only if you control 5+ lands (conditional — TODO)
+// Temple of the False God — Land
+// {T}: Add {C}{C}. Activate only if you control five or more lands.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,10 +10,19 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Add {C}{C}. Activate only if you control five or more lands.".to_string(),
         abilities: vec![
-            // TODO: {T}: Add {C}{C}. Activate only if you control five or more lands.
-            // DSL gap: conditional activation ("five or more lands" count threshold)
-            // and producing two colorless from a single tap are not expressible together.
-            // A wrong unconditional {C}{C} implementation would corrupt game state.
+            // {T}: Add {C}{C}. Activate only if you control five or more lands.
+            // "five or more lands" = four or more OTHER lands (since Temple itself is a land).
+            // ControlAtLeastNOtherLands(4) excludes the source from the count.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 0, 2),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlAtLeastNOtherLands(4)),
+            },
         ],
         ..Default::default()
     }

@@ -1,8 +1,8 @@
 // Exotic Orchard — Land; {T}: Add one mana of any color that a land an opponent
 // controls could produce.
-// TODO: DSL gap — AddManaAnyColor does not restrict to colors opponents' lands
-// could produce. Simplified to tap for any color (always available). Full
-// opponent-land check requires a new Effect variant or runtime query.
+// Note: Simplified — AddManaAnyColor produces any color unconditionally.
+// Full opponent-land color query would require a new Effect variant or runtime check.
+// TODO: Restrict to colors opponents' lands could produce (opponent-land mana query DSL gap).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

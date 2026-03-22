@@ -14,7 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // Sacrifice this creature: Another target creature gains haste until end of turn.
-            // TODO: DSL gap — "another" (exclude self) not expressible. Low impact: self is sacrificed as cost.
+            // Note: "another" restriction is moot — self is sacrificed as cost.
             AbilityDefinition::Activated {
                 cost: Cost::SacrificeSelf,
                 effect: Effect::ApplyContinuousEffect {

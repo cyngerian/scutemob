@@ -89,9 +89,10 @@ For each issue found in X-1:
 2. **Empty abilities on non-vanilla cards**: Implement if DSL supports it.
 3. **Known-issue patterns**: Apply the standard fix from the KI table.
 4. **ETB-tapped mismatches**: Add or remove the replacement effect.
-5. **Legitimate gaps**: If a micro-primitive would unblock 5+ cards, implement it.
-   Otherwise, replace `TODO` with `// KNOWN_GAP: <description>` so it's explicitly
-   documented as a permanent limitation.
+5. **DSL gaps**: Extend the DSL — add the missing primitive, variant, filter, or
+   condition. Then implement the card ability. No KNOWN_GAPs — every card must be
+   fully implemented. If a card requires a fundamentally new subsystem that zero
+   other cards in the target set need, cut the card with documented justification.
 
 Work in batches of 10-15 cards. Build + test after each batch.
 Commit: `W6-audit: fix <N> audit findings — <brief description>`
@@ -99,10 +100,10 @@ Commit: `W6-audit: fix <N> audit findings — <brief description>`
 ### X-3: Re-scan Verification
 
 Re-run X-1 to verify all fixes took effect. The report should show:
-- Zero fixable TODOs
+- Zero TODOs of any kind
 - Zero known-issue pattern matches
 - Zero ETB-tapped mismatches
-- Only KNOWN_GAP comments remain (all justified)
+- Every card fully implemented (no KNOWN_GAPs)
 
 If new issues found, loop back to X-2.
 
@@ -137,23 +138,22 @@ Write `memory/card-authoring/audit-certification.md`:
 |--------|-------|
 | Total card def files | <N> |
 | Complete (no TODOs, correct game state) | <N> |
-| KNOWN_GAP (documented, justified) | <N> |
+| Cut from target set (with justification) | <N> |
 | Remaining TODOs | 0 |
 | Wrong game state | 0 |
 
-## KNOWN_GAP Inventory
+## Cut Cards (if any)
 
-| Card | Gap Description | Blocked Until |
-|------|----------------|---------------|
-| ... | ... | ... |
+| Card | Reason for Cut | Mechanic |
+|------|---------------|----------|
+| ... | Zero other Commander cards use this subsystem | ... |
 
 ## Certification
 
-All card definitions have been audited against oracle text. Every card either:
-1. Has a complete, correct implementation matching oracle text, OR
-2. Has a documented KNOWN_GAP with justification for why the DSL cannot express it
-
-No card produces wrong game state. No stale TODOs remain.
+All card definitions have been audited against oracle text. Every card has a
+complete, correct implementation matching oracle text. No TODOs. No partial
+implementations. No wrong game state. DSL was extended as needed to cover
+every card in the target set.
 ```
 
 ### X-7: Check Off and Commit
@@ -167,6 +167,7 @@ No card produces wrong game state. No stale TODOs remain.
   fast pass that skips MCP oracle verification.
 - **MCP budget for oracle checks**: Use sparingly. Sample 10% for spot-checks.
   Only look up cards with flagged issues.
-- **KNOWN_GAP vs TODO**: TODOs imply "we intend to fix this." KNOWN_GAP means
-  "we know about this and it's acceptable for now." The distinction matters for
-  the alpha readiness assessment.
+- **No KNOWN_GAPs**: Every card must be fully implemented. If the DSL can't express
+  something, extend the DSL. The only acceptable alternative is cutting a card from
+  the target set entirely (with justification that no other Commander cards need that
+  mechanic either).

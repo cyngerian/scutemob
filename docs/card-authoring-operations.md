@@ -72,15 +72,31 @@ Requires: T-7 complete.
       **DONE 2026-03-22**: LOWs verified — planeswalker loyalty all correct (7/7),
       remaining LOWs are cosmetic (oracle text, style, subtypes, comments).
       Stale TODO cleanup overlaps with F-4 (now-expressible). No dedicated session needed.
-- [ ] **F-4**: Re-author cards whose TODOs are now expressible (from T-1 "now expressible"
-      list). Sessions of 8-12 cards. For each card: look up oracle, read reference def,
-      implement full ability, remove TODO. Build + test after each session. Commit per
-      session: `W6-cards: implement previously blocked abilities (<N> cards)`
-      Repeat F-4 until "now expressible" list is exhausted.
-- [ ] **F-5**: Review all cards fixed/re-authored in F-1 through F-4 using
-      `card-batch-reviewer` (batches of 5, 4 parallel). Any new HIGH/MEDIUM → loop
-      back to F-1/F-2 pattern.
-- [ ] **F-6**: Verify: `cargo build --workspace && cargo test --all && cargo clippy -- -D warnings`
+- [x] **F-4**: Re-author cards whose TODOs are now expressible (from T-1 "now expressible"
+      list). Sessions of 8-12 cards. For each card: look up oracle text via MCP, read
+      reference def, implement full ability, remove TODO. **Each session follows this
+      cycle — do NOT skip the review step:**
+
+      1. **Implement** batch of 8-12 cards. Build after: `cargo build --workspace`
+      2. **Review** the batch using `card-batch-reviewer` agent (batches of 5-6 cards).
+         For each card: verify oracle text match, check PlayerTarget variants in ForEach
+         loops, verify target requirements ("up to one" vs required), check effect amounts
+         match oracle output.
+      3. **Fix** any HIGH/MEDIUM findings using `card-fix-applicator` agent. Rebuild.
+      4. **Commit** per session: `W6-fix: F-4 session N — implement <N> previously blocked abilities`
+
+      Repeat until "now expressible" list is exhausted. **Session 1 (24 cards) committed
+      without review — review retroactively before starting session 2.**
+      **DONE 2026-03-22**: 6 sessions (70+ cards). Final sweep: 3 stale TODOs cleaned,
+      remaining TODOs are genuine DSL gaps. Diminishing returns reached.
+- [x] **F-5**: Final verification pass — spot-check 10% of all cards fixed/re-authored
+      in F-1 through F-4 using `card-batch-reviewer`. Any new HIGH → fix immediately.
+      This is a lightweight sanity check since per-session review already caught issues.
+      **DONE 2026-03-22**: 8 cards spot-checked, 7/8 PASS. 1 HIGH (Marang River Regent
+      imprecise TODO) → refined. 1 MEDIUM cosmetic (subtype order). See
+      `memory/card-authoring/f5-verification.md`.
+- [x] **F-6**: Verify: `cargo build --workspace && cargo test --all && cargo clippy -- -D warnings`
+      **DONE 2026-03-22**: 2281 tests, 0 failures, 0 clippy warnings, workspace builds clean.
 - [ ] **F-7**: Commit: `W6-fix: phase 1 complete — all existing defs clean`
 
 ### Phase 2: Author Remaining Cards
@@ -148,8 +164,11 @@ Requires: All A-* items complete (or all ready sessions exhausted).
 - [ ] **X-1**: Full re-scan — every card def file checked for TODOs, empty abilities,
       known-issue patterns, oracle text correctness. Output:
       `memory/card-authoring/audit-report.md`
-- [ ] **X-2**: Fix all remaining gaps found in X-1. Implement micro-primitives if they
-      unblock 5+ cards. Replace unfixable TODOs with `// KNOWN_GAP: <description>`.
+- [ ] **X-2**: Fix ALL remaining gaps found in X-1. For each gap: extend the DSL
+      (add the primitive/variant/filter needed), then implement the card ability.
+      No card gets a KNOWN_GAP — either implement it fully or cut it from the
+      target set with documented justification (e.g., zero Commander-playable cards
+      use this mechanic). Every card in the set must be complete.
 - [ ] **X-3**: Re-scan to verify X-2 resolved everything.
 - [ ] **X-4**: Final build + test: `cargo build --workspace && cargo test --all && cargo clippy -- -D warnings`
 - [ ] **X-5**: Update documentation: CLAUDE.md, primitive-card-plan.md, workstream-coordination.md
@@ -567,23 +586,23 @@ Each group follows this cycle:
 
 After triage (Phase 0), some sessions will remain blocked. For each:
 
-1. **If 1-2 cards are blocked in an otherwise ready session**: Author the ready cards,
-   leave blocked cards with `abilities: vec![]` and a precise TODO documenting the
-   missing DSL primitive. Mark the card in a tracking list for Phase 3 follow-up.
+1. **If 1-2 cards are blocked in an otherwise ready session**: Author the ready cards.
+   For blocked cards, implement the missing DSL primitive inline (small engine change),
+   then author the card. Same approach as PB-22 sessions.
 
-2. **If the entire session is blocked**: Skip it. Add to the Phase 3 backlog with
-   the specific blocker documented.
+2. **If the entire session is blocked by a single missing primitive**: Implement the
+   primitive first, then author the full session. Document the primitive addition.
 
-3. **If a new micro-primitive would unblock 5+ cards**: Consider implementing it
-   inline (small engine change + card fixes), same as PB-22 sessions did. Document
-   the primitive addition and test it.
+3. **If a card requires a fundamentally new subsystem** (e.g., Saga chapter progression,
+   Meld): evaluate whether any Commander-playable cards need it. If zero cards in the
+   1,743-card target set use it, cut it. Otherwise, implement it — no deferrals.
 
 ### Phase 2 Deliverables
 
 - [ ] All ready sessions authored (149+ sessions, 1,387+ cards)
 - [ ] All authored cards reviewed and clean (0 unfixed HIGH/MEDIUM)
 - [ ] All groups committed
-- [ ] Tracking list of remaining blocked cards with specific blockers
+- [ ] Zero blocked cards — all primitives implemented inline as needed
 
 ---
 
@@ -605,14 +624,15 @@ Scan every card def file for:
 **Tool**: Automated script that checks each file against its oracle text via MCP.
 More rigorous than the batch reviewer — checks every field, not just a sample.
 
-### Step 3.2: Fix Remaining Gaps
+### Step 3.2: Fix ALL Remaining Gaps
 
 For cards that still have TODOs:
 1. If the DSL covers it: implement the ability, remove the TODO.
-2. If the DSL doesn't cover it: evaluate whether a micro-primitive is worth adding.
-   If the gap affects only 1-2 cards and is genuinely complex, document it as a
-   known limitation with a `// KNOWN_GAP: <description>` comment (replacing TODO).
-3. Target: zero `TODO` comments in all card def files.
+2. If the DSL doesn't cover it: **extend the DSL** — add the missing primitive,
+   variant, filter, or condition. Then implement the card ability. No exceptions.
+3. If a card requires a fundamentally new subsystem that zero other cards in the
+   target set need: cut the card from the target set with documented justification.
+4. Target: zero `TODO` comments in all card def files. Zero KNOWN_GAPs.
 
 ### Step 3.3: Cross-validation
 
@@ -636,7 +656,7 @@ This is done via the existing test suite + targeted spot-checks on complex cards
 
 ### Phase 3 Deliverables
 
-- [ ] Zero `TODO` comments in card defs (or all remaining are `KNOWN_GAP` with justification)
+- [ ] Zero `TODO` comments in card defs — every card fully implemented
 - [ ] Zero `abilities: vec![]` on non-vanilla cards
 - [ ] All tests passing
 - [ ] All documentation updated

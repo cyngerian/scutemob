@@ -9,7 +9,17 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "If you control two or more other lands, this land enters tapped.\n{T}: Add {R}.\n{3}{R}: Until end of turn, this land becomes a 3/2 red Goblin creature with \"Whenever this creature attacks, create a 1/1 red Goblin creature token that's tapped and attacking.\" It's still a land.".to_string(),
         abilities: vec![
-            // TODO: Conditional ETB tapped — "If you control two or more other lands, this land enters tapped." (PB-2)
+            // CR 614.1c: "If you control two or more other lands, this land enters tapped."
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+                unless_condition: Some(Condition::Not(Box::new(
+                    Condition::ControlAtLeastNOtherLands(2),
+                ))),
+            },
             // {T}: Add {R}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

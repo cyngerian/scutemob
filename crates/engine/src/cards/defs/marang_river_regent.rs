@@ -1,4 +1,7 @@
-// Marang River Regent // Coil and Catch — Flying\nWhen this creature enters, return up to two other target nonla
+// Marang River Regent // Coil and Catch — {4}{U}{U} Creature — Dragon 6/7
+// Flying
+// When this creature enters, return up to two other target nonland permanents
+// to their owners' hands.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -10,7 +13,12 @@ pub fn card() -> CardDefinition {
         oracle_text: "Flying\nWhen this creature enters, return up to two other target nonland permanents to their owners' hands.".to_string(),
         power: Some(6),
         toughness: Some(7),
-        abilities: vec![],
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Flying),
+            // TODO: ETB trigger — return up to two other target nonland permanents to
+            // owners' hands. Bounce effect + nonland filter ARE expressible; DSL gap is
+            // "up to N" optional targeting (mandatory 2-target would fizzle with <2 targets).
+        ],
         ..Default::default()
     }
 }

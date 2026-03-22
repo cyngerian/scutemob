@@ -1,8 +1,6 @@
 // Gingerbrute — {1}, Artifact Creature — Food Golem 1/1; Haste.
-// {1}: can't be blocked this turn except by haste creatures — TODO: no "can't be blocked
-// with filter" effect in DSL.
-// {2}, {T}, Sacrifice: gain 3 life — TODO: sacrifice-as-cost in activated ability
-// not expressible.
+// {1}: can't be blocked this turn except by haste creatures — DSL gap (filtered evasion).
+// {2}, {T}, Sacrifice: gain 3 life — implemented.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,7 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: {1}: Can't be blocked except by creatures with haste — PB-5 (targeted/filtered evasion)
+            // TODO: {1}: Can't be blocked except by creatures with haste — filtered evasion DSL gap
             // {2}, {T}, Sacrifice: gain 3 life (Food ability)
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
