@@ -114,11 +114,11 @@ Work through groups in the order below. For each group, follow the per-group wor
 - [x] **A-03**: mana-artifact (3 sessions, 33 cards) — 33 new, 1 existed
 - [x] **A-04**: mana-other (1 session, 5 cards) — 3 new, 2 existed
 - [x] **A-05**: cost-reduction (2 sessions, 12 cards) — 12 new; 3 DSL extensions (HasColor, InstantOrSorcery, PerOpponent/LifeLostFromStarting/ConditionalPowerThreshold)
-- [ ] **A-06**: scry-surveil (1 session, 7 cards)
-- [ ] **A-07**: lifegain (1 session, 5 cards)
-- [ ] **A-08**: lifedrain (1 session, 6 cards)
-- [ ] **A-09**: protection (1 session, 1 card)
-- [ ] **A-10**: aura (1 session, 6 cards)
+- [x] **A-06**: scry-surveil (1 session, 7 cards) — 7 new
+- [x] **A-07**: lifegain (1 session, 5 cards) — 5 new
+- [x] **A-08**: lifedrain (1 session, 6 cards) — 6 new
+- [x] **A-09**: protection (1 session, 1 card) — 1 new
+- [x] **A-10**: aura (1 session, 6 cards) — 5 new, 1 existed (Breath of Fury)
 
 **Tier 2: Standard patterns**
 
