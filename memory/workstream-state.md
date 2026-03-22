@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | F-4: Re-author now-expressible TODOs | ACTIVE | 2026-03-22 | F-1/F-2/F-3 DONE. Starting F-4 |
+| W6: Primitive + Card Authoring | — | paused | — | F-4 in progress (24/~100 cards done). Next: F-4 session 2 |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,27 +25,41 @@
 
 **Date**: 2026-03-22
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 1 fixes (F-1 through F-3)
+**Task**: F-4 session 1 — implement now-expressible TODOs
 
 **Completed**:
-- F-1: Applied all actionable HIGH+MEDIUM fixes (3 card fixes: H1 Rograkh color_indicator, H2 Skrelv comment, M1 Thousand-Year Elixir targets; 4 TODO refinements: M20, M42, M48, M3; 2 verified already fixed: M5 Ajani, M12 Crown of Skemfar; 3 verified no-fix: M13 Emrakul DSL gap, M59 Dryad Arbor correct, M5 already fixed). Commit 00c38a9.
-- F-2: All MEDIUM findings resolved — 11 "still valid" handled in F-1, 24+ already fixed by PB, 3 file-not-found deferred. Commit a354532.
-- F-3: LOW findings verified — planeswalker loyalty correct (7/7), remaining LOWs cosmetic. Stale TODOs overlap with F-4.
+- F-4 session 1: 24 card defs fixed (TODOs replaced with real abilities). Commit bd63333.
+  - Batch 1 (10): Castle cycle (Scry, token, mass pump, draw+life), Karn's Bastion (Proliferate),
+    Kher Keep (Kobold token), Strip Mine + Wasteland (destroy land), Deserted Temple (untap land),
+    Halimar Depths (ETB Scry 3)
+  - Batch 2 (11): Mortuary Mire (ETB GY→top), Torch Courier (sac haste grant),
+    Tainted Field/Isle/Wood (conditional mana via activation_condition), Glistening Sphere
+    (ETB tapped + proliferate + any-color), Minamo + Wirewood Lodge (untap targets),
+    Skemfar Elderhall (sac + -2/-2 + tokens), Gnarlroot Trapper + The Seedcore (stale TODO fixes)
+  - Batch 3 (3): Voldaren Estate (PayLife fix + Blood token), Oboro (self-bounce),
+    Geier Reach Sanitarium (ForEach EachPlayer draw+discard)
 
 **Next**:
-1. F-4: Re-author ~143 cards whose TODOs are now expressible (from T-1 "now expressible" list)
+1. F-4 session 2-N: ~76-100 more NOW_EXPRESSIBLE cards remain (see `memory/card-authoring/dsl-gap-audit-v2.md`)
 2. F-5: Review all fixed/re-authored cards
 3. F-6: Build verification
 4. F-7: Phase 1 complete commit
-5. Then Phase 2 authoring (A-01 through A-33)
+5. Then Phase 2 authoring (A-01 through A-42)
 
 **Hazards**:
 - 7 silent wrong-state cards still present: beast_within, call_of_the_nightwing, generous_gift, hanweir_the_writhing_township, overlord_of_the_hauntwoods, swan_song, mana_crypt
-- Many pre-existing unstaged changes in working tree from prior sessions (engine code, tests, docs)
+- Pre-existing unstaged changes in CLAUDE.md from prior sessions
+- Some NOW_EXPRESSIBLE cards reference G-XX gap IDs — those need careful evaluation (some are truly still blocked)
 
 **Commit prefix used**: `W6-fix:`
 
 ## Handoff History
+
+### 2026-03-22 — W6: F-4 session 1 (24 now-expressible card defs)
+- 24 card defs fixed across 3 batches: activated abilities, ETB triggers, stale TODOs
+- Patterns: Scry, Proliferate, CreateToken, DestroyPermanent, UntapPermanent, MoveZone,
+  ApplyContinuousEffect, ForEach EachPlayer, activation_condition, Cost::PayLife
+- Commit: bd63333. 2281 tests passing.
 
 ### 2026-03-22 — W6: Phase 1 Fixes (F-1 through F-3)
 - F-1: 3 card fixes + 4 TODO refinements + 5 verified (already fixed / DSL gap / correct)
