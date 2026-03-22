@@ -12,10 +12,10 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
-- **Status**: 2272 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; **PB-22 deferred cleanup S6/7 done** (activation_condition, coin flip/d20, reveal-route/flicker, tapped-attacking tokens/auto-attach, copy/clone, emblem creation); W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~29 LOW open**; W3 LOW sprint COMPLETE
-- **Active Plan**: **W6 Primitive + Card Authoring** — `docs/primitive-card-plan.md` (PB-0 to PB-21 done, PB-22 deferred cleanup in progress, then bulk authoring, then final audit). PB-22 plan: `memory/primitives/pb-22-session-plan.md`. W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs.
+- **Status**: 2281 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; **PB-22 deferred cleanup ALL 7 SESSIONS DONE** (activation_condition, coin flip/d20, reveal-route/flicker, tapped-attacking tokens/auto-attach, copy/clone, emblem creation, adventure/dual-zone search); W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~29 LOW open**; W3 LOW sprint COMPLETE
+- **Active Plan**: **W6 Primitive + Card Authoring** — primitives: `docs/primitive-card-plan.md` (PB-0 to PB-21 done, PB-22 deferred cleanup in progress); **card authoring operations**: `docs/card-authoring-operations.md` (triage → fix → author → audit, 68 ordered tasks). W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-21 (PB-22 S6: CreateEmblem (CR 114), emblem trigger scanning (CR 113.6p), 5 new planeswalker defs; 2272 tests)
+- **Last Updated**: 2026-03-21 (PB-22 S7: Adventure CR 715 + dual-zone search; PB-22 COMPLETE — all 7 sessions done; 2281 tests)
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 453 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior), CardRegistry
@@ -61,6 +61,8 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Ability Batch Plan | `docs/ability-batch-plan.md` | 16 batches covering all ~75 implementable abilities (P3+P4) with dependency map |
 | Card Pipeline & Scaling | `docs/mtg-engine-card-pipeline.md` | Card definition organization, Rust DSL rationale, scaling strategy (112 → 27k), authoring pipeline |
 | Strategic Review | `docs/mtg-engine-strategic-review.md` | 2026-03-07 project review: path-to-playable compression, M10/M11/M12 restructuring, action items |
+| Card Authoring Operations | `docs/card-authoring-operations.md` | Ordered task list for triage → fix → author → audit (68 tasks) |
+| Runtime Integrity | `docs/mtg-engine-runtime-integrity.md` | Watchdog, recovery, bug reporting — pre-alpha requirement |
 | Type Consolidation Plan | `docs/mtg-engine-type-consolidation.md` | Pre-M10 refactoring: CastSpell, SOK triggers, AbilityDef, Designations — 8 sessions |
 | Codebase Analysis | `codebase_analysis_220260228.md` | Comprehensive codebase snapshot (2026-02-28): architecture, file inventory, stats |
 | This file | `CLAUDE.md` | Current project state; session context |
@@ -90,7 +92,7 @@ Before starting work, check which files apply to your task:
 | Checking ability gaps | Use `/audit-abilities` or `/ability-status` |
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
 | Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
-| Authoring card definitions | `docs/mtg-engine-card-pipeline.md`; worklist at `test-data/test-decks/PLAN.md` |
+| Authoring card definitions | `docs/card-authoring-operations.md` (operations plan with ordered tasks); `docs/mtg-engine-card-pipeline.md` (DSL reference) |
 | Type consolidation refactoring | `docs/mtg-engine-type-consolidation.md` (must read — this is the active plan) |
 | Planning M10, M11, or M12 | `docs/mtg-engine-strategic-review.md` (must read before starting) |
 | Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |

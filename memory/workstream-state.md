@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-22 S6: Emblem creation (CR 114) | ACTIVE | 2026-03-21 | PB-22 S1-S5 done. S6 in progress. Plan: `memory/primitives/pb-22-session-plan.md` |
+| W6: Primitive + Card Authoring | PB-22 S7: Adventure + dual-zone search | ACTIVE | 2026-03-21 | S1-S6 done. S7 is the final PB-22 session. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,23 +25,24 @@
 
 **Date**: 2026-03-21
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-22 S6 — Emblem creation (CR 114)
+**Task**: PB-22 S7 — Adventure (CR 715) + dual-zone search
 
 **Completed**:
-- Added `Effect::CreateEmblem { triggered_abilities, static_effects }` (disc 66) — creates emblem in command zone (CR 114.1-114.5)
-- Added `GameEvent::EmblemCreated { player, object_id }` (disc 124)
-- Added `is_emblem: bool` to `GameObject` (CR 114.5)
-- Added `collect_emblem_triggers_for_event` in abilities.rs — scans command zone emblems for matching triggers (CR 113.6p, CR 114.4)
-- Wired emblem trigger scanning to SpellCast, begin_combat(), upkeep_actions(), end_step_actions()
-- New TriggerEvent variants: AtBeginningOfCombat, AtBeginningOfYourUpkeep, AtBeginningOfEachUpkeep, AtBeginningOfYourEndStep (hash disc 24-27)
-- Fixed Ajani Sleeper Agent -6 TODO → CreateEmblem
-- Authored 5 new planeswalker defs: Basri Ket, Kaito Bane of Nightmares, Tyvar Kell, Wrenn and Realmbreaker, Wrenn and Seven
-- Review: 5 HIGH (oracle mismatches fixed), 6 MEDIUM (trigger scanning + TODOs documented), 2 LOW
-- 7 new tests in emblem_tests.rs, 2272 total
+- Added `AltCostKind::Adventure` (disc 27) — cast adventure half from hand, exile on resolution (CR 715.3d)
+- Added `adventure_face: Option<CardFace>` to CardDefinition (CR 715.2)
+- Added `was_cast_as_adventure` to StackObject, `adventure_exiled_by` to GameObject
+- Casting: zone validation (hand for adventure, exile for creature), type/cost override from adventure_face
+- Resolution: exile-on-resolution, counter/fizzle go to graveyard (CR 715.3d)
+- Copy propagation: `was_cast_as_adventure` propagated to copies (CR 715.3c)
+- Added `also_search_graveyard: bool` to Effect::SearchLibrary — dual-zone search
+- 2 new card defs: Bonecrusher Giant, Lovestruck Beast; 3 fixed: Monster Manual, Finale of Devastation, Lozhan
+- 136 card defs updated with `adventure_face: None`, 26 with `also_search_graveyard: false`
+- Review: 1 HIGH (Monster Manual oracle fix), 3 MEDIUM (copy propagation, legal_actions gap, Bonecrusher TODO)
+- 9 new tests in adventure_tests.rs, 2281 total
+- **PB-22 COMPLETE** — all 7 sessions done
 
 **Next**:
-1. PB-22 S7: Adventure + dual-zone search
-2. After PB-22: Phase 2 card authoring (~1,025 remaining cards)
+1. Phase 2 card authoring (~1,025 remaining cards) — see `docs/card-authoring-operations.md`
 
 **Hazards**:
 - None — clean commit, all tests passing, no WIP
@@ -49,6 +50,14 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-21 — W6: PB-22 S7 (Adventure CR 715 + Dual-Zone Search)
+- AltCostKind::Adventure + adventure_face on CardDefinition + exile-on-resolution
+- also_search_graveyard on Effect::SearchLibrary (dual-zone search)
+- 2 new cards (Bonecrusher Giant, Lovestruck Beast), 3 fixed (Monster Manual, Finale, Lozhan)
+- Review: 1H 3M, all fixed (oracle mismatch, copy propagation, TODO docs)
+- 9 new tests, 2281 total
+- **PB-22 COMPLETE — all deferred cleanup done**
 
 ### 2026-03-21 — W6: PB-22 S6 (Emblem Creation, CR 114)
 - Added Effect::CreateEmblem + GameEvent::EmblemCreated + is_emblem field + emblem trigger scanning

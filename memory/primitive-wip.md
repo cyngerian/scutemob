@@ -5,7 +5,7 @@ session: S7
 title: Adventure (CR 715) + dual-zone search
 cards_affected: ~8 (Monster Manual, Lozhan + ~3 adventure cards + Finale of Devastation pattern)
 started: 2026-03-21
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-22-s7.md
 
 ## Deferred from Prior PBs

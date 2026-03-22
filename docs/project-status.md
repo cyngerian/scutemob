@@ -92,7 +92,7 @@
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2265 |
+| Total tests | 2281 |
 | Test files | 212 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
@@ -110,12 +110,12 @@ Items explicitly deferred from completed PB batches. Must be addressed before Ph
 | ~~Equipment auto-attach~~ | PB-13d | ~~PB-22 S4~~ | 2 cards | **DONE (S4)** |
 | ~~Timing restriction (sorcery-speed activation)~~ | PB-13i | ~~PB-22 S1~~ | 2 cards | **DONE (S1)** |
 | Clone/copy ETB choice | PB-13j | dedicated session | 2 cards | Partial (BecomeCopyOf exists, choose-target gap remains) |
-| Adventure (split-card from exile) | PB-13m | PB-22 S7 | 1 card | |
+| ~~Adventure (split-card from exile)~~ | PB-13m | ~~PB-22 S7~~ | 1 card | **DONE (S7)** |
 | ~~Coin flip / d20~~ | PB-13h | ~~PB-22 S2~~ | 2 cards | **DONE (S2)** |
 | ~~Flicker (exile + return)~~ | PB-13l | ~~PB-22 S3~~ | 1+ cards | **DONE (S3)** |
 | Tiamat multi-card search | PB-17 | M10 (player choice) | 1 card | |
 | ~~Goblin Ringleader reveal-route pattern~~ | PB-17 | ~~PB-22 S3~~ | 1 card | **DONE (S3)** |
-| Finale of Devastation graveyard search + X pump | PB-17 | dedicated session | 1 card | |
+| ~~Finale of Devastation graveyard search~~ + X pump | PB-17 | ~~PB-22 S7~~ (search done) / dedicated (X pump) | 1 card | **Partial (S7)** — also_search_graveyard done, X-based filter + pump remain |
 | Scion of the Ur-Dragon copy-self | PB-17 | EffectTarget::LastSearchResult | 1 card | Partial (BecomeCopyOf exists, needs LastSearchResult) |
 | ~~Inventors' Fair activation condition~~ | PB-17 | ~~PB-22 S1~~ | 1 card | **DONE (S1)** |
 | Urza's Saga exact mana cost filter | PB-17 | TargetFilter exact_mana_cost field | 1 card | |
