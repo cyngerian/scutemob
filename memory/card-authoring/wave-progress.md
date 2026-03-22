@@ -15,3 +15,4 @@
 | land-etb-tapped (A-31) | complete | 8/8 | 0 new | 122 existed | — | prior |
 | combat-keyword (A-37) | complete | 11/11 | 0 new | 164 existed | — | prior |
 | removal-destroy (A-11) | complete | 5/5 | 52 new | 4 existed | 8H 5M 5L (HIGH fixed + 1 DSL ext) | yes |
+| removal-exile (A-12) | complete | 2/3 | 13 new | 0 existed | 1H 4M 3L (HIGH fixed) | yes |

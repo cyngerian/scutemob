@@ -123,7 +123,7 @@ Work through groups in the order below. For each group, follow the per-group wor
 **Tier 2: Standard patterns**
 
 - [x] **A-11**: removal-destroy (5 sessions, 52 new + 4 existed) — DSL ext: `DestroyPermanent.cant_be_regenerated`
-- [ ] **A-12**: removal-exile (1 session, 11 cards)
+- [x] **A-12**: removal-exile (2 sessions, 13 new; 1 session blocked)
 - [ ] **A-13**: removal-damage-target (2 sessions, 21 cards)
 - [ ] **A-14**: removal-damage-each (2 sessions, 17 cards)
 - [ ] **A-15**: removal-bounce (1 session, 7 cards)
