@@ -390,6 +390,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     };
 

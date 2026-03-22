@@ -227,6 +227,7 @@ fn test_add_object_to_state() {
         loyalty_ability_activated_this_turn: false,
         class_level: 0,
         designations: mtg_engine::Designations::default(),
+        adventure_exiled_by: None,
         meld_component: None,
     };
 

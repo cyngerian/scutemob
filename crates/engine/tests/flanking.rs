@@ -379,6 +379,7 @@ fn test_702_25b_flanking_multiple_instances() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     };
 

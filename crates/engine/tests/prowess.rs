@@ -125,6 +125,7 @@ fn creature_spell_def() -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     }
 }
@@ -153,6 +154,7 @@ fn artifact_creature_def() -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     }
 }

@@ -455,6 +455,7 @@ fn test_commander_damage_survives_zone_change() {
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: mtg_engine::Designations::default(),
+                adventure_exiled_by: None,
                 meld_component: None,
             },
             ZoneId::Battlefield,

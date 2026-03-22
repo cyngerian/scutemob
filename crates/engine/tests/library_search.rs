@@ -49,6 +49,7 @@ fn tutor_spell(name: &str, card_id: &str, filter: TargetFilter, to: ZoneTarget) 
                     reveal: false,
                     destination: to,
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle {
                     player: PlayerTarget::Controller,

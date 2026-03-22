@@ -476,6 +476,7 @@ fn test_multiple_emblems_stack() {
         loyalty_ability_activated_this_turn: false,
         class_level: 0,
         designations: Designations::default(),
+        adventure_exiled_by: None,
         meld_component: None,
     };
     state2

@@ -484,6 +484,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     };
 

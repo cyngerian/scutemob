@@ -165,6 +165,7 @@ fn test_clone_independence_object_modification() {
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: mtg_engine::Designations::default(),
+                adventure_exiled_by: None,
                 meld_component: None,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
