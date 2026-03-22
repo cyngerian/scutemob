@@ -1,4 +1,5 @@
-// Blazemire Verge — dual verge land, {T}: Add {B}. {T}: Add {R} (only if you control a Swamp or Mountain, TODO restriction).
+// Blazemire Verge — Land
+// {T}: Add {B}. {T}: Add {R}. Activate only if you control a Swamp or a Mountain.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -7,10 +8,33 @@ pub fn card() -> CardDefinition {
         name: "Blazemire Verge".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {B} or {R}. Activate only if you control a Swamp, a Mountain, or a combination of both.".to_string(),
+        oracle_text: "{T}: Add {B}.\n{T}: Add {R}. Activate only if you control a Swamp or a Mountain.".to_string(),
         abilities: vec![
-            // TODO: {T}: Add {B} or {R}. Activate only if you control a Swamp, a Mountain, or
-            // a combination of both. DSL gap: no activation condition on Activated abilities.
+            // {T}: Add {B}. (unconditional)
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+            // {T}: Add {R}. Activate only if you control a Swamp or a Mountain.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 1, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![
+                    SubType("Swamp".to_string()),
+                    SubType("Mountain".to_string()),
+                ])),
+            },
         ],
         ..Default::default()
     }

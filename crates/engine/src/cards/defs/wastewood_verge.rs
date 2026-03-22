@@ -1,4 +1,5 @@
-// Wastewood Verge — dual verge land, {T}: Add {G}. {T}: Add {B} (only if you control a Swamp or Forest, TODO restriction).
+// Wastewood Verge — Land
+// {T}: Add {G}. {T}: Add {B}. Activate only if you control a Swamp or a Forest.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -7,10 +8,33 @@ pub fn card() -> CardDefinition {
         name: "Wastewood Verge".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {G} or {B}. Activate only if you control a Forest, a Swamp, or a combination of both.".to_string(),
+        oracle_text: "{T}: Add {G}.\n{T}: Add {B}. Activate only if you control a Swamp or a Forest.".to_string(),
         abilities: vec![
-            // TODO: {T}: Add {G} or {B}. Activate only if you control a Forest, a Swamp, or
-            // a combination of both. DSL gap: no activation condition on Activated abilities.
+            // {T}: Add {G}. (unconditional)
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 1, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+            // {T}: Add {B}. Activate only if you control a Swamp or a Forest.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![
+                    SubType("Swamp".to_string()),
+                    SubType("Forest".to_string()),
+                ])),
+            },
         ],
         ..Default::default()
     }

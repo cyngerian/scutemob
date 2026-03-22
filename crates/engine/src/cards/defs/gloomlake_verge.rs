@@ -1,4 +1,5 @@
-// Gloomlake Verge — Land, {T}: Add {U}; {T}: Add {B} only if you control Island or Swamp
+// Gloomlake Verge — Land
+// {T}: Add {U}. {T}: Add {B}. Activate only if you control an Island or a Swamp.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,7 +10,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Add {U}.\n{T}: Add {B}. Activate only if you control an Island or a Swamp.".to_string(),
         abilities: vec![
-            // {T}: Add {U}.
+            // {T}: Add {U}. (unconditional)
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -20,9 +21,20 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {T}: Add {B}. Activate only if you control an Island or a Swamp.
-            // DSL gap: conditional mana activation (requires "control an Island or a Swamp" filter)
-            // not expressible in current DSL.
+            // {T}: Add {B}. Activate only if you control an Island or a Swamp.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![
+                    SubType("Island".to_string()),
+                    SubType("Swamp".to_string()),
+                ])),
+            },
         ],
         ..Default::default()
     }

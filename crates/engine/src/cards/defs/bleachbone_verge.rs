@@ -1,5 +1,5 @@
-// Bleachbone Verge — Land, {T}: Add {B}. {T}: Add {W} (only if you control Plains or Swamp).
-// TODO: conditional {T}: Add {W} requires Condition::ControlsPermanentWithSubtype — not yet in DSL
+// Bleachbone Verge — Land
+// {T}: Add {B}. {T}: Add {W}. Activate only if you control a Plains or a Swamp.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Add {B}.\n{T}: Add {W}. Activate only if you control a Plains or a Swamp.".to_string(),
         abilities: vec![
+            // {T}: Add {B}. (unconditional)
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -20,7 +21,20 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {T}: Add {W} — requires conditional activation (control Plains or Swamp)
+            // {T}: Add {W}. Activate only if you control a Plains or a Swamp.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(1, 0, 0, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![
+                    SubType("Plains".to_string()),
+                    SubType("Swamp".to_string()),
+                ])),
+            },
         ],
         ..Default::default()
     }
