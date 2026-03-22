@@ -34,16 +34,26 @@ DSL correctness issues.
 1. **Oracle text match**: Does the `oracle_text` field match Scryfall exactly?
 2. **Mana cost**: Is `ManaCost` correct? (generic, white, blue, black, red, green counts)
 3. **Type line**: Are card types, subtypes, and supertypes correct?
+   - **Supertypes**: Legendary, Basic, Snow, World — must be present when oracle type line has them.
 4. **Power/toughness**: Present and correct for creatures? Absent for non-creatures?
+   - **CDA creatures** (`*/*`): must use `power: None, toughness: None` (NOT `Some(0)`)
 5. **DSL correctness**: Do abilities use the right Effect variants, field names, enum values?
 6. **Overbroad triggers**: Does `WheneverCreatureDies` match "another creature you control"?
    If overbroad, abilities should be `vec![]` with TODO.
 7. **No-op placeholders**: Does `GainLife(0)` or similar make an unimplemented card castable?
    If so, should be `vec![]` per W5 policy.
-8. **TODO accuracy**: Do TODO comments accurately describe what's missing from the DSL?
+8. **TODO validity**: Do TODO comments claim a DSL gap that ACTUALLY exists? Many gaps were
+   closed by PB-0 through PB-22. Check the "Now-Expressible Patterns" list below. If a TODO
+   says "DSL doesn't support X" but X IS supported, flag as HIGH.
 9. **Target filters**: Are target filters correct? (e.g., `non_land: true` for "nonland permanent")
 10. **Multiplayer correctness**: Does `PlayerTarget::Controller` mean the right player?
     For "its owner" or "target's controller", Controller may be wrong in multiplayer.
+11. **ETB tapped oracle cross-check** (lands only): If oracle says "enters tapped" or
+    "enters tapped unless", verify the card def has the corresponding replacement effect.
+    If oracle says no ETB-tapped condition, verify the def doesn't have one.
+12. **W5 policy (wrong game state)**: Does a partial implementation produce incorrect game
+    behavior? E.g., a pain land that adds colored mana without dealing damage, or a
+    creature with half its abilities implemented producing wrong combat results.
 
 ## Workflow
 
@@ -96,19 +106,60 @@ These are bugs found in previous reviews. Check for all of them:
 | ID | Severity | Pattern | What's Wrong |
 |----|----------|---------|-------------|
 | KI-1 | HIGH | `TargetPermanent` for "nonland permanent" | Should be `TargetPermanentWithFilter(TargetFilter { non_land: true, .. })` |
-| KI-2 | MEDIUM | `WheneverCreatureDies` for "another creature you control" | Triggers on ALL deaths — should be `vec![]` with TODO |
-| KI-3 | MEDIUM | `GainLife { amount: 0 }` as placeholder | Makes card castable when it shouldn't be — use `vec![]` |
-| KI-4 | MEDIUM | `PlayerTarget::Controller` for "its owner" | Wrong player in multiplayer — document as TODO |
-| KI-5 | COMPILE | `target:` field on `GainLife` or `DrawCards` | Should be `player: PlayerTarget` |
-| KI-6 | COMPILE | `treasure_token_spec()` missing count | Should be `treasure_token_spec(1)` |
-| KI-7 | COMPILE | `AbilityDefinition::Triggered { trigger: TriggeredAbilityDef }` | Should use flat fields: `{ trigger_condition, effect, intervening_if }` |
-| KI-8 | LOW | Incorrect oracle text (typos, missing text) | Compare against MCP lookup |
-| KI-9 | LOW | Missing TODO for abilities that can't be expressed | Should document the DSL gap |
-| KI-10 | MEDIUM | Wrong mana_pool argument order | Order is (white, blue, black, red, green, colorless) |
+| KI-2 | HIGH | W5 policy: partial impl produces wrong game state | Pain lands giving free mana, creatures with half their abilities — use `vec![]` |
+| KI-3 | HIGH | TODO claims gap for a now-expressible pattern | Check "Now-Expressible Patterns" below — flag if DSL supports it |
+| KI-4 | HIGH | Missing supertype (Legendary, Basic, Snow, World) | Compare type line against oracle — supertypes must be present |
+| KI-5 | HIGH | `power: Some(0)` / `toughness: Some(0)` for `*/*` creature | Dies to SBA before CDA applies — must be `None` |
+| KI-6 | HIGH | Missing dual def (keyword marker without cost) | Ninjutsu/Mutate need BOTH `Keyword(X)` AND the cost `AbilityDefinition` |
+| KI-7 | HIGH | Wrong mana cost (hybrid approx, missing, MDFC errors) | Compare against oracle. MDFC front face must not include back-face cost |
+| KI-8 | HIGH | Wrong MDFC type line (front face includes back types) | Front face type line must not include back-face types |
+| KI-9 | MEDIUM | `WheneverCreatureDies` for "another creature you control" | Triggers on ALL deaths — should be `vec![]` with TODO |
+| KI-10 | MEDIUM | `GainLife { amount: 0 }` as placeholder | Makes card castable when it shouldn't be — use `vec![]` |
+| KI-11 | MEDIUM | `PlayerTarget::Controller` for "its owner" | Wrong player in multiplayer — document as TODO |
+| KI-12 | MEDIUM | Wrong mana_pool argument order | Order is (white, blue, black, red, green, colorless) — WUBRGC |
+| KI-13 | MEDIUM | Missing ETB-tapped for land that enters tapped | Oracle says "enters tapped" but no replacement effect in def |
+| KI-14 | MEDIUM | Spurious ETB-tapped on land that doesn't enter tapped | Def has ETB-tapped replacement but oracle doesn't require it |
+| KI-15 | COMPILE | `target:` field on `GainLife` or `DrawCards` | Should be `player: PlayerTarget` |
+| KI-16 | COMPILE | `treasure_token_spec()` missing count | Should be `treasure_token_spec(1)` |
+| KI-17 | COMPILE | `AbilityDefinition::Triggered { trigger: TriggeredAbilityDef }` | Should use flat fields: `{ trigger_condition, effect, intervening_if }` |
+| KI-18 | LOW | Incorrect oracle text (typos, missing text) | Compare against MCP lookup |
+| KI-19 | LOW | Missing TODO for abilities that can't be expressed | Should document the DSL gap |
+
+## Now-Expressible Patterns (PB-0 through PB-22)
+
+TODOs claiming these are DSL gaps are **stale** — flag as HIGH (KI-3):
+
+| Pattern | Primitive Batch | DSL Support |
+|---------|----------------|-------------|
+| ETB tapped / conditional ETB tapped | PB-2, PB-3 | `ReplacementModification::EntersTapped` / `EntersTappedUnless` / `EntersTappedUnlessPay` |
+| Sacrifice as activation cost | PB-4 | `Cost::Sacrifice(TargetFilter)` |
+| Targeted activated/triggered abilities | PB-5 | `TargetRequirement` in activated/triggered |
+| Static grant with filter | PB-6 | `ContinuousEffectDef` with filter |
+| Count-based scaling | PB-7 | `EffectAmount::CountPermanents` etc. |
+| Cost reduction statics | PB-8 | `CostReduction` |
+| Hybrid mana | PB-9 | `HybridMana`, `PhyrexianMana` |
+| Graveyard targeting | PB-10 | `TargetCardInYourGraveyard`, `TargetCardInGraveyard` |
+| Mana restrictions | PB-11 | `ManaRestriction` |
+| Complex replacements | PB-12 | Extended replacement effects |
+| Planeswalker loyalty abilities | PB-14 | `AbilityDefinition::LoyaltyAbility` |
+| Library search filters | PB-17 | Extended `TargetFilter` fields on `SearchLibrary` |
+| Stax / restrictions | PB-18 | `CantAttack`, `CantBlock`, etc. |
+| Board wipes | PB-19 | `EffectTarget::AllCreatures`, `AllPermanentsWithFilter` |
+| Fight / Bite | PB-21 | `Effect::Fight`, `Effect::Bite` |
+| Activation conditions | PB-22 S1 | `activation_condition: Some(Condition::...)` |
+| Coin flip / d20 | PB-22 S2 | `Effect::CoinFlip`, `Effect::RollDice` |
+| Reveal-route / Flicker | PB-22 S3 | `Effect::RevealAndRoute`, `Effect::Flicker` |
+| Copy/Clone | PB-22 S5 | `Effect::BecomeCopyOf`, `Effect::CreateTokenCopy` |
+| Emblem creation | PB-22 S6 | `Effect::CreateEmblem` |
+| Adventure casting | PB-22 S7 | `adventure_face` on CardDefinition |
+| Convoke, Improvise, Delve, Evoke | M6 | `KeywordAbility::Convoke` etc. |
+| Cycling | Base DSL | `AbilityDefinition::Cycling` |
+| Scry / Surveil | Base DSL | `Effect::Scry`, `Effect::Surveil` |
 
 ## MCP Budget
 
-Up to 10 `lookup_card` calls per review batch (batch size is typically 5 cards).
+Up to 15 `lookup_card` calls per review batch (batch size is typically 5 cards).
+Use extra calls when verifying ETB-tapped oracle text or resolving TODO-validity questions.
 
 ## Constraints
 

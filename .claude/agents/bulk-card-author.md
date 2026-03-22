@@ -65,21 +65,39 @@ Choose references based on the group:
 
 | Group | Reference File(s) |
 |-------|-------------------|
+| body-only | `defs/birds_of_paradise.rs` (keyword-only creature) |
 | combat-keyword | `defs/lightning_greaves.rs`, `defs/birds_of_paradise.rs` |
 | draw | `defs/audacious_thief.rs` |
 | token-create | `defs/zulaport_cutthroat.rs` |
 | removal-destroy | `defs/beast_within.rs`, `defs/assassins_trophy.rs` |
 | removal-exile | `defs/swords_to_plowshares.rs` |
+| removal-bounce | grep for `ReturnToHand` in defs/ |
+| removal-damage-target | grep for `DealDamage` in defs/ |
+| removal-damage-each | grep for `AllCreatures` in defs/ |
+| removal-minus | grep for `ModifyPowerToughness` in defs/ |
 | counter | `defs/counterspell.rs` |
 | mana-land | `defs/command_tower.rs`, `defs/dimir_guildgate.rs` |
 | mana-artifact | `defs/arcane_signet.rs`, `defs/sol_ring.rs` |
 | mana-creature | `defs/elvish_mystic.rs`, `defs/birds_of_paradise.rs` |
-| land-etb-tapped | `defs/dimir_guildgate.rs` |
+| land-etb-tapped | `defs/dimir_guildgate.rs`, `defs/jungle_shrine.rs` |
+| land-fetch | grep for `SearchLibrary` in defs/ |
 | attack-trigger | `defs/scroll_thief.rs` |
 | death-trigger | `defs/zulaport_cutthroat.rs` |
 | pump-buff | grep for `ApplyContinuousEffect` in defs/ |
 | counters-plus | grep for `AddCounters` in defs/ |
 | equipment | `defs/lightning_greaves.rs` |
+| activated-tap | grep for `Cost::Tap` in defs/ |
+| activated-sacrifice | grep for `Cost::Sacrifice` in defs/ |
+| sacrifice-outlet | grep for `Cost::Sacrifice` in defs/ |
+| discard-effect | grep for `Discard` in defs/ |
+| graveyard-recursion | grep for `TargetCardInYourGraveyard` in defs/ |
+| aura | grep for `EnchantTarget` in defs/ |
+| cost-reduction | grep for `CostReduction` in defs/ |
+| cant-restriction | grep for `CantAttack\|CantBlock\|CantCast` in defs/ |
+| etb-trigger | grep for `WhenEntersBattlefield` in defs/ |
+| static-enchantment | grep for `Static.*continuous_effect` in defs/ |
+| modal-choice | grep for `modes` in defs/ |
+| tutor | grep for `SearchLibrary` in defs/ |
 | other/complex | grep for a relevant pattern in defs/ |
 
 Also read `crates/engine/src/cards/helpers.rs` for the available helper functions.
@@ -219,14 +237,60 @@ COMPILE: PASS (or FAIL with details)
 ### Keywords
 `AbilityDefinition::Keyword(KeywordAbility::X)` — available: Flying, FirstStrike,
 DoubleStrike, Deathtouch, Lifelink, Trample, Vigilance, Reach, Haste,
-Hexproof, Shroud, Indestructible, Flash, Menace, Defender.
+Hexproof, Shroud, Indestructible, Flash, Menace, Defender, Convoke, Improvise,
+Delve, CantBeBlocked, Shadow, Horsemanship, Skulk, Devoid, Flanking,
+Infect, Wither, Afflict(N), Prowess, Training, Myriad, Suspend(N),
+Ward(N), Intimidate, Fear, Changeling, Partner, Cascade, Storm,
+Enchant(EnchantTarget::Creature), Protection(ProtectionFrom::Color(Color::X)).
 
-### ETB Tapped
+### ETB Tapped (always tapped)
 ```rust
 AbilityDefinition::Replacement {
     trigger: ReplacementTrigger::WouldEnterBattlefield { filter: ObjectFilter::Any },
     modification: ReplacementModification::EntersTapped,
     is_self: true,
+}
+```
+
+### Conditional ETB Tapped (check-lands)
+```rust
+AbilityDefinition::Replacement {
+    trigger: ReplacementTrigger::WouldEnterBattlefield { filter: ObjectFilter::Any },
+    modification: ReplacementModification::EntersTappedUnless {
+        condition: Condition::YouControlPermanentWithType(CardType::X),
+    },
+    is_self: true,
+}
+```
+
+### Shockland ETB (pay 2 life or tapped)
+```rust
+AbilityDefinition::Replacement {
+    trigger: ReplacementTrigger::WouldEnterBattlefield { filter: ObjectFilter::Any },
+    modification: ReplacementModification::EntersTappedUnlessPay {
+        cost: Cost::PayLife(2),
+    },
+    is_self: true,
+}
+```
+
+### Activation Condition (e.g., "only if you control 3+ artifacts")
+```rust
+AbilityDefinition::Activated {
+    cost: Cost::Tap,
+    effect: ...,
+    timing_restriction: None,
+    activation_condition: Some(Condition::YouControlNOrMoreOfType { count: 3, card_type: CardType::Artifact }),
+}
+```
+
+### Sorcery-Speed Activation
+```rust
+AbilityDefinition::Activated {
+    cost: ...,
+    effect: ...,
+    timing_restriction: Some(TimingRestriction::SorcerySpeed),
+    activation_condition: None,
 }
 ```
 
@@ -241,10 +305,99 @@ Effect::Choose {
 }
 ```
 
+### Coin Flip
+```rust
+Effect::CoinFlip {
+    win_effect: Box::new(Effect::...),
+    lose_effect: Box::new(Effect::...),
+}
+```
+
+### Flicker (exile + return)
+```rust
+Effect::Flicker { target: EffectTarget::DeclaredTarget { index: 0 } }
+```
+
+### Reveal and Route (e.g., "reveal top N, put matching into hand")
+```rust
+Effect::RevealAndRoute { ... }
+```
+
+### Copy/Clone
+```rust
+Effect::BecomeCopyOf { source: ..., target: ... }
+Effect::CreateTokenCopy { source: ..., modifications: vec![] }
+```
+
+### Emblem Creation (planeswalkers)
+```rust
+Effect::CreateEmblem { emblem: EmblemSpec { ... } }
+```
+
+### Fight / Bite
+```rust
+Effect::Fight { source: EffectTarget::Source, target: EffectTarget::DeclaredTarget { index: 0 } }
+Effect::Bite { source: EffectTarget::Source, target: EffectTarget::DeclaredTarget { index: 0 } }
+```
+
+### Destroy All (board wipes)
+```rust
+Effect::DestroyPermanent { target: EffectTarget::AllCreatures }
+Effect::DestroyPermanent { target: EffectTarget::AllPermanentsWithFilter(TargetFilter { ... }) }
+```
+
+### Scry / Surveil
+```rust
+Effect::Scry { amount: N }
+Effect::Surveil { amount: N }
+```
+
+### Cycling
+```rust
+AbilityDefinition::Cycling { cost: Cost::Mana(ManaCost { generic: N, ..Default::default() }) }
+```
+
+### Sacrifice as Cost
+```rust
+Cost::Sacrifice(TargetFilter::default())  // sacrifice any permanent
+Cost::Sacrifice(TargetFilter { creature: true, ..Default::default() })  // sacrifice a creature
+```
+
+## Known Issue Patterns — Avoid These
+
+These bugs were found in previous authoring waves. Check your output against all of them:
+
+| ID | Severity | Pattern | Correct Approach |
+|----|----------|---------|-----------------|
+| KI-1 | HIGH | `TargetPermanent` for "nonland permanent" | Use `TargetPermanentWithFilter(TargetFilter { non_land: true, .. })` |
+| KI-2 | HIGH | W5 policy: partial impl that produces wrong game state | Use `abilities: vec![]` + TODO — never implement half an ability |
+| KI-3 | HIGH | Missing supertype (Legendary, Basic, Snow) | Always check type line for supertypes |
+| KI-4 | HIGH | `power: Some(0), toughness: Some(0)` for `*/*` creatures | Use `power: None, toughness: None` (CDA) |
+| KI-5 | MEDIUM | `WheneverCreatureDies` for "another creature you control" | Use `abilities: vec![]` + TODO (overbroad trigger) |
+| KI-6 | MEDIUM | `GainLife { amount: 0 }` as placeholder | Use `abilities: vec![]` per W5 policy |
+| KI-7 | MEDIUM | Wrong `mana_pool` argument order | Order is WUBRGC: (white, blue, black, red, green, colorless) |
+| KI-8 | MEDIUM | `PlayerTarget::Controller` for "its owner" | Document as TODO (wrong player in multiplayer) |
+| KI-9 | COMPILE | `target:` field on `GainLife` or `DrawCards` | Should be `player: PlayerTarget` |
+| KI-10 | COMPILE | `treasure_token_spec()` missing count | Should be `treasure_token_spec(1)` |
+| KI-11 | COMPILE | `AbilityDefinition::Triggered { trigger: TriggeredAbilityDef }` | Use flat fields: `{ trigger_condition, effect, intervening_if }` |
+| KI-12 | HIGH | TODO claims DSL gap exists when the keyword IS supported | Always check the Keywords list above before writing TODO |
+| KI-13 | HIGH | Pain land giving free colored mana (no self-damage) | If `deals 1 damage to you`, don't implement mana ability without damage — use TODO |
+
+## Re-authoring Existing Skeletons
+
+When a card in your session already has a file with `abilities: vec![]`:
+1. Read the existing file
+2. Check if the oracle text abilities are now expressible in the DSL
+3. If yes: **implement the abilities** and remove the TODO. Use `Edit` to update the file.
+4. If no: leave the file as-is (don't overwrite with a new skeleton)
+
+**Do not leave expressible abilities as TODO.** The DSL has grown significantly with PB-0
+through PB-22. Many previously impossible patterns are now supported.
+
 ## Constraints
 
 - **All file paths are absolute** from `/home/airbaggie/scutemob/`.
 - **Import**: Always `use crate::cards::helpers::*;` — no qualified paths.
 - **Cargo**: Use `~/.cargo/bin/cargo` (not just `cargo`).
-- **MCP budget**: Up to 20 `lookup_card` calls per session.
+- **MCP budget**: Up to 30 `lookup_card` calls per session.
 - **No tests, no docs, no engine changes** — only write to `defs/`.
