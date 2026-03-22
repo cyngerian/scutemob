@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Spell {
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 targets: vec![TargetRequirement::TargetArtifact],
                 modes: None,
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                 card_type: CardType::Instant,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 1 },
+                    cant_be_regenerated: false,
                 },
                 targets: vec![TargetRequirement::TargetEnchantment],
             },

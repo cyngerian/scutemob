@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DestroyPermanent {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: true,
             },
             // TODO: no TargetArtifactOrCreature — using TargetPermanent as broader fallback
             targets: vec![TargetRequirement::TargetPermanent],

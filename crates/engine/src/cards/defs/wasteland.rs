@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 timing_restriction: None,
                 // TODO: Target should be "nonbasic land" — TargetFilter lacks non_basic exclusion field.

@@ -34,10 +34,12 @@ pub fn card() -> CardDefinition {
                         }),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                         }),
                     }),
                     if_false: Box::new(Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     }),
                 },
                 // Normal cast: target one artifact you don't control.

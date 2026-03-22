@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Spell {
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::AllCreatures,
+                    cant_be_regenerated: false,
                 },
                 targets: vec![],
                 modes: None,

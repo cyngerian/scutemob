@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 cost: LoyaltyCost::Minus(2),
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     has_card_type: Some(CardType::Artifact),

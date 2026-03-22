@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DestroyPermanent {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
             },
             // TODO: Should be TargetCreatureOrPlaneswalker — no such variant; using TargetCreature.
             targets: vec![TargetRequirement::TargetCreature],

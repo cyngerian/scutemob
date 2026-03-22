@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 // TargetPermanent is used as the closest approximation.
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 targets: vec![TargetRequirement::TargetPermanent],
                 modes: None,

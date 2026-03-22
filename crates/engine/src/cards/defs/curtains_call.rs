@@ -16,9 +16,11 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     },
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 1 },
+                    cant_be_regenerated: false,
                     },
                 ]),
                 targets: vec![

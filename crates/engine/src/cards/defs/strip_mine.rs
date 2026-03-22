@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetLand],

@@ -993,7 +993,12 @@ pub enum Effect {
     /// at a time."). Does nothing when count resolves to 0.
     Investigate { count: EffectAmount },
     /// CR 701.7: Destroy a permanent (does not apply to indestructible).
-    DestroyPermanent { target: EffectTarget },
+    /// If `cant_be_regenerated` is true (CR 701.19c), regeneration shields are bypassed.
+    DestroyPermanent {
+        target: EffectTarget,
+        #[serde(default)]
+        cant_be_regenerated: bool,
+    },
     /// CR 701.8: Destroy all permanents on the battlefield matching the filter.
     /// Respects indestructible (CR 702.12), regeneration (CR 701.19), and umbra armor (CR 702.89a).
     /// Stores the count of actually-destroyed permanents in ctx.last_effect_count

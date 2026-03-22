@@ -21,6 +21,7 @@ Destroy target creature. If the gift wasn't promised, you lose 2 life."
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     },
                     // CR 702.174b: "If the gift wasn't promised, you lose 2 life."
                     Effect::Conditional {

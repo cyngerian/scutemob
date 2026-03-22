@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 intervening_if: None,
                 targets: vec![],

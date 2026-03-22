@@ -14,3 +14,4 @@
 | aura (A-10) | complete | 1/1 | 5 new | 1 existed | 1H 2M 1L (all fixed) | yes |
 | land-etb-tapped (A-31) | complete | 8/8 | 0 new | 122 existed | — | prior |
 | combat-keyword (A-37) | complete | 11/11 | 0 new | 164 existed | — | prior |
+| removal-destroy (A-11) | complete | 5/5 | 52 new | 4 existed | 8H 5M 5L (HIGH fixed + 1 DSL ext) | yes |

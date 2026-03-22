@@ -62,6 +62,7 @@ fn targeting_spell_def() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DestroyPermanent {
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
             },
             targets: vec![TargetRequirement::TargetCreature],
             modes: None,
@@ -89,6 +90,7 @@ fn uncounterable_targeting_spell_def() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DestroyPermanent {
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
             },
             targets: vec![TargetRequirement::TargetCreature],
             modes: None,
@@ -119,6 +121,7 @@ fn wrath_def() -> CardDefinition {
                 over: ForEachTarget::EachCreature,
                 effect: Box::new(Effect::DestroyPermanent {
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 }),
             },
             targets: vec![],
@@ -490,6 +493,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
         description: "{T}: Destroy target creature".to_string(),
         effect: Some(Effect::DestroyPermanent {
             target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
         }),
         sorcery_speed: false,
         activation_condition: None,

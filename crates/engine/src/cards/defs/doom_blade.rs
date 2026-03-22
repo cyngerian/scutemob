@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DestroyPermanent {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
             },
             targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                 exclude_colors: Some([Color::Black].into_iter().collect()),

@@ -114,6 +114,7 @@ fn mock_path_of_peril_def() -> CardDefinition {
                         }),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                         }),
                     }),
                     // Normal (not cleaved): no creatures are destroyed.
@@ -167,6 +168,7 @@ fn mock_fierce_retribution_def() -> CardDefinition {
                     // Cleaved: destroy the target creature (bracket text removed).
                     if_true: Box::new(Effect::DestroyPermanent {
                         target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     }),
                     // Normal: no effect (bracket text "[attacking]" restricts to
                     // a no-op in test; real card would have tighter targeting).

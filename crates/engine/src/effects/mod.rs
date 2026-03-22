@@ -636,7 +636,10 @@ fn execute_effect_inner(
                 });
             }
         }
-        Effect::DestroyPermanent { target } => {
+        Effect::DestroyPermanent {
+            target,
+            cant_be_regenerated,
+        } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
@@ -654,14 +657,18 @@ fn execute_effect_inner(
                         continue;
                     }
                     // CR 701.19a/614.8: Check regeneration shields before destruction.
+                    // CR 701.19c: If "can't be regenerated", skip regeneration check.
                     // Self-replacement effects apply first (CR 614.15).
-                    if let Some(shield_id) =
-                        crate::rules::replacement::check_regeneration_shield(state, id)
-                    {
-                        let regen_events =
-                            crate::rules::replacement::apply_regeneration(state, id, shield_id);
-                        events.extend(regen_events);
-                        continue; // Skip destruction -- permanent stays on battlefield
+                    if !cant_be_regenerated {
+                        if let Some(shield_id) =
+                            crate::rules::replacement::check_regeneration_shield(state, id)
+                        {
+                            let regen_events = crate::rules::replacement::apply_regeneration(
+                                state, id, shield_id,
+                            );
+                            events.extend(regen_events);
+                            continue; // Skip destruction -- permanent stays on battlefield
+                        }
                     }
                     // CR 702.89a: Check umbra armor -- Aura saves the enchanted permanent.
                     // Unlike regeneration, the permanent is NOT tapped and NOT removed from combat.

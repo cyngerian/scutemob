@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 Effect::CreateToken { spec: food_token_spec(1) },
             ]),

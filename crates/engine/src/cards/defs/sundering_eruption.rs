@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                 // CR 701.7a: Destroy target land.
                 Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                 },
                 // Its controller searches for a basic land (enters tapped).
                 // "may search" modeled as unconditional (deterministic fallback).

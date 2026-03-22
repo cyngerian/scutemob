@@ -1608,6 +1608,7 @@ fn test_destroy_effect_checks_replacements() {
 
     let effect = Effect::DestroyPermanent {
         target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
     };
     let mut state = state;
     let mut ctx = EffectContext::new(
@@ -2615,6 +2616,7 @@ fn test_destroy_permanent_emits_choice_required_for_multiple_replacements() {
 
     let effect = Effect::DestroyPermanent {
         target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
     };
     let mut ctx = EffectContext::new(
         PlayerId(2),

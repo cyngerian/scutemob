@@ -4111,9 +4111,13 @@ impl HashInto for Effect {
                 6u8.hash_into(hasher);
                 spec.hash_into(hasher);
             }
-            Effect::DestroyPermanent { target } => {
+            Effect::DestroyPermanent {
+                target,
+                cant_be_regenerated,
+            } => {
                 7u8.hash_into(hasher);
                 target.hash_into(hasher);
+                (*cant_be_regenerated as u8).hash_into(hasher);
             }
             Effect::ExileObject { target } => {
                 8u8.hash_into(hasher);

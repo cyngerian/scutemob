@@ -113,10 +113,12 @@ fn mock_vandalblast_def() -> CardDefinition {
                         }),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                         }),
                     }),
                     if_false: Box::new(Effect::DestroyPermanent {
                         target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     }),
                 },
                 targets: vec![TargetRequirement::TargetArtifact],
@@ -905,10 +907,12 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
                         }),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                         }),
                     }),
                     if_false: Box::new(Effect::DestroyPermanent {
                         target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     }),
                 },
                 targets: vec![TargetRequirement::TargetArtifact],
@@ -1073,10 +1077,12 @@ fn test_702_96_commander_tax_overload_insufficient_mana_rejected() {
                         over: ForEachTarget::EachCreature,
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                         }),
                     }),
                     if_false: Box::new(Effect::DestroyPermanent {
                         target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
                     }),
                 },
                 targets: vec![TargetRequirement::TargetArtifact],

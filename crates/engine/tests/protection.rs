@@ -588,6 +588,7 @@ fn test_protection_global_effect_still_works() {
     use mtg_engine::Effect;
     let global_destroy = Effect::DestroyPermanent {
         target: CardEffectTarget::AllCreatures,
+                    cant_be_regenerated: false,
     };
 
     let mut ctx = mtg_engine::effects::EffectContext::new(p1, progenitus_id, vec![]);
