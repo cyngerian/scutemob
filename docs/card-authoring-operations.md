@@ -97,7 +97,8 @@ Requires: T-7 complete.
       `memory/card-authoring/f5-verification.md`.
 - [x] **F-6**: Verify: `cargo build --workspace && cargo test --all && cargo clippy -- -D warnings`
       **DONE 2026-03-22**: 2281 tests, 0 failures, 0 clippy warnings, workspace builds clean.
-- [ ] **F-7**: Commit: `W6-fix: phase 1 complete — all existing defs clean`
+- [x] **F-7**: Commit: `W6-fix: phase 1 complete — all existing defs clean`
+      **DONE 2026-03-22**: Commit 3bfe888. Phase 1 Fix complete.
 
 ### Phase 2: Author Remaining Cards
 
@@ -108,9 +109,9 @@ Work through groups in the order below. For each group, follow the per-group wor
 
 **Tier 1: Simple, zero blockers**
 
-- [ ] **A-01**: body-only (3 sessions, 55 cards)
-- [ ] **A-02**: mana-creature (2 sessions, 19 cards)
-- [ ] **A-03**: mana-artifact (3 sessions, 33 cards)
+- [x] **A-01**: body-only (3 sessions, 55 cards) — all exist from prior work
+- [x] **A-02**: mana-creature (2 sessions, 19 cards) — 16 new, 3 existed
+- [x] **A-03**: mana-artifact (3 sessions, 33 cards) — 33 new, 1 existed
 - [ ] **A-04**: mana-other (1 session, 5 cards)
 - [ ] **A-05**: cost-reduction (2 sessions, 12 cards)
 - [ ] **A-06**: scry-surveil (1 session, 7 cards)
@@ -144,13 +145,13 @@ Work through groups in the order below. For each group, follow the per-group wor
 
 - [ ] **A-29**: cant-restriction (3 sessions, 24 cards)
 - [ ] **A-30**: untap-phase (2 sessions, 12 cards)
-- [ ] **A-31**: land-etb-tapped (8 sessions, 122 cards)
+- [x] **A-31**: land-etb-tapped (8 sessions, 122 cards) — all exist from Phase 1
 - [ ] **A-32**: land-fetch (4 sessions, 27 cards)
 - [ ] **A-33**: graveyard-recursion (2 sessions, 9 cards)
 - [ ] **A-34**: opponent-punish (2 sessions, 9 cards)
 - [ ] **A-35**: etb-trigger (1 session, 5 cards)
 - [ ] **A-36**: static-enchantment (1 session, 6 cards)
-- [ ] **A-37**: combat-keyword (11 sessions, 163 cards)
+- [x] **A-37**: combat-keyword (11 sessions, 163 cards) — all exist from prior work
 - [ ] **A-38**: modal-choice (13 sessions, 100 cards)
 - [ ] **A-39**: tutor (2 sessions, 11 cards)
 - [ ] **A-40**: x-spell (1 session, 1 card)
