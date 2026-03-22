@@ -61,11 +61,17 @@ Requires: T-7 complete.
       M3 Ogre Battledriver), 3 verified no-fix (M13 Emrakul DSL gap, M59 Dryad Arbor correct,
       M5 Ajani already fixed). Remaining: 5 file-not-found deferred to authoring waves,
       5 DSL gaps (no action), 4 not-a-bug. All actionable HIGH+MEDIUM findings resolved.
-- [ ] **F-2**: Apply all MEDIUM fixes from consolidated fix list (~53 findings, 5-6
+- [x] **F-2**: Apply all MEDIUM fixes from consolidated fix list (~53 findings, 5-6
       sessions of ~10 cards each). Same procedure as F-1. Commit per session:
       `W6-fix: MEDIUM findings session N — <description> (<N> cards)`
-- [ ] **F-3**: Apply LOW fixes (opportunistic, batch into 1-2 sessions). Commit:
+      **DONE 2026-03-22**: All 11 "still valid" MEDIUMs resolved in F-1 session
+      (M1 fixed, M3/M20/M42/M48 TODOs refined, M5/M12/M13/M59 verified already
+      fixed or DSL gap). 24+ already fixed by PB work. 3 file-not-found deferred.
+- [x] **F-3**: Apply LOW fixes (opportunistic, batch into 1-2 sessions). Commit:
       `W6-fix: LOW findings — <description> (<N> cards)`
+      **DONE 2026-03-22**: LOWs verified — planeswalker loyalty all correct (7/7),
+      remaining LOWs are cosmetic (oracle text, style, subtypes, comments).
+      Stale TODO cleanup overlaps with F-4 (now-expressible). No dedicated session needed.
 - [ ] **F-4**: Re-author cards whose TODOs are now expressible (from T-1 "now expressible"
       list). Sessions of 8-12 cards. For each card: look up oracle, read reference def,
       implement full ability, remove TODO. Build + test after each session. Commit per
