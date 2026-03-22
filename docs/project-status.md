@@ -120,7 +120,7 @@ Items explicitly deferred from completed PB batches. Must be addressed before Ph
 | ~~Inventors' Fair activation condition~~ | PB-17 | ~~PB-22 S1~~ | 1 card | **DONE (S1)** |
 | Urza's Saga exact mana cost filter | PB-17 | TargetFilter exact_mana_cost field | 1 card | |
 | ~~Hanweir attack triggers (tapped-and-attacking tokens)~~ | PB-14 | ~~PB-22 S4~~ | 2 cards | **DONE (S4)** |
-| Emblem creation (CR 114) | PB-14 | PB-22 S6 | 11 cards | |
+| ~~Emblem creation (CR 114)~~ | PB-14 | ~~PB-22 S6~~ | 11 cards | **DONE (S6)** |
 
 ---
 

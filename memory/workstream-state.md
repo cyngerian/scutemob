@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-22 S1-S5 done. S6-S7 remain. Plan: `memory/primitives/pb-22-session-plan.md` |
+| W6: Primitive + Card Authoring | PB-22 S6: Emblem creation (CR 114) | ACTIVE | 2026-03-21 | PB-22 S1-S5 done. S6 in progress. Plan: `memory/primitives/pb-22-session-plan.md` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,25 +25,23 @@
 
 **Date**: 2026-03-21
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-22 S5 — Copy/clone primitives (BecomeCopyOf, CreateTokenCopy)
+**Task**: PB-22 S6 — Emblem creation (CR 114)
 
 **Completed**:
-- Added `Effect::BecomeCopyOf { copier, target, duration }` — registers Layer 1 CopyOf CE with configurable duration (CR 707.2)
-- Added `Effect::CreateTokenCopy { source, enters_tapped_and_attacking }` — creates blank token with CopyOf CE (CR 707.2 + CR 508.4)
-- Added `Condition::CardTypesInGraveyardAtLeast(u32)` for Delirium activation conditions
-- Added `GameEvent::BecameCopyOf { copier, source }` (disc 123)
-- Hash: Effect disc 64-65, GameEvent disc 123, Condition disc 31
-- Fixed Thespian's Stage: full {2},{T} BecomeCopyOf (Indefinite, target land)
-- Fixed Shifting Woodland: Delirium {2}{G}{G} BecomeCopyOf (UntilEndOfTurn, 4+ card types)
-- Fixed Thousand-Faced Shadow: ETB CreateTokenCopy (tapped+attacking)
-- Scion of the Ur-Dragon: TODO improved (needs EffectTarget::LastSearchResult)
-- Review: 0 HIGH, 2 MEDIUM (target filter TODOs documented), 3 LOW
-- 5 new tests in copy_effects.rs, 2265 total
+- Added `Effect::CreateEmblem { triggered_abilities, static_effects }` (disc 66) — creates emblem in command zone (CR 114.1-114.5)
+- Added `GameEvent::EmblemCreated { player, object_id }` (disc 124)
+- Added `is_emblem: bool` to `GameObject` (CR 114.5)
+- Added `collect_emblem_triggers_for_event` in abilities.rs — scans command zone emblems for matching triggers (CR 113.6p, CR 114.4)
+- Wired emblem trigger scanning to SpellCast, begin_combat(), upkeep_actions(), end_step_actions()
+- New TriggerEvent variants: AtBeginningOfCombat, AtBeginningOfYourUpkeep, AtBeginningOfEachUpkeep, AtBeginningOfYourEndStep (hash disc 24-27)
+- Fixed Ajani Sleeper Agent -6 TODO → CreateEmblem
+- Authored 5 new planeswalker defs: Basri Ket, Kaito Bane of Nightmares, Tyvar Kell, Wrenn and Realmbreaker, Wrenn and Seven
+- Review: 5 HIGH (oracle mismatches fixed), 6 MEDIUM (trigger scanning + TODOs documented), 2 LOW
+- 7 new tests in emblem_tests.rs, 2272 total
 
 **Next**:
-1. PB-22 S6: Emblem creation (CR 114) — 11 planeswalker cards
-2. PB-22 S7: Adventure + dual-zone search
-3. After PB-22: Phase 2 card authoring (~1,025 remaining cards)
+1. PB-22 S7: Adventure + dual-zone search
+2. After PB-22: Phase 2 card authoring (~1,025 remaining cards)
 
 **Hazards**:
 - None — clean commit, all tests passing, no WIP
@@ -51,6 +49,13 @@
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-21 — W6: PB-22 S6 (Emblem Creation, CR 114)
+- Added Effect::CreateEmblem + GameEvent::EmblemCreated + is_emblem field + emblem trigger scanning
+- 4 new TriggerEvent variants (AtBeginningOfCombat, upkeep, end step)
+- Fixed Ajani Sleeper Agent, authored Basri Ket, Kaito, Tyvar Kell, Wrenn and Realmbreaker, Wrenn and Seven
+- Review: 5H 6M 2L, all HIGH/MEDIUM fixed (oracle corrections + trigger scanning wiring)
+- 7 new tests, 2272 total
 
 ### 2026-03-21 — W6: PB-22 S5 (Copy/Clone Primitives)
 - Added Effect::BecomeCopyOf + Effect::CreateTokenCopy + Condition::CardTypesInGraveyardAtLeast

@@ -5,7 +5,7 @@ session: S6
 title: Emblem Creation (CR 114)
 cards_affected: 11 (Ajani Sleeper Agent + ~10 planeswalker cards)
 started: 2026-03-21
-phase: implement
+phase: closed
 plan_file: memory/primitives/pb-plan-22-s6.md
 
 ## Deferred from Prior PBs
@@ -41,3 +41,17 @@ plan_file: memory/primitives/pb-plan-22-s6.md
   - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean
+
+## Fix Phase (pb-review-22-s6.md)
+- [x] HIGH-3: wrenn_and_realmbreaker.rs mana cost fixed ({2}{G}{G}{G} → {1}{G}{G})
+- [x] HIGH-4: wrenn_and_realmbreaker.rs starting loyalty fixed (7 → 4)
+- [x] HIGH-5: wrenn_and_realmbreaker.rs +1 ability fixed (two lands → one land, correct keywords)
+- [x] HIGH-6: wrenn_and_realmbreaker.rs -2 ability fixed (MoveZone replaced with TODO Sequence, oracle text corrected to mill+conditional-return)
+- [x] HIGH-7: tyvar_kell.rs starting loyalty fixed (5 → 3)
+- [x] MEDIUM-1: collect_emblem_triggers_for_event made pub(crate); called from begin_combat(), upkeep_actions(), end_step_actions() in turn_actions.rs
+- [x] MEDIUM-2: basri_ket.rs emblem trigger_on changed from AnySpellCast to AtBeginningOfCombat; new game_object::TriggerEvent variants added (AtBeginningOfCombat, AtBeginningOfYourUpkeep, AtBeginningOfEachUpkeep, AtBeginningOfYourEndStep) with hash discriminants 24-27
+- [x] MEDIUM-3: ajani_sleeper_agent.rs TODO added for TargetOpponent gap (TargetRequirement has no Opponent variant)
+- [x] MEDIUM-4: ajani_sleeper_agent.rs existing TODO expanded for spell-type filter gap
+- [x] MEDIUM-5: tyvar_kell.rs existing TODO retained (Elf spell subtype filter gap)
+- [x] MEDIUM-6: wrenn_and_seven.rs TODO updated to explain player-level flag needed; filter kept as CreaturesYouControl (AllPermanentsYouControl variant doesn't exist)
+- Fix phase verification: 2272 tests pass; clippy clean; workspace build clean; fmt clean
