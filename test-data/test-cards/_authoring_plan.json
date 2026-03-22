@@ -20,7 +20,7 @@
     {
       "session_id": 1,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -257,7 +257,7 @@
     {
       "session_id": 2,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -303,7 +303,7 @@
           "edhrec_commanders": 8,
           "priority_score": 189.2,
           "source": "both",
-          "oracle_text": "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium \u2014 {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard."
+          "oracle_text": "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard."
         },
         {
           "name": "Smoldering Marsh",
@@ -504,7 +504,7 @@
     {
       "session_id": 3,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -746,7 +746,7 @@
     {
       "session_id": 4,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -985,7 +985,7 @@
     {
       "session_id": 5,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -1232,7 +1232,7 @@
     {
       "session_id": 6,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -1469,7 +1469,7 @@
     {
       "session_id": 7,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -1708,7 +1708,7 @@
     {
       "session_id": 8,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
+      "group_label": "Lands — ETB Tapped",
       "status": "ready",
       "card_count": 10,
       "cards": [
@@ -1727,7 +1727,7 @@
           "edhrec_commanders": 1,
           "priority_score": 21.2,
           "source": "edhrec",
-          "oracle_text": "This artifact enters tapped.\nWhen this artifact enters, proliferate.\n{T}: Add one mana of any color.\nCorrupted \u2014 {T}: Add three mana of any one color. Activate only if an opponent has three or more poison counters."
+          "oracle_text": "This artifact enters tapped.\nWhen this artifact enters, proliferate.\n{T}: Add one mana of any color.\nCorrupted — {T}: Add three mana of any one color. Activate only if an opponent has three or more poison counters."
         },
         {
           "name": "Temple of the Dragon Queen",
@@ -1864,8 +1864,8 @@
     {
       "session_id": 9,
       "group_id": "land-etb-tapped",
-      "group_label": "Lands \u2014 ETB Tapped",
-      "status": "blocked",
+      "group_label": "Lands — ETB Tapped",
+      "status": "ready",
       "card_count": 16,
       "cards": [
         {
@@ -2216,7 +2216,7 @@
           "edhrec_commanders": 4,
           "priority_score": 269.1,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, you gain 1 life and draw a card."
+          "oracle_text": "Landfall — Whenever a land you control enters, you gain 1 life and draw a card."
         },
         {
           "name": "Yawgmoth, Thran Physician",
@@ -2279,7 +2279,7 @@
           "edhrec_commanders": 3,
           "priority_score": 241.2,
           "source": "both",
-          "oracle_text": "You may play an additional land on each of your turns.\nLandfall \u2014 Whenever a land you control enters, you may draw a card."
+          "oracle_text": "You may play an additional land on each of your turns.\nLandfall — Whenever a land you control enters, you may draw a card."
         }
       ]
     },
@@ -2307,7 +2307,7 @@
           "edhrec_commanders": 9,
           "priority_score": 214.3,
           "source": "both",
-          "oracle_text": "At the beginning of your first main phase, choose one or more \u2014\n\u2022 Sell Contraband \u2014 Create a Treasure token. You lose 1 life.\n\u2022 Buy Information \u2014 Draw a card. You lose 2 life.\n\u2022 Hire a Mercenary \u2014 Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life. (It is every creature type.)"
+          "oracle_text": "At the beginning of your first main phase, choose one or more —\n• Sell Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life. (It is every creature type.)"
         },
         {
           "name": "Vraska, Betrayal's Sting",
@@ -2324,7 +2324,7 @@
           "edhrec_commanders": 7,
           "priority_score": 190.5,
           "source": "both",
-          "oracle_text": "Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n\u22122: Target creature becomes a Treasure artifact with \"{T}, Sacrifice this artifact: Add one mana of any color\" and loses all other card types and abilities.\n\u22129: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference."
+          "oracle_text": "Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n−2: Target creature becomes a Treasure artifact with \"{T}, Sacrifice this artifact: Add one mana of any color\" and loses all other card types and abilities.\n−9: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference."
         },
         {
           "name": "Vanquisher's Banner",
@@ -2578,7 +2578,7 @@
           "edhrec_commanders": 3,
           "priority_score": 140.8,
           "source": "both",
-          "oracle_text": "Draw a card for each creature you control.\nFerocious \u2014 You gain 4 life for each creature you control with power 4 or greater."
+          "oracle_text": "Draw a card for each creature you control.\nFerocious — You gain 4 life for each creature you control with power 4 or greater."
         },
         {
           "name": "Teferi, Master of Time",
@@ -2592,7 +2592,7 @@
           "edhrec_commanders": 3,
           "priority_score": 136.6,
           "source": "both",
-          "oracle_text": "You may activate loyalty abilities of Teferi on any player's turn any time you could cast an instant.\n+1: Draw a card, then discard a card.\n\u22123: Target creature you don't control phases out. (Treat it and anything attached to it as though they don't exist until its controller's next turn.)\n\u221210: Take two extra turns after this one."
+          "oracle_text": "You may activate loyalty abilities of Teferi on any player's turn any time you could cast an instant.\n+1: Draw a card, then discard a card.\n−3: Target creature you don't control phases out. (Treat it and anything attached to it as though they don't exist until its controller's next turn.)\n−10: Take two extra turns after this one."
         },
         {
           "name": "Ingenious Infiltrator",
@@ -2677,7 +2677,7 @@
           "edhrec_commanders": 3,
           "priority_score": 131.4,
           "source": "both",
-          "oracle_text": "Whenever you draw a card, put a loyalty counter on Teferi.\n0: Draw a card.\n\u22122: Create a 2/2 blue Spirit creature token with vigilance and \"Whenever you draw a card, put a +1/+1 counter on this token.\"\n\u221212: Target opponent chooses a permanent they control and returns it to its owner's hand. Then they shuffle each nonland permanent they control into its owner's library."
+          "oracle_text": "Whenever you draw a card, put a loyalty counter on Teferi.\n0: Draw a card.\n−2: Create a 2/2 blue Spirit creature token with vigilance and \"Whenever you draw a card, put a +1/+1 counter on this token.\"\n−12: Target opponent chooses a permanent they control and returns it to its owner's hand. Then they shuffle each nonland permanent they control into its owner's library."
         },
         {
           "name": "Archmage Emeritus",
@@ -2693,7 +2693,7 @@
           "edhrec_commanders": 2,
           "priority_score": 130.8,
           "source": "both",
-          "oracle_text": "Magecraft \u2014 Whenever you cast or copy an instant or sorcery spell, draw a card."
+          "oracle_text": "Magecraft — Whenever you cast or copy an instant or sorcery spell, draw a card."
         },
         {
           "name": "Mask of Memory",
@@ -2882,7 +2882,7 @@
           "edhrec_commanders": 1,
           "priority_score": 122.6,
           "source": "both",
-          "oracle_text": "Ninjutsu {1}{U}{B} ({1}{U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nDuring your turn, as long as Kaito has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof.\n+1: You get an emblem with \"Ninjas you control get +1/+1.\"\n0: Surveil 2. Then draw a card for each opponent who lost life this turn.\n\u22122: Tap target creature. Put two stun counters on it."
+          "oracle_text": "Ninjutsu {1}{U}{B} ({1}{U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nDuring your turn, as long as Kaito has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof.\n+1: You get an emblem with \"Ninjas you control get +1/+1.\"\n0: Surveil 2. Then draw a card for each opponent who lost life this turn.\n−2: Tap target creature. Put two stun counters on it."
         },
         {
           "name": "Baleful Strix",
@@ -2930,7 +2930,7 @@
           "edhrec_commanders": 2,
           "priority_score": 121.4,
           "source": "both",
-          "oracle_text": "Whenever an Equipment you control enters, you may draw a card.\nMetalcraft \u2014 Equipment you control have equip {0} as long as you control three or more artifacts."
+          "oracle_text": "Whenever an Equipment you control enters, you may draw a card.\nMetalcraft — Equipment you control have equip {0} as long as you control three or more artifacts."
         },
         {
           "name": "Hazoret's Monument",
@@ -3024,7 +3024,7 @@
           "edhrec_commanders": 1,
           "priority_score": 120.0,
           "source": "both",
-          "oracle_text": "Leading from the Front \u2014 Whenever Commissar Severina Raine attacks, each opponent loses X life, where X is the number of other attacking creatures.\nSummary Execution \u2014 {2}, Sacrifice another creature: You gain 2 life and draw a card."
+          "oracle_text": "Leading from the Front — Whenever Commissar Severina Raine attacks, each opponent loses X life, where X is the number of other attacking creatures.\nSummary Execution — {2}, Sacrifice another creature: You gain 2 life and draw a card."
         },
         {
           "name": "Mangara, the Diplomat",
@@ -3266,7 +3266,7 @@
           "edhrec_commanders": 1,
           "priority_score": 112.7,
           "source": "both",
-          "oracle_text": "Undergrowth \u2014 When Izoni enters, create a 1/1 black and green Insect creature token for each creature card in your graveyard.\n{B}{G}, Sacrifice another creature: You gain 1 life and draw a card."
+          "oracle_text": "Undergrowth — When Izoni enters, create a 1/1 black and green Insect creature token for each creature card in your graveyard.\n{B}{G}, Sacrifice another creature: You gain 1 life and draw a card."
         },
         {
           "name": "Regal Force",
@@ -3729,7 +3729,7 @@
           "edhrec_commanders": 7,
           "priority_score": 86.9,
           "source": "edhrec",
-          "oracle_text": "Whenever a creature you control dies, draw a card.\n+1: Create a 2/2 black Zombie creature token.\n\u22124: Each player sacrifices two creatures of their choice.\n\u22129: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest."
+          "oracle_text": "Whenever a creature you control dies, draw a card.\n+1: Create a 2/2 black Zombie creature token.\n−4: Each player sacrifices two creatures of their choice.\n−9: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest."
         },
         {
           "name": "Growth Spiral",
@@ -3831,7 +3831,7 @@
           "edhrec_commanders": 5,
           "priority_score": 57.5,
           "source": "edhrec",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhenever you sacrifice a Clue, put a +1/+1 counter on this creature."
+          "oracle_text": "Landfall — Whenever a land you control enters, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhenever you sacrifice a Clue, put a +1/+1 counter on this creature."
         },
         {
           "name": "Teferi's Ageless Insight",
@@ -4014,10 +4014,10 @@
           "edhrec_commanders": 4,
           "priority_score": 45.1,
           "source": "edhrec",
-          "oracle_text": "Each opponent can cast spells only any time they could cast a sorcery.\n+1: Until your next turn, you may cast sorcery spells as though they had flash.\n\u22123: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card."
+          "oracle_text": "Each opponent can cast spells only any time they could cast a sorcery.\n+1: Until your next turn, you may cast sorcery spells as though they had flash.\n−3: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card."
         },
         {
-          "name": "Clavile\u00f1o, First of the Blessed",
+          "name": "Clavileño, First of the Blessed",
           "types": [
             "Creature"
           ],
@@ -4106,7 +4106,7 @@
           "edhrec_commanders": 3,
           "priority_score": 35.4,
           "source": "edhrec",
-          "oracle_text": "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape\u2014{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)"
+          "oracle_text": "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)"
         },
         {
           "name": "Sarkhan, Fireblood",
@@ -4120,7 +4120,7 @@
           "edhrec_commanders": 3,
           "priority_score": 35.1,
           "source": "edhrec",
-          "oracle_text": "+1: You may discard a card. If you do, draw a card.\n+1: Add two mana in any combination of colors. Spend this mana only to cast Dragon spells.\n\u22127: Create four 5/5 red Dragon creature tokens with flying."
+          "oracle_text": "+1: You may discard a card. If you do, draw a card.\n+1: Add two mana in any combination of colors. Spend this mana only to cast Dragon spells.\n−7: Create four 5/5 red Dragon creature tokens with flying."
         },
         {
           "name": "Tormenting Voice",
@@ -4195,7 +4195,7 @@
           "edhrec_commanders": 2,
           "priority_score": 30.5,
           "source": "edhrec",
-          "oracle_text": "Trample, toxic 1\nWhenever one or more creatures you control deal combat damage to one or more players, proliferate.\nCorrupted \u2014 At the beginning of your end step, if an opponent has three or more poison counters, draw a card, then you may put a land card from your hand onto the battlefield."
+          "oracle_text": "Trample, toxic 1\nWhenever one or more creatures you control deal combat damage to one or more players, proliferate.\nCorrupted — At the beginning of your end step, if an opponent has three or more poison counters, draw a card, then you may put a land card from your hand onto the battlefield."
         },
         {
           "name": "Tamiyo, Field Researcher",
@@ -4209,7 +4209,7 @@
           "edhrec_commanders": 2,
           "priority_score": 30.5,
           "source": "edhrec",
-          "oracle_text": "+1: Choose up to two target creatures. Until your next turn, whenever either of those creatures deals combat damage, you draw a card.\n\u22122: Tap up to two target nonland permanents. They don't untap during their controller's next untap step.\n\u22127: Draw three cards. You get an emblem with \"You may cast spells from your hand without paying their mana costs.\""
+          "oracle_text": "+1: Choose up to two target creatures. Until your next turn, whenever either of those creatures deals combat damage, you draw a card.\n−2: Tap up to two target nonland permanents. They don't untap during their controller's next untap step.\n−7: Draw three cards. You get an emblem with \"You may cast spells from your hand without paying their mana costs.\""
         },
         {
           "name": "Leaf-Crowned Visionary",
@@ -4399,7 +4399,7 @@
           "edhrec_commanders": 1,
           "priority_score": 20.6,
           "source": "edhrec",
-          "oracle_text": "+1: Draw a card, then add one mana of any color.\n\u22122: Create a 4/4 red Dragon creature token with flying.\n\u22128: Search your library for any number of Dragon creature cards, put them onto the battlefield, then shuffle."
+          "oracle_text": "+1: Draw a card, then add one mana of any color.\n−2: Create a 4/4 red Dragon creature token with flying.\n−8: Search your library for any number of Dragon creature cards, put them onto the battlefield, then shuffle."
         },
         {
           "name": "Caesar, Legion's Emperor",
@@ -4413,7 +4413,7 @@
           "edhrec_commanders": 1,
           "priority_score": 20.1,
           "source": "edhrec",
-          "oracle_text": "Whenever you attack, you may sacrifice another creature. When you do, choose two \u2014\n\u2022 Create two 1/1 red and white Soldier creature tokens with haste that are tapped and attacking.\n\u2022 You draw a card and you lose 1 life.\n\u2022 Caesar deals damage equal to the number of creature tokens you control to target opponent."
+          "oracle_text": "Whenever you attack, you may sacrifice another creature. When you do, choose two —\n• Create two 1/1 red and white Soldier creature tokens with haste that are tapped and attacking.\n• You draw a card and you lose 1 life.\n• Caesar deals damage equal to the number of creature tokens you control to target opponent."
         },
         {
           "name": "Falkenrath Pit Fighter",
@@ -4520,7 +4520,7 @@
           "edhrec_commanders": 1,
           "priority_score": 16.9,
           "source": "edhrec",
-          "oracle_text": "At the beginning of your end step, if Kaito entered this turn, he phases out.\n+1: Draw a card. Then discard a card unless you attacked this turn.\n\u22122: Create a 1/1 blue Ninja creature token with \"This token can't be blocked.\"\n\u22127: You get an emblem with \"Whenever a creature you control deals combat damage to a player, search your library for a blue or black creature card, put it onto the battlefield, then shuffle.\""
+          "oracle_text": "At the beginning of your end step, if Kaito entered this turn, he phases out.\n+1: Draw a card. Then discard a card unless you attacked this turn.\n−2: Create a 1/1 blue Ninja creature token with \"This token can't be blocked.\"\n−7: You get an emblem with \"Whenever a creature you control deals combat damage to a player, search your library for a blue or black creature card, put it onto the battlefield, then shuffle.\""
         },
         {
           "name": "Zurgo Stormrender",
@@ -4579,7 +4579,7 @@
           "edhrec_commanders": 1,
           "priority_score": 15.7,
           "source": "edhrec",
-          "oracle_text": "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nCycling\u2014Pay 2 life. (Pay 2 life, Discard this card: Draw a card.)"
+          "oracle_text": "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nCycling—Pay 2 life. (Pay 2 life, Discard this card: Draw a card.)"
         },
         {
           "name": "Nezahal, Primal Tide",
@@ -4607,7 +4607,7 @@
           "edhrec_commanders": 1,
           "priority_score": 15.2,
           "source": "edhrec",
-          "oracle_text": "Whenever one or more creatures you control deal combat damage to a player, you may return one of them to its owner's hand. If you do, you may activate loyalty abilities of Kaito twice this turn rather than only once.\n+1: Up to one target creature can't attack or block until your next turn.\n0: Draw a card.\n\u22122: Create a 2/2 colorless Drone artifact creature token with deathtouch and \"When this token leaves the battlefield, each opponent loses 2 life and you gain 2 life.\""
+          "oracle_text": "Whenever one or more creatures you control deal combat damage to a player, you may return one of them to its owner's hand. If you do, you may activate loyalty abilities of Kaito twice this turn rather than only once.\n+1: Up to one target creature can't attack or block until your next turn.\n0: Draw a card.\n−2: Create a 2/2 colorless Drone artifact creature token with deathtouch and \"When this token leaves the battlefield, each opponent loses 2 life and you gain 2 life.\""
         },
         {
           "name": "Rummaging Goblin",
@@ -4709,7 +4709,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Ward\u2014{2}, Pay 2 life.\nWhenever you discard one or more cards, target creature gets +2/+0 until end of turn for each card discarded this way. Whenever that creature deals combat damage to a player this turn, you draw a card."
+          "oracle_text": "Ward—{2}, Pay 2 life.\nWhenever you discard one or more cards, target creature gets +2/+0 until end of turn for each card discarded this way. Whenever that creature deals combat damage to a player this turn, you draw a card."
         },
         {
           "name": "Unshakable Tail",
@@ -4742,7 +4742,7 @@
           "edhrec_commanders": 1,
           "priority_score": 18.3,
           "source": "edhrec",
-          "oracle_text": "When Omnath enters, it deals damage to any target equal to the number of Elementals you control.\nLandfall \u2014 Whenever a land you control enters, put a +1/+1 counter on target Elemental you control. If you control eight or more lands, draw a card."
+          "oracle_text": "When Omnath enters, it deals damage to any target equal to the number of Elementals you control.\nLandfall — Whenever a land you control enters, put a +1/+1 counter on target Elemental you control. If you control eight or more lands, draw a card."
         }
       ]
     },
@@ -4750,7 +4750,7 @@
       "session_id": 25,
       "group_id": "draw",
       "group_label": "Draw & Card Advantage",
-      "status": "deferred",
+      "status": "ready",
       "card_count": 2,
       "cards": [
         {
@@ -4900,7 +4900,7 @@
           "edhrec_commanders": 3,
           "priority_score": 247.0,
           "source": "both",
-          "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n\u2022 Creatures you control gain flying, vigilance, and double strike until end of turn.\n\u2022 Creatures you control gain lifelink, indestructible, and protection from each color until end of turn."
+          "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Creatures you control gain flying, vigilance, and double strike until end of turn.\n• Creatures you control gain lifelink, indestructible, and protection from each color until end of turn."
         },
         {
           "name": "Thousand-Year Elixir",
@@ -4961,7 +4961,7 @@
           "edhrec_commanders": 2,
           "priority_score": 228.7,
           "source": "both",
-          "oracle_text": "This creature can't block.\nThis creature has haste as long as an opponent has 10 or less life.\nLandfall \u2014 Whenever a land you control enters, you may return this card from your graveyard to the battlefield."
+          "oracle_text": "This creature can't block.\nThis creature has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return this card from your graveyard to the battlefield."
         },
         {
           "name": "Twinflame Tyrant",
@@ -5012,7 +5012,7 @@
           "edhrec_commanders": 1,
           "priority_score": 211.3,
           "source": "both",
-          "oracle_text": "Trample, haste\nAlliance \u2014 Whenever another creature you control enters, double this creature's power until end of turn."
+          "oracle_text": "Trample, haste\nAlliance — Whenever another creature you control enters, double this creature's power until end of turn."
         },
         {
           "name": "Ancient Greenwarden",
@@ -5236,7 +5236,7 @@
           "edhrec_commanders": 3,
           "priority_score": 139.0,
           "source": "both",
-          "oracle_text": "Flying\nLandfall \u2014 Whenever a land you control enters, you may gain control of target creature for as long as you control this creature."
+          "oracle_text": "Flying\nLandfall — Whenever a land you control enters, you may gain control of target creature for as long as you control this creature."
         },
         {
           "name": "Dragonlord Dromoka",
@@ -5455,7 +5455,7 @@
           "edhrec_commanders": 2,
           "priority_score": 128.4,
           "source": "both",
-          "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nThis creature enters with a +1/+1 counter on it.\nLandfall \u2014 Whenever a land you control enters, double the number of +1/+1 counters on this creature."
+          "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nThis creature enters with a +1/+1 counter on it.\nLandfall — Whenever a land you control enters, double the number of +1/+1 counters on this creature."
         },
         {
           "name": "Grateful Apparition",
@@ -5555,7 +5555,7 @@
           "edhrec_commanders": 2,
           "priority_score": 121.6,
           "source": "both",
-          "oracle_text": "First strike, trample, lifelink\nStagger \u2014 Whenever Lightning deals combat damage to a player, until your next turn, if a source would deal damage to that player or a permanent that player controls, it deals double that damage instead."
+          "oracle_text": "First strike, trample, lifelink\nStagger — Whenever Lightning deals combat damage to a player, until your next turn, if a source would deal damage to that player or a permanent that player controls, it deals double that damage instead."
         },
         {
           "name": "Ram Through",
@@ -5674,7 +5674,7 @@
           "edhrec_commanders": 1,
           "priority_score": 118.6,
           "source": "both",
-          "oracle_text": "Haste\nBattalion \u2014 Whenever this creature and at least two other creatures attack, creatures you control gain first strike and trample until end of turn and can't be blocked by creature tokens this turn."
+          "oracle_text": "Haste\nBattalion — Whenever this creature and at least two other creatures attack, creatures you control gain first strike and trample until end of turn and can't be blocked by creature tokens this turn."
         },
         {
           "name": "Plague Stinger",
@@ -6102,7 +6102,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.2,
           "source": "both",
-          "oracle_text": "Flying\nMetalcraft \u2014 Artifacts you control have shroud as long as you control three or more artifacts. (An artifact with shroud can't be the target of spells or abilities.)"
+          "oracle_text": "Flying\nMetalcraft — Artifacts you control have shroud as long as you control three or more artifacts. (An artifact with shroud can't be the target of spells or abilities.)"
         }
       ]
     },
@@ -6335,7 +6335,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Eminence \u2014 As long as The Ur-Dragon is in the command zone or on the battlefield, other Dragon spells you cast cost {1} less to cast.\nFlying\nWhenever one or more Dragons you control attack, draw that many cards, then you may put a permanent card from your hand onto the battlefield."
+          "oracle_text": "Eminence — As long as The Ur-Dragon is in the command zone or on the battlefield, other Dragon spells you cast cost {1} less to cast.\nFlying\nWhenever one or more Dragons you control attack, draw that many cards, then you may put a permanent card from your hand onto the battlefield."
         },
         {
           "name": "Thundermane Dragon",
@@ -6368,7 +6368,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Haste\nYou may cast this card from your graveyard using its warp ability.\nWarp\u2014{B}, Pay 2 life. (You may cast this card from your hand or graveyard for its warp cost. If you do, exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)"
+          "oracle_text": "Haste\nYou may cast this card from your graveyard using its warp ability.\nWarp—{B}, Pay 2 life. (You may cast this card from your hand or graveyard for its warp cost. If you do, exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)"
         }
       ]
     },
@@ -6508,7 +6508,7 @@
           "edhrec_commanders": 4,
           "priority_score": 45.0,
           "source": "edhrec",
-          "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} \u2014 Mill four cards. You may put up to two creature and/or land cards from among the milled cards into your hand.\n+ {4}{G} \u2014 You may put up to two creature cards from your hand onto the battlefield.\n+ {1} \u2014 Creatures you control with power 4 or greater gain hexproof and indestructible until end of turn."
+          "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} — Mill four cards. You may put up to two creature and/or land cards from among the milled cards into your hand.\n+ {4}{G} — You may put up to two creature cards from your hand onto the battlefield.\n+ {1} — Creatures you control with power 4 or greater gain hexproof and indestructible until end of turn."
         },
         {
           "name": "Bloated Contaminator",
@@ -6707,7 +6707,7 @@
           "edhrec_commanders": 2,
           "priority_score": 34.5,
           "source": "edhrec",
-          "oracle_text": "Domain \u2014 This spell costs {2} less to cast for each basic land type among lands you control.\nFlying\nEach creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green."
+          "oracle_text": "Domain — This spell costs {2} less to cast for each basic land type among lands you control.\nFlying\nEach creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green."
         },
         {
           "name": "Sting, the Glinting Dagger",
@@ -6806,7 +6806,7 @@
           "edhrec_commanders": 2,
           "priority_score": 29.3,
           "source": "edhrec",
-          "oracle_text": "Compleated ({G/W/P} can be paid with {G}, {W}, or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n+1: Reveal the top card of your library. If it's a creature or planeswalker card, put it into your hand. Otherwise, you may put it on the bottom of your library.\n\u22123: Distribute three +1/+1 counters among up to three target creatures. They gain vigilance until end of turn.\n\u22126: You get an emblem with \"Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters.\""
+          "oracle_text": "Compleated ({G/W/P} can be paid with {G}, {W}, or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n+1: Reveal the top card of your library. If it's a creature or planeswalker card, put it into your hand. Otherwise, you may put it on the bottom of your library.\n−3: Distribute three +1/+1 counters among up to three target creatures. They gain vigilance until end of turn.\n−6: You get an emblem with \"Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters.\""
         },
         {
           "name": "Nighthawk Scavenger",
@@ -6966,7 +6966,7 @@
           "edhrec_commanders": 1,
           "priority_score": 21.7,
           "source": "edhrec",
-          "oracle_text": "Flying, vigilance, toxic 2\nCorrupted \u2014 At the beginning of your end step, each opponent who has three or more poison counters exiles the top card of their library face down. You may look at and play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast those spells."
+          "oracle_text": "Flying, vigilance, toxic 2\nCorrupted — At the beginning of your end step, each opponent who has three or more poison counters exiles the top card of their library face down. You may look at and play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast those spells."
         },
         {
           "name": "Smoke Shroud",
@@ -7232,7 +7232,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.1,
           "source": "edhrec",
-          "oracle_text": "You may activate abilities of creatures you control as though those creatures had haste.\n+1: Untap up to one target creature.\n\u22122: Mill three cards, then you may return a creature card with mana value 2 or less from your graveyard to the battlefield."
+          "oracle_text": "You may activate abilities of creatures you control as though those creatures had haste.\n+1: Untap up to one target creature.\n−2: Mill three cards, then you may return a creature card with mana value 2 or less from your graveyard to the battlefield."
         },
         {
           "name": "Dragonlord Kolaghan",
@@ -7464,7 +7464,7 @@
           "edhrec_commanders": 1,
           "priority_score": 15.1,
           "source": "edhrec",
-          "oracle_text": "As this enchantment enters, choose Khans or Dragons.\n\u2022 Khans \u2014 At the beginning of each of your main phases, add {G}{G}.\n\u2022 Dragons \u2014 Whenever a creature you control with flying enters, you may have it fight target creature you don't control."
+          "oracle_text": "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the beginning of each of your main phases, add {G}{G}.\n• Dragons — Whenever a creature you control with flying enters, you may have it fight target creature you don't control."
         },
         {
           "name": "Qarsi Revenant",
@@ -7483,7 +7483,7 @@
           "edhrec_commanders": 1,
           "priority_score": 15.1,
           "source": "edhrec",
-          "oracle_text": "Flying, deathtouch, lifelink\nRenew \u2014 {2}{B}, Exile this card from your graveyard: Put a flying counter, a deathtouch counter, and a lifelink counter on target creature. Activate only as a sorcery."
+          "oracle_text": "Flying, deathtouch, lifelink\nRenew — {2}{B}, Exile this card from your graveyard: Put a flying counter, a deathtouch counter, and a lifelink counter on target creature. Activate only as a sorcery."
         },
         {
           "name": "Throatseeker",
@@ -7522,7 +7522,7 @@
           "edhrec_commanders": 5,
           "priority_score": 156.4,
           "source": "both",
-          "oracle_text": "(Gain the next level as a sorcery to add its ability.)\nLandfall \u2014 Whenever a land you control enters, you gain 1 life.\n{2}{G}: Level 2\nYou may play an additional land on each of your turns.\n{4}{G}: Level 3\nWhen this Class becomes level 3, target land you control becomes a creature with haste and \"This creature's power and toughness are each equal to the number of lands you control.\" It's still a land."
+          "oracle_text": "(Gain the next level as a sorcery to add its ability.)\nLandfall — Whenever a land you control enters, you gain 1 life.\n{2}{G}: Level 2\nYou may play an additional land on each of your turns.\n{4}{G}: Level 3\nWhen this Class becomes level 3, target land you control becomes a creature with haste and \"This creature's power and toughness are each equal to the number of lands you control.\" It's still a land."
         },
         {
           "name": "Multani, Yavimaya's Avatar",
@@ -7640,7 +7640,7 @@
           "oracle_text": "Indestructible\nWhenever this creature is dealt damage, it deals that much damage to target opponent.\n{2}{R}, {T}: This creature fights another target creature."
         },
         {
-          "name": "\u00c9omer, King of Rohan",
+          "name": "Éomer, King of Rohan",
           "types": [
             "Creature"
           ],
@@ -7653,7 +7653,7 @@
           "edhrec_commanders": 1,
           "priority_score": 113.6,
           "source": "both",
-          "oracle_text": "Double strike\n\u00c9omer enters with a +1/+1 counter on it for each other Human you control.\nWhen \u00c9omer enters, target player becomes the monarch. \u00c9omer deals damage equal to its power to any target."
+          "oracle_text": "Double strike\nÉomer enters with a +1/+1 counter on it for each other Human you control.\nWhen Éomer enters, target player becomes the monarch. Éomer deals damage equal to its power to any target."
         },
         {
           "name": "Great Oak Guardian",
@@ -7705,7 +7705,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.9,
           "source": "both",
-          "oracle_text": "Flash\nReach\nWhen this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order.\nEvoke\u2014Exile a green card from your hand."
+          "oracle_text": "Flash\nReach\nWhen this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order.\nEvoke—Exile a green card from your hand."
         },
         {
           "name": "Volatile Stormdrake",
@@ -7756,7 +7756,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Menace\nWhen this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nEvoke\u2014Exile a black card from your hand."
+          "oracle_text": "Menace\nWhen this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nEvoke—Exile a black card from your hand."
         },
         {
           "name": "Thieving Skydiver",
@@ -7907,7 +7907,7 @@
       "session_id": 39,
       "group_id": "combat-keyword",
       "group_label": "Combat Keyword Creatures",
-      "status": "deferred",
+      "status": "ready",
       "card_count": 1,
       "cards": [
         {
@@ -7965,7 +7965,7 @@
           "edhrec_commanders": 7,
           "priority_score": 296.8,
           "source": "both",
-          "oracle_text": "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall \u2014 Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control."
+          "oracle_text": "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control."
         },
         {
           "name": "Doubling Season",
@@ -8011,7 +8011,7 @@
           "edhrec_commanders": 5,
           "priority_score": 281.1,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")"
+          "oracle_text": "Landfall — Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")"
         },
         {
           "name": "Krenko, Tin Street Kingpin",
@@ -8165,7 +8165,7 @@
           "edhrec_commanders": 4,
           "priority_score": 245.6,
           "source": "both",
-          "oracle_text": "Protection from planeswalkers and from Wizards\nGreensleeves's power and toughness are each equal to the number of lands you control.\nLandfall \u2014 Whenever a land you control enters, create a 3/3 green Badger creature token."
+          "oracle_text": "Protection from planeswalkers and from Wizards\nGreensleeves's power and toughness are each equal to the number of lands you control.\nLandfall — Whenever a land you control enters, create a 3/3 green Badger creature token."
         },
         {
           "name": "Ancient Copper Dragon",
@@ -8276,7 +8276,7 @@
           "edhrec_commanders": 4,
           "priority_score": 160.9,
           "source": "both",
-          "oracle_text": "Trample\nLandfall \u2014 Whenever a land you control enters, create a 4/4 green Beast creature token."
+          "oracle_text": "Trample\nLandfall — Whenever a land you control enters, create a 4/4 green Beast creature token."
         },
         {
           "name": "Zendikar's Roil",
@@ -8292,7 +8292,7 @@
           "edhrec_commanders": 5,
           "priority_score": 159.7,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, create a 2/2 green Elemental creature token."
+          "oracle_text": "Landfall — Whenever a land you control enters, create a 2/2 green Elemental creature token."
         },
         {
           "name": "Elenda, the Dusk Rose",
@@ -8322,7 +8322,7 @@
           "edhrec_commanders": 5,
           "priority_score": 152.1,
           "source": "both",
-          "oracle_text": "+1: Create a 3/3 green Beast creature token.\n\u22123: Draw cards equal to the greatest power among creatures you control.\n\u22126: Create a 6/6 green Wurm creature token for each land you control."
+          "oracle_text": "+1: Create a 3/3 green Beast creature token.\n−3: Draw cards equal to the greatest power among creatures you control.\n−6: Create a 6/6 green Wurm creature token for each land you control."
         }
       ]
     },
@@ -8408,7 +8408,7 @@
           "edhrec_commanders": 3,
           "priority_score": 142.8,
           "source": "both",
-          "oracle_text": "As this enchantment enters, choose Mardu or Jeskai.\n\u2022 Mardu \u2014 If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\n\u2022 Jeskai \u2014 At the beginning of your upkeep, create a 1/1 red Goblin creature token. It gains lifelink and haste until end of turn."
+          "oracle_text": "As this enchantment enters, choose Mardu or Jeskai.\n• Mardu — If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\n• Jeskai — At the beginning of your upkeep, create a 1/1 red Goblin creature token. It gains lifelink and haste until end of turn."
         },
         {
           "name": "Parallel Lives",
@@ -8629,7 +8629,7 @@
           "edhrec_commanders": 3,
           "priority_score": 130.0,
           "source": "both",
-          "oracle_text": "+1: Creatures you control get +1/+1 and gain haste until end of turn.\n\u22122: Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.\n\u22126: Create five 4/4 red Dragon creature tokens with flying."
+          "oracle_text": "+1: Creatures you control get +1/+1 and gain haste until end of turn.\n−2: Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.\n−6: Create five 4/4 red Dragon creature tokens with flying."
         },
         {
           "name": "Rith, Liberated Primeval",
@@ -8867,7 +8867,7 @@
           "edhrec_commanders": 1,
           "priority_score": 119.5,
           "source": "both",
-          "oracle_text": "Haste\nLieutenant \u2014 At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn."
+          "oracle_text": "Haste\nLieutenant — At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn."
         },
         {
           "name": "Lena, Selfless Champion",
@@ -9077,7 +9077,7 @@
           "edhrec_commanders": 1,
           "priority_score": 111.7,
           "source": "both",
-          "oracle_text": "+1: Add X mana in any combination of {R} and/or {G}, where X is the number of creatures you control.\n0: Create a 2/2 red and green Satyr creature token with haste.\n\u22126: Exile the top seven cards of your library. You may put any number of creature and/or land cards from among them onto the battlefield."
+          "oracle_text": "+1: Add X mana in any combination of {R} and/or {G}, where X is the number of creatures you control.\n0: Create a 2/2 red and green Satyr creature token with haste.\n−6: Exile the top seven cards of your library. You may put any number of creature and/or land cards from among them onto the battlefield."
         },
         {
           "name": "Martial Coup",
@@ -9156,7 +9156,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.0,
           "source": "both",
-          "oracle_text": "+1: Put a +1/+1 counter on up to one target creature. It gains indestructible until end of turn.\n\u22122: Whenever one or more nontoken creatures attack this turn, create that many 1/1 white Soldier creature tokens that are tapped and attacking.\n\u22126: You get an emblem with \"At the beginning of combat on your turn, create a 1/1 white Soldier creature token, then put a +1/+1 counter on each creature you control.\""
+          "oracle_text": "+1: Put a +1/+1 counter on up to one target creature. It gains indestructible until end of turn.\n−2: Whenever one or more nontoken creatures attack this turn, create that many 1/1 white Soldier creature tokens that are tapped and attacking.\n−6: You get an emblem with \"At the beginning of combat on your turn, create a 1/1 white Soldier creature token, then put a +1/+1 counter on each creature you control.\""
         },
         {
           "name": "Chandra, Flamecaller",
@@ -9170,7 +9170,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.0,
           "source": "both",
-          "oracle_text": "+1: Create two 3/1 red Elemental creature tokens with haste. Exile them at the beginning of the next end step.\n0: Discard all the cards in your hand, then draw that many cards plus one.\n\u2212X: Chandra deals X damage to each creature."
+          "oracle_text": "+1: Create two 3/1 red Elemental creature tokens with haste. Exile them at the beginning of the next end step.\n0: Discard all the cards in your hand, then draw that many cards plus one.\n−X: Chandra deals X damage to each creature."
         },
         {
           "name": "Edgar Markov",
@@ -9188,7 +9188,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.0,
           "source": "both",
-          "oracle_text": "Eminence \u2014 Whenever you cast another Vampire spell, if Edgar is in the command zone or on the battlefield, create a 1/1 black Vampire creature token.\nFirst strike, haste\nWhenever Edgar attacks, put a +1/+1 counter on each Vampire you control."
+          "oracle_text": "Eminence — Whenever you cast another Vampire spell, if Edgar is in the command zone or on the battlefield, create a 1/1 black Vampire creature token.\nFirst strike, haste\nWhenever Edgar attacks, put a +1/+1 counter on each Vampire you control."
         },
         {
           "name": "Krenko, Mob Boss",
@@ -9366,7 +9366,7 @@
           "edhrec_commanders": 6,
           "priority_score": 66.1,
           "source": "edhrec",
-          "oracle_text": "No more than one creature can attack The Eternal Wanderer each combat.\n+1: Exile up to one target artifact or creature. Return that card to the battlefield under its owner's control at the beginning of that player's next end step.\n0: Create a 2/2 white Samurai creature token with double strike.\n\u22124: For each player, choose a creature that player controls. Each player sacrifices all creatures they control not chosen this way."
+          "oracle_text": "No more than one creature can attack The Eternal Wanderer each combat.\n+1: Exile up to one target artifact or creature. Return that card to the battlefield under its owner's control at the beginning of that player's next end step.\n0: Create a 2/2 white Samurai creature token with double strike.\n−4: For each player, choose a creature that player controls. Each player sacrifices all creatures they control not chosen this way."
         },
         {
           "name": "Charismatic Conqueror",
@@ -9414,7 +9414,7 @@
           "edhrec_commanders": 5,
           "priority_score": 56.4,
           "source": "edhrec",
-          "oracle_text": "Bestow {1}{G}\nEnchanted creature gets +1/+1.\nLandfall \u2014 Whenever a land you control enters, you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token."
+          "oracle_text": "Bestow {1}{G}\nEnchanted creature gets +1/+1.\nLandfall — Whenever a land you control enters, you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token."
         },
         {
           "name": "Krenko's Command",
@@ -9444,7 +9444,7 @@
           "edhrec_commanders": 4,
           "priority_score": 49.3,
           "source": "edhrec",
-          "oracle_text": "+2: Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n+1: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.\n\u22125: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less."
+          "oracle_text": "+2: Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n+1: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.\n−5: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less."
         },
         {
           "name": "Anointed Procession",
@@ -9573,7 +9573,7 @@
           "edhrec_commanders": 3,
           "priority_score": 41.6,
           "source": "edhrec",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, choose one \u2014\n\u2022 Create a 2/2 white Cat Beast creature token.\n\u2022 Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn."
+          "oracle_text": "Landfall — Whenever a land you control enters, choose one —\n• Create a 2/2 white Cat Beast creature token.\n• Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn."
         },
         {
           "name": "Mavren Fein, Dusk Apostle",
@@ -9690,7 +9690,7 @@
           "edhrec_commanders": 2,
           "priority_score": 28.4,
           "source": "edhrec",
-          "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\"\nCorrupted \u2014 As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink."
+          "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\"\nCorrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink."
         },
         {
           "name": "Sorin, Lord of Innistrad",
@@ -9704,7 +9704,7 @@
           "edhrec_commanders": 2,
           "priority_score": 28.3,
           "source": "edhrec",
-          "oracle_text": "+1: Create a 1/1 black Vampire creature token with lifelink.\n\u22122: You get an emblem with \"Creatures you control get +1/+0.\"\n\u22126: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control."
+          "oracle_text": "+1: Create a 1/1 black Vampire creature token with lifelink.\n−2: You get an emblem with \"Creatures you control get +1/+0.\"\n−6: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control."
         },
         {
           "name": "Mahadi, Emporium Master",
@@ -9782,7 +9782,7 @@
           "edhrec_commanders": 2,
           "priority_score": 26.4,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Create three 1/1 red Goblin creature tokens.\n\u2022 Creatures you control get +1/+1 and gain haste until end of turn.\nEntwine {2}{R} (Choose both if you pay the entwine cost.)"
+          "oracle_text": "Choose one —\n• Create three 1/1 red Goblin creature tokens.\n• Creatures you control get +1/+1 and gain haste until end of turn.\nEntwine {2}{R} (Choose both if you pay the entwine cost.)"
         },
         {
           "name": "Ancient Gold Dragon",
@@ -9864,7 +9864,7 @@
           "edhrec_commanders": 1,
           "priority_score": 24.2,
           "source": "edhrec",
-          "oracle_text": "{1}{R}: Goblins you control get +1/+0 and gain haste until end of turn.\nPack tactics \u2014 Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, create a 1/1 red Goblin creature token that's tapped and attacking."
+          "oracle_text": "{1}{R}: Goblins you control get +1/+0 and gain haste until end of turn.\nPack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, create a 1/1 red Goblin creature token that's tapped and attacking."
         }
       ]
     },
@@ -10027,7 +10027,7 @@
           "edhrec_commanders": 1,
           "priority_score": 18.8,
           "source": "edhrec",
-          "oracle_text": "Raid \u2014 At the beginning of your end step, if you attacked this turn, create a 1/1 red Goblin creature token."
+          "oracle_text": "Raid — At the beginning of your end step, if you attacked this turn, create a 1/1 red Goblin creature token."
         },
         {
           "name": "Hallowed Spiritkeeper",
@@ -10102,7 +10102,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.9,
           "source": "edhrec",
-          "oracle_text": "This creature gets +1/+0 for each artifact you control.\nMagecraft \u2014 Whenever you cast or copy an instant or sorcery spell, create a Treasure token."
+          "oracle_text": "This creature gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token."
         },
         {
           "name": "You See a Pair of Goblins",
@@ -10116,7 +10116,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.7,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Charge Them \u2014 Creatures you control get +2/+0 until end of turn.\n\u2022 Befriend Them \u2014 Create two 1/1 red Goblin creature tokens."
+          "oracle_text": "Choose one —\n• Charge Them — Creatures you control get +2/+0 until end of turn.\n• Befriend Them — Create two 1/1 red Goblin creature tokens."
         },
         {
           "name": "Goblin Surprise",
@@ -10130,7 +10130,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.6,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Creatures you control get +2/+0 until end of turn.\n\u2022 Create two 1/1 red Goblin creature tokens."
+          "oracle_text": "Choose one —\n• Creatures you control get +2/+0 until end of turn.\n• Create two 1/1 red Goblin creature tokens."
         },
         {
           "name": "Hunted Witness",
@@ -10317,7 +10317,7 @@
           "edhrec_commanders": 5,
           "priority_score": 277.2,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of this creature instead."
+          "oracle_text": "Landfall — Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of this creature instead."
         },
         {
           "name": "Revel in Riches",
@@ -10361,7 +10361,7 @@
           "edhrec_commanders": 5,
           "priority_score": 154.7,
           "source": "both",
-          "oracle_text": "+1: Reveal the top four cards of your library. Put all land cards revealed this way into your hand and the rest into your graveyard.\n0: Put any number of land cards from your hand onto the battlefield tapped.\n\u22123: Create a green Treefolk creature token with reach and \"This token's power and toughness are each equal to the number of lands you control.\"\n\u22128: Return all permanent cards from your graveyard to your hand. You get an emblem with \"You have no maximum hand size.\""
+          "oracle_text": "+1: Reveal the top four cards of your library. Put all land cards revealed this way into your hand and the rest into your graveyard.\n0: Put any number of land cards from your hand onto the battlefield tapped.\n−3: Create a green Treefolk creature token with reach and \"This token's power and toughness are each equal to the number of lands you control.\"\n−8: Return all permanent cards from your graveyard to your hand. You get an emblem with \"You have no maximum hand size.\""
         },
         {
           "name": "Delina, Wild Mage",
@@ -10375,7 +10375,7 @@
           "edhrec_commanders": 1,
           "priority_score": 116.6,
           "source": "both",
-          "oracle_text": "Whenever Delina attacks, choose target creature you control, then roll a d20.\n1\u201414 | Create a tapped and attacking token that's a copy of that creature, except it's not legendary and it has \"At end of combat, exile this token.\"\n15\u201420 | Create one of those tokens. You may roll again."
+          "oracle_text": "Whenever Delina attacks, choose target creature you control, then roll a d20.\n1—14 | Create a tapped and attacking token that's a copy of that creature, except it's not legendary and it has \"At end of combat, exile this token.\"\n15—20 | Create one of those tokens. You may roll again."
         },
         {
           "name": "Rionya, Fire Dancer",
@@ -10671,7 +10671,7 @@
           "edhrec_commanders": 2,
           "priority_score": 227.2,
           "source": "both",
-          "oracle_text": "Counter target noncreature spell unless its controller pays {1}.\nFerocious \u2014 If you control a creature with power 4 or greater, counter that spell instead."
+          "oracle_text": "Counter target noncreature spell unless its controller pays {1}.\nFerocious — If you control a creature with power 4 or greater, counter that spell instead."
         },
         {
           "name": "Lotus Cobra",
@@ -10687,7 +10687,7 @@
           "edhrec_commanders": 6,
           "priority_score": 188.8,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, add one mana of any color."
+          "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color."
         }
       ]
     },
@@ -10713,7 +10713,7 @@
           "edhrec_commanders": 6,
           "priority_score": 183.0,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+          "oracle_text": "Landfall — Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
         },
         {
           "name": "Coat of Arms",
@@ -10868,7 +10868,7 @@
           "edhrec_commanders": 4,
           "priority_score": 147.6,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, add one mana of any color. Then if this is the second time this ability has resolved this turn, reveal cards from the top of your library until you reveal an Elf or Elemental card. Put that card into your hand and the rest on the bottom of your library in a random order."
+          "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color. Then if this is the second time this ability has resolved this turn, reveal cards from the top of your library until you reveal an Elf or Elemental card. Put that card into your hand and the rest on the bottom of your library in a random order."
         },
         {
           "name": "Imperial Recruiter",
@@ -11335,7 +11335,7 @@
           "edhrec_commanders": 2,
           "priority_score": 120.0,
           "source": "both",
-          "oracle_text": "Flash\nSynaptic Disintegrator \u2014 When this creature enters, destroy up to one target creature and target player mills three cards."
+          "oracle_text": "Flash\nSynaptic Disintegrator — When this creature enters, destroy up to one target creature and target player mills three cards."
         },
         {
           "name": "Obelisk of Urd",
@@ -11586,7 +11586,7 @@
           "edhrec_commanders": 1,
           "priority_score": 111.7,
           "source": "both",
-          "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nThree Autostubs \u2014 Whenever another source you control deals exactly 1 damage to a permanent or player, Ghyrson Starn deals 2 damage to that permanent or player."
+          "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nThree Autostubs — Whenever another source you control deals exactly 1 damage to a permanent or player, Ghyrson Starn deals 2 damage to that permanent or player."
         },
         {
           "name": "Soul's Majesty",
@@ -11710,7 +11710,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Domain \u2014 Target player draws a card for each basic land type among lands they control."
+          "oracle_text": "Domain — Target player draws a card for each basic land type among lands they control."
         },
         {
           "name": "Balthor the Defiled",
@@ -11833,7 +11833,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Domain \u2014 Territorial Maro's power and toughness are each equal to twice the number of basic land types among lands you control."
+          "oracle_text": "Domain — Territorial Maro's power and toughness are each equal to twice the number of basic land types among lands you control."
         },
         {
           "name": "Time Spiral",
@@ -12446,7 +12446,7 @@
           "edhrec_commanders": 6,
           "priority_score": 160.8,
           "source": "both",
-          "oracle_text": "Tap target creature.\nMetalcraft \u2014 If you control three or more artifacts, exile that creature."
+          "oracle_text": "Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature."
         },
         {
           "name": "Venerated Rotpriest",
@@ -12499,7 +12499,7 @@
     {
       "session_id": 71,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 16,
       "cards": [
@@ -12531,7 +12531,7 @@
           "edhrec_commanders": 10,
           "priority_score": 438.2,
           "source": "both",
-          "oracle_text": "{T}: Add {G}.\nChannel \u2014 {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control."
+          "oracle_text": "{T}: Add {G}.\nChannel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control."
         },
         {
           "name": "Strip Mine",
@@ -12734,7 +12734,7 @@
     {
       "session_id": 72,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 16,
       "cards": [
@@ -12827,7 +12827,7 @@
           "edhrec_commanders": 8,
           "priority_score": 204.3,
           "source": "both",
-          "oracle_text": "{T}: Add {U}.\nChannel \u2014 {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control."
+          "oracle_text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control."
         },
         {
           "name": "Three Tree City",
@@ -12977,7 +12977,7 @@
     {
       "session_id": 73,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 16,
       "cards": [
@@ -12994,7 +12994,7 @@
           "edhrec_commanders": 16,
           "priority_score": 168.5,
           "source": "edhrec",
-          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI \u2014 This Saga gains \"{T}: Add {C}.\"\nII \u2014 This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.'\"\nIII \u2014 Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle."
+          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — This Saga gains \"{T}: Add {C}.\"\nII — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.'\"\nIII — Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle."
         },
         {
           "name": "Unclaimed Territory",
@@ -13081,7 +13081,7 @@
           "edhrec_commanders": 5,
           "priority_score": 158.6,
           "source": "both",
-          "oracle_text": "{T}: Add {R}.\nChannel \u2014 {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control."
+          "oracle_text": "{T}: Add {R}.\nChannel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control."
         },
         {
           "name": "Inkmoth Nexus",
@@ -13214,7 +13214,7 @@
     {
       "session_id": 74,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 16,
       "cards": [
@@ -13430,7 +13430,7 @@
           "edhrec_commanders": 7,
           "priority_score": 80.4,
           "source": "edhrec",
-          "oracle_text": "{T}: Add {W}.\nChannel \u2014 {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less to activate for each legendary creature you control."
+          "oracle_text": "{T}: Add {W}.\nChannel — {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less to activate for each legendary creature you control."
         },
         {
           "name": "High Market",
@@ -13451,7 +13451,7 @@
     {
       "session_id": 75,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 16,
       "cards": [
@@ -13684,7 +13684,7 @@
     {
       "session_id": 76,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 4,
       "cards": [
@@ -13730,7 +13730,7 @@
           "edhrec_commanders": 1,
           "priority_score": 15.6,
           "source": "edhrec",
-          "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.\nCorrupted \u2014 {T}: Target 1/1 creature gets +2/+1 until end of turn. Activate only if an opponent has three or more poison counters."
+          "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.\nCorrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn. Activate only if an opponent has three or more poison counters."
         },
         {
           "name": "Gloomlake Verge",
@@ -13751,7 +13751,7 @@
     {
       "session_id": 77,
       "group_id": "mana-land",
-      "group_label": "Mana \u2014 Lands",
+      "group_label": "Mana — Lands",
       "status": "complete",
       "card_count": 8,
       "cards": [
@@ -13770,7 +13770,7 @@
           "edhrec_commanders": 10,
           "priority_score": 419.6,
           "source": "both",
-          "oracle_text": "{T}: Add {B}.\nChannel \u2014 {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control."
+          "oracle_text": "{T}: Add {B}.\nChannel — {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control."
         },
         {
           "name": "Buried Ruin",
@@ -13907,7 +13907,7 @@
           "edhrec_commanders": 7,
           "priority_score": 389.4,
           "source": "both",
-          "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n\u2022 Add {R} for each card in target opponent's hand.\n\u2022 Exile the top three cards of your library. You may play them this turn."
+          "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn."
         },
         {
           "name": "Deflecting Swat",
@@ -13977,7 +13977,7 @@
           "edhrec_commanders": 6,
           "priority_score": 276.5,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Counter target blue spell.\n\u2022 Destroy target blue permanent."
+          "oracle_text": "Choose one —\n• Counter target blue spell.\n• Destroy target blue permanent."
         },
         {
           "name": "Force of Vigor",
@@ -14032,7 +14032,7 @@
           "edhrec_commanders": 3,
           "priority_score": 230.9,
           "source": "both",
-          "oracle_text": "Imprint \u2014 When this artifact enters, you may exile target land you control.\nWhenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced."
+          "oracle_text": "Imprint — When this artifact enters, you may exile target land you control.\nWhenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced."
         },
         {
           "name": "Narset's Reversal",
@@ -14170,7 +14170,7 @@
           "edhrec_commanders": 3,
           "priority_score": 164.4,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Destroy all Dragon creatures.\n\u2022 Destroy all non-Dragon creatures."
+          "oracle_text": "Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures."
         },
         {
           "name": "Flare of Malice",
@@ -14244,7 +14244,7 @@
           "edhrec_commanders": 4,
           "priority_score": 146.3,
           "source": "both",
-          "oracle_text": "You may look at the top card of your library any time.\nYou may play lands from the top of your library.\nCoven \u2014 As long as you control three or more creatures with different powers, you may cast creature spells from the top of your library."
+          "oracle_text": "You may look at the top card of your library any time.\nYou may play lands from the top of your library.\nCoven — As long as you control three or more creatures with different powers, you may cast creature spells from the top of your library."
         }
       ]
     },
@@ -14269,7 +14269,7 @@
           "edhrec_commanders": 4,
           "priority_score": 144.8,
           "source": "both",
-          "oracle_text": "You may play an additional land on each of your turns.\nTo solve \u2014 You control seven or more lands. (If unsolved, solve at the beginning of your end step.)\nSolved \u2014 You may look at the top card of your library any time, and you may play lands and cast creature and enchantment spells from the top of your library."
+          "oracle_text": "You may play an additional land on each of your turns.\nTo solve — You control seven or more lands. (If unsolved, solve at the beginning of your end step.)\nSolved — You may look at the top card of your library any time, and you may play lands and cast creature and enchantment spells from the top of your library."
         },
         {
           "name": "Goblin Matron",
@@ -14299,7 +14299,7 @@
           "edhrec_commanders": 4,
           "priority_score": 140.6,
           "source": "both",
-          "oracle_text": "Buyback\u2014Sacrifice a land. (You may sacrifice a land in addition to any other costs as you cast this spell. If you do, put this card into your hand as it resolves.)\nPrevent all combat damage that would be dealt this turn."
+          "oracle_text": "Buyback—Sacrifice a land. (You may sacrifice a land in addition to any other costs as you cast this spell. If you do, put this card into your hand as it resolves.)\nPrevent all combat damage that would be dealt this turn."
         },
         {
           "name": "Mindbreak Trap",
@@ -14408,7 +14408,7 @@
           "edhrec_commanders": 3,
           "priority_score": 132.4,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Search your library for up to two creature cards, reveal them, put them into your hand, then shuffle.\n\u2022 Put up to two creature cards from your hand onto the battlefield.\nEntwine {2} (Choose both if you pay the entwine cost.)"
+          "oracle_text": "Choose one —\n• Search your library for up to two creature cards, reveal them, put them into your hand, then shuffle.\n• Put up to two creature cards from your hand onto the battlefield.\nEntwine {2} (Choose both if you pay the entwine cost.)"
         },
         {
           "name": "Cloudstone Curio",
@@ -14497,7 +14497,7 @@
           "edhrec_commanders": 1,
           "priority_score": 126.9,
           "source": "both",
-          "oracle_text": "When this creature enters, choose one \u2014\n\u2022 Each opponent loses X life, where X is the greatest number of creatures you control that have a creature type in common.\n\u2022 You gain X life, where X is the greatest number of creatures you control that have a creature type in common."
+          "oracle_text": "When this creature enters, choose one —\n• Each opponent loses X life, where X is the greatest number of creatures you control that have a creature type in common.\n• You gain X life, where X is the greatest number of creatures you control that have a creature type in common."
         }
       ]
     },
@@ -14628,7 +14628,7 @@
           "edhrec_commanders": 2,
           "priority_score": 121.5,
           "source": "both",
-          "oracle_text": "As this enchantment enters, choose Temur or Sultai.\n\u2022 Temur \u2014 Whenever you cast an instant or sorcery spell, target player mills four cards.\n\u2022 Sultai \u2014 You may play lands from your graveyard."
+          "oracle_text": "As this enchantment enters, choose Temur or Sultai.\n• Temur — Whenever you cast an instant or sorcery spell, target player mills four cards.\n• Sultai — You may play lands from your graveyard."
         }
       ]
     },
@@ -14869,7 +14869,7 @@
           "edhrec_commanders": 8,
           "priority_score": 107.4,
           "source": "edhrec",
-          "oracle_text": "Choose one or more \u2014\n\u2022 Exile all artifacts.\n\u2022 Exile all creatures.\n\u2022 Exile all enchantments.\n\u2022 Exile all graveyards."
+          "oracle_text": "Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards."
         },
         {
           "name": "Arcane Heist",
@@ -14988,7 +14988,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Nethergoyf's power is equal to the number of card types among cards in your graveyard and its toughness is equal to that number plus 1.\nEscape\u2014{2}{B}, Exile any number of other cards from your graveyard with four or more card types among them. (You may cast this card from your graveyard for its escape cost.)"
+          "oracle_text": "Nethergoyf's power is equal to the number of card types among cards in your graveyard and its toughness is equal to that number plus 1.\nEscape—{2}{B}, Exile any number of other cards from your graveyard with four or more card types among them. (You may cast this card from your graveyard for its escape cost.)"
         },
         {
           "name": "Phantasmal Image",
@@ -15069,7 +15069,7 @@
           "edhrec_commanders": 6,
           "priority_score": 70.5,
           "source": "edhrec",
-          "oracle_text": "Each opponent can't draw more than one card each turn.\n\u22122: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order."
+          "oracle_text": "Each opponent can't draw more than one card each turn.\n−2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order."
         },
         {
           "name": "Merciless Eviction",
@@ -15083,7 +15083,7 @@
           "edhrec_commanders": 4,
           "priority_score": 48.0,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Exile all artifacts.\n\u2022 Exile all creatures.\n\u2022 Exile all enchantments.\n\u2022 Exile all planeswalkers."
+          "oracle_text": "Choose one —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all planeswalkers."
         },
         {
           "name": "Opposition Agent",
@@ -15192,7 +15192,7 @@
           "edhrec_commanders": 3,
           "priority_score": 35.7,
           "source": "edhrec",
-          "oracle_text": "+1: Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.\n\u22121: Untap up to four target permanents.\n\u221210: You get an emblem with \"You may activate loyalty abilities of planeswalkers you control on any player's turn any time you could cast an instant.\"\nTeferi, Temporal Archmage can be your commander."
+          "oracle_text": "+1: Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.\n−1: Untap up to four target permanents.\n−10: You get an emblem with \"You may activate loyalty abilities of planeswalkers you control on any player's turn any time you could cast an instant.\"\nTeferi, Temporal Archmage can be your commander."
         },
         {
           "name": "Misdirection",
@@ -15222,7 +15222,7 @@
           "edhrec_commanders": 3,
           "priority_score": 35.6,
           "source": "edhrec",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, exile the top card of your library. You may play that card for as long as it remains exiled.\nAt the beginning of your end step, if there are cards exiled with this enchantment, put them into their owner's graveyard, then this enchantment deals that much damage to each opponent."
+          "oracle_text": "Landfall — Whenever a land you control enters, exile the top card of your library. You may play that card for as long as it remains exiled.\nAt the beginning of your end step, if there are cards exiled with this enchantment, put them into their owner's graveyard, then this enchantment deals that much damage to each opponent."
         },
         {
           "name": "Icetill Explorer",
@@ -15239,7 +15239,7 @@
           "edhrec_commanders": 3,
           "priority_score": 35.4,
           "source": "edhrec",
-          "oracle_text": "You may play an additional land on each of your turns.\nYou may play lands from your graveyard.\nLandfall \u2014 Whenever a land you control enters, mill a card."
+          "oracle_text": "You may play an additional land on each of your turns.\nYou may play lands from your graveyard.\nLandfall — Whenever a land you control enters, mill a card."
         },
         {
           "name": "Snuff Out",
@@ -15281,7 +15281,7 @@
       "card_count": 8,
       "cards": [
         {
-          "name": "Lim-D\u00fbl's Vault",
+          "name": "Lim-Dûl's Vault",
           "types": [
             "Instant"
           ],
@@ -15398,7 +15398,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.8,
           "source": "edhrec",
-          "oracle_text": "Kicker\u2014Tap an untapped Vampire you control. (You may tap a Vampire you control in addition to any other costs as you cast this spell.)\nTarget opponent loses half their life, rounded up. If this spell was kicked, you gain life equal to the life lost this way."
+          "oracle_text": "Kicker—Tap an untapped Vampire you control. (You may tap a Vampire you control in addition to any other costs as you cast this spell.)\nTarget opponent loses half their life, rounded up. If this spell was kicked, you gain life equal to the life lost this way."
         }
       ]
     },
@@ -15530,7 +15530,7 @@
           "edhrec_commanders": 1,
           "priority_score": 21.1,
           "source": "edhrec",
-          "oracle_text": "Whenever a creature you control deals combat damage to a player, choose one \u2014\n\u2022 Goad target creature that player controls.\n\u2022 Exile the top card of that player's library. Until end of turn, you may cast that card and you may spend mana as though it were mana of any color to cast that spell."
+          "oracle_text": "Whenever a creature you control deals combat damage to a player, choose one —\n• Goad target creature that player controls.\n• Exile the top card of that player's library. Until end of turn, you may cast that card and you may spend mana as though it were mana of any color to cast that spell."
         },
         {
           "name": "Ink-Eyes, Servant of Oni",
@@ -15694,7 +15694,7 @@
           "edhrec_commanders": 4,
           "priority_score": 148.2,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, you may put a quest counter on this enchantment.\nRemove three quest counters from this enchantment and sacrifice it: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle."
+          "oracle_text": "Landfall — Whenever a land you control enters, you may put a quest counter on this enchantment.\nRemove three quest counters from this enchantment and sacrifice it: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle."
         },
         {
           "name": "Farhaven Elf",
@@ -15908,7 +15908,7 @@
           "edhrec_commanders": 7,
           "priority_score": 76.5,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand. Then shuffle.\n\u2022 Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.\n\u2022 Exile target artifact or enchantment."
+          "oracle_text": "Choose one —\n• Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand. Then shuffle.\n• Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.\n• Exile target artifact or enchantment."
         },
         {
           "name": "Harrow",
@@ -15975,7 +15975,7 @@
           "edhrec_commanders": 2,
           "priority_score": 27.7,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n\u2022 Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+          "oracle_text": "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
         }
       ]
     },
@@ -15983,7 +15983,7 @@
       "session_id": 96,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 8,
       "cards": [
         {
@@ -16104,7 +16104,7 @@
       "session_id": 97,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 8,
       "cards": [
         {
@@ -16220,7 +16220,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.0,
           "source": "both",
-          "oracle_text": "Flash\nMold Earth \u2014 Whenever one or more lands enter under an opponent's control without being played, you may search your library for a Plains card, put it onto the battlefield tapped, then shuffle. Do this only once each turn."
+          "oracle_text": "Flash\nMold Earth — Whenever one or more lands enter under an opponent's control without being played, you may search your library for a Plains card, put it onto the battlefield tapped, then shuffle. Do this only once each turn."
         }
       ]
     },
@@ -16228,7 +16228,7 @@
       "session_id": 98,
       "group_id": "land-fetch",
       "group_label": "Lands & Land Search",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 2,
       "cards": [
         {
@@ -16243,7 +16243,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Choose one \u2014\n\u2022 Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n\u2022 Return target creature card from your graveyard to your hand.\n\u2022 Target creature gains flying until end of turn."
+          "oracle_text": "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Return target creature card from your graveyard to your hand.\n• Target creature gains flying until end of turn."
         },
         {
           "name": "Binding the Old Gods",
@@ -16257,7 +16257,7 @@
           "edhrec_commanders": 2,
           "priority_score": 25.0,
           "source": "edhrec",
-          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI \u2014 Destroy target nonland permanent an opponent controls.\nII \u2014 Search your library for a Forest card, put it onto the battlefield tapped, then shuffle.\nIII \u2014 Creatures you control gain deathtouch until end of turn."
+          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Destroy target nonland permanent an opponent controls.\nII — Search your library for a Forest card, put it onto the battlefield tapped, then shuffle.\nIII — Creatures you control gain deathtouch until end of turn."
         }
       ]
     },
@@ -17110,7 +17110,7 @@
       "session_id": 102,
       "group_id": "body-only",
       "group_label": "Body Only (No Abilities)",
-      "status": "deferred",
+      "status": "blocked",
       "card_count": 15,
       "cards": [
         {
@@ -17364,7 +17364,7 @@
     {
       "session_id": 103,
       "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
+      "group_label": "Removal — Destroy",
       "status": "ready",
       "card_count": 12,
       "cards": [
@@ -17380,7 +17380,7 @@
           "edhrec_commanders": 5,
           "priority_score": 275.1,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Abrade deals 3 damage to target creature.\n\u2022 Destroy target artifact."
+          "oracle_text": "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact."
         },
         {
           "name": "Pyroblast",
@@ -17394,7 +17394,7 @@
           "edhrec_commanders": 6,
           "priority_score": 274.4,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Counter target spell if it's blue.\n\u2022 Destroy target permanent if it's blue."
+          "oracle_text": "Choose one —\n• Counter target spell if it's blue.\n• Destroy target permanent if it's blue."
         },
         {
           "name": "Terminate",
@@ -17522,7 +17522,7 @@
           "edhrec_commanders": 3,
           "priority_score": 152.8,
           "source": "both",
-          "oracle_text": "{1}, Sacrifice this creature: Choose one \u2014\n\u2022 Destroy target artifact.\n\u2022 Destroy target enchantment.\n\u2022 Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+          "oracle_text": "{1}, Sacrifice this creature: Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
         },
         {
           "name": "Vanquish the Horde",
@@ -17543,7 +17543,7 @@
     {
       "session_id": 104,
       "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
+      "group_label": "Removal — Destroy",
       "status": "ready",
       "card_count": 12,
       "cards": [
@@ -17601,7 +17601,7 @@
           "edhrec_commanders": 3,
           "priority_score": 142.0,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 All creatures get -1/-1 until end of turn.\n\u2022 Destroy target enchantment.\n\u2022 Regenerate each creature you control."
+          "oracle_text": "Choose one —\n• All creatures get -1/-1 until end of turn.\n• Destroy target enchantment.\n• Regenerate each creature you control."
         },
         {
           "name": "Casualties of War",
@@ -17615,7 +17615,7 @@
           "edhrec_commanders": 3,
           "priority_score": 139.8,
           "source": "both",
-          "oracle_text": "Choose one or more \u2014\n\u2022 Destroy target artifact.\n\u2022 Destroy target creature.\n\u2022 Destroy target enchantment.\n\u2022 Destroy target land.\n\u2022 Destroy target planeswalker."
+          "oracle_text": "Choose one or more —\n• Destroy target artifact.\n• Destroy target creature.\n• Destroy target enchantment.\n• Destroy target land.\n• Destroy target planeswalker."
         },
         {
           "name": "Vindicate",
@@ -17643,7 +17643,7 @@
           "edhrec_commanders": 3,
           "priority_score": 135.6,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Destroy target artifact.\n\u2022 Change the target of target spell or ability with a single target.\n\u2022 One or two target creatures can't block this turn."
+          "oracle_text": "Choose one —\n• Destroy target artifact.\n• Change the target of target spell or ability with a single target.\n• One or two target creatures can't block this turn."
         },
         {
           "name": "Fumigate",
@@ -17671,7 +17671,7 @@
           "edhrec_commanders": 3,
           "priority_score": 130.7,
           "source": "both",
-          "oracle_text": "Choose up to five {P} worth of modes. You may choose the same mode more than once.\n{P} \u2014 Put a +1/+1 counter on a creature you control. It gains vigilance and trample until end of turn.\n{P}{P} \u2014 Choose artifact or enchantment. Destroy all permanents of the chosen type.\n{P}{P}{P} \u2014 Draw cards equal to the greatest power among creatures you control."
+          "oracle_text": "Choose up to five {P} worth of modes. You may choose the same mode more than once.\n{P} — Put a +1/+1 counter on a creature you control. It gains vigilance and trample until end of turn.\n{P}{P} — Choose artifact or enchantment. Destroy all permanents of the chosen type.\n{P}{P}{P} — Draw cards equal to the greatest power among creatures you control."
         },
         {
           "name": "Collective Resistance",
@@ -17687,7 +17687,7 @@
           "edhrec_commanders": 2,
           "priority_score": 120.4,
           "source": "both",
-          "oracle_text": "Escalate {G} (Pay this cost for each mode chosen beyond the first.)\nChoose one or more \u2014\n\u2022 Destroy target artifact.\n\u2022 Destroy target enchantment.\n\u2022 Target creature gains hexproof and indestructible until end of turn."
+          "oracle_text": "Escalate {G} (Pay this cost for each mode chosen beyond the first.)\nChoose one or more —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Target creature gains hexproof and indestructible until end of turn."
         },
         {
           "name": "Nullmage Shepherd",
@@ -17724,7 +17724,7 @@
     {
       "session_id": 105,
       "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
+      "group_label": "Removal — Destroy",
       "status": "ready",
       "card_count": 12,
       "cards": [
@@ -17768,7 +17768,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Choose one \u2014\n\u2022 Brotherhood's End deals 3 damage to each creature and each planeswalker.\n\u2022 Destroy all artifacts with mana value 3 or less."
+          "oracle_text": "Choose one —\n• Brotherhood's End deals 3 damage to each creature and each planeswalker.\n• Destroy all artifacts with mana value 3 or less."
         },
         {
           "name": "Austere Command",
@@ -17782,7 +17782,7 @@
           "edhrec_commanders": 8,
           "priority_score": 91.3,
           "source": "edhrec",
-          "oracle_text": "Choose two \u2014\n\u2022 Destroy all artifacts.\n\u2022 Destroy all enchantments.\n\u2022 Destroy all creatures with mana value 3 or less.\n\u2022 Destroy all creatures with mana value 4 or greater."
+          "oracle_text": "Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater."
         },
         {
           "name": "Damn",
@@ -17840,7 +17840,7 @@
           "edhrec_commanders": 4,
           "priority_score": 47.9,
           "source": "edhrec",
-          "oracle_text": "+1: Create three 1/1 white Soldier creature tokens.\n\u22123: Destroy all creatures with power 4 or greater.\n\u22127: You get an emblem with \"Creatures you control get +2/+2 and have flying.\""
+          "oracle_text": "+1: Create three 1/1 white Soldier creature tokens.\n−3: Destroy all creatures with power 4 or greater.\n−7: You get an emblem with \"Creatures you control get +2/+2 and have flying.\""
         },
         {
           "name": "Staff of Compleation",
@@ -17870,7 +17870,7 @@
           "edhrec_commanders": 4,
           "priority_score": 46.4,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Exile target player's graveyard.\n\u2022 Destroy target artifact.\n\u2022 Each creature deals 1 damage to its controller."
+          "oracle_text": "Choose one —\n• Exile target player's graveyard.\n• Destroy target artifact.\n• Each creature deals 1 damage to its controller."
         },
         {
           "name": "In Garruk's Wake",
@@ -17898,14 +17898,14 @@
           "edhrec_commanders": 4,
           "priority_score": 45.2,
           "source": "edhrec",
-          "oracle_text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n+1: Create a 1/1 white Soldier creature token.\n0: Put a +1/+1 counter on each creature you control. Those creatures gain flying until your next turn.\n\u22123: Destroy target creature an opponent controls with mana value 3 or greater."
+          "oracle_text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n+1: Create a 1/1 white Soldier creature token.\n0: Put a +1/+1 counter on each creature you control. Those creatures gain flying until your next turn.\n−3: Destroy target creature an opponent controls with mana value 3 or greater."
         }
       ]
     },
     {
       "session_id": 106,
       "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
+      "group_label": "Removal — Destroy",
       "status": "ready",
       "card_count": 12,
       "cards": [
@@ -18043,7 +18043,7 @@
           "edhrec_commanders": 1,
           "priority_score": 19.5,
           "source": "edhrec",
-          "oracle_text": "First strike, deathtouch\nWhenever Glissa Sunslayer deals combat damage to a player, choose one \u2014\n\u2022 You draw a card and lose 1 life.\n\u2022 Destroy target enchantment.\n\u2022 Remove up to three counters from target permanent."
+          "oracle_text": "First strike, deathtouch\nWhenever Glissa Sunslayer deals combat damage to a player, choose one —\n• You draw a card and lose 1 life.\n• Destroy target enchantment.\n• Remove up to three counters from target permanent."
         },
         {
           "name": "Atomize",
@@ -18096,8 +18096,8 @@
     {
       "session_id": 107,
       "group_id": "removal-destroy",
-      "group_label": "Removal \u2014 Destroy",
-      "status": "blocked",
+      "group_label": "Removal — Destroy",
+      "status": "ready",
       "card_count": 8,
       "cards": [
         {
@@ -18188,7 +18188,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Flying\nWhenever one or more Dragons you control deal combat damage to an opponent, choose one that hasn't been chosen this turn \u2014\n\u2022 Destroy target artifact that opponent controls.\n\u2022 This creature deals 4 damage to each other opponent.\n\u2022 Exile the top card of your library. You may play it this turn."
+          "oracle_text": "Flying\nWhenever one or more Dragons you control deal combat damage to an opponent, choose one that hasn't been chosen this turn —\n• Destroy target artifact that opponent controls.\n• This creature deals 4 damage to each other opponent.\n• Exile the top card of your library. You may play it this turn."
         },
         {
           "name": "Patron of the Vein",
@@ -18227,7 +18227,7 @@
     {
       "session_id": 108,
       "group_id": "mana-artifact",
-      "group_label": "Mana \u2014 Artifacts (Rocks)",
+      "group_label": "Mana — Artifacts (Rocks)",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -18245,7 +18245,7 @@
           "edhrec_commanders": 16,
           "priority_score": 481.7,
           "source": "both",
-          "oracle_text": "Imprint \u2014 When this artifact enters, you may exile a nonartifact, nonland card from your hand.\n{T}: Add one mana of any of the exiled card's colors."
+          "oracle_text": "Imprint — When this artifact enters, you may exile a nonartifact, nonland card from your hand.\n{T}: Add one mana of any of the exiled card's colors."
         },
         {
           "name": "Talisman of Hierarchy",
@@ -18403,7 +18403,7 @@
           "edhrec_commanders": 6,
           "priority_score": 161.2,
           "source": "both",
-          "oracle_text": "Indestructible\n{T}: Add {B}.\n{6}{B}, {T}, Exile a creature you control: Harness The Soul Stone. (Once harnessed, its \u221e ability is active.)\n\u221e \u2014 At the beginning of your upkeep, return target creature card from your graveyard to the battlefield."
+          "oracle_text": "Indestructible\n{T}: Add {B}.\n{6}{B}, {T}, Exile a creature you control: Harness The Soul Stone. (Once harnessed, its ∞ ability is active.)\n∞ — At the beginning of your upkeep, return target creature card from your graveyard to the battlefield."
         },
         {
           "name": "Boros Signet",
@@ -18466,7 +18466,7 @@
     {
       "session_id": 109,
       "group_id": "mana-artifact",
-      "group_label": "Mana \u2014 Artifacts (Rocks)",
+      "group_label": "Mana — Artifacts (Rocks)",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -18701,7 +18701,7 @@
     {
       "session_id": 110,
       "group_id": "mana-artifact",
-      "group_label": "Mana \u2014 Artifacts (Rocks)",
+      "group_label": "Mana — Artifacts (Rocks)",
       "status": "ready",
       "card_count": 1,
       "cards": [
@@ -18724,8 +18724,8 @@
     {
       "session_id": 111,
       "group_id": "mana-artifact",
-      "group_label": "Mana \u2014 Artifacts (Rocks)",
-      "status": "blocked",
+      "group_label": "Mana — Artifacts (Rocks)",
+      "status": "ready",
       "card_count": 1,
       "cards": [
         {
@@ -18742,7 +18742,7 @@
           "edhrec_commanders": 12,
           "priority_score": 223.5,
           "source": "both",
-          "oracle_text": "Metalcraft \u2014 {T}: Add one mana of any color. Activate only if you control three or more artifacts."
+          "oracle_text": "Metalcraft — {T}: Add one mana of any color. Activate only if you control three or more artifacts."
         }
       ]
     },
@@ -18847,7 +18847,7 @@
           "oracle_text": "Lifelink\n{2}, Sacrifice a creature: Put a +1/+1 counter on each Vampire you control."
         },
         {
-          "name": "Bartolom\u00e9 del Presidio",
+          "name": "Bartolomé del Presidio",
           "types": [
             "Creature"
           ],
@@ -18858,7 +18858,7 @@
           "edhrec_commanders": 2,
           "priority_score": 138.3,
           "source": "both",
-          "oracle_text": "Sacrifice another creature or artifact: Put a +1/+1 counter on Bartolom\u00e9 del Presidio."
+          "oracle_text": "Sacrifice another creature or artifact: Put a +1/+1 counter on Bartolomé del Presidio."
         },
         {
           "name": "Unbreakable Formation",
@@ -18874,7 +18874,7 @@
           "edhrec_commanders": 3,
           "priority_score": 136.1,
           "source": "both",
-          "oracle_text": "Creatures you control gain indestructible until end of turn.\nAddendum \u2014 If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn."
+          "oracle_text": "Creatures you control gain indestructible until end of turn.\nAddendum — If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn."
         },
         {
           "name": "Drana, Liberator of Malakir",
@@ -18978,7 +18978,7 @@
           "edhrec_commanders": 2,
           "priority_score": 125.6,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, choose one \u2014\n\u2022 Put a +1/+1 counter on target creature.\n\u2022 You gain 2 life."
+          "oracle_text": "Landfall — Whenever a land you control enters, choose one —\n• Put a +1/+1 counter on target creature.\n• You gain 2 life."
         },
         {
           "name": "Immaculate Magistrate",
@@ -19009,7 +19009,7 @@
           "edhrec_commanders": 1,
           "priority_score": 119.0,
           "source": "both",
-          "oracle_text": "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid \u2014 At the beginning of your end step, if you attacked this turn, return target creature card with mana value less than or equal to Alesha's power from your graveyard to the battlefield."
+          "oracle_text": "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid — At the beginning of your end step, if you attacked this turn, return target creature card with mana value less than or equal to Alesha's power from your graveyard to the battlefield."
         },
         {
           "name": "Forgotten Ancient",
@@ -19149,7 +19149,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.0,
           "source": "both",
-          "oracle_text": "Trample\nLandfall \u2014 Whenever a land you control enters, put a +1/+1 counter on this creature. If that land is a Forest, put two +1/+1 counters on this creature instead."
+          "oracle_text": "Trample\nLandfall — Whenever a land you control enters, put a +1/+1 counter on this creature. If that land is a Forest, put two +1/+1 counters on this creature instead."
         },
         {
           "name": "Conclave Mentor",
@@ -19194,7 +19194,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nLandfall \u2014 Whenever a land you control enters, put a +1/+1 counter on this creature."
+          "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nLandfall — Whenever a land you control enters, put a +1/+1 counter on this creature."
         },
         {
           "name": "Cathars' Crusade",
@@ -19506,7 +19506,7 @@
       "session_id": 118,
       "group_id": "counters-plus",
       "group_label": "+1/+1 Counters",
-      "status": "deferred",
+      "status": "ready",
       "card_count": 3,
       "cards": [
         {
@@ -19914,7 +19914,7 @@
           "edhrec_commanders": 2,
           "priority_score": 28.9,
           "source": "edhrec",
-          "oracle_text": "Flying, menace\nWhen Junji dies, choose one \u2014\n\u2022 Each opponent discards two cards and loses 2 life.\n\u2022 Put target non-Dragon creature card from a graveyard onto the battlefield under your control. You lose 2 life."
+          "oracle_text": "Flying, menace\nWhen Junji dies, choose one —\n• Each opponent discards two cards and loses 2 life.\n• Put target non-Dragon creature card from a graveyard onto the battlefield under your control. You lose 2 life."
         },
         {
           "name": "Blightbelly Rat",
@@ -19953,7 +19953,7 @@
       "session_id": 122,
       "group_id": "death-trigger",
       "group_label": "Death Triggers",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 10,
       "cards": [
         {
@@ -20107,14 +20107,14 @@
           "edhrec_commanders": 1,
           "priority_score": 18.4,
           "source": "edhrec",
-          "oracle_text": "Flying\nWard\u2014Sacrifice a creature.\nWhenever a creature dies, target opponent loses 2 life and you gain 2 life."
+          "oracle_text": "Flying\nWard—Sacrifice a creature.\nWhenever a creature dies, target opponent loses 2 life and you gain 2 life."
         }
       ]
     },
     {
       "session_id": 123,
       "group_id": "activated-tap",
-      "group_label": "Activated \u2014 Tap Cost",
+      "group_label": "Activated — Tap Cost",
       "status": "ready",
       "card_count": 8,
       "cards": [
@@ -20160,7 +20160,7 @@
           "edhrec_commanders": 5,
           "priority_score": 173.7,
           "source": "both",
-          "oracle_text": "Vivid \u2014 {T}: For each color among permanents you control, add one mana of that color."
+          "oracle_text": "Vivid — {T}: For each color among permanents you control, add one mana of that color."
         },
         {
           "name": "Scroll Rack",
@@ -20237,7 +20237,7 @@
     {
       "session_id": 124,
       "group_id": "activated-tap",
-      "group_label": "Activated \u2014 Tap Cost",
+      "group_label": "Activated — Tap Cost",
       "status": "ready",
       "card_count": 8,
       "cards": [
@@ -20361,7 +20361,7 @@
     {
       "session_id": 125,
       "group_id": "activated-tap",
-      "group_label": "Activated \u2014 Tap Cost",
+      "group_label": "Activated — Tap Cost",
       "status": "ready",
       "card_count": 8,
       "cards": [
@@ -20485,7 +20485,7 @@
     {
       "session_id": 126,
       "group_id": "activated-tap",
-      "group_label": "Activated \u2014 Tap Cost",
+      "group_label": "Activated — Tap Cost",
       "status": "ready",
       "card_count": 1,
       "cards": [
@@ -20508,8 +20508,8 @@
     {
       "session_id": 127,
       "group_id": "activated-tap",
-      "group_label": "Activated \u2014 Tap Cost",
-      "status": "blocked",
+      "group_label": "Activated — Tap Cost",
+      "status": "ready",
       "card_count": 2,
       "cards": [
         {
@@ -20549,7 +20549,7 @@
     {
       "session_id": 128,
       "group_id": "mana-creature",
-      "group_label": "Mana \u2014 Creatures (Dorks)",
+      "group_label": "Mana — Creatures (Dorks)",
       "status": "ready",
       "card_count": 16,
       "cards": [
@@ -20733,7 +20733,7 @@
           "edhrec_commanders": 1,
           "priority_score": 121.5,
           "source": "both",
-          "oracle_text": "Start your engines!\nOther Goblins you control have haste.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able.\nMax speed \u2014 {T}: Add {R} for each Goblin you control."
+          "oracle_text": "Start your engines!\nOther Goblins you control have haste.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able.\nMax speed — {T}: Add {R} for each Goblin you control."
         },
         {
           "name": "Elvish Harbinger",
@@ -20801,7 +20801,7 @@
     {
       "session_id": 129,
       "group_id": "mana-creature",
-      "group_label": "Mana \u2014 Creatures (Dorks)",
+      "group_label": "Mana — Creatures (Dorks)",
       "status": "ready",
       "card_count": 3,
       "cards": [
@@ -21225,7 +21225,7 @@
       "session_id": 133,
       "group_id": "cant-restriction",
       "group_label": "Restrictions & Stax",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 1,
       "cards": [
         {
@@ -21247,7 +21247,7 @@
     {
       "session_id": 134,
       "group_id": "activated-sacrifice",
-      "group_label": "Activated \u2014 Sacrifice Cost",
+      "group_label": "Activated — Sacrifice Cost",
       "status": "ready",
       "card_count": 8,
       "cards": [
@@ -21375,7 +21375,7 @@
     {
       "session_id": 135,
       "group_id": "activated-sacrifice",
-      "group_label": "Activated \u2014 Sacrifice Cost",
+      "group_label": "Activated — Sacrifice Cost",
       "status": "ready",
       "card_count": 8,
       "cards": [
@@ -21498,7 +21498,7 @@
     {
       "session_id": 136,
       "group_id": "activated-sacrifice",
-      "group_label": "Activated \u2014 Sacrifice Cost",
+      "group_label": "Activated — Sacrifice Cost",
       "status": "ready",
       "card_count": 3,
       "cards": [
@@ -21567,7 +21567,7 @@
           "edhrec_commanders": 6,
           "priority_score": 269.0,
           "source": "both",
-          "oracle_text": "Return target creature card from your graveyard to the battlefield.\nFlashback\u2014Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)"
+          "oracle_text": "Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)"
         },
         {
           "name": "Bloodsoaked Champion",
@@ -21583,7 +21583,7 @@
           "edhrec_commanders": 1,
           "priority_score": 210.0,
           "source": "both",
-          "oracle_text": "This creature can't block.\nRaid \u2014 {1}{B}: Return this card from your graveyard to the battlefield. Activate only if you attacked this turn."
+          "oracle_text": "This creature can't block.\nRaid — {1}{B}: Return this card from your graveyard to the battlefield. Activate only if you attacked this turn."
         },
         {
           "name": "Open the Vaults",
@@ -21701,7 +21701,7 @@
       "session_id": 139,
       "group_id": "graveyard-recursion",
       "group_label": "Graveyard Recursion",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 8,
       "cards": [
         {
@@ -21827,7 +21827,7 @@
       "session_id": 140,
       "group_id": "graveyard-recursion",
       "group_label": "Graveyard Recursion",
-      "status": "deferred",
+      "status": "blocked",
       "card_count": 1,
       "cards": [
         {
@@ -21850,7 +21850,7 @@
     {
       "session_id": 141,
       "group_id": "removal-damage-target",
-      "group_label": "Removal \u2014 Targeted Damage",
+      "group_label": "Removal — Targeted Damage",
       "status": "ready",
       "card_count": 12,
       "cards": [
@@ -21866,7 +21866,7 @@
           "edhrec_commanders": 4,
           "priority_score": 270.6,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Boros Charm deals 4 damage to target player or planeswalker.\n\u2022 Permanents you control gain indestructible until end of turn.\n\u2022 Target creature gains double strike until end of turn."
+          "oracle_text": "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn."
         },
         {
           "name": "Goblin Bombardment",
@@ -21955,7 +21955,7 @@
           "edhrec_commanders": 2,
           "priority_score": 132.1,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, create a 5/5 red and green Elemental creature token.\nWhenever Omnath or another Elemental you control dies, Omnath deals 3 damage to any target."
+          "oracle_text": "Landfall — Whenever a land you control enters, create a 5/5 red and green Elemental creature token.\nWhenever Omnath or another Elemental you control dies, Omnath deals 3 damage to any target."
         },
         {
           "name": "Sword of Fire and Ice",
@@ -22039,7 +22039,7 @@
     {
       "session_id": 142,
       "group_id": "removal-damage-target",
-      "group_label": "Removal \u2014 Targeted Damage",
+      "group_label": "Removal — Targeted Damage",
       "status": "ready",
       "card_count": 9,
       "cards": [
@@ -22071,7 +22071,7 @@
           "edhrec_commanders": 5,
           "priority_score": 55.5,
           "source": "edhrec",
-          "oracle_text": "+2: Ugin deals 3 damage to any target.\n\u2212X: Exile each permanent with mana value X or less that's one or more colors.\n\u221210: You gain 7 life, draw seven cards, then put up to seven permanent cards from your hand onto the battlefield."
+          "oracle_text": "+2: Ugin deals 3 damage to any target.\n−X: Exile each permanent with mana value X or less that's one or more colors.\n−10: You gain 7 life, draw seven cards, then put up to seven permanent cards from your hand onto the battlefield."
         },
         {
           "name": "Sorin, Imperious Bloodlord",
@@ -22085,7 +22085,7 @@
           "edhrec_commanders": 2,
           "priority_score": 39.9,
           "source": "edhrec",
-          "oracle_text": "+1: Target creature you control gains deathtouch and lifelink until end of turn. If it's a Vampire, put a +1/+1 counter on it.\n+1: You may sacrifice a Vampire. When you do, Sorin deals 3 damage to any target and you gain 3 life.\n\u22123: You may put a Vampire creature card from your hand onto the battlefield."
+          "oracle_text": "+1: Target creature you control gains deathtouch and lifelink until end of turn. If it's a Vampire, put a +1/+1 counter on it.\n+1: You may sacrifice a Vampire. When you do, Sorin deals 3 damage to any target and you gain 3 life.\n−3: You may put a Vampire creature card from your hand onto the battlefield."
         },
         {
           "name": "Siege-Gang Commander",
@@ -22145,7 +22145,7 @@
           "edhrec_commanders": 1,
           "priority_score": 18.9,
           "source": "edhrec",
-          "oracle_text": "Lieutenant \u2014 At the beginning of combat on your turn, if you control your commander, create two 1/1 red Goblin creature tokens. Those tokens gain haste until end of turn.\n{2}, Sacrifice a Goblin: This creature deals 1 damage to any target."
+          "oracle_text": "Lieutenant — At the beginning of combat on your turn, if you control your commander, create two 1/1 red Goblin creature tokens. Those tokens gain haste until end of turn.\n{2}, Sacrifice a Goblin: This creature deals 1 damage to any target."
         },
         {
           "name": "Izzet Charm",
@@ -22159,7 +22159,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.3,
           "source": "edhrec",
-          "oracle_text": "Choose one \u2014\n\u2022 Counter target noncreature spell unless its controller pays {2}.\n\u2022 Izzet Charm deals 2 damage to target creature.\n\u2022 Draw two cards, then discard two cards."
+          "oracle_text": "Choose one —\n• Counter target noncreature spell unless its controller pays {2}.\n• Izzet Charm deals 2 damage to target creature.\n• Draw two cards, then discard two cards."
         },
         {
           "name": "Goblin Cratermaker",
@@ -22173,15 +22173,15 @@
           "edhrec_commanders": 1,
           "priority_score": 16.5,
           "source": "edhrec",
-          "oracle_text": "{1}, Sacrifice this creature: Choose one \u2014\n\u2022 This creature deals 2 damage to target creature.\n\u2022 Destroy target colorless nonland permanent."
+          "oracle_text": "{1}, Sacrifice this creature: Choose one —\n• This creature deals 2 damage to target creature.\n• Destroy target colorless nonland permanent."
         }
       ]
     },
     {
       "session_id": 143,
       "group_id": "removal-damage-target",
-      "group_label": "Removal \u2014 Targeted Damage",
-      "status": "blocked",
+      "group_label": "Removal — Targeted Damage",
+      "status": "ready",
       "card_count": 2,
       "cards": [
         {
@@ -22196,7 +22196,7 @@
           "edhrec_commanders": 1,
           "priority_score": 110.0,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Naya Charm deals 3 damage to target creature.\n\u2022 Return target card from a graveyard to its owner's hand.\n\u2022 Tap all creatures target player controls."
+          "oracle_text": "Choose one —\n• Naya Charm deals 3 damage to target creature.\n• Return target card from a graveyard to its owner's hand.\n• Tap all creatures target player controls."
         },
         {
           "name": "Boggart Shenanigans",
@@ -22233,7 +22233,7 @@
           "edhrec_commanders": 7,
           "priority_score": 184.5,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Draw cards equal to the greatest power among non-Human creatures you control.\n\u2022 Non-Human creatures you control get +3/+3 until end of turn."
+          "oracle_text": "Choose one —\n• Draw cards equal to the greatest power among non-Human creatures you control.\n• Non-Human creatures you control get +3/+3 until end of turn."
         },
         {
           "name": "Mirari's Wake",
@@ -22508,7 +22508,7 @@
           "edhrec_commanders": 2,
           "priority_score": 26.6,
           "source": "edhrec",
-          "oracle_text": "Each creature you control gets +1/+0 for each time it has attacked this turn.\nLandfall \u2014 Whenever a land you control enters, if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control."
+          "oracle_text": "Each creature you control gets +1/+0 for each time it has attacked this turn.\nLandfall — Whenever a land you control enters, if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control."
         },
         {
           "name": "Joraga Warcaller",
@@ -22632,7 +22632,7 @@
       "session_id": 147,
       "group_id": "pump-buff",
       "group_label": "Pump & Buff",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 1,
       "cards": [
         {
@@ -22828,7 +22828,7 @@
           "edhrec_commanders": 1,
           "priority_score": 113.1,
           "source": "both",
-          "oracle_text": "Return a land you control to its owner's hand: Untap this creature. It gains hexproof until end of turn.\nLandfall \u2014 Whenever a land you control enters, target creature an opponent controls attacks during its controller's next combat phase if able."
+          "oracle_text": "Return a land you control to its owner's hand: Untap this creature. It gains hexproof until end of turn.\nLandfall — Whenever a land you control enters, target creature an opponent controls attacks during its controller's next combat phase if able."
         },
         {
           "name": "Cunning Rhetoric",
@@ -23142,7 +23142,7 @@
           "edhrec_commanders": 1,
           "priority_score": 16.2,
           "source": "edhrec",
-          "oracle_text": "Flying\nMelee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)\nLieutenant \u2014 As long as you control your commander, other creatures you control have melee."
+          "oracle_text": "Flying\nMelee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)\nLieutenant — As long as you control your commander, other creatures you control have melee."
         }
       ]
     },
@@ -23230,7 +23230,7 @@
     {
       "session_id": 153,
       "group_id": "removal-exile",
-      "group_label": "Removal \u2014 Exile",
+      "group_label": "Removal — Exile",
       "status": "ready",
       "card_count": 11,
       "cards": [
@@ -23393,14 +23393,14 @@
           "edhrec_commanders": 2,
           "priority_score": 25.6,
           "source": "edhrec",
-          "oracle_text": "+1: Draw a card. At the beginning of the next end step, untap up to two lands.\n\u22123: Put target nonland permanent into its owner's library third from the top.\n\u22128: You get an emblem with \"Whenever you draw a card, exile target permanent an opponent controls.\""
+          "oracle_text": "+1: Draw a card. At the beginning of the next end step, untap up to two lands.\n−3: Put target nonland permanent into its owner's library third from the top.\n−8: You get an emblem with \"Whenever you draw a card, exile target permanent an opponent controls.\""
         }
       ]
     },
     {
       "session_id": 154,
       "group_id": "removal-exile",
-      "group_label": "Removal \u2014 Exile",
+      "group_label": "Removal — Exile",
       "status": "blocked",
       "card_count": 1,
       "cards": [
@@ -23418,15 +23418,15 @@
           "edhrec_commanders": 1,
           "priority_score": 112.9,
           "source": "both",
-          "oracle_text": "When this enchantment enters, exile up to one target artifact or creature until this enchantment leaves the battlefield.\nChannel \u2014 {1}{W}, Discard this card: Exile target artifact or creature. Return it to the battlefield under its owner's control at the beginning of the next end step."
+          "oracle_text": "When this enchantment enters, exile up to one target artifact or creature until this enchantment leaves the battlefield.\nChannel — {1}{W}, Discard this card: Exile target artifact or creature. Return it to the battlefield under its owner's control at the beginning of the next end step."
         }
       ]
     },
     {
       "session_id": 155,
       "group_id": "removal-exile",
-      "group_label": "Removal \u2014 Exile",
-      "status": "deferred",
+      "group_label": "Removal — Exile",
+      "status": "ready",
       "card_count": 2,
       "cards": [
         {
@@ -23581,7 +23581,7 @@
           "edhrec_commanders": 2,
           "priority_score": 121.4,
           "source": "both",
-          "oracle_text": "Choose one \u2014\n\u2022 Counter target spell.\n\u2022 Target player draws two cards.\n\u2022 Gain control of target nonland permanent with mana value 1 or less."
+          "oracle_text": "Choose one —\n• Counter target spell.\n• Target player draws two cards.\n• Gain control of target nonland permanent with mana value 1 or less."
         },
         {
           "name": "Access Denied",
@@ -23698,7 +23698,7 @@
       "session_id": 158,
       "group_id": "counter",
       "group_label": "Counterspells",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 1,
       "cards": [
         {
@@ -23800,7 +23800,7 @@
           "edhrec_commanders": 2,
           "priority_score": 120.4,
           "source": "both",
-          "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} \u2014 Search your library for a card, then shuffle and put that card on top.\n+ {B}{B} \u2014 Target player draws three cards and loses 3 life."
+          "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} — Search your library for a card, then shuffle and put that card on top.\n+ {B}{B} — Target player draws three cards and loses 3 life."
         },
         {
           "name": "Dimir Infiltrator",
@@ -23872,7 +23872,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.\nSpell mastery \u2014 If there are two or more instant and/or sorcery cards in your graveyard, add {B}{B}{B}."
+          "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.\nSpell mastery — If there are two or more instant and/or sorcery cards in your graveyard, add {B}{B}{B}."
         },
         {
           "name": "Grim Tutor",
@@ -24098,7 +24098,7 @@
       "session_id": 163,
       "group_id": "untap-phase",
       "group_label": "Untap & Phase Effects",
-      "status": "blocked",
+      "status": "ready",
       "card_count": 1,
       "cards": [
         {
@@ -24120,7 +24120,7 @@
     {
       "session_id": 164,
       "group_id": "removal-damage-each",
-      "group_label": "Removal \u2014 Damage Sweeper",
+      "group_label": "Removal — Damage Sweeper",
       "status": "ready",
       "card_count": 12,
       "cards": [
@@ -24138,7 +24138,7 @@
           "edhrec_commanders": 2,
           "priority_score": 227.8,
           "source": "both",
-          "oracle_text": "Alliance \u2014 Whenever another creature you control enters, this creature deals 1 damage to each opponent."
+          "oracle_text": "Alliance — Whenever another creature you control enters, this creature deals 1 damage to each opponent."
         },
         {
           "name": "Syr Konrad, the Grim",
@@ -24202,7 +24202,7 @@
           "edhrec_commanders": 1,
           "priority_score": 111.6,
           "source": "both",
-          "oracle_text": "Reach\nLandfall \u2014 Whenever a land you control enters, this creature deals 1 damage to each opponent."
+          "oracle_text": "Reach\nLandfall — Whenever a land you control enters, this creature deals 1 damage to each opponent."
         },
         {
           "name": "Glint-Horn Buccaneer",
@@ -24249,7 +24249,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Choose two \u2014\n\u2022 Incendiary Command deals 4 damage to target player or planeswalker.\n\u2022 Incendiary Command deals 2 damage to each creature.\n\u2022 Destroy target nonbasic land.\n\u2022 Each player discards all the cards in their hand, then draws that many cards."
+          "oracle_text": "Choose two —\n• Incendiary Command deals 4 damage to target player or planeswalker.\n• Incendiary Command deals 2 damage to each creature.\n• Destroy target nonbasic land.\n• Each player discards all the cards in their hand, then draws that many cards."
         },
         {
           "name": "Omnath, Locus of Creation",
@@ -24265,7 +24265,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "When Omnath enters, draw a card.\nLandfall \u2014 Whenever a land you control enters, you gain 4 life if this is the first time this ability has resolved this turn. If it's the second time, add {R}{G}{W}{U}. If it's the third time, Omnath deals 4 damage to each opponent and each planeswalker you don't control."
+          "oracle_text": "When Omnath enters, draw a card.\nLandfall — Whenever a land you control enters, you gain 4 life if this is the first time this ability has resolved this turn. If it's the second time, add {R}{G}{W}{U}. If it's the third time, Omnath deals 4 damage to each opponent and each planeswalker you don't control."
         },
         {
           "name": "Warleader's Call",
@@ -24317,7 +24317,7 @@
     {
       "session_id": 165,
       "group_id": "removal-damage-each",
-      "group_label": "Removal \u2014 Damage Sweeper",
+      "group_label": "Removal — Damage Sweeper",
       "status": "ready",
       "card_count": 5,
       "cards": [
@@ -24361,7 +24361,7 @@
           "edhrec_commanders": 1,
           "priority_score": 17.6,
           "source": "edhrec",
-          "oracle_text": "Whenever this creature attacks or becomes the target of a spell an opponent controls, choose one \u2014\n\u2022 This creature deals 3 damage to each opponent.\n\u2022 Exile the top two cards of your library. Choose one of them. Until the end of your next turn, you may play that card."
+          "oracle_text": "Whenever this creature attacks or becomes the target of a spell an opponent controls, choose one —\n• This creature deals 3 damage to each opponent.\n• Exile the top two cards of your library. Choose one of them. Until the end of your next turn, you may play that card."
         },
         {
           "name": "Creeping Bloodsucker",
@@ -24398,7 +24398,7 @@
     {
       "session_id": 166,
       "group_id": "removal-bounce",
-      "group_label": "Removal \u2014 Bounce",
+      "group_label": "Removal — Bounce",
       "status": "ready",
       "card_count": 7,
       "cards": [
@@ -24444,7 +24444,7 @@
           "edhrec_commanders": 3,
           "priority_score": 131.0,
           "source": "both",
-          "oracle_text": "Choose two \u2014\n\u2022 Counter target spell.\n\u2022 Return target permanent to its owner's hand.\n\u2022 Tap all creatures your opponents control.\n\u2022 Draw a card."
+          "oracle_text": "Choose two —\n• Counter target spell.\n• Return target permanent to its owner's hand.\n• Tap all creatures your opponents control.\n• Draw a card."
         },
         {
           "name": "Walker of Secret Ways",
@@ -24511,8 +24511,8 @@
     {
       "session_id": 167,
       "group_id": "removal-bounce",
-      "group_label": "Removal \u2014 Bounce",
-      "status": "blocked",
+      "group_label": "Removal — Bounce",
+      "status": "ready",
       "card_count": 3,
       "cards": [
         {
@@ -24561,7 +24561,7 @@
           "edhrec_commanders": 3,
           "priority_score": 35.1,
           "source": "edhrec",
-          "oracle_text": "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one \u2014\n\u2022 Return target spell you don't control to its owner's hand.\n\u2022 Return target nonland permanent to its owner's hand."
+          "oracle_text": "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one —\n• Return target spell you don't control to its owner's hand.\n• Return target nonland permanent to its owner's hand."
         }
       ]
     },
@@ -25599,7 +25599,7 @@
           "edhrec_commanders": 4,
           "priority_score": 48.5,
           "source": "edhrec",
-          "oracle_text": "Planeswalkers you control have \"[0]: Proliferate\" and \"[\u221212]: Take an extra turn after this one.\"\nWhenever you cast a noncreature spell, choose a counter on target permanent. Put an additional counter of that kind on that permanent."
+          "oracle_text": "Planeswalkers you control have \"[0]: Proliferate\" and \"[−12]: Take an extra turn after this one.\"\nWhenever you cast a noncreature spell, choose a counter on target permanent. Put an additional counter of that kind on that permanent."
         }
       ]
     },
@@ -25625,7 +25625,7 @@
           "edhrec_commanders": 3,
           "priority_score": 143.3,
           "source": "both",
-          "oracle_text": "Landfall \u2014 Whenever a land you control enters, choose one \u2014\n\u2022 You may tap or untap target creature.\n\u2022 Scry 1. (Look at the top card of your library. You may put that card on the bottom.)"
+          "oracle_text": "Landfall — Whenever a land you control enters, choose one —\n• You may tap or untap target creature.\n• Scry 1. (Look at the top card of your library. You may put that card on the bottom.)"
         },
         {
           "name": "Faerie Seer",
@@ -25659,7 +25659,7 @@
           "edhrec_commanders": 3,
           "priority_score": 138.5,
           "source": "both",
-          "oracle_text": "When this creature enters, create a 0/1 white Goat creature token.\nSacrifice another creature: Scry 1.\nEscape\u2014{3}{B}{B}, Exile four other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)\nThis creature escapes with two +1/+1 counters on it."
+          "oracle_text": "When this creature enters, create a 0/1 white Goat creature token.\nSacrifice another creature: Scry 1.\nEscape—{3}{B}{B}, Exile four other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)\nThis creature escapes with two +1/+1 counters on it."
         },
         {
           "name": "Umbral Collar Zealot",
@@ -25733,7 +25733,7 @@
     {
       "session_id": 182,
       "group_id": "mana-other",
-      "group_label": "Mana \u2014 Other",
+      "group_label": "Mana — Other",
       "status": "ready",
       "card_count": 5,
       "cards": [
@@ -25767,7 +25767,7 @@
           "edhrec_commanders": 5,
           "priority_score": 155.7,
           "source": "both",
-          "oracle_text": "Lands you control have \"{T}: Add one mana of any color.\"\n+1: Up to one target land you control becomes a 3/3 Elemental creature with vigilance, hexproof, and haste until your next turn. It's still a land.\n\u22122: Mill three cards. You may put a permanent card from among the milled cards into your hand.\n\u22127: You get an emblem with \"You may play lands and cast permanent spells from your graveyard.\""
+          "oracle_text": "Lands you control have \"{T}: Add one mana of any color.\"\n+1: Up to one target land you control becomes a 3/3 Elemental creature with vigilance, hexproof, and haste until your next turn. It's still a land.\n−2: Mill three cards. You may put a permanent card from among the milled cards into your hand.\n−7: You get an emblem with \"You may play lands and cast permanent spells from your graveyard.\""
         },
         {
           "name": "Tyvar Kell",
@@ -25781,7 +25781,7 @@
           "edhrec_commanders": 3,
           "priority_score": 145.8,
           "source": "both",
-          "oracle_text": "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.\n0: Create a 1/1 green Elf Warrior creature token.\n\u22126: You get an emblem with \"Whenever you cast an Elf spell, it gains haste until end of turn and you draw two cards.\""
+          "oracle_text": "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.\n0: Create a 1/1 green Elf Warrior creature token.\n−6: You get an emblem with \"Whenever you cast an Elf spell, it gains haste until end of turn and you draw two cards.\""
         },
         {
           "name": "Elven Chorus",
@@ -25809,7 +25809,7 @@
           "edhrec_commanders": 2,
           "priority_score": 28.0,
           "source": "edhrec",
-          "oracle_text": "+2: Create a 1/1 green Elf Druid creature token with \"{T}: Add {G}.\"\n\u22122: Destroy target artifact or enchantment.\n\u22126: Draw a card for each green creature you control.\nFreyalise, Llanowar's Fury can be your commander."
+          "oracle_text": "+2: Create a 1/1 green Elf Druid creature token with \"{T}: Add {G}.\"\n−2: Destroy target artifact or enchantment.\n−6: Draw a card for each green creature you control.\nFreyalise, Llanowar's Fury can be your commander."
         }
       ]
     },
@@ -26048,7 +26048,7 @@
           "edhrec_commanders": 6,
           "priority_score": 168.5,
           "source": "both",
-          "oracle_text": "Play with the top card of your library revealed.\nYou may play lands from the top of your library.\nLandfall \u2014 Whenever a land you control enters, you gain 1 life."
+          "oracle_text": "Play with the top card of your library revealed.\nYou may play lands from the top of your library.\nLandfall — Whenever a land you control enters, you gain 1 life."
         },
         {
           "name": "Nadier's Nightblade",
@@ -26079,7 +26079,7 @@
           "edhrec_commanders": 0,
           "priority_score": 100.0,
           "source": "deck",
-          "oracle_text": "Defender\nLandfall \u2014 Whenever a land you control enters, you gain 1 life."
+          "oracle_text": "Defender\nLandfall — Whenever a land you control enters, you gain 1 life."
         },
         {
           "name": "Bontu's Monument",
@@ -26137,7 +26137,7 @@
     {
       "session_id": 188,
       "group_id": "removal-minus",
-      "group_label": "Removal \u2014 Debuff",
+      "group_label": "Removal — Debuff",
       "status": "ready",
       "card_count": 4,
       "cards": [
@@ -26155,7 +26155,7 @@
           "edhrec_commanders": 3,
           "priority_score": 130.3,
           "source": "both",
-          "oracle_text": "Whenever equipped creature deals combat damage, put two charge counters on Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one \u2014\n\u2022 Equipped creature gets +2/+2 until end of turn.\n\u2022 Target creature gets -1/-1 until end of turn.\n\u2022 You gain 2 life.\nEquip {2}"
+          "oracle_text": "Whenever equipped creature deals combat damage, put two charge counters on Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one —\n• Equipped creature gets +2/+2 until end of turn.\n• Target creature gets -1/-1 until end of turn.\n• You gain 2 life.\nEquip {2}"
         },
         {
           "name": "Tragic Slip",
@@ -26171,7 +26171,7 @@
           "edhrec_commanders": 4,
           "priority_score": 45.8,
           "source": "edhrec",
-          "oracle_text": "Target creature gets -1/-1 until end of turn.\nMorbid \u2014 That creature gets -13/-13 until end of turn instead if a creature died this turn."
+          "oracle_text": "Target creature gets -1/-1 until end of turn.\nMorbid — That creature gets -13/-13 until end of turn instead if a creature died this turn."
         },
         {
           "name": "Dismember",
