@@ -13,9 +13,9 @@
 
 - **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
 - **Status**: 2281 tests passing; ~195 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 0 planned; 9 permanent-n/a; 1 deferred: Banding post-alpha); Batch 0-16 + Mutate + Transform + Morph + Dungeon + Ring complete; Type consolidation COMPLETE; **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-21)**; **PB-22 deferred cleanup ALL 7 SESSIONS DONE** (activation_condition, coin flip/d20, reveal-route/flicker, tapped-attacking tokens/auto-attach, copy/clone, emblem creation, adventure/dual-zone search); W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~29 LOW open**; W3 LOW sprint COMPLETE
-- **Active Plan**: **W6 Primitive + Card Authoring** — primitives: `docs/primitive-card-plan.md` (PB-0 to PB-21 done, PB-22 deferred cleanup in progress); **card authoring operations**: `docs/card-authoring-operations.md` (triage → fix → author → audit, 68 ordered tasks). W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs.
+- **Active Plan**: **W6 Primitive + Card Authoring** — primitives DONE; **card authoring operations**: `docs/card-authoring-operations.md` (Phase 0 triage DONE, Phase 1 fix next). W5 RETIRED. Goal: all 1,743 cards complete pre-alpha, zero TODOs. **Triage results**: 569 TODOs (143 fixable now), 168/190 sessions ready, 15 blocked (true DSL gaps).
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-21 (PB-22 S7: Adventure CR 715 + dual-zone search; PB-22 COMPLETE — all 7 sessions done; 2281 tests)
+- **Last Updated**: 2026-03-22 (Phase 0 triage complete; DSL gap audit, session reclassification, consolidated fix list; 2281 tests)
 
 ### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 453 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior), CardRegistry
@@ -93,6 +93,9 @@ Before starting work, check which files apply to your task:
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
 | Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
 | Authoring card definitions | `docs/card-authoring-operations.md` (operations plan with ordered tasks); `docs/mtg-engine-card-pipeline.md` (DSL reference) |
+| Triaging card defs for TODOs | Use `/triage-cards` — scans defs, reclassifies blocked sessions, consolidates review findings |
+| Authoring a group of cards | Use `/author-wave <group>` — orchestrates author → review → fix → commit for one group |
+| Auditing all card defs | Use `/audit-cards` — scans for TODOs, empty abilities, known-issue patterns, certifies completion |
 | Type consolidation refactoring | `docs/mtg-engine-type-consolidation.md` (must read — this is the active plan) |
 | Planning M10, M11, or M12 | `docs/mtg-engine-strategic-review.md` (must read before starting) |
 | Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |
@@ -167,7 +170,7 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ## Agents
 
-Fourteen project-scoped agents in `.claude/agents/` encode milestone, ability, and primitive workflows:
+Fifteen project-scoped agents in `.claude/agents/` encode milestone, ability, primitive, and card authoring workflows:
 
 | Agent | Model | RA | Trigger | Purpose |
 |-------|-------|----|---------|---------|
@@ -178,6 +181,7 @@ Fourteen project-scoped agents in `.claude/agents/` encode milestone, ability, a
 | `card-definition-author` | Sonnet | — | "add card definition for X" | Translate oracle text to CardDefinition DSL |
 | `bulk-card-author` | Sonnet | — | "author session 5" | Write batch of 8-20 card defs from authoring plan |
 | `card-batch-reviewer` | Opus | — | "review cards batch 5" | Review 5 card defs against oracle text |
+| `card-fix-applicator` | Sonnet | — | "apply fixes from review" | Apply review findings to card def files, verify build |
 | `cr-coverage-auditor` | Sonnet | — | "check CR coverage for 614" | Audit test/script coverage for CR sections |
 | `game-script-generator` | Sonnet | — | "generate script for X interaction" | JSON game scripts for replay harness |
 | `ability-coverage-auditor` | Opus | — | `/audit-abilities` | Scan engine + card defs + scripts → refresh ability coverage doc |

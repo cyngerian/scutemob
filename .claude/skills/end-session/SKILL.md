@@ -33,6 +33,26 @@ Read `memory/workstream-state.md`. If any workstream has Status = `ACTIVE`:
 
 If no workstream was ACTIVE (e.g., the session was exploratory), skip this step.
 
+## Step 0.5: Update card authoring operations plan (W6 only)
+
+**If this session worked on W6 card authoring** AND `docs/card-authoring-operations.md`
+has unchecked items, read the Implementation Order section and check off any tasks
+completed this session. Use `Edit` to change `- [ ]` to `- [x]` for each completed task.
+
+> **Fallback**: Once all items in the operations plan are checked off (X-7 complete),
+> this step becomes a no-op. Skip it for all future sessions — the plan is done and
+> `/end-session` reverts to its standard behavior (Steps 0, 1, 1.5, 2, 3, 4 only).
+
+Also update the handoff note (Step 0) to reference the task IDs completed and the
+next task ID to work on. Example:
+
+```
+**Completed**: T-1 (DSL gap audit refresh), T-2 (blocked session re-evaluation)
+**Next**: T-3 (deferred session re-evaluation)
+```
+
+If no card authoring work was done, skip this step.
+
 ## Step 1: Update memory topic files
 
 Review what happened this session. Route new content to the appropriate file:
@@ -85,6 +105,7 @@ If work was done this session, remind the user about the commit prefix conventio
 | W2: TUI & Simulator | `W2:` | `W2: fix blocker declaration UI` |
 | W3: LOW Remediation | `W3:` | `W3: add debug_assert to sba.rs` |
 | W4: M10 Networking | `W4:` | `W4: add GameServer skeleton` |
+| W6: Card Authoring | `W6-triage:` / `W6-fix:` / `W6-cards:` / `W6-audit:` | `W6-cards: author body-only (55 cards)` |
 | Cross-cutting | `chore:` | `chore: update workstream-state.md` |
 
 ## Step 4: Confirm and close
@@ -93,6 +114,7 @@ Present a brief summary to the user:
 - What was accomplished this session
 - What was updated in memory/CLAUDE.md (if anything)
 - Workstream handoff written (or skipped)
+- Card authoring tasks checked off (if applicable) and next task ID
 - Any pending next steps
 
 Then ask: **"Ready to close this session?"** — wait for the user's confirmation before ending.

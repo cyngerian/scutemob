@@ -329,17 +329,18 @@ Track progress across sessions by checking these off:
 - [ ] Reconnection
 - [ ] Integration tests (hidden info, 6-player)
 
-#### Phase 5: W6 Primitive + Card Authoring (active — see `docs/primitive-card-plan.md`)
+#### Phase 5: W6 Primitive + Card Authoring (see `docs/card-authoring-operations.md` for detailed task order)
 - [x] PB-0 through PB-8 complete (ManaCost with damage, conditional ETB tapped, shockland ETB,
   sacrifice cost, targeted abilities, static grants, count scaling, cost reduction statics)
 - [x] PB-9: Hybrid mana & X costs (7 cards)
 - [x] **PB-9.5: Architecture cleanup** — trigger flush discipline (engine.rs) + test file
-  CardDefinition defaults migration. Do immediately after PB-9. See `docs/primitive-card-plan.md`.
-- [ ] PB-10 through PB-13: Return from zone, mana restrictions, complex replacements, specialized
-- [ ] PB-14 through PB-16: Planeswalker support, Saga/Class, Meld
-- [ ] PB-17 through PB-21: Library search, stax, board wipes, extra combat, fight/bite
-- [ ] Phase 2: Author ~1,025 remaining cards (bulk authoring sessions)
-- [ ] Phase 3: Final audit — zero TODOs, zero wrong game state
+  CardDefinition defaults migration.
+- [x] PB-10 through PB-13: Return from zone, mana restrictions, complex replacements, specialized
+- [x] PB-14 through PB-16: Planeswalker support, Saga/Class, Meld
+- [x] PB-17 through PB-21: Library search, stax, board wipes, extra combat, fight/bite
+- [x] PB-22: Deferred cleanup (activation conditions, coin flip, reveal-route, flicker, copy/clone, emblems)
+- [ ] Card authoring: triage, fix existing, author remaining, audit (`docs/card-authoring-operations.md`)
+- [ ] Final audit — zero TODOs, zero wrong game state
 
 #### Deferred architectural work (post-card-authoring, before M10)
 - [ ] `resolution.rs` split into per-mechanic files (7,460 lines — organizational only)

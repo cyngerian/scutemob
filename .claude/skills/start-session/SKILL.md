@@ -25,7 +25,63 @@ Read `memory/workstream-state.md` and report:
 If any workstream is ACTIVE, print a warning:
 > **W<N> is ACTIVE** — another session is working on it. Pick a different workstream or coordinate with the other session.
 
-## Step 3: Progress checkboxes
+## Step 3: Route — Card Authoring or General?
+
+Check whether **W6 card authoring** is the active priority by reading the Implementation
+Order section of `docs/card-authoring-operations.md` (grep for `^- \[ \]` to find the
+first unchecked item — read only the checklist, not the full document).
+
+**If the operations plan exists AND has unchecked items** → go to **Step 3A** (card authoring mode).
+**If the operations plan is fully checked OR doesn't exist** → go to **Step 3B** (general mode).
+
+> **Fallback**: Step 3B is the permanent default. Card authoring mode (3A) is temporary —
+> it activates only while `docs/card-authoring-operations.md` has unchecked items. Once
+> all tasks in that plan are checked off (X-7 complete), every future `/start-session`
+> will use Step 3B exclusively. No manual switch needed.
+
+### Step 3A: Card Authoring Mode
+
+Read only the **Implementation Order** section of `docs/card-authoring-operations.md`.
+Find the first unchecked `- [ ]` item. Report:
+
+1. **Current phase**: Which phase is in progress? (I = Infrastructure, T = Triage, F = Fix, A = Author, X = Audit)
+2. **Progress**: How many items are checked vs total in the current phase?
+3. **Next task**: The specific task ID and description (e.g., `T-1: Refresh DSL gap audit`)
+4. **What it involves**: One-line summary of what the task requires
+5. **Files to load**: Based on the task, which files/agents are needed
+
+Also check `memory/ability-wip.md` — if an ability is in-progress, that takes priority:
+> **WIP ability found**: `<name>` in phase `<phase>` — finish this first with `/implement-ability`
+
+Print a focused summary (5-8 lines max):
+- Last few commits (from git log)
+- Current card authoring phase and progress
+- The specific next task to work on
+- Any hazards from the handoff
+
+Then print:
+
+---
+
+**Card authoring operations plan**: `docs/card-authoring-operations.md`
+
+**Quick reference — what to load for current task:**
+
+| Task Type | Load before starting |
+|-----------|---------------------|
+| Infrastructure (I-*) | The agent/skill file being created or updated |
+| Triage (T-*) | `memory/card-authoring/dsl-gap-audit.md`, `_authoring_plan.json` |
+| Fix (F-*) | `memory/card-authoring/consolidated-fix-list.md`, `memory/gotchas-infra.md` |
+| Author (A-*) | `_authoring_plan.json`, relevant group reference card defs |
+| Audit (X-*) | `memory/card-authoring/audit-report.md` |
+
+---
+
+> **Next step**: Run `/start-work W6` to claim the workstream, then start task **<ID>**.
+
+Skip to **Step 6** (session plan check). Do NOT print the general dispatch table.
+
+### Step 3B: General Mode
 
 Read the **Progress checkboxes** section of `docs/workstream-coordination.md` (grep for `#### Phase` to find it — it's near the end of the file). Report:
 
@@ -41,16 +97,12 @@ Example output:
 Also check `memory/ability-wip.md` — if an ability is in-progress, that takes priority over everything:
 > **WIP ability found**: `<name>` in phase `<phase>` — finish this first with `/implement-ability`
 
-## Step 4: Brief summary
-
 Give a brief summary (5-8 lines max) covering:
 - What the last few commits worked on
 - Current project status from memory
-- The recommended task from Step 3 (don't just say "pick a workstream" — give the specific next action)
+- The recommended task (don't just say "pick a workstream" — give the specific next action)
 
-## Step 5: Dispatch table
-
-Print the dispatch table so the developer knows which files to load for their work:
+Print the dispatch table:
 
 ---
 
@@ -76,14 +128,11 @@ Use `/review-subsystem <name>` to load the right file and see open issues in one
 
 ---
 
-## Step 6: Claim reminder
-
-Print:
 > **Next step**: Run `/start-work <workstream>` to claim your workstream before starting.
 > Examples: `/start-work W1-B3`, `/start-work W2`, `/start-work W3`
 
-## Step 7: Session plan check
+## Step 6: Session plan check
 
 Check if a session plan file exists in `memory/` (e.g., `m8-session-plan.md`). If one exists, call it out prominently: **"Session plan found: `memory/m<N>-session-plan.md` — use `/start-milestone <N>` to load it without touching the roadmap."** Do not read it unless the developer asks.
 
-Do not read any files beyond `memory/workstream-state.md`, the progress checkboxes section of `docs/workstream-coordination.md`, and `memory/ability-wip.md`. Do not run any commands beyond the single git log above.
+Do not read any files beyond `memory/workstream-state.md`, the Implementation Order section of `docs/card-authoring-operations.md` (or the progress checkboxes of `docs/workstream-coordination.md` if in general mode), and `memory/ability-wip.md`. Do not run any commands beyond the single git log above.

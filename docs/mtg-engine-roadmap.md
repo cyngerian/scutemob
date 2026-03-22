@@ -708,6 +708,27 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 
 ---
 
+### M9.7: Runtime Integrity Checker (Pre-M10)
+
+**Goal**: Build a runtime invariant checker that validates game state correctness after
+every command. This is a pre-alpha requirement — the M10 server calls it to prevent
+corrupt state from reaching clients. Must exist before the first playable game.
+
+**Design**: `docs/mtg-engine-runtime-integrity.md` (Layer 1)
+
+**Deliverables**:
+- [ ] Extract existing 83 proptest invariant assertions into `pub fn validate_invariants(state: &GameState) -> Result<(), Vec<InvariantViolation>>` in the engine crate
+- [ ] Add rule-aware invariants: SBA completeness (no SBA conditions remain after SBA pass), trigger completeness (all matching trigger conditions queued), layer correctness (sampled recalculation matches cached values)
+- [ ] Performance budget: < 1ms per call for typical 4-player board state (sampling for expensive checks)
+- [ ] Integrate into replay harness: `validate_invariants()` runs after every `process_command` in game script tests
+- [ ] Unit tests for the checker itself (intentionally corrupt states, verify detection)
+
+**Dependencies**: None (pure engine crate, no server/UI needed)
+
+**Estimated sessions**: 5-8
+
+---
+
 ### M10: Networking Layer (Centralized Server)
 
 **Goal**: Implement a lightweight centralized WebSocket game server. One server instance (runnable on a ~$5-10/mo VPS) hosts games for a trusted playgroup. The server runs the engine authoritatively, filters hidden information per player, and broadcasts events. P2P distributed verification is preserved in `docs/mtg-engine-network-security.md` as a documented future upgrade path.
@@ -733,6 +754,10 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 - [ ] **Rewind**: any player proposes rewind to a named checkpoint; requires unanimous acceptance; server restores snapshot and rebroadcasts state
 - [ ] **Pause**: any player sends Pause; server freezes until all players send Resume
 - [ ] Graceful disconnect: game pauses on disconnect, others notified; rejoin window before forfeit
+- [ ] **Runtime integrity** (see `docs/mtg-engine-runtime-integrity.md`):
+  - [ ] Server calls `validate_invariants()` after every `process_command`
+  - [ ] Auto-rollback on invariant failure: do NOT broadcast corrupt state; roll back to last known-good state; pause game; notify clients
+  - [ ] Bug report serialization: on integrity error or player report, capture full event log + state diff + failing command as a loadable JSON reproduction case
 
 **Tests** (minimum):
 - [ ] Server starts, 4 clients connect to a room, game begins
@@ -785,6 +810,8 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 - [ ] **"Pause for rules discussion" button**: one click sends the Pause command to all peers; all players see "Game paused — discussing rules" overlay with a Resume button; game is frozen until all players resume
 - [ ] **Manual state adjustment mode** (active only while paused): players can collaboratively edit the current game state — adjust life totals, move permanents between zones, add/remove counters. Changes are applied locally and broadcast as a proposed new state hash. All peers must accept before the adjusted state becomes official and automation resumes.
 - [ ] Clear visual indicator when a proposed rewind would cross a hidden-information boundary (e.g., "Note: a card was drawn after this checkpoint — rewinding requires good faith")
+- [ ] **Integrity error display**: when the server detects an invariant violation, show players what happened, the auto-rollback, and options (retry / skip / save & quit)
+- [ ] **"Report Bug" button**: captures full game state + event log + player description, serialized as a reproducible JSON file (see `docs/mtg-engine-runtime-integrity.md`)
 
 **Tests**: UI tests are manual at this stage. Checklist:
 - [ ] Launch app, connect to local host, see game state

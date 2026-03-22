@@ -45,7 +45,7 @@ tasks are complete.
       21 fixable now, 7 wrong-state (dangerous), 32 still blocked.
 - [x] **T-6**: Write triage summary with updated counts. Output:
       `memory/card-authoring/triage-summary.md`
-- [ ] **T-7**: Commit: `W6-triage: refresh DSL gap audit, reclassify sessions, consolidated fix list`
+- [x] **T-7**: Commit: `W6-triage: Phase 0 complete` (9a27d9c)
 
 ### Phase 1: Fix Existing Card Definitions
 
