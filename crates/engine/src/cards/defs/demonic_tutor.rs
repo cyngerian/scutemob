@@ -1,6 +1,5 @@
 // Demonic Tutor — {1}{B}, Sorcery; search your library for any card, put it into your hand, then shuffle.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("demonic-tutor"),
@@ -16,6 +15,7 @@ pub fn card() -> CardDefinition {
                     reveal: false,
                     destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

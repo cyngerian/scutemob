@@ -1,57 +1,58 @@
-# Primitive WIP: PB-22 S6 -- Emblem Creation (CR 114)
+# Primitive WIP: PB-22 S7 -- Adventure + Dual-Zone Search
 
 batch: PB-22
-session: S6
-title: Emblem Creation (CR 114)
-cards_affected: 11 (Ajani Sleeper Agent + ~10 planeswalker cards)
+session: S7
+title: Adventure (CR 715) + dual-zone search
+cards_affected: ~8 (Monster Manual, Lozhan + ~3 adventure cards + Finale of Devastation pattern)
 started: 2026-03-21
-phase: closed
-plan_file: memory/primitives/pb-plan-22-s6.md
+phase: implement
+plan_file: memory/primitives/pb-plan-22-s7.md
 
 ## Deferred from Prior PBs
-- Emblem creation (PB-14) — 11 planeswalker cards blocked on emblem infrastructure
+- Adventure (cast from exile) — PB-13m
+- Dual-zone search (library OR graveyard) — Finale of Devastation pattern
 
 ## Step Checklist
-- [x] 1. Engine changes: Effect::CreateEmblem (emblem game object in command zone)
-  - Added `is_emblem: bool` to `GameObject` (game_object.rs) with `#[serde(default)]`
-  - Added `Effect::CreateEmblem { triggered_abilities, static_effects }` (card_definition.rs, disc 66)
-  - Added `GameEvent::EmblemCreated { player, object_id }` (events.rs, disc 124)
-  - Added hash support (hash.rs) — Effect disc 66, GameEvent disc 124, is_emblem field
-  - Implemented CreateEmblem dispatch (effects/mod.rs) — creates emblem in command zone, registers static CEs, emits event
-  - Added `collect_emblem_triggers_for_event` helper in abilities.rs; called from SpellCast handler (CR 113.6p, CR 114.4)
-  - Exported `TriggeredAbilityDef`, `TriggerEvent`, `ETBTriggerFilter`, `InterveningIf` in helpers.rs
-- [x] 2. Emblem zone placement + SBA immunity (CR 114.1-114.4)
-  - Emblems use `is_token: false` — token SBA does not fire for emblems
-  - `ZoneId::Command(ctrl)` used for emblem placement (verified no other SBAs target command zone)
-  - Static CEs registered with `EffectDuration::Indefinite` (emblems never leave command zone)
-- [x] 3. Card definition fixes (Ajani Sleeper Agent + other planeswalker emblem abilities)
-  - ajani_sleeper_agent.rs: -6 TODO replaced with Effect::CreateEmblem (AnySpellCast trigger)
-  - basri_ket.rs: new card def (5 abilities, emblem on -6)
-  - kaito_bane_of_nightmares.rs: new card def (4 abilities, emblem with static P/T on +1)
-  - tyvar_kell.rs: new card def (3 abilities, emblem on -6)
-  - wrenn_and_realmbreaker.rs: new card def (3 abilities, emblem on -7 with TODO for play-from-graveyard)
-  - wrenn_and_seven.rs: new card def (4 abilities, emblem with NoMaxHandSize static on -8)
-- [x] 4. Unit tests (5+ tests)
-  - 7 tests in crates/engine/tests/emblem_tests.rs — all passing
-  - test_emblem_creation_basic, test_emblem_triggered_ability_fires, test_emblem_survives_board_wipe
-  - test_emblem_not_removed_by_token_sba, test_multiple_emblems_stack, test_emblem_static_effect
-  - test_emblem_persists_after_source_removed
+- [x] 1. Engine changes: AltCostKind::Adventure, exile-on-resolution, cast creature from exile
+  - Added `AltCostKind::Adventure` (disc 27) to types.rs
+  - Added `adventure_face: Option<CardFace>` to CardDefinition
+  - Added `was_cast_as_adventure: bool` to StackObject
+  - Added `adventure_exiled_by: Option<PlayerId>` to GameObject
+  - casting.rs: cast_with_adventure binding, zone validation, type override (CR 715.3a), cost from adventure_face
+  - resolution.rs: is_permanent=false override, adventure face effect selection, exile-on-resolution + adventure_exiled_by set (CR 715.3d)
+  - resolution.rs: comment at fizzle/counter paths (CR 715.3d: exile only on resolution)
+  - hash.rs: AltCostKind::Adventure => 27, was_cast_as_adventure on StackObject, adventure_exiled_by on GameObject
+
+- [x] 2. Engine changes: dual-zone search (extend SearchLibrary or new Effect)
+  - Added `also_search_graveyard: bool` to Effect::SearchLibrary (card_definition.rs)
+  - Updated effects/mod.rs: candidate collection includes graveyard when also_search_graveyard=true
+  - Updated hash.rs: also_search_graveyard in SearchLibrary arm
+  - Updated dungeon.rs: also_search_graveyard: false in The Undercity room
+  - Updated all 26 card defs with SearchLibrary (also_search_graveyard: false by default)
+
+- [x] 3. Card definition fixes (Monster Manual, etc.)
+  - monster_manual.rs: added adventure_face with Zoological Study (SearchLibrary creature, then shuffle)
+  - finale_of_devastation.rs: also_search_graveyard: true (dual-zone search implemented), updated TODOs
+  - lozhan_dragons_legacy.rs: updated TODO to note Adventure framework now exists
+  - bonecrusher_giant.rs: NEW — Bonecrusher Giant // Stomp with adventure_face
+  - lovestruck_beast.rs: NEW — Lovestruck Beast // Heart's Desire with adventure_face
+  - adventure_face: None added to all 136 card defs that needed it
+
+- [x] 4. Unit tests (Adventure: 5, dual-zone: 3)
+  - adventure_tests.rs: 9 tests (6 Adventure + 3 dual-zone)
+    - test_adventure_cast_adventure_half_from_hand (CR 715.3a, 715.3b)
+    - test_adventure_exile_on_resolution (CR 715.3d)
+    - test_adventure_cast_creature_from_exile (CR 715.3d)
+    - test_adventure_countered_goes_to_graveyard (CR 715.3d)
+    - test_adventure_cannot_recast_as_adventure_from_exile (CR 715.3d)
+    - test_adventure_normal_characteristics_in_hand (CR 715.4)
+    - test_search_library_only (CR 701.23)
+    - test_search_library_and_graveyard (CR 701.23)
+    - test_search_graveyard_still_shuffles_library (CR 701.23)
+  - ALL 9 PASSING
+
 - [x] 5. Workspace build verification
-  - cargo test --all: all tests pass (7 new emblem tests + all prior tests)
+  - cargo test --all: 2281 passing, 0 failing
   - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean
-
-## Fix Phase (pb-review-22-s6.md)
-- [x] HIGH-3: wrenn_and_realmbreaker.rs mana cost fixed ({2}{G}{G}{G} → {1}{G}{G})
-- [x] HIGH-4: wrenn_and_realmbreaker.rs starting loyalty fixed (7 → 4)
-- [x] HIGH-5: wrenn_and_realmbreaker.rs +1 ability fixed (two lands → one land, correct keywords)
-- [x] HIGH-6: wrenn_and_realmbreaker.rs -2 ability fixed (MoveZone replaced with TODO Sequence, oracle text corrected to mill+conditional-return)
-- [x] HIGH-7: tyvar_kell.rs starting loyalty fixed (5 → 3)
-- [x] MEDIUM-1: collect_emblem_triggers_for_event made pub(crate); called from begin_combat(), upkeep_actions(), end_step_actions() in turn_actions.rs
-- [x] MEDIUM-2: basri_ket.rs emblem trigger_on changed from AnySpellCast to AtBeginningOfCombat; new game_object::TriggerEvent variants added (AtBeginningOfCombat, AtBeginningOfYourUpkeep, AtBeginningOfEachUpkeep, AtBeginningOfYourEndStep) with hash discriminants 24-27
-- [x] MEDIUM-3: ajani_sleeper_agent.rs TODO added for TargetOpponent gap (TargetRequirement has no Opponent variant)
-- [x] MEDIUM-4: ajani_sleeper_agent.rs existing TODO expanded for spell-type filter gap
-- [x] MEDIUM-5: tyvar_kell.rs existing TODO retained (Elf spell subtype filter gap)
-- [x] MEDIUM-6: wrenn_and_seven.rs TODO updated to explain player-level flag needed; filter kept as CreaturesYouControl (AllPermanentsYouControl variant doesn't exist)
-- Fix phase verification: 2272 tests pass; clippy clean; workspace build clean; fmt clean

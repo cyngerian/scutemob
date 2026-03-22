@@ -8,10 +8,6 @@
 //! control over which fields contribute to public vs private hashes.
 //!
 //! See `docs/mtg-engine-network-security.md` for the three-tier security model.
-
-use blake3::Hasher;
-use im::{OrdMap, OrdSet, Vector};
-
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -49,7 +45,8 @@ use crate::cards::card_definition::{
     TriggerCondition, TypeLine, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
-
+use blake3::Hasher;
+use im::{OrdMap, OrdSet, Vector};
 /// Feeds data into a `blake3::Hasher` in a deterministic, canonical order.
 ///
 /// Unlike `std::hash::Hash`, this trait:
@@ -59,46 +56,38 @@ use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent
 pub trait HashInto {
     fn hash_into(&self, hasher: &mut Hasher);
 }
-
 // --- Primitive implementations ---
-
 impl HashInto for u8 {
     fn hash_into(&self, hasher: &mut Hasher) {
         hasher.update(&[*self]);
     }
 }
-
 impl HashInto for u32 {
     fn hash_into(&self, hasher: &mut Hasher) {
         hasher.update(&self.to_le_bytes());
     }
 }
-
 impl HashInto for u64 {
     fn hash_into(&self, hasher: &mut Hasher) {
         hasher.update(&self.to_le_bytes());
     }
 }
-
 impl HashInto for i32 {
     fn hash_into(&self, hasher: &mut Hasher) {
         hasher.update(&self.to_le_bytes());
     }
 }
-
 impl HashInto for usize {
     fn hash_into(&self, hasher: &mut Hasher) {
         // Always hash as u64 for cross-platform determinism
         (*self as u64).hash_into(hasher);
     }
 }
-
 impl HashInto for bool {
     fn hash_into(&self, hasher: &mut Hasher) {
         hasher.update(&[*self as u8]);
     }
 }
-
 impl HashInto for String {
     fn hash_into(&self, hasher: &mut Hasher) {
         // Length-prefix prevents concatenation collisions:
@@ -107,16 +96,13 @@ impl HashInto for String {
         hasher.update(self.as_bytes());
     }
 }
-
 impl HashInto for str {
     fn hash_into(&self, hasher: &mut Hasher) {
         (self.len() as u64).hash_into(hasher);
         hasher.update(self.as_bytes());
     }
 }
-
 // --- Generic container implementations ---
-
 impl<T: HashInto> HashInto for Option<T> {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -128,7 +114,6 @@ impl<T: HashInto> HashInto for Option<T> {
         }
     }
 }
-
 impl<T: HashInto> HashInto for Vec<T> {
     fn hash_into(&self, hasher: &mut Hasher) {
         (self.len() as u64).hash_into(hasher);
@@ -137,7 +122,6 @@ impl<T: HashInto> HashInto for Vec<T> {
         }
     }
 }
-
 impl<T: HashInto + Clone> HashInto for Vector<T> {
     fn hash_into(&self, hasher: &mut Hasher) {
         (self.len() as u64).hash_into(hasher);
@@ -146,7 +130,6 @@ impl<T: HashInto + Clone> HashInto for Vector<T> {
         }
     }
 }
-
 impl<T: HashInto + Ord + Clone> HashInto for OrdSet<T> {
     fn hash_into(&self, hasher: &mut Hasher) {
         (self.len() as u64).hash_into(hasher);
@@ -155,7 +138,6 @@ impl<T: HashInto + Ord + Clone> HashInto for OrdSet<T> {
         }
     }
 }
-
 impl<K: HashInto + Ord + Clone, V: HashInto + Clone> HashInto for OrdMap<K, V> {
     fn hash_into(&self, hasher: &mut Hasher) {
         (self.len() as u64).hash_into(hasher);
@@ -165,63 +147,52 @@ impl<K: HashInto + Ord + Clone, V: HashInto + Clone> HashInto for OrdMap<K, V> {
         }
     }
 }
-
 impl<T: HashInto> HashInto for Box<T> {
     fn hash_into(&self, hasher: &mut Hasher) {
         (**self).hash_into(hasher);
     }
 }
-
 // --- Leaf type implementations (discriminant byte + payload) ---
-
 impl HashInto for PlayerId {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.0.hash_into(hasher);
     }
 }
-
 impl HashInto for ObjectId {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.0.hash_into(hasher);
     }
 }
-
 impl HashInto for CardId {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.0.hash_into(hasher);
     }
 }
-
 impl HashInto for Color {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for ManaColor {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for SuperType {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for CardType {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for SubType {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.0.hash_into(hasher);
     }
 }
-
 impl HashInto for CounterType {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -248,7 +219,6 @@ impl HashInto for CounterType {
         }
     }
 }
-
 impl HashInto for ProtectionQuality {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -268,7 +238,6 @@ impl HashInto for ProtectionQuality {
         }
     }
 }
-
 impl HashInto for LandwalkType {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -280,7 +249,6 @@ impl HashInto for LandwalkType {
         }
     }
 }
-
 impl HashInto for EnchantTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -295,7 +263,6 @@ impl HashInto for EnchantTarget {
         }
     }
 }
-
 impl HashInto for AffinityTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -307,7 +274,6 @@ impl HashInto for AffinityTarget {
         }
     }
 }
-
 impl HashInto for CumulativeUpkeepCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -322,7 +288,6 @@ impl HashInto for CumulativeUpkeepCost {
         }
     }
 }
-
 impl HashInto for KeywordAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -719,7 +684,6 @@ impl HashInto for KeywordAbility {
         }
     }
 }
-
 impl HashInto for ChampionFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -731,19 +695,16 @@ impl HashInto for ChampionFilter {
         }
     }
 }
-
 impl HashInto for Phase {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for Step {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for ZoneId {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -769,7 +730,6 @@ impl HashInto for ZoneId {
         }
     }
 }
-
 impl HashInto for LossReason {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -781,9 +741,7 @@ impl HashInto for LossReason {
         }
     }
 }
-
 // --- Composite type implementations ---
-
 impl HashInto for HybridMana {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -799,7 +757,6 @@ impl HashInto for HybridMana {
         }
     }
 }
-
 impl HashInto for PhyrexianMana {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -815,7 +772,6 @@ impl HashInto for PhyrexianMana {
         }
     }
 }
-
 impl HashInto for ManaCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.white.hash_into(hasher);
@@ -836,7 +792,6 @@ impl HashInto for ManaCost {
         self.x_count.hash_into(hasher);
     }
 }
-
 impl HashInto for ManaPool {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.white.hash_into(hasher);
@@ -851,7 +806,6 @@ impl HashInto for ManaPool {
         }
     }
 }
-
 impl HashInto for RestrictedMana {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.color.hash_into(hasher);
@@ -859,7 +813,6 @@ impl HashInto for RestrictedMana {
         self.restriction.hash_into(hasher);
     }
 }
-
 impl HashInto for ManaRestriction {
     fn hash_into(&self, hasher: &mut Hasher) {
         // Discriminant tag + payload
@@ -883,7 +836,6 @@ impl HashInto for ManaRestriction {
         }
     }
 }
-
 impl HashInto for ObjectStatus {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.tapped.hash_into(hasher);
@@ -892,14 +844,12 @@ impl HashInto for ObjectStatus {
         self.phased_out.hash_into(hasher);
     }
 }
-
 impl HashInto for AbilityInstance {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
         self.description.hash_into(hasher);
     }
 }
-
 impl HashInto for ManaAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.produces.hash_into(hasher);
@@ -909,7 +859,6 @@ impl HashInto for ManaAbility {
         self.damage_to_controller.hash_into(hasher);
     }
 }
-
 impl HashInto for Characteristics {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.name.hash_into(hasher);
@@ -931,7 +880,6 @@ impl HashInto for Characteristics {
         self.defense.hash_into(hasher);
     }
 }
-
 impl HashInto for GameObject {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
@@ -1056,11 +1004,13 @@ impl HashInto for GameObject {
             Some(crate::state::types::FaceDownKind::Manifest) => 4u8.hash_into(hasher),
             Some(crate::state::types::FaceDownKind::Cloak) => 5u8.hash_into(hasher),
         }
+        // Adventure (CR 715.3d) — card in exile was exiled as a resolved Adventure spell
+        // Value is the PlayerId of the player who may cast the creature half from exile.
+        self.adventure_exiled_by.hash_into(hasher);
         // CR 712.4a: Meld component tracking
         self.meld_component.hash_into(hasher);
     }
 }
-
 impl HashInto for crate::state::game_object::MergedComponent {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.card_id.hash_into(hasher);
@@ -1068,7 +1018,6 @@ impl HashInto for crate::state::game_object::MergedComponent {
         self.is_token.hash_into(hasher);
     }
 }
-
 impl HashInto for PlayerState {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
@@ -1111,7 +1060,6 @@ impl HashInto for PlayerState {
         self.ring_bearer_id.hash_into(hasher);
     }
 }
-
 /// CR 309.4: Hash dungeon identifier as a stable discriminant byte.
 impl HashInto for DungeonId {
     fn hash_into(&self, hasher: &mut Hasher) {
@@ -1124,7 +1072,6 @@ impl HashInto for DungeonId {
         disc.hash_into(hasher);
     }
 }
-
 /// CR 309.4: Hash per-player dungeon state (which dungeon + current room).
 impl HashInto for DungeonState {
     fn hash_into(&self, hasher: &mut Hasher) {
@@ -1132,7 +1079,6 @@ impl HashInto for DungeonState {
         (self.current_room as u64).hash_into(hasher);
     }
 }
-
 impl HashInto for TurnState {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.phase.hash_into(hasher);
@@ -1150,7 +1096,6 @@ impl HashInto for TurnState {
         self.cleanup_sba_rounds.hash_into(hasher);
     }
 }
-
 impl HashInto for Zone {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1165,21 +1110,17 @@ impl HashInto for Zone {
         }
     }
 }
-
 // --- ContinuousEffect type implementations (M5) ---
-
 impl HashInto for EffectId {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.0.hash_into(hasher);
     }
 }
-
 impl HashInto for EffectLayer {
     fn hash_into(&self, hasher: &mut Hasher) {
         (*self as u8).hash_into(hasher);
     }
 }
-
 impl HashInto for EffectDuration {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1195,7 +1136,6 @@ impl HashInto for EffectDuration {
         }
     }
 }
-
 impl HashInto for EffectFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1234,7 +1174,6 @@ impl HashInto for EffectFilter {
         }
     }
 }
-
 impl HashInto for LayerModification {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1316,7 +1255,6 @@ impl HashInto for LayerModification {
         }
     }
 }
-
 impl HashInto for ContinuousEffect {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
@@ -1329,9 +1267,7 @@ impl HashInto for ContinuousEffect {
         self.is_cda.hash_into(hasher);
     }
 }
-
 // --- Stub type implementations ---
-
 impl HashInto for TriggerDoublerFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1340,7 +1276,6 @@ impl HashInto for TriggerDoublerFilter {
         }
     }
 }
-
 impl HashInto for TriggerDoubler {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
@@ -1349,13 +1284,11 @@ impl HashInto for TriggerDoubler {
         self.additional_triggers.hash_into(hasher);
     }
 }
-
 impl HashInto for DelayedTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
     }
 }
-
 impl HashInto for ETBSuppressFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1364,16 +1297,13 @@ impl HashInto for ETBSuppressFilter {
         }
     }
 }
-
 impl HashInto for ETBSuppressor {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
         self.filter.hash_into(hasher);
     }
 }
-
 // --- Active restriction type implementations (PB-18) ---
-
 impl HashInto for GameRestriction {
     fn hash_into(&self, hasher: &mut Hasher) {
         use GameRestriction::*;
@@ -1393,7 +1323,6 @@ impl HashInto for GameRestriction {
         }
     }
 }
-
 impl HashInto for ActiveRestriction {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
@@ -1401,15 +1330,12 @@ impl HashInto for ActiveRestriction {
         self.restriction.hash_into(hasher);
     }
 }
-
 // --- Replacement effect type implementations (M8) ---
-
 impl HashInto for ReplacementId {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.0.hash_into(hasher);
     }
 }
-
 impl HashInto for ObjectFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1439,7 +1365,6 @@ impl HashInto for ObjectFilter {
         }
     }
 }
-
 impl HashInto for PlayerFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1455,7 +1380,6 @@ impl HashInto for PlayerFilter {
         }
     }
 }
-
 impl HashInto for DamageTargetFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1483,7 +1407,6 @@ impl HashInto for DamageTargetFilter {
         }
     }
 }
-
 impl HashInto for ZoneType {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1497,7 +1420,6 @@ impl HashInto for ZoneType {
         }
     }
 }
-
 impl HashInto for ReplacementTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1560,7 +1482,6 @@ impl HashInto for ReplacementTrigger {
         }
     }
 }
-
 impl HashInto for ReplacementModification {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1614,7 +1535,6 @@ impl HashInto for ReplacementModification {
         }
     }
 }
-
 impl HashInto for ReplacementEffect {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
@@ -1626,7 +1546,6 @@ impl HashInto for ReplacementEffect {
         self.modification.hash_into(hasher);
     }
 }
-
 impl HashInto for PendingZoneChange {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.object_id.hash_into(hasher);
@@ -1639,7 +1558,6 @@ impl HashInto for PendingZoneChange {
         }
     }
 }
-
 impl HashInto for crate::state::stubs::PendingTriggerKind {
     fn hash_into(&self, hasher: &mut Hasher) {
         use crate::state::stubs::PendingTriggerKind;
@@ -1700,7 +1618,6 @@ impl HashInto for crate::state::stubs::PendingTriggerKind {
         }
     }
 }
-
 impl HashInto for PendingTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
@@ -1743,7 +1660,6 @@ impl HashInto for PendingTrigger {
         self.data.hash_into(hasher);
     }
 }
-
 impl HashInto for SacrificeFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1758,7 +1674,6 @@ impl HashInto for SacrificeFilter {
         }
     }
 }
-
 impl HashInto for ActivationCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.requires_tap.hash_into(hasher);
@@ -1770,7 +1685,6 @@ impl HashInto for ActivationCost {
         self.sacrifice_filter.hash_into(hasher);
     }
 }
-
 impl HashInto for ActivatedAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.cost.hash_into(hasher);
@@ -1783,7 +1697,6 @@ impl HashInto for ActivatedAbility {
         self.activation_condition.hash_into(hasher);
     }
 }
-
 impl HashInto for TriggerEvent {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1838,7 +1751,6 @@ impl HashInto for TriggerEvent {
         }
     }
 }
-
 impl HashInto for AttackTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1853,7 +1765,6 @@ impl HashInto for AttackTarget {
         }
     }
 }
-
 impl HashInto for CombatDamageTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1872,7 +1783,6 @@ impl HashInto for CombatDamageTarget {
         }
     }
 }
-
 impl HashInto for CombatDamageAssignment {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
@@ -1880,7 +1790,6 @@ impl HashInto for CombatDamageAssignment {
         self.amount.hash_into(hasher);
     }
 }
-
 impl HashInto for InterveningIf {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -1895,7 +1804,6 @@ impl HashInto for InterveningIf {
         }
     }
 }
-
 impl HashInto for ETBTriggerFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.creature_only.hash_into(hasher);
@@ -1903,7 +1811,6 @@ impl HashInto for ETBTriggerFilter {
         self.exclude_self.hash_into(hasher);
     }
 }
-
 impl HashInto for TriggeredAbilityDef {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.trigger_on.hash_into(hasher);
@@ -1914,7 +1821,6 @@ impl HashInto for TriggeredAbilityDef {
         self.targets.hash_into(hasher);
     }
 }
-
 impl HashInto for TriggerData {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -2107,7 +2013,6 @@ impl HashInto for TriggerData {
         }
     }
 }
-
 impl HashInto for UpkeepCostKind {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -2122,7 +2027,6 @@ impl HashInto for UpkeepCostKind {
         }
     }
 }
-
 impl HashInto for StackObjectKind {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -2393,7 +2297,6 @@ impl HashInto for StackObjectKind {
         }
     }
 }
-
 impl HashInto for Target {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -2408,14 +2311,12 @@ impl HashInto for Target {
         }
     }
 }
-
 impl HashInto for SpellTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.target.hash_into(hasher);
         self.zone_at_cast.hash_into(hasher);
     }
 }
-
 impl HashInto for StackObject {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
@@ -2469,6 +2370,8 @@ impl HashInto for StackObject {
         self.was_casualty_paid.hash_into(hasher);
         // Cleave (CR 702.148a) — spell was cast by paying its cleave cost
         self.was_cleaved.hash_into(hasher);
+        // Adventure (CR 715.3d) — spell was cast as an Adventure
+        self.was_cast_as_adventure.hash_into(hasher);
         // was_entwined, escalate_modes_paid: REMOVED — now in additional_costs (hashed below)
         // Splice (CR 702.47a) — spliced effects attached to this spell
         for effect in &self.spliced_effects {
@@ -2499,7 +2402,6 @@ impl HashInto for StackObject {
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
 }
-
 impl HashInto for CombatState {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.attacking_player.hash_into(hasher);
@@ -2521,7 +2423,6 @@ impl HashInto for CombatState {
         self.blocked_attackers.hash_into(hasher);
     }
 }
-
 /// TC-23: Explicit hash discriminants for AltCostKind to prevent silent hash changes
 /// if variants are reordered. These constants MUST NOT be changed once set — doing so
 /// invalidates all persisted game-state hashes and distributed peer consistency.
@@ -2556,11 +2457,11 @@ impl HashInto for crate::state::types::AltCostKind {
             AltCostKind::Encore => 24,
             AltCostKind::Unearth => 25,
             AltCostKind::Prototype => 26,
+            AltCostKind::Adventure => 27,
         };
         disc.hash_into(hasher);
     }
 }
-
 impl HashInto for AdditionalCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -2631,9 +2532,7 @@ impl HashInto for AdditionalCost {
         }
     }
 }
-
 // --- GameEvent implementation ---
-
 impl HashInto for GameEvent {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -2813,7 +2712,6 @@ impl HashInto for GameEvent {
                 controller.hash_into(hasher);
                 stack_object_id.hash_into(hasher);
             }
-
             // M4 SBA events
             GameEvent::CreatureDied {
                 object_id,
@@ -2872,7 +2770,6 @@ impl HashInto for GameEvent {
                     new_id.hash_into(hasher);
                 }
             }
-
             // M6 Combat events
             GameEvent::AttackersDeclared {
                 attacking_player,
@@ -3683,9 +3580,7 @@ impl HashInto for GameEvent {
         }
     }
 }
-
 // --- Card definition type implementations (MR-M3-05/06) ---
-
 impl HashInto for TypeLine {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.supertypes.hash_into(hasher);
@@ -3693,7 +3588,6 @@ impl HashInto for TypeLine {
         self.subtypes.hash_into(hasher);
     }
 }
-
 impl HashInto for TargetController {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3703,7 +3597,6 @@ impl HashInto for TargetController {
         }
     }
 }
-
 impl HashInto for TargetFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.max_power.hash_into(hasher);
@@ -3724,7 +3617,6 @@ impl HashInto for TargetFilter {
         self.has_card_types.hash_into(hasher);
     }
 }
-
 impl HashInto for TargetRequirement {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3762,7 +3654,6 @@ impl HashInto for TargetRequirement {
         }
     }
 }
-
 impl HashInto for TokenSpec {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.name.hash_into(hasher);
@@ -3781,7 +3672,6 @@ impl HashInto for TokenSpec {
         self.activated_abilities.hash_into(hasher);
     }
 }
-
 impl HashInto for EffectTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3803,7 +3693,6 @@ impl HashInto for EffectTarget {
         }
     }
 }
-
 impl HashInto for PlayerTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3825,7 +3714,6 @@ impl HashInto for PlayerTarget {
         }
     }
 }
-
 impl HashInto for LibraryPosition {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3835,7 +3723,6 @@ impl HashInto for LibraryPosition {
         }
     }
 }
-
 impl HashInto for ZoneTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3861,7 +3748,6 @@ impl HashInto for ZoneTarget {
         }
     }
 }
-
 impl HashInto for EffectAmount {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3912,7 +3798,6 @@ impl HashInto for EffectAmount {
         }
     }
 }
-
 impl HashInto for ForEachTarget {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3935,7 +3820,6 @@ impl HashInto for ForEachTarget {
         }
     }
 }
-
 impl HashInto for TimingRestriction {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -3944,7 +3828,6 @@ impl HashInto for TimingRestriction {
         }
     }
 }
-
 impl HashInto for TriggerCondition {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -4000,7 +3883,6 @@ impl HashInto for TriggerCondition {
         }
     }
 }
-
 impl HashInto for Condition {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -4123,7 +4005,6 @@ impl HashInto for Condition {
         }
     }
 }
-
 impl HashInto for ContinuousEffectDef {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.layer.hash_into(hasher);
@@ -4132,7 +4013,6 @@ impl HashInto for ContinuousEffectDef {
         self.duration.hash_into(hasher);
     }
 }
-
 impl HashInto for Cost {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -4160,7 +4040,6 @@ impl HashInto for Cost {
         }
     }
 }
-
 impl HashInto for LoyaltyCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -4177,7 +4056,6 @@ impl HashInto for LoyaltyCost {
         }
     }
 }
-
 impl HashInto for ModeSelection {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.min_modes.hash_into(hasher);
@@ -4196,7 +4074,6 @@ impl HashInto for ModeSelection {
         }
     }
 }
-
 impl HashInto for Effect {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -4336,6 +4213,7 @@ impl HashInto for Effect {
                 reveal,
                 destination,
                 shuffle_before_placing,
+                also_search_graveyard,
             } => {
                 18u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -4343,6 +4221,7 @@ impl HashInto for Effect {
                 reveal.hash_into(hasher);
                 destination.hash_into(hasher);
                 shuffle_before_placing.hash_into(hasher);
+                also_search_graveyard.hash_into(hasher);
             }
             Effect::Shuffle { player } => {
                 19u8.hash_into(hasher);
@@ -4646,7 +4525,6 @@ impl HashInto for Effect {
         }
     }
 }
-
 impl HashInto for AbilityDefinition {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -5086,7 +4964,6 @@ impl HashInto for AbilityDefinition {
         }
     }
 }
-
 impl HashInto for crate::cards::card_definition::CraftMaterials {
     fn hash_into(&self, hasher: &mut Hasher) {
         use crate::cards::card_definition::CraftMaterials;
@@ -5110,14 +4987,12 @@ impl HashInto for crate::cards::card_definition::CraftMaterials {
         }
     }
 }
-
 impl HashInto for SoulbondGrant {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.layer.hash_into(hasher);
         self.modification.hash_into(hasher);
     }
 }
-
 impl HashInto for crate::cards::card_definition::GiftType {
     fn hash_into(&self, hasher: &mut Hasher) {
         use crate::cards::card_definition::GiftType;
@@ -5131,9 +5006,7 @@ impl HashInto for crate::cards::card_definition::GiftType {
         }
     }
 }
-
 // --- GameState hashing ---
-
 impl GameState {
     /// Computes a deterministic hash of all publicly visible game state.
     ///
@@ -5155,20 +5028,16 @@ impl GameState {
     ///   sequences began, so including it in the public hash would cause false mismatches.
     pub fn public_state_hash(&self) -> [u8; 32] {
         let mut hasher = Hasher::new();
-
         // 1. Turn state
         self.turn.hash_into(&mut hasher);
-
         // 2. Timestamp counter and replacement ID counter
         self.timestamp_counter.hash_into(&mut hasher);
         self.next_replacement_id.hash_into(&mut hasher);
-
         // 3. Player public state (via OrdMap iteration — deterministic order)
         (self.players.len() as u64).hash_into(&mut hasher);
         for (player_id, player) in &self.players {
             player_id.hash_into(&mut hasher);
             player.hash_into(&mut hasher);
-
             // Hand SIZE (not contents) — publicly observable
             let hand_size = self
                 .zones
@@ -5176,7 +5045,6 @@ impl GameState {
                 .map(|z| z.len())
                 .unwrap_or(0);
             (hand_size as u64).hash_into(&mut hasher);
-
             // Library SIZE (not contents) — publicly observable
             let library_size = self
                 .zones
@@ -5185,7 +5053,6 @@ impl GameState {
                 .unwrap_or(0);
             (library_size as u64).hash_into(&mut hasher);
         }
-
         // 4. Public zones — skip Hand(*) and Library(*), hash everything else
         //    Iterate zones in OrdMap order (deterministic)
         for (zone_id, zone) in &self.zones {
@@ -5201,7 +5068,6 @@ impl GameState {
                 }
             }
         }
-
         // 5. Vectors of game-wide state
         self.continuous_effects.hash_into(&mut hasher);
         self.delayed_triggers.hash_into(&mut hasher);
@@ -5223,40 +5089,33 @@ impl GameState {
         // PB-18: active restrictions (Rule of Law, Propaganda, etc.)
         self.restrictions.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
-
         // 6. Combat state
         self.combat.hash_into(&mut hasher);
-
         // 7. Gravestorm counter (CR 702.69a)
         self.permanents_put_into_graveyard_this_turn
             .hash_into(&mut hasher);
-
         // 8. Echo payment choices (CR 702.30a)
         for (player, oid, cost) in self.pending_echo_payments.iter() {
             player.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);
             cost.hash_into(&mut hasher);
         }
-
         // 9. Cumulative upkeep payment choices (CR 702.24a)
         for (player, oid, cost) in self.pending_cumulative_upkeep_payments.iter() {
             player.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);
             cost.hash_into(&mut hasher);
         }
-
         // 10. Recover payment choices (CR 702.59a)
         for (player, oid, cost) in self.pending_recover_payments.iter() {
             player.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);
             cost.hash_into(&mut hasher);
         }
-
         // 11. Forecast once-per-turn tracking (CR 702.57b)
         for card_id in self.forecast_used_this_turn.iter() {
             card_id.hash_into(&mut hasher);
         }
-
         // 12. Day/Night designation (CR 730.1) and previous turn spell count (CR 730.2)
         match self.day_night {
             None => 0u8.hash_into(&mut hasher),
@@ -5264,7 +5123,6 @@ impl GameState {
             Some(crate::state::DayNight::Night) => 2u8.hash_into(&mut hasher),
         }
         self.previous_turn_spells_cast.hash_into(&mut hasher);
-
         // 13. Dungeon state (CR 309.4) and initiative (CR 725.1)
         (self.dungeon_state.len() as u64).hash_into(&mut hasher);
         for (player_id, ds) in &self.dungeon_state {
@@ -5273,10 +5131,8 @@ impl GameState {
         }
         self.has_initiative.hash_into(&mut hasher);
         self.monarch.hash_into(&mut hasher);
-
         *hasher.finalize().as_bytes()
     }
-
     /// Computes a deterministic hash of a player's private (hidden) state.
     ///
     /// Covers the contents of their hand and library (card identities and order),
@@ -5287,10 +5143,8 @@ impl GameState {
     /// private hash but cannot see other players' private hashes.
     pub fn private_state_hash(&self, player: PlayerId) -> [u8; 32] {
         let mut hasher = Hasher::new();
-
         // 1. Player identity
         player.hash_into(&mut hasher);
-
         // 2. Hand zone contents (unordered — OrdSet gives deterministic iteration)
         if let Some(hand_zone) = self.zones.get(&ZoneId::Hand(player)) {
             let obj_ids = hand_zone.object_ids();
@@ -5304,7 +5158,6 @@ impl GameState {
         } else {
             0u64.hash_into(&mut hasher);
         }
-
         // 3. Library zone contents (ordered — position matters)
         if let Some(library_zone) = self.zones.get(&ZoneId::Library(player)) {
             let obj_ids = library_zone.object_ids();
@@ -5318,7 +5171,6 @@ impl GameState {
         } else {
             0u64.hash_into(&mut hasher);
         }
-
         // 4. Face-down cards controlled by this player (future-proofing)
         //    Currently empty — morphs/manifests not yet implemented
         let face_down: Vec<&GameObject> = self
@@ -5330,7 +5182,6 @@ impl GameState {
         for obj in face_down {
             obj.hash_into(&mut hasher);
         }
-
         *hasher.finalize().as_bytes()
     }
 }

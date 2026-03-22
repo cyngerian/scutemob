@@ -3,7 +3,6 @@
 // it onto the battlefield tapped, then shuffle."
 // CR 602.2: Activated ability — sacrifice self to ramp a basic land.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sakura-tribe-elder"),
@@ -23,6 +22,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: true },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle { player: PlayerTarget::Controller },
                 ]),
@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     }
 }

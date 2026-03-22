@@ -2,7 +2,6 @@
 // When ~ enters the battlefield, search for a basic land, put it onto the
 // battlefield tapped. When ~ dies, you may draw a card.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("solemn-simulacrum"),
@@ -22,6 +21,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: true },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle { player: PlayerTarget::Controller },
                 ]),
@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     }
 }

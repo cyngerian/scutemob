@@ -11,7 +11,6 @@
 //   needs has_card_types OR semantics combined with non_basic land filter. DSL gap.
 // TODO: Cost reduction — {1} less per legendary creature you control.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("boseiju-who-endures"),
@@ -68,6 +67,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::ControllerOf(Box::new(

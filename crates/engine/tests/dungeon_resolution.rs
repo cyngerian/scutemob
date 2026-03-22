@@ -336,6 +336,8 @@ fn test_sba_704_5t_waits_for_room_ability() {
         was_surged: false,
         was_casualty_paid: false,
         was_cleaved: false,
+        // CR 715.3d: test objects are not adventure casts.
+        was_cast_as_adventure: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         modes_chosen: vec![],

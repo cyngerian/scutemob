@@ -1,16 +1,13 @@
 //! Game object types: ObjectId, characteristics, status, and the GameObject struct.
-
-use bitflags::bitflags;
-use im::{OrdMap, OrdSet, Vector};
-use serde::{Deserialize, Serialize};
-
 use super::player::{CardId, PlayerId};
 use super::types::{
     AltCostKind, CardType, Color, CounterType, FaceDownKind, KeywordAbility, ManaColor, SubType,
     SuperType,
 };
 use super::zone::ZoneId;
-
+use bitflags::bitflags;
+use im::{OrdMap, OrdSet, Vector};
+use serde::{Deserialize, Serialize};
 bitflags! {
     /// Packed boolean designations on a GameObject. Replaces individual `is_*` fields
     /// to reduce struct size and simplify initialization.
@@ -44,12 +41,10 @@ bitflags! {
         const RING_BEARER    = 1 << 8;
     }
 }
-
 /// Identifies a game object instance. Per CR 400.7, when an object changes
 /// zones it becomes a new object with a new ObjectId.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ObjectId(pub u64);
-
 /// A single hybrid mana symbol (CR 107.4e).
 ///
 /// Hybrid mana symbols represent a cost that can be paid in one of two ways.
@@ -61,7 +56,6 @@ pub enum HybridMana {
     /// {2/W}, {2/U}, etc. — can be paid with the color OR 2 generic mana.
     GenericColor(ManaColor),
 }
-
 /// A single Phyrexian mana symbol (CR 107.4f).
 ///
 /// Each Phyrexian symbol represents a cost payable with one mana of its color
@@ -73,7 +67,6 @@ pub enum PhyrexianMana {
     /// {G/W/P}, {U/B/P}, etc. — pay with either color OR 2 life.
     Hybrid(ManaColor, ManaColor),
 }
-
 /// How a hybrid mana pip was paid (deterministic choice encoding).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum HybridManaPayment {
@@ -82,7 +75,6 @@ pub enum HybridManaPayment {
     /// Pay with 2 generic mana (only valid for GenericColor hybrids).
     Generic,
 }
-
 /// Mana cost of a card or ability (CR 202).
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ManaCost {
@@ -105,7 +97,6 @@ pub struct ManaCost {
     #[serde(default)]
     pub x_count: u32,
 }
-
 impl ManaCost {
     /// Mana value (formerly "converted mana cost") per CR 202.3.
     ///
@@ -135,7 +126,6 @@ impl ManaCost {
         base + hybrid_mv + phyrexian_mv
     }
 }
-
 /// A mana ability: an activated ability that produces mana (CR 605).
 ///
 /// Mana abilities do not use the stack and resolve immediately. They can be
@@ -169,7 +159,6 @@ pub struct ManaAbility {
     #[serde(default)]
     pub damage_to_controller: u32,
 }
-
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.
     pub fn tap_for(color: ManaColor) -> Self {
@@ -183,7 +172,6 @@ impl ManaAbility {
             damage_to_controller: 0,
         }
     }
-
     /// CR 111.10a: Treasure token mana ability — "{T}, Sacrifice this artifact:
     /// Add one mana of any color."
     pub fn treasure() -> Self {
@@ -196,7 +184,6 @@ impl ManaAbility {
         }
     }
 }
-
 /// Filter for "sacrifice a [type]" activation costs (CR 602.2).
 ///
 /// Used when an activated ability requires sacrificing another permanent (not self)
@@ -214,7 +201,6 @@ pub enum SacrificeFilter {
     /// "Sacrifice a [subtype]" — e.g., "Sacrifice a Desert", "Sacrifice a Food".
     Subtype(super::types::SubType),
 }
-
 /// Cost to activate an activated ability (CR 602.2).
 ///
 /// For M3-E, activation costs can include tapping and paying mana.
@@ -248,7 +234,6 @@ pub struct ActivationCost {
     #[serde(default)]
     pub sacrifice_filter: Option<SacrificeFilter>,
 }
-
 /// A non-mana activated ability that uses the stack (CR 602).
 ///
 /// Written as "Cost: Effect." Distinct from `ManaAbility` (CR 605) which
@@ -276,7 +261,6 @@ pub struct ActivatedAbility {
     #[serde(default)]
     pub activation_condition: Option<crate::cards::card_definition::Condition>,
 }
-
 /// Trigger event patterns for triggered abilities (CR 603).
 ///
 /// Describes what game event causes a triggered ability to trigger.
@@ -411,7 +395,6 @@ pub enum TriggerEvent {
     /// CR 603: Triggers at the start of the active player's beginning of combat step.
     AtBeginningOfCombat,
 }
-
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
 ///
 /// The condition is checked at trigger time (ability only triggers if true)
@@ -428,7 +411,6 @@ pub enum InterveningIf {
     /// the source has since left the graveyard).
     SourceHadNoCounterOfType(crate::state::types::CounterType),
 }
-
 /// Filter applied to ETB triggers to restrict which entering permanents cause
 /// the trigger to fire. All `true` fields must be satisfied (AND logic).
 ///
@@ -444,7 +426,6 @@ pub struct ETBTriggerFilter {
     /// If true, the entering permanent must NOT be the trigger source itself ("another").
     pub exclude_self: bool,
 }
-
 /// A triggered ability definition on a game object (CR 603).
 ///
 /// When the trigger event occurs, this ability is queued into
@@ -475,7 +456,6 @@ pub struct TriggeredAbilityDef {
     #[serde(default)]
     pub targets: Vec<crate::cards::card_definition::TargetRequirement>,
 }
-
 /// The observable characteristics of a game object (CR 109.3).
 ///
 /// These are the copiable values of an object — what a copy effect copies.
@@ -503,7 +483,6 @@ pub struct Characteristics {
     pub loyalty: Option<i32>,
     pub defense: Option<i32>,
 }
-
 /// Status bits for a permanent on the battlefield (CR 110.5).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObjectStatus {
@@ -512,7 +491,6 @@ pub struct ObjectStatus {
     pub face_down: bool,
     pub phased_out: bool,
 }
-
 /// An instance of an ability on a game object.
 /// Placeholder — will be fully defined in M3/M7.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -520,7 +498,6 @@ pub struct AbilityInstance {
     pub id: u64,
     pub description: String,
 }
-
 /// A game object — a card, token, copy, or ability on the stack (CR 109).
 ///
 /// Every card and token in the game is represented as a GameObject with a
@@ -955,8 +932,16 @@ pub struct GameObject {
     /// Reset to `None` on zone changes (CR 400.7).
     #[serde(default)]
     pub meld_component: Option<crate::state::player::CardId>,
+    /// CR 715.3d: If set, this card in exile was exiled as a resolved Adventure spell.
+    ///
+    /// The value is the PlayerId of the player who may cast the creature half from exile
+    /// (the spell's controller at resolution time). Only that player may cast it, and only
+    /// as the creature half — NOT as an Adventure again (CR 715.3d).
+    ///
+    /// Cleared automatically when the card leaves exile (CR 400.7: new object).
+    #[serde(default)]
+    pub adventure_exiled_by: Option<PlayerId>,
 }
-
 /// CR 729.2: A single component in a merged permanent.
 ///
 /// When a mutating creature spell resolves, it merges with the target permanent.
@@ -974,7 +959,6 @@ pub struct MergedComponent {
     /// True if this component is a token.
     pub is_token: bool,
 }
-
 impl GameObject {
     /// CR 702.26b: Returns true if this permanent is visible on the battlefield.
     /// Phased-out permanents are "treated as though they do not exist" for all

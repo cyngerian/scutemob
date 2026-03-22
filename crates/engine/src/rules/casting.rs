@@ -18,9 +18,7 @@
 //! **Mana cost (CR 601.2f-h)**: If the spell has a mana cost, the caster's
 //! mana pool must cover it. The cost is deducted from the pool when the spell
 //! is cast. Spells with no mana cost (e.g., `mana_cost: None`) are cast for free.
-
-use im::OrdSet;
-
+use super::events::GameEvent;
 use crate::cards::card_definition::{
     AbilityDefinition, CostModifierScope, SelfCostReduction, SpellCostFilter, TargetController,
     TargetRequirement,
@@ -39,9 +37,7 @@ use crate::state::types::{
 };
 use crate::state::zone::ZoneId;
 use crate::state::{GameState, PendingTrigger};
-
-use super::events::GameEvent;
-
+use im::OrdSet;
 /// Handle a CastSpell command: move a card from hand to the stack.
 ///
 /// Validates the casting window, validates targets, pays the mana cost, moves
@@ -77,7 +73,6 @@ pub fn handle_cast_spell(
     // Most spells have empty additional_costs, making this loop a no-op.
     // Previously, ~12 separate iterator scans iterated the vec independently.
     use crate::state::types::AdditionalCost;
-
     let mut retrace_discard_land: Option<ObjectId> = None;
     let mut escape_exile_cards: Vec<ObjectId> = vec![];
     let mut collect_evidence_cards: Vec<ObjectId> = vec![];
@@ -93,7 +88,6 @@ pub fn handle_cast_spell(
     let mut gift_opponent: Option<crate::state::PlayerId> = None;
     let mut mutate_target: Option<ObjectId> = None;
     let mut _mutate_on_top: bool = false;
-
     for cost in &additional_costs {
         match cost {
             AdditionalCost::Discard(ids) => {
@@ -142,11 +136,9 @@ pub fn handle_cast_spell(
             AdditionalCost::Sacrifice(_) => {}
         }
     }
-
     // Jump-start discard: same Discard variant. Retrace and Jump-Start are mutually exclusive
     // (retrace requires AltCostKind::Retrace, jump-start requires AltCostKind::JumpStart).
     let jump_start_discard: Option<ObjectId> = retrace_discard_land;
-
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
     let cast_with_mutate = alt_cost == Some(AltCostKind::Mutate);
@@ -168,10 +160,10 @@ pub fn handle_cast_spell(
     let cast_with_cleave = alt_cost == Some(AltCostKind::Cleave);
     let cast_with_disturb = alt_cost == Some(AltCostKind::Disturb);
     let cast_with_morph = alt_cost == Some(AltCostKind::Morph);
+    let cast_with_adventure = alt_cost == Some(AltCostKind::Adventure);
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
-
     // RC-1: Extract sacrifice ObjectIds from additional_costs.
     // A single helper extracts the first Sacrifice entry.
     // Disambiguation: emerge uses alt_cost == Emerge; bargain/casualty/devour are
@@ -183,14 +175,12 @@ pub fn handle_cast_spell(
             None
         }
     });
-
     // For emerge, the sacrifice is only valid when alt_cost is Emerge.
     let emerge_sacrifice: Option<ObjectId> = if cast_with_emerge {
         sacrifice_from_additional_costs
     } else {
         None
     };
-
     // For bargain/casualty, the sacrifice is the same ID (from additional_costs)
     // but only used when the spell has the respective keyword. The validation code
     // below checks the keyword before consuming the sacrifice. Both bargain and
@@ -206,7 +196,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -214,7 +203,6 @@ pub fn handle_cast_spell(
             actual: player,
         });
     }
-
     // CR 702.61a: If a spell with split second is on the stack, no spells
     // can be cast (mana abilities and special actions are still allowed).
     if has_split_second_on_stack(state) {
@@ -222,13 +210,11 @@ pub fn handle_cast_spell(
             "a spell with split second is on the stack; no spells can be cast (CR 702.61a)".into(),
         ));
     }
-
     // PB-18: Check active game restrictions that prevent casting (CR 101.2).
     // Restriction check must happen early, before card validation, because some
     // restrictions (MaxSpellsPerTurn, OpponentsCantCast*) apply regardless of
     // the specific spell being cast.
     check_cast_restrictions(state, player, card)?;
-
     // Fetch the card and validate it is in the player's hand, command zone, graveyard
     // (with flashback), or exile (with madness).
     // CR 903.8: A player may cast their commander from the command zone.
@@ -253,7 +239,6 @@ pub fn handle_cast_spell(
         let casting_from_graveyard = card_obj.zone == ZoneId::Graveyard(player);
         let casting_from_exile = card_obj.zone == ZoneId::Exile;
         let casting_from_hand = card_obj.zone == ZoneId::Hand(player);
-
         // CR 702.34a: Flashback — allowed if card has the flashback keyword and is in graveyard.
         // Suppress auto-detection when cast_with_escape is true: the player is explicitly
         // choosing escape over flashback, which is legal per CR 118.9a and the ruling for
@@ -268,15 +253,13 @@ pub fn handle_cast_spell(
                 .contains(&KeywordAbility::Flashback)
             && !cast_with_escape
             && !cast_with_jump_start; // CR 702.133a: suppress flashback if player chose jump-start
-
-        // CR 702.138a: Escape — allowed if card has the escape keyword and is in graveyard.
+                                      // CR 702.138a: Escape — allowed if card has the escape keyword and is in graveyard.
         let card_has_escape_keyword = card_obj
             .characteristics
             .keywords
             .contains(&KeywordAbility::Escape);
         let casting_with_escape_auto =
             casting_from_graveyard && card_has_escape_keyword && !casting_with_flashback;
-
         // CR 702.35a: Madness — allowed if card has the madness keyword and is in exile.
         // The card must have been exiled via the madness discard replacement.
         let casting_with_madness = casting_from_exile
@@ -284,7 +267,6 @@ pub fn handle_cast_spell(
                 .characteristics
                 .keywords
                 .contains(&KeywordAbility::Madness);
-
         // CR 702.94a: Miracle — validate if cast_with_miracle is true.
         // Card must be in hand with miracle keyword, and a MiracleTrigger for it must be on stack.
         if cast_with_miracle {
@@ -313,7 +295,6 @@ pub fn handle_cast_spell(
                 ));
             }
         }
-
         // CR 702.143a: Foretell -- allowed if cast_with_foretell is true.
         // Card must be in ZoneId::Exile with is_foretold == true and foretold on a prior turn.
         if cast_with_foretell {
@@ -333,7 +314,6 @@ pub fn handle_cast_spell(
                 ));
             }
         }
-
         // CR 702.170d: Plot -- allowed if cast_with_plot is true.
         // Card must be in ZoneId::Exile with is_plotted == true and plotted on a prior turn.
         // CR 702.170d: "during any turn after the turn in which it became plotted"
@@ -354,7 +334,6 @@ pub fn handle_cast_spell(
                 ));
             }
         }
-
         // CR 702.146a: Disturb — allowed if cast_with_disturb is true.
         // Card must be in the player's graveyard and have AbilityDefinition::Disturb.
         // Card must be a DFC (have a back_face in its CardDefinition).
@@ -386,7 +365,6 @@ pub fn handle_cast_spell(
                 ));
             }
         }
-
         // CR 702.81a: Retrace — allowed if card has the Retrace keyword and is in graveyard,
         // AND the player is providing a land card to discard (retrace_discard_land.is_some()).
         // Retrace is an additional cost (CR 118.8), NOT an alternative cost — it does not
@@ -399,19 +377,17 @@ pub fn handle_cast_spell(
                 .contains(&KeywordAbility::Retrace)
             && !casting_with_flashback // Flashback takes priority (Flashback is alt-cost)
             && retrace_discard_land.is_some(); // Player must signal retrace with a land
-
-        // CR 702.133a: Jump-Start — allowed if card has JumpStart keyword and is in graveyard,
-        // AND the player signals intent with cast_with_jump_start: true.
-        // Jump-start is NOT an alternative cost — it pays the card's normal mana cost PLUS
-        // discards any card from hand as an additional cost (2018-10-05 ruling on Radical Idea).
-        // The player must explicitly set cast_with_jump_start: true to use this ability.
+                                               // CR 702.133a: Jump-Start — allowed if card has JumpStart keyword and is in graveyard,
+                                               // AND the player signals intent with cast_with_jump_start: true.
+                                               // Jump-start is NOT an alternative cost — it pays the card's normal mana cost PLUS
+                                               // discards any card from hand as an additional cost (2018-10-05 ruling on Radical Idea).
+                                               // The player must explicitly set cast_with_jump_start: true to use this ability.
         let casting_with_jump_start = cast_with_jump_start
             && casting_from_graveyard
             && card_obj
                 .characteristics
                 .keywords
                 .contains(&KeywordAbility::JumpStart);
-
         // CR 702.133a: If cast_with_jump_start: true but card doesn't have the keyword, reject.
         if cast_with_jump_start
             && !card_obj
@@ -423,7 +399,6 @@ pub fn handle_cast_spell(
                 "jump-start: card does not have the JumpStart keyword (CR 702.133a)".into(),
             ));
         }
-
         // CR 702.127a: Aftermath — allowed if cast_with_aftermath is true, card has the Aftermath
         // keyword, and the card is in the caster's graveyard.
         let casting_with_aftermath = cast_with_aftermath
@@ -432,7 +407,6 @@ pub fn handle_cast_spell(
                 .characteristics
                 .keywords
                 .contains(&KeywordAbility::Aftermath);
-
         // CR 702.127a: If cast_with_aftermath: true but card doesn't have the keyword, reject.
         if cast_with_aftermath
             && !card_obj
@@ -444,13 +418,38 @@ pub fn handle_cast_spell(
                 "aftermath: card does not have the Aftermath keyword (CR 702.127a)".into(),
             ));
         }
-
         // CR 702.127a: Aftermath second half CANNOT be cast from any zone other than graveyard.
         if cast_with_aftermath && !casting_from_graveyard {
             return Err(GameStateError::InvalidCommand(
                 "aftermath: the aftermath half can only be cast from your graveyard (CR 702.127a)"
                     .into(),
             ));
+        }
+        // CR 715.3d: Adventure — creature half cast from exile after Adventure resolved.
+        // The card must be in exile with adventure_exiled_by == Some(player).
+        // Only the CREATURE half may be cast this way (not as an Adventure again).
+        let casting_adventure_creature_from_exile = casting_from_exile
+            && card_obj.adventure_exiled_by == Some(player)
+            && !cast_with_adventure;
+
+        // CR 715.3a: When casting as an Adventure, the card must be in hand.
+        if cast_with_adventure && !casting_from_hand {
+            return Err(GameStateError::InvalidCommand(
+                "adventure: the card must be in your hand to cast it as an Adventure (CR 715.3a)"
+                    .into(),
+            ));
+        }
+
+        // CR 715.3d: When casting the creature from adventure exile, verify the exile flag.
+        if casting_from_exile
+            && !cast_with_adventure
+            && !cast_with_foretell
+            && !cast_with_plot
+            && !casting_with_madness
+            && !casting_adventure_creature_from_exile
+        {
+            // Some other exile cast path (flashback, etc.) will handle it.
+            // This check prevents accidentally allowing exile casts without a known reason.
         }
 
         if card_obj.zone != ZoneId::Hand(player)
@@ -465,6 +464,8 @@ pub fn handle_cast_spell(
             && !casting_with_jump_start
             && !casting_with_aftermath
             && !cast_with_disturb
+            // CR 715.3d: Adventure creature from exile is allowed
+            && !casting_adventure_creature_from_exile
         // CR 702.146a: Disturb allows graveyard cast
         // CR 702.127a: Aftermath allows graveyard cast
         {
@@ -486,7 +487,6 @@ pub fn handle_cast_spell(
             casting_with_aftermath,
         )
     };
-
     // CR 903.8: Only a player's own commander may be cast from the command zone.
     if casting_from_command_zone {
         let player_state = state.player(player)?;
@@ -500,7 +500,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // Use calculate_characteristics for type/keyword checks to respect continuous effects
     // (CR 613). Falls back to raw characteristics if the object is not found (command zone
     // objects may not participate in layer calculations).
@@ -510,18 +509,33 @@ pub fn handle_cast_spell(
             .map(|o| o.characteristics.clone())
             .unwrap_or_default()
     });
-
+    // CR 715.3a / CR 715.3b: When casting as an Adventure, use the adventure face's
+    // characteristics for legality checks and speed determination. The adventure half is
+    // always an Instant or Sorcery (subtyped "Adventure"). This override ensures that:
+    // 1. The Land check doesn't incorrectly block creature-type adventurer cards.
+    // 2. The casting speed is determined by the adventure face's type (Instant = flash speed).
+    // 3. Type-based restrictions use the adventure characteristics, not the creature half.
+    if cast_with_adventure {
+        let adventure_face_opt = card_id
+            .as_ref()
+            .and_then(|cid| state.card_registry.get(cid.clone()))
+            .and_then(|def| def.adventure_face.as_ref());
+        if let Some(adv_face) = adventure_face_opt {
+            // Override the type line with the adventure face's types.
+            chars.card_types = adv_face.types.card_types.clone();
+            chars.supertypes = adv_face.types.supertypes.clone();
+            chars.subtypes = adv_face.types.subtypes.clone();
+        }
+    }
     // Lands are not cast — they are played as a special action (CR 305.1).
     if chars.card_types.contains(&CardType::Land) {
         return Err(GameStateError::InvalidCommand(
             "lands are played with PlayLand, not cast".into(),
         ));
     }
-
     // Determine casting speed (CR 601.3).
     let is_instant_speed = chars.card_types.contains(&CardType::Instant)
         || chars.keywords.contains(&KeywordAbility::Flash);
-
     // CR 702.34a: Flashback — type validation: only instants and sorceries can use flashback.
     // CR 702.34a: "You may cast this card from your graveyard if the resulting spell is an
     // instant or sorcery spell."
@@ -534,7 +548,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // CR 702.133a: Jump-start — type validation: only instants and sorceries.
     // CR 702.133a: "You may cast this card from your graveyard if the resulting spell is an
     // instant or sorcery spell."
@@ -547,7 +560,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
     // card_type for timing validation instead of the first half's card types.
     // The first half's type may differ (e.g., Cut is Sorcery, Ribbons might be Instant).
@@ -558,7 +570,6 @@ pub fn handle_cast_spell(
     } else {
         is_instant_speed
     };
-
     // CR 702.102b + CR 709.4d: A fused spell has the combined characteristics of both halves.
     // If either half is an instant, the combined spell can be cast at instant speed.
     let is_instant_speed = if casting_with_fuse {
@@ -567,7 +578,6 @@ pub fn handle_cast_spell(
     } else {
         is_instant_speed
     };
-
     // CR 702.74a / CR 702.34a / CR 903.8: Determine the cost to pay.
     // - Evoke: pay the evoke cost (alternative cost, CR 118.9) instead of mana cost.
     //   Cannot combine with flashback (CR 118.9a: only one alternative cost).
@@ -575,7 +585,6 @@ pub fn handle_cast_spell(
     // - Otherwise: pay the printed mana cost.
     // CR 118.9d: additional costs (commander tax) apply ON TOP of any alternative cost.
     // This means casting a commander with evoke from the command zone costs evoke + tax.
-
     // Step 1: Validate evoke (CR 702.74a / CR 118.9a).
     let casting_with_evoke = if cast_with_evoke {
         if casting_with_flashback {
@@ -593,7 +602,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1b: Validate bestow (CR 702.103a / CR 118.9a).
     let casting_with_bestow = if cast_with_bestow {
         if casting_with_flashback {
@@ -624,7 +632,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1c: Validate madness exclusion (CR 601.2b / CR 118.9a).
     // A player can't apply two alternative costs to a single spell. Since madness is an
     // auto-detected alternative cost (from the card's exile zone + keyword), a buggy or
@@ -649,7 +656,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // Step 1d: Validate miracle exclusion (CR 118.9a).
     // Miracle is an alternative cost — cannot combine with other alternative costs.
     if cast_with_miracle {
@@ -675,7 +681,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // Step 1e: Validate escape (CR 702.138a / CR 118.9a).
     // Escape is an alternative cost -- cannot combine with other alternative costs.
     // Auto-detect: if the card is in the graveyard with Escape keyword but no Flashback,
@@ -731,7 +736,6 @@ pub fn handle_cast_spell(
             && !casting_with_madness
             && !casting_with_retrace // Player explicitly chose retrace
     };
-
     // Also add escape to existing mutual exclusion checks for evoke, bestow, madness, miracle:
     if casting_with_escape {
         // (Already validated mutual exclusion above in the cast_with_escape: true branch.)
@@ -757,7 +761,6 @@ pub fn handle_cast_spell(
             }
         }
     }
-
     // Step 1f: Validate foretell mutual exclusion (CR 118.9a).
     // Foretell is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_foretell = if cast_with_foretell {
@@ -798,7 +801,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1g: Validate overload (CR 702.96a / CR 118.9a).
     // Overload is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_overload = if cast_with_overload {
@@ -850,7 +852,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1h: Validate aftermath mutual exclusion (CR 702.127a / CR 118.9a).
     // Aftermath is an alternative cost -- cannot combine with other alternative costs.
     // Note: aftermath and jump-start are both compatible with each other per CR 118.8 / 118.9a
@@ -912,7 +913,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // CR 702.102a: Fuse validation.
     // Fuse is a static ability (not an alternative cost) that allows casting both halves
     // of a split card from hand, paying the combined mana cost (CR 702.102c).
@@ -943,7 +943,6 @@ pub fn handle_cast_spell(
             ));
         }
     }
-
     // Step 1h-mutate: Validate mutate (CR 702.140a / CR 118.9a).
     // Mutate is an alternative cost. The spell must have the Mutate keyword.
     // The mutate_target must be a non-Human creature on the battlefield that the
@@ -1004,7 +1003,6 @@ pub fn handle_cast_spell(
             }
         }
     }
-
     // Step 1i: Validate dash mutual exclusion (CR 702.109a / CR 118.9a).
     // Dash is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_dash = if cast_with_dash {
@@ -1092,7 +1090,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1j: Validate blitz mutual exclusion (CR 702.152a / CR 118.9a).
     // Blitz is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_blitz = if cast_with_blitz {
@@ -1186,7 +1183,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1k: Validate plot mutual exclusion (CR 702.170d / CR 118.9a).
     // Plot is an alternative cost -- cannot combine with other alternative costs.
     // Also enforces sorcery-speed timing for the free-cast (CR 702.170d).
@@ -1298,7 +1294,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1m: Validate impending mutual exclusion (CR 702.176a / CR 118.9a).
     // Impending is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_impending = if cast_with_impending {
@@ -1408,7 +1403,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1n: Validate emerge mutual exclusion (CR 702.119a / CR 118.9a).
     // Emerge is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_emerge = if cast_with_emerge {
@@ -1511,7 +1505,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // CR 702.119a / CR 601.2b,f: Emerge -- validate the sacrifice target and compute
     // the creature's mana value for cost reduction.
     // Emerge is an alternative cost: `alt_cost` must be `Some(AltCostKind::Emerge)`.
@@ -1573,7 +1566,6 @@ pub fn handle_cast_spell(
         } else {
             (None, None)
         };
-
     // Step 1o: Validate spectacle mutual exclusion and precondition (CR 702.137a / CR 118.9a).
     // Spectacle is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_spectacle = if cast_with_spectacle {
@@ -1701,7 +1693,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1p: Validate surge mutual exclusion and precondition (CR 702.117a / CR 118.9a).
     // Surge is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_surge = if cast_with_surge {
@@ -1821,7 +1812,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1q: Validate cleave mutual exclusion (CR 702.148a / CR 118.9a).
     // Cleave is an alternative cost -- cannot combine with other alternative costs.
     let casting_with_cleave = if cast_with_cleave {
@@ -1864,7 +1854,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1r: Validate disturb mutual exclusion (CR 702.146a / CR 118.9a).
     // Disturb is an alternative cost -- cannot combine with other alternative costs.
     // Disturb also requires the card to be in the graveyard (already checked in zone guard)
@@ -1982,7 +1971,6 @@ pub fn handle_cast_spell(
     } else {
         false
     };
-
     // Step 1l: Validate prototype (CR 702.160a / CR 718.3).
     // Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14) -- it can combine
     // with any alternative cost. We validate that the card has AbilityDefinition::Prototype
@@ -1998,7 +1986,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     // CR 718.3a: When prototype is true, the prototype mana cost REPLACES the card's
     // normal mana cost as the base. The alt-cost chain then operates on this base.
@@ -2009,7 +1996,6 @@ pub fn handle_cast_spell(
     } else {
         base_mana_cost
     };
-
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
@@ -2160,10 +2146,24 @@ pub fn handle_cast_spell(
             generic: 3,
             ..Default::default()
         })
+    } else if cast_with_adventure {
+        // CR 715.3: Casting as an Adventure — pay the adventure face's mana cost.
+        // CR 715.3a: Only the adventure face characteristics are evaluated for legality.
+        // The adventure face's mana cost is stored in CardDefinition::adventure_face.
+        let adventure_cost = card_id
+            .as_ref()
+            .and_then(|cid| state.card_registry.get(cid.clone()))
+            .and_then(|def| def.adventure_face.as_ref())
+            .and_then(|face| face.mana_cost.clone());
+        if adventure_cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "adventure: card has no adventure_face defined (CR 715.3a)".into(),
+            ));
+        }
+        adventure_cost
     } else {
         base_mana_cost
     };
-
     // CR 702.102c: For fused split spells, add the right half's mana cost to the base cost.
     // Fuse is NOT an alternative cost — it pays BOTH halves' mana costs combined.
     // This addition happens after the base cost is selected and before commander tax.
@@ -2198,7 +2198,6 @@ pub fn handle_cast_spell(
     } else {
         base_cost_before_tax
     };
-
     // Step 3: Apply commander tax ON TOP of the selected base cost (CR 118.9d / CR 903.8).
     let mana_cost: Option<ManaCost> = if casting_from_command_zone {
         let tax = {
@@ -2212,7 +2211,6 @@ pub fn handle_cast_spell(
     } else {
         base_cost_before_tax
     };
-
     // CR 702.33a / 601.2b: If the player declared intention to pay kicker, validate
     // the spell has kicker and add the kicker cost to the total.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2236,7 +2234,6 @@ pub fn handle_cast_spell(
     } else {
         (0, None)
     };
-
     // CR 601.2f: Add kicker cost(s) to the total mana cost.
     let mana_cost = if let Some(kicker_cost) = kicker_cost_opt {
         let mut total = mana_cost.unwrap_or_default();
@@ -2253,7 +2250,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.56a / 601.2b / 601.2f-h: If the player declared intention to pay replicate,
     // validate the spell has the Replicate keyword and add the replicate cost N times.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2275,7 +2271,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 601.2f: Add replicate cost N times to the total mana cost.
     let mana_cost = if let Some(replicate_cost) = replicate_cost_opt {
         let mut total = mana_cost.unwrap_or_default();
@@ -2292,7 +2287,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.157a / 601.2b / 601.2f-h: Squad -- if the player declared intent to pay the squad
     // cost N times, validate the spell has KeywordAbility::Squad and add the cost N times.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2314,7 +2308,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 601.2f: Add squad cost N times to the total mana cost.
     let mana_cost = if let Some(squad_cost) = squad_cost_opt {
         let mut total = mana_cost.unwrap_or_default();
@@ -2331,7 +2324,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.175a / 601.2b / 601.2f-h: Offspring -- if the player declared intent to pay the
     // offspring cost, validate the spell has KeywordAbility::Offspring and add the cost once.
     // Binary: paid once or not at all (unlike Squad which can be paid N times).
@@ -2354,7 +2346,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 601.2f: Add offspring cost once to the total mana cost.
     let mana_cost = if let Some(offspring_cost) = offspring_cost_opt {
         let mut total = mana_cost.unwrap_or_default();
@@ -2369,7 +2360,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.174a / CR 601.2b: Gift -- validate the chosen opponent.
     // Gift is an optional additional cost: the player MAY choose an opponent as an additional
     // cost to cast this spell. Unlike most additional costs, Gift has no mana component --
@@ -2398,7 +2388,6 @@ pub fn handle_cast_spell(
         } else {
             None
         };
-
     // CR 702.42a / 601.2b / 601.2f-h: Entwine -- if the player declared intent to pay the entwine
     // cost, validate the spell has KeywordAbility::Entwine and add the entwine cost to the total.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2430,7 +2419,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.120a / 601.2f-h: Escalate -- if escalate_modes > 0, validate the spell has
     // KeywordAbility::Escalate and add the escalate cost * escalate_modes to the total.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2488,7 +2476,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.172a / 700.2h: Spree -- for each chosen mode, add that mode's per-mode
     // additional cost to the total mana cost. Spree requires at least one mode to be chosen.
     // CR 118.8d: Additional costs don't change the spell's mana value, only what is paid.
@@ -2546,7 +2533,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.47a / 601.2b / 601.2f-h: Splice onto [subtype] -- validate and collect splice info.
     // For each splice card declared: verify it's in hand, has Splice keyword, the target spell has
     // the matching subtype, no duplicates, then add the splice cost as an additional cost and
@@ -2559,7 +2545,6 @@ pub fn handle_cast_spell(
         let mut splice_effects_out = Vec::new();
         let mut splice_ids_out = Vec::new();
         let mut running_cost = mana_cost;
-
         for splice_card_id in &splice_cards {
             // Duplicate check (CR 702.47b).
             if !seen_splice_ids.insert(*splice_card_id) {
@@ -2568,7 +2553,6 @@ pub fn handle_cast_spell(
                         splice_card_id
                     )));
             }
-
             // CR 702.47a / Ruling: A card cannot be spliced onto itself.
             // "A card with a splice ability can't be spliced onto itself because the spell
             // is on the stack (and not in your hand) when you reveal the cards you want to
@@ -2580,7 +2564,6 @@ pub fn handle_cast_spell(
                         splice_card_id
                     )));
             }
-
             // CR 702.47a: The splice card must be in the caster's hand.
             // It cannot be the card being cast (that card is on the stack, not in hand).
             let splice_zone = {
@@ -2593,7 +2576,6 @@ pub fn handle_cast_spell(
                         splice_card_id
                     )));
             }
-
             // CR 702.47a: The splice card must have the Splice keyword.
             let splice_card_chars = calculate_characteristics(state, *splice_card_id)
                 .unwrap_or_else(|| {
@@ -2609,7 +2591,6 @@ pub fn handle_cast_spell(
                     splice_card_id
                 )));
             }
-
             // Fetch the Splice ability definition from the registry.
             let splice_card_obj = state.objects.get(splice_card_id);
             let splice_def_card_id = splice_card_obj.and_then(|o| o.card_id.clone());
@@ -2623,7 +2604,6 @@ pub fn handle_cast_spell(
                         },
                     )?;
             let (splice_cost, splice_onto_subtype, splice_effect) = splice_info;
-
             // CR 702.47a: The spell being cast must have the matching subtype.
             // e.g., Splice onto Arcane requires the target spell to have the Arcane subtype.
             if !chars.subtypes.contains(&splice_onto_subtype) {
@@ -2632,7 +2612,6 @@ pub fn handle_cast_spell(
                     splice_onto_subtype
                 )));
             }
-
             // CR 601.2f-h: Add the splice cost as an additional cost.
             let mut total = running_cost.unwrap_or_default();
             total.white += splice_cost.white;
@@ -2643,7 +2622,6 @@ pub fn handle_cast_spell(
             total.generic += splice_cost.generic;
             total.colorless += splice_cost.colorless;
             running_cost = Some(total);
-
             splice_effects_out.push(splice_effect);
             splice_ids_out.push(*splice_card_id);
         }
@@ -2651,7 +2629,6 @@ pub fn handle_cast_spell(
     } else {
         (mana_cost, vec![], vec![])
     };
-
     // CR 702.27a / 601.2f: If the player declared intention to pay buyback, validate
     // the spell has a buyback ability and bind the cost for use below.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2668,7 +2645,6 @@ pub fn handle_cast_spell(
         None
     };
     let was_buyback_paid = buyback_cost_opt.is_some();
-
     // CR 601.2f: Add buyback cost to the total mana cost.
     let mana_cost = if let Some(buyback_cost) = buyback_cost_opt {
         let mut total = mana_cost.unwrap_or_default();
@@ -2683,7 +2659,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.81a / CR 601.2b,f: Retrace — validate and bind the land discard cost.
     // Retrace is an additional cost (CR 118.8): the player pays the card's normal mana
     // cost PLUS discards a land card from hand. The discard is validated here (before the
@@ -2699,7 +2674,6 @@ pub fn handle_cast_spell(
                 "retrace: internal error -- retrace_discard_land must be Some".into(),
             )
         })?;
-
         // Validate the land card:
         // 1. Must be in the player's hand (CR 702.81a: "discarding a land card").
         // 2. Must have CardType::Land.
@@ -2729,7 +2703,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 702.133a / CR 601.2b,f: Jump-start — validate and bind the discard card.
     // Jump-start is an additional cost (CR 601.2f-h): the player pays the card's normal
     // mana cost PLUS discards any card from hand. The discard is validated here (before
@@ -2744,7 +2717,6 @@ pub fn handle_cast_spell(
                 "jump-start: must provide a card to discard (jump_start_discard must be Some) (CR 702.133a)".into(),
             )
         })?;
-
         // Validate the discard card:
         // 1. Must be in the player's hand.
         // 2. Can be any card type (any card, not just lands -- CR 702.133a).
@@ -2760,7 +2732,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 702.166a / CR 601.2b,f: Bargain -- validate the sacrifice target.
     // Bargain is an optional additional cost: the player MAY sacrifice an artifact,
     // enchantment, or token as an additional cost to cast this spell. The sacrifice
@@ -2809,7 +2780,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 702.153a / CR 601.2b,f: Casualty -- validate the sacrifice target.
     // Casualty N is an optional additional cost: the player MAY sacrifice a creature
     // with power N or greater as an additional cost to cast this spell.
@@ -2871,7 +2841,6 @@ pub fn handle_cast_spell(
     } else {
         None
     };
-
     // CR 701.59a / CR 601.2b,f: Collect Evidence -- validate the graveyard cards.
     // Collect Evidence is an additional cost: the player exiles cards from their graveyard
     // with total mana value >= N. Unlike Delve, the exiled cards do NOT reduce mana cost.
@@ -2963,7 +2932,6 @@ pub fn handle_cast_spell(
         }
         false
     };
-
     // Validate casting window.
     // CR 702.35 ruling: Madness ignores timing restrictions — a sorcery cast via madness
     // can be cast any time the player has priority, like an instant.
@@ -2987,7 +2955,6 @@ pub fn handle_cast_spell(
             return Err(GameStateError::StackNotEmpty);
         }
     }
-
     // Look up target requirements and cant_be_countered from the card definition (CR 601.2c).
     // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
     // target requirements instead of the first half's Spell targets.
@@ -3023,7 +2990,6 @@ pub fn handle_cast_spell(
             })
             .unwrap_or_default()
     };
-
     // CR 702.96b: When overloaded, the spell has no targets.
     // Override requirements to empty so validate_targets doesn't require targets.
     let requirements = if casting_with_overload {
@@ -3037,11 +3003,9 @@ pub fn handle_cast_spell(
     } else {
         requirements
     };
-
     // CR 601.2c: Validate and record targets at cast time.
     // Pass source characteristics for protection-from checks (CR 702.16b).
     let spell_targets = validate_targets(state, &targets, &requirements, player, Some(&chars))?;
-
     // CR 702.5a / 303.4a: Aura spells require exactly one target matching the Enchant restriction.
     // The Enchant keyword defines the target restriction — it is derived from the card's
     // keywords rather than from an explicit TargetRequirement (which applies to instants/sorceries).
@@ -3087,29 +3051,24 @@ pub fn handle_cast_spell(
             }
         }
     }
-
     // CR 601.2f: Apply static spell cost modifiers from permanents on the battlefield
     // (and command zone for Eminence). Cost increases (+1 for Thalia) and reductions
     // (-1 for Goblin Warchief) are applied after base cost + tax + kicker, before
     // affinity/undaunted/convoke/improvise/delve.
     let mana_cost = apply_spell_cost_modifiers(state, player, card, &chars, mana_cost);
-
     // CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
     // E.g. Blasphemous Act costs {1} less per creature on the battlefield.
     let mana_cost = apply_self_cost_reduction(state, player, &card_id, mana_cost);
-
     // CR 702.41a / 601.2f: Apply affinity cost reduction AFTER total cost is determined
     // (including commander tax, kicker) and BEFORE convoke/improvise/delve.
     // Affinity is a static ability — the engine counts qualifying permanents automatically.
     // CR 702.41b: Multiple instances of affinity are cumulative.
     let mana_cost = apply_affinity_reduction(state, player, &chars, mana_cost);
-
     // CR 702.125a: Apply undaunted cost reduction AFTER total cost is determined
     // (including commander tax, kicker, affinity) and BEFORE convoke/improvise/delve.
     // Undaunted is a static ability — the engine counts opponents automatically.
     // CR 702.125c: Multiple instances of undaunted are cumulative.
     let mana_cost = apply_undaunted_reduction(state, player, &chars, mana_cost);
-
     // CR 702.51a / 702.51b: Apply convoke cost reduction AFTER total cost is determined.
     // Convoke is not an additional or alternative cost — it applies to the total cost.
     // Order: base_mana_cost → commander_tax → kicker → affinity → CONVOKE → improvise → delve → pay.
@@ -3130,7 +3089,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.126a / 702.126b: Apply improvise cost reduction AFTER total cost is determined.
     // Improvise is not an additional or alternative cost — it applies to the total cost.
     // Order: base_mana_cost → commander_tax → flashback → convoke → IMPROVISE → delve → pay.
@@ -3151,7 +3109,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.66a / 702.66b: Apply delve cost reduction AFTER total cost is determined.
     // Delve is not an additional or alternative cost — it applies to the total cost.
     // Order: base_mana_cost → commander_tax → flashback → convoke → improvise → DELVE → pay.
@@ -3166,7 +3123,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.132a: Apply assist — another player pays generic mana in the total cost.
     // Assist applies AFTER all other cost reductions (convoke, improvise, delve) and
     // BEFORE the caster pays. Pipeline order:
@@ -3231,7 +3187,6 @@ pub fn handle_cast_spell(
     } else {
         mana_cost
     };
-
     // CR 702.138a: Validate and exile cards for escape cost (CR 601.2h).
     // The escape exile cards are validated and exiled BEFORE the card moves to the stack
     // (the card hasn't moved yet at this point -- it will move below via move_object_to_zone).
@@ -3252,7 +3207,6 @@ pub fn handle_cast_spell(
             &mut escape_exile_events,
         )?;
     }
-
     // CR 107.3a: Add x_count * x_value to generic. Uses x_count from ManaCost
     // (structural, e.g., Treasure Vault has x_count: 2 for {X}{X}) and x_value
     // from CastSpell (player's chosen value). Falls back to old behavior for
@@ -3268,10 +3222,8 @@ pub fn handle_cast_spell(
         }
         c
     });
-
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();
-
     if let Some(ref cost) = mana_cost {
         // CR 107.4e/107.4f: Flatten hybrid and Phyrexian choices into a standard cost.
         let (flat_cost, phyrexian_life) = if !cost.hybrid.is_empty() || !cost.phyrexian.is_empty() {
@@ -3279,7 +3231,6 @@ pub fn handle_cast_spell(
         } else {
             (cost.clone(), 0)
         };
-
         if flat_cost.mana_value() > 0 {
             // CR 106.6: Build a SpellContext so restricted mana (e.g., from Cavern of Souls)
             // can be checked and spent when it matches the spell being cast.
@@ -3299,7 +3250,6 @@ pub fn handle_cast_spell(
                 Some(&spell_context),
             );
         }
-
         // CR 107.4f: Pay life for Phyrexian mana symbols paid with life.
         if phyrexian_life > 0 {
             let player_state = state.player_mut(player)?;
@@ -3310,7 +3260,6 @@ pub fn handle_cast_spell(
                 amount: phyrexian_life,
             });
         }
-
         // CR 601.2f: ManaCostPaid is emitted for all costs, including {0}.
         // Emit the original cost (with hybrid/phyrexian info) for event consumers.
         events.push(GameEvent::ManaCostPaid {
@@ -3318,27 +3267,21 @@ pub fn handle_cast_spell(
             cost: cost.clone(),
         });
     }
-
     // CR 702.51a / CR 601.2h: Emit PermanentTapped events for convoke creatures.
     // Tapping happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(convoke_events);
-
     // CR 702.126a / CR 601.2h: Emit PermanentTapped events for improvise artifacts.
     // Tapping happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(improvise_events);
-
     // CR 702.132a / CR 601.2h: Emit ManaCostPaid events for the assisting player.
     // Assist payment happens as part of cost payment (CR 601.2h).
     events.extend(assist_events);
-
     // CR 702.66a / CR 601.2h: Emit ObjectExiled events for delve cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(delve_events);
-
     // CR 702.138a / CR 601.2h: Emit ObjectExiled events for escape exile cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(escape_exile_events);
-
     // CR 702.81a / CR 601.2f: Pay the retrace additional cost — discard a land from hand.
     // The discard is a real discard (CR 118.8 / 701.8): the land goes from hand to the
     // owner's graveyard and triggers any "whenever a player discards a card" effects.
@@ -3352,7 +3295,6 @@ pub fn handle_cast_spell(
             new_id: new_land_id,
         });
     }
-
     // CR 702.133a / CR 601.2f-h: Pay the jump-start additional cost — discard any card from hand.
     // The discard is a real discard (CR 118.8 / 701.8): the card goes from hand to the
     // owner's graveyard and triggers any "whenever a player discards a card" effects.
@@ -3401,7 +3343,6 @@ pub fn handle_cast_spell(
             });
         }
     }
-
     // CR 702.166a / CR 601.2f-h: Pay the bargain additional cost -- sacrifice
     // an artifact, enchantment, or token. The sacrifice is a real sacrifice
     // (CR 701.17): the permanent goes from battlefield to the owner's graveyard.
@@ -3416,7 +3357,6 @@ pub fn handle_cast_spell(
             new_grave_id: new_sac_id,
         });
     }
-
     // CR 702.119a / CR 601.2f-h: Pay the emerge alternative cost -- sacrifice a creature.
     // The sacrifice is part of cost payment (CR 601.2h): the creature goes from the
     // battlefield to the owner's graveyard before the spell goes on the stack.
@@ -3430,7 +3370,6 @@ pub fn handle_cast_spell(
             new_grave_id: new_sac_id,
         });
     }
-
     // CR 702.153a / CR 601.2f-h: Pay the casualty additional cost -- sacrifice a creature
     // with power >= N. The sacrifice is a real sacrifice (CR 701.17): the permanent goes
     // from battlefield to the owner's graveyard.
@@ -3445,7 +3384,6 @@ pub fn handle_cast_spell(
             new_grave_id: new_sac_id,
         });
     }
-
     // CR 701.59a / CR 601.2f-h: Pay the collect evidence additional cost -- exile
     // cards from the caster's graveyard with total mana value >= N.
     // This happens as part of cost payment (CR 601.2h), after mana payment.
@@ -3461,13 +3399,10 @@ pub fn handle_cast_spell(
             });
         }
     }
-
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
-
     // CR 601.2: Create the StackObject and push it (LIFO — last in, first out).
     let stack_entry_id = state.next_object_id();
-
     // CR 702.21a: Collect battlefield object targets before moving spell_targets into
     // the stack object. These are used to emit PermanentTargeted events for Ward.
     let battlefield_targets: Vec<ObjectId> = spell_targets
@@ -3482,7 +3417,6 @@ pub fn handle_cast_spell(
             None
         })
         .collect();
-
     // CR 702.82a: Validate devour sacrifices from additional_costs -- each ObjectId must be:
     // - On the battlefield, controlled by the caster
     // - A creature (by current characteristics)
@@ -3557,7 +3491,6 @@ pub fn handle_cast_spell(
     } else {
         vec![]
     };
-
     // CR 700.2a / 601.2b: Validate explicit mode choices for modal spells.
     // If modes_chosen is non-empty, the spell must be modal and the indices must be valid.
     // When entwine_paid is true, modes_chosen is ignored (all modes are chosen).
@@ -3628,7 +3561,6 @@ pub fn handle_cast_spell(
         modes_chosen
     };
     // TODO(CR 700.2c): per-mode targeting — each mode may have its own targets; currently deferred, all targets treated uniformly
-
     // CR 702.140a / CR 729.2: If casting with the mutate cost, the spell goes on the stack
     // as a MutatingCreatureSpell rather than a plain Spell. The `target` field is the
     // validated non-Human creature the spell will merge with on resolution.
@@ -3651,7 +3583,6 @@ pub fn handle_cast_spell(
             source_object: new_card_id,
         }
     };
-
     let stack_obj = StackObject {
         id: stack_entry_id,
         controller: player,
@@ -3705,6 +3636,8 @@ pub fn handle_cast_spell(
         was_casualty_paid: casualty_sacrifice_id.is_some(),
         // CR 702.148a: Record whether this spell was cast by paying its cleave cost.
         was_cleaved: casting_with_cleave,
+        // CR 715.3d: Record whether this spell was cast as an Adventure.
+        was_cast_as_adventure: cast_with_adventure,
         // was_entwined: REMOVED — read from AdditionalCost::Entwine in additional_costs
         // escalate_modes_paid: REMOVED — read from AdditionalCost::EscalateModes in additional_costs
         // CR 702.47a: Spliced effects collected during splice validation above.
@@ -3730,7 +3663,6 @@ pub fn handle_cast_spell(
         additional_costs,
     };
     state.stack_objects.push_back(stack_obj);
-
     // CR 702.103b: When cast bestowed, apply the type transformation to the source
     // object on the stack. The spell becomes an Aura enchantment with enchant creature
     // and loses the Creature type while on the stack.
@@ -3754,7 +3686,6 @@ pub fn handle_cast_spell(
                 .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
         }
     }
-
     // CR 718.3b: When cast as a prototyped spell, apply prototype characteristics to
     // the source object on the stack. The spell uses the alternative P/T, mana cost,
     // and color (derived from prototype mana cost, CR 718.3b / CR 105.2).
@@ -3773,7 +3704,6 @@ pub fn handle_cast_spell(
             stack_source.characteristics.colors = colors_from_mana_cost(proto_cost);
         }
     }
-
     // CR 702.37c / 702.168b: When cast with morph/megamorph/disguise, set the source object
     // on the stack to face-down. The layer system will make it appear as a 2/2 colorless
     // creature with no name, text, subtypes, or mana cost (CR 708.2a).
@@ -3807,7 +3737,6 @@ pub fn handle_cast_spell(
             stack_source.face_down_as = Some(kind);
         }
     }
-
     // CR 903.8: Increment commander tax counter if cast from command zone.
     let commander_tax_paid = if casting_from_command_zone {
         if let Some(ref cid) = card_id {
@@ -3822,18 +3751,15 @@ pub fn handle_cast_spell(
     } else {
         0
     };
-
     // CR 601.2i: "Then the active player receives priority."
     // Reset the priority round — a game action occurred.
     state.turn.players_passed = OrdSet::new();
     state.turn.priority_holder = Some(state.turn.active_player);
-
     events.push(GameEvent::SpellCast {
         player,
         stack_object_id: stack_entry_id,
         source_object_id: new_card_id,
     });
-
     // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
     // spell targets. These events drive Ward trigger checks in check_triggers.
     // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
@@ -3845,7 +3771,6 @@ pub fn handle_cast_spell(
             targeting_controller: player,
         });
     }
-
     // CR 702.40a: Track spells cast this turn for storm count.
     // Increment after the spell enters the stack (it is now a spell cast this turn).
     // NOTE: The increment happens here, before the storm trigger is queued, so that
@@ -3855,7 +3780,6 @@ pub fn handle_cast_spell(
     if let Some(ps) = state.players.get_mut(&player) {
         ps.spells_cast_this_turn += 1;
     }
-
     // CR 702.40a: Storm — "When you cast this spell, copy it for each other spell
     // cast before it this turn." Storm is a triggered ability (CR 702.40a). It goes
     // on the stack above the original spell and resolves through normal priority.
@@ -3884,7 +3808,6 @@ pub fn handle_cast_spell(
             stack_object_id: trigger_id,
         });
     }
-
     // CR 702.69a: Gravestorm — "When you cast this spell, copy it for each permanent
     // that was put into a graveyard from the battlefield this turn."
     // Gravestorm is a triggered ability (CR 702.69a). It goes on the stack above the
@@ -3916,7 +3839,6 @@ pub fn handle_cast_spell(
             stack_object_id: trigger_id,
         });
     }
-
     // CR 702.85a: Cascade — "When you cast this spell, exile cards from the top of
     // your library until you exile a nonland card whose mana value is less than this
     // spell's mana value. You may cast that card without paying its mana cost."
@@ -3949,7 +3871,6 @@ pub fn handle_cast_spell(
             stack_object_id: trigger_id,
         });
     }
-
     // CR 702.153a: Casualty -- "When you cast this spell, if a casualty cost was paid
     // for it, copy it." This is a triggered ability (CR 702.153a). It goes on the stack
     // above the original spell and resolves through normal priority.
@@ -3976,7 +3897,6 @@ pub fn handle_cast_spell(
             stack_object_id: trigger_id,
         });
     }
-
     // CR 702.56a: Replicate -- "When you cast this spell, if a replicate cost was paid
     // for it, copy it for each time its replicate cost was paid." This is a triggered
     // ability (CR 702.56a). It goes on the stack above the original spell and resolves
@@ -4005,7 +3925,6 @@ pub fn handle_cast_spell(
             stack_object_id: trigger_id,
         });
     }
-
     // CR 903.8: Emit commander-specific event when casting from command zone.
     if casting_from_command_zone {
         if let Some(cid) = card_id {
@@ -4016,14 +3935,11 @@ pub fn handle_cast_spell(
             });
         }
     }
-
     events.push(GameEvent::PriorityGiven {
         player: state.turn.active_player,
     });
-
     Ok(events)
 }
-
 /// CR 702.34a / CR 118.9: Look up the flashback cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, .. }`,
@@ -4049,7 +3965,6 @@ fn get_flashback_cost(
         })
     })
 }
-
 /// CR 702.33a: Look up the kicker cost from the card's `AbilityDefinition`.
 ///
 /// Returns `Some((ManaCost, is_multikicker))` if the card has a kicker/multikicker
@@ -4074,7 +3989,6 @@ fn get_kicker_cost(
         })
     })
 }
-
 /// CR 702.56a: Look up the replicate cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Replicate { cost }`, or `None`
@@ -4095,7 +4009,6 @@ fn get_replicate_cost(
         })
     })
 }
-
 /// CR 702.42a: Look up the entwine cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Entwine { cost }`, or `None`
@@ -4116,7 +4029,6 @@ fn get_entwine_cost(
         })
     })
 }
-
 /// CR 702.120a: Look up the escalate cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Escalate { cost }`, or `None`
@@ -4137,7 +4049,6 @@ fn get_escalate_cost(
         })
     })
 }
-
 /// CR 702.27a: Look up the buyback cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Buyback { cost }`, or `None`
@@ -4158,7 +4069,6 @@ fn get_buyback_cost(
         })
     })
 }
-
 /// CR 702.74a: Look up the evoke cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Evoke { cost }`, or `None`
@@ -4179,7 +4089,6 @@ fn get_evoke_cost(
         })
     })
 }
-
 /// CR 702.103a / CR 118.9: Look up the bestow cost from the card's `AbilityDefinition`.
 fn get_bestow_cost(
     card_id: &Option<crate::state::CardId>,
@@ -4197,7 +4106,6 @@ fn get_bestow_cost(
         })
     })
 }
-
 /// CR 702.35b / CR 118.9: Look up the madness cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Madness { cost }`, or `None`
@@ -4219,7 +4127,6 @@ fn get_madness_cost(
         })
     })
 }
-
 /// CR 702.94a / CR 118.9: Look up the miracle cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Miracle { cost }`, or `None`
@@ -4240,7 +4147,6 @@ fn get_miracle_cost(
         })
     })
 }
-
 /// CR 702.138a / CR 118.9: Look up the escape cost from the card's `AbilityDefinition`.
 ///
 /// Returns `Some((ManaCost, exile_count))` from `AbilityDefinition::AltCastAbility { kind: AltCostKind::Escape, .. }`,
@@ -4267,7 +4173,6 @@ fn get_escape_cost(
         })
     })
 }
-
 /// CR 702.143a / CR 118.9: Look up the foretell cost from the card's `AbilityDefinition`.
 ///
 /// Returns `Some(ManaCost)` from `AbilityDefinition::Foretell { cost }`,
@@ -4288,7 +4193,6 @@ fn get_foretell_cost(
         })
     })
 }
-
 /// CR 702.127a / CR 118.9: Look up the aftermath cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Aftermath { cost, .. }`, or `None`
@@ -4309,7 +4213,6 @@ fn get_aftermath_cost(
         })
     })
 }
-
 /// CR 702.127a + CR 709.3a: Look up the aftermath half's card type.
 ///
 /// When casting the aftermath half, its card_type is used for timing validation
@@ -4333,7 +4236,6 @@ fn get_aftermath_card_type(
         })
     })
 }
-
 /// CR 702.152a: Look up the blitz cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Blitz, .. }`,
@@ -4359,7 +4261,6 @@ fn get_blitz_cost(
         })
     })
 }
-
 /// CR 702.109a: Look up the dash cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Dash, .. }`,
@@ -4385,7 +4286,6 @@ fn get_dash_cost(
         })
     })
 }
-
 /// CR 702.96a: Look up the overload cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Overload { cost }`, or `None`
@@ -4406,7 +4306,6 @@ fn get_overload_cost(
         })
     })
 }
-
 /// CR 702.138a: Validate and exile cards for escape cost payment.
 ///
 /// Unlike delve (which reduces generic mana), escape's exile is a FIXED count
@@ -4474,7 +4373,6 @@ fn apply_escape_exile_cost(
     }
     Ok(())
 }
-
 /// CR 702.51a: Validate convoke creatures and compute the reduced mana cost.
 ///
 /// For each creature in `convoke_creatures`:
@@ -4500,7 +4398,6 @@ fn apply_convoke_reduction(
     events: &mut Vec<GameEvent>,
 ) -> Result<Option<ManaCost>, GameStateError> {
     use crate::state::types::Color;
-
     // Validate uniqueness (no duplicates in convoke_creatures).
     let mut seen = std::collections::HashSet::new();
     for &id in convoke_creatures {
@@ -4511,7 +4408,6 @@ fn apply_convoke_reduction(
             )));
         }
     }
-
     // Build per-creature color list with validation, before mutably borrowing state.
     let mut creature_colors: Vec<(ObjectId, im::OrdSet<Color>)> = Vec::new();
     for &id in convoke_creatures {
@@ -4519,7 +4415,6 @@ fn apply_convoke_reduction(
             .objects
             .get(&id)
             .ok_or(GameStateError::ObjectNotFound(id))?;
-
         // Must be on the battlefield.
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::InvalidCommand(format!(
@@ -4541,7 +4436,6 @@ fn apply_convoke_reduction(
                 id
             )));
         }
-
         // Must be a creature (use calculate_characteristics for layer-correct check).
         let chars = calculate_characteristics(state, id)
             .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()))
@@ -4555,14 +4449,11 @@ fn apply_convoke_reduction(
                 id
             )));
         }
-
         creature_colors.push((id, chars.colors.clone()));
     }
-
     // Apply cost reduction.
     let had_cost = cost.is_some();
     let mut reduced = cost.unwrap_or_default();
-
     for (_id, colors) in &creature_colors {
         // Try to pay one colored pip in WUBRG order.
         let paid_colored = if colors.contains(&Color::White) && reduced.white > 0 {
@@ -4583,7 +4474,6 @@ fn apply_convoke_reduction(
         } else {
             false
         };
-
         if !paid_colored {
             // No matching colored pip — reduce one generic pip.
             if reduced.generic > 0 {
@@ -4595,7 +4485,6 @@ fn apply_convoke_reduction(
             }
         }
     }
-
     // Tap each convoke creature and emit PermanentTapped events.
     for &id in convoke_creatures {
         if let Some(obj) = state.objects.get_mut(&id) {
@@ -4606,7 +4495,6 @@ fn apply_convoke_reduction(
             object_id: id,
         });
     }
-
     // If the original cost was Some, return Some(reduced); if it was None, return None.
     if had_cost {
         Ok(Some(reduced))
@@ -4614,7 +4502,6 @@ fn apply_convoke_reduction(
         Ok(None)
     }
 }
-
 /// CR 702.126a: Validate improvise artifacts and compute the reduced mana cost.
 ///
 /// For each artifact in `improvise_artifacts`:
@@ -4650,14 +4537,12 @@ fn apply_improvise_reduction(
             )));
         }
     }
-
     // Validate each artifact before mutably borrowing state for tapping.
     for &id in improvise_artifacts {
         let obj = state
             .objects
             .get(&id)
             .ok_or(GameStateError::ObjectNotFound(id))?;
-
         // Must be on the battlefield.
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::InvalidCommand(format!(
@@ -4679,7 +4564,6 @@ fn apply_improvise_reduction(
                 id
             )));
         }
-
         // Must be an artifact (use calculate_characteristics for layer-correct check).
         let chars = calculate_characteristics(state, id)
             .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()))
@@ -4694,12 +4578,10 @@ fn apply_improvise_reduction(
             )));
         }
     }
-
     // Apply cost reduction: each artifact reduces one generic pip (CR 702.126a).
     // Improvise can ONLY reduce generic mana — it cannot pay for colored or colorless ({C}) pips.
     let had_cost = cost.is_some();
     let mut reduced = cost.unwrap_or_default();
-
     // Validate that we don't tap more artifacts than the generic portion allows.
     if improvise_artifacts.len() as u32 > reduced.generic {
         return Err(GameStateError::InvalidCommand(format!(
@@ -4709,7 +4591,6 @@ fn apply_improvise_reduction(
         )));
     }
     reduced.generic -= improvise_artifacts.len() as u32;
-
     // Tap each improvise artifact and emit PermanentTapped events.
     for &id in improvise_artifacts {
         if let Some(obj) = state.objects.get_mut(&id) {
@@ -4720,7 +4601,6 @@ fn apply_improvise_reduction(
             object_id: id,
         });
     }
-
     // If the original cost was Some, return Some(reduced); if it was None, return None.
     if had_cost {
         Ok(Some(reduced))
@@ -4728,7 +4608,6 @@ fn apply_improvise_reduction(
         Ok(None)
     }
 }
-
 /// CR 702.66a: Validate delve cards and compute the reduced mana cost.
 ///
 /// For each card in `delve_cards`:
@@ -4761,7 +4640,6 @@ fn apply_delve_reduction(
             )));
         }
     }
-
     // Validate each card is in the caster's graveyard (CR 702.66a: "your graveyard").
     for &id in delve_cards {
         let obj = state
@@ -4775,11 +4653,9 @@ fn apply_delve_reduction(
             )));
         }
     }
-
     // Apply cost reduction: each card reduces one generic pip (CR 702.66a).
     let had_cost = cost.is_some();
     let mut reduced = cost.unwrap_or_default();
-
     // Validate that we don't exile more cards than the generic portion allows
     // (CR 702.66a / Treasure Cruise ruling).
     if delve_cards.len() as u32 > reduced.generic {
@@ -4790,7 +4666,6 @@ fn apply_delve_reduction(
         )));
     }
     reduced.generic -= delve_cards.len() as u32;
-
     // Exile each card and emit ObjectExiled events (CR 400.7: new ObjectId after zone change).
     for &id in delve_cards {
         let (new_exile_id, _old_obj) = state.move_object_to_zone(id, ZoneId::Exile)?;
@@ -4800,7 +4675,6 @@ fn apply_delve_reduction(
             new_exile_id,
         });
     }
-
     // If the original cost was Some, return Some(reduced); if it was None, return None.
     if had_cost {
         Ok(Some(reduced))
@@ -4808,7 +4682,6 @@ fn apply_delve_reduction(
         Ok(None)
     }
 }
-
 /// CR 601.2c: Validate targets at cast time and snapshot their current zones.
 ///
 /// For each target:
@@ -4839,12 +4712,9 @@ pub(crate) fn validate_targets(
             targets.len()
         )));
     }
-
     let mut spell_targets = Vec::with_capacity(targets.len());
-
     for (i, target) in targets.iter().enumerate() {
         let req = requirements.get(i);
-
         let spell_target = match target {
             Target::Player(id) => {
                 let player = state
@@ -4910,7 +4780,6 @@ pub(crate) fn validate_targets(
                     .objects
                     .get(id)
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
-
                 // CR 702.11b / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
                 // These keyword abilities only apply to permanents on the battlefield (or spells
                 // on the stack for shroud). Cards in graveyard, exile, hand, library, and command
@@ -4931,12 +4800,10 @@ pub(crate) fn validate_targets(
                         source_chars,
                     )?;
                 }
-
                 // CR 601.2c: Validate the target satisfies the declared requirement.
                 if let Some(req) = req {
                     validate_object_satisfies_requirement(state, *id, req, caster)?;
                 }
-
                 SpellTarget {
                     target: Target::Object(*id),
                     zone_at_cast: Some(obj.zone),
@@ -4945,10 +4812,8 @@ pub(crate) fn validate_targets(
         };
         spell_targets.push(spell_target);
     }
-
     Ok(spell_targets)
 }
-
 /// CR 601.2c: Check that a player target satisfies a requirement.
 ///
 /// Player targets are valid for `TargetPlayer`, `TargetCreatureOrPlayer`,
@@ -4969,7 +4834,6 @@ fn validate_player_satisfies_requirement(
         ))),
     }
 }
-
 /// CR 601.2c: Check that an object target satisfies a `TargetRequirement`.
 ///
 /// Uses `calculate_characteristics` for type/keyword checks to respect
@@ -4986,7 +4850,6 @@ fn validate_object_satisfies_requirement(
         .objects
         .get(&id)
         .ok_or(GameStateError::ObjectNotFound(id))?;
-
     // TargetSpell / TargetSpellWithFilter: object must be in the stack zone (CR 601.2c).
     if matches!(
         req,
@@ -5011,18 +4874,15 @@ fn validate_object_satisfies_requirement(
         }
         return Ok(());
     }
-
     // Use calculate_characteristics to respect continuous effects (CR 613).
     let chars: Characteristics =
         calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone());
-
     let on_battlefield = obj.zone == ZoneId::Battlefield;
     let is_creature = chars.card_types.contains(&CardType::Creature);
     let is_artifact = chars.card_types.contains(&CardType::Artifact);
     let is_enchantment = chars.card_types.contains(&CardType::Enchantment);
     let is_land = chars.card_types.contains(&CardType::Land);
     let is_planeswalker = chars.card_types.contains(&CardType::Planeswalker);
-
     let valid = match req {
         TargetRequirement::TargetCreature => on_battlefield && is_creature,
         TargetRequirement::TargetPermanent => on_battlefield,
@@ -5078,7 +4938,6 @@ fn validate_object_satisfies_requirement(
         // TargetSpell and TargetSpellWithFilter handled above via early return (zone + filter check).
         TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_) => false,
     };
-
     if valid {
         Ok(())
     } else {
@@ -5088,7 +4947,6 @@ fn validate_object_satisfies_requirement(
         )))
     }
 }
-
 /// CR 601.2f: Resolve hybrid and Phyrexian payment choices into a flat ManaCost.
 ///
 /// Hybrid pips become colored or generic pips based on choices.
@@ -5105,7 +4963,6 @@ pub fn flatten_hybrid_phyrexian(
 ) -> (crate::state::game_object::ManaCost, u32) {
     use crate::state::game_object::{HybridMana, HybridManaPayment, PhyrexianMana};
     use crate::state::types::ManaColor;
-
     let mut flat = crate::state::game_object::ManaCost {
         white: cost.white,
         blue: cost.blue,
@@ -5118,7 +4975,6 @@ pub fn flatten_hybrid_phyrexian(
         phyrexian: vec![],
         x_count: cost.x_count,
     };
-
     // Resolve hybrid pips
     for (i, h) in cost.hybrid.iter().enumerate() {
         let choice = hybrid_choices.get(i);
@@ -5172,7 +5028,6 @@ pub fn flatten_hybrid_phyrexian(
             }
         }
     }
-
     // Resolve Phyrexian pips
     let mut life_cost = 0u32;
     for (i, p) in cost.phyrexian.iter().enumerate() {
@@ -5205,10 +5060,8 @@ pub fn flatten_hybrid_phyrexian(
             }
         }
     }
-
     (flat, life_cost)
 }
-
 /// Returns true if the mana pool can cover the mana cost.
 ///
 /// Colored mana (W/U/B/R/G) must be paid with the matching color.
@@ -5220,7 +5073,6 @@ pub fn can_pay_cost(
 ) -> bool {
     pool.can_spend(cost, None)
 }
-
 /// Check if the pool has enough mana to pay a cost, including restricted mana
 /// that matches the spell context (CR 106.12).
 pub fn can_pay_cost_with_context(
@@ -5230,7 +5082,6 @@ pub fn can_pay_cost_with_context(
 ) -> bool {
     pool.can_spend(cost, spell)
 }
-
 /// CR 702.61a: Check if any spell on the stack has split second.
 ///
 /// While a spell with split second is on the stack, players can't cast other
@@ -5252,12 +5103,9 @@ fn check_cast_restrictions(
     card: ObjectId,
 ) -> Result<(), GameStateError> {
     use crate::state::stubs::GameRestriction;
-
     let active_player = state.turn.active_player;
-
     // Determine the zone the card is being cast from (for Drannith Magistrate).
     let card_zone = state.object(card).map(|o| o.zone).ok();
-
     for restriction in state.restrictions.iter() {
         // Skip restrictions whose source is no longer on the battlefield.
         let source_on_bf = state
@@ -5268,9 +5116,7 @@ fn check_cast_restrictions(
         if !source_on_bf {
             continue;
         }
-
         let controller = restriction.controller;
-
         match &restriction.restriction {
             // Rule of Law / Archon of Emeria / Eidolon of Rhetoric:
             // "Each player can't cast more than one spell each turn."
@@ -5287,7 +5133,6 @@ fn check_cast_restrictions(
                     )));
                 }
             }
-
             // Dragonlord Dromoka: "Your opponents can't cast spells during your turn."
             GameRestriction::OpponentsCantCastDuringYourTurn => {
                 // "Your turn" = controller is the active player.
@@ -5299,7 +5144,6 @@ fn check_cast_restrictions(
                     ));
                 }
             }
-
             // Grand Abolisher / Myrel: "During your turn, your opponents can't cast spells
             // or activate abilities of artifacts, creatures, or enchantments."
             // The casting restriction part — ability activation checked separately.
@@ -5310,7 +5154,6 @@ fn check_cast_restrictions(
                     ));
                 }
             }
-
             // Drannith Magistrate: "Your opponents can't cast spells from anywhere
             // other than their hands."
             GameRestriction::OpponentsCantCastFromNonHand => {
@@ -5324,16 +5167,13 @@ fn check_cast_restrictions(
                     }
                 }
             }
-
             // Attack tax and artifact ability restrictions don't affect casting.
             GameRestriction::CantAttackYouUnlessPay { .. }
             | GameRestriction::ArtifactAbilitiesCantBeActivated => {}
         }
     }
-
     Ok(())
 }
-
 pub fn has_split_second_on_stack(state: &GameState) -> bool {
     state.stack_objects.iter().any(|stack_obj| {
         if let StackObjectKind::Spell { source_object } = &stack_obj.kind {
@@ -5349,7 +5189,6 @@ pub fn has_split_second_on_stack(state: &GameState) -> bool {
         }
     })
 }
-
 /// Deduct a mana cost from the mana pool. Caller must verify `can_pay_cost` first.
 pub fn pay_cost(
     pool: &mut crate::state::player::ManaPool,
@@ -5357,7 +5196,6 @@ pub fn pay_cost(
 ) {
     pool.spend(cost, None);
 }
-
 /// Deduct a mana cost, preferring restricted mana that matches the spell context.
 pub fn pay_cost_with_context(
     pool: &mut crate::state::player::ManaPool,
@@ -5366,7 +5204,6 @@ pub fn pay_cost_with_context(
 ) {
     pool.spend(cost, spell);
 }
-
 /// CR 702.41a: Apply affinity cost reduction to the total mana cost.
 ///
 /// For each instance of `KeywordAbility::Affinity(target)` on the spell,
@@ -5397,14 +5234,11 @@ fn apply_affinity_reduction(
             }
         })
         .collect();
-
     if affinity_targets.is_empty() {
         return cost;
     }
-
     // CR 601.2f: If the spell has no mana cost (None), there is nothing to reduce.
     let mut reduced = cost?;
-
     // CR 702.41b: Each instance applies independently.
     for target in &affinity_targets {
         let count = count_affinity_permanents(state, player, target);
@@ -5412,10 +5246,8 @@ fn apply_affinity_reduction(
         let reduction = count.min(reduced.generic);
         reduced.generic -= reduction;
     }
-
     Some(reduced)
 }
-
 /// Count permanents on the battlefield matching the affinity target
 /// that are controlled by the given player.
 ///
@@ -5431,7 +5263,6 @@ fn count_affinity_permanents(state: &GameState, player: PlayerId, target: &Affin
         })
         .count() as u32
 }
-
 /// Check if a game object matches the given affinity target.
 ///
 /// Uses `calculate_characteristics` for layer-correct type checking.
@@ -5449,7 +5280,6 @@ fn matches_affinity_target(
         }
     }
 }
-
 /// CR 702.125a: Apply undaunted cost reduction to the total mana cost.
 ///
 /// For each instance of `KeywordAbility::Undaunted` on the spell,
@@ -5475,31 +5305,24 @@ fn apply_undaunted_reduction(
         .iter()
         .filter(|kw| matches!(kw, KeywordAbility::Undaunted))
         .count() as u32;
-
     if undaunted_count == 0 {
         return cost;
     }
-
     // CR 601.2f: If the spell has no mana cost (None), there is nothing to reduce.
     let mut reduced = cost?;
-
     // CR 702.125b: Count only active players (not lost/conceded) who are NOT the caster.
     let opponent_count = state
         .active_players()
         .iter()
         .filter(|&&pid| pid != player)
         .count() as u32;
-
     // CR 702.125c: Each instance applies independently.
     let total_reduction = undaunted_count * opponent_count;
-
     // CR 601.2f: Generic cannot go below 0.
     let reduction = total_reduction.min(reduced.generic);
     reduced.generic -= reduction;
-
     Some(reduced)
 }
-
 /// CR 702.160a: Extract prototype data (cost, power, toughness) from a card definition.
 ///
 /// Returns `Some((cost, power, toughness))` if the card has `AbilityDefinition::AltCastAbility { kind: AltCostKind::Prototype, .. }`,
@@ -5529,7 +5352,6 @@ pub(crate) fn get_prototype_data(
         })
     })
 }
-
 /// CR 105.2: Derive the colors of an object from its mana cost.
 ///
 /// An object is the color or colors of the mana symbols in its mana cost.
@@ -5537,7 +5359,6 @@ pub(crate) fn get_prototype_data(
 pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state::types::Color> {
     use crate::state::game_object::{HybridMana, PhyrexianMana};
     use crate::state::types::{Color, ManaColor};
-
     let mut colors = im::OrdSet::new();
     if cost.white > 0 {
         colors.insert(Color::White);
@@ -5554,7 +5375,6 @@ pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state:
     if cost.green > 0 {
         colors.insert(Color::Green);
     }
-
     // CR 202.2d: Hybrid and Phyrexian symbols add their component colors.
     let add_mana_color = |colors: &mut im::OrdSet<Color>, mc: &ManaColor| {
         match mc {
@@ -5596,10 +5416,8 @@ pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state:
             }
         }
     }
-
     colors
 }
-
 /// CR 702.176a: Look up the impending cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Impending { cost, .. }`, or `None`
@@ -5620,7 +5438,6 @@ fn get_impending_cost(
         })
     })
 }
-
 /// CR 702.176a: Look up the impending counter count from the card's `AbilityDefinition`.
 ///
 /// Returns the `count` stored in `AbilityDefinition::Impending { count, .. }`, or `None`
@@ -5641,7 +5458,6 @@ pub(crate) fn get_impending_count(
         })
     })
 }
-
 /// CR 702.119a: Look up the emerge cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Emerge { cost }`, or `None`
@@ -5662,7 +5478,6 @@ fn get_emerge_cost(
         })
     })
 }
-
 /// CR 702.137a: Look up the spectacle cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Spectacle { cost }`, or `None`
@@ -5683,7 +5498,6 @@ fn get_spectacle_cost(
         })
     })
 }
-
 /// CR 702.117a: Look up the surge cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Surge { cost }`, or `None`
@@ -5704,7 +5518,6 @@ fn get_surge_cost(
         })
     })
 }
-
 /// CR 702.148a: Look up the cleave cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Cleave { cost }`, or `None`
@@ -5725,7 +5538,6 @@ fn get_cleave_cost(
         })
     })
 }
-
 /// CR 702.140a: Look up a card's mutate alternative cost from its CardDefinition.
 ///
 /// Returns the cost stored in `AbilityDefinition::MutateCost { cost }`, or None if the
@@ -5746,7 +5558,6 @@ fn get_mutate_cost(
         })
     })
 }
-
 /// CR 702.119a: Reduce a mana cost by a creature's mana value.
 ///
 /// Reduces generic mana first, then colorless, then colored pips (WUBRG order)
@@ -5755,25 +5566,20 @@ fn get_mutate_cost(
 fn reduce_cost_by_mv(cost: &ManaCost, mv: u32) -> ManaCost {
     let mut reduced = cost.clone();
     let mut remaining_reduction = mv;
-
     // Reduce generic first.
     let generic_reduction = remaining_reduction.min(reduced.generic);
     reduced.generic -= generic_reduction;
     remaining_reduction -= generic_reduction;
-
     if remaining_reduction == 0 {
         return reduced;
     }
-
     // Then reduce colorless.
     let colorless_reduction = remaining_reduction.min(reduced.colorless);
     reduced.colorless -= colorless_reduction;
     remaining_reduction -= colorless_reduction;
-
     if remaining_reduction == 0 {
         return reduced;
     }
-
     // Then reduce colored pips (WUBRG order).
     let fields = [
         &mut reduced.white,
@@ -5790,10 +5596,8 @@ fn reduce_cost_by_mv(cost: &ManaCost, mv: u32) -> ManaCost {
             break;
         }
     }
-
     reduced
 }
-
 /// CR 601.2f: Apply static spell cost modifiers from permanents on the battlefield
 /// (and command zone for Eminence).
 ///
@@ -5809,16 +5613,13 @@ fn apply_spell_cost_modifiers(
     cost: Option<ManaCost>,
 ) -> Option<ManaCost> {
     let mut total_change: i32 = 0;
-
     // Scan all objects for spell_cost_modifiers.
     for obj in state.objects.values() {
         let on_battlefield = obj.zone == ZoneId::Battlefield;
         let in_command_zone = matches!(obj.zone, ZoneId::Command(_));
-
         if !on_battlefield && !in_command_zone {
             continue;
         }
-
         let card_def = obj
             .card_id
             .as_ref()
@@ -5827,13 +5628,11 @@ fn apply_spell_cost_modifiers(
             Some(d) => d,
             None => continue,
         };
-
         for modifier in &card_def.spell_cost_modifiers {
             // Eminence check: if not on battlefield, must have eminence flag.
             if !on_battlefield && (!in_command_zone || !modifier.eminence) {
                 continue;
             }
-
             // Scope check: who is affected.
             match modifier.scope {
                 CostModifierScope::AllPlayers => {} // Everyone is affected.
@@ -5843,32 +5642,26 @@ fn apply_spell_cost_modifiers(
                     }
                 }
             }
-
             // Self-exclusion: "other" semantics (e.g. The Ur-Dragon reduces OTHER Dragon spells).
             // Skip when the spell being cast is the same object as the modifier's source.
             if modifier.exclude_self && obj.id == spell_id {
                 continue;
             }
-
             // Filter check: does the spell match?
             if !spell_matches_cost_filter(spell_chars, &modifier.filter) {
                 continue;
             }
-
             total_change += modifier.change;
         }
     }
-
     if total_change == 0 {
         return cost;
     }
-
     let mut reduced = cost?;
     // Apply: positive = increase, negative = reduction. Generic cannot go below 0.
     reduced.generic = (reduced.generic as i32 + total_change).max(0) as u32;
     Some(reduced)
 }
-
 /// Check if a spell's characteristics match a `SpellCostFilter`.
 fn spell_matches_cost_filter(chars: &Characteristics, filter: &SpellCostFilter) -> bool {
     match filter {
@@ -5890,7 +5683,6 @@ fn spell_matches_cost_filter(chars: &Characteristics, filter: &SpellCostFilter) 
         }
     }
 }
-
 /// CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
 ///
 /// Looks up the spell's `CardDefinition.self_cost_reduction` and evaluates it against
@@ -5905,23 +5697,19 @@ fn apply_self_cost_reduction(
         .as_ref()
         .and_then(|cid| state.card_registry.get(cid.clone()))
         .and_then(|def| def.self_cost_reduction.as_ref());
-
     let reduction_def = match reduction_def {
         Some(r) => r,
         None => return cost,
     };
-
     let reduction = evaluate_self_cost_reduction(state, caster, reduction_def);
     if reduction == 0 {
         return cost;
     }
-
     let mut reduced = cost?;
     // Self-cost-reductions reduce generic mana first (CR 601.2f).
     reduce_generic_by(&mut reduced, reduction);
     Some(reduced)
 }
-
 /// Evaluate a `SelfCostReduction` against the current game state, returning the total
 /// generic mana reduction amount.
 fn evaluate_self_cost_reduction(
@@ -6012,7 +5800,6 @@ fn evaluate_self_cost_reduction(
         }
     }
 }
-
 /// Count permanents on the battlefield matching a TargetFilter.
 fn count_permanents_matching(
     state: &GameState,
@@ -6049,7 +5836,6 @@ fn count_permanents_matching(
         })
         .count() as u32
 }
-
 /// Check if a permanent's characteristics match a `TargetFilter` (card type, subtype, etc.).
 fn permanent_matches_filter(
     chars: &Characteristics,
@@ -6073,12 +5859,10 @@ fn permanent_matches_filter(
     }
     true
 }
-
 /// Reduce the generic component of a ManaCost by the given amount (clamped at 0).
 fn reduce_generic_by(cost: &mut ManaCost, amount: u32) {
     cost.generic = cost.generic.saturating_sub(amount);
 }
-
 /// CR 702.47a: Look up the splice info from the card's `AbilityDefinition`.
 ///
 /// Returns `Some((ManaCost, SubType, Effect))` if the card has a
@@ -6105,7 +5889,6 @@ fn get_splice_info(
         })
     })
 }
-
 /// CR 702.102c: Look up the fuse (right half) cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Fuse { cost, .. }`, or `None`
@@ -6126,7 +5909,6 @@ fn get_fuse_data(
         })
     })
 }
-
 /// CR 702.102b + CR 709.4d: Look up the fuse (right half) card type.
 ///
 /// Used for timing validation — if the right half is an instant, the fused
@@ -6150,7 +5932,6 @@ fn get_fuse_card_type(
         })
     })
 }
-
 /// CR 702.175a: Look up the offspring cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Offspring { cost }`, or `None`
@@ -6171,7 +5952,6 @@ fn get_offspring_cost(
         })
     })
 }
-
 /// CR 702.157a: Look up the squad cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Squad { cost }`, or `None`
@@ -6192,7 +5972,6 @@ fn get_squad_cost(
         })
     })
 }
-
 /// CR 702.146a: Look up the disturb cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Disturb { cost }`, or `None`
@@ -6213,7 +5992,6 @@ fn get_disturb_cost(
         })
     })
 }
-
 /// CR 702.37c / 702.37b / 702.168a: Returns true if the card has Morph, Megamorph, or Disguise.
 /// Used to validate morph cast legality (cast_with_morph path).
 fn has_morph_keyword(

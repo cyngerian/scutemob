@@ -6,10 +6,6 @@
 //! from the card database; `Characteristics` is per-object runtime state.
 //!
 //! See architecture doc Section 3.7 for design rationale.
-
-use im::OrdSet;
-use serde::{Deserialize, Serialize};
-
 use crate::state::continuous_effect::{EffectDuration, EffectLayer, LayerModification};
 use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
@@ -18,9 +14,9 @@ use crate::state::{
     CardId, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost, KeywordAbility,
     ManaColor, ManaCost, ManaPool, SubType, SuperType,
 };
-
+use im::OrdSet;
+use serde::{Deserialize, Serialize};
 // ── Card Definition ───────────────────────────────────────────────────────────
-
 /// The back face of a double-faced card (CR 712).
 ///
 /// Holds the back face's characteristics and abilities. The front face data
@@ -46,7 +42,6 @@ pub struct CardFace {
     #[serde(default)]
     pub color_indicator: Option<Vec<crate::state::Color>>,
 }
-
 /// A complete card definition: what a card is and what it does (CR Section 2).
 ///
 /// Loaded from the card database at startup. Looked up via `CardRegistry`
@@ -95,6 +90,18 @@ pub struct CardDefinition {
     /// CR 306.5b: A planeswalker enters with this many loyalty counters.
     #[serde(default)]
     pub starting_loyalty: Option<u32>,
+    /// CR 715.2: Alternative characteristics for the Adventure half of an adventurer card.
+    ///
+    /// `None` for non-adventurer cards. `Some(face)` for adventurer cards.
+    /// The face holds the Adventure spell's name, mana cost, types (Instant or Sorcery,
+    /// subtyped "Adventure"), oracle text, and abilities (the Spell effect).
+    ///
+    /// On the stack when cast as an Adventure, only these characteristics apply
+    /// (CR 715.3b). In all other zones, only the main face's characteristics apply
+    /// (CR 715.4). Adventurer cards are NOT double-faced cards — use this field,
+    /// not `back_face`, for the Adventure half.
+    #[serde(default)]
+    pub adventure_face: Option<CardFace>,
     /// CR 712.4: Meld pair information. Present on both cards that form a meld pair.
     ///
     /// One card in each pair has an ability that exiles both cards and melds them
@@ -105,7 +112,6 @@ pub struct CardDefinition {
     #[serde(default)]
     pub meld_pair: Option<MeldPair>,
 }
-
 impl Default for CardDefinition {
     fn default() -> Self {
         CardDefinition {
@@ -119,6 +125,7 @@ impl Default for CardDefinition {
             toughness: None,
             color_indicator: None,
             back_face: None,
+            adventure_face: None,
             spell_cost_modifiers: vec![],
             self_cost_reduction: None,
             starting_loyalty: None,
@@ -126,7 +133,6 @@ impl Default for CardDefinition {
         }
     }
 }
-
 /// CR 712.4: Meld pair information for a card that participates in a meld.
 ///
 /// Both cards in a meld pair carry this struct. The `pair_card_id` identifies
@@ -143,7 +149,6 @@ pub struct MeldPair {
     /// Both cards in the pair reference the same melded_card_id.
     pub melded_card_id: CardId,
 }
-
 /// Type line of a card: supertypes, card types, and subtypes (CR 205).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeLine {
@@ -151,9 +156,7 @@ pub struct TypeLine {
     pub card_types: OrdSet<CardType>,
     pub subtypes: OrdSet<SubType>,
 }
-
 // ── Ability Definitions ───────────────────────────────────────────────────────
-
 /// One ability on a card (CR 112). Encodes behavior the engine can execute.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AbilityDefinition {
@@ -610,7 +613,6 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 50.
     Soulbond { grants: Vec<SoulbondGrant> },
-
     /// CR 702.102: Fuse. The second (right) half of a split card with fuse.
     /// When fused, both halves' effects execute at resolution (left first,
     /// then right — CR 702.102d).
@@ -636,7 +638,6 @@ pub enum AbilityDefinition {
         /// Target requirements for the right half's spell.
         targets: Vec<TargetRequirement>,
     },
-
     /// CR 701.59a: Collect evidence N — keyword action as additional cost.
     ///
     /// "As an additional cost to cast this spell, you may collect evidence N."
@@ -654,7 +655,6 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 53.
     CollectEvidence { threshold: u32, mandatory: bool },
-
     /// CR 702.157a: Squad -- the cost data for the squad additional cost.
     ///
     /// Pairs with `KeywordAbility::Squad` (presence marker). This variant carries
@@ -666,7 +666,6 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 54.
     Squad { cost: ManaCost },
-
     /// CR 207.2c: Bloodrush — ability word. Activated ability from hand.
     ///
     /// "{cost}, Discard this card: Target attacking creature gets +N/+M
@@ -797,7 +796,6 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 64.
     Disguise { cost: ManaCost },
-
     /// Static ability that imposes a game restriction while the source is on the
     /// battlefield (CR 604). Unlike `Static` (layer-based continuous effects), these
     /// are NOT applied through the layer system — they restrict player actions directly.
@@ -812,7 +810,6 @@ pub enum AbilityDefinition {
         restriction: crate::state::stubs::GameRestriction,
     },
 }
-
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
 ///
 /// Most alt-cast abilities (Flashback, Dash, etc.) only need a cost. Escape additionally
@@ -825,7 +822,6 @@ pub enum AltCastDetails {
     /// CR 702.160 / CR 718: Prototype overrides power and toughness.
     Prototype { power: i32, toughness: i32 },
 }
-
 /// CR 702.167b: Describes what can be exiled as materials for a Craft activated ability.
 ///
 /// "If an object in the [materials] is described using only a card type or subtype
@@ -842,7 +838,6 @@ pub enum CraftMaterials {
     /// Craft with N cards of any type — exile N permanents/cards.
     AnyCards(u32),
 }
-
 /// CR 702.174d-i: The specific gift given to the chosen opponent.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GiftType {
@@ -859,7 +854,6 @@ pub enum GiftType {
     /// CR 702.174g: "The chosen player takes an extra turn after this one."
     ExtraTurn,
 }
-
 /// A continuous effect granted by soulbond to both paired creatures (CR 702.95a).
 ///
 /// Registered as a `ContinuousEffect` with `EffectDuration::WhilePaired` when the
@@ -871,9 +865,7 @@ pub struct SoulbondGrant {
     /// What the modification does (e.g., ModifyBoth(4) for +4/+4).
     pub modification: LayerModification,
 }
-
 // ── Cost ─────────────────────────────────────────────────────────────────────
-
 /// The cost to activate an ability or cast a spell (CR 118).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cost {
@@ -897,7 +889,6 @@ pub enum Cost {
     /// Multiple costs, all paid simultaneously (CR 601.2g).
     Sequence(Vec<Cost>),
 }
-
 /// CR 606.4: The cost to activate a loyalty ability — add or remove loyalty counters.
 ///
 /// CR 606.5: Multiple loyalty costs are combined into a single add/remove.
@@ -914,9 +905,7 @@ pub enum LoyaltyCost {
     /// X must be at least 0; the permanent must have at least X counters (CR 606.6).
     MinusX,
 }
-
 // ── Effect ────────────────────────────────────────────────────────────────────
-
 /// CR 106.12: Restriction on what a mana payment can be spent on.
 ///
 /// Mana produced with a restriction can only be used to pay costs that match
@@ -942,7 +931,6 @@ pub enum ManaRestriction {
     /// Uses `chosen_creature_type` from the source permanent.
     ChosenTypeSpellsOnly,
 }
-
 /// A recursive effect primitive: the engine's internal DSL for card behavior.
 ///
 /// Effects are executed by `effects::execute_effect`. Every effect that changes
@@ -978,7 +966,6 @@ pub enum Effect {
     /// The "controller" is the controller of the spell or ability that created
     /// this effect (from EffectContext).
     DrainLife { amount: EffectAmount },
-
     // ── Cards ───────────────────────────────────────────────────────────────
     /// CR 121: A player draws one or more cards.
     DrawCards {
@@ -995,7 +982,6 @@ pub enum Effect {
         player: PlayerTarget,
         count: EffectAmount,
     },
-
     // ── Permanents ──────────────────────────────────────────────────────────
     /// CR 701.6: Create a token on the battlefield.
     CreateToken { spec: TokenSpec },
@@ -1029,7 +1015,6 @@ pub enum Effect {
     TapPermanent { target: EffectTarget },
     /// CR 701.17: Untap a permanent.
     UntapPermanent { target: EffectTarget },
-
     // ── Mana ────────────────────────────────────────────────────────────────
     /// Add mana to a player's pool (CR 106).
     AddMana {
@@ -1065,7 +1050,6 @@ pub enum Effect {
         player: PlayerTarget,
         restriction: ManaRestriction,
     },
-
     // ── Counters ─────────────────────────────────────────────────────────────
     /// CR 122: Put one or more counters on a permanent or player.
     AddCounter {
@@ -1096,7 +1080,6 @@ pub enum Effect {
         counter: CounterType,
         count: u32,
     },
-
     /// CR 701.39: Bolster N -- "Choose a creature you control with the least
     /// toughness or tied for least toughness among creatures you control. Put
     /// N +1/+1 counters on that creature."
@@ -1112,7 +1095,6 @@ pub enum Effect {
         /// Number of +1/+1 counters to place.
         count: EffectAmount,
     },
-
     /// CR 701.47a: Amass [subtype] N -- If you don't control an Army creature,
     /// create a 0/0 black [subtype] Army creature token. Choose an Army creature
     /// you control. Put N +1/+1 counters on that creature. If it isn't a
@@ -1127,7 +1109,6 @@ pub enum Effect {
         /// Number of +1/+1 counters to place.
         count: EffectAmount,
     },
-
     // ── Zone ─────────────────────────────────────────────────────────────────
     /// Move an object to a zone (CR 400).
     MoveZone {
@@ -1140,7 +1121,6 @@ pub enum Effect {
         #[serde(default)]
         controller_override: Option<PlayerTarget>,
     },
-
     // ── Library ─────────────────────────────────────────────────────────────
     /// CR 701.18: Scry N — look at top N cards of your library, then put any
     /// number on the bottom and the rest on top in any order.
@@ -1195,16 +1175,22 @@ pub enum Effect {
         /// the shuffle happens first, then the card is placed on top (CR 701.23 ruling).
         #[serde(default)]
         shuffle_before_placing: bool,
+        /// When true, also search the player's graveyard in addition to the library.
+        ///
+        /// Used for "Search your library and/or graveyard" effects (e.g., Finale of
+        /// Devastation). The library is still shuffled after the search if the card was
+        /// found in the library (per standard "search your library" rules). Cards found
+        /// in the graveyard are not subject to the library shuffle.
+        #[serde(default)]
+        also_search_graveyard: bool,
     },
     /// CR 701.20: Shuffle a player's library.
     Shuffle { player: PlayerTarget },
-
     // ── Continuous Effects ───────────────────────────────────────────────────
     /// Apply a continuous effect until end of turn or for a duration (CR 611).
     ApplyContinuousEffect {
         effect_def: Box<ContinuousEffectDef>,
     },
-
     // ── Combinators ─────────────────────────────────────────────────────────
     /// Execute `if_true` if condition holds, otherwise `if_false` (may be Nothing).
     Conditional {
@@ -1416,7 +1402,6 @@ pub enum Effect {
         /// Effect to execute if the player loses the flip.
         on_lose: Box<Effect>,
     },
-
     /// CR 706.2: Roll one or more dice — execute an effect based on the result.
     ///
     /// Uses deterministic RNG seeded from the game's timestamp counter for
@@ -1433,7 +1418,6 @@ pub enum Effect {
         /// Mapping from result ranges to effects. Evaluated in order; first match wins.
         results: Vec<(u32, u32, Effect)>,
     },
-
     /// Reveal the top N cards of a player's library, then route them by filter.
     /// Cards matching the filter go to `matched_dest`; non-matching cards go to
     /// `unmatched_dest`. All revealed cards are visible to all players (CR 701.16a).
@@ -1451,7 +1435,6 @@ pub enum Effect {
         matched_dest: ZoneTarget,
         unmatched_dest: ZoneTarget,
     },
-
     /// Exile target permanent, then return it to the battlefield under its
     /// owner's control (CR 400.7: the returned permanent is a new object).
     ///
@@ -1464,10 +1447,8 @@ pub enum Effect {
         target: EffectTarget,
         return_tapped: bool,
     },
-
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
-
     /// CR 701.49: Venture into the dungeon.
     ///
     /// The player ventures into the dungeon (CR 701.49a-c). Uses the standard
@@ -1476,14 +1457,12 @@ pub enum Effect {
     /// start new one). Deterministic fallback: enter LostMineOfPhandelver when
     /// choosing a new dungeon. Room abilities push a RoomAbility SOK onto the stack.
     VentureIntoDungeon,
-
     /// CR 725.2: Take the initiative.
     ///
     /// Sets `has_initiative = Some(controller)` on GameState, emits `InitiativeTaken`,
     /// and immediately ventures into the Undercity (CR 725.2: "that player ventures
     /// into the Undercity" as an inherent triggered ability of taking the initiative).
     TakeTheInitiative,
-
     /// CR 701.54a-c: "The Ring tempts you."
     ///
     /// Advances the controller's ring level (cap at 4), emits `RingTempted`, then
@@ -1491,7 +1470,6 @@ pub enum Effect {
     /// Deterministic fallback: choose the creature with the lowest ObjectId.
     /// If no creature is available, ring level still advances but no ring-bearer is chosen.
     TheRingTemptsYou,
-
     /// CR 701.42a: Meld the source permanent with its meld pair partner.
     ///
     /// Exile this permanent and the named partner permanent (must both be on the
@@ -1502,7 +1480,6 @@ pub enum Effect {
     /// CR 701.42c: If the pair cannot be melded (partner not present, different
     /// controllers, etc.), nothing happens — both stay in their current zone.
     Meld,
-
     /// CR 701.14a: Two creatures fight each other. Each deals damage equal to
     /// its power to the other creature simultaneously.
     ///
@@ -1520,7 +1497,6 @@ pub enum Effect {
         /// The second creature (typically "target creature you don't control").
         defender: EffectTarget,
     },
-
     /// One-sided power-based damage: the source creature deals damage equal to
     /// its power to the target creature. Only the source deals damage; the
     /// target does not deal damage back.
@@ -1537,7 +1513,6 @@ pub enum Effect {
         /// The creature or permanent receiving damage.
         target: EffectTarget,
     },
-
     /// CR 707.2 / CR 706.9a: A permanent becomes a copy of another permanent.
     ///
     /// Registers a Layer 1 CopyOf continuous effect on the source permanent,
@@ -1556,7 +1531,6 @@ pub enum Effect {
         /// Duration of the copy effect.
         duration: EffectDuration,
     },
-
     /// CR 707.2 / CR 111.10: Create a token that's a copy of a permanent.
     ///
     /// Creates a blank token on the battlefield, then applies a Layer 1
@@ -1571,7 +1545,6 @@ pub enum Effect {
         /// target from the effect controller's current attack, per CR 508.4).
         enters_tapped_and_attacking: bool,
     },
-
     /// CR 114.1-114.4: Create an emblem in the command zone with the specified abilities.
     ///
     /// Emblems are non-card, non-permanent objects that have no types, mana cost, or color
@@ -1587,9 +1560,7 @@ pub enum Effect {
         static_effects: Vec<ContinuousEffectDef>,
     },
 }
-
 // ── Effect Targets ────────────────────────────────────────────────────────────
-
 /// How an effect identifies its primary target.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectTarget {
@@ -1614,7 +1585,6 @@ pub enum EffectTarget {
     /// Used for "create a token, then attach this Equipment to it" patterns.
     LastCreatedPermanent,
 }
-
 /// How an effect identifies a player.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlayerTarget {
@@ -1633,7 +1603,6 @@ pub enum PlayerTarget {
     /// "return to its owner's hand", e.g. Cyclonic Rift — CR 108.3).
     OwnerOf(Box<EffectTarget>),
 }
-
 /// How an effect produces a numeric value.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectAmount {
@@ -1676,9 +1645,7 @@ pub enum EffectAmount {
     /// Used for "draw cards equal to the result" (Ancient Silver Dragon), etc.
     LastDiceRoll,
 }
-
 // ── Target Requirements ───────────────────────────────────────────────────────
-
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).
 ///
 /// This is declared on the spell/ability at definition time and used to validate
@@ -1718,7 +1685,6 @@ pub enum TargetRequirement {
     /// "target [type] card from a graveyard" — card in any player's graveyard (CR 115.1).
     TargetCardInGraveyard(TargetFilter),
 }
-
 /// A filter on game objects, used for target requirements and `SearchLibrary`.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TargetFilter {
@@ -1767,7 +1733,6 @@ pub struct TargetFilter {
     #[serde(default)]
     pub has_card_types: Vec<CardType>,
 }
-
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TargetController {
@@ -1776,9 +1741,7 @@ pub enum TargetController {
     You,
     Opponent,
 }
-
 // ── Trigger Conditions ────────────────────────────────────────────────────────
-
 /// What game event causes a triggered ability to fire (CR 603.1).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TriggerCondition {
@@ -1895,9 +1858,7 @@ pub enum TriggerCondition {
     /// in `check_triggers`.
     WhenSelfBecomesTapped,
 }
-
 // ── Conditions ────────────────────────────────────────────────────────────────
-
 /// A boolean condition checked at trigger time or in Conditional effects (CR 603.4).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Condition {
@@ -1963,13 +1924,11 @@ pub enum Condition {
     /// True when gift_opponent was chosen at cast time. Checked at resolution time
     /// for instants/sorceries; at ETB trigger resolution for permanents.
     GiftWasGiven,
-
     /// CR 309.7: "as long as you've completed a dungeon" / "if you've completed a dungeon"
     ///
     /// True when the effect controller's `dungeons_completed > 0`. Used for permanents
     /// like Nadaar, Selfless Paladin that gain abilities after completing any dungeon.
     CompletedADungeon,
-
     /// CR 309.7 (specific dungeon variant): "if you haven't completed [dungeon]"
     ///
     /// True when the controller has completed the specified dungeon. Used for
@@ -1978,67 +1937,54 @@ pub enum Condition {
     /// card definition (i.e., `Condition::Not(Box::new(CompletedSpecificDungeon(...)))`)
     /// when the oracle text says "haven't".
     CompletedSpecificDungeon(crate::state::dungeon::DungeonId),
-
     /// CR 701.54c: "if the Ring has tempted you N or more times."
     ///
     /// True when the controller's `ring_level >= n`. Used for cards that check how
     /// many times the Ring has tempted you (e.g., Frodo, Sauron's Bane at level 4).
     RingHasTemptedYou(u8),
-
     /// Logical negation of another condition.
     ///
     /// Used for Acererak's "if you haven't completed Tomb of Annihilation":
     /// `Condition::Not(Box::new(Condition::CompletedSpecificDungeon(DungeonId::TombOfAnnihilation)))`.
     Not(Box<Condition>),
-
     /// Logical disjunction of two conditions. True if either is true.
     ///
     /// Used for Temple of the Dragon Queen: "unless you revealed a Dragon card
     /// this way or you control a Dragon."
     Or(Box<Condition>, Box<Condition>),
-
     // ── ETB condition variants (PB-2) ────────────────────────────────────────
     /// "unless you control a [Plains/Island/etc.]" — check-lands, castles.
     /// True if the controller controls a land on the battlefield with ANY of the
     /// listed subtypes. Used with `unless_condition` on `AbilityDefinition::Replacement`.
     ControlLandWithSubtypes(Vec<SubType>),
-
     /// "unless you control N or fewer other lands" — fast-lands (e.g., N=2).
     /// True if the controller controls N or fewer OTHER lands on the battlefield
     /// (excluding the entering land itself).
     ControlAtMostNOtherLands(u32),
-
     /// "unless you have two or more opponents" — bond-lands.
     /// True if the controller has >= 2 opponents still in the game.
     HaveTwoOrMoreOpponents,
-
     /// "you may reveal a [type] card from your hand" — reveal-lands.
     /// Deterministic fallback: auto-reveal if hand contains a card with ANY of the
     /// listed subtypes. True if a matching card is found.
     CanRevealFromHandWithSubtype(Vec<SubType>),
-
     /// "unless you control N or more basic lands" — battle-lands (e.g., N=2).
     /// True if the controller controls >= N basic lands on the battlefield.
     ControlBasicLandsAtLeast(u32),
-
     /// "unless you control N or more other lands" — slow-lands (e.g., N=2).
     /// True if the controller controls >= N OTHER lands on the battlefield
     /// (excluding the entering land itself).
     ControlAtLeastNOtherLands(u32),
-
     /// "unless you control N or more other [subtype]s" — Mystic Sanctuary, Witch's Cottage.
     /// True if the controller controls >= N OTHER lands with the given subtype on the
     /// battlefield (excluding the entering land itself).
     ControlAtLeastNOtherLandsWithSubtype { count: u32, subtype: SubType },
-
     /// "unless you control a legendary creature" — Minas Tirith.
     /// True if the controller controls a legendary creature on the battlefield.
     ControlLegendaryCreature,
-
     /// "unless you control a creature with subtype X" — Temple of the Dragon Queen.
     /// True if the controller controls a creature with the given subtype.
     ControlCreatureWithSubtype(SubType),
-
     /// CR 702.131c: "if you have the city's blessing"
     ///
     /// True when the controller has the city's blessing designation (permanent,
@@ -2049,7 +1995,6 @@ pub enum Condition {
     /// Evaluates `state.turn.in_extra_combat == false`.
     /// Used by Karlach ('if it's the first combat phase of the turn').
     IsFirstCombatPhase,
-
     /// "if there are N or more card types among cards in your graveyard" — Delirium.
     ///
     /// CR 700.2: Checks the number of distinct card types (Creature, Instant, Sorcery,
@@ -2057,9 +2002,7 @@ pub enum Condition {
     /// the controller's graveyard. Used by Delirium cards like Shifting Woodland.
     CardTypesInGraveyardAtLeast(u32),
 }
-
 // ── Mode Selection ────────────────────────────────────────────────────────────
-
 /// Modal spells/abilities: choose N of M modes (CR 700.2).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModeSelection {
@@ -2080,9 +2023,7 @@ pub struct ModeSelection {
     #[serde(default)]
     pub mode_costs: Option<Vec<ManaCost>>,
 }
-
 // ── Token Specification ───────────────────────────────────────────────────────
-
 /// Everything needed to create a token (CR 111).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenSpec {
@@ -2118,7 +2059,6 @@ pub struct TokenSpec {
     #[serde(default)]
     pub activated_abilities: Vec<ActivatedAbility>,
 }
-
 impl Default for TokenSpec {
     fn default() -> Self {
         Self {
@@ -2139,7 +2079,6 @@ impl Default for TokenSpec {
         }
     }
 }
-
 /// CR 111.10a: Predefined Treasure token specification.
 ///
 /// A colorless Treasure artifact token with "{T}, Sacrifice this artifact:
@@ -2162,7 +2101,6 @@ pub fn treasure_token_spec(count: u32) -> TokenSpec {
         mana_color: None,
     }
 }
-
 /// CR 111.10b: Predefined Food token specification.
 ///
 /// A colorless Food artifact token with "{2}, {T}, Sacrifice this token:
@@ -2206,7 +2144,6 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
         mana_color: None,
     }
 }
-
 /// CR 111.10f: Predefined Clue token specification.
 ///
 /// A colorless Clue artifact token with "{2}, Sacrifice this token: Draw a card."
@@ -2251,7 +2188,6 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
         mana_color: None,
     }
 }
-
 /// CR 111.10g: Predefined Blood token specification.
 ///
 /// A colorless Blood artifact token with "{1}, {T}, Discard a card, Sacrifice this
@@ -2299,7 +2235,6 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
         mana_color: None,
     }
 }
-
 /// CR 701.47a: Token spec for an Army creature token.
 ///
 /// Creates a 0/0 black [subtype] Army creature token. The `subtype` parameter
@@ -2325,7 +2260,6 @@ pub fn army_token_spec(subtype: &str) -> TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 /// CR 702.147a: Predefined Zombie Decayed token specification.
 ///
 /// Creates a 2/2 black Zombie creature token with Decayed.
@@ -2349,9 +2283,7 @@ pub fn zombie_decayed_token_spec(count: u32) -> TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 // ── Zone Target ───────────────────────────────────────────────────────────────
-
 /// A destination zone for zone-change effects (CR 400).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ZoneTarget {
@@ -2371,7 +2303,6 @@ pub enum ZoneTarget {
     /// "the command zone."
     CommandZone,
 }
-
 /// Where in the library an object is placed (CR 401).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LibraryPosition {
@@ -2380,9 +2311,7 @@ pub enum LibraryPosition {
     /// Shuffled in at random (the library is shuffled afterward).
     ShuffledIn,
 }
-
 // ── For Each Target ───────────────────────────────────────────────────────────
-
 /// The collection `ForEach` iterates over.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ForEachTarget {
@@ -2419,9 +2348,7 @@ pub enum ForEachTarget {
     /// and excludes `ctx.source`.
     EachOtherCreatureYouControl,
 }
-
 // ── Timing Restriction ────────────────────────────────────────────────────────
-
 /// When an activated ability can be used.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimingRestriction {
@@ -2430,9 +2357,7 @@ pub enum TimingRestriction {
     /// Any time you have priority (default for activated abilities).
     AnyTime,
 }
-
 // ── Continuous Effect Definition ──────────────────────────────────────────────
-
 /// Defines a continuous effect for use in `AbilityDefinition::Static` and `Effect::ApplyContinuousEffect`.
 ///
 /// References layer types from `state::continuous_effect`. Static abilities
@@ -2445,9 +2370,7 @@ pub struct ContinuousEffectDef {
     pub filter: crate::state::EffectFilter,
     pub duration: crate::state::EffectDuration,
 }
-
 // ── Spell Cost Modification ─────────────────────────────────────────────────
-
 /// A static cost modifier from a permanent on the battlefield (or command zone for Eminence).
 ///
 /// CR 601.2f: The total cost is the mana cost (or alternative cost) plus any cost
@@ -2469,7 +2392,6 @@ pub struct SpellCostModifier {
     #[serde(default)]
     pub exclude_self: bool,
 }
-
 /// Filter for which spells a cost modifier applies to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SpellCostFilter {
@@ -2484,7 +2406,6 @@ pub enum SpellCostFilter {
     /// Aura or Equipment spells (Danitha Capashen, Paragon).
     AuraOrEquipment,
 }
-
 /// Who is affected by a spell cost modifier.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CostModifierScope {
@@ -2493,7 +2414,6 @@ pub enum CostModifierScope {
     /// Only the controller of the source permanent (Warchief: "Goblin spells YOU cast").
     Controller,
 }
-
 /// A self-cost-reduction on a spell — the spell itself is cheaper based on game state at cast time.
 ///
 /// CR 601.2f: Cost reductions are applied during total cost calculation. The generic

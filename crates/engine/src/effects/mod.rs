@@ -19,11 +19,6 @@
 //! Non-combat damage from spells/abilities marks `damage_marked` on permanents
 //! and reduces life for players. Death from lethal damage is handled by SBAs
 //! AFTER the effect resolves — the caller (resolution.rs) runs SBA checks.
-
-use std::collections::HashMap;
-
-use rand::SeedableRng;
-
 use crate::cards::card_definition::{
     Condition, Effect, EffectAmount, EffectTarget, ForEachTarget, ManaRestriction, PlayerTarget,
     TargetController, TargetFilter, ZoneTarget,
@@ -40,9 +35,9 @@ use crate::state::turn::Phase;
 use crate::state::types::{CardType, Color, KeywordAbility, ManaColor, SubType, SuperType};
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
-
+use rand::SeedableRng;
+use std::collections::HashMap;
 // ── Effect execution context ──────────────────────────────────────────────────
-
 /// Context for executing an effect.
 ///
 /// Carries the controller, source object, declared targets, and a remap table
@@ -108,7 +103,6 @@ pub struct EffectContext {
     /// `EffectTarget::LastCreatedPermanent` for "then attach this Equipment to it".
     pub last_created_permanent: Option<ObjectId>,
 }
-
 impl EffectContext {
     /// Build a basic context from resolution data.
     pub fn new(controller: PlayerId, source: ObjectId, targets: Vec<SpellTarget>) -> Self {
@@ -130,7 +124,6 @@ impl EffectContext {
             last_created_permanent: None,
         }
     }
-
     /// Build a context with kicker status (CR 702.33d).
     pub fn new_with_kicker(
         controller: PlayerId,
@@ -156,7 +149,6 @@ impl EffectContext {
             last_created_permanent: None,
         }
     }
-
     /// Resolve a declared target to a player (if it's a player target).
     fn player_for_target(&self, index: usize) -> Option<PlayerId> {
         match self.targets.get(index)?.target {
@@ -165,9 +157,7 @@ impl EffectContext {
         }
     }
 }
-
 // ── Main entry point ──────────────────────────────────────────────────────────
-
 /// Execute an `Effect`, modifying `state` and returning resulting `GameEvent`s.
 ///
 /// Called from `resolution.rs` when a spell or ability resolves (CR 608.2/608.3b).
@@ -186,7 +176,6 @@ pub fn execute_effect(
     execute_effect_inner(state, effect, ctx, &mut events);
     events
 }
-
 fn execute_effect_inner(
     state: &mut GameState,
     effect: &Effect,
@@ -235,7 +224,6 @@ fn execute_effect_inner(
                                 crate::rules::layers::calculate_characteristics(state, ctx.source)
                                     .map(|c| c.keywords.contains(&KeywordAbility::Infect))
                                     .unwrap_or(false);
-
                             if source_has_infect {
                                 // CR 120.3b: infect damage to a player gives poison counters
                                 // instead of causing life loss (CR 702.90b).
@@ -287,13 +275,11 @@ fn execute_effect_inner(
                                     .card_types
                             })
                             .unwrap_or_default();
-
                         let damage_target = if card_types.contains(&CardType::Planeswalker) {
                             CombatDamageTarget::Planeswalker(id)
                         } else {
                             CombatDamageTarget::Creature(id)
                         };
-
                         // CR 614.1: Apply damage-doubling replacement effects before prevention.
                         let (dmg, doubling_events) =
                             crate::rules::replacement::apply_damage_doubling(
@@ -306,7 +292,6 @@ fn execute_effect_inner(
                         if dmg == 0 {
                             continue;
                         }
-
                         // CR 702.16e + CR 615: apply_damage_prevention checks protection
                         // (static) then dynamic prevention shields in order.
                         let (final_dmg, prev_events) =
@@ -317,7 +302,6 @@ fn execute_effect_inner(
                                 dmg,
                             );
                         events.extend(prev_events);
-
                         if final_dmg > 0 {
                             if card_types.contains(&CardType::Planeswalker) {
                                 // CR 120.3c: damage to planeswalker removes loyalty counters.
@@ -347,7 +331,6 @@ fn execute_effect_inner(
                                     .as_ref()
                                     .map(|c| c.keywords.contains(&KeywordAbility::Infect))
                                     .unwrap_or(false);
-
                                 if let Some(obj) = state.objects.get_mut(&id) {
                                     if source_has_wither || source_has_infect {
                                         // CR 702.80a / CR 702.90c / CR 120.3d: wither and/or
@@ -394,7 +377,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::GainLife { player, amount } => {
             // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
             let gain = resolve_amount(state, amount, ctx).max(0) as u32;
@@ -412,7 +394,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         Effect::LoseLife { player, amount } => {
             // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
             let loss = resolve_amount(state, amount, ctx).max(0) as u32;
@@ -436,7 +417,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         // CR 702.101a: Extort drain — each opponent loses `amount` life and the
         // controller gains life equal to the total life actually lost.
         //
@@ -482,7 +462,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         // ── Cards ──────────────────────────────────────────────────────────
         Effect::DrawCards { player, count } => {
             // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
@@ -495,7 +474,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::DiscardCards { player, count } => {
             let n = resolve_amount(state, count, ctx) as usize;
             let players = resolve_player_target_list(state, player, ctx);
@@ -503,7 +481,6 @@ fn execute_effect_inner(
                 discard_cards(state, p, n, events);
             }
         }
-
         Effect::MillCards { player, count } => {
             let n = resolve_amount(state, count, ctx) as usize;
             let players = resolve_player_target_list(state, player, ctx);
@@ -511,7 +488,6 @@ fn execute_effect_inner(
                 mill_cards(state, p, n, events);
             }
         }
-
         // ── Permanents ────────────────────────────────────────────────────
         Effect::CreateToken { spec } => {
             // CR 111.1 / CR 614.1: Apply token-creation replacement effects.
@@ -522,7 +498,6 @@ fn execute_effect_inner(
                     spec.count,
                 );
             events.extend(repl_events);
-
             // CR 508.4: If enters_attacking, resolve the attack target from the
             // source creature's current attack target in combat state. If combat
             // is not active or source is not attacking, tokens enter but are not
@@ -535,7 +510,6 @@ fn execute_effect_inner(
             } else {
                 None
             };
-
             for _ in 0..token_count {
                 let obj = make_token(spec, ctx.controller);
                 if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
@@ -561,7 +535,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 702.92a: Create a token and immediately attach the source Equipment to it.
         //
         // Used by Living Weapon. The create + attach happen atomically: SBAs do not fire
@@ -631,7 +604,6 @@ fn execute_effect_inner(
                 ctx.last_created_permanent = Some(token_id);
             }
         }
-
         // CR 701.16a: Investigate — create N Clue tokens sequentially.
         //
         // Ruling 2024-06-07: "If you're instructed to investigate multiple times,
@@ -664,7 +636,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         Effect::DestroyPermanent { target } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
@@ -682,7 +653,6 @@ fn execute_effect_inner(
                     if indestructible {
                         continue;
                     }
-
                     // CR 701.19a/614.8: Check regeneration shields before destruction.
                     // Self-replacement effects apply first (CR 614.15).
                     if let Some(shield_id) =
@@ -693,7 +663,6 @@ fn execute_effect_inner(
                         events.extend(regen_events);
                         continue; // Skip destruction -- permanent stays on battlefield
                     }
-
                     // CR 702.89a: Check umbra armor -- Aura saves the enchanted permanent.
                     // Unlike regeneration, the permanent is NOT tapped and NOT removed from combat.
                     // "Can't be regenerated" does NOT block umbra armor (separate mechanics -- ruling).
@@ -711,7 +680,6 @@ fn execute_effect_inner(
                             continue; // Skip destruction -- permanent stays on battlefield
                         }
                     }
-
                     // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
                     let (card_types, owner, pre_death_controller, pre_death_counters) = state
                         .objects
@@ -736,7 +704,6 @@ fn execute_effect_inner(
                                 Default::default(),
                             )
                         });
-
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,
@@ -746,7 +713,6 @@ fn execute_effect_inner(
                         owner,
                         &std::collections::HashSet::new(),
                     );
-
                     match action {
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to: dest,
@@ -830,7 +796,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.8: Destroy all permanents matching the filter.
         // CR 702.12b: Indestructible permanents are skipped.
         // CR 701.19c: cant_be_regenerated=true bypasses regeneration shields.
@@ -861,9 +826,7 @@ fn execute_effect_inner(
                 })
                 .map(|(&id, _)| id)
                 .collect();
-
             let mut destroyed_count: u32 = 0;
-
             for id in ids_to_destroy {
                 // CR 702.12b: Indestructible permanents can't be destroyed.
                 let indestructible = state
@@ -878,7 +841,6 @@ fn execute_effect_inner(
                 if indestructible {
                     continue;
                 }
-
                 // CR 701.19c: If cant_be_regenerated, skip regeneration shields.
                 if !cant_be_regenerated {
                     if let Some(shield_id) =
@@ -890,7 +852,6 @@ fn execute_effect_inner(
                         continue;
                     }
                 }
-
                 // CR 702.89a: Check umbra armor — Aura saves the enchanted permanent.
                 {
                     let auras = crate::rules::replacement::check_umbra_armor(state, id);
@@ -902,7 +863,6 @@ fn execute_effect_inner(
                         continue;
                     }
                 }
-
                 // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
                 let (card_types, owner, pre_death_controller, pre_death_counters) = state
                     .objects
@@ -925,7 +885,6 @@ fn execute_effect_inner(
                             Default::default(),
                         )
                     });
-
                 // CR 614: Check replacement effects before moving to graveyard.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -935,7 +894,6 @@ fn execute_effect_inner(
                     owner,
                     &std::collections::HashSet::new(),
                 );
-
                 match action {
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
@@ -1020,10 +978,8 @@ fn execute_effect_inner(
                     }
                 }
             }
-
             ctx.last_effect_count = destroyed_count;
         }
-
         // CR 406.2: Exile all permanents matching the filter.
         // Stores count in ctx.last_effect_count for follow-up effects.
         Effect::ExileAll { filter } => {
@@ -1049,16 +1005,13 @@ fn execute_effect_inner(
                 })
                 .map(|(&id, _)| id)
                 .collect();
-
             let mut exiled_count: u32 = 0;
-
             for id in ids_to_exile {
                 let owner = state
                     .objects
                     .get(&id)
                     .map(|o| o.owner)
                     .unwrap_or(ctx.controller);
-
                 // CR 614: Check replacement effects before exiling.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1068,7 +1021,6 @@ fn execute_effect_inner(
                     owner,
                     &std::collections::HashSet::new(),
                 );
-
                 match action {
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
@@ -1123,10 +1075,8 @@ fn execute_effect_inner(
                     }
                 }
             }
-
             ctx.last_effect_count = exiled_count;
         }
-
         Effect::ExileObject { target } => {
             let targets = resolve_effect_target_list_indexed(state, target, ctx);
             for (idx_opt, resolved) in targets {
@@ -1137,7 +1087,6 @@ fn execute_effect_inner(
                             .get(&id)
                             .map(|o| o.owner)
                             .unwrap_or(ctx.controller);
-
                         // CR 614: Check replacement effects before exiling.
                         let from_zone_type = state
                             .objects
@@ -1152,7 +1101,6 @@ fn execute_effect_inner(
                                 ZoneId::Command(_) => ZoneType::Command,
                             })
                             .unwrap_or(ZoneType::Battlefield);
-
                         let action = crate::rules::replacement::check_zone_change_replacement(
                             state,
                             id,
@@ -1161,7 +1109,6 @@ fn execute_effect_inner(
                             owner,
                             &std::collections::HashSet::new(),
                         );
-
                         match action {
                             crate::rules::replacement::ZoneChangeAction::Redirect {
                                 to: dest,
@@ -1230,7 +1177,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::CounterSpell { target } => {
             // CR 701.5: Counter target spell on the stack.
             let targets = resolve_effect_target_list(state, target, ctx);
@@ -1306,7 +1252,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::TapPermanent { target } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
@@ -1324,7 +1269,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::UntapPermanent { target } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
@@ -1342,7 +1286,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // ── Mana ──────────────────────────────────────────────────────────
         Effect::AddMana { player, mana } => {
             let players = resolve_player_target_list(state, player, ctx);
@@ -1371,7 +1314,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::AddManaAnyColor { player } | Effect::AddManaChoice { player, .. } => {
             // M9+: interactive mana color choice. For now, add colorless.
             let players = resolve_player_target_list(state, player, ctx);
@@ -1386,7 +1328,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::AddManaScaled {
             player,
             color,
@@ -1405,7 +1346,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 106.12: Add mana with a spending restriction.
         Effect::AddManaRestricted {
             player,
@@ -1438,7 +1378,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 106.12: Add one mana of any color with a spending restriction.
         Effect::AddManaAnyColorRestricted {
             player,
@@ -1457,7 +1396,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // ── Counters ──────────────────────────────────────────────────────
         Effect::AddCounter {
             target,
@@ -1495,7 +1433,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 122: Add N counters to a target where N is an EffectAmount (e.g. LastEffectCount).
         Effect::AddCounterAmount {
             target,
@@ -1532,7 +1469,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 500.8: Additional combat phase (CR 500.10a: only applies on active player's turn).
         Effect::AdditionalCombatPhase { followed_by_main } => {
             if state.turn.active_player == ctx.controller {
@@ -1554,7 +1490,6 @@ fn execute_effect_inner(
                 );
             }
         }
-
         Effect::RemoveCounter {
             target,
             counter,
@@ -1582,7 +1517,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.39a: Bolster N -- choose a creature controlled by the given player
         // with the least toughness (layer-aware), put N +1/+1 counters on it.
         // Bolster does NOT target; the creature is chosen at resolution time.
@@ -1617,12 +1551,10 @@ fn execute_effect_inner(
                         chars.toughness.map(|t| (id, t))
                     })
                     .collect();
-
                 // Find the minimum toughness value; if no creatures exist, bolster does nothing.
                 let Some(min_toughness) = creatures.iter().map(|(_, t)| *t).min() else {
                     continue;
                 };
-
                 // Among tied creatures, choose the one with the smallest ObjectId
                 // (deterministic fallback -- interactive choice deferred to M10+).
                 let Some(chosen_id) = creatures
@@ -1633,7 +1565,6 @@ fn execute_effect_inner(
                 else {
                     continue;
                 };
-
                 // Place N +1/+1 counters on the chosen creature.
                 if let Some(obj) = state.objects.get_mut(&chosen_id) {
                     let cur = obj
@@ -1651,7 +1582,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // ── Amass ─────────────────────────────────────────────────────────
         // CR 701.47a: Amass [subtype] N.
         //   1. If you don't control an Army creature, create a 0/0 black
@@ -1665,7 +1595,6 @@ fn execute_effect_inner(
         Effect::Amass { subtype, count } => {
             let n = resolve_amount(state, count, ctx).max(0) as u32;
             let controller = ctx.controller;
-
             // Step 1–2: Find existing Army creatures controlled by `controller`.
             // Uses calculate_characteristics for layer-aware type check (Changeling).
             // CR 702.26b: phased-out permanents are treated as nonexistent.
@@ -1696,7 +1625,6 @@ fn execute_effect_inner(
                     }
                 })
                 .collect();
-
             // If no Army exists, create a 0/0 black [subtype] Army token (CR 701.47a).
             // Ruling 2023-06-16: the token enters as 0/0 BEFORE receiving counters.
             // SBAs are not checked between token creation and counter placement.
@@ -1733,7 +1661,6 @@ fn execute_effect_inner(
                 };
                 chosen
             };
-
             // Step 3: Place N +1/+1 counters on the chosen Army (if N > 0).
             if n > 0 {
                 if let Some(obj) = state.objects.get_mut(&army_id) {
@@ -1751,7 +1678,6 @@ fn execute_effect_inner(
                     });
                 }
             }
-
             // Step 4: If the chosen Army isn't a [subtype], add the subtype (CR 701.47a).
             // This is a one-shot modification (not a continuous effect) — the subtype
             // is permanently added to the creature's characteristics.
@@ -1761,7 +1687,6 @@ fn execute_effect_inner(
                     obj.characteristics.subtypes.insert(army_subtype);
                 }
             }
-
             // CR 701.47b: Always emit Amassed, even if counters or subtype change
             // were impossible (e.g., N=0 still creates the token and emits the event).
             events.push(GameEvent::Amassed {
@@ -1770,7 +1695,6 @@ fn execute_effect_inner(
                 count: n,
             });
         }
-
         // ── Zone ──────────────────────────────────────────────────────────
         Effect::MoveZone {
             target,
@@ -1841,7 +1765,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // ── Library ───────────────────────────────────────────────────────
         Effect::PutOnLibrary {
             player,
@@ -1875,13 +1798,13 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::SearchLibrary {
             player,
             filter,
             reveal: _,
             destination,
             shuffle_before_placing,
+            also_search_graveyard,
         } => {
             // M9+: interactive card search. For M7, deterministic fallback:
             // find the first matching card (by ObjectId, ascending) in the library.
@@ -1891,19 +1814,23 @@ fn execute_effect_inner(
                 let (search_restriction, repl_events) =
                     crate::rules::replacement::apply_search_library_replacement(state, p);
                 events.extend(repl_events);
-
                 let lib_id = ZoneId::Library(p);
+                let gy_id = ZoneId::Graveyard(p);
                 let mut candidates: Vec<ObjectId> = state
                     .objects
                     .iter()
                     .filter(|(_, obj)| {
-                        obj.zone == lib_id && matches_filter(&obj.characteristics, filter)
+                        let in_lib = obj.zone == lib_id;
+                        // CR 701.23: also_search_graveyard: search "library and/or graveyard"
+                        // pattern. Graveyard cards are included when the flag is set.
+                        let in_gy = *also_search_graveyard && obj.zone == gy_id;
+                        (in_lib || in_gy) && matches_filter(&obj.characteristics, filter)
                     })
                     .map(|(id, _)| *id)
                     .collect();
-
                 // If search is restricted to top N, sort by library position
                 // and truncate. Library order is by ObjectId ascending (deterministic).
+                // Search restriction only applies to library cards (not graveyard cards).
                 if let Some(top_n) = search_restriction {
                     let mut all_lib: Vec<ObjectId> = state
                         .objects
@@ -1914,15 +1841,28 @@ fn execute_effect_inner(
                     all_lib.sort();
                     let top_ids: std::collections::HashSet<ObjectId> =
                         all_lib.into_iter().take(top_n as usize).collect();
-                    candidates.retain(|id| top_ids.contains(id));
+                    // Only restrict library candidates; graveyard candidates are unrestricted.
+                    candidates.retain(|id| {
+                        if let Some(obj) = state.objects.get(id) {
+                            obj.zone == gy_id || top_ids.contains(id)
+                        } else {
+                            false
+                        }
+                    });
                 }
-
                 if let Some(&card_id) = candidates.iter().min_by_key(|&&id| id.0) {
+                    // Track whether the found card was in the library (to decide if we shuffle).
+                    let found_in_library = state
+                        .objects
+                        .get(&card_id)
+                        .map(|obj| obj.zone == lib_id)
+                        .unwrap_or(false);
                     // CR 701.23: "shuffle and put on top" pattern — shuffle FIRST, then place.
                     // Vampiric Tutor/Worldly Tutor ruling (2016-06-08): "The 'shuffle and put
                     // the card on top' is a single action." We implement this by shuffling while
                     // the card is still in the library, then moving it to the destination.
-                    if *shuffle_before_placing {
+                    // Note: shuffle_before_placing only triggers if the card was found in library.
+                    if *shuffle_before_placing && found_in_library {
                         let seed = state.timestamp_counter;
                         state.timestamp_counter += 1;
                         if let Some(zone) = state.zones.get_mut(&ZoneId::Library(p)) {
@@ -1954,7 +1894,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.18: Scry N — deterministic fallback: put top N cards on bottom
         // in ObjectId ascending order (interactive ordering deferred to M10+).
         Effect::Scry { player, count } => {
@@ -1985,7 +1924,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         // CR 701.25: Surveil N -- deterministic fallback: put top N cards into graveyard
         // (interactive selection deferred to M10+).
         Effect::Surveil { player, count } => {
@@ -2023,7 +1961,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         Effect::Shuffle { player } => {
             // MR-M7-17: use timestamp_counter as seed instead of from_entropy() so
             // shuffles are deterministic given the same game state sequence.
@@ -2038,7 +1975,6 @@ fn execute_effect_inner(
                 events.push(GameEvent::LibraryShuffled { player: p });
             }
         }
-
         // ── Continuous Effects ─────────────────────────────────────────────
         Effect::ApplyContinuousEffect { effect_def } => {
             use crate::state::continuous_effect::EffectFilter as CEFilter;
@@ -2076,14 +2012,12 @@ fn execute_effect_inner(
             };
             state.continuous_effects.push_back(eff);
         }
-
         // ── Combinators ────────────────────────────────────────────────────
         Effect::Sequence(effects) => {
             for e in effects {
                 execute_effect_inner(state, e, ctx, events);
             }
         }
-
         Effect::Conditional {
             condition,
             if_true,
@@ -2095,7 +2029,6 @@ fn execute_effect_inner(
                 execute_effect_inner(state, if_false, ctx, events);
             }
         }
-
         Effect::ForEach { over, effect } => {
             // MR-M7-06: handle player-based ForEach targets separately — collect_for_each
             // returns Vec<ObjectId> and cannot represent players.
@@ -2160,19 +2093,16 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::Choose { choices, .. } => {
             // M9+: interactive modal choice. For M7, execute the first option.
             if let Some(first) = choices.first() {
                 execute_effect_inner(state, first, ctx, events);
             }
         }
-
         Effect::MayPayOrElse { or_else, .. } => {
             // M9+: interactive choice to pay or not. For M7, don't pay → apply or_else.
             execute_effect_inner(state, or_else, ctx, events);
         }
-
         // CR 701.17a: Sacrifice permanents — the specified player sacrifices N permanents.
         //
         // Sacrifice is NOT destruction: it bypasses indestructible (CR 701.17a).
@@ -2198,7 +2128,6 @@ fn execute_effect_inner(
                     .map(|(id, _)| *id)
                     .collect();
                 controlled.sort_unstable();
-
                 // Sacrifice min(n, count) permanents.
                 let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
                 for id in to_sacrifice {
@@ -2217,7 +2146,6 @@ fn execute_effect_inner(
                             ),
                             None => continue,
                         };
-
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,
@@ -2227,7 +2155,6 @@ fn execute_effect_inner(
                         owner,
                         &std::collections::HashSet::new(),
                     );
-
                     match action {
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to: dest,
@@ -2310,7 +2237,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.15a: Goad — mark the target creature as goaded until the start of
         // the goaded creature controller's next turn. The goaded creature must attack
         // each combat if able (CR 701.15b) and must attack a player other than the
@@ -2332,7 +2258,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.60a: Suspect -- set the suspected designation on the target permanent.
         // A suspected permanent has menace and "This creature can't block" (CR 701.60c).
         // Suspecting an already-suspected permanent is a no-op (CR 701.60d).
@@ -2353,7 +2278,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.60a: Unsuspect -- remove the suspected designation from the target
         // permanent. Clears `is_suspected`, removing the menace grant and unblocking
         // the can't-block restriction.
@@ -2373,7 +2297,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 724.1/724.3: Target player becomes the monarch.
         // Sets state.monarch, replacing any previous monarch.
         Effect::BecomeMonarch { player } => {
@@ -2386,7 +2309,6 @@ fn execute_effect_inner(
                 });
             }
         }
-
         // CR 106.12 support: Set chosen_creature_type on the source permanent.
         // Deterministic fallback: picks the most common creature subtype among
         // creatures the controller controls, or the provided default.
@@ -2417,7 +2339,6 @@ fn execute_effect_inner(
                 obj.chosen_creature_type = Some(chosen);
             }
         }
-
         // CR 701.19a: Regenerate -- create a one-shot regeneration shield on the
         // target permanent. The shield is a UntilEndOfTurn replacement effect that
         // intercepts the next WouldBeDestroyed event for this specific permanent.
@@ -2426,7 +2347,6 @@ fn execute_effect_inner(
             use crate::state::replacement_effect::{
                 ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
             };
-
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in &targets {
                 if let ResolvedTarget::Object(id) = resolved {
@@ -2441,7 +2361,6 @@ fn execute_effect_inner(
                     if !on_battlefield {
                         continue;
                     }
-
                     let regen_id = state.next_replacement_id();
                     state.replacement_effects.push_back(ReplacementEffect {
                         id: regen_id,
@@ -2454,7 +2373,6 @@ fn execute_effect_inner(
                         },
                         modification: ReplacementModification::Regenerate,
                     });
-
                     events.push(GameEvent::RegenerationShieldCreated {
                         object_id: id,
                         shield_id: regen_id,
@@ -2463,7 +2381,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.34a: Proliferate -- add one counter of each kind to each
         // permanent on the battlefield and each player that already has counters.
         // Simplified: auto-select all eligible (interactive choice deferred to M10+).
@@ -2482,12 +2399,10 @@ fn execute_effect_inner(
         // of adding harmful counters (poison, -1/-1) to themselves or their own permanents.
         Effect::Proliferate => {
             let controller = ctx.controller;
-
             // CR 701.34 / CR 614.1: Check for proliferate-doubling replacements (Tekuthal).
             let (proliferate_times, prolif_repl_events) =
                 crate::rules::replacement::apply_proliferate_replacement(state, controller);
             events.extend(prolif_repl_events);
-
             for _prolif_iter in 0..proliferate_times {
                 // 1. Iterate all permanents on the battlefield with at least one counter.
                 //    CR ruling 2023-02-04: "You can't choose cards in any zone other
@@ -2513,7 +2428,6 @@ fn execute_effect_inner(
                         (*id, counter_types)
                     })
                     .collect();
-
                 // Add one counter of each kind to each eligible permanent.
                 // CR 122.6: counter-placement replacements apply to each proliferate addition.
                 for (obj_id, counter_types) in &battlefield_objects {
@@ -2541,7 +2455,6 @@ fn execute_effect_inner(
                         }
                     }
                 }
-
                 // 2. Iterate all players with poison counters (the only player counter type).
                 //    CR 701.34a: "players that have a counter" -- poison_counters > 0.
                 //
@@ -2557,7 +2470,6 @@ fn execute_effect_inner(
                     .filter(|(_, ps)| !ps.has_lost && ps.poison_counters > 0)
                     .map(|(id, _)| *id)
                     .collect();
-
                 for pid in &eligible_players {
                     if let Some(player) = state.players.get_mut(pid) {
                         player.poison_counters += 1;
@@ -2568,7 +2480,6 @@ fn execute_effect_inner(
                         });
                     }
                 }
-
                 // 3. Always emit Proliferated event (ruling 2023-02-04:
                 //    "triggers even if you chose no permanents or players").
                 events.push(GameEvent::Proliferated {
@@ -2578,7 +2489,6 @@ fn execute_effect_inner(
                 });
             } // end proliferate_times loop
         }
-
         // CR 701.57a: Discover N — exile cards from the top of the specified
         // player's library until you exile a nonland card with mana value <= N.
         // You may cast that card without paying its mana cost. If you don't cast
@@ -2604,7 +2514,6 @@ fn execute_effect_inner(
                 events.extend(discover_events);
             }
         }
-
         // CR 701.40a: Manifest the top card of a player's library.
         // The card is placed onto the battlefield face-down as a 2/2 creature with no
         // text, no name, no subtypes, and no mana cost. ETB abilities do not trigger
@@ -2657,7 +2566,6 @@ fn execute_effect_inner(
             }
             // If library is empty, the effect does nothing (CR 701.40f).
         }
-
         // CR 701.58a: Cloak the top card of a player's library.
         // Like Manifest (CR 701.40a), but the face-down creature also has ward {2}
         // (CR 701.58a) while face-down. The ward {2} is added by the layer system
@@ -2702,7 +2610,6 @@ fn execute_effect_inner(
             }
             // If library is empty, the effect does nothing.
         }
-
         // CR 705.1: Flip a coin — deterministic RNG from timestamp counter.
         // The result is derived from the current timestamp (odd = win, even = lose),
         // ensuring reproducible replays. Emits CoinFlipped event, then executes
@@ -2714,19 +2621,16 @@ fn execute_effect_inner(
             let seed = state.timestamp_counter;
             state.timestamp_counter += 1;
             let result = seed % 2 == 1; // odd = heads (win), even = tails (lose)
-
             events.push(GameEvent::CoinFlipped {
                 player: controller,
                 result,
             });
-
             if result {
                 execute_effect_inner(state, on_win, ctx, events);
             } else {
                 execute_effect_inner(state, on_lose, ctx, events);
             }
         }
-
         // CR 706.2: Roll a die — deterministic RNG from timestamp counter.
         // Result is derived from the current timestamp modulo the number of sides,
         // mapped to 1..=sides. Emits DiceRolled event, then executes the first
@@ -2741,16 +2645,13 @@ fn execute_effect_inner(
             let seed = state.timestamp_counter;
             state.timestamp_counter += 1;
             let result = (seed % sides_val as u64) as u32 + 1; // 1..=sides
-
             events.push(GameEvent::DiceRolled {
                 player: controller,
                 sides: sides_val,
                 result,
             });
-
             // Store result in context for EffectAmount::LastDiceRoll.
             ctx.last_dice_roll = result;
-
             // Find the first matching range and execute its effect.
             for (low, high, effect) in results {
                 if result >= *low && result <= *high {
@@ -2759,9 +2660,7 @@ fn execute_effect_inner(
                 }
             }
         }
-
         Effect::Nothing => {}
-
         // CR 701.49: Venture into the dungeon.
         //
         // Invokes the three-case venture logic (no dungeon, mid-dungeon, bottommost room).
@@ -2775,7 +2674,6 @@ fn execute_effect_inner(
                 events.extend(venture_events);
             }
         }
-
         // CR 725.2: Take the initiative.
         //
         // Sets `has_initiative = Some(controller)` on GameState, emits InitiativeTaken,
@@ -2791,7 +2689,6 @@ fn execute_effect_inner(
                 events.extend(venture_events);
             }
         }
-
         // CR 701.54a-c: The Ring tempts you.
         //
         // Advances the controller's ring level (cap at 4), emits RingTempted,
@@ -2806,7 +2703,6 @@ fn execute_effect_inner(
                 events.extend(ring_events);
             }
         }
-
         // CR 701.42a: Meld the source permanent with its meld pair partner.
         //
         // 1. Look up the source's MeldPair to find the partner card_id
@@ -2819,7 +2715,6 @@ fn execute_effect_inner(
         Effect::Meld => {
             let source_id = ctx.source;
             let controller = ctx.controller;
-
             // Look up source card's meld pair info.
             let meld_info = state
                 .objects
@@ -2832,7 +2727,6 @@ fn execute_effect_inner(
                             .map(|mp| (cid, mp.pair_card_id.clone(), mp.melded_card_id.clone()))
                     })
                 });
-
             if let Some((source_card_id, pair_card_id, _melded_card_id)) = meld_info {
                 // Find the partner on the battlefield — must be owned AND controlled
                 // by the same player (CR 712.4a: "you both own and control").
@@ -2846,7 +2740,6 @@ fn execute_effect_inner(
                             && obj.controller == controller
                     })
                     .map(|obj| obj.id);
-
                 // Also verify source is still on the battlefield and owned+controlled.
                 let source_valid = state
                     .objects
@@ -2857,7 +2750,6 @@ fn execute_effect_inner(
                             && obj.controller == controller
                     })
                     .unwrap_or(false);
-
                 if let Some(partner_obj_id) = partner_id {
                     if source_valid {
                         // Exile both cards transiently (zone-change bookkeeping for CR 400.7).
@@ -2873,14 +2765,12 @@ fn execute_effect_inner(
                             .move_object_to_zone(partner_obj_id, exile_zone)
                             .map(|(new_id, _)| new_id)
                             .ok();
-
                         // Create the melded permanent on the battlefield.
                         // The primary object uses the source card's identity;
                         // meld_component stores the partner's CardId for zone-change splitting.
                         // The layer system reads meld_component to apply melded face chars.
                         let melded_id = state.next_object_id();
                         state.timestamp_counter += 1;
-
                         // Start with default characteristics — the layer system
                         // will replace them with the melded back face (CR 712.8g).
                         let melded_obj = crate::state::game_object::GameObject {
@@ -2940,9 +2830,9 @@ fn execute_effect_inner(
                             loyalty_ability_activated_this_turn: false,
                             class_level: 0,
                             designations: crate::state::game_object::Designations::default(),
+                            adventure_exiled_by: None,
                             meld_component: Some(pair_card_id),
                         };
-
                         // Add to battlefield zone.
                         if let Some(zone_set) = state
                             .zones
@@ -2951,7 +2841,6 @@ fn execute_effect_inner(
                             zone_set.insert(melded_id);
                         }
                         state.objects.insert(melded_id, melded_obj);
-
                         // Remove the two phantom exile objects that were created as
                         // zone-change intermediaries. CR 701.42a puts both cards onto the
                         // battlefield combined — they should not persist in exile.
@@ -2965,7 +2854,6 @@ fn execute_effect_inner(
                                 exile_set.remove(&phantom_id);
                             }
                         }
-
                         events.push(
                             crate::rules::events::GameEvent::PermanentEnteredBattlefield {
                                 player: controller,
@@ -2977,7 +2865,6 @@ fn execute_effect_inner(
                 // CR 701.42c: If partner not found or conditions not met, nothing happens.
             }
         }
-
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
         // Hideaway ETB trigger without paying its mana cost.
         //
@@ -2993,7 +2880,6 @@ fn execute_effect_inner(
         Effect::PlayExiledCard => {
             let source_id = ctx.source;
             let controller = ctx.controller;
-
             // Find the hideaway-exiled card in exile.
             let hideaway_card_id = state
                 .objects
@@ -3004,7 +2890,6 @@ fn execute_effect_inner(
                         && obj.status.face_down
                 })
                 .map(|(id, _)| *id);
-
             if let Some(card_id) = hideaway_card_id {
                 // Determine if the card is a land or a spell.
                 let is_land = state
@@ -3012,13 +2897,11 @@ fn execute_effect_inner(
                     .get(&card_id)
                     .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
                     .unwrap_or(false);
-
                 // Turn face-up and clear the hideaway link.
                 if let Some(obj) = state.objects.get_mut(&card_id) {
                     obj.status.face_down = false;
                     obj.exiled_by_hideaway = None;
                 }
-
                 if is_land {
                     // Play the land: move directly to battlefield.
                     // CR 701.13: Playing a land bypasses the stack.
@@ -3053,7 +2936,6 @@ fn execute_effect_inner(
                                 || ct.contains(&CardType::Planeswalker)
                         })
                         .unwrap_or(false);
-
                     if is_permanent {
                         if let Ok((new_id, _)) =
                             state.move_object_to_zone(card_id, ZoneId::Battlefield)
@@ -3083,7 +2965,6 @@ fn execute_effect_inner(
             }
             // If no matching exiled card found, the ability does nothing (CR 607.2a).
         }
-
         // CR 702.6a / CR 701.3a: Attach the source Equipment to the target creature.
         //
         // On resolution:
@@ -3097,7 +2978,6 @@ fn execute_effect_inner(
         Effect::AttachEquipment { equipment, target } => {
             let equip_resolved = resolve_effect_target_list(state, equipment, ctx);
             let target_resolved = resolve_effect_target_list(state, target, ctx);
-
             for equip_res in &equip_resolved {
                 let equip_id = match equip_res {
                     ResolvedTarget::Object(id) => *id,
@@ -3108,12 +2988,10 @@ fn execute_effect_inner(
                         ResolvedTarget::Object(id) => *id,
                         _ => continue,
                     };
-
                     // CR 301.5c: Equipment can't equip itself.
                     if equip_id == target_id {
                         continue;
                     }
-
                     // Validate: target must be a creature on the battlefield controlled
                     // by the ability's controller.
                     //
@@ -3146,12 +3024,10 @@ fn execute_effect_inner(
                             .unwrap_or(false)
                     };
                     let target_valid = target_on_battlefield_and_controlled && target_is_creature;
-
                     if !target_valid {
                         // CR 701.3b: Can't attach to an illegal target; do nothing.
                         continue;
                     }
-
                     // CR 701.3b: Already attached to the same target — do nothing.
                     if state
                         .objects
@@ -3162,7 +3038,6 @@ fn execute_effect_inner(
                     {
                         continue;
                     }
-
                     // Detach from previous creature (CR 301.5c: can't equip more than one).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
@@ -3170,7 +3045,6 @@ fn execute_effect_inner(
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
-
                     // Attach to new target.
                     // CR 701.3c / CR 613.7e: new timestamp on reattach.
                     state.timestamp_counter += 1;
@@ -3184,13 +3058,11 @@ fn execute_effect_inner(
                             target_obj.attachments.push_back(equip_id);
                         }
                     }
-
                     events.push(GameEvent::EquipmentAttached {
                         equipment_id: equip_id,
                         target_id,
                         controller: ctx.controller,
                     });
-
                     // CR 702.151b: If the Equipment has the Reconfigure keyword (by any means),
                     // set is_reconfigured = true so it stops being a creature while attached.
                     // Ruling 2022-02-18: effect persists even if keyword is later removed.
@@ -3226,7 +3098,6 @@ fn execute_effect_inner(
         } => {
             let equip_resolved = resolve_effect_target_list(state, fortification, ctx);
             let target_resolved = resolve_effect_target_list(state, target, ctx);
-
             for equip_res in &equip_resolved {
                 let equip_id = match equip_res {
                     ResolvedTarget::Object(id) => *id,
@@ -3237,14 +3108,12 @@ fn execute_effect_inner(
                         ResolvedTarget::Object(id) => *id,
                         _ => continue,
                     };
-
                     // CR 301.6 (via 301.5c analog): A Fortification that is also a
                     // creature can't fortify a land; a Fortification can't fortify
                     // itself (trivially true since it's an artifact, not a land).
                     if equip_id == target_id {
                         continue;
                     }
-
                     // CR 301.6: A Fortification that's also a creature can't fortify a land.
                     // This can happen via animation (e.g. March of the Machines).
                     let source_is_creature = {
@@ -3263,7 +3132,6 @@ fn execute_effect_inner(
                     if source_is_creature {
                         continue; // CR 301.6: creature Fortification can't fortify
                     }
-
                     // Validate: target must be a land on the battlefield controlled
                     // by the ability's controller.
                     //
@@ -3294,12 +3162,10 @@ fn execute_effect_inner(
                             .unwrap_or(false)
                     };
                     let target_valid = target_on_battlefield_and_controlled && target_is_land;
-
                     if !target_valid {
                         // CR 701.3b: Can't attach to an illegal target; do nothing.
                         continue;
                     }
-
                     // CR 701.3b: Already attached to the same land — do nothing.
                     if state
                         .objects
@@ -3310,7 +3176,6 @@ fn execute_effect_inner(
                     {
                         continue;
                     }
-
                     // Detach from previous land (CR 301.6 via 301.5c analog: can't
                     // fortify more than one land).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
@@ -3319,7 +3184,6 @@ fn execute_effect_inner(
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
-
                     // Attach to new land.
                     // CR 701.3c / CR 613.7e: new timestamp on reattach.
                     state.timestamp_counter += 1;
@@ -3333,7 +3197,6 @@ fn execute_effect_inner(
                             target_obj.attachments.push_back(equip_id);
                         }
                     }
-
                     events.push(GameEvent::FortificationAttached {
                         fortification_id: equip_id,
                         target_id,
@@ -3353,13 +3216,11 @@ fn execute_effect_inner(
         // 6. Emit EquipmentUnattached event.
         Effect::DetachEquipment { equipment } => {
             let equip_resolved = resolve_effect_target_list(state, equipment, ctx);
-
             for equip_res in &equip_resolved {
                 let equip_id = match equip_res {
                     ResolvedTarget::Object(id) => *id,
                     _ => continue,
                 };
-
                 // Verify equipment is on the battlefield.
                 let on_battlefield = state
                     .objects
@@ -3369,26 +3230,22 @@ fn execute_effect_inner(
                 if !on_battlefield {
                     continue;
                 }
-
                 // Get the current attachment target.
                 let target_id_opt = state.objects.get(&equip_id).and_then(|obj| obj.attached_to);
                 let Some(target_id) = target_id_opt else {
                     // Not attached; do nothing (CR 702.151a: "Activate only if attached").
                     continue;
                 };
-
                 // Clear attached_to on the equipment.
                 if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
                     equip_obj.attached_to = None;
                     // CR 702.151b: Clear the reconfigure flag; creature type is restored.
                     equip_obj.designations.remove(Designations::RECONFIGURED);
                 }
-
                 // Remove equipment from target's attachments.
                 if let Some(target_obj) = state.objects.get_mut(&target_id) {
                     target_obj.attachments.retain(|&x| x != equip_id);
                 }
-
                 events.push(GameEvent::EquipmentUnattached {
                     object_id: equip_id,
                 });
@@ -3402,7 +3259,6 @@ fn execute_effect_inner(
         Effect::Connive { target, count } => {
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             let targets = resolve_effect_target_list(state, target, ctx);
-
             for resolved in targets {
                 if let ResolvedTarget::Object(creature_id) = resolved {
                     // CR 701.50a: The permanent's CONTROLLER draws and discards.
@@ -3413,19 +3269,16 @@ fn execute_effect_inner(
                         .get(&creature_id)
                         .map(|obj| obj.controller)
                         .unwrap_or(ctx.controller);
-
                     // Step 1: Draw N cards (CR 701.50e).
                     for _ in 0..n {
                         let draw_evts = draw_one_card(state, controller);
                         events.extend(draw_evts);
                     }
-
                     // Step 2: Discard N cards and count nonland discards.
                     // Cannot reuse discard_cards helper — we need per-card type info
                     // to determine the counter count. Inline the discard logic here.
                     let hand_zone = ZoneId::Hand(controller);
                     let mut nonland_count: u32 = 0;
-
                     for _ in 0..n {
                         // Deterministic: discard the card with the smallest ObjectId.
                         let card_id = state
@@ -3434,7 +3287,6 @@ fn execute_effect_inner(
                             .filter(|(_, obj)| obj.zone == hand_zone)
                             .map(|(&id, _)| id)
                             .min_by_key(|id| id.0);
-
                         if let Some(card_id) = card_id {
                             // CR 701.50a: Check if the discarded card is nonland
                             // BEFORE moving it (card types survive in hand only).
@@ -3445,11 +3297,9 @@ fn execute_effect_inner(
                                     !obj.characteristics.card_types.contains(&CardType::Land)
                                 })
                                 .unwrap_or(false);
-
                             if is_nonland {
                                 nonland_count += 1;
                             }
-
                             // CR 702.35a: Check for Madness before zone change.
                             let obj_card_id =
                                 state.objects.get(&card_id).and_then(|o| o.card_id.clone());
@@ -3462,13 +3312,11 @@ fn execute_effect_inner(
                                         .contains(&KeywordAbility::Madness)
                                 })
                                 .unwrap_or(false);
-
                             let destination = if has_madness {
                                 ZoneId::Exile
                             } else {
                                 ZoneId::Graveyard(controller)
                             };
-
                             if let Ok((new_id, _)) = state.move_object_to_zone(card_id, destination)
                             {
                                 // CR ruling: CardDiscarded fires even when card goes to exile.
@@ -3477,7 +3325,6 @@ fn execute_effect_inner(
                                     object_id: card_id,
                                     new_id,
                                 });
-
                                 if has_madness {
                                     // CR 702.35a: Look up madness cost and queue trigger.
                                     let madness_cost = obj_card_id.as_ref().and_then(|cid| {
@@ -3506,7 +3353,6 @@ fn execute_effect_inner(
                             }
                         }
                     }
-
                     // Step 3: Place +1/+1 counters on the conniving permanent.
                     // CR 701.50c: Only if the permanent is still on the battlefield.
                     // CR 702.26b: phased-out permanents are treated as nonexistent.
@@ -3515,7 +3361,6 @@ fn execute_effect_inner(
                         .get(&creature_id)
                         .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
                         .unwrap_or(false);
-
                     if nonland_count > 0 && creature_on_battlefield {
                         if let Some(obj) = state.objects.get_mut(&creature_id) {
                             let cur = obj
@@ -3534,7 +3379,6 @@ fn execute_effect_inner(
                             });
                         }
                     }
-
                     // CR 701.50b: The permanent "connives" regardless of whether
                     // actions were possible. Emit Connived for trigger support.
                     events.push(GameEvent::Connived {
@@ -3549,7 +3393,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 701.14a: Fight — two creatures each deal damage equal to their power to each other.
         // CR 701.14b: If either creature is not on the battlefield or not a creature, neither fights.
         // CR 701.14c: If a creature fights itself, it takes 2x its power in damage.
@@ -3558,7 +3401,6 @@ fn execute_effect_inner(
             // Resolve both targets to ObjectIds.
             let attacker_targets = resolve_effect_target_list(state, attacker, ctx);
             let defender_targets = resolve_effect_target_list(state, defender, ctx);
-
             let attacker_id = attacker_targets.iter().find_map(|t| {
                 if let ResolvedTarget::Object(id) = t {
                     Some(*id)
@@ -3573,19 +3415,16 @@ fn execute_effect_inner(
                     None
                 }
             });
-
             let (Some(att_id), Some(def_id)) = (attacker_id, defender_id) else {
                 // CR 701.14b: if either target is gone (resolved to nothing), neither fights.
                 return;
             };
-
             // CR 701.14b: Both must be on the battlefield and be creatures.
             let att_valid = is_creature_on_battlefield(state, att_id);
             let def_valid = is_creature_on_battlefield(state, def_id);
             if !att_valid || !def_valid {
                 return;
             }
-
             // CR 701.14c: self-fight — read power once, deal 2x to self.
             if att_id == def_id {
                 let power = get_creature_power(state, att_id);
@@ -3593,23 +3432,19 @@ fn execute_effect_inner(
                 deal_creature_power_damage(state, att_id, att_id, double_power, events);
                 return;
             }
-
             // CR 701.14a: Read both powers BEFORE applying any damage (simultaneous).
             let att_power = get_creature_power(state, att_id);
             let def_power = get_creature_power(state, def_id);
-
             // Deal damage in both directions — creatures are the damage sources.
             deal_creature_power_damage(state, att_id, def_id, att_power, events);
             deal_creature_power_damage(state, def_id, att_id, def_power, events);
         }
-
         // CR 701.14 (one-sided): Bite — source creature deals damage equal to its power to target.
         // CR 701.14b (by analogy): If source is not on the battlefield or not a creature, nothing happens.
         // CR 701.14d: This damage is non-combat damage.
         Effect::Bite { source, target } => {
             let source_targets = resolve_effect_target_list(state, source, ctx);
             let target_targets = resolve_effect_target_list(state, target, ctx);
-
             let source_id = source_targets.iter().find_map(|t| {
                 if let ResolvedTarget::Object(id) = t {
                     Some(*id)
@@ -3624,11 +3459,9 @@ fn execute_effect_inner(
                     None
                 }
             });
-
             let (Some(src_id), Some(tgt_id)) = (source_id, target_id) else {
                 return;
             };
-
             // Source must be on the battlefield and be a creature (CR 701.14b analog).
             if !is_creature_on_battlefield(state, src_id) {
                 return;
@@ -3642,11 +3475,9 @@ fn execute_effect_inner(
             {
                 return;
             }
-
             let power = get_creature_power(state, src_id);
             deal_creature_power_damage(state, src_id, tgt_id, power, events);
         }
-
         // CR 701.16a: Reveal top N cards of a player's library, then route by filter.
         // Matched cards go to matched_dest, unmatched to unmatched_dest.
         Effect::RevealAndRoute {
@@ -3669,11 +3500,9 @@ fn execute_effect_inner(
                     .into_iter()
                     .take(n)
                     .collect();
-
                 if top_ids.is_empty() {
                     continue;
                 }
-
                 // Partition into matched and unmatched based on the filter.
                 // Use base characteristics (library cards have no layer modifications).
                 let mut matched_ids = Vec::new();
@@ -3687,11 +3516,9 @@ fn execute_effect_inner(
                         }
                     }
                 }
-
                 // Deterministic ordering: sort by ObjectId ascending within each group.
                 matched_ids.sort_by_key(|id| id.0);
                 unmatched_ids.sort_by_key(|id| id.0);
-
                 // Move matched cards to their destination.
                 let matched_zone = resolve_zone_target(matched_dest, state, ctx);
                 let matched_tapped = dest_tapped(matched_dest);
@@ -3706,7 +3533,6 @@ fn execute_effect_inner(
                         events.push(event);
                     }
                 }
-
                 // Move unmatched cards to their destination.
                 let unmatched_zone = resolve_zone_target(unmatched_dest, state, ctx);
                 for id in &unmatched_ids {
@@ -3717,7 +3543,6 @@ fn execute_effect_inner(
                 }
             }
         }
-
         // CR 400.7: Exile target permanent, then return it to the battlefield
         // under its owner's control as a new object. ETB triggers fire on return.
         // CR 707.2: A permanent becomes a copy of another permanent.
@@ -3729,7 +3554,6 @@ fn execute_effect_inner(
         } => {
             let copier_targets = resolve_effect_target_list(state, copier, ctx);
             let source_targets = resolve_effect_target_list(state, target, ctx);
-
             let copier_id = copier_targets.iter().find_map(|t| {
                 if let ResolvedTarget::Object(id) = t {
                     Some(*id)
@@ -3744,11 +3568,9 @@ fn execute_effect_inner(
                     None
                 }
             });
-
             let (Some(c_id), Some(s_id)) = (copier_id, source_id) else {
                 return;
             };
-
             // Verify copier is on the battlefield.
             let copier_on_bf = state
                 .objects
@@ -3758,20 +3580,16 @@ fn execute_effect_inner(
             if !copier_on_bf {
                 return;
             }
-
             // Create the Layer 1 copy effect with the specified duration.
             let mut copy_effect =
                 crate::rules::copy::create_copy_effect(state, c_id, s_id, ctx.controller);
             copy_effect.duration = *duration;
-
             state.continuous_effects.push_back(copy_effect);
-
             events.push(GameEvent::BecameCopyOf {
                 copier: c_id,
                 source: s_id,
             });
         }
-
         // CR 707.2 / CR 111.10: Create a token that's a copy of a permanent.
         Effect::CreateTokenCopy {
             source,
@@ -3785,11 +3603,9 @@ fn execute_effect_inner(
                     None
                 }
             });
-
             let Some(s_id) = source_id else {
                 return;
             };
-
             // CR 508.4: Resolve attack target before creating tokens.
             // Simplification: inherits attack target from ctx.source. Full CR 508.4
             // says "controller chooses" — interactive choice deferred to M10.
@@ -3801,7 +3617,6 @@ fn execute_effect_inner(
             } else {
                 None
             };
-
             // CR 614.1: Apply token-creation replacement effects.
             let (token_count, repl_events) =
                 crate::rules::replacement::apply_token_creation_replacement(
@@ -3810,7 +3625,6 @@ fn execute_effect_inner(
                     1,
                 );
             events.extend(repl_events);
-
             for _ in 0..token_count {
                 // Build a blank token — characteristics will come from CopyOf effect.
                 let base_chars = state
@@ -3818,7 +3632,6 @@ fn execute_effect_inner(
                     .get(&s_id)
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
-
                 let token_obj = crate::state::game_object::GameObject {
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: None,
@@ -3879,26 +3692,23 @@ fn execute_effect_inner(
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: crate::state::game_object::Designations::default(),
+                    adventure_exiled_by: None,
                     meld_component: None,
                 };
-
                 let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
                     Ok(id) => id,
                     Err(_) => continue,
                 };
-
                 // CR 707.2: Apply Layer 1 CopyOf continuous effect.
                 let copy_effect =
                     crate::rules::copy::create_copy_effect(state, token_id, s_id, ctx.controller);
                 state.continuous_effects.push_back(copy_effect);
-
                 // CR 508.4: Register as attacking if enters_tapped_and_attacking.
                 if let Some(ref atk_target) = attack_target {
                     if let Some(combat) = state.combat.as_mut() {
                         combat.attackers.insert(token_id, atk_target.clone());
                     }
                 }
-
                 events.push(GameEvent::TokenCreated {
                     player: ctx.controller,
                     object_id: token_id,
@@ -3907,12 +3717,10 @@ fn execute_effect_inner(
                     player: ctx.controller,
                     object_id: token_id,
                 });
-
                 // Track last created permanent for EffectTarget::LastCreatedPermanent.
                 ctx.last_created_permanent = Some(token_id);
             }
         }
-
         // CR 114.1-114.4: Create an emblem in the command zone.
         //
         // Emblems are non-card, non-permanent objects that have no types, mana cost,
@@ -3924,10 +3732,8 @@ fn execute_effect_inner(
             static_effects,
         } => {
             use crate::state::game_object::ObjectStatus;
-
             let ctrl = ctx.controller;
             let command_zone = ZoneId::Command(ctrl);
-
             // Build emblem characteristics — no types, mana cost, or color (CR 114.3).
             // Triggered abilities are stored in the characteristics so the trigger scanner
             // finds them when iterating command zone emblem objects.
@@ -3935,7 +3741,6 @@ fn execute_effect_inner(
                 triggered_abilities: triggered_abilities.clone(),
                 ..crate::state::game_object::Characteristics::default()
             };
-
             let emblem_obj = crate::state::game_object::GameObject {
                 id: crate::state::game_object::ObjectId(0), // replaced by add_object
                 card_id: None,
@@ -3993,14 +3798,13 @@ fn execute_effect_inner(
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: crate::state::game_object::Designations::default(),
+                adventure_exiled_by: None,
                 meld_component: None,
             };
-
             let emblem_id = match state.add_object(emblem_obj, command_zone) {
                 Ok(id) => id,
                 Err(_) => return,
             };
-
             // Register static continuous effects from the emblem.
             // Duration is Indefinite since emblems never leave the command zone.
             for se in static_effects {
@@ -4018,13 +3822,11 @@ fn execute_effect_inner(
                 };
                 state.continuous_effects.push_back(eff);
             }
-
             events.push(GameEvent::EmblemCreated {
                 player: ctrl,
                 object_id: emblem_id,
             });
         }
-
         Effect::Flicker {
             target,
             return_tapped,
@@ -4041,7 +3843,6 @@ fn execute_effect_inner(
                     if !is_on_bf {
                         continue;
                     }
-
                     // Step 1: Exile the permanent.
                     if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
                         events.push(GameEvent::ObjectExiled {
@@ -4049,7 +3850,6 @@ fn execute_effect_inner(
                             object_id: id,
                             new_exile_id: exile_id,
                         });
-
                         // Step 2: Return from exile to battlefield under owner's control.
                         if let Ok((new_bf_id, _)) =
                             state.move_object_to_zone(exile_id, ZoneId::Battlefield)
@@ -4060,7 +3860,6 @@ fn execute_effect_inner(
                                     obj.status.tapped = true;
                                 }
                             }
-
                             // Register static continuous effects so the returned
                             // permanent's static abilities work in the layer system.
                             let card_id_opt = state
@@ -4074,7 +3873,6 @@ fn execute_effect_inner(
                                 card_id_opt.as_ref(),
                                 &registry,
                             );
-
                             // Queue CardDef ETB triggers (CR 603.3).
                             let controller = state
                                 .objects
@@ -4089,7 +3887,6 @@ fn execute_effect_inner(
                                 &registry,
                             );
                             events.extend(etb_events);
-
                             events.push(GameEvent::PermanentEnteredBattlefield {
                                 player: ctx.controller,
                                 object_id: new_bf_id,
@@ -4101,16 +3898,13 @@ fn execute_effect_inner(
         }
     }
 }
-
 // ── Target resolution helpers ─────────────────────────────────────────────────
-
 /// A resolved target: either a player or an object.
 #[derive(Clone, Debug)]
 enum ResolvedTarget {
     Player(PlayerId),
     Object(ObjectId),
 }
-
 /// Resolve an `EffectTarget` into a list of `ResolvedTarget`s.
 fn resolve_effect_target_list(
     state: &GameState,
@@ -4122,7 +3916,6 @@ fn resolve_effect_target_list(
         .map(|(_, t)| t)
         .collect()
 }
-
 /// Like `resolve_effect_target_list` but also returns the declared-target index
 /// for each target (used to update `ctx.target_remaps` on zone changes).
 fn resolve_effect_target_list_indexed(
@@ -4258,7 +4051,6 @@ fn resolve_effect_target_list_indexed(
         }
     }
 }
-
 /// Resolve a `PlayerTarget` into a list of `PlayerId`s.
 fn resolve_player_target_list(
     state: &GameState,
@@ -4349,9 +4141,7 @@ fn resolve_player_target_list(
         }
     }
 }
-
 // ── Mana restriction helpers ──────────────────────────────────────────────────
-
 /// Resolve a chosen-type mana restriction to a concrete restriction by looking up
 /// `chosen_creature_type` from the source permanent.
 fn resolve_mana_restriction(
@@ -4390,7 +4180,6 @@ fn resolve_mana_restriction(
         Some(r) => Some(r.clone()),
     }
 }
-
 /// Add mana to a player's pool, with optional restriction (CR 106.12).
 fn add_mana_with_restriction(
     ps: &mut crate::state::player::PlayerState,
@@ -4403,9 +4192,7 @@ fn add_mana_with_restriction(
         None => ps.mana_pool.add(color, amount),
     }
 }
-
 // ── Fight/Bite damage helpers ─────────────────────────────────────────────────
-
 /// Check if the given object is a creature currently on the battlefield (and phased in).
 ///
 /// Uses `calculate_characteristics()` (the full layer system) so that animated lands
@@ -4424,7 +4211,6 @@ fn is_creature_on_battlefield(state: &GameState, id: ObjectId) -> bool {
         .map(|c| c.card_types.contains(&CardType::Creature))
         .unwrap_or(false)
 }
-
 /// Get the layer-calculated power of a creature, clamped to 0 if negative.
 /// Returns 0 if the object is not found or has no power.
 fn get_creature_power(state: &GameState, id: ObjectId) -> u32 {
@@ -4433,7 +4219,6 @@ fn get_creature_power(state: &GameState, id: ObjectId) -> u32 {
         .unwrap_or(0)
         .max(0) as u32
 }
-
 /// Deal non-combat damage from one creature to another, using the creature as the
 /// damage source (CR 701.14d). Handles deathtouch, lifelink, wither/infect, damage
 /// doubling, and damage prevention — all keyed off the creature source, not the spell.
@@ -4449,9 +4234,7 @@ fn deal_creature_power_damage(
     if power == 0 {
         return;
     }
-
     let damage_target = CombatDamageTarget::Creature(target_creature);
-
     // CR 614.1: Apply damage-doubling replacement effects before prevention.
     // The creature is the source (not the spell) — matters for source-based doublers.
     let (dmg, doubling_events) = crate::rules::replacement::apply_damage_doubling(
@@ -4464,7 +4247,6 @@ fn deal_creature_power_damage(
     if dmg == 0 {
         return;
     }
-
     // CR 615: Apply damage prevention, keyed off the creature as source.
     let (final_dmg, prev_events) = crate::rules::replacement::apply_damage_prevention(
         state,
@@ -4473,11 +4255,9 @@ fn deal_creature_power_damage(
         dmg,
     );
     events.extend(prev_events);
-
     if final_dmg == 0 {
         return;
     }
-
     // CR 120.3d/e: Check creature source for wither and/or infect.
     // CR 702.80a: wither applies to damage dealt to creatures.
     // CR 702.90c: infect also places -1/-1 counters on creatures.
@@ -4498,7 +4278,6 @@ fn deal_creature_power_damage(
         .as_ref()
         .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
         .unwrap_or(false);
-
     // Apply damage to the target creature.
     if let Some(obj) = state.objects.get_mut(&target_creature) {
         if source_has_wither || source_has_infect {
@@ -4521,7 +4300,6 @@ fn deal_creature_power_damage(
             obj.deathtouch_damage = true;
         }
     }
-
     if source_has_wither || source_has_infect {
         events.push(GameEvent::CounterAdded {
             object_id: target_creature,
@@ -4529,13 +4307,11 @@ fn deal_creature_power_damage(
             count: final_dmg,
         });
     }
-
     events.push(GameEvent::DamageDealt {
         source: creature_source,
         target: damage_target,
         amount: final_dmg,
     });
-
     // CR 702.15b: Lifelink — controller of the creature source gains life.
     if source_has_lifelink {
         if let Some(controller_id) = state.objects.get(&creature_source).map(|o| o.controller) {
@@ -4549,9 +4325,7 @@ fn deal_creature_power_damage(
         }
     }
 }
-
 // ── Amount resolution ─────────────────────────────────────────────────────────
-
 /// Resolve an `EffectAmount` to a concrete integer value.
 fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext) -> i32 {
     match amount {
@@ -4807,9 +4581,7 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         EffectAmount::LastDiceRoll => ctx.last_dice_roll as i32,
     }
 }
-
 // ── Zone resolution helpers ───────────────────────────────────────────────────
-
 /// Convert a `ZoneTarget` to a concrete `ZoneId`, resolving the owner `PlayerTarget`
 /// via the execution context (MR-M7-04: previously always used controller).
 fn resolve_zone_target(zone: &ZoneTarget, state: &GameState, ctx: &EffectContext) -> ZoneId {
@@ -4829,7 +4601,6 @@ fn resolve_zone_target(zone: &ZoneTarget, state: &GameState, ctx: &EffectContext
         ZoneTarget::CommandZone => ZoneId::Command(ctx.controller),
     }
 }
-
 /// Returns `Some(tapped)` if the zone target is Battlefield (with the tapped flag),
 /// else `None` for all other destinations (MR-M7-10: previously ignored the tapped field).
 fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
@@ -4839,7 +4610,6 @@ fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
         None
     }
 }
-
 /// Produce the appropriate `GameEvent` for a zone move given the destination.
 fn zone_move_event(
     controller: PlayerId,
@@ -4879,50 +4649,40 @@ fn zone_move_event(
         },
     }
 }
-
 // ── Token creation ────────────────────────────────────────────────────────────
-
 pub fn make_token(
     spec: &crate::cards::card_definition::TokenSpec,
     controller: PlayerId,
 ) -> GameObject {
     use crate::state::game_object::Characteristics;
     use im::OrdSet;
-
     let mut card_types = OrdSet::new();
     for ct in &spec.card_types {
         card_types.insert(*ct);
     }
-
     let mut keywords = OrdSet::new();
     for kw in &spec.keywords {
         keywords.insert(kw.clone());
     }
-
     let mut subtypes = im::OrdSet::new();
     for st in &spec.subtypes {
         subtypes.insert(st.clone());
     }
-
     let mut colors = OrdSet::new();
     for c in &spec.colors {
         colors.insert(*c);
     }
-
     let mut supertypes = OrdSet::new();
     for st in &spec.supertypes {
         supertypes.insert(*st);
     }
-
     let mut mana_abilities = im::Vector::new();
     for ma in &spec.mana_abilities {
         mana_abilities.push_back(ma.clone());
     }
-
     // CR 111.10b: propagate non-mana activated abilities (e.g. Food's sacrifice-for-life).
     let activated_abilities: Vec<crate::state::game_object::ActivatedAbility> =
         spec.activated_abilities.clone();
-
     let characteristics = Characteristics {
         name: spec.name.clone(),
         power: Some(spec.power),
@@ -4936,12 +4696,10 @@ pub fn make_token(
         activated_abilities,
         ..Characteristics::default()
     };
-
     let status = ObjectStatus {
         tapped: spec.tapped,
         ..ObjectStatus::default()
     };
-
     GameObject {
         id: ObjectId(0), // will be replaced by add_object
         card_id: None,
@@ -5008,12 +4766,11 @@ pub fn make_token(
         loyalty_ability_activated_this_turn: false,
         class_level: 0,
         designations: Designations::default(),
+        adventure_exiled_by: None,
         meld_component: None,
     }
 }
-
 // ── Card draw helper ──────────────────────────────────────────────────────────
-
 /// Draw one card for a player (CR 121.1). Returns events.
 fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
     // CR 614.11: Check WouldDraw replacement effects before performing the draw.
@@ -5034,10 +4791,8 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
             }
         }
     }
-
     let lib_id = ZoneId::Library(player);
     let top = state.zones.get(&lib_id).and_then(|z| z.top());
-
     match top {
         None => {
             // CR 104.3b: drawing from empty library causes loss.
@@ -5072,7 +4827,6 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
         }
     }
 }
-
 /// Discard `n` cards from a player's hand (first by ObjectId, deterministic).
 ///
 /// CR 702.35a: If a discarded card has `KeywordAbility::Madness`, it is exiled
@@ -5089,7 +4843,6 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
             .filter(|(_, obj)| obj.zone == hand_id)
             .map(|(&id, _)| id)
             .min_by_key(|id| id.0);
-
         if let Some(card_id) = card_id {
             // CR 702.35a: Check if the card has Madness before zone change.
             let obj_card_id = state.objects.get(&card_id).and_then(|o| o.card_id.clone());
@@ -5102,13 +4855,11 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         .contains(&KeywordAbility::Madness)
                 })
                 .unwrap_or(false);
-
             let destination = if has_madness {
                 ZoneId::Exile
             } else {
                 ZoneId::Graveyard(player)
             };
-
             if let Ok((new_id, _)) = state.move_object_to_zone(card_id, destination) {
                 // CR ruling: CardDiscarded always fires, even when card goes to exile.
                 events.push(GameEvent::CardDiscarded {
@@ -5116,7 +4867,6 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                     object_id: card_id,
                     new_id,
                 });
-
                 if has_madness {
                     // CR 702.35a: Look up the madness cost and queue the trigger via
                     // pending_triggers so flush_pending_triggers properly signals priority.
@@ -5146,7 +4896,6 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
         }
     }
 }
-
 /// Mill `n` cards from the top of a player's library.
 fn mill_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut Vec<GameEvent>) {
     let lib_id = ZoneId::Library(player);
@@ -5159,9 +4908,7 @@ fn mill_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut Ve
         }
     }
 }
-
 // ── Filter matching ───────────────────────────────────────────────────────────
-
 /// Check if an object's characteristics match a `TargetFilter`.
 pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
     if let Some(max_p) = filter.max_power {
@@ -5259,9 +5006,7 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
     }
     true
 }
-
 // ── Condition checking ────────────────────────────────────────────────────────
-
 pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext) -> bool {
     match condition {
         Condition::Always => true,
@@ -5377,7 +5122,6 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         //
         // CR 614.1c: "enters tapped unless [condition]" — these are evaluated
         // at ETB time with a minimal EffectContext (controller + source = entering object).
-
         // "unless you control a [Plains/Island/etc.]" — check-lands, castles.
         // True if the controller controls a land with ANY of the listed subtypes.
         // CR 613.1d: Use layer-resolved types/subtypes for battlefield checks
@@ -5541,9 +5285,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         }
     }
 }
-
 // ── ForEach collection ────────────────────────────────────────────────────────
-
 fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext) -> Vec<ObjectId> {
     match over {
         // CR 702.26b: phased-out permanents are treated as nonexistent.
@@ -5614,7 +5356,6 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .collect(),
         // Player-based ForEach targets return no objects (players aren't ObjectIds).
         ForEachTarget::EachOpponent | ForEachTarget::EachPlayer => vec![],
-
         // CR 614.1: All cards currently in any graveyard.
         ForEachTarget::EachCardInAllGraveyards => state
             .objects
@@ -5622,7 +5363,6 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .filter(|(_, obj)| matches!(obj.zone, ZoneId::Graveyard(_)))
             .map(|(&id, _)| id)
             .collect(),
-
         // CR 702.91a: All attacking creatures except the source (battle cry source).
         // Queries combat.attackers at resolution time, excludes ctx.source so the
         // battle cry creature itself does not receive the bonus.

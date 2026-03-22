@@ -1,6 +1,5 @@
 // Vampiric Tutor — {B}, Instant: search library for any card, shuffle, put it on top; lose 2 life
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vampiric-tutor"),
@@ -21,6 +20,7 @@ pub fn card() -> CardDefinition {
                     // CR 701.23: "shuffle and put that card on top" — shuffle first, then place on top.
                     // Ruling 2016-06-08: this is a single action; card ends on top after shuffle.
                     shuffle_before_placing: true,
+                    also_search_graveyard: false,
                 },
                 Effect::LoseLife {
                     player: PlayerTarget::Controller,

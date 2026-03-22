@@ -7,14 +7,11 @@
 //! For spells, the corresponding card has moved to `ZoneId::Stack` and appears
 //! as a `GameObject` there. For abilities, no corresponding `GameObject` exists
 //! in the Stack zone — the `StackObject` alone represents the ability on the stack.
-
-use serde::{Deserialize, Serialize};
-
 use super::game_object::{ManaCost, ObjectId};
 use super::player::{CardId, PlayerId};
 use super::targeting::SpellTarget;
 use super::types::{AdditionalCost, ChampionFilter, CumulativeUpkeepCost, KeywordAbility};
-
+use serde::{Deserialize, Serialize};
 /// Captured data for triggered abilities on the stack.
 /// Replaces per-trigger StackObjectKind variants with a unified payload.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -30,7 +27,6 @@ pub enum TriggerData {
         permanent: ObjectId,
         cost: UpkeepCostKind,
     },
-
     // --- Group 1: Combat triggers ---
     /// Flanking: blocker gets -1/-1.
     CombatFlanking { blocker: ObjectId },
@@ -42,7 +38,6 @@ pub enum TriggerData {
     CombatPoisonous { target_player: PlayerId, n: u32 },
     /// Enlist: source gets +X/+0 where X is enlisted creature's power.
     CombatEnlist { enlisted: ObjectId },
-
     // --- Group 2: ETB triggers ---
     /// Backup N: place counters on target, optionally grant abilities.
     ETBBackup {
@@ -74,7 +69,6 @@ pub enum TriggerData {
         partner_name: String,
         target_player: PlayerId,
     },
-
     // --- Group 3: Spell-copy triggers ---
     /// Storm/Replicate/Gravestorm: create N copies of original spell.
     SpellCopy {
@@ -85,13 +79,11 @@ pub enum TriggerData {
     CascadeExile { spell_mana_value: u32 },
     /// Casualty: create one copy of the original spell.
     CasualtyCopy { original_stack_id: ObjectId },
-
     // --- Group 4: EOT/delayed zone-change triggers ---
     /// Delayed zone change (Dash return, Blitz sacrifice, Unearth exile, Evoke sacrifice).
     DelayedZoneChange,
     /// Encore sacrifice: delayed sacrifice with activator tracking.
     EncoreSacrifice { activator: PlayerId },
-
     // --- Group 5: Death/LTB triggers ---
     /// Modular: move N +1/+1 counters to target artifact creature.
     DeathModular { counter_count: u32 },
@@ -112,7 +104,6 @@ pub enum TriggerData {
         recover_card: ObjectId,
         recover_cost: ManaCost,
     },
-
     // --- Group 6: Remaining triggers ---
     /// Cipher: copy encoded spell on combat damage.
     CipherDamage {
@@ -146,14 +137,12 @@ pub enum TriggerData {
     /// `card` is the exiled suspended card (== source in practice).
     Suspend { card: ObjectId },
 }
-
 /// Cost payload for upkeep-cost triggers.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UpkeepCostKind {
     Echo(ManaCost),
     CumulativeUpkeep(CumulativeUpkeepCost),
 }
-
 /// An object on the stack: a spell, activated ability, or triggered ability
 /// (CR 405.1).
 ///
@@ -370,6 +359,17 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_cleaved: bool,
+    /// CR 715.3d: If true, this spell was cast as an Adventure (using the adventure face's
+    /// characteristics). On successful resolution, the card is exiled instead of going
+    /// to the graveyard. From exile, the controller may cast the creature half (but NOT
+    /// as an Adventure again per CR 715.3d).
+    ///
+    /// If countered or fizzled, the card goes to graveyard normally (NOT exile) —
+    /// exile only happens on successful resolution (CR 715.3d).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_cast_as_adventure: bool,
     // was_entwined: REMOVED — read from AdditionalCost::Entwine in additional_costs
     // escalate_modes_paid: REMOVED — read from AdditionalCost::EscalateModes in additional_costs
     /// CR 702.47a: Effects from cards spliced onto this spell.
@@ -426,7 +426,6 @@ pub struct StackObject {
     #[serde(default)]
     pub additional_costs: Vec<AdditionalCost>,
 }
-
 impl StackObject {
     /// Build a triggered-ability StackObject with all cast-specific fields set to
     /// their "not-a-spell" defaults (false/empty/zero). Use this for keyword triggers
@@ -477,6 +476,7 @@ impl StackObject {
             was_surged: false,
             was_casualty_paid: false,
             was_cleaved: false,
+            was_cast_as_adventure: false,
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             modes_chosen: vec![],
@@ -487,7 +487,6 @@ impl StackObject {
         }
     }
 }
-
 /// The kind of object on the stack.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum StackObjectKind {
@@ -497,7 +496,6 @@ pub enum StackObjectKind {
     /// When the spell resolves, the card moves to the graveyard (or stays in play
     /// for permanents).
     Spell { source_object: ObjectId },
-
     /// An activated ability (CR 602).
     ///
     /// The `source_object` remains in whatever zone it is in — the source does
@@ -512,7 +510,6 @@ pub enum StackObjectKind {
         #[serde(default)]
         embedded_effect: Option<Box<crate::cards::card_definition::Effect>>,
     },
-
     /// CR 606: A loyalty ability on the stack (CR 606.2).
     ///
     /// The loyalty cost (add/remove counters) was paid at activation time.
@@ -526,7 +523,6 @@ pub enum StackObjectKind {
         /// resolves correctly even if the source leaves the battlefield.
         effect: Box<crate::cards::card_definition::Effect>,
     },
-
     /// A triggered ability (CR 603).
     ///
     /// The `source_object` may be in any zone (it triggered from wherever it
@@ -585,12 +581,10 @@ pub enum StackObjectKind {
     /// If the source card is no longer in the graveyard at resolution time,
     /// the ability does nothing (card was exiled, shuffled, etc.) -- CR 400.7.
     UnearthAbility { source_object: ObjectId },
-
     /// CR 702.100a: Evolve trigger on the stack.
     ///
     /// When a creature with evolve sees another creature its controller controls
     // EvolveTrigger: migrated to KeywordTrigger
-
     /// CR 702.62a: Suspend upkeep counter-removal trigger.
     ///
     /// "At the beginning of your upkeep, if this card is suspended, remove a
@@ -606,7 +600,6 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         suspended_card: ObjectId,
     },
-
     /// CR 702.62a: Suspend cast trigger (last counter removed).
     ///
     /// "When the last time counter is removed from this card, if it's exiled,
@@ -690,7 +683,6 @@ pub enum StackObjectKind {
         source_card_id: Option<crate::state::player::CardId>,
         activator: crate::state::player::PlayerId,
     },
-
     // ImpendingCounterTrigger (disc 33): migrated to KeywordTrigger { keyword: Impending, data: CounterRemoval }
     // VanishingCounterTrigger (disc 37) and VanishingSacrificeTrigger (disc 38):
     // migrated to KeywordTrigger { keyword: Vanishing, data: CounterRemoval/CounterSacrifice }
@@ -723,7 +715,6 @@ pub enum StackObjectKind {
         source_card_id: Option<crate::state::player::CardId>,
         power_snapshot: u32,
     },
-
     /// CR 207.2c: Bloodrush activated ability on the stack.
     ///
     /// The source card has already been discarded (moved to graveyard as cost
@@ -763,7 +754,6 @@ pub enum StackObjectKind {
         /// The ObjectId of the Mount being saddled.
         source_object: ObjectId,
     },
-
     /// CR 702.140a / CR 729.2: A mutating creature spell on the stack.
     ///
     /// When a spell is cast for its mutate cost targeting a non-Human creature
@@ -785,7 +775,6 @@ pub enum StackObjectKind {
         /// The ObjectId of the target non-Human creature on the battlefield.
         target: ObjectId,
     },
-
     /// CR 701.27a / CR 712.18: Transform trigger — a triggered ability that causes
     /// a permanent to transform. Used for card-defined triggers like Delver of Secrets
     /// ("At the beginning of your upkeep, if there's an instant or sorcery on top of
@@ -802,7 +791,6 @@ pub enum StackObjectKind {
         /// Timestamp when this trigger was put on the stack (for CR 701.27f guard).
         ability_timestamp: u64,
     },
-
     /// CR 702.167a: Craft activated ability on the stack.
     ///
     /// The source permanent and material objects have already been exiled as cost.
@@ -821,7 +809,6 @@ pub enum StackObjectKind {
         /// The activating player (becomes controller of the returned permanent).
         activator: PlayerId,
     },
-
     /// CR 702.145b/f: Daybound or Nightbound immediate transform trigger.
     ///
     /// Not a true "trigger" in the stack sense (CR 702.145c/f says it happens
@@ -836,7 +823,6 @@ pub enum StackObjectKind {
         /// The permanent to transform (daybound: front→back on night; nightbound: back→front on day).
         permanent: ObjectId,
     },
-
     /// CR 708.8: "When this permanent is turned face up" triggered ability.
     ///
     /// Fires when a face-down permanent (morph, megamorph, disguise, manifest, or cloak)
@@ -858,7 +844,6 @@ pub enum StackObjectKind {
         /// (rare but rules-legal); each gets its own TurnFaceUpTrigger SOK.
         ability_index: usize,
     },
-
     /// Consolidated keyword trigger (replaces many one-off trigger variants).
     ///
     /// Discriminant 64.
@@ -867,7 +852,6 @@ pub enum StackObjectKind {
         keyword: KeywordAbility,
         data: TriggerData,
     },
-
     /// CR 309.4c: A room ability triggered when the venture marker entered a room.
     ///
     /// Room abilities are triggered abilities of the form "When you move your venture
@@ -888,7 +872,6 @@ pub enum StackObjectKind {
         /// The room index in the dungeon's room list.
         room: crate::state::dungeon::RoomIndex,
     },
-
     /// CR 701.54c: Ring-bearer triggered ability (ring level 2, 3, or 4).
     ///
     /// Fires when the appropriate ring event occurs (attacker declared for level 2,
@@ -905,7 +888,6 @@ pub enum StackObjectKind {
         /// The player who controls the ring.
         controller: crate::state::player::PlayerId,
     },
-
     /// CR 716.2a: Class level-up activated ability on the stack.
     ///
     /// Level-up is an activated ability that uses the stack and can be responded

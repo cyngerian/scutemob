@@ -1,6 +1,5 @@
 // 42. Kodama's Reach — {2G}, Sorcery; same as Cultivate.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kodamas-reach"),
@@ -17,6 +16,7 @@ pub fn card() -> CardDefinition {
                     reveal: true,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                     reveal: true,
                     destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

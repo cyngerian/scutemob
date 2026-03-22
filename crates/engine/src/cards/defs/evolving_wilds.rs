@@ -1,7 +1,6 @@
 // 10. Evolving Wilds — Land, {T}, sacrifice: search library for a basic land,
 // put it onto battlefield tapped, then shuffle.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("evolving-wilds"),
@@ -21,6 +20,7 @@ pub fn card() -> CardDefinition {
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

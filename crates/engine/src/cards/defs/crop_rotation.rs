@@ -3,7 +3,6 @@
 // TODO: "Sacrifice a land" as spell additional cost — not activated ability cost (PB-4)
 // Needs required_additional_cost field on CardDef or Spell. SearchLibrary portion works.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crop-rotation"),
@@ -23,6 +22,7 @@ pub fn card() -> CardDefinition {
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: false },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

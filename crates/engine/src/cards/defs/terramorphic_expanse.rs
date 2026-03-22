@@ -1,6 +1,5 @@
 // 11. Terramorphic Expanse — same as Evolving Wilds.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("terramorphic-expanse"),
@@ -20,6 +19,7 @@ pub fn card() -> CardDefinition {
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

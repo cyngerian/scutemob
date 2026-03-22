@@ -4,7 +4,6 @@
 // M9.4 deterministic fallback: payer does not pay → or_else (search) fires.
 // The exiled creature's controller is the payer (ControllerOf target).
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("path-to-exile"),
@@ -39,6 +38,7 @@ pub fn card() -> CardDefinition {
                                 tapped: true,
                             },
                             shuffle_before_placing: false,
+                    also_search_graveyard: false,
                         },
                         Effect::Shuffle {
                             player: PlayerTarget::ControllerOf(Box::new(

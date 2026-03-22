@@ -1,7 +1,6 @@
 // 44. Explosive Vegetation — {3G}, Sorcery; search for up to two basic lands,
 // put them onto battlefield tapped, then shuffle.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("explosive-vegetation"),
@@ -17,6 +16,7 @@ pub fn card() -> CardDefinition {
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

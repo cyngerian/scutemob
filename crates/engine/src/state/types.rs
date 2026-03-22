@@ -1,10 +1,7 @@
 //! Fundamental MTG type enums used throughout the engine.
-
-use serde::{Deserialize, Serialize};
-
 use super::game_object::{ManaCost, ObjectId};
 use super::player::PlayerId;
-
+use serde::{Deserialize, Serialize};
 /// The five colors of Magic (CR 105.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Color {
@@ -14,7 +11,6 @@ pub enum Color {
     Red,
     Green,
 }
-
 /// Mana colors including colorless, for mana pool tracking (CR 106).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ManaColor {
@@ -25,7 +21,6 @@ pub enum ManaColor {
     Green,
     Colorless,
 }
-
 /// Card supertypes (CR 205.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum SuperType {
@@ -35,7 +30,6 @@ pub enum SuperType {
     World,
     Ongoing,
 }
-
 /// Card types (CR 205.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum CardType {
@@ -55,11 +49,9 @@ pub enum CardType {
     Sorcery,
     Vanguard,
 }
-
 /// Card subtypes (CR 205.3). Open-ended — 280+ creature types exist.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SubType(pub String);
-
 /// Specifies which kind of landwalk ability (CR 702.14a).
 ///
 /// Landwalk is a generic term -- each variant specifies what kind of land the
@@ -77,7 +69,6 @@ pub enum LandwalkType {
     /// the `Basic` supertype (e.g., Dryad Sophisticate).
     Nonbasic,
 }
-
 /// Protection quality: what a permanent is protected from (CR 702.16a).
 ///
 /// Used in `KeywordAbility::ProtectionFrom(ProtectionQuality)` to specify
@@ -93,7 +84,6 @@ pub enum ProtectionQuality {
     /// Protection from everything (e.g., "protection from everything").
     FromAll,
 }
-
 /// Which alternative casting cost was used to cast this spell.
 /// Used by CastSpell.alt_cost and GameObject.cast_alt_cost.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -157,8 +147,12 @@ pub enum AltCostKind {
     /// CR 702.160 / CR 718: Prototype — NOT an alternative cost (ruling 2022-10-14).
     /// Used only in AbilityDefinition::AltCastAbility, never in CastSpell.alt_cost.
     Prototype,
+    /// CR 715.3: Adventure — cast using the adventure face's characteristics (name, mana cost,
+    /// types). The spell uses only the adventure face's characteristics while on the stack
+    /// (CR 715.3b). On resolution, the card is exiled instead of going to graveyard (CR 715.3d).
+    /// From exile, the controller may cast the creature half (but NOT as an Adventure again).
+    Adventure,
 }
-
 /// Consolidated additional costs for spell casting (CR 601.2b, 601.2f-h).
 ///
 /// Replaces ~20 one-off fields on CastSpell/StackObject. Each variant represents
@@ -202,7 +196,6 @@ pub enum AdditionalCost {
     /// Target a non-Human creature to mutate onto (Mutate — CR 702.140).
     Mutate { target: ObjectId, on_top: bool },
 }
-
 /// Counter types that can be placed on objects or players (CR 122).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum CounterType {
@@ -231,7 +224,6 @@ pub enum CounterType {
     /// Catch-all for counter types not explicitly enumerated.
     Custom(String),
 }
-
 /// CR 702.5a: Specifies what an Aura can legally target and enchant.
 ///
 /// The Enchant keyword restricts both the target at cast time (CR 303.4a) and
@@ -255,7 +247,6 @@ pub enum EnchantTarget {
     /// "Enchant creature or planeswalker"
     CreatureOrPlaneswalker,
 }
-
 /// CR 702.24a: The cost paid for each age counter on a permanent with
 /// cumulative upkeep. Multiplied by the number of age counters at
 /// resolution time.
@@ -272,7 +263,6 @@ pub enum CumulativeUpkeepCost {
     /// Example: Glacial Chasm with "Pay 2 life" -- pay 2 life per counter.
     Life(u32),
 }
-
 /// CR 702.41a: Specifies the quality for affinity cost reduction.
 ///
 /// "Affinity for [text]" means "This spell costs {1} less to cast for
@@ -286,7 +276,6 @@ pub enum AffinityTarget {
     /// Example: "Affinity for Plains" counts all lands with the Plains subtype.
     BasicLandType(SubType),
 }
-
 /// Keyword abilities (CR 702). Common keywords used in rules processing.
 ///
 /// Note: `Copy` is not derived because `ProtectionFrom(ProtectionQuality)` contains
@@ -1253,7 +1242,6 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 126.
     Champion,
-
     /// CR 702.89a: Umbra armor -- "If enchanted permanent would be destroyed,
     /// instead remove all damage marked on it and destroy this Aura."
     ///
@@ -1263,7 +1251,6 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 127.
     UmbraArmor,
-
     /// CR 702.161a: Living metal -- "During your turn, this permanent is an
     /// artifact creature in addition to its other types."
     ///
@@ -1274,7 +1261,6 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 128.
     LivingMetal,
-
     /// CR 702.95a: Soulbond -- "When this creature enters, if you control both
     /// this creature and another creature and both are unpaired, you may pair
     /// this creature with another unpaired creature you control for as long as
@@ -1283,14 +1269,12 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 129.
     Soulbond,
-
     /// CR 702.67a: Fortify [cost] -- "[Cost]: Attach this Fortification to target
     /// land you control. Activate only as a sorcery." Fortify is an activated
     /// ability of Fortification artifacts analogous to Equip for Equipment.
     ///
     /// Discriminant 130.
     Fortify,
-
     /// CR 702.104: Tribute N -- "As this creature enters, choose an opponent.
     /// That player may put an additional N +1/+1 counters on it as it enters."
     ///
@@ -1300,7 +1284,6 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 131.
     Tribute(u32),
-
     /// CR 702.123: Fabricate N -- "When this permanent enters, you may put N
     /// +1/+1 counters on it. If you don't, create N 1/1 colorless Servo
     /// artifact creature tokens."
@@ -1310,7 +1293,6 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 132.
     Fabricate(u32),
-
     /// CR 702.102: Fuse — if a split card has fuse, the controller may cast
     /// both halves from their hand, paying both costs and executing both effects
     /// in order (left first, then right — CR 702.102d).
@@ -1319,7 +1301,6 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 133.
     Fuse,
-
     /// CR 702.172a: Spree — static ability on modal spells. "Choose one or more
     /// modes. As an additional cost to cast this spell, pay the costs associated
     /// with those modes." Each mode has its own additional cost (CR 700.2h).
@@ -1566,7 +1547,6 @@ pub enum KeywordAbility {
     /// Discriminant 159.
     HexproofPlayer,
 }
-
 /// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.
 ///
 /// Determines: (a) ward {2} while face-down (Disguise, Cloak), (b) valid turn-face-up
@@ -1592,7 +1572,6 @@ pub enum FaceDownKind {
     /// Turn face up by paying mana cost (creature cards only — CR 701.58b).
     Cloak,
 }
-
 /// CR 702.37e / 702.168d / 701.40b / 701.58b: Which method to use when turning a
 /// face-down permanent face up. Required because a manifested card with morph can
 /// use EITHER its morph cost OR its mana cost (CR 701.40c).
@@ -1605,7 +1584,6 @@ pub enum TurnFaceUpMethod {
     /// Pay the card's mana cost (for manifested/cloaked creature cards — CR 701.40b/701.58b).
     ManaCost,
 }
-
 /// CR 730.1: Day and night designations for the game. Once set, the game always has
 /// exactly one of these designations. Used for Daybound/Nightbound mechanics.
 ///
@@ -1618,7 +1596,6 @@ pub enum DayNight {
     /// CR 730.1: The game currently has the night designation.
     Night,
 }
-
 /// CR 702.72a: The filter for what can be championed.
 ///
 /// "Champion a creature" = `AnyCreature`
@@ -1630,7 +1607,6 @@ pub enum ChampionFilter {
     /// "Champion a [subtype]" -- any permanent with this subtype you control (other than self).
     Subtype(SubType),
 }
-
 /// All creature subtypes from CR 205.3m.
 ///
 /// Used by Changeling (CR 702.73a) and "is every creature type" effects such as

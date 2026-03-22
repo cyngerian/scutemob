@@ -12,13 +12,10 @@
 //! - `get_dungeon()`: returns a static dungeon definition by id
 //!
 //! See CR 309 for dungeon rules and CR 701.49 for the venture keyword action.
-
-use serde::{Deserialize, Serialize};
-
 use crate::cards::card_definition::{Effect, EffectAmount, PlayerTarget, TargetFilter, ZoneTarget};
 use crate::state::game_object::ManaAbility;
 use crate::state::types::{CardType, Color, KeywordAbility, SubType};
-
+use serde::{Deserialize, Serialize};
 /// CR 309.1: Identifies which dungeon a player is exploring.
 ///
 /// All 4 dungeons introduced in Adventures in the Forgotten Realms (2021).
@@ -33,13 +30,11 @@ pub enum DungeonId {
     /// 7-room dungeon. Entered via "take the initiative" (CR 725.2).
     TheUndercity,
 }
-
 /// CR 309.4: Index into a dungeon's room list.
 ///
 /// Room 0 is always the topmost room (entry point). The bottommost room
 /// has an empty `exits` list.
 pub type RoomIndex = usize;
-
 /// CR 309.4: Tracks a player's current position in a dungeon.
 ///
 /// When a player ventures into the dungeon (CR 701.49), this struct is
@@ -51,7 +46,6 @@ pub struct DungeonState {
     /// Index of the room the venture marker is currently on (0 = topmost entry room).
     pub current_room: RoomIndex,
 }
-
 /// Static definition of a dungeon's room graph.
 ///
 /// CR 309.4b: Room names are flavor text — they have no gameplay effect.
@@ -68,7 +62,6 @@ pub struct DungeonDef {
     /// Index of the bottommost room (empty exits). Used by SBA 704.5t.
     pub bottommost_room: RoomIndex,
 }
-
 /// CR 309.4: A single room in a dungeon.
 ///
 /// Each room has a name (flavor only), an effect triggered on entry,
@@ -91,9 +84,7 @@ pub struct RoomDef {
     /// picks the first exit).
     pub exits: &'static [RoomIndex],
 }
-
 // ── Token helpers for room effects ───────────────────────────────────────────
-
 fn goblin_token_spec() -> crate::cards::card_definition::TokenSpec {
     crate::cards::card_definition::TokenSpec {
         name: "Goblin".to_string(),
@@ -112,7 +103,6 @@ fn goblin_token_spec() -> crate::cards::card_definition::TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 fn treasure_token_spec_1() -> crate::cards::card_definition::TokenSpec {
     crate::cards::card_definition::TokenSpec {
         name: "Treasure".to_string(),
@@ -131,7 +121,6 @@ fn treasure_token_spec_1() -> crate::cards::card_definition::TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 fn skeleton_11_token_spec() -> crate::cards::card_definition::TokenSpec {
     crate::cards::card_definition::TokenSpec {
         name: "Skeleton".to_string(),
@@ -150,7 +139,6 @@ fn skeleton_11_token_spec() -> crate::cards::card_definition::TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
     crate::cards::card_definition::TokenSpec {
         name: "Skeleton".to_string(),
@@ -169,7 +157,6 @@ fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 fn atropal_token_spec() -> crate::cards::card_definition::TokenSpec {
     use crate::state::types::SuperType;
     crate::cards::card_definition::TokenSpec {
@@ -191,9 +178,7 @@ fn atropal_token_spec() -> crate::cards::card_definition::TokenSpec {
         activated_abilities: vec![],
     }
 }
-
 // ── Static dungeon definitions ────────────────────────────────────────────────
-
 /// CR 309.2a, 309.4: Return the static definition for a dungeon.
 ///
 /// Returns an owned `DungeonDef` (not a static reference) because `RoomDef`
@@ -209,7 +194,6 @@ pub fn get_dungeon(id: DungeonId) -> DungeonDef {
         DungeonId::TheUndercity => the_undercity(),
     }
 }
-
 /// CR 309.2a: Lost Mine of Phandelver — 7 rooms, two branching paths.
 ///
 /// Room layout:
@@ -302,7 +286,6 @@ fn lost_mine_of_phandelver() -> DungeonDef {
         bottommost_room: 6,
     }
 }
-
 /// CR 309.2a: Dungeon of the Mad Mage — 9 rooms, linear with branching paths.
 ///
 /// Room layout:
@@ -409,7 +392,6 @@ fn dungeon_of_the_mad_mage() -> DungeonDef {
         bottommost_room: 8,
     }
 }
-
 /// CR 309.2a: Tomb of Annihilation — 5 rooms, branching paths.
 ///
 /// Room layout:
@@ -475,7 +457,6 @@ fn tomb_of_annihilation() -> DungeonDef {
         bottommost_room: 4,
     }
 }
-
 /// CR 309.2a, 725.2: The Undercity — 7 rooms, entered via "take the initiative".
 ///
 /// Room layout:
@@ -506,6 +487,7 @@ fn the_undercity() -> DungeonDef {
                         owner: PlayerTarget::Controller,
                     },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 exits: &[1, 2],
             },

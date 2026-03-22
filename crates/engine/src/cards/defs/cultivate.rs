@@ -1,7 +1,6 @@
 // 41. Cultivate — {2G}, Sorcery; search for 2 basic lands, one to battlefield
 // tapped, one to hand, then shuffle.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cultivate"),
@@ -17,6 +16,7 @@ pub fn card() -> CardDefinition {
                     reveal: true,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                     reveal: true,
                     destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
                     shuffle_before_placing: false,
+                    also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
             ]),

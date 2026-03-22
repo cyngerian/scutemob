@@ -24,8 +24,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // TODO: triggered — whenever you cast an Adventure or Dragon spell, deal damage equal
             // to that spell's mana value to any target that isn't a commander.
-            // DSL gap: no WheneverYouCastSpellWithSubtype(Dragon)/WheneverYouCastAdventure trigger;
-            // no EffectAmount::CastSpellManaValue; no TargetFilter::NonCommander.
+            // Adventure framework (AltCostKind::Adventure) is now in place (PB-22 S7).
+            // Remaining DSL gaps:
+            // - TriggerCondition::WheneverYouCastSpellWithSubtype(Dragon) or WithAdventure
+            // - EffectAmount::CastSpellManaValue (mana value of the triggering spell)
+            // - TargetFilter::NonCommander (target that isn't a commander)
         ],
         ..Default::default()
     }

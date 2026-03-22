@@ -1,6 +1,5 @@
 // Worldly Tutor — {G}, Instant: search library for a creature card, reveal it, shuffle, put on top
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("worldly-tutor"),
@@ -23,6 +22,7 @@ pub fn card() -> CardDefinition {
                 // CR 701.23: "shuffle and put the card on top" — shuffle first, then place on top.
                 // Ruling 2016-06-08: this is a single action; card ends on top after shuffle.
                 shuffle_before_placing: true,
+                also_search_graveyard: false,
             },
             targets: vec![],
             modes: None,

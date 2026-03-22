@@ -5,7 +5,6 @@
 // Chapter III: search library for artifact with mana cost {0} or {1}, put onto battlefield.
 // TODO: Chapter I/II need "this Saga gains [ability]" (continuous effect granting activated ability)
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("urzas-saga"),
@@ -49,6 +48,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,

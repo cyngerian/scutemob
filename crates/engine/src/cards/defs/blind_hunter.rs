@@ -38,6 +38,7 @@ creature dies, each opponent loses 2 life and you gain 2 life."
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     }
 }

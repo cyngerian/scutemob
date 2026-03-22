@@ -3,7 +3,6 @@
 // card, put it onto the battlefield, then shuffle."
 // Enters untapped (unlike Evolving Wilds/Terramorphic Expanse which say "tapped").
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("prismatic-vista"),
@@ -27,6 +26,7 @@ pub fn card() -> CardDefinition {
                         // Prismatic Vista enters untapped unlike Evolving Wilds/Terramorphic Expanse.
                         destination: ZoneTarget::Battlefield { tapped: false },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle { player: PlayerTarget::Controller },
                 ]),

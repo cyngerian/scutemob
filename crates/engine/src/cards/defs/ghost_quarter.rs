@@ -5,7 +5,6 @@
 // CR 701.23: opponent search uses ControllerOf(DeclaredTarget).
 // Note: "may search" modeled as unconditional search (deterministic fallback).
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ghost-quarter"),
@@ -43,6 +42,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::ControllerOf(Box::new(

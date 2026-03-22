@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         spell_cost_modifiers: vec![],
         self_cost_reduction: None,
         starting_loyalty: None,
+        adventure_face: None,
         meld_pair: None,
     }
 }

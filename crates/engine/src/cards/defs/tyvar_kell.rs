@@ -96,6 +96,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         starting_loyalty: Some(3),
+        adventure_face: None,
         meld_pair: None,
         ..Default::default()
     }

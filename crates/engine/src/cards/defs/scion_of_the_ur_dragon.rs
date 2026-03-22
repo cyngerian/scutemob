@@ -7,7 +7,6 @@
 //   to reference the card found by SearchLibrary. BecomeCopyOf infrastructure exists but
 //   can't wire to the search result yet. Search-to-graveyard + shuffle works correctly.
 use crate::cards::helpers::*;
-
 pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scion-of-the-ur-dragon"),
@@ -48,6 +47,7 @@ pub fn card() -> CardDefinition {
                             owner: PlayerTarget::Controller,
                         },
                         shuffle_before_placing: false,
+                    also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,

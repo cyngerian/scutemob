@@ -11,9 +11,9 @@
 //! the spell is removed from the stack and its card goes to the graveyard without
 //! resolving (`SpellFizzled`). If only SOME targets are illegal (partial fizzle),
 //! the spell resolves normally; illegal targets are unaffected (M7+).
-
-use im::OrdSet;
-
+use super::abilities;
+use super::events::GameEvent;
+use super::sba;
 use crate::effects::{check_condition, execute_effect, EffectContext};
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, MergedComponent, ObjectId};
@@ -26,11 +26,7 @@ use crate::state::types::{
 };
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
-use super::abilities;
-use super::events::GameEvent;
-use super::sba;
-
+use im::OrdSet;
 /// CR 608.1: Resolve the top object on the stack.
 ///
 /// Called when all players pass priority in succession with a non-empty stack.
@@ -38,24 +34,20 @@ use super::sba;
 /// After resolution, the active player receives priority (CR 116.3b).
 pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // Pop the top of the stack (LIFO — last pushed, first resolved).
     let stack_obj = state
         .stack_objects
         .pop_back()
         .ok_or_else(|| GameStateError::InvalidCommand("stack is empty".into()))?;
-
     match stack_obj.kind.clone() {
         StackObjectKind::Spell { source_object } => {
             let controller = stack_obj.controller;
-
             // CR 608.2b: Check target legality before resolving.
             // CR 702.103e / 608.3b: Bestowed Aura spells with all-illegal targets revert
             // to creature spells instead of fizzling.
             let targets = &stack_obj.targets;
             let bestow_fallback = if !targets.is_empty() {
                 let legal_count = targets.iter().filter(|t| is_target_legal(state, t)).count();
-
                 if legal_count == 0 {
                     if stack_obj.was_bestowed {
                         // CR 702.103e / 608.3b: Bestowed Aura with illegal target ceases
@@ -97,6 +89,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             {
                                 // CR 702.34a / CR 702.133a: Flashback and jump-start exile on fizzle.
                                 // CR 702.146c: Disturb spells (is_cast_transformed) also exile on fizzle.
+                                // NOTE: Adventure spells go to graveyard when fizzled, NOT exile
+                                // (CR 715.3d: exile only on successful resolution).
                                 ZoneId::Exile
                             } else {
                                 ZoneId::Graveyard(owner)
@@ -105,23 +99,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 state.move_object_to_zone(source_object, destination)?;
                             new_id
                         };
-
                         events.push(GameEvent::SpellFizzled {
                             player: controller,
                             stack_object_id: stack_obj.id,
                             source_object_id: fizzle_source_id,
                         });
-
                         // CR 704.3: Check SBAs before granting priority.
                         let sba_evts = sba::check_and_apply_sbas(state);
                         events.extend(sba_evts);
-
                         // Priority resets to active player after fizzle.
                         state.turn.players_passed = OrdSet::new();
                         let active = state.turn.active_player;
                         state.turn.priority_holder = Some(active);
                         events.push(GameEvent::PriorityGiven { player: active });
-
                         return Ok(events);
                     }
                 } else {
@@ -132,7 +122,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             };
             // Partial fizzle (some targets illegal): spell resolves normally.
             // Illegal targets will be unaffected when effects are implemented (M7+).
-
             // Determine destination zone based on card type (CR 608.2n vs 608.3).
             let (card_types, owner, card_id) = {
                 let card = state.object(source_object)?;
@@ -142,18 +131,24 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     card.card_id.clone(),
                 )
             };
-
-            let is_permanent = card_types.iter().any(|t| {
-                matches!(
-                    t,
-                    CardType::Creature
-                        | CardType::Artifact
-                        | CardType::Enchantment
-                        | CardType::Planeswalker
-                        | CardType::Battle
-                )
-            });
-
+            // CR 715.3b: While on the stack as an Adventure, the spell has only its
+            // adventure face's characteristics. The adventure face is always an Instant
+            // or Sorcery, so it is NOT a permanent and resolves as a spell (not ETB).
+            let is_permanent = if stack_obj.was_cast_as_adventure {
+                // Adventure spells always resolve as instants/sorceries, never as permanents.
+                false
+            } else {
+                card_types.iter().any(|t| {
+                    matches!(
+                        t,
+                        CardType::Creature
+                            | CardType::Artifact
+                            | CardType::Enchantment
+                            | CardType::Planeswalker
+                            | CardType::Battle
+                    )
+                })
+            };
             // CR 608.2: Execute the card's effect before it moves to its final zone.
             // Look up the CardDefinition from the registry (if available) and run its Spell effect.
             // registry is also used below for self-ETB replacements (CR 614.15).
@@ -247,6 +242,25 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 }
                             });
                                 (eff, None)
+                            } else if stack_obj.was_cast_as_adventure {
+                                // CR 715.3b: Adventure spell uses the adventure face's effect.
+                                // The adventure_face contains the Spell ability with the
+                                // instant/sorcery effect to execute (e.g., "deal 2 damage").
+                                let eff = def.adventure_face.as_ref().and_then(|face| {
+                                    face.abilities.iter().find_map(|a| {
+                                        if let crate::cards::card_definition::AbilityDefinition::Spell {
+                                            effect,
+                                            modes,
+                                            ..
+                                        } = a
+                                        {
+                                            Some((effect.clone(), modes.clone()))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                });
+                                eff.map(|(e, m)| (Some(e), m)).unwrap_or((None, None))
                             } else {
                                 def.abilities.iter().find_map(|a| {
                                 if let crate::cards::card_definition::AbilityDefinition::Spell {
@@ -278,7 +292,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 // CR 702.47b: Clone legal_targets before the move so splice effects
                                 // can use the same target list as the main spell.
                                 let legal_targets_for_splice = legal_targets.clone();
-
                                 // CR 700.2 / CR 702.42b / CR 702.120a: Mode dispatch.
                                 // Priority order:
                                 // 1. Entwine takes precedence — all modes in printed order (CR 702.42b).
@@ -343,7 +356,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     } else {
                                         vec![]
                                     };
-
                                 let mut ctx = EffectContext::new_with_kicker(
                                     controller,
                                     source_object,
@@ -369,7 +381,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 // CR 702.174b: Pass gift status so Condition::GiftWasGiven works.
                                 ctx.gift_was_given = ac_gift_was_given;
                                 ctx.gift_opponent = ac_gift_opponent;
-
                                 // CR 702.174j: For instant/sorcery spells, the gift effect always
                                 // happens BEFORE any other spell abilities of the card.
                                 // Only execute if gift cost was paid AND it's an instant/sorcery.
@@ -396,14 +407,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         }
                                     }
                                 }
-
                                 // CR 702.42b: Execute each effect in order. For entwined spells,
                                 // state changes from earlier modes are visible to later modes.
                                 for effect in &effects_to_run {
                                     let effect_events = execute_effect(state, effect, &mut ctx);
                                     events.extend(effect_events);
                                 }
-
                                 // CR 702.47b: Execute spliced effects after the main spell effect.
                                 // "The effects of the main spell must happen first." (CR 702.47b)
                                 // Each spliced effect uses the same resolution context (controller,
@@ -432,7 +441,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
             }
-
             // CR 702.131a: Ascend on an instant or sorcery is a spell ability.
             // "If you control ten or more permanents and you don't have the city's
             // blessing, you get the city's blessing for the rest of the game."
@@ -470,7 +478,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
             }
-
             // CR 707.10: Copies of spells are not real cards — they don't move to
             // a destination zone when they resolve.  The source_object belongs to
             // the original spell and must not be moved by a copy's resolution.
@@ -496,7 +503,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .and_then(|o| o.face_down_as.clone());
                 let (new_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
-
                 // CR 608.3a: "under the control of the spell's controller"
                 // (move_object_to_zone resets controller to owner; restore it here).
                 // CR 702.33d: Transfer kicked status from stack to permanent so ETB
@@ -725,7 +731,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 // CR 702.30a: Mark permanents with Echo as pending their echo trigger.
                 // "At the beginning of your upkeep, if this permanent came under your
                 // control since the beginning of your last upkeep, sacrifice it unless
@@ -740,7 +745,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         obj.designations.insert(Designations::ECHO_PENDING);
                     }
                 }
-
                 // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
                 // it enters the battlefield with the specified counters. This is a
                 // replacement effect on ETB (not a triggered ability). Applied here
@@ -766,7 +770,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 // CR 702.136a: Riot -- "You may have this permanent enter with an
                 // additional +1/+1 counter on it. If you don't, it gains haste."
                 // CR 702.136b: Multiple instances each work separately.
@@ -798,7 +801,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .count()
                         })
                         .unwrap_or(0);
-
                     for _ in 0..riot_count {
                         // Default choice: +1/+1 counter (CR 702.136a).
                         // Each Riot instance adds one +1/+1 counter.
@@ -819,7 +821,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         });
                     }
                 }
-
                 // CR 702.43a: Modular N -- "This permanent enters with N +1/+1 counters
                 // on it." (static ability / ETB replacement effect, CR 614.1c)
                 // CR 702.43b: Multiple instances each work separately; their N values sum.
@@ -844,7 +845,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .sum()
                         })
                         .unwrap_or(0);
-
                     if modular_total > 0 {
                         if let Some(obj) = state.objects.get_mut(&new_id) {
                             let current = obj
@@ -863,7 +863,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         });
                     }
                 }
-
                 // CR 702.58a: Graft N -- "This permanent enters with N +1/+1 counters on it."
                 // CR 702.58b: Multiple instances each work separately; their N values sum.
                 // Count from the card definition (same approach as Modular).
@@ -883,7 +882,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .sum()
                         })
                         .unwrap_or(0);
-
                     if graft_total > 0 {
                         if let Some(obj) = state.objects.get_mut(&new_id) {
                             let current = obj
@@ -902,7 +900,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         });
                     }
                 }
-
                 // CR 702.38a: Amplify N -- "As this object enters, reveal any number of
                 // cards from your hand that share a creature type with it. This permanent
                 // enters with N +1/+1 counters on it for each card revealed this way."
@@ -930,7 +927,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .collect()
                         })
                         .unwrap_or_default();
-
                     if !amplify_instances.is_empty() {
                         // Resolve the entering creature's subtypes via the layer system
                         // (respects Changeling / CDAs in all zones -- CR 604.3).
@@ -938,7 +934,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             crate::rules::layers::calculate_characteristics(state, new_id)
                                 .map(|c| c.subtypes)
                                 .unwrap_or_default();
-
                         // Collect hand object IDs for the controller (excluding the entering
                         // creature itself, which is now on the battlefield, not in hand).
                         let controller = {
@@ -956,7 +951,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             })
                             .map(|(id, _)| *id)
                             .collect();
-
                         // Count hand cards that share at least one creature subtype with the
                         // entering creature. Calculate characteristics for each hand card to
                         // honour CDAs like Changeling (CR 604.3).
@@ -975,13 +969,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         .is_empty()
                             })
                             .count() as u32;
-
                         // Apply each Amplify instance: N * eligible_count counters.
                         let mut total_amplify_counters: u32 = 0;
                         for n in &amplify_instances {
                             total_amplify_counters += n * eligible_count;
                         }
-
                         if total_amplify_counters > 0 {
                             if let Some(obj) = state.objects.get_mut(&new_id) {
                                 let current = obj
@@ -1002,7 +994,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 // CR 702.54a: Bloodthirst N -- "If an opponent was dealt damage this turn,
                 // this permanent enters with N +1/+1 counters on it."
                 // CR 702.54c: Multiple instances work separately; each N is added independently.
@@ -1023,7 +1014,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .collect()
                         })
                         .unwrap_or_default();
-
                     if !bloodthirst_instances.is_empty() {
                         let controller = {
                             state
@@ -1040,7 +1030,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 && !ps.has_conceded
                                 && ps.damage_received_this_turn > 0
                         });
-
                         if any_opponent_damaged {
                             let total_counters: u32 = bloodthirst_instances.iter().sum();
                             if total_counters > 0 {
@@ -1064,7 +1053,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 // CR 702.82a: Devour N -- "As this object enters, you may sacrifice any number
                 // of creatures. This permanent enters with N +1/+1 counters on it for each
                 // creature sacrificed this way."
@@ -1092,7 +1080,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .collect()
                         })
                         .unwrap_or_default();
-
                     // RC-1: Extract devour sacrifices from additional_costs.
                     let devour_sacrifice_ids: Vec<ObjectId> = stack_obj
                         .additional_costs
@@ -1111,9 +1098,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(&new_id)
                             .map(|o| o.controller)
                             .unwrap_or(stack_obj.controller);
-
                         let mut sacrifice_count: u32 = 0;
-
                         // Sacrifice each creature. Re-validate at resolution time since
                         // state may have changed since cast time (CR 608.3b).
                         for sac_id in &devour_sacrifice_ids {
@@ -1131,11 +1116,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             .contains(&CardType::Creature)
                                 })
                                 .unwrap_or(false);
-
                             if !still_valid {
                                 continue;
                             }
-
                             // Capture last-known information before zone move (CR 400.7).
                             let (sac_owner, pre_death_controller, pre_death_counters) = {
                                 let obj = match state.objects.get(&sac_id) {
@@ -1144,7 +1127,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 };
                                 (obj.owner, obj.controller, obj.counters.clone())
                             };
-
                             // CR 614: Check replacement effects (e.g., Rest in Peace).
                             let action = crate::rules::replacement::check_zone_change_replacement(
                                 state,
@@ -1154,7 +1136,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 sac_owner,
                                 &std::collections::HashSet::new(),
                             );
-
                             match action {
                                 crate::rules::replacement::ZoneChangeAction::Redirect {
                                     to: dest,
@@ -1221,20 +1202,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 }
                             }
                         }
-
                         if sacrifice_count > 0 {
                             // CR 702.82b: Record the number of creatures devoured for
                             // abilities that reference "it devoured".
                             if let Some(obj) = state.objects.get_mut(&new_id) {
                                 obj.creatures_devoured = sacrifice_count;
                             }
-
                             // Add +1/+1 counters: for each Devour(N) instance, add N * sacrifice_count.
                             let mut total_devour_counters: u32 = 0;
                             for n in &devour_instances {
                                 total_devour_counters += n * sacrifice_count;
                             }
-
                             if total_devour_counters > 0 {
                                 if let Some(obj) = state.objects.get_mut(&new_id) {
                                     let current = obj
@@ -1256,7 +1234,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 // CR 702.104a: Tribute N -- "As this creature enters, choose an opponent.
                 // That player may put an additional N +1/+1 counters on it as it enters."
                 // CR 702.104b: Objects with tribute have triggered abilities that check
@@ -1285,7 +1262,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .collect()
                         })
                         .unwrap_or_default();
-
                     if !tribute_instances.is_empty() {
                         // Bot play: opponent does not pay tribute.
                         // tribute_was_paid remains false (default).
@@ -1296,7 +1272,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         let _ = tribute_instances; // explicitly consumed; no-op in bot play
                     }
                 }
-
                 // CR 702.156a: Ravenous -- "This permanent enters with X +1/+1 counters on it."
                 // CR 107.3m: X is the value chosen at cast time (stack_obj.x_value), NOT the
                 // permanent's X (which is 0 per CR 107.3i). The counter placement is a
@@ -1316,7 +1291,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             })
                         })
                         .unwrap_or(false);
-
                     if has_ravenous && stack_obj.x_value > 0 {
                         if let Some(obj) = state.objects.get_mut(&new_id) {
                             let current = obj
@@ -1334,7 +1308,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             count: stack_obj.x_value,
                         });
                     }
-
                     // CR 702.156a: "When this permanent enters, if X is 5 or more, draw a card."
                     // CR 603.4: Intervening-if -- checked at trigger time AND resolution.
                     // X is the cast-time value (stack_obj.x_value), regardless of counters placed.
@@ -1368,7 +1341,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 data: None,
                             });
                     }
-
                     // CR 702.157a: Squad ETB trigger -- "When this creature enters, if its
                     // squad cost was paid, create a token that's a copy of it for each time
                     // its squad cost was paid."
@@ -1401,7 +1373,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 )
                             });
                     }
-
                     // CR 702.175a: Offspring ETB trigger -- "When this permanent enters, if its
                     // offspring cost was paid, create a token that's a copy of it, except it's 1/1."
                     //
@@ -1449,7 +1420,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 data: None,
                             });
                     }
-
                     // CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its
                     // gift cost was paid, [give the gift to the chosen opponent]."
                     //
@@ -1489,7 +1459,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 // CR 702.103b: If the permanent is bestowed, re-apply the type
                 // transformation after move_object_to_zone (which resets to printed types).
                 // The permanent enters as an Aura enchantment with enchant creature,
@@ -1506,7 +1475,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
                     }
                 }
-
                 // CR 303.4a / 303.4b: If the resolved permanent is an Aura, attach it
                 // to its target BEFORE registering static continuous effects. The
                 // EffectFilter::AttachedCreature filter reads `attached_to`, so the
@@ -1558,7 +1526,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // SBA 704.5m will move it to the graveyard on the next SBA check.
                     }
                 }
-
                 // CR 614.12 / 614.15: Apply ETB replacement effects before emitting
                 // PermanentEnteredBattlefield. Self-ETB replacements from the card's
                 // own definition apply first (CR 614.15: self-replacement first), then
@@ -1574,7 +1541,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let etb_evts =
                     super::replacement::apply_etb_replacements(state, new_id, controller);
                 events.extend(etb_evts);
-
                 // CR 614: Register global replacement abilities from this permanent's
                 // card definition. Must happen after ETB replacements are applied so
                 // the permanent is fully settled. The new effects activate immediately
@@ -1586,14 +1552,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     card_id.as_ref(),
                     &registry,
                 );
-
                 // CR 708.3: A face-down permanent has no abilities while it's face-down.
                 // Its ETB abilities do NOT fire when it enters the battlefield face-down
                 // (cast with morph/megamorph/disguise). Only global triggers on OTHER
                 // permanents that watch for any creature entering CAN still trigger
                 // (they see a 2/2 creature, but not the card's name/abilities).
                 let is_face_down_entering = morph_face_down_kind.is_some();
-
                 // CR 604 / CR 613: Register static continuous effects from this
                 // permanent's card definition (Equipment, Aura, global ability grants).
                 // CR 708.3: Face-down permanents have no abilities, so their static
@@ -1607,18 +1571,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         &registry,
                     );
                 }
-
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,
                     object_id: new_id,
                 });
-
                 // CR 702.145c / CR 702.145f: When a Daybound or Nightbound permanent enters
                 // the battlefield, enforce the current day/night state (or establish it).
                 // "This ability triggers immediately" (CR 702.145d/g rulings).
                 let db_evts = crate::rules::turn_actions::enforce_daybound_nightbound(state);
                 events.extend(db_evts);
-
                 // CR 603.3, 603.6a: Queue WhenEntersBattlefield triggered abilities from
                 // card definition as PendingTrigger (goes on stack at next priority window).
                 // CR 708.3: face-down guard is handled inside queue_carddef_etb_triggers.
@@ -1631,7 +1592,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     &registry,
                 );
                 events.extend(etb_trigger_evts);
-
                 events.push(GameEvent::SpellResolved {
                     player: controller,
                     stack_object_id: stack_obj.id,
@@ -1673,7 +1633,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             })
                             .unwrap_or(false)
                     };
-
                 // Find the first creature controlled by this player (for MVP auto-encode).
                 let cipher_creature = if has_cipher {
                     state
@@ -1693,7 +1652,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 } else {
                     None
                 };
-
                 let destination = if stack_obj.cast_with_flashback
                     || stack_obj.cast_with_jump_start
                     || (has_cipher && cipher_creature.is_some())
@@ -1701,12 +1659,23 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.34a / CR 702.133a: flashback/jump-start exile on resolution.
                     // CR 702.99a: cipher exile on resolution (card encoded on a creature).
                     ZoneId::Exile
+                } else if stack_obj.was_cast_as_adventure {
+                    // CR 715.3d: Adventure spell exiles on SUCCESSFUL resolution (NOT graveyard).
+                    // NOTE: Adventure (CR 715.3d) only exiles on resolution, NOT on counter/fizzle.
+                    ZoneId::Exile
                 } else if stack_obj.was_buyback_paid {
                     ZoneId::Hand(owner) // CR 702.27a
                 } else {
                     ZoneId::Graveyard(owner)
                 };
                 let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
+                // CR 715.3d: If this was an Adventure spell, set adventure_exiled_by on the
+                // exiled card so the controller can cast the creature half from exile.
+                if stack_obj.was_cast_as_adventure {
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.adventure_exiled_by = Some(controller);
+                    }
+                }
 
                 // CR 702.99a: If cipher resolved and we have a target creature, encode.
                 // The card is now in exile (new_id). Set encoded_cards on the creature.
@@ -1726,7 +1695,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         });
                     }
                 }
-
                 events.push(GameEvent::SpellResolved {
                     player: controller,
                     stack_object_id: stack_obj.id,
@@ -1750,7 +1718,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .and_then(|obj| obj.characteristics.activated_abilities.get(ability_index))
                     .and_then(|ab| ab.effect.clone())
             });
-
             if let Some(effect) = ability_effect {
                 let mut ctx = EffectContext::new(
                     stack_obj.controller,
@@ -1760,13 +1727,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let effect_events = execute_effect(state, &effect, &mut ctx);
                 events.extend(effect_events);
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller: stack_obj.controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         StackObjectKind::LoyaltyAbility {
             source_object,
             ability_index: _,
@@ -1781,13 +1746,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             );
             let effect_events = execute_effect(state, &effect, &mut ctx);
             events.extend(effect_events);
-
             events.push(GameEvent::AbilityResolved {
                 controller: stack_obj.controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         StackObjectKind::ForecastAbility {
             source_object,
             embedded_effect,
@@ -1802,13 +1765,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             );
             let effect_events = execute_effect(state, &embedded_effect, &mut ctx);
             events.extend(effect_events);
-
             events.push(GameEvent::AbilityResolved {
                 controller: stack_obj.controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         StackObjectKind::TriggeredAbility {
             source_object,
             ability_index,
@@ -1898,7 +1859,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     (None, None)
                 }
             };
-
             // If we got a CardDef-registry effect, execute it directly.
             // CR 603.4: intervening-if conditions must be checked both when the trigger fires
             // AND when it resolves. If the condition no longer holds at resolution, the
@@ -1993,7 +1953,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         None => true, // Source gone — ability still resolves (no effect)
                     }
                 };
-
                 // CR 608.3b: Execute effect if condition holds.
                 if condition_holds {
                     // CR 613.1f: Use layer-resolved triggered_abilities to match
@@ -2007,7 +1966,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(ability_index)
                             .and_then(|ab| ab.effect.clone())
                     });
-
                     if let Some(effect) = triggered_effect {
                         let mut ctx = EffectContext::new(
                             stack_obj.controller,
@@ -2018,14 +1976,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         events.extend(effect_events);
                     }
                 }
-
                 events.push(GameEvent::AbilityResolved {
                     controller: stack_obj.controller,
                     stack_object_id: stack_obj.id,
                 });
             } // end else (characteristics-based path)
         }
-
         // CR 702.85a: Cascade trigger resolves — run the cascade procedure.
         StackObjectKind::KeywordTrigger {
             source_object: _,
@@ -2036,13 +1992,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let (cascade_events, _cast_id) =
                 crate::rules::copy::resolve_cascade(state, controller, spell_mana_value);
             events.extend(cascade_events);
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.40a: Storm trigger resolves — create copies of the original spell.
         StackObjectKind::KeywordTrigger {
             source_object: _,
@@ -2061,13 +2015,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 storm_count,
             );
             events.extend(copy_events);
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.153a: Casualty trigger resolves — create one copy of the original spell.
         //
         // "When you cast this spell, if a casualty cost was paid for it, copy it."
@@ -2097,13 +2049,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // The trigger does nothing (CR 400.7 — the original is a dead object).
                 }
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.56a: Replicate trigger resolves — create copies of the original spell.
         //
         // "When you cast this spell, if a replicate cost was paid for it, copy it for
@@ -2133,13 +2083,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 replicate_count,
             );
             events.extend(copy_events);
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.69a: Gravestorm trigger resolves — create copies of the original spell.
         //
         // "When you cast this spell, copy it for each permanent that was put into a
@@ -2167,13 +2115,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 gravestorm_count,
             );
             events.extend(copy_events);
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.63a: Vanishing upkeep counter-removal trigger resolves.
         //
         // "At the beginning of your upkeep, if this permanent has a time counter on it,
@@ -2190,14 +2136,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ..
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Re-check intervening-if condition at resolution.
             let current_counters = state
                 .objects
                 .get(&vanishing_permanent)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
                 .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
-
             if let Some(count) = current_counters {
                 if count > 0 {
                     // Remove one time counter (CR 702.63a).
@@ -2214,7 +2158,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         counter: CounterType::Time,
                         count: 1,
                     });
-
                     // CR 702.63a (third triggered ability): "When the last time counter
                     // is removed from this permanent, sacrifice it."
                     // Queue a VanishingSacrifice trigger when the last counter was removed.
@@ -2261,13 +2204,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If not on battlefield or no counters, trigger does nothing (CR 603.4).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.63a: Vanishing sacrifice trigger resolves.
         //
         // "When the last time counter is removed from this permanent, sacrifice it."
@@ -2285,7 +2226,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ..
         } => {
             let controller = stack_obj.controller;
-
             // Check if the source is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&vanishing_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
@@ -2294,7 +2234,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     None
                 }
             });
-
             if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
                 // CR 701.17a: Sacrifice bypasses indestructible.
                 // CR 614: Replacement effects (e.g., Rest in Peace) still apply.
@@ -2306,7 +2245,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     owner,
                     &std::collections::HashSet::new(),
                 );
-
                 match action {
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
@@ -2375,13 +2313,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.32a: Fading upkeep trigger resolves.
         //
         // "At the beginning of your upkeep, remove a fade counter from this permanent.
@@ -2400,7 +2336,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ..
         } => {
             let controller = stack_obj.controller;
-
             // Check if permanent is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&fading_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
@@ -2414,7 +2349,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     None
                 }
             });
-
             if let Some((owner, pre_sacrifice_controller, pre_sacrifice_counters, fade_count)) =
                 source_info
             {
@@ -2444,7 +2378,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         owner,
                         &std::collections::HashSet::new(),
                     );
-
                     match action {
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to: dest,
@@ -2514,13 +2447,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.30a: Echo upkeep trigger resolves.
         //
         // "At the beginning of your upkeep, if this permanent came under your control
@@ -2541,14 +2472,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ..
         } => {
             let controller = stack_obj.controller;
-
             // Check if permanent is still on the battlefield (CR 400.7).
             let still_on_battlefield = state
                 .objects
                 .get(&echo_permanent)
                 .map(|obj| obj.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
-
             if still_on_battlefield {
                 // Emit the payment required event and pause for player choice.
                 events.push(GameEvent::EchoPaymentRequired {
@@ -2562,13 +2491,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .push_back((controller, echo_permanent, echo_cost));
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.24a: Cumulative upkeep trigger resolves.
         //
         // "At the beginning of your upkeep, if this permanent is on the battlefield,
@@ -2592,28 +2519,24 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ..
         } => {
             let controller = stack_obj.controller;
-
             // Check if permanent is still on the battlefield (CR 400.7).
             let still_on_battlefield = state
                 .objects
                 .get(&cu_permanent)
                 .map(|obj| obj.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
-
             if still_on_battlefield {
                 // CR 702.24a: "put an age counter on this permanent"
                 if let Some(obj) = state.objects.get_mut(&cu_permanent) {
                     let current = obj.counters.get(&CounterType::Age).copied().unwrap_or(0);
                     obj.counters.insert(CounterType::Age, current + 1);
                 }
-
                 // Count total age counters after adding.
                 let age_count = state
                     .objects
                     .get(&cu_permanent)
                     .and_then(|obj| obj.counters.get(&CounterType::Age).copied())
                     .unwrap_or(0);
-
                 // Emit payment required event.
                 events.push(GameEvent::CumulativeUpkeepPaymentRequired {
                     player: controller,
@@ -2621,7 +2544,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     per_counter_cost: per_counter_cost.clone(),
                     age_counter_count: age_count,
                 });
-
                 // Track pending payment.
                 state.pending_cumulative_upkeep_payments.push_back((
                     controller,
@@ -2630,13 +2552,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 ));
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.59a: Recover trigger resolves.
         //
         // "When a creature is put into your graveyard from the battlefield, you may
@@ -2656,14 +2576,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // Check if the Recover card is still in the graveyard (CR 400.7).
             let still_in_graveyard = state
                 .objects
                 .get(&recover_card)
                 .map(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
                 .unwrap_or(false);
-
             if still_in_graveyard {
                 // Emit the payment required event and pause for player choice.
                 events.push(GameEvent::RecoverPaymentRequired {
@@ -2677,13 +2595,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .push_back((controller, recover_card, recover_cost));
             }
             // If not in graveyard, do nothing (CR 400.7 -- card is a new object).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.74a: Evoke sacrifice trigger resolves — sacrifice the source permanent.
         //
         // "When this permanent enters, if its evoke cost was paid, its controller
@@ -2696,7 +2612,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::DelayedZoneChange,
         } => {
             let controller = stack_obj.controller;
-
             // Check if the source is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
@@ -2705,7 +2620,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     None
                 }
             });
-
             if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info {
                 // CR 701.17a: Sacrifice is NOT destruction — no indestructible check.
                 // CR 614: Check replacement effects before moving to graveyard.
@@ -2717,7 +2631,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     owner,
                     &std::collections::HashSet::new(),
                 );
-
                 match action {
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
@@ -2783,13 +2696,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If source is not on the battlefield, the trigger does nothing (CR 400.7).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.35a: Madness triggered ability resolves.
         //
         // "When this card is exiled this way, its owner may cast it by paying [cost]
@@ -2807,7 +2718,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             owner,
         } => {
             let controller = stack_obj.controller;
-
             // CR 702.35a: Check if the card is still in exile (CR 400.7).
             // If the owner already cast it (or it moved via another effect), do nothing.
             let still_in_exile = state
@@ -2815,7 +2725,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .get(&exiled_card)
                 .map(|obj| obj.zone == ZoneId::Exile)
                 .unwrap_or(false);
-
             if still_in_exile {
                 // Auto-decline: move the card from exile to its owner's graveyard.
                 if let Ok((new_grave_id, _)) =
@@ -2828,13 +2737,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     });
                 }
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.94a: Miracle triggered ability resolves.
         //
         // "When you reveal this card this way, you may cast it by paying [cost]
@@ -2861,7 +2768,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.84a: Unearth activated ability resolves.
         //
         // "Return this card from your graveyard to the battlefield. It gains haste."
@@ -2871,19 +2777,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // resolve and do nothing." (CR 400.7)
         StackObjectKind::UnearthAbility { source_object } => {
             let controller = stack_obj.controller;
-
             // Check if the source card is still in the graveyard (CR 400.7).
             let still_in_graveyard = state
                 .objects
                 .get(&source_object)
                 .map(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
                 .unwrap_or(false);
-
             if still_in_graveyard {
                 // 1. Move card from graveyard to battlefield (CR 702.84a).
                 let (new_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
-
                 // 2. Set controller, was_unearthed flag, and grant haste.
                 //    CR 702.84a: "It gains haste."
                 //    CR 702.84a: The exile effects are NOT granted to the creature
@@ -2896,7 +2799,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.10a: Haste — can attack and use tap abilities immediately.
                     obj.characteristics.keywords.insert(KeywordAbility::Haste);
                 }
-
                 // 3. Apply self ETB replacements (e.g., "enters tapped") and global
                 //    ETB replacements (Rest in Peace, etc.) before emitting PEB event.
                 let registry = state.card_registry.clone();
@@ -2911,7 +2813,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let etb_evts =
                     super::replacement::apply_etb_replacements(state, new_id, controller);
                 events.extend(etb_evts);
-
                 // 4. Register replacement abilities and static continuous effects.
                 super::replacement::register_permanent_replacement_abilities(
                     state,
@@ -2926,13 +2827,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     card_id.as_ref(),
                     &registry,
                 );
-
                 // 5. Emit PermanentEnteredBattlefield.
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,
                     object_id: new_id,
                 });
-
                 // 6. Queue WhenEntersBattlefield triggered abilities from card definition.
                 // CR 603.3: goes on stack at next priority window.
                 let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
@@ -2944,13 +2843,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 );
                 events.extend(etb_trigger_evts);
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.84a: Unearth delayed triggered ability resolves.
         //
         // "Exile it at the beginning of the next end step."
@@ -2963,14 +2860,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::DelayedZoneChange,
         } => {
             let controller = stack_obj.controller;
-
             // Check if the source is still on the battlefield (CR 400.7).
             let owner_opt = state
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
                 .map(|obj| obj.owner);
-
             if let Some(owner) = owner_opt {
                 // Exile the permanent directly. No zone-change replacement needed:
                 // the replacement effect only fires when the permanent would go to a
@@ -2984,13 +2879,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             }
             // If not on battlefield, do nothing (already exiled by replacement or removed).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.109a: Dash delayed triggered ability resolves.
         //
         // "Return the permanent this spell becomes to its owner's hand at the
@@ -3003,19 +2896,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::DelayedZoneChange,
         } => {
             let controller = stack_obj.controller;
-
             // Check if the source is still on the battlefield (CR 400.7).
             let owner_opt = state
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
                 .map(|obj| obj.owner);
-
             if let Some(owner) = owner_opt {
                 // Return to owner's hand (not controller's -- CR 702.109a says "owner's hand").
                 let (new_hand_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Hand(owner))?;
-
                 events.push(GameEvent::ObjectReturnedToHand {
                     player: owner,
                     object_id: source_object,
@@ -3023,13 +2913,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             }
             // If not on battlefield, do nothing (CR 400.7 -- creature is a new object).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.152a: Blitz delayed triggered ability resolves.
         //
         // "Sacrifice the permanent this spell becomes at the beginning of the
@@ -3045,7 +2933,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::DelayedZoneChange,
         } => {
             let controller = stack_obj.controller;
-
             // Check if the source is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
@@ -3054,7 +2941,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     None
                 }
             });
-
             if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
                 // Sacrifice: move to owner's graveyard.
                 // Sacrifice bypasses indestructible (CR 701.17a).
@@ -3067,7 +2953,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     owner,
                     &std::collections::HashSet::new(),
                 );
-
                 match action {
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
@@ -3134,13 +3019,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             }
             // If not on battlefield, do nothing (CR 400.7 -- creature is a new object).
             // Ruling 2022-04-29: "it will stay where it is"
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.176a: Impending counter-removal trigger resolves.
         //
         // "At the beginning of your end step, if this permanent's impending cost
@@ -3158,7 +3041,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ..
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Re-check intervening-if condition at resolution.
             let current_counters = state
                 .objects
@@ -3168,7 +3050,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         && obj.cast_alt_cost == Some(AltCostKind::Impending)
                 })
                 .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
-
             if let Some(count) = current_counters {
                 if count > 0 {
                     // Remove one time counter (CR 702.176a).
@@ -3193,15 +3074,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             }
             // If not on battlefield, or no impending status, or no counters,
             // the trigger does nothing (CR 603.4).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // --- Group 1: Combat triggers (migrated to KeywordTrigger) ---
-
         // CR 702.25a: Flanking -- blocker gets -1/-1 until end of turn.
         StackObjectKind::KeywordTrigger {
             keyword: KeywordAbility::Flanking,
@@ -3239,7 +3117,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.23a: Rampage N -- +N/+N for each blocker beyond the first.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -3289,7 +3166,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.39a: Provoke -- untap provoked creature, add forced-block requirement.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -3329,7 +3205,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.112a: Renown N -- place N +1/+1 counters and set renowned.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -3363,7 +3238,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.121a: Melee -- +count/+count for each opponent attacked.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -3424,7 +3298,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.70a: Poisonous N -- give target player N poison counters.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -3449,7 +3322,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.154a: Enlist -- source gets +X/+0 where X is enlisted creature's power.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -3496,7 +3368,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
         // a creature. Default (deterministic, no interactive choice): decline.
         //
@@ -3510,7 +3381,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::Simple,
         } => {
             let controller = stack_obj.controller;
-
             // CR 400.7: Check if the source is still on the battlefield.
             // If it left (blinked, bounced, destroyed), the trigger still resolves
             // but there's nothing to "exploit with." (Check is informational only;
@@ -3519,19 +3389,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .objects
                 .get(&source_object)
                 .is_some_and(|obj| obj.zone == ZoneId::Battlefield);
-
             // Default: decline sacrifice. No creature is sacrificed.
             // The trigger resolves with no effect.
             // NOTE: Even though the sacrifice is declined, the ability DID resolve.
             // "When this creature exploits a creature" secondary triggers do NOT fire
             // because no creature was sacrificed (CR 702.110b).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.43a: Modular trigger resolves -- put +1/+1 counters on target
         // artifact creature equal to counter_count (last-known information from
         // pre_death_counters, Arcbound Worker ruling 2006-09-25).
@@ -3541,7 +3408,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::DeathModular { counter_count },
         } => {
             let controller = stack_obj.controller;
-
             // CR 608.2b: Fizzle check -- verify target is still a legal artifact creature
             // on the battlefield. If it is not, the trigger fizzles with no effect.
             let target_id_opt = stack_obj.targets.first().and_then(|t| match &t.target {
@@ -3563,7 +3429,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 _ => None,
             });
-
             if let Some(target_id) = target_id_opt {
                 if counter_count > 0 {
                     if let Some(obj) = state.objects.get_mut(&target_id) {
@@ -3584,13 +3449,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If target illegal (fizzled) or counter_count == 0, do nothing.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.100a: Evolve trigger resolves -- re-check the intervening-if
         // condition (CR 603.4) and place a +1/+1 counter on the source creature
         // if the entering creature still has greater P and/or T.
@@ -3600,7 +3463,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::ETBEvolve { entering_creature },
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Resolution-time intervening-if re-check.
             // Compare entering creature's P/T vs evolve creature's P/T.
             //
@@ -3619,7 +3481,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .map(|o| o.characteristics.clone())
                     },
                 );
-
             let evolve_chars =
                 crate::rules::layers::calculate_characteristics(state, source_object).or_else(
                     || {
@@ -3629,7 +3490,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .map(|o| o.characteristics.clone())
                     },
                 );
-
             let condition_holds = match (entering_chars, evolve_chars) {
                 (Some(entering), Some(evolve)) => {
                     let ep = entering.power.unwrap_or(0);
@@ -3644,7 +3504,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // One or both objects no longer exist — condition fails (conservative).
                 _ => false,
             };
-
             if condition_holds {
                 // CR 702.100a: Put a +1/+1 counter on the evolve creature.
                 // The source must still be on the battlefield.
@@ -3658,7 +3517,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         obj.counters = obj
                             .counters
                             .update(CounterType::PlusOnePlusOne, current + 1);
-
                         events.push(GameEvent::CounterAdded {
                             object_id: source_object,
                             counter: CounterType::PlusOnePlusOne,
@@ -3667,13 +3525,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.58a: Graft trigger resolves -- re-check the intervening-if condition
         // (CR 603.4) and move one +1/+1 counter from the graft source to the entering
         // creature if both conditions still hold.
@@ -3683,7 +3539,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::ETBGraft { entering_creature },
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Re-check intervening-if at resolution time.
             // Source must still be on the battlefield AND have at least one +1/+1 counter.
             let source_has_counter = state
@@ -3699,14 +3554,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             > 0
                 })
                 .unwrap_or(false);
-
             // The entering creature must still be on the battlefield.
             let target_on_battlefield = state
                 .objects
                 .get(&entering_creature)
                 .map(|obj| obj.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
-
             if source_has_counter && target_on_battlefield {
                 // CR 702.58a: "you may move a +1/+1 counter" -- auto-accept (always move).
                 // Remove one +1/+1 counter from source.
@@ -3729,7 +3582,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     counter: CounterType::PlusOnePlusOne,
                     count: 1,
                 });
-
                 // Add one +1/+1 counter to entering creature.
                 if let Some(obj) = state.objects.get_mut(&entering_creature) {
                     let current = obj
@@ -3748,13 +3600,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             }
             // If either condition fails, the trigger fizzles silently.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.97a: Scavenge activated ability resolves.
         // "Put a number of +1/+1 counters equal to the power of the card you exiled
         // on target creature."
@@ -3770,7 +3620,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             power_snapshot,
         } => {
             let controller = stack_obj.controller;
-
             // Extract the target creature from the stack object's targets.
             let target_creature_id = stack_obj.targets.first().and_then(|t| {
                 if let crate::state::targeting::Target::Object(id) = t.target {
@@ -3779,7 +3628,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     None
                 }
             });
-
             let target_id = match target_creature_id {
                 Some(id) => id,
                 None => {
@@ -3791,7 +3639,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     return Ok(events);
                 }
             };
-
             // CR 608.2b: Fizzle check -- target must still be on the battlefield and
             // must still be a creature at resolution time.
             let target_valid = state
@@ -3810,7 +3657,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .unwrap_or(false)
                 })
                 .unwrap_or(false);
-
             if target_valid && power_snapshot > 0 {
                 // CR 702.97a: Add power_snapshot +1/+1 counters to the target creature.
                 if let Some(obj) = state.objects.get_mut(&target_id) {
@@ -3831,13 +3677,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             }
             // If target is invalid or power_snapshot == 0, ability fizzles / adds 0
             // counters -- either way emit AbilityResolved.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.165a: Backup trigger resolves.
         // 1. Put N +1/+1 counters on target creature.
         // 2. If target is another creature (not the source), grant keyword abilities
@@ -3854,13 +3698,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // CR 400.7: Check if the champion is still on the battlefield.
             let source_on_bf = state
                 .objects
                 .get(&source_object)
                 .is_some_and(|obj| obj.zone == ZoneId::Battlefield);
-
             if source_on_bf {
                 // Find first qualifying permanent controlled by the champion's controller
                 // that is not the champion itself.
@@ -3912,7 +3754,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .collect();
                     candidates.into_iter().next()
                 };
-
                 if let Some(target_id) = target_opt {
                     // Exile the qualifying permanent.
                     let target_owner = state
@@ -4019,13 +3860,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If champion is not on the battlefield, the trigger does nothing (CR 400.7).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.72a: Champion LTB trigger resolves -- "return the exiled card to the
         // battlefield under its owner's control." Checks if the exiled card is still in exile.
         StackObjectKind::KeywordTrigger {
@@ -4034,7 +3873,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::LTBChampion { exiled_card },
         } => {
             let controller = stack_obj.controller;
-
             // CR 607.2a: Check if the exiled card is still in exile.
             let exiled_info = state.objects.get(&exiled_card).and_then(|obj| {
                 if obj.zone == ZoneId::Exile {
@@ -4043,7 +3881,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     None
                 }
             });
-
             if let Some((owner, card_id)) = exiled_info {
                 // CR 702.72a: Return the card to the battlefield under its OWNER's control.
                 if let Ok((new_id, _old)) =
@@ -4053,7 +3890,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     if let Some(obj) = state.objects.get_mut(&new_id) {
                         obj.controller = owner;
                     }
-
                     // Run the full ETB pipeline.
                     let registry = state.card_registry.clone();
                     let self_evts = super::replacement::apply_self_etb_from_definition(
@@ -4066,7 +3902,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     events.extend(self_evts);
                     let etb_evts = super::replacement::apply_etb_replacements(state, new_id, owner);
                     events.extend(etb_evts);
-
                     super::replacement::register_permanent_replacement_abilities(
                         state,
                         new_id,
@@ -4080,12 +3915,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         card_id.as_ref(),
                         &registry,
                     );
-
                     events.push(GameEvent::PermanentEnteredBattlefield {
                         player: owner,
                         object_id: new_id,
                     });
-
                     let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
                         state,
                         new_id,
@@ -4097,13 +3930,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If exiled card is not in exile (already moved), do nothing (CR 607.2a).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.95a/702.95c: Soulbond ETB trigger resolution.
         StackObjectKind::KeywordTrigger {
             source_object,
@@ -4114,7 +3945,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 ContinuousEffect, EffectDuration, EffectFilter, EffectId,
             };
             let controller = stack_obj.controller;
-
             // CR 702.95c: Both source and target must still be on the battlefield as creatures
             // controlled by the same player, and both must be unpaired.
             // Use calculate_characteristics (layer-resolved) for the creature check, consistent
@@ -4146,7 +3976,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 && crate::rules::layers::calculate_characteristics(state, pair_target)
                     .map(|c| c.card_types.contains(&CardType::Creature))
                     .unwrap_or(false);
-
             if source_ok && target_ok {
                 // CR 702.95b: Set paired_with symmetrically on both creatures.
                 if let Some(src) = state.objects.get_mut(&source_object) {
@@ -4155,7 +3984,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(tgt) = state.objects.get_mut(&pair_target) {
                     tgt.paired_with = Some(source_object);
                 }
-
                 // Register WhilePaired CEs for any soulbond grants from the card definition.
                 // Look up the soulbond creature's card definition for grants.
                 let registry = state.card_registry.clone();
@@ -4212,13 +4040,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // CR 702.95c: If either check fails, neither creature becomes paired (fizzle).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Ravenous,
@@ -4229,7 +4055,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Intervening-if re-check. x_value is fixed at cast time and
             // immutable, so this always passes if the trigger fired. But we re-check
             // for correctness (e.g., if a future replacement effect could change it).
@@ -4251,13 +4076,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     events.extend(drawn_events);
                 }
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.157a: Squad ETB trigger resolution.
         //
         // "Create a token that's a copy of it for each time its squad cost was paid."
@@ -4278,7 +4101,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::ETBSquad { count: squad_count },
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Intervening-if re-check. squad_count is fixed at cast time and
             // immutable, so this always passes if the trigger fired. Verified for correctness.
             if squad_count > 0 {
@@ -4291,7 +4113,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     {
                         break;
                     }
-
                     // Build a blank token that will become a copy of the source.
                     // CR 111.10: Tokens enter the battlefield as the stated kind of object.
                     // CR 707.2: Copy uses copiable values of the source creature.
@@ -4367,15 +4188,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         loyalty_ability_activated_this_turn: false,
                         class_level: 0,
                         designations: Designations::default(),
+                        adventure_exiled_by: None,
                         meld_component: None,
                     };
-
                     // Add the token to the battlefield.
                     let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
                         Ok(id) => id,
                         Err(_) => continue,
                     };
-
                     // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
                     // has the copiable characteristics of the source creature.
                     let copy_effect = crate::rules::copy::create_copy_effect(
@@ -4385,7 +4205,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         controller,
                     );
                     state.continuous_effects.push_back(copy_effect);
-
                     events.push(GameEvent::TokenCreated {
                         player: controller,
                         object_id: token_id,
@@ -4396,13 +4215,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     });
                 }
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.175a: Offspring triggered ability resolution.
         //
         // "When this permanent enters, if its offspring cost was paid, create a token
@@ -4426,7 +4243,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 LayerModification,
             };
             let controller = stack_obj.controller;
-
             // CR 702.175a: Intervening-if re-check.
             // Offspring is binary (paid or not), so the only re-check needed is whether
             // the permanent (if still on the battlefield) still has KeywordAbility::Offspring.
@@ -4453,7 +4269,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     return Ok(events);
                 }
             }
-
             // CR 707.2 / 707.9d: Build the token using copiable values of the source.
             // If the source is still on the battlefield, clone its characteristics.
             // If it left, clone from the card registry (LKI per ruling 2024-07-26).
@@ -4498,7 +4313,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                 })
                 .unwrap_or_default();
-
             let token_obj = crate::state::game_object::GameObject {
                 id: crate::state::game_object::ObjectId(0), // replaced by add_object
                 card_id: None,
@@ -4567,9 +4381,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: Designations::default(),
+                adventure_exiled_by: None,
                 meld_component: None,
             };
-
             // Add the token to the battlefield.
             let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
                 Ok(id) => id,
@@ -4581,7 +4395,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     return Ok(events);
                 }
             };
-
             // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
             // has the copiable characteristics of the source creature.
             // NOTE: source_object may have left the battlefield; CopyOf still records
@@ -4596,7 +4409,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 );
                 state.continuous_effects.push_back(copy_effect);
             }
-
             // CR 702.175a: "except it's 1/1" -- apply a Layer 7b effect that sets base P/T to 1/1.
             // This effect is indefinite (not until-end-of-turn) and applies on top of the CopyOf.
             //
@@ -4633,7 +4445,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 is_cda: false,
             };
             state.continuous_effects.push_back(pt_override);
-
             events.push(GameEvent::TokenCreated {
                 player: controller,
                 object_id: token_id,
@@ -4642,13 +4453,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 player: controller,
                 object_id: token_id,
             });
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.174b: Gift ETB trigger resolution.
         //
         // "When this permanent enters, if its gift cost was paid, [gift effect]."
@@ -4674,7 +4483,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Intervening-if re-check — source must still have Gift keyword.
             let source_on_battlefield = state
                 .objects
@@ -4697,7 +4505,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     return Ok(events);
                 }
             }
-
             // Look up the gift type from the card definition.
             // Use source_card_id for LKI fallback if source has left the battlefield.
             let card_id_for_lookup = state
@@ -4706,7 +4513,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .filter(|o| o.zone == ZoneId::Battlefield)
                 .and_then(|o| o.card_id.clone())
                 .or_else(|| source_card_id.clone());
-
             let gift_type = card_id_for_lookup
                 .and_then(|cid| state.card_registry.get(cid))
                 .and_then(|def| {
@@ -4721,18 +4527,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     })
                 });
-
             if let Some(gift_type) = gift_type {
                 let gift_events = execute_gift_effect(state, gift_opponent, controller, &gift_type);
                 events.extend(gift_events);
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.171a: Saddle ability resolution.
         //
         // The Mount becomes saddled until end of turn (CR 702.171b). If the Mount
@@ -4740,7 +4543,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // fizzles-like: no effect (CR 608.2b analog for non-targeted abilities).
         StackObjectKind::SaddleAbility { source_object } => {
             let controller = stack_obj.controller;
-
             // CR 702.171b: "stays saddled until the end of the turn or it leaves
             // the battlefield." Only set if Mount is still on the battlefield.
             if let Some(obj) = state.objects.get_mut(&source_object) {
@@ -4748,13 +4550,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     obj.designations.insert(Designations::SADDLED);
                 }
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.99a: Cipher trigger resolution.
         //
         // "Whenever [encoded creature] deals combat damage to a player, you may copy
@@ -4775,7 +4575,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // CR 702.99c: Verify the encoded card still exists in exile.
             // If not, the trigger fizzles (no copy created).
             let still_in_exile = state
@@ -4783,7 +4582,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .get(&encoded_object_id)
                 .map(|obj| matches!(obj.zone, ZoneId::Exile))
                 .unwrap_or(false);
-
             if still_in_exile {
                 // Create a copy of the spell from the encoded card definition.
                 // The copy is placed on the stack as a new StackObject.
@@ -4805,33 +4603,27 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // is_copy: true -- the encoded card stays in exile; this copy has no
                 // physical card to move when it resolves (CR 702.99a / ruling 2013-04-15).
                 copy_stack_obj.is_copy = true;
-
                 state.stack_objects.push_back(copy_stack_obj);
-
                 // Ruling 2013-04-15: cipher casts trigger "whenever you cast" abilities.
                 // Increment spells_cast_this_turn for the controller.
                 if let Some(ps) = state.players.get_mut(&controller) {
                     ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
                 }
-
                 // CR 116.3b: Casting a spell resets priority (all players must pass again).
                 state.turn.players_passed = im::OrdSet::new();
                 let active = state.turn.active_player;
                 state.turn.priority_holder = Some(active);
-
                 events.push(GameEvent::SpellCast {
                     player: controller,
                     stack_object_id: copy_stack_id,
                     source_object_id: encoded_object_id,
                 });
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.55a: HauntExileTrigger resolution.
         //
         // "When this creature dies / this spell is put into a graveyard during its
@@ -4855,14 +4647,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // CR 702.55a: Verify the haunt card is still in the graveyard.
             let card_in_graveyard = state
                 .objects
                 .get(&haunt_card)
                 .map(|obj| matches!(obj.zone, crate::state::zone::ZoneId::Graveyard(_)))
                 .unwrap_or(false);
-
             if card_in_graveyard {
                 // Find the first legal creature on the battlefield for MVP auto-targeting.
                 // CR 702.55a: "exile it haunting target creature" — any creature is legal.
@@ -4880,19 +4670,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     })
                     .map(|(&id, _)| id)
                     .next();
-
                 if let Some(target_creature) = target_creature_id {
                     // Move the haunt card from graveyard to exile.
                     // CR 400.7: creates a new ObjectId for the exiled card.
                     let (new_exile_id, _) =
                         state.move_object_to_zone(haunt_card, crate::state::zone::ZoneId::Exile)?;
-
                     // CR 702.55b: Set haunting_target on the newly exiled card.
                     // This links the exiled card to the target creature's current ObjectId.
                     if let Some(exiled_obj) = state.objects.get_mut(&new_exile_id) {
                         exiled_obj.haunting_target = Some(target_creature);
                     }
-
                     events.push(GameEvent::HauntExiled {
                         controller,
                         exiled_card: new_exile_id,
@@ -4902,13 +4689,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Else: no legal creature target exists — fizzle (card stays in graveyard).
             }
             // Else: haunt card is no longer in graveyard — fizzle.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.55c: HauntedCreatureDiesTrigger resolution.
         //
         // "When the creature [this card] haunts dies, [effect]."
@@ -4929,7 +4714,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // CR 702.55c: Verify the haunt card is still in exile with haunting_target set.
             let still_in_exile = state
                 .objects
@@ -4939,7 +4723,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         && obj.haunting_target.is_some()
                 })
                 .unwrap_or(false);
-
             if still_in_exile {
                 // Look up the card definition to find the haunt effect.
                 // The effect is the "When the creature it haunts dies" triggered ability effect.
@@ -4952,7 +4735,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(&haunt_source)
                             .and_then(|o| o.card_id.clone())
                     });
-
                     card_id_opt.and_then(|cid| {
                         state.card_registry.get(cid).and_then(|def| {
                             // Find the triggered ability with HauntedCreatureDies condition.
@@ -4973,7 +4755,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                     })
                 };
-
                 if let Some(effect) = haunt_effect {
                     let mut ctx =
                         crate::effects::EffectContext::new(controller, haunt_source, vec![]);
@@ -4989,13 +4770,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Else: no HauntedCreatureDies ability found — fizzle (card has no such trigger).
             }
             // Else: haunt card no longer in exile or haunting_target cleared — fizzle.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 207.2c: Bloodrush activated ability resolution.
         //
         // At resolution, re-validate the target (CR 608.2b):
@@ -5019,7 +4798,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             };
             use crate::state::types::CardType;
             let controller = stack_obj.controller;
-
             // CR 608.2b: Check target legality at resolution.
             // The target must still be on the battlefield as a creature AND still attacking.
             // CR 613.1d: Use layer-resolved types for creature check (animated permanents).
@@ -5039,7 +4817,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .as_ref()
                 .map(|c| c.attackers.contains_key(&target_creature))
                 .unwrap_or(false);
-
             if is_on_battlefield && is_attacking {
                 // Register +power_boost/+toughness_boost (Layer 7c, UntilEndOfTurn).
                 // Use separate Power and Toughness modifications if they differ;
@@ -5084,7 +4861,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_cda: false,
                     });
                 }
-
                 // If a keyword is granted, register Layer 6 effect (UntilEndOfTurn).
                 if let Some(keyword) = grants_keyword {
                     let kw_set: im::OrdSet<crate::state::types::KeywordAbility> =
@@ -5106,13 +4882,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             }
             // If not legal (fizzled): card is already in graveyard (discarded as cost).
             // No pump or keyword grant applied.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Backup(_),
@@ -5124,14 +4898,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-
             // Fizzle check: target must still be on the battlefield.
             let target_exists = state
                 .objects
                 .get(&target_creature)
                 .map(|o| o.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
-
             if !target_exists {
                 // Target is gone; trigger fizzles silently (CR 608.2b).
                 // Emit AbilityResolved to complete resolution without effect.
@@ -5156,7 +4928,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     counter: CounterType::PlusOnePlusOne,
                     count: counter_count,
                 });
-
                 // 2. If target is another creature and there are abilities to grant,
                 //    register Layer 6 UntilEndOfTurn continuous effect (CR 702.165a, 702.165d).
                 if target_creature != source_object && !abilities_to_grant.is_empty() {
@@ -5181,14 +4952,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     };
                     state.continuous_effects.push_back(eff);
                 }
-
                 events.push(GameEvent::AbilityResolved {
                     controller,
                     stack_object_id: stack_obj.id,
                 });
             }
         }
-
         // CR 702.116a: Myriad trigger resolves -- create token copies of the source
         // creature for each opponent other than the defending player, each tapped and
         // attacking that opponent.
@@ -5208,7 +4977,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::MyriadAttack { defending_player },
         } => {
             let controller = stack_obj.controller;
-
             // Find all active opponents of the source's controller excluding the defending player.
             // CR 702.116a: "for each opponent other than defending player."
             let opponents: Vec<crate::state::player::PlayerId> = state
@@ -5219,7 +4987,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 })
                 .map(|p| p.id)
                 .collect();
-
             // CR 702.116a: If no eligible opponents, no tokens are created.
             // (e.g. 2-player game where defending player is the only opponent).
             for opponent_id in opponents {
@@ -5234,7 +5001,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 {
                     break;
                 }
-
                 // Build a blank token object that will become a copy of the source.
                 // CR 111.10: Tokens enter the battlefield as the stated kind of object.
                 // CR 707.2: Copy uses copiable values of the source creature.
@@ -5316,15 +5082,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    adventure_exiled_by: None,
                     meld_component: None,
                 };
-
                 // Add the token to the battlefield.
                 let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
                     Ok(id) => id,
                     Err(_) => continue,
                 };
-
                 // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
                 // has the copiable characteristics of the source creature.
                 // This ensures correct P/T, name, subtypes, etc. via the layer system.
@@ -5335,7 +5100,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     controller,
                 );
                 state.continuous_effects.push_back(copy_effect);
-
                 // CR 702.116a: Token is "tapped and attacking" -- register it in combat state
                 // as attacking the opponent. Tokens enter attacking but were NOT declared
                 // as attackers, so "whenever a creature attacks" triggers do NOT fire
@@ -5346,7 +5110,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         crate::state::combat::AttackTarget::Player(opponent_id),
                     );
                 }
-
                 events.push(GameEvent::TokenCreated {
                     player: controller,
                     object_id: token_id,
@@ -5356,13 +5119,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: token_id,
                 });
             }
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.62a: Suspend counter-removal trigger resolves.
         //
         // "At the beginning of your upkeep, if this card is suspended, remove a
@@ -5375,7 +5136,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             suspended_card,
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Re-check intervening-if condition at resolution.
             // Card must still be in exile and have at least one time counter.
             let current_counters = state
@@ -5385,7 +5145,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     obj.zone == ZoneId::Exile && obj.designations.contains(Designations::SUSPENDED)
                 })
                 .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
-
             if let Some(count) = current_counters {
                 if count > 0 {
                     // Remove one time counter (CR 702.62a).
@@ -5402,7 +5161,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         counter: CounterType::Time,
                         count: 1,
                     });
-
                     // If this was the last time counter, queue the suspend cast trigger.
                     // CR 702.62a (third triggered ability): "When the last time counter
                     // is removed from this card, if it's exiled, you may play it without
@@ -5429,13 +5187,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If not in exile or no counters, the trigger does nothing (CR 603.4).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.62a: Suspend cast trigger resolves.
         //
         // "When the last time counter is removed from this card, if it's exiled,
@@ -5450,19 +5206,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             owner,
         } => {
             let controller = stack_obj.controller;
-
             // CR 603.4: Re-check intervening-if condition — card must still be in exile.
             let still_in_exile = state
                 .objects
                 .get(&suspended_card)
                 .map(|obj| obj.zone == ZoneId::Exile)
                 .unwrap_or(false);
-
             if still_in_exile {
                 // Cast the card without paying its mana cost (CR 702.62a / CR 702.62d).
                 // This follows the same pattern as cascade's free-cast (copy.rs:resolve_cascade).
                 let stack_entry_id = state.next_object_id();
-
                 // Move card from exile to stack zone (new ObjectId via CR 400.7).
                 match state.move_object_to_zone(suspended_card, ZoneId::Stack) {
                     Ok((stack_source_id, _old)) => {
@@ -5472,7 +5225,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(&stack_source_id)
                             .map(|obj| obj.characteristics.card_types.contains(&CardType::Creature))
                             .unwrap_or(false);
-
                         // Create a StackObject for the suspended spell.
                         // CR 702.62a: suspend IS a cast — it triggers "whenever you cast a spell".
                         // MR-TC-25: use trigger_default; override was_suspended = true.
@@ -5488,22 +5240,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // so resolution.rs can clear summoning sickness on ETB.
                         suspend_stack_obj.was_suspended = true;
                         state.stack_objects.push_back(suspend_stack_obj);
-
                         // CR 116.3b: Casting a spell resets priority. All players must
                         // pass again before the newly-cast suspend spell resolves.
                         state.turn.players_passed = im::OrdSet::new();
-
                         // CR 702.62a: suspend triggers "whenever you cast a spell".
                         if let Some(ps) = state.players.get_mut(&owner) {
                             ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
                         }
-
                         events.push(GameEvent::SpellCast {
                             player: owner,
                             stack_object_id: stack_entry_id,
                             source_object_id: stack_source_id,
                         });
-
                         // For creature spells cast via suspend: the permanent will gain
                         // haste. We mark this by noting is_creature here. The actual
                         // haste grant (clearing summoning sickness) is done in the
@@ -5516,13 +5264,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If not in exile (already moved, countered, etc.), do nothing per CR 603.4.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.75a: Hideaway ETB trigger resolution.
         //
         // "When this permanent enters, look at the top N cards of your library.
@@ -5542,7 +5288,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(controller);
-
             // Collect the top N cards from the controller's library.
             // Library is an ordered zone: last element = top (CR 400.7, zone.rs).
             let top_ids: Vec<ObjectId> = {
@@ -5555,7 +5300,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 })
                 .unwrap_or_default()
             };
-
             if top_ids.is_empty() {
                 // Library has no cards; trigger resolves with no effect (CR 702.75a).
                 events.push(GameEvent::AbilityResolved {
@@ -5566,7 +5310,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Deterministic fallback: exile the first (top) card.
                 let exile_card_id = top_ids[0];
                 let remaining: Vec<ObjectId> = top_ids[1..].to_vec();
-
                 // Move chosen card to exile face-down (CR 702.75a, CR 406.3).
                 match state.move_object_to_zone(exile_card_id, ZoneId::Exile) {
                     Ok((new_exile_id, _)) => {
@@ -5575,7 +5318,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             exile_obj.status.face_down = true;
                             exile_obj.exiled_by_hideaway = Some(source_object);
                         }
-
                         // Put remaining cards on the bottom of the library in a random
                         // (seeded) order (CR 702.75a: "random order").
                         // Seeded Fisher-Yates using timestamp_counter as seed.
@@ -5595,7 +5337,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         for &card_id in &shuffled {
                             let _ = state.move_object_to_bottom_of_zone(card_id, lib_zone);
                         }
-
                         events.push(GameEvent::HideawayExiled {
                             player: controller,
                             source: source_object,
@@ -5617,7 +5358,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
         }
-
         // CR 702.124j: Partner With ETB trigger resolution.
         //
         // "When this permanent enters, target player may search their library
@@ -5641,7 +5381,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(target_player);
-
             // Find the first card in the target player's library with the exact name.
             // Use lowest ObjectId for determinism (im::OrdMap iteration order is
             // by key, so iteration is already in ascending ObjectId order).
@@ -5651,14 +5390,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .filter(|(_, obj)| obj.zone == lib_zone && obj.characteristics.name == partner_name)
                 .map(|(id, _)| *id)
                 .next();
-
             if let Some(card_id) = matching_card {
                 // Found -- move to target player's hand (reveal is implicit since
                 // the card is being put into hand from a search).
                 let hand_zone = ZoneId::Hand(target_player);
                 let _ = state.move_object_to_zone(card_id, hand_zone);
             }
-
             // Whether found or not, shuffle the target player's library (CR 701.20).
             // Use seeded LCG (same pattern as Hideaway) for determinism.
             let seed = state.timestamp_counter;
@@ -5679,7 +5416,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     let _ = state.move_object_to_bottom_of_zone(card_id, lib_zone);
                 }
             }
-
             events.push(GameEvent::LibraryShuffled {
                 player: target_player,
             });
@@ -5688,7 +5424,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.115a: Ingest trigger resolves -- exile the top card of the
         // damaged player's library.
         //
@@ -5705,10 +5440,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             let lib_id = ZoneId::Library(target_player);
-
             // Check if the target player has cards in their library.
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
-
             if let Some(card_id) = top_card {
                 // Exile the top card (CR 702.115a).
                 if let Ok((new_exile_id, _old_obj)) =
@@ -5722,13 +5455,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If library is empty, do nothing (ruling 2015-08-25).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.25a: Flanking trigger resolves -- the blocking creature gets
         // -1/-1 until end of turn.
         //
@@ -5737,7 +5468,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // by resolution time (CR 400.7), the trigger does nothing.
         // Combat triggers (Flanking, Rampage, Provoke, Renown, Melee, Poisonous, Enlist)
         // are now dispatched via KeywordTrigger -- see the KeywordTrigger match arm below.
-
         // CR 702.49a: Ninjutsu activated ability resolves -- put the ninja card from
         // hand (or command zone for commander ninjutsu, CR 702.49d) onto the battlefield
         // tapped and attacking the inherited attack target.
@@ -5756,7 +5486,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             from_command_zone,
         } => {
             let controller = stack_obj.controller;
-
             // 1. Check if ninja card is still in the expected zone (CR 400.7).
             //    Hand for regular ninjutsu; command zone for commander ninjutsu.
             //    CRITICAL: ZoneId::Command(player), NOT ZoneId::CommandZone.
@@ -5770,7 +5499,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .get(&ninja_card)
                 .map(|obj| obj.zone == expected_zone)
                 .unwrap_or(false);
-
             if still_in_zone {
                 // 2. Check attack target is still valid (CR 508.4a).
                 //    If invalid, creature enters battlefield but is not attacking.
@@ -5786,12 +5514,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .map(|o| o.zone == ZoneId::Battlefield)
                         .unwrap_or(false),
                 };
-
                 let combat_active = state.combat.is_some();
-
                 // 3. Move ninja from hand/command zone to battlefield (CR 702.49a).
                 let (new_id, _old) = state.move_object_to_zone(ninja_card, ZoneId::Battlefield)?;
-
                 // 4. Set controller and tapped status.
                 let card_id = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
                 if let Some(obj) = state.objects.get_mut(&new_id) {
@@ -5800,7 +5525,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // tapped and attacking."
                     obj.status.tapped = true;
                 }
-
                 // 5. Register in combat state as attacking the same target.
                 //    CR 702.49c: "attacking the same player, planeswalker, or battle"
                 //    CR 702.49c: "put onto the battlefield unblocked"
@@ -5816,7 +5540,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 // If target_valid is false (CR 508.4a), ninja enters tapped but is NOT
                 // registered as an attacking creature.
-
                 // 6. Apply self ETB replacements + global ETB replacements.
                 //    Follow the full ETB site pattern (gotchas-infra.md).
                 let registry = state.card_registry.clone();
@@ -5831,7 +5554,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let etb_evts =
                     super::replacement::apply_etb_replacements(state, new_id, controller);
                 events.extend(etb_evts);
-
                 // 7. Register replacement abilities and static continuous effects.
                 super::replacement::register_permanent_replacement_abilities(
                     state,
@@ -5846,13 +5568,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     card_id.as_ref(),
                     &registry,
                 );
-
                 // 8. Emit PermanentEnteredBattlefield.
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,
                     object_id: new_id,
                 });
-
                 // 9. Queue WhenEntersBattlefield triggered abilities from card definition.
                 //    CR 603.3: ETB triggers on the ninja's own definition go on the stack.
                 let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
@@ -5865,13 +5585,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(etb_trigger_evts);
             }
             // If ninja left the expected zone, ability does nothing (CR 400.7).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.128a: Embalm activated ability resolves.
         //
         // "Create a token that's a copy of this card, except it's white, it has no
@@ -5887,12 +5605,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::EmbalmAbility { source_card_id } => {
             let controller = stack_obj.controller;
             let registry = state.card_registry.clone();
-
             // Look up the card definition for token characteristics.
             let def_opt = source_card_id
                 .as_ref()
                 .and_then(|cid| registry.get(cid.clone()));
-
             if let Some(def) = def_opt {
                 // Build token subtypes: copy from card definition, add Zombie.
                 // CR 702.128a: "Zombie in addition to its other types"
@@ -5901,13 +5617,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     subtypes.insert(st.clone() as SubType);
                 }
                 subtypes.insert(SubType("Zombie".to_string()));
-
                 // Build token card types from card definition.
                 let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
                 for ct in &def.types.card_types {
                     card_types.insert(*ct);
                 }
-
                 // Build token keywords from card definition's printed abilities.
                 let mut keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
                 for ability in &def.abilities {
@@ -5915,12 +5629,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         keywords.insert(kw.clone());
                     }
                 }
-
                 // CR 702.128a: "except it's white" -- replace all colors with White.
                 // CR 707.9b: This color override becomes the copiable value.
                 let mut colors: im::OrdSet<Color> = im::OrdSet::new();
                 colors.insert(Color::White);
-
                 // CR 702.128a: "it has no mana cost" -- mana cost is None (mana value 0).
                 // CR 707.9d: The CDA that might define color from mana cost is not copied.
                 let characteristics = crate::state::game_object::Characteristics {
@@ -5954,7 +5666,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty: None,
                     defense: None,
                 };
-
                 let token_obj = crate::state::game_object::GameObject {
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: source_card_id.clone(),
@@ -6022,17 +5733,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    adventure_exiled_by: None,
                     meld_component: None,
                 };
-
                 // Add the token to the battlefield.
                 let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
-
                 // Set controller (add_object uses a default; enforce it here).
                 if let Some(obj) = state.objects.get_mut(&token_id) {
                     obj.controller = controller;
                 }
-
                 // Run the full ETB pipeline for the token.
                 // (ETB replacements, static continuous effects, ETB triggers.)
                 let self_evts = super::replacement::apply_self_etb_from_definition(
@@ -6046,7 +5755,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let etb_evts =
                     super::replacement::apply_etb_replacements(state, token_id, controller);
                 events.extend(etb_evts);
-
                 super::replacement::register_permanent_replacement_abilities(
                     state,
                     token_id,
@@ -6060,7 +5768,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     source_card_id.as_ref(),
                     &registry,
                 );
-
                 events.push(GameEvent::TokenCreated {
                     player: controller,
                     object_id: token_id,
@@ -6069,7 +5776,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     player: controller,
                     object_id: token_id,
                 });
-
                 // Queue WhenEntersBattlefield triggered abilities from card definition.
                 // CR 603.3: goes on stack at next priority window.
                 let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
@@ -6082,13 +5788,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(etb_trigger_evts);
             }
             // If no card definition found, ability does nothing (shouldn't happen in practice).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.129a: Eternalize activated ability resolves.
         //
         // "Create a token that's a copy of this card, except it's black, it's 4/4,
@@ -6108,12 +5812,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             let registry = state.card_registry.clone();
-
             // Look up the card definition for token characteristics.
             let def_opt = source_card_id
                 .as_ref()
                 .and_then(|cid| registry.get(cid.clone()));
-
             if let Some(def) = def_opt {
                 // Build token subtypes: copy from card definition, add Zombie.
                 // CR 702.129a: "Zombie in addition to its other types"
@@ -6122,13 +5824,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     subtypes.insert(st.clone() as SubType);
                 }
                 subtypes.insert(SubType("Zombie".to_string()));
-
                 // Build token card types from card definition.
                 let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
                 for ct in &def.types.card_types {
                     card_types.insert(*ct);
                 }
-
                 // Build token keywords from card definition's printed abilities.
                 let mut keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
                 for ability in &def.abilities {
@@ -6136,12 +5836,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         keywords.insert(kw.clone());
                     }
                 }
-
                 // CR 702.129a: "except it's black" -- replace all colors with Black.
                 // CR 707.9b: This color override becomes the copiable value.
                 let mut colors: im::OrdSet<Color> = im::OrdSet::new();
                 colors.insert(Color::Black);
-
                 // CR 702.129a: "it has no mana cost" -- mana cost is None (mana value 0).
                 // CR 702.129a: "it's 4/4" -- P/T overridden to 4/4.
                 // CR 707.9d: The CDA that might define color from mana cost is not copied.
@@ -6172,7 +5870,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty: None,
                     defense: None,
                 };
-
                 let token_obj = crate::state::game_object::GameObject {
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: source_card_id.clone(),
@@ -6240,17 +5937,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
                     designations: Designations::default(),
+                    adventure_exiled_by: None,
                     meld_component: None,
                 };
-
                 // Add the token to the battlefield.
                 let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
-
                 // Set controller (add_object uses a default; enforce it here).
                 if let Some(obj) = state.objects.get_mut(&token_id) {
                     obj.controller = controller;
                 }
-
                 // Run the full ETB pipeline for the token.
                 // (ETB replacements, static continuous effects, ETB triggers.)
                 let self_evts = super::replacement::apply_self_etb_from_definition(
@@ -6264,7 +5959,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let etb_evts =
                     super::replacement::apply_etb_replacements(state, token_id, controller);
                 events.extend(etb_evts);
-
                 super::replacement::register_permanent_replacement_abilities(
                     state,
                     token_id,
@@ -6278,7 +5972,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     source_card_id.as_ref(),
                     &registry,
                 );
-
                 events.push(GameEvent::TokenCreated {
                     player: controller,
                     object_id: token_id,
@@ -6287,7 +5980,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     player: controller,
                     object_id: token_id,
                 });
-
                 // Queue WhenEntersBattlefield triggered abilities from card definition.
                 // CR 603.3: goes on stack at next priority window.
                 let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
@@ -6300,13 +5992,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(etb_trigger_evts);
             }
             // If no card definition found, ability does nothing (shouldn't happen in practice).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.141a: Encore activated ability resolves.
         //
         // "For each opponent, create a token that's a copy of this card that
@@ -6325,12 +6015,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             let registry = state.card_registry.clone();
-
             // Look up the card definition for token characteristics.
             let def_opt = source_card_id
                 .as_ref()
                 .and_then(|cid| registry.get(cid.clone()));
-
             if let Some(def) = def_opt {
                 // Collect active opponents (players who haven't lost or conceded).
                 // CR 702.141a: "for each opponent" -- only active opponents.
@@ -6340,7 +6028,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .filter(|p| !p.has_lost && !p.has_conceded && p.id != activator)
                     .map(|p| p.id)
                     .collect();
-
                 // Build token keywords from card definition's printed abilities.
                 // CR 702.141a: "tokens gain haste" -- add Haste to whatever the card has.
                 let mut base_keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
@@ -6350,19 +6037,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
                 base_keywords.insert(KeywordAbility::Haste);
-
                 // Build token card types from card definition.
                 let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
                 for ct in &def.types.card_types {
                     card_types.insert(*ct);
                 }
-
                 // Build token subtypes from card definition.
                 let mut subtypes: im::OrdSet<SubType> = im::OrdSet::new();
                 for st in &def.types.subtypes {
                     subtypes.insert(st.clone() as SubType);
                 }
-
                 // Build token colors from card definition (copies original colors).
                 // CR 707.2: copiable values include color.
                 let mut colors: im::OrdSet<Color> = im::OrdSet::new();
@@ -6383,10 +6067,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         colors.insert(Color::Green);
                     }
                 }
-
                 for opponent_id in opponent_ids {
                     let keywords = base_keywords.clone();
-
                     let characteristics = crate::state::game_object::Characteristics {
                         name: def.name.clone(),
                         mana_cost: def.mana_cost.clone(), // copies original mana cost
@@ -6406,7 +6088,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         loyalty: None,
                         defense: None,
                     };
-
                     let token_obj = crate::state::game_object::GameObject {
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: source_card_id.clone(),
@@ -6476,17 +6157,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         loyalty_ability_activated_this_turn: false,
                         class_level: 0,
                         designations: Designations::default(),
+                        adventure_exiled_by: None,
                         meld_component: None,
                     };
-
                     // Add the token to the battlefield.
                     let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
-
                     // Set controller (add_object uses a default; enforce it here).
                     if let Some(obj) = state.objects.get_mut(&token_id) {
                         obj.controller = controller;
                     }
-
                     // Run the full ETB pipeline for the token.
                     let self_evts = super::replacement::apply_self_etb_from_definition(
                         state,
@@ -6499,7 +6178,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     let etb_evts =
                         super::replacement::apply_etb_replacements(state, token_id, controller);
                     events.extend(etb_evts);
-
                     super::replacement::register_permanent_replacement_abilities(
                         state,
                         token_id,
@@ -6513,7 +6191,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         source_card_id.as_ref(),
                         &registry,
                     );
-
                     events.push(GameEvent::TokenCreated {
                         player: controller,
                         object_id: token_id,
@@ -6522,7 +6199,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         player: controller,
                         object_id: token_id,
                     });
-
                     // Queue WhenEntersBattlefield triggered abilities from card definition.
                     // CR 603.3: goes on stack at next priority window.
                     let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
@@ -6536,13 +6212,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
             // If no card definition found, ability does nothing.
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.141a: Encore delayed sacrifice trigger resolves.
         //
         // "Sacrifice them at the beginning of the next end step."
@@ -6558,14 +6232,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             data: crate::state::stack::TriggerData::EncoreSacrifice { activator },
         } => {
             let controller = stack_obj.controller;
-
             // Check if the token is still on the battlefield (CR 400.7).
             let token_info = state
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
                 .map(|obj| (obj.owner, obj.controller));
-
             if let Some((owner, current_controller)) = token_info {
                 // Ruling 2020-11-10: "If one of the tokens is under another player's
                 // control as the delayed triggered ability resolves, you can't sacrifice
@@ -6576,7 +6248,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .get(&source_object)
                         .map(|o| o.counters.clone())
                         .unwrap_or_default();
-
                     // Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,
@@ -6586,7 +6257,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         owner,
                         &std::collections::HashSet::new(),
                     );
-
                     match action {
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to,
@@ -6648,13 +6318,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // else: token under another player's control -- do nothing (stays).
             }
             // If not on battlefield, do nothing (already gone).
-
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
             });
         }
-
         // CR 702.140b / CR 729.2: Mutating creature spell resolution.
         //
         // CR 702.140b: If the target becomes illegal before this spell resolves
@@ -6680,7 +6348,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     _ => None,
                 })
                 .unwrap_or(false);
-
             // CR 702.140b: Check if the target is still legal at resolution time.
             let target_still_legal = {
                 if let Some(target_obj) = state.objects.get(&target) {
@@ -6701,7 +6368,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     false
                 }
             };
-
             if !target_still_legal {
                 // CR 702.140b: Illegal target fallback — resolve as a normal creature spell.
                 // The spell enters the battlefield as a regular creature (no merge).
@@ -6724,7 +6390,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             } else {
                 // CR 729.2: Legal target — merge the spell with the target permanent.
                 // The spell does NOT enter the battlefield separately.
-
                 // Step 1: Capture the spell's data from the source object BEFORE removing it.
                 let spell_card_id = state
                     .objects
@@ -6740,14 +6405,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .get(&source_object)
                     .map(|o| o.is_token)
                     .unwrap_or(false);
-
                 // Step 2: Build a MergedComponent from the spell's data.
                 let spell_component = MergedComponent {
                     card_id: spell_card_id,
                     characteristics: spell_characteristics,
                     is_token: spell_is_token,
                 };
-
                 // Step 3: Build a MergedComponent from the target permanent's current data.
                 // This is needed if the target has no components yet (first merge).
                 let target_existing_components = {
@@ -6768,7 +6431,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .get(&target)
                     .map(|o| o.is_token)
                     .unwrap_or(false);
-
                 // Step 4: Build the new merged_components vector.
                 // If the target had no components, first record the target itself as component[0].
                 // Then insert the spell component at top (index 0) or bottom (end).
@@ -6805,7 +6467,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                         v
                     };
-
                 // Step 5: Update the target permanent's merged_components.
                 // CR 729.2c: The merged permanent is the SAME object — its ObjectId is preserved.
                 // No ETB triggers fire. Continuous effects (Auras, Equipment) remain valid.
@@ -6821,7 +6482,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                     target_obj.merged_components = new_components;
                 }
-
                 // Step 6: Remove the spell's source_object from state.
                 // CR 729.2b: "The spell leaves its previous zone and becomes part of an object."
                 // The card is absorbed into the target permanent's merged_components.
@@ -6833,7 +6493,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
                 state.objects.remove(&source_object);
-
                 // Step 7: Emit CreatureMutated event (CR 702.140d).
                 // This event fires BEFORE "whenever this creature mutates" triggers are checked,
                 // so check_triggers below will catch SelfMutates triggers on the merged permanent.
@@ -6841,7 +6500,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: target,
                     player: controller,
                 });
-
                 // Step 8: Emit SpellResolved for the mutating spell.
                 // source_object_id is the target (merged permanent) since the spell
                 // became part of it (CR 729.2b). No PermanentEnteredBattlefield (CR 729.2c).
@@ -7036,7 +6694,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let effect_events = execute_effect(state, &effect, &mut ctx);
             events.extend(effect_events);
         }
-
         // CR 716.2a: Class level-up activated ability resolution.
         //
         // Set the Class's level to `target_level` and register any continuous
@@ -7047,20 +6704,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             target_level,
         } => {
             use crate::cards::card_definition::AbilityDefinition;
-
             // CR 608.2b analog: if the Class is no longer on the battlefield, fizzle.
             let still_on_bf = state
                 .objects
                 .get(&source_object)
                 .map(|o| o.zone == crate::state::zone::ZoneId::Battlefield)
                 .unwrap_or(false);
-
             if still_on_bf {
                 // Set the class level.
                 if let Some(obj) = state.objects.get_mut(&source_object) {
                     obj.class_level = target_level;
                 }
-
                 // Register static continuous effects from the new level's abilities.
                 let card_id = state
                     .objects
@@ -7080,7 +6734,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             })
                             .flatten()
                             .collect();
-
                         for sub_ability in &level_abilities {
                             if let AbilityDefinition::Static { continuous_effect } = sub_ability {
                                 let eff_id = state.next_object_id().0;
@@ -7102,14 +6755,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
-
                 events.push(GameEvent::AbilityResolved {
                     controller: stack_obj.controller,
                     stack_object_id: stack_obj.id,
                 });
             }
         }
-
         // CR 309.4c: Room ability resolution — execute the room's effect.
         // The dungeon is in the command zone; the owner is the venture controller.
         StackObjectKind::RoomAbility {
@@ -7131,7 +6782,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(effect_events);
             }
         }
-
         // Consolidated keyword trigger resolution dispatch.
         // Each keyword+data combination delegates to the same logic as the
         // original one-off SOK variant it replaced.
@@ -7146,31 +6796,25 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             );
         }
     }
-
     // Check for triggered abilities arising from this resolution.
     let new_triggers = abilities::check_triggers(state, &events);
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
-
     // CR 704.3: Check SBAs before granting priority (happens after each resolution).
     // Trigger checking is done inside check_and_apply_sbas (per-pass).
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-
     // Flush any pending triggers onto the stack before granting priority (CR 603.3).
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
-
     // CR 116.3b: After resolution (and trigger flushing), the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.174d-i: Execute the gift effect for a specific opponent.
 ///
 /// Called at resolution time for both instant/sorcery spells (before main effect, CR 702.174j)
@@ -7191,9 +6835,7 @@ fn execute_gift_effect(
     gift_type: &crate::cards::card_definition::GiftType,
 ) -> Vec<GameEvent> {
     use crate::cards::card_definition::{food_token_spec, treasure_token_spec, GiftType};
-
     let mut events = vec![];
-
     match gift_type {
         GiftType::Food => {
             // CR 702.174d: "The chosen player creates a Food token."
@@ -7238,10 +6880,8 @@ fn execute_gift_effect(
             let _ = recipient;
         }
     }
-
     events
 }
-
 /// CR 608.2b: Check whether a spell target is still legal at resolution time.
 ///
 /// A target is illegal if:
@@ -7266,7 +6906,6 @@ fn is_target_legal(state: &GameState, spell_target: &SpellTarget) -> bool {
         }
     }
 }
-
 /// Counter a specific stack object without it resolving (CR 608.2b, 701.5).
 ///
 /// Finds the stack object by ID, removes it from the stack, and moves the
@@ -7279,7 +6918,6 @@ pub fn counter_stack_object(
     stack_object_id: ObjectId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // Find and remove the specified stack object (may not be the top).
     let pos = state
         .stack_objects
@@ -7287,7 +6925,6 @@ pub fn counter_stack_object(
         .position(|s| s.id == stack_object_id)
         .ok_or(GameStateError::ObjectNotFound(stack_object_id))?;
     let stack_obj = state.stack_objects.remove(pos);
-
     match stack_obj.kind.clone() {
         StackObjectKind::Spell { source_object }
         | StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
@@ -7296,13 +6933,14 @@ pub fn counter_stack_object(
             // CR 702.34a: If cast with flashback, exile instead of graveyard when countered.
             // CR 702.133a: Jump-start also exiles instead of graveyard when countered.
             // CR 702.140: Countered mutating spells move to graveyard like normal spells.
+            // NOTE: Adventure spells go to graveyard when countered, NOT exile
+            // (CR 715.3d: exile only on successful resolution).
             let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start {
                 ZoneId::Exile // CR 702.34a / CR 702.133a
             } else {
                 ZoneId::Graveyard(owner)
             };
             let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
-
             events.push(GameEvent::SpellCountered {
                 player: controller,
                 stack_object_id: stack_obj.id,
@@ -7382,16 +7020,13 @@ pub fn counter_stack_object(
             // the permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
         }
     }
-
     // CR 704.3: Check SBAs before granting priority.
     let sba_evts = sba::check_and_apply_sbas(state);
     events.extend(sba_evts);
-
     // After countering, the active player receives priority (same as resolution).
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
