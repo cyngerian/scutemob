@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     has_subtype: Some(SubType("Elf".to_string())),
                     ..Default::default()
                 })],

@@ -1,4 +1,5 @@
-// Grim Backwoods — Land, {T}: Add {C}. {2}{B}{G}, {T}, Sacrifice a creature: Draw a card (TODO).
+// Grim Backwoods — Rare Land
+// Oracle: "{T}: Add {C}.\n{2}{B}{G}, {T}, Sacrifice a creature: Draw a card."
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

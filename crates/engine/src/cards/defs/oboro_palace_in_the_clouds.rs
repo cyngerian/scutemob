@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::Source)) },
                     controller_override: None,
                 },
                 timing_restriction: None,

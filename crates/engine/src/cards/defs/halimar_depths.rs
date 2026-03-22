@@ -19,10 +19,11 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
             // When this land enters, look at the top three cards of your library, then put them back in any order.
-            // Approximated as Scry 3 (look + reorder top cards).
+            // TODO: DSL gap — no "rearrange top N" effect. Scry 3 is wrong (allows bottoming).
+            // Need Effect::RearrangeTopN or similar. Using empty effect until DSL supports this.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Scry { player: PlayerTarget::Controller, count: EffectAmount::Fixed(3) },
+                effect: Effect::Sequence(vec![]),
                 intervening_if: None,
                 targets: vec![],
             },

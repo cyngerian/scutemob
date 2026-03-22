@@ -1,4 +1,5 @@
-// High Market — Land, {T}: Add {C}. {T}, Sacrifice a creature: Gain 1 life (TODO).
+// High Market — Rare Land
+// Oracle: "{T}: Add {C}.\n{T}, Sacrifice a creature: You gain 1 life."
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

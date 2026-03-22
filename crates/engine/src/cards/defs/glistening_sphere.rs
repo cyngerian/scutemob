@@ -34,10 +34,9 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // Corrupted — {T}: Add three mana of any one color. Activate only if an opponent has 3+ poison counters.
-            // TODO: "three mana of any one color" requires a single AddManaAnyColor that produces 3. Approximated as AddManaAnyColor (1 mana).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaChoice { player: PlayerTarget::Controller, count: EffectAmount::Fixed(3) },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
