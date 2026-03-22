@@ -2405,6 +2405,10 @@ pub enum SpellCostFilter {
     HasCardType(CardType),
     /// Aura or Equipment spells (Danitha Capashen, Paragon).
     AuraOrEquipment,
+    /// Spells of a specific color (Jet Medallion: "Black spells you cast cost {1} less").
+    HasColor(Color),
+    /// Instant or sorcery spells (Goblin Electromancer).
+    InstantOrSorcery,
 }
 /// Who is affected by a spell cost modifier.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -2435,4 +2439,11 @@ pub enum SelfCostReduction {
     /// "costs {X} less where X is the total mana value of <permanents matching filter> you control"
     /// (Earthquake Dragon).
     TotalManaValue { filter: TargetFilter },
+    /// "costs {1} less for each opponent" — Undaunted (Curtains' Call).
+    PerOpponent,
+    /// "costs {X} less where X is the difference between starting life and current life"
+    /// (Shadow of Mortality). Only applies if life < starting life.
+    LifeLostFromStarting,
+    /// "costs {N} less if you control a creature with power >= threshold" (Bolt Bend).
+    ConditionalPowerThreshold { threshold: i32, reduction: u32 },
 }

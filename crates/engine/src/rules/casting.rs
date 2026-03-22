@@ -5681,6 +5681,11 @@ fn spell_matches_cost_filter(chars: &Characteristics, filter: &SpellCostFilter) 
             chars.subtypes.contains(&SubType("Aura".to_string()))
                 || chars.subtypes.contains(&SubType("Equipment".to_string()))
         }
+        SpellCostFilter::HasColor(color) => chars.colors.contains(color),
+        SpellCostFilter::InstantOrSorcery => {
+            chars.card_types.contains(&CardType::Instant)
+                || chars.card_types.contains(&CardType::Sorcery)
+        }
     }
 }
 /// CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
@@ -5797,6 +5802,50 @@ fn evaluate_self_cost_reduction(
                     }
                 })
                 .sum()
+        }
+        SelfCostReduction::PerOpponent => {
+            // Undaunted — costs {1} less for each opponent (CR 702.122).
+            state
+                .players
+                .iter()
+                .filter(|(pid, p)| **pid != caster && !p.has_lost)
+                .count() as u32
+        }
+        SelfCostReduction::LifeLostFromStarting => {
+            // Shadow of Mortality — costs {X} less where X is life lost from starting total.
+            // Commander starting life is 40 (CR 903.7).
+            const STARTING_LIFE: i64 = 40;
+            if let Some(player) = state.players.get(&caster) {
+                let current = player.life_total as i64;
+                if current < STARTING_LIFE {
+                    (STARTING_LIFE - current) as u32
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        }
+        SelfCostReduction::ConditionalPowerThreshold {
+            threshold,
+            reduction,
+        } => {
+            // Bolt Bend — costs {N} less if you control a creature with power >= threshold.
+            let has_big_creature = state.objects.values().any(|obj| {
+                obj.zone == ZoneId::Battlefield
+                    && obj.controller == caster
+                    && {
+                        let chars = calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                        chars.card_types.contains(&CardType::Creature)
+                            && chars.power.unwrap_or(0) >= *threshold
+                    }
+            });
+            if has_big_creature {
+                *reduction
+            } else {
+                0
+            }
         }
     }
 }
