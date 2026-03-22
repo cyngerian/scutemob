@@ -13,7 +13,6 @@
 //! - Cost: {2} generic mana, paid immediately
 //! - Card enters exile face-down (hidden from opponents)
 //! - Card can only be cast AFTER the current turn ends (CR 702.143a)
-
 use crate::rules::casting;
 use crate::rules::events::GameEvent;
 use crate::state::error::GameStateError;
@@ -22,7 +21,6 @@ use crate::state::player::PlayerId;
 use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
 /// CR 702.143a / CR 116.2h: Handle the ForetellCard special action.
 ///
 /// Validates:
@@ -46,7 +44,6 @@ pub fn handle_foretell_card(
     card: ObjectId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // CR 116.2h: Foretell requires the player to have priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -54,14 +51,12 @@ pub fn handle_foretell_card(
             actual: player,
         });
     }
-
     // CR 116.2h: Foretell can only be done during the player's own turn.
     if state.turn.active_player != player {
         return Err(GameStateError::InvalidCommand(
             "foretell: can only foretell a card during your own turn (CR 116.2h)".into(),
         ));
     }
-
     // Validate the card is in the player's hand.
     {
         let card_obj = state.object(card)?;
@@ -70,7 +65,6 @@ pub fn handle_foretell_card(
                 "foretell: card must be in your hand (CR 702.143a)".into(),
             ));
         }
-
         // Validate the card has the Foretell keyword (CR 702.143a).
         if !card_obj
             .characteristics
@@ -82,7 +76,6 @@ pub fn handle_foretell_card(
             ));
         }
     }
-
     // Validate and deduct {2} generic mana (CR 702.143a).
     {
         let foretell_cost = ManaCost {
@@ -96,7 +89,6 @@ pub fn handle_foretell_card(
         let ps_mut = state.player_mut(player)?;
         casting::pay_cost(&mut ps_mut.mana_pool, &foretell_cost);
     }
-
     // Emit ManaCostPaid event for the {2} foretell action cost.
     events.push(GameEvent::ManaCostPaid {
         player,
@@ -105,13 +97,10 @@ pub fn handle_foretell_card(
             ..Default::default()
         },
     });
-
     // Record the current turn number before moving the card (zone move creates new id).
     let current_turn = state.turn.turn_number;
-
     // Move the card from hand to exile (CR 400.7: new ObjectId).
     let (new_exile_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Exile)?;
-
     // Set the foretold attributes on the new exile object.
     // - face_down: true (opponents cannot see the card identity)
     // - is_foretold: true (marks this as a foretold card)
@@ -121,13 +110,11 @@ pub fn handle_foretell_card(
         exile_obj.designations.insert(Designations::FORETOLD);
         exile_obj.foretold_turn = current_turn;
     }
-
     // Emit CardForetold event.
     events.push(GameEvent::CardForetold {
         player,
         object_id: card,
         new_exile_id,
     });
-
     Ok(events)
 }

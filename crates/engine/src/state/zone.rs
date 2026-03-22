@@ -3,14 +3,11 @@
 //! MTG has seven zone types. Some are per-player (library, hand, graveyard,
 //! command), others are shared (battlefield, stack, exile). Zones are either
 //! ordered (position matters: library, graveyard, stack) or unordered.
-
+use super::game_object::ObjectId;
+use super::player::PlayerId;
 use im::{OrdSet, Vector};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-
-use super::game_object::ObjectId;
-use super::player::PlayerId;
-
 /// Zone types as described in CR 400.1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ZoneType {
@@ -22,7 +19,6 @@ pub enum ZoneType {
     Exile,
     Command,
 }
-
 /// Identifies a specific zone instance. Per-player zones encode the owner.
 ///
 /// This enum makes invalid states unrepresentable — you can't accidentally
@@ -37,7 +33,6 @@ pub enum ZoneId {
     Exile,
     Command(PlayerId),
 }
-
 impl ZoneId {
     pub fn zone_type(&self) -> ZoneType {
         match self {
@@ -50,7 +45,6 @@ impl ZoneId {
             ZoneId::Command(_) => ZoneType::Command,
         }
     }
-
     pub fn owner(&self) -> Option<PlayerId> {
         match self {
             ZoneId::Library(p) | ZoneId::Hand(p) | ZoneId::Graveyard(p) | ZoneId::Command(p) => {
@@ -59,7 +53,6 @@ impl ZoneId {
             ZoneId::Battlefield | ZoneId::Stack | ZoneId::Exile => None,
         }
     }
-
     /// Whether this zone type uses ordered storage (position matters).
     pub fn is_ordered(&self) -> bool {
         matches!(
@@ -68,7 +61,6 @@ impl ZoneId {
         )
     }
 }
-
 /// A zone containing game objects.
 ///
 /// Ordered zones (Library, Graveyard, Stack) use `Vector<ObjectId>` where
@@ -81,16 +73,13 @@ pub enum Zone {
     /// Hand, Battlefield, Exile, Command — order doesn't matter for game rules.
     Unordered(OrdSet<ObjectId>),
 }
-
 impl Zone {
     pub fn new_ordered() -> Self {
         Zone::Ordered(Vector::new())
     }
-
     pub fn new_unordered() -> Self {
         Zone::Unordered(OrdSet::new())
     }
-
     /// Create a zone with the appropriate storage type for the given ZoneId.
     pub fn for_zone_id(zone_id: &ZoneId) -> Self {
         if zone_id.is_ordered() {
@@ -99,25 +88,21 @@ impl Zone {
             Zone::new_unordered()
         }
     }
-
     pub fn contains(&self, id: &ObjectId) -> bool {
         match self {
             Zone::Ordered(v) => v.contains(id),
             Zone::Unordered(s) => s.contains(id),
         }
     }
-
     pub fn len(&self) -> usize {
         match self {
             Zone::Ordered(v) => v.len(),
             Zone::Unordered(s) => s.len(),
         }
     }
-
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
     /// Add an object to this zone. For ordered zones, appends to the end.
     pub fn insert(&mut self, id: ObjectId) {
         match self {
@@ -127,7 +112,6 @@ impl Zone {
             }
         }
     }
-
     /// Remove an object from this zone. Returns true if it was present.
     pub fn remove(&mut self, id: &ObjectId) -> bool {
         match self {
@@ -142,7 +126,6 @@ impl Zone {
             Zone::Unordered(s) => s.remove(id).is_some(),
         }
     }
-
     /// Returns all object IDs in this zone in a consistent order.
     pub fn object_ids(&self) -> Vec<ObjectId> {
         match self {
@@ -150,7 +133,6 @@ impl Zone {
             Zone::Unordered(s) => s.iter().copied().collect(),
         }
     }
-
     /// Shuffle this zone using the provided RNG. Only meaningful for ordered zones.
     /// Uses Fisher-Yates shuffle for uniform distribution.
     pub fn shuffle(&mut self, rng: &mut impl Rng) {
@@ -163,7 +145,6 @@ impl Zone {
             *v = Vector::from(items);
         }
     }
-
     /// Insert an object at a specific position (only for ordered zones).
     /// For unordered zones, just inserts normally.
     pub fn insert_at(&mut self, index: usize, id: ObjectId) {
@@ -174,7 +155,6 @@ impl Zone {
             }
         }
     }
-
     /// Get the top object (last element) of an ordered zone.
     pub fn top(&self) -> Option<ObjectId> {
         match self {
@@ -182,7 +162,6 @@ impl Zone {
             Zone::Unordered(_) => None,
         }
     }
-
     /// Insert an object at the front (position 0) of an ordered zone.
     ///
     /// For ordered zones this places the object at the "bottom" (the end

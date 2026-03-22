@@ -6,12 +6,10 @@
 //! into a `CardRegistry`, which `GameState` holds as `Arc<CardRegistry>`.
 //!
 //! See architecture doc Section 3.7 for the full design.
-
 pub mod card_definition;
 pub mod defs;
 pub mod helpers;
 pub mod registry;
-
 pub use card_definition::Effect;
 pub use card_definition::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,

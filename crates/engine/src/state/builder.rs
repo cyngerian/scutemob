@@ -3,13 +3,6 @@
 //! The builder panics on invalid configuration — it's a test utility, not a
 //! production API. Tests should always use `GameStateBuilder` rather than
 //! constructing `GameState` structs directly, ensuring all invariants hold.
-
-use std::sync::Arc;
-
-use im::{OrdMap, OrdSet, Vector};
-
-use crate::cards::CardRegistry;
-
 use super::continuous_effect::ContinuousEffect;
 use super::error::GameStateError;
 use super::game_object::{
@@ -27,10 +20,12 @@ use super::GameState;
 use crate::cards::card_definition::{
     ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget,
 };
+use crate::cards::CardRegistry;
 use crate::state::continuous_effect::{
     EffectDuration as CEDuration, EffectFilter as CEFilter, EffectLayer, LayerModification,
 };
-
+use im::{OrdMap, OrdSet, Vector};
+use std::sync::Arc;
 /// Builder for constructing `GameState` values in tests.
 pub struct GameStateBuilder {
     players: Vec<PlayerConfig>,
@@ -44,7 +39,6 @@ pub struct GameStateBuilder {
     is_first_turn_of_game: bool,
     card_registry: Arc<CardRegistry>,
 }
-
 struct PlayerConfig {
     id: PlayerId,
     life_total: i32,
@@ -54,7 +48,6 @@ struct PlayerConfig {
     land_plays_remaining: u32,
     max_hand_size: usize,
 }
-
 impl GameStateBuilder {
     pub fn new() -> Self {
         Self {
@@ -70,13 +63,11 @@ impl GameStateBuilder {
             card_registry: CardRegistry::empty(),
         }
     }
-
     /// Set the card registry for effect execution in tests that use real card definitions.
     pub fn with_registry(mut self, registry: Arc<CardRegistry>) -> Self {
         self.card_registry = registry;
         self
     }
-
     /// Create a builder pre-configured with 4 players (IDs 1-4) at 40 life.
     pub fn four_player() -> Self {
         Self::new()
@@ -85,7 +76,6 @@ impl GameStateBuilder {
             .add_player(PlayerId(3))
             .add_player(PlayerId(4))
     }
-
     /// Create a builder pre-configured with 6 players (IDs 1-6) at 40 life.
     ///
     /// Used by 6-player tests to validate that the engine's multiplayer systems
@@ -100,7 +90,6 @@ impl GameStateBuilder {
             .add_player(PlayerId(5))
             .add_player(PlayerId(6))
     }
-
     /// Add a player with Commander starting life (40).
     pub fn add_player(mut self, id: PlayerId) -> Self {
         // MR-M1-17: catch duplicate PlayerId in debug/test builds.
@@ -120,7 +109,6 @@ impl GameStateBuilder {
         });
         self
     }
-
     /// Configure a player using a `PlayerBuilder`.
     pub fn add_player_with(
         mut self,
@@ -131,7 +119,6 @@ impl GameStateBuilder {
         self.players.push(builder.config);
         self
     }
-
     /// Set a player's life total.
     pub fn player_life(mut self, id: PlayerId, life: i32) -> Self {
         // MR-M1-16: catch typo'd PlayerId in debug/test builds.
@@ -145,7 +132,6 @@ impl GameStateBuilder {
         debug_assert!(found, "player_life: PlayerId {:?} not found in builder", id);
         self
     }
-
     /// Set a player's poison counters.
     pub fn player_poison(mut self, id: PlayerId, counters: u32) -> Self {
         let mut found = false;
@@ -162,7 +148,6 @@ impl GameStateBuilder {
         );
         self
     }
-
     /// Set a player's mana pool.
     pub fn player_mana(mut self, id: PlayerId, pool: ManaPool) -> Self {
         let mut found = false;
@@ -175,7 +160,6 @@ impl GameStateBuilder {
         debug_assert!(found, "player_mana: PlayerId {:?} not found in builder", id);
         self
     }
-
     /// Register a commander for a player.
     pub fn player_commander(mut self, id: PlayerId, card_id: CardId) -> Self {
         let mut found = false;
@@ -192,37 +176,31 @@ impl GameStateBuilder {
         );
         self
     }
-
     /// Add a game object to the state.
     pub fn object(mut self, spec: ObjectSpec) -> Self {
         self.objects.push(spec);
         self
     }
-
     /// Set the starting turn number.
     pub fn turn_number(mut self, n: u32) -> Self {
         self.turn_number = n;
         self
     }
-
     /// Set the starting step (and derive phase from it).
     pub fn at_step(mut self, step: Step) -> Self {
         self.step = Some(step);
         self
     }
-
     /// Set the active player (defaults to first player).
     pub fn active_player(mut self, player: PlayerId) -> Self {
         self.active_player = Some(player);
         self
     }
-
     /// Mark this as the first turn of the game (first player skips draw).
     pub fn first_turn_of_game(mut self) -> Self {
         self.is_first_turn_of_game = true;
         self
     }
-
     /// Add a continuous effect to the game state (for layer system tests in M5+).
     ///
     /// Effects added via this method are placed directly into `state.continuous_effects`
@@ -231,7 +209,6 @@ impl GameStateBuilder {
         self.continuous_effects.push(effect);
         self
     }
-
     /// Add a replacement effect to the game state (for M8+ replacement/prevention tests).
     ///
     /// Effects added via this method are placed directly into `state.replacement_effects`
@@ -241,7 +218,6 @@ impl GameStateBuilder {
         self.replacement_effects.push(effect);
         self
     }
-
     /// Register a prevention shield counter for a `PreventDamage(n)` replacement effect.
     ///
     /// Used in tests to set up a shield with a specific remaining capacity.
@@ -250,7 +226,6 @@ impl GameStateBuilder {
         self.prevention_counters.insert(id, n);
         self
     }
-
     /// Build the `GameState`. Returns `Err` if configuration is invalid (e.g. no players).
     pub fn build(self) -> Result<GameState, GameStateError> {
         if self.players.is_empty() {
@@ -258,10 +233,8 @@ impl GameStateBuilder {
                 "must have at least one player".to_string(),
             ));
         }
-
         let player_ids: Vec<PlayerId> = self.players.iter().map(|p| p.id).collect();
         let active_player = self.active_player.unwrap_or(player_ids[0]);
-
         // Build players
         let mut players = OrdMap::new();
         for config in &self.players {
@@ -295,7 +268,6 @@ impl GameStateBuilder {
             };
             players.insert(config.id, player_state);
         }
-
         // Build zones — shared zones + per-player zones
         let mut zones = OrdMap::new();
         zones.insert(ZoneId::Battlefield, Zone::new_unordered());
@@ -307,7 +279,6 @@ impl GameStateBuilder {
             zones.insert(ZoneId::Graveyard(config.id), Zone::new_ordered());
             zones.insert(ZoneId::Command(config.id), Zone::new_unordered());
         }
-
         let step = self.step.unwrap_or(Step::PreCombatMain);
         let turn = TurnState {
             phase: step.phase(),
@@ -328,7 +299,6 @@ impl GameStateBuilder {
             last_regular_active: active_player,
             cleanup_sba_rounds: 0,
         };
-
         let mut state = GameState {
             turn,
             players,
@@ -367,12 +337,10 @@ impl GameStateBuilder {
             monarch: None,
             card_registry: self.card_registry,
         };
-
         // Add continuous effects
         for effect in self.continuous_effects {
             state.continuous_effects.push_back(effect);
         }
-
         // Add replacement effects and advance the ID counter past any pre-set IDs
         for effect in self.replacement_effects {
             if effect.id.0 >= state.next_replacement_id {
@@ -380,16 +348,13 @@ impl GameStateBuilder {
             }
             state.replacement_effects.push_back(effect);
         }
-
         // Copy any pre-set prevention shield counters (from with_prevention_counter).
         state.prevention_counters = self.prevention_counters;
-
         // Add objects
         for spec in self.objects {
             let owner = spec.owner;
             let controller = spec.controller.unwrap_or(owner);
             let zone = spec.zone;
-
             // CR 702.21a: Translate Ward keyword into a TriggeredAbilityDef.
             // Ward generates a triggered ability at object-construction time: "Whenever
             // this permanent becomes the target of a spell or ability an opponent controls,
@@ -428,7 +393,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.108a: Prowess — "Whenever you cast a noncreature spell, this
                 // creature gets +1/+1 until end of turn."
                 // Each keyword instance generates one TriggeredAbilityDef.
@@ -449,7 +413,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.83a: Exalted — "Whenever a creature you control attacks alone,
                 // that creature gets +1/+1 until end of turn."
                 // Each keyword instance generates one TriggeredAbilityDef.
@@ -472,7 +435,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.86a: Annihilator N — "Whenever this creature attacks, defending
                 // player sacrifices N permanents."
                 // Each keyword instance generates one TriggeredAbilityDef (CR 702.86b).
@@ -494,7 +456,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.91a: Battle Cry — "Whenever this creature attacks, each
                 // other attacking creature gets +1/+0 until end of turn."
                 // Each keyword instance generates one TriggeredAbilityDef (CR 702.91b).
@@ -522,7 +483,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
                 // with the most life or tied for most life, put a +1/+1 counter on
                 // this creature."
@@ -548,7 +508,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.149a: Training -- "Whenever this creature and at least one
                 // other creature with power greater than this creature's power attack,
                 // put a +1/+1 counter on this creature."
@@ -574,7 +533,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.121a: Melee -- "Whenever this creature attacks, it gets
                 // +1/+1 until end of turn for each opponent you attacked with a
                 // creature this combat."
@@ -595,7 +553,6 @@ impl GameStateBuilder {
                         effect: None, // Custom resolution via KeywordTrigger (Melee)
                     });
                 }
-
                 // CR 702.154a: Enlist -- "As this creature attacks, you may tap up to
                 // one untapped creature [...]. When you do, this creature gets +X/+0
                 // until end of turn, where X is the tapped creature's power."
@@ -621,13 +578,11 @@ impl GameStateBuilder {
                         effect: None, // Custom resolution via EnlistTrigger
                     });
                 }
-
                 // CR 702.70a: Poisonous N -- trigger dispatch is handled manually in
                 // abilities.rs CombatDamageDealt handler (same as Ingest / Renown).
                 // No TriggeredAbilityDef is registered here to avoid double-triggering:
                 // the manual dispatch block already creates the PoisonousTrigger StackObjectKind
                 // with the correct N value and target player carried as fields.
-
                 // CR 702.79a: Persist — "When this permanent is put into a graveyard from
                 // the battlefield, if it had no -1/-1 counters on it, return it to the
                 // battlefield under its owner's control with a -1/-1 counter on it."
@@ -663,7 +618,6 @@ impl GameStateBuilder {
                         ])),
                     });
                 }
-
                 // CR 702.93a: Undying -- "When this permanent is put into a graveyard from
                 // the battlefield, if it had no +1/+1 counters on it, return it to the
                 // battlefield under its owner's control with a +1/+1 counter on it."
@@ -699,7 +653,6 @@ impl GameStateBuilder {
                         ])),
                     });
                 }
-
                 // CR 702.135a: Afterlife N -- "When this permanent is put into a
                 // graveyard from the battlefield, create N 1/1 white and black Spirit
                 // creature tokens with flying."
@@ -736,7 +689,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.101a: Extort — "Whenever you cast a spell, you may pay
                 // {W/B}. If you do, each opponent loses 1 life and you gain life
                 // equal to the total life lost this way."
@@ -758,7 +710,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.92a: Living Weapon -- "When this Equipment enters, create a
                 // 0/0 black Phyrexian Germ creature token, then attach this Equipment
                 // to it."
@@ -799,7 +750,6 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-
                 // CR 702.43a: Modular N -- "When this permanent is put into a graveyard from
                 // the battlefield, you may put a +1/+1 counter on target artifact creature
                 // for each +1/+1 counter on this permanent."
@@ -821,7 +771,6 @@ impl GameStateBuilder {
                         effect: None, // Handled by KeywordTrigger (Modular) resolution
                     });
                 }
-
                 // CR 702.116a: Myriad -- "Whenever this creature attacks, for each opponent
                 // other than defending player, you may create a token that's a copy of this
                 // creature that's tapped and attacking that player or a planeswalker they
@@ -845,7 +794,6 @@ impl GameStateBuilder {
                         effect: None, // Handled by KeywordTrigger (Myriad) resolution
                     });
                 }
-
                 // CR 702.45a: Bushido N -- "Whenever this creature blocks or becomes
                 // blocked, it gets +N/+N until end of turn."
                 // Two TriggeredAbilityDefs per Bushido instance: one for SelfBlocks,
@@ -859,7 +807,6 @@ impl GameStateBuilder {
                             duration: CEDuration::UntilEndOfTurn,
                         }),
                     };
-
                     // Trigger 1: "Whenever this creature blocks"
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
@@ -872,7 +819,6 @@ impl GameStateBuilder {
                         ),
                         effect: Some(bushido_effect.clone()),
                     });
-
                     // Trigger 2: "Whenever this creature becomes blocked"
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
@@ -886,7 +832,6 @@ impl GameStateBuilder {
                         effect: Some(bushido_effect),
                     });
                 }
-
                 // CR 702.23a: Rampage N -- "Whenever this creature becomes blocked,
                 // it gets +N/+N until end of turn for each creature blocking it
                 // beyond the first."
@@ -909,7 +854,6 @@ impl GameStateBuilder {
                         effect: None, // Custom resolution via KeywordTrigger (Rampage)
                     });
                 }
-
                 // CR 702.39a: Provoke -- "Whenever this creature attacks, you may
                 // have target creature defending player controls untap and block this
                 // creature this combat if able."
@@ -930,7 +874,6 @@ impl GameStateBuilder {
                         effect: None, // Handled by KeywordTrigger (Provoke) resolution
                     });
                 }
-
                 // CR 702.130a: Afflict N -- "Whenever this creature becomes blocked,
                 // defending player loses N life."
                 // Each keyword instance generates one TriggeredAbilityDef (CR 702.130b).
@@ -953,7 +896,6 @@ impl GameStateBuilder {
                     });
                 }
             }
-
             let characteristics = Characteristics {
                 name: spec.name,
                 mana_cost: spec.mana_cost,
@@ -973,12 +915,10 @@ impl GameStateBuilder {
                 loyalty: spec.loyalty,
                 defense: None,
             };
-
             let mut counters = OrdMap::new();
             for (ct, count) in spec.counters {
                 counters.insert(ct, count);
             }
-
             let object = GameObject {
                 id: ObjectId(0), // Assigned by add_object
                 card_id: spec.card_id,
@@ -1059,16 +999,14 @@ impl GameStateBuilder {
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
                 designations: Designations::default(),
+                adventure_exiled_by: None,
                 meld_component: None,
             };
-
             state.add_object(object, zone)?;
         }
-
         Ok(state)
     }
 }
-
 /// Register replacement effects for commander zone changes (CR 903.9b).
 ///
 /// CR 903.9a (graveyard/exile): These paths are now handled by a state-based
@@ -1084,13 +1022,11 @@ impl GameStateBuilder {
 pub fn register_commander_zone_replacements(state: &mut GameState) {
     use super::continuous_effect::EffectDuration;
     use super::zone::ZoneType;
-
     let commanders: Vec<(PlayerId, CardId)> = state
         .players
         .iter()
         .flat_map(|(&pid, ps)| ps.commander_ids.iter().map(move |cid| (pid, cid.clone())))
         .collect();
-
     for (owner, card_id) in commanders {
         // CR 903.9b: commander would go to hand → may go to command zone instead.
         let id_hand = state.next_replacement_id();
@@ -1107,7 +1043,6 @@ pub fn register_commander_zone_replacements(state: &mut GameState) {
             },
             modification: ReplacementModification::RedirectToZone(ZoneType::Command),
         });
-
         // CR 903.9b: commander would go to library → may go to command zone instead.
         let id_library = state.next_replacement_id();
         state.replacement_effects.push_back(ReplacementEffect {
@@ -1125,18 +1060,15 @@ pub fn register_commander_zone_replacements(state: &mut GameState) {
         });
     }
 }
-
 impl Default for GameStateBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
-
 /// Builder for configuring a player.
 pub struct PlayerBuilder {
     config: PlayerConfig,
 }
-
 impl PlayerBuilder {
     fn new(id: PlayerId) -> Self {
         Self {
@@ -1151,38 +1083,31 @@ impl PlayerBuilder {
             },
         }
     }
-
     pub fn life(mut self, life: i32) -> Self {
         self.config.life_total = life;
         self
     }
-
     pub fn poison(mut self, counters: u32) -> Self {
         self.config.poison_counters = counters;
         self
     }
-
     pub fn mana(mut self, pool: ManaPool) -> Self {
         self.config.mana_pool = pool;
         self
     }
-
     pub fn commander(mut self, card_id: CardId) -> Self {
         self.config.commander_ids.push(card_id);
         self
     }
-
     pub fn land_plays(mut self, n: u32) -> Self {
         self.config.land_plays_remaining = n;
         self
     }
-
     pub fn max_hand_size(mut self, n: usize) -> Self {
         self.config.max_hand_size = n;
         self
     }
 }
-
 /// Specification for a game object to be created by the builder.
 pub struct ObjectSpec {
     pub name: String,
@@ -1212,7 +1137,6 @@ pub struct ObjectSpec {
     /// Pre-set deathtouch damage flag (for constructing test states, M4+).
     pub deathtouch_damage: bool,
 }
-
 impl ObjectSpec {
     /// Create a creature specification (defaults to battlefield).
     pub fn creature(owner: PlayerId, name: &str, power: i32, toughness: i32) -> Self {
@@ -1242,7 +1166,6 @@ impl ObjectSpec {
             deathtouch_damage: false,
         }
     }
-
     /// Create an artifact specification (defaults to battlefield).
     pub fn artifact(owner: PlayerId, name: &str) -> Self {
         Self {
@@ -1271,7 +1194,6 @@ impl ObjectSpec {
             deathtouch_damage: false,
         }
     }
-
     /// Create a land specification (defaults to battlefield).
     pub fn land(owner: PlayerId, name: &str) -> Self {
         Self {
@@ -1300,7 +1222,6 @@ impl ObjectSpec {
             deathtouch_damage: false,
         }
     }
-
     /// Create an enchantment specification (defaults to battlefield).
     pub fn enchantment(owner: PlayerId, name: &str) -> Self {
         Self {
@@ -1329,7 +1250,6 @@ impl ObjectSpec {
             deathtouch_damage: false,
         }
     }
-
     /// Create a planeswalker specification (defaults to battlefield).
     pub fn planeswalker(owner: PlayerId, name: &str, loyalty: i32) -> Self {
         Self {
@@ -1358,7 +1278,6 @@ impl ObjectSpec {
             deathtouch_damage: false,
         }
     }
-
     /// Create a generic card spec (defaults to owner's hand).
     pub fn card(owner: PlayerId, name: &str) -> Self {
         Self {
@@ -1387,99 +1306,80 @@ impl ObjectSpec {
             deathtouch_damage: false,
         }
     }
-
     // --- Fluent setters ---
-
     pub fn in_zone(mut self, zone: ZoneId) -> Self {
         self.zone = zone;
         self
     }
-
     pub fn controlled_by(mut self, controller: PlayerId) -> Self {
         self.controller = Some(controller);
         self
     }
-
     pub fn tapped(mut self) -> Self {
         self.tapped = true;
         self
     }
-
     pub fn with_counter(mut self, counter_type: CounterType, count: u32) -> Self {
         self.counters.push((counter_type, count));
         self
     }
-
     pub fn with_card_id(mut self, card_id: CardId) -> Self {
         self.card_id = Some(card_id);
         self
     }
-
     pub fn with_types(mut self, types: Vec<CardType>) -> Self {
         self.card_types = types;
         self
     }
-
     pub fn with_subtypes(mut self, subtypes: Vec<SubType>) -> Self {
         self.subtypes = subtypes;
         self
     }
-
     pub fn with_supertypes(mut self, supertypes: Vec<SuperType>) -> Self {
         self.supertypes = supertypes;
         self
     }
-
     pub fn with_colors(mut self, colors: Vec<Color>) -> Self {
         self.colors = colors;
         self
     }
-
     pub fn with_mana_cost(mut self, cost: ManaCost) -> Self {
         self.mana_cost = Some(cost);
         self
     }
-
     pub fn token(mut self) -> Self {
         self.is_token = true;
         self
     }
-
     pub fn with_loyalty(mut self, loyalty: i32) -> Self {
         self.loyalty = Some(loyalty);
         self
     }
-
     /// Add a mana ability to this object (CR 605).
     pub fn with_mana_ability(mut self, ability: ManaAbility) -> Self {
         self.mana_abilities.push(ability);
         self
     }
-
     /// Add a keyword ability to this object (CR 702).
     pub fn with_keyword(mut self, keyword: KeywordAbility) -> Self {
         self.keywords.push(keyword);
         self
     }
-
     /// Add a non-mana activated ability to this object (CR 602).
     pub fn with_activated_ability(mut self, ability: ActivatedAbility) -> Self {
         self.activated_abilities.push(ability);
         self
     }
-
     /// Add a triggered ability to this object (CR 603).
     pub fn with_triggered_ability(mut self, ability: TriggeredAbilityDef) -> Self {
         self.triggered_abilities.push(ability);
         self
     }
-
     /// Set marked damage on this object (for constructing test states, M4+).
     pub fn with_damage(mut self, amount: u32) -> Self {
         self.damage_marked = amount;
         self
     }
-
     /// Mark that this object has been dealt deathtouch damage (for constructing test states, M4+).
     pub fn with_deathtouch_damage(mut self) -> Self {
         self.deathtouch_damage = true;

@@ -6,9 +6,9 @@
 //! - OrderBlockers (CR 509.2): attacker chooses damage assignment order for multiple blockers
 //! - Combat damage (CR 510): simultaneous damage, trample, deathtouch, first/double strike
 //! - Commander damage tracking (CR 903.10a)
-
-use im::{OrdMap, OrdSet};
-
+use super::abilities;
+use super::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent};
+use super::layers::calculate_characteristics;
 use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, ObjectId};
@@ -18,15 +18,10 @@ use crate::state::turn::Step;
 use crate::state::types::{CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
-use super::abilities;
-use super::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent};
-use super::layers::calculate_characteristics;
-
+use im::{OrdMap, OrdSet};
 // ---------------------------------------------------------------------------
 // Declare Attackers
 // ---------------------------------------------------------------------------
-
 /// Handle a DeclareAttackers command (CR 508.1).
 ///
 /// The active player announces which creatures are attacking and what they
@@ -44,14 +39,12 @@ pub fn handle_declare_attackers(
             "DeclareAttackers is only valid in the DeclareAttackers step".into(),
         ));
     }
-
     // Must be the active player.
     if player != state.turn.active_player {
         return Err(GameStateError::InvalidCommand(
             "Only the active player can declare attackers".into(),
         ));
     }
-
     // Must have priority (CR 508.1 is a turn-based action but requires player to have priority).
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -59,19 +52,16 @@ pub fn handle_declare_attackers(
             actual: player,
         });
     }
-
     // Initialize CombatState if not already set (may be set by BeginningOfCombat action).
     if state.combat.is_none() {
         state.combat = Some(CombatState::new(player));
     }
-
     // Validate each attacker and collect vigilance flags for the tapping loop below.
     // MR-M6-12: capture has_vigilance here to avoid a second calculate_characteristics
     //           call in the tapping loop.
     let mut attacker_vigilance: Vec<(ObjectId, bool)> = Vec::with_capacity(attackers.len());
     for (attacker_id, target) in &attackers {
         let obj = state.object(*attacker_id)?;
-
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::ObjectNotOnBattlefield(*attacker_id));
         }
@@ -88,7 +78,6 @@ pub fn handle_declare_attackers(
                 object_id: *attacker_id,
             });
         }
-
         // Must be a creature.
         let chars = calculate_characteristics(state, *attacker_id)
             .ok_or(GameStateError::ObjectNotFound(*attacker_id))?;
@@ -98,7 +87,6 @@ pub fn handle_declare_attackers(
                 attacker_id
             )));
         }
-
         // CR 702.3a: A creature with defender can't attack.
         if chars.keywords.contains(&KeywordAbility::Defender) {
             return Err(GameStateError::InvalidCommand(format!(
@@ -106,16 +94,13 @@ pub fn handle_declare_attackers(
                 attacker_id
             )));
         }
-
         let has_vigilance = chars.keywords.contains(&KeywordAbility::Vigilance);
         let has_haste = chars.keywords.contains(&KeywordAbility::Haste);
         let obj = state.object(*attacker_id)?;
-
         // Must not already be tapped (unless Vigilance).
         if obj.status.tapped && !has_vigilance {
             return Err(GameStateError::PermanentAlreadyTapped(*attacker_id));
         }
-
         // CR 302.6 / CR 702.10: Summoning sickness prevents attacking unless the
         // creature has haste.
         if obj.has_summoning_sickness && !has_haste {
@@ -124,7 +109,6 @@ pub fn handle_declare_attackers(
                 attacker_id
             )));
         }
-
         // MR-M6-01: validate attack target (CR 508.1, CR 903.6).
         // A player may only attack opponents or their planeswalkers.
         match target {
@@ -173,10 +157,8 @@ pub fn handle_declare_attackers(
                 }
             }
         }
-
         attacker_vigilance.push((*attacker_id, has_vigilance));
     }
-
     // CR 508.1 / PB-18 review Finding 1: CantAttackYouUnlessPay enforcement.
     //
     // Propaganda / Ghostly Prison: "Creatures can't attack you unless their
@@ -196,7 +178,6 @@ pub fn handle_declare_attackers(
         // Build a map: defending_player -> total ManaCost per attacker.
         let mut tax_per_attacker: std::collections::HashMap<PlayerId, u32> =
             std::collections::HashMap::new();
-
         for restriction in state.restrictions.iter() {
             // Skip if source is no longer on the battlefield.
             let source_on_bf = state
@@ -207,7 +188,6 @@ pub fn handle_declare_attackers(
             if !source_on_bf {
                 continue;
             }
-
             if let GameRestriction::CantAttackYouUnlessPay { cost_per_creature } =
                 &restriction.restriction
             {
@@ -224,7 +204,6 @@ pub fn handle_declare_attackers(
                     + cost_per_creature.colorless;
             }
         }
-
         if !tax_per_attacker.is_empty() {
             // Count attackers targeting each defended player.
             let mut attackers_per_player: std::collections::HashMap<PlayerId, u32> =
@@ -236,7 +215,6 @@ pub fn handle_declare_attackers(
                     }
                 }
             }
-
             // Compute total tax owed by the attacking player.
             let mut total_tax: u32 = 0;
             for (defending_pid, attacker_count) in &attackers_per_player {
@@ -244,7 +222,6 @@ pub fn handle_declare_attackers(
                     total_tax += cost_per * attacker_count;
                 }
             }
-
             if total_tax > 0 {
                 // Check if attacking player has enough mana in their pool.
                 let available_mana = state
@@ -252,7 +229,6 @@ pub fn handle_declare_attackers(
                     .get(&player)
                     .map(|ps| ps.mana_pool.total_with_restricted())
                     .unwrap_or(0);
-
                 if available_mana < total_tax {
                     return Err(GameStateError::InvalidCommand(format!(
                         "attack tax: attacking player must pay {} mana ({} per attacker) \
@@ -265,7 +241,6 @@ pub fn handle_declare_attackers(
             }
         }
     }
-
     // CR 701.15b: A goaded creature must attack each combat if able.
     // For each creature on the battlefield controlled by the active player
     // that has at least one goading player in goaded_by: if the creature can
@@ -283,7 +258,6 @@ pub fn handle_declare_attackers(
             })
             .map(|obj| obj.id)
             .collect();
-
         for goaded_id in goaded_ids {
             if declared_attacker_ids.contains(&goaded_id) {
                 continue;
@@ -314,7 +288,6 @@ pub fn handle_declare_attackers(
             }
         }
     }
-
     // CR 701.15b: A goaded creature must attack a player other than the goading
     // player if able. For each declared attacker that is goaded, if its target is
     // one of the goading players, verify there is no other valid (non-goading) target.
@@ -332,7 +305,6 @@ pub fn handle_declare_attackers(
             })
             .copied()
             .collect();
-
         for (attacker_id, target) in &attackers {
             let obj = match state.objects.get(attacker_id) {
                 Some(o) => o,
@@ -356,7 +328,6 @@ pub fn handle_declare_attackers(
             }
         }
     }
-
     // CR 508.1d: Creatures with "attacks each combat if able" must attack if able.
     // Similar to goaded enforcement but without directional restriction.
     {
@@ -393,7 +364,6 @@ pub fn handle_declare_attackers(
             }
         }
     }
-
     // ---- CR 702.154a / CR 508.1g: Validate enlist choices ----
     //
     // Each (enlisting_attacker_id, enlisted_creature_id) must satisfy:
@@ -413,7 +383,6 @@ pub fn handle_declare_attackers(
     {
         let mut enlisted_ids_used: Vec<ObjectId> = Vec::new();
         let mut enlist_used_per_attacker: OrdMap<ObjectId, u32> = OrdMap::new();
-
         for (attacker_id, enlisted_id) in &enlist_choices {
             // Check 10: cannot enlist itself (CR 702.154c).
             if attacker_id == enlisted_id {
@@ -422,7 +391,6 @@ pub fn handle_declare_attackers(
                     attacker_id
                 )));
             }
-
             // Check 1: attacker is declared.
             if !declared_attacker_ids.contains(attacker_id) {
                 return Err(GameStateError::InvalidCommand(format!(
@@ -430,7 +398,6 @@ pub fn handle_declare_attackers(
                     attacker_id
                 )));
             }
-
             // Check 2: attacker has Enlist keyword + check 9: instance count.
             let attacker_chars = calculate_characteristics(state, *attacker_id)
                 .ok_or(GameStateError::ObjectNotFound(*attacker_id))?;
@@ -453,7 +420,6 @@ pub fn handle_declare_attackers(
                     attacker_id, enlist_count, *used
                 )));
             }
-
             // Check 4: enlisted creature is not attacking.
             if declared_attacker_ids.contains(enlisted_id) {
                 return Err(GameStateError::InvalidCommand(format!(
@@ -461,7 +427,6 @@ pub fn handle_declare_attackers(
                     enlisted_id
                 )));
             }
-
             // Check 3: on battlefield, controlled by player.
             let enlisted_obj = state.object(*enlisted_id)?;
             if enlisted_obj.zone != ZoneId::Battlefield {
@@ -473,12 +438,10 @@ pub fn handle_declare_attackers(
                     object_id: *enlisted_id,
                 });
             }
-
             // Check 5: untapped.
             if enlisted_obj.status.tapped {
                 return Err(GameStateError::PermanentAlreadyTapped(*enlisted_id));
             }
-
             // Check 6: is a creature.
             let enlisted_chars = calculate_characteristics(state, *enlisted_id)
                 .ok_or(GameStateError::ObjectNotFound(*enlisted_id))?;
@@ -488,7 +451,6 @@ pub fn handle_declare_attackers(
                     enlisted_id
                 )));
             }
-
             // Check 7: no summoning sickness (or has haste).
             let has_haste = enlisted_chars.keywords.contains(&KeywordAbility::Haste);
             let enlisted_obj_for_sickness = state.object(*enlisted_id)?;
@@ -498,7 +460,6 @@ pub fn handle_declare_attackers(
                     enlisted_id
                 )));
             }
-
             // Check 8: not already enlisted by another attacker.
             if enlisted_ids_used.contains(enlisted_id) {
                 return Err(GameStateError::InvalidCommand(format!(
@@ -510,9 +471,7 @@ pub fn handle_declare_attackers(
             enlisted_ids_used.push(*enlisted_id);
         }
     }
-
     let mut events = Vec::new();
-
     // Tap non-Vigilance attackers (CR 508.1f).
     // Uses pre-computed vigilance flags to avoid a redundant calculate_characteristics call.
     for (attacker_id, has_vigilance) in &attacker_vigilance {
@@ -526,7 +485,6 @@ pub fn handle_declare_attackers(
             });
         }
     }
-
     // CR 702.154a / CR 508.1j: Tap enlisted creatures as part of the
     // attack cost payment.
     for (_, enlisted_id) in &enlist_choices {
@@ -538,19 +496,16 @@ pub fn handle_declare_attackers(
             object_id: *enlisted_id,
         });
     }
-
     // Record attackers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (attacker_id, target) in &attackers {
             combat.attackers.insert(*attacker_id, target.clone());
         }
     }
-
     // CR 702.154a: Store enlist pairings for trigger collection in abilities.rs.
     if let Some(combat) = state.combat.as_mut() {
         combat.enlist_pairings = enlist_choices.clone();
     }
-
     // CR 702.147a: Tag creatures with decayed for EOC sacrifice.
     // "When this creature attacks, sacrifice it at end of combat."
     // Must be tagged here (when state is mutable) rather than in check_triggers
@@ -567,34 +522,27 @@ pub fn handle_declare_attackers(
             }
         }
     }
-
     events.push(GameEvent::AttackersDeclared {
         attacking_player: player,
         attackers: attackers.clone(),
     });
-
     // Check and queue triggers from the attack declaration (e.g., SelfAttacks).
     let new_triggers = abilities::check_triggers(state, &events);
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
-
     // Flush triggers before granting priority (CR 603.3).
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
-
     // Grant priority to the active player (combat actions reset priority).
     state.turn.players_passed = OrdSet::new();
     state.turn.priority_holder = Some(player);
     events.push(GameEvent::PriorityGiven { player });
-
     Ok(events)
 }
-
 // ---------------------------------------------------------------------------
 // Declare Blockers
 // ---------------------------------------------------------------------------
-
 /// Handle a DeclareBlockers command (CR 509.1).
 ///
 /// Any defending player may declare blockers during the DeclareBlockers step.
@@ -611,34 +559,28 @@ pub fn handle_declare_blockers(
             "DeclareBlockers is only valid in the DeclareBlockers step".into(),
         ));
     }
-
     // Must not be the attacking player and must not have already declared blockers.
     {
         let combat = state
             .combat
             .as_ref()
             .ok_or_else(|| GameStateError::InvalidCommand("No active combat".into()))?;
-
         if player == combat.attacking_player {
             return Err(GameStateError::InvalidCommand(
                 "The attacking player cannot declare blockers".into(),
             ));
         }
-
         // MR-M6-10: each defending player may only declare blockers once per combat step
         // (CR 509.1a — each defending player declares independently, not repeatedly).
         if combat.defenders_declared.contains(&player) {
             return Err(GameStateError::AlreadyDeclaredBlockers(player));
         }
     }
-
     // Track blocker IDs seen in this declaration to catch within-batch duplicates.
     let mut seen_blocker_ids: Vec<ObjectId> = Vec::with_capacity(blockers.len());
-
     // Validate each blocker.
     for (blocker_id, attacker_id) in &blockers {
         let obj = state.object(*blocker_id)?;
-
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::ObjectNotOnBattlefield(*blocker_id));
         }
@@ -658,7 +600,6 @@ pub fn handle_declare_blockers(
         if obj.status.tapped {
             return Err(GameStateError::PermanentAlreadyTapped(*blocker_id));
         }
-
         // Must be a creature.
         let blocker_chars = calculate_characteristics(state, *blocker_id)
             .ok_or(GameStateError::ObjectNotFound(*blocker_id))?;
@@ -668,7 +609,6 @@ pub fn handle_declare_blockers(
                 blocker_id
             )));
         }
-
         // CR 702.147a: A creature with decayed can't block.
         if blocker_chars.keywords.contains(&KeywordAbility::Decayed) {
             return Err(GameStateError::InvalidCommand(format!(
@@ -676,7 +616,6 @@ pub fn handle_declare_blockers(
                 blocker_id
             )));
         }
-
         // CR 701.60c: A suspected permanent has "This creature can't block."
         // Checked on the raw GameObject (like Decayed) so the restriction persists
         // even under ability-removal effects (Humility strips the Menace grant but
@@ -689,7 +628,6 @@ pub fn handle_declare_blockers(
                 blocker_id
             )));
         }
-
         // MR-M6-02: a creature can only block one attacker.
         // Check both existing combat.blockers and within-this-declaration duplicates.
         if seen_blocker_ids.contains(blocker_id)
@@ -702,7 +640,6 @@ pub fn handle_declare_blockers(
             return Err(GameStateError::DuplicateBlocker(*blocker_id));
         }
         seen_blocker_ids.push(*blocker_id);
-
         // MR-M6-09: a defending player can only block attackers that are attacking them
         // (or their planeswalker). CR 509.1c.
         // Also validates that the attacker is a declared attacker.
@@ -737,7 +674,6 @@ pub fn handle_declare_blockers(
                 });
             }
         }
-
         // CR 509.1b / CR 702.9a: A creature without flying or reach cannot block
         // a creature with flying.
         let attacker_chars = calculate_characteristics(state, *attacker_id)
@@ -751,7 +687,6 @@ pub fn handle_declare_blockers(
                 blocker_id, attacker_id
             )));
         }
-
         // CR 509.1 / KeywordAbility::CantBeBlocked: a creature with this keyword
         // cannot be blocked at all. Applied by Rogue's Passage activated ability.
         if attacker_chars
@@ -763,7 +698,6 @@ pub fn handle_declare_blockers(
                 attacker_id
             )));
         }
-
         // CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures
         // and/or creatures that share a color with it.
         if attacker_chars
@@ -785,7 +719,6 @@ pub fn handle_declare_blockers(
                 )));
             }
         }
-
         // CR 702.36b: A creature with fear can't be blocked except by artifact creatures
         // and/or black creatures.
         if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
@@ -801,7 +734,6 @@ pub fn handle_declare_blockers(
                 )));
             }
         }
-
         // CR 702.28b: Shadow is a bidirectional evasion ability.
         // A creature with shadow can't be blocked by creatures without shadow,
         // and a creature without shadow can't be blocked by creatures with shadow.
@@ -813,7 +745,6 @@ pub fn handle_declare_blockers(
                 blocker_id, attacker_id, attacker_has_shadow, blocker_has_shadow
             )));
         }
-
         // CR 702.31b: Horsemanship is a unidirectional evasion ability.
         // A creature with horsemanship can't be blocked by creatures without horsemanship.
         // Unlike Shadow, a creature with horsemanship CAN block creatures without horsemanship.
@@ -830,7 +761,6 @@ pub fn handle_declare_blockers(
                 blocker_id, attacker_id
             )));
         }
-
         // CR 702.118b: Skulk -- a creature with skulk can't be blocked by creatures
         // with greater power. Unlike Shadow, this is one-directional: it only restricts
         // what can block the skulk creature, not what the skulk creature can block.
@@ -846,7 +776,6 @@ pub fn handle_declare_blockers(
                 )));
             }
         }
-
         // CR 701.54c (ring level >= 1): Ring-bearer can't be blocked by creatures with
         // greater power. Identical to Skulk's restriction, but triggered by the RING_BEARER
         // designation rather than a keyword ability.
@@ -871,7 +800,6 @@ pub fn handle_declare_blockers(
                 }
             }
         }
-
         // CR 702.16f: protection from blocking. A creature with protection from a quality
         // cannot be blocked by creatures that match that quality. The blocker is the source.
         if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {
@@ -880,7 +808,6 @@ pub fn handle_declare_blockers(
                 blocker_id, attacker_id
             )));
         }
-
         // CR 702.14c: A creature with landwalk can't be blocked as long as the defending
         // player controls at least one land with the specified type. Uses
         // `calculate_characteristics` to get post-layer subtypes (handles Blood Moon, etc.).
@@ -908,14 +835,12 @@ pub fn handle_declare_blockers(
             }
         }
     }
-
     // CR 702.110a: A creature with menace can't be blocked except by two or more creatures.
     // Check that no attacker with menace is being blocked by only one creature.
     {
         // Count how many blockers each attacker in this declaration has (summing over all declarations so far + this one).
         use std::collections::HashMap;
         let mut blocker_count_for_attacker: HashMap<ObjectId, usize> = HashMap::new();
-
         // Existing blockers already recorded in combat state.
         if let Some(combat) = state.combat.as_ref() {
             for (_, &att) in &combat.blockers {
@@ -926,7 +851,6 @@ pub fn handle_declare_blockers(
         for (_, attacker_id) in &blockers {
             *blocker_count_for_attacker.entry(*attacker_id).or_insert(0) += 1;
         }
-
         for (attacker_id, count) in &blocker_count_for_attacker {
             if *count == 1 {
                 let chars = calculate_characteristics(state, *attacker_id)
@@ -940,7 +864,6 @@ pub fn handle_declare_blockers(
             }
         }
     }
-
     // CR 702.39a / CR 509.1c: Provoke forced-block requirements.
     //
     // Each provoked creature must block its provoking attacker if able.
@@ -956,19 +879,16 @@ pub fn handle_declare_blockers(
             .as_ref()
             .map(|c| c.forced_blocks.iter().map(|(&k, &v)| (k, v)).collect())
             .unwrap_or_default();
-
         for (provoked_id, must_block_attacker) in forced {
             // Only check if the provoked creature is controlled by this declaring player.
             let provoked_obj = match state.objects.get(&provoked_id) {
                 Some(o) if o.controller == player && o.zone == ZoneId::Battlefield => o,
                 _ => continue, // Not this player's creature or not on battlefield
             };
-
             // Check if the creature is tapped (can't block if tapped).
             if provoked_obj.status.tapped {
                 continue;
             }
-
             // Check if the attacker is still a declared attacker.
             let attacker_still_active = state
                 .combat
@@ -978,7 +898,6 @@ pub fn handle_declare_blockers(
             if !attacker_still_active {
                 continue;
             }
-
             // Compute characteristics for both the provoked creature and the attacker.
             // If either is missing characteristics (no longer a creature, etc.), skip.
             let provoked_chars = match calculate_characteristics(state, provoked_id) {
@@ -989,7 +908,6 @@ pub fn handle_declare_blockers(
                 Some(c) => c,
                 None => continue, // Attacker gone -- skip
             };
-
             // CR 509.1b / CR 702.9a: Flying evasion check.
             let attacker_has_flying = attacker_chars.keywords.contains(&KeywordAbility::Flying);
             let blocker_has_flying = provoked_chars.keywords.contains(&KeywordAbility::Flying);
@@ -997,17 +915,14 @@ pub fn handle_declare_blockers(
             if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 702.147a: Decayed creatures can't block.
             if provoked_chars.keywords.contains(&KeywordAbility::Decayed) {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 701.60c: Suspected creatures can't block.
             if provoked_obj.designations.contains(Designations::SUSPECTED) {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 509.1: CantBeBlocked keyword -- creature can't be blocked at all.
             if attacker_chars
                 .keywords
@@ -1015,7 +930,6 @@ pub fn handle_declare_blockers(
             {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 702.13b: Intimidate -- can only be blocked by artifact creatures
             // and/or creatures sharing a color.
             if attacker_chars
@@ -1033,7 +947,6 @@ pub fn handle_declare_blockers(
                     continue; // Requirement impossible -- skip
                 }
             }
-
             // CR 702.36b: Fear -- can only be blocked by artifact creatures and/or black.
             if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
                 let blocker_is_artifact_creature =
@@ -1044,14 +957,12 @@ pub fn handle_declare_blockers(
                     continue; // Requirement impossible -- skip
                 }
             }
-
             // CR 702.28b: Shadow mismatch.
             let attacker_has_shadow = attacker_chars.keywords.contains(&KeywordAbility::Shadow);
             let blocker_has_shadow = provoked_chars.keywords.contains(&KeywordAbility::Shadow);
             if attacker_has_shadow != blocker_has_shadow {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 702.31b: Horsemanship.
             if attacker_chars
                 .keywords
@@ -1062,7 +973,6 @@ pub fn handle_declare_blockers(
             {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 702.118b: Skulk -- can't be blocked by creatures with greater power.
             if attacker_chars.keywords.contains(&KeywordAbility::Skulk) {
                 let attacker_power = attacker_chars.power.unwrap_or(0);
@@ -1071,7 +981,6 @@ pub fn handle_declare_blockers(
                     continue; // Requirement impossible -- skip
                 }
             }
-
             // CR 701.54c: Ring-bearer blocking restriction (identical to Skulk).
             if let Some(attacker_obj) = state.objects.get(&must_block_attacker) {
                 if attacker_obj
@@ -1090,12 +999,10 @@ pub fn handle_declare_blockers(
                     }
                 }
             }
-
             // CR 702.16f: Protection prevents blocking.
             if !super::protection::can_block(&attacker_chars.keywords, &provoked_chars) {
                 continue; // Requirement impossible -- skip
             }
-
             // CR 702.14c: Landwalk -- can't be blocked if defender controls matching land.
             let mut landwalk_blocks = false;
             for kw in attacker_chars.keywords.iter() {
@@ -1122,7 +1029,6 @@ pub fn handle_declare_blockers(
             if landwalk_blocks {
                 continue; // Requirement impossible -- skip
             }
-
             // The provoked creature CAN block the provoking attacker.
             // Check if it IS blocking it in this declaration.
             let is_blocking_required_attacker = blockers
@@ -1136,9 +1042,7 @@ pub fn handle_declare_blockers(
             }
         }
     }
-
     let mut events = Vec::new();
-
     // Record blockers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (blocker_id, attacker_id) in &blockers {
@@ -1149,7 +1053,6 @@ pub fn handle_declare_blockers(
         }
         combat.defenders_declared.insert(player);
     }
-
     // CR 701.54c (ring level >= 3): Tag blockers of the ring-bearer for EOC sacrifice.
     // "Whenever your Ring-bearer becomes blocked by a creature, that creature's controller
     // sacrifices it at end of combat."
@@ -1188,26 +1091,22 @@ pub fn handle_declare_blockers(
             }
         }
     }
-
     // Always emit BlockersDeclared (even for empty declarations, to mark player done).
     events.push(GameEvent::BlockersDeclared {
         defending_player: player,
         blockers: blockers.clone(),
     });
-
     // Check and queue triggers from blocker declaration (e.g., SelfBlocks, Flanking).
     let new_triggers = abilities::check_triggers(state, &events);
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
-
     // CR 603.3 / CR 509.3f: Flush any pending triggers (e.g., Flanking CR 702.25a,
     // SelfBlocks) so they appear on the stack before priority is granted.
     // This ensures triggered abilities from blocker declaration (like Flanking's -1/-1)
     // resolve BEFORE combat damage is dealt, which is correct per MTG rules.
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
-
     // Grant priority to the active player so players can respond to triggers
     // (including Flanking triggers) before combat damage is dealt.
     state.turn.players_passed = OrdSet::new();
@@ -1215,14 +1114,11 @@ pub fn handle_declare_blockers(
     events.push(GameEvent::PriorityGiven {
         player: state.turn.active_player,
     });
-
     Ok(events)
 }
-
 // ---------------------------------------------------------------------------
 // Order Blockers
 // ---------------------------------------------------------------------------
-
 /// Handle an OrderBlockers command (CR 509.2).
 ///
 /// When an attacker has multiple blockers, its controller declares the order
@@ -1239,19 +1135,16 @@ pub fn handle_order_blockers(
             "OrderBlockers is only valid during the DeclareBlockers step".into(),
         ));
     }
-
     // Must be the attacking player.
     let combat = state
         .combat
         .as_ref()
         .ok_or_else(|| GameStateError::InvalidCommand("No active combat".into()))?;
-
     if player != combat.attacking_player {
         return Err(GameStateError::InvalidCommand(
             "Only the attacking player can order blockers".into(),
         ));
     }
-
     // Attacker must be a declared attacker.
     if !combat.attackers.contains_key(&attacker) {
         return Err(GameStateError::InvalidCommand(format!(
@@ -1259,7 +1152,6 @@ pub fn handle_order_blockers(
             attacker
         )));
     }
-
     // Validate all ordered blockers are actually blocking this attacker.
     let blocking_this: Vec<ObjectId> = combat
         .blockers
@@ -1267,7 +1159,6 @@ pub fn handle_order_blockers(
         .filter(|(_, &a)| a == attacker)
         .map(|(&b, _)| b)
         .collect();
-
     for blocker_id in &order {
         if !blocking_this.contains(blocker_id) {
             return Err(GameStateError::InvalidCommand(format!(
@@ -1276,7 +1167,6 @@ pub fn handle_order_blockers(
             )));
         }
     }
-
     // MR-M6-03: the order must include every blocker assigned to this attacker
     // (CR 509.2 — the attacker's controller orders ALL blockers, not a subset).
     if order.len() != blocking_this.len() {
@@ -1285,18 +1175,14 @@ pub fn handle_order_blockers(
             required: blocking_this.len(),
         });
     }
-
     if let Some(combat) = state.combat.as_mut() {
         combat.damage_assignment_order.insert(attacker, order);
     }
-
     Ok(Vec::new())
 }
-
 // ---------------------------------------------------------------------------
 // Combat damage
 // ---------------------------------------------------------------------------
-
 /// Apply combat damage for the current step (CR 510).
 ///
 /// `first_strike_step`: true when processing `Step::FirstStrikeDamage`,
@@ -1311,7 +1197,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     let Some(combat) = state.combat.as_ref() else {
         return Vec::new();
     };
-
     // Clone combat data to avoid borrow conflicts during damage application.
     let attackers = combat.attackers.clone();
     let blockers_map = combat.blockers.clone();
@@ -1319,9 +1204,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     // CR 702.7b: snapshot of creatures with FS/DS at start of first-strike step.
     // Used by deals_damage_in_step to determine regular-step eligibility.
     let first_strike_snapshot = combat.first_strike_participants.clone();
-
     let mut assignments: Vec<CombatDamageAssignment> = Vec::new();
-
     // --- Attacker damage ---
     for (attacker_id, attack_target) in &attackers {
         if !deals_damage_in_step(
@@ -1332,15 +1215,12 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         ) {
             continue;
         }
-
         let power = get_effective_power(state, *attacker_id);
         if power <= 0 {
             continue;
         }
-
         let has_trample = has_keyword(state, *attacker_id, KeywordAbility::Trample);
         let has_deathtouch = has_keyword(state, *attacker_id, KeywordAbility::Deathtouch);
-
         // Get ordered blockers (from damage_assignment_order or default OrdMap order).
         let ordered_blockers: Vec<ObjectId> = if let Some(order) = damage_order.get(attacker_id) {
             order
@@ -1368,7 +1248,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 .map(|(&b, _)| b)
                 .collect()
         };
-
         if ordered_blockers.is_empty() {
             // CR 509.1h: a creature remains "blocked" even if all blockers leave.
             // Unblocked = was never blocked during declaration.
@@ -1376,7 +1255,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 let c = state.combat.as_ref().unwrap();
                 c.is_blocked(*attacker_id)
             };
-
             if !was_blocked {
                 // Truly unblocked — deal damage to attack target.
                 push_player_or_pw_damage(
@@ -1399,14 +1277,11 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             // Assign damage to blockers in order (CR 510.1c).
             let mut remaining = power;
             let last_idx = ordered_blockers.len() - 1;
-
             for (i, blocker_id) in ordered_blockers.iter().enumerate() {
                 if remaining <= 0 {
                     break;
                 }
-
                 let is_last = i == last_idx;
-
                 // Minimum lethal damage for this blocker.
                 let lethal = if has_deathtouch {
                     1 // CR 702.2c: deathtouch makes 1 damage lethal for assignment purposes
@@ -1419,7 +1294,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                         .unwrap_or(0);
                     (toughness - already_damaged).max(0)
                 };
-
                 if is_last && has_trample {
                     // Last blocker with trample: assign minimum lethal, excess to player.
                     let to_blocker = remaining.min(lethal);
@@ -1461,7 +1335,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             }
         }
     }
-
     // --- Blocker damage (CR 510.1a: blockers also deal damage to attackers) ---
     for (blocker_id, attacker_id) in &blockers_map {
         let blocker_on_bf = state
@@ -1474,11 +1347,9 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             .get(attacker_id)
             .map(|o| o.zone == ZoneId::Battlefield)
             .unwrap_or(false);
-
         if !blocker_on_bf || !attacker_on_bf {
             continue;
         }
-
         if !deals_damage_in_step(
             state,
             *blocker_id,
@@ -1487,23 +1358,19 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         ) {
             continue;
         }
-
         let power = get_effective_power(state, *blocker_id);
         if power <= 0 {
             continue;
         }
-
         assignments.push(CombatDamageAssignment {
             source: *blocker_id,
             target: CombatDamageTarget::Creature(*attacker_id),
             amount: power as u32,
         });
     }
-
     if assignments.is_empty() {
         return Vec::new();
     }
-
     // --- Collect application info before mutating state ---
     // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_wither,
     // source_infect, source_toxic_total, source_controller, commander_info)
@@ -1563,7 +1430,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 })
                 .unwrap_or(0);
             let source_controller = obj.map(|o| o.controller).unwrap_or(PlayerId(0));
-
             let commander_info = obj.and_then(|o| {
                 let controller = o.controller;
                 let card_id = o.card_id.clone()?;
@@ -1578,7 +1444,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                     None
                 }
             });
-
             (
                 source_deathtouch,
                 source_lifelink,
@@ -1590,7 +1455,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             )
         })
         .collect();
-
     // --- CR 614.1: Apply damage-doubling replacement effects before prevention ---
     // Doublers apply before preventers (CR 614.1 ordering: replacement effects modify
     // the event first, then prevention effects can prevent the modified amount).
@@ -1617,7 +1481,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             a
         })
         .collect();
-
     // --- CR 702.16e + CR 615: Apply protection then dynamic prevention ---
     // apply_damage_prevention checks protection (static) first, then dynamic shields.
     let mut prevention_events: Vec<GameEvent> = Vec::new();
@@ -1631,7 +1494,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             final_dmg
         })
         .collect();
-
     // Build the post-prevention assignment list for the CombatDamageDealt event.
     let final_assignments: Vec<CombatDamageAssignment> = assignments
         .iter()
@@ -1642,7 +1504,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             amount: amt,
         })
         .collect();
-
     // --- Apply damage and collect lifelink gains ---
     // lifelink_gains: controller → total damage dealt by their lifelink sources this step.
     let mut lifelink_gains: im::OrdMap<PlayerId, u32> = im::OrdMap::new();
@@ -1651,7 +1512,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     let mut wither_counter_events: Vec<GameEvent> = Vec::new();
     // Collect PoisonCountersGiven events for infect damage to players.
     let mut poison_events: Vec<GameEvent> = Vec::new();
-
     for (
         (
             assignment,
@@ -1759,7 +1619,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                             .copied()
                             .unwrap_or(0);
                         let new_val = current + final_dmg;
-
                         let inner = state
                             .players
                             .get(player_id)
@@ -1768,7 +1627,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                             .unwrap_or_default();
                         let mut new_inner = inner;
                         new_inner.insert(card_id.clone(), new_val);
-
                         if let Some(target_player) = state.players.get_mut(player_id) {
                             target_player
                                 .commander_damage_received
@@ -1792,14 +1650,12 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 }
             }
         }
-
         // CR 702.15a: Lifelink — source's controller gains life equal to damage dealt.
         if *source_lifelink {
             let entry = lifelink_gains.entry(*source_controller).or_insert(0);
             *entry += final_dmg;
         }
     }
-
     // Prevention events fire before CombatDamageDealt (they modify the event as it happens).
     let mut events = prevention_events;
     // CounterAdded events from wither/infect precede the CombatDamageDealt summary event.
@@ -1809,7 +1665,6 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     events.push(GameEvent::CombatDamageDealt {
         assignments: final_assignments,
     });
-
     // Apply lifelink gains and emit LifeGained events.
     for (controller, amount) in &lifelink_gains {
         if let Some(player) = state.players.get_mut(controller) {
@@ -1820,61 +1675,50 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             amount: *amount,
         });
     }
-
     events
 }
-
 // ---------------------------------------------------------------------------
 // First strike step detection
 // ---------------------------------------------------------------------------
-
 /// Returns true if any combatant has FirstStrike or DoubleStrike,
 /// meaning a separate first-strike damage step must occur (CR 510.4).
 pub fn should_have_first_strike_step(state: &GameState) -> bool {
     let Some(combat) = state.combat.as_ref() else {
         return false;
     };
-
     // Check attackers.
     let attacker_has_fs = combat.attackers.keys().any(|&id| {
         has_keyword(state, id, KeywordAbility::FirstStrike)
             || has_keyword(state, id, KeywordAbility::DoubleStrike)
     });
-
     // Check blockers.
     let blocker_has_fs = combat.blockers.keys().any(|&id| {
         has_keyword(state, id, KeywordAbility::FirstStrike)
             || has_keyword(state, id, KeywordAbility::DoubleStrike)
     });
-
     attacker_has_fs || blocker_has_fs
 }
-
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
-
 /// Returns the effective power of an object using the layer system.
 fn get_effective_power(state: &GameState, id: ObjectId) -> i32 {
     calculate_characteristics(state, id)
         .and_then(|c| c.power)
         .unwrap_or(0)
 }
-
 /// Returns the effective toughness of an object using the layer system.
 fn get_effective_toughness(state: &GameState, id: ObjectId) -> i32 {
     calculate_characteristics(state, id)
         .and_then(|c| c.toughness)
         .unwrap_or(0)
 }
-
 /// Returns true if the object has the given keyword (via layer system).
 fn has_keyword(state: &GameState, id: ObjectId, keyword: KeywordAbility) -> bool {
     calculate_characteristics(state, id)
         .map(|c| c.keywords.contains(&keyword))
         .unwrap_or(false)
 }
-
 /// Returns true if this creature deals damage in the given step.
 ///
 /// CR 702.7b: First-strike creatures deal damage only in the first-strike step.
@@ -1902,7 +1746,6 @@ fn deals_damage_in_step(
 ) -> bool {
     let has_first = has_keyword(state, id, KeywordAbility::FirstStrike);
     let has_double = has_keyword(state, id, KeywordAbility::DoubleStrike);
-
     if first_strike_step {
         // First-strike step: deal damage iff currently has FS or DS.
         has_first || has_double
@@ -1929,7 +1772,6 @@ fn deals_damage_in_step(
         has_double || !has_first
     }
 }
-
 /// Push a damage assignment to a player or planeswalker attack target.
 fn push_player_or_pw_damage(
     assignments: &mut Vec<CombatDamageAssignment>,

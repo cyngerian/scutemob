@@ -1,14 +1,10 @@
 //! Turn structure FSM: step ordering, turn advancement (CR 500-514).
-
-use im::{OrdSet, Vector};
-
+use super::combat;
+use super::events::GameEvent;
 use crate::state::player::PlayerId;
 use crate::state::turn::{Phase, Step, TurnState};
 use crate::state::GameState;
-
-use super::combat;
-use super::events::GameEvent;
-
+use im::{OrdSet, Vector};
 /// All steps in a normal turn, in order.
 /// FirstStrikeDamage is excluded -- M6 will conditionally insert it.
 pub const STEP_ORDER: &[Step] = &[
@@ -25,7 +21,6 @@ pub const STEP_ORDER: &[Step] = &[
     Step::End,
     Step::Cleanup,
 ];
-
 /// Advance to the next step within the current turn.
 /// Returns the updated TurnState and any events generated.
 /// Returns None if the turn is over (past Cleanup).
@@ -50,10 +45,8 @@ pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
         .as_ref()
         .map(|c| c.attackers.is_empty())
         .unwrap_or(true);
-
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
-
     let next = if turn.step == Step::DeclareAttackers && no_attackers {
         Step::EndOfCombat
     } else if turn.step == Step::DeclareBlockers && combat::should_have_first_strike_step(state) {
@@ -105,20 +98,16 @@ pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
     } else {
         turn.step.next()?
     };
-
     turn.step = next;
     turn.phase = next.phase();
     turn.priority_holder = None;
     turn.players_passed = OrdSet::new();
-
     events.push(GameEvent::StepChanged {
         step: next,
         phase: next.phase(),
     });
-
     Some((turn, events))
 }
-
 /// Advance to the next player's turn. Handles extra turns (LIFO) and
 /// skips eliminated players.
 ///
@@ -132,7 +121,6 @@ pub fn advance_turn(
 ) -> Result<(TurnState, Vec<GameEvent>), crate::state::error::GameStateError> {
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
-
     // Determine who takes the next turn -- MR-M2-02: typed error instead of expect.
     let next_player = if let Some(extra_turn_player) = turn.extra_turns.pop_back() {
         // LIFO: most recently added extra turn goes first.
@@ -145,7 +133,6 @@ pub fn advance_turn(
         turn.last_regular_active = next;
         next
     };
-
     turn.turn_number += 1;
     turn.active_player = next_player;
     turn.step = Step::Untap;
@@ -159,7 +146,6 @@ pub fn advance_turn(
     if turn.is_first_turn_of_game {
         turn.is_first_turn_of_game = false;
     }
-
     events.push(GameEvent::TurnStarted {
         player: next_player,
         turn_number: turn.turn_number,
@@ -168,10 +154,8 @@ pub fn advance_turn(
         step: Step::Untap,
         phase: Phase::Beginning,
     });
-
     Ok((turn, events))
 }
-
 /// Find the next active (non-eliminated) player in turn order after `current`.
 /// Returns None if no active players remain.
 pub fn next_player_in_turn_order(state: &GameState, current: PlayerId) -> Option<PlayerId> {
@@ -180,10 +164,8 @@ pub fn next_player_in_turn_order(state: &GameState, current: PlayerId) -> Option
     if len == 0 {
         return None;
     }
-
     // Find current player's position in turn order
     let current_pos = order.iter().position(|&p| p == current)?;
-
     // Search through all other positions
     for offset in 1..=len {
         let idx = (current_pos + offset) % len;
@@ -194,6 +176,5 @@ pub fn next_player_in_turn_order(state: &GameState, current: PlayerId) -> Option
             }
         }
     }
-
     None
 }

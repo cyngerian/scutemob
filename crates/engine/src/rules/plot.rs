@@ -16,7 +16,6 @@
 //! - Card enters exile FACE UP (public information, CR 702.170a)
 //! - Card can only be cast on a LATER turn (CR 702.170d: "any turn after the turn
 //!   in which it became plotted")
-
 use crate::cards::card_definition::AbilityDefinition;
 use crate::rules::casting;
 use crate::rules::events::GameEvent;
@@ -27,7 +26,6 @@ use crate::state::turn::Step;
 use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
 /// CR 702.170a / CR 116.2k: Handle the PlotCard special action.
 ///
 /// Validates:
@@ -53,7 +51,6 @@ pub fn handle_plot_card(
     card: ObjectId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // CR 116.2k: Plot requires the player to have priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -61,35 +58,29 @@ pub fn handle_plot_card(
             actual: player,
         });
     }
-
     // CR 116.2k: Plot can only be done during the player's own turn.
     if state.turn.active_player != player {
         return Err(GameStateError::InvalidCommand(
             "plot: can only plot a card during your own turn (CR 116.2k)".into(),
         ));
     }
-
     // CR 702.170a: Plot requires main phase.
     if !matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain) {
         return Err(GameStateError::NotMainPhase);
     }
-
     // CR 702.170a: Plot requires empty stack.
     if !state.stack_objects.is_empty() {
         return Err(GameStateError::StackNotEmpty);
     }
-
     // Look up the plot cost and validate the card in a contained scope.
     let plot_cost = {
         let card_obj = state.object(card)?;
-
         // Validate the card is in the player's hand (CR 702.170a).
         if card_obj.zone != ZoneId::Hand(player) {
             return Err(GameStateError::InvalidCommand(
                 "plot: card must be in your hand (CR 702.170a)".into(),
             ));
         }
-
         // Validate the card has the Plot keyword (CR 702.170a).
         if !card_obj
             .characteristics
@@ -100,7 +91,6 @@ pub fn handle_plot_card(
                 "plot: card does not have the Plot keyword (CR 702.170a)".into(),
             ));
         }
-
         // Look up the plot cost from AbilityDefinition::Plot { cost }.
         // The card_id must exist in the registry for the cost to be resolved.
         let registry = state.card_registry.clone();
@@ -120,10 +110,8 @@ pub fn handle_plot_card(
                 })
             })
         });
-
         cost.unwrap_or_default()
     };
-
     // Validate and deduct the plot cost (CR 702.170a).
     {
         let ps = state.player(player)?;
@@ -133,19 +121,15 @@ pub fn handle_plot_card(
         let ps_mut = state.player_mut(player)?;
         casting::pay_cost(&mut ps_mut.mana_pool, &plot_cost);
     }
-
     // Emit ManaCostPaid event for the plot cost.
     events.push(GameEvent::ManaCostPaid {
         player,
         cost: plot_cost,
     });
-
     // Record the current turn number before moving the card (zone move creates new id).
     let current_turn = state.turn.turn_number;
-
     // Move the card from hand to exile (CR 400.7: new ObjectId).
     let (new_exile_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Exile)?;
-
     // Set the plotted attributes on the new exile object.
     // - face_down: false (plotted cards are face-up, public information, CR 702.170a)
     // - is_plotted: true (marks this as a plotted card)
@@ -155,13 +139,11 @@ pub fn handle_plot_card(
         exile_obj.is_plotted = true;
         exile_obj.plotted_turn = current_turn;
     }
-
     // Emit CardPlotted event.
     events.push(GameEvent::CardPlotted {
         player,
         object_id: card,
         new_exile_id,
     });
-
     Ok(events)
 }

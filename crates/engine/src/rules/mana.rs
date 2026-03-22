@@ -5,7 +5,7 @@
 //! They can be activated any time a player has priority (CR 605.3b).
 //!
 //! For M3-A, only tap-activated mana abilities are supported.
-
+use super::events::{CombatDamageTarget, GameEvent};
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
@@ -13,9 +13,6 @@ use crate::state::stubs::GameRestriction;
 use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
-use super::events::{CombatDamageTarget, GameEvent};
-
 /// Handle a TapForMana command: activate a mana ability by tapping a permanent.
 ///
 /// Validates priority, battlefield presence, controller, ability existence,
@@ -36,7 +33,6 @@ pub fn handle_tap_for_mana(
             actual: player,
         });
     }
-
     // 1b. PB-18 review Finding 2: Check restrictions that block mana ability activation.
     //
     // CR 605.3: "Activating an activated mana ability follows the rules for activating
@@ -49,16 +45,13 @@ pub fn handle_tap_for_mana(
     // "Stony Silence's ability affects only artifacts on the battlefield."
     {
         let active_player = state.turn.active_player;
-
         // Determine source types (battlefield-only check per Finding 3).
         let source_zone = state.objects.get(&source).map(|o| o.zone);
         let source_on_bf = matches!(source_zone, Some(ZoneId::Battlefield));
-
         let source_is_artifact = source_on_bf
             && crate::rules::layers::calculate_characteristics(state, source)
                 .map(|chars| chars.card_types.contains(&CardType::Artifact))
                 .unwrap_or(false);
-
         let source_is_restricted_type = source_on_bf
             && crate::rules::layers::calculate_characteristics(state, source)
                 .map(|chars| {
@@ -67,7 +60,6 @@ pub fn handle_tap_for_mana(
                         || chars.card_types.contains(&CardType::Enchantment)
                 })
                 .unwrap_or(false);
-
         for restriction in state.restrictions.iter() {
             // Skip restrictions whose source is no longer on the battlefield.
             let restriction_source_on_bf = state
@@ -78,9 +70,7 @@ pub fn handle_tap_for_mana(
             if !restriction_source_on_bf {
                 continue;
             }
-
             let controller = restriction.controller;
-
             match &restriction.restriction {
                 // Collector Ouphe / Stony Silence: blocks ALL activated abilities of artifacts
                 // including mana abilities (CR 605.3 + ruling).
@@ -93,7 +83,6 @@ pub fn handle_tap_for_mana(
                         ));
                     }
                 }
-
                 // Grand Abolisher / Myrel: opponents can't activate mana abilities of
                 // artifact/creature/enchantment permanents during controller's turn.
                 GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
@@ -109,20 +98,16 @@ pub fn handle_tap_for_mana(
                         ));
                     }
                 }
-
                 _ => {}
             }
         }
     }
-
     // 2. Fetch a clone of the source object to avoid borrow conflicts.
     let obj = state.object(source)?.clone();
-
     // 3. Validate source is on the battlefield.
     if obj.zone != ZoneId::Battlefield {
         return Err(GameStateError::ObjectNotOnBattlefield(source));
     }
-
     // 4. Validate player controls the source.
     if obj.controller != player {
         return Err(GameStateError::NotController {
@@ -130,7 +115,6 @@ pub fn handle_tap_for_mana(
             object_id: source,
         });
     }
-
     // 5. Fetch the mana ability.
     let ability = obj
         .characteristics
@@ -141,9 +125,7 @@ pub fn handle_tap_for_mana(
             index: ability_index,
         })?
         .clone();
-
     let mut events = Vec::new();
-
     // 6. If the ability requires tapping: validate not already tapped, then tap.
     if ability.requires_tap {
         if obj.status.tapped {
@@ -172,7 +154,6 @@ pub fn handle_tap_for_mana(
             object_id: source,
         });
     }
-
     // 7. Pay sacrifice cost if required (CR 111.10a: Treasure tokens).
     //    Sacrifice is a cost paid before mana is produced (CR 602.2c).
     //    After the zone move, `source` is a dead ObjectId (CR 400.7).
@@ -205,7 +186,6 @@ pub fn handle_tap_for_mana(
             });
         }
     }
-
     // 8. Add produced mana to the player's pool.
     //    CR 111.10a: `any_color` produces 1 mana of any color.
     //    Simplified: colorless until interactive color choice is implemented
@@ -230,7 +210,6 @@ pub fn handle_tap_for_mana(
             });
         }
     }
-
     // 9. Pain land damage: deal damage to controller as part of the mana ability.
     //    CR 605: this is part of the mana ability resolution, not a separate trigger.
     if ability.damage_to_controller > 0 {
@@ -242,9 +221,7 @@ pub fn handle_tap_for_mana(
             amount: ability.damage_to_controller,
         });
     }
-
     // 10. Player retains priority. players_passed is unchanged.
     //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
-
     Ok(events)
 }

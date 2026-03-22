@@ -1,7 +1,6 @@
 //! Rules engine: turn structure, priority, stack, SBAs, layers, combat.
 //!
 //! Each submodule corresponds to a section of the MTG Comprehensive Rules.
-
 pub mod abilities;
 pub mod casting;
 pub mod combat;
@@ -25,14 +24,11 @@ pub mod sba;
 pub mod suspend;
 pub mod turn_actions;
 pub mod turn_structure;
-
 pub use command::Command;
 pub use engine::process_command;
 pub use events::{GameEvent, LossReason};
 pub use layers::calculate_characteristics;
-
 // ── Shared targeting helpers ──────────────────────────────────────────────────
-
 /// CR 702.11a / CR 702.18a / CR 702.16b: Validate that a target is not protected by
 /// hexproof, shroud, or protection from the source.
 ///

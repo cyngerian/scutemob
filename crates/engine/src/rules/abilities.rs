@@ -17,9 +17,8 @@
 //! **Intervening-if (CR 603.4)**: If the ability reads "... if [condition] ...",
 //! the condition is checked at trigger time (ability only queues if true) AND at
 //! resolution time (ability has no effect if condition became false).
-
-use im::OrdSet;
-
+use super::casting;
+use super::events::{CombatDamageTarget, GameEvent};
 use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
@@ -33,14 +32,10 @@ use crate::state::types::AltCostKind;
 use crate::state::types::{CardType, ChampionFilter, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
-use super::casting;
-use super::events::{CombatDamageTarget, GameEvent};
-
+use im::OrdSet;
 // ---------------------------------------------------------------------------
 // Restriction checks (PB-18)
 // ---------------------------------------------------------------------------
-
 /// PB-18: Check active game restrictions that would prevent ability activation.
 ///
 /// Checks:
@@ -52,9 +47,7 @@ fn check_activate_restrictions(
     source: ObjectId,
 ) -> Result<(), GameStateError> {
     use crate::state::stubs::GameRestriction;
-
     let active_player = state.turn.active_player;
-
     // PB-18 review Finding 3: Restrict zone scope — only battlefield objects are affected.
     //
     // Per Stony Silence ruling: "affects only artifacts on the battlefield. Activated
@@ -66,13 +59,11 @@ fn check_activate_restrictions(
         .get(&source)
         .map(|o| o.zone == ZoneId::Battlefield)
         .unwrap_or(false);
-
     // Determine if the source is an artifact on the battlefield (for Collector Ouphe / Stony Silence).
     let source_is_artifact = source_on_battlefield
         && crate::rules::layers::calculate_characteristics(state, source)
             .map(|chars| chars.card_types.contains(&CardType::Artifact))
             .unwrap_or(false);
-
     for restriction in state.restrictions.iter() {
         // Skip restrictions whose source is no longer on the battlefield.
         let source_on_bf = state
@@ -83,9 +74,7 @@ fn check_activate_restrictions(
         if !source_on_bf {
             continue;
         }
-
         let controller = restriction.controller;
-
         match &restriction.restriction {
             // Collector Ouphe / Stony Silence:
             // "Activated abilities of artifacts can't be activated."
@@ -98,7 +87,6 @@ fn check_activate_restrictions(
                     ));
                 }
             }
-
             // Grand Abolisher / Myrel (ability activation component):
             // "During your turn, opponents can't activate abilities of artifacts,
             // creatures, or enchantments."
@@ -121,19 +109,15 @@ fn check_activate_restrictions(
                     }
                 }
             }
-
             // Other restrictions don't affect ability activation.
             _ => {}
         }
     }
-
     Ok(())
 }
-
 // ---------------------------------------------------------------------------
 // Activated ability handler
 // ---------------------------------------------------------------------------
-
 /// Handle an ActivateAbility command: validate, pay cost, push onto the stack.
 ///
 /// CR 602.2: To activate an ability, the controller announces it, pays all costs
@@ -157,7 +141,6 @@ pub fn handle_activate_ability(
             actual: player,
         });
     }
-
     // CR 702.61a: If a spell with split second is on the stack, no non-mana
     // abilities can be activated. (Mana abilities are handled in mana.rs and
     // are exempt from this check per CR 702.61b.)
@@ -166,10 +149,8 @@ pub fn handle_activate_ability(
             "a spell with split second is on the stack; non-mana abilities cannot be activated (CR 702.61a)".into(),
         ));
     }
-
     // PB-18: Check active restrictions that prevent ability activation.
     check_activate_restrictions(state, player, source)?;
-
     // Source must be on the battlefield (or in hand for Channel/DiscardSelf abilities).
     {
         let obj = state.object(source)?;
@@ -215,7 +196,6 @@ pub fn handle_activate_ability(
             });
         }
     }
-
     // CR 602.5d: Check sorcery-speed restriction before paying any costs.
     // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
     {
@@ -271,7 +251,6 @@ pub fn handle_activate_ability(
             }
         }
     }
-
     // Clone the cost, effect, and target requirements before mutating state.
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
     // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
@@ -290,7 +269,6 @@ pub fn handle_activate_ability(
             })?;
         (ab.cost.clone(), ab.effect.clone(), ab.targets.clone())
     };
-
     // CR 601.2c: General target validation for activated abilities.
     // If the ability declares TargetRequirements, validate each target against them
     // BEFORE spending any costs (so mana is not wasted on illegal activations).
@@ -310,7 +288,6 @@ pub fn handle_activate_ability(
             source_chars.as_ref(),
         )?;
     }
-
     // CR 702.6a / CR 601.2c: Equip abilities can only target "a creature you control."
     // Validate target type and controller BEFORE spending any costs, so that mana is
     // not wasted when the activation is illegal.
@@ -361,7 +338,6 @@ pub fn handle_activate_ability(
             }
         }
     }
-
     // CR 702.67a / CR 601.2c: Fortify abilities can only target "a land you control."
     // Validate target type and controller BEFORE spending any costs, so that mana is
     // not wasted when the activation is illegal.
@@ -392,7 +368,6 @@ pub fn handle_activate_ability(
                 "a Fortification that's also a creature can't fortify a land (CR 301.6)".into(),
             ));
         }
-
         if let Some(Target::Object(target_id)) = targets.first() {
             let target_id = *target_id;
             // Check: target must be a land on the battlefield controlled by the
@@ -433,7 +408,6 @@ pub fn handle_activate_ability(
             }
         }
     }
-
     // CR 702.151a: Reconfigure unattach ability -- "Activate only if this permanent is
     // attached to a creature." Validate BEFORE spending any costs.
     if matches!(
@@ -451,9 +425,7 @@ pub fn handle_activate_ability(
             ));
         }
     }
-
     let mut events = Vec::new();
-
     // Pay tap cost if required (CR 602.2b).
     if ability_cost.requires_tap {
         let obj = state.object(source)?;
@@ -486,7 +458,6 @@ pub fn handle_activate_ability(
             object_id: source,
         });
     }
-
     // Pay mana cost if required (CR 602.2a).
     if let Some(ref mana_cost) = ability_cost.mana_cost {
         if mana_cost.mana_value() > 0 {
@@ -501,7 +472,6 @@ pub fn handle_activate_ability(
             });
         }
     }
-
     // CR 602.2 / CR 111.10g: Pay discard-a-card cost (e.g., Blood token activation).
     // The discard is a cost, not an effect — it happens at activation time, before the
     // ability goes on the stack. The caller must supply discard_card: Some(ObjectId)
@@ -531,7 +501,6 @@ pub fn handle_activate_ability(
             new_id: new_grave_id,
         });
     }
-
     // CR 702.34: Pay discard-self cost (Channel abilities). The source card is in the
     // player's hand; discarding it is part of the activation cost.
     if ability_cost.discard_self {
@@ -542,7 +511,6 @@ pub fn handle_activate_ability(
             new_id: new_grave_id,
         });
     }
-
     // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.
     if ability_cost.sacrifice_self {
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
@@ -573,7 +541,6 @@ pub fn handle_activate_ability(
             });
         }
     }
-
     // CR 602.2: Pay sacrifice-another-permanent cost (e.g., "Sacrifice a creature: ...").
     // The caller supplies the ObjectId of the permanent to sacrifice via `sacrifice_target`.
     if let Some(ref filter) = ability_cost.sacrifice_filter {
@@ -654,7 +621,6 @@ pub fn handle_activate_ability(
             });
         }
     }
-
     // CR 701.61a: Pay forage cost — "Exile three cards from your graveyard or sacrifice a Food."
     // Deterministic fallback (M9.5): prefer Food sacrifice when both options are available.
     if ability_cost.forage {
@@ -680,8 +646,7 @@ pub fn handle_activate_ability(
             })
             .collect();
         food_ids.sort(); // deterministic: smallest ObjectId first
-
-        // Collect graveyard cards for the exile-3 option.
+                         // Collect graveyard cards for the exile-3 option.
         let mut grave_ids: Vec<ObjectId> = state
             .objects
             .iter()
@@ -694,17 +659,14 @@ pub fn handle_activate_ability(
             })
             .collect();
         grave_ids.sort(); // deterministic: smallest ObjectId first
-
         let has_food = !food_ids.is_empty();
         let has_three_grave = grave_ids.len() >= 3;
-
         if !has_food && !has_three_grave {
             return Err(GameStateError::InvalidCommand(
                 "cannot forage: need a Food you control or 3+ cards in your graveyard (CR 701.61a)"
                     .into(),
             ));
         }
-
         if has_food {
             // Sacrifice a Food (deterministic: lowest ObjectId).
             let food_id = food_ids[0];
@@ -727,7 +689,6 @@ pub fn handle_activate_ability(
             }
         }
     }
-
     // CR 602.2c: Validate targets for existence, hexproof, shroud, and protection.
     // Fetch source characteristics once for protection-from checks (CR 702.16b).
     let source_chars =
@@ -779,7 +740,6 @@ pub fn handle_activate_ability(
             }
         }
     }
-
     // Snapshot targets (zone recorded at activation time for fizzle check at resolution).
     let spell_targets: Vec<SpellTarget> = targets
         .iter()
@@ -797,10 +757,8 @@ pub fn handle_activate_ability(
             }
         })
         .collect();
-
     // Push the activated ability onto the stack.
     let stack_id = state.next_object_id();
-
     // CR 702.21a: Collect battlefield object targets before moving spell_targets into
     // the stack object. These are used to emit PermanentTargeted events for Ward.
     let battlefield_targets: Vec<ObjectId> = spell_targets
@@ -814,7 +772,6 @@ pub fn handle_activate_ability(
             None
         })
         .collect();
-
     // MR-TC-25: use trigger_default; override targets with the declared targets.
     let mut stack_obj = StackObject::trigger_default(
         stack_id,
@@ -827,18 +784,15 @@ pub fn handle_activate_ability(
     );
     stack_obj.targets = spell_targets;
     state.stack_objects.push_back(stack_obj);
-
     // CR 602.2e: After activating, the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: source,
         stack_object_id: stack_id,
     });
-
     // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
     // activated ability targets. These events drive Ward trigger checks in check_triggers.
     // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
@@ -850,16 +804,12 @@ pub fn handle_activate_ability(
             targeting_controller: player,
         });
     }
-
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 // ---------------------------------------------------------------------------
 // Cycling handler
 // ---------------------------------------------------------------------------
-
 /// Handle a CycleCard command: validate, pay mana cost, discard self, push draw onto stack.
 ///
 /// CR 702.29a: Cycling is an activated ability from hand. "[Cost], Discard this card: Draw a card."
@@ -879,7 +829,6 @@ pub fn handle_cycle_card(
             actual: player,
         });
     }
-
     // CR 702.61a: Cycling is an activated ability, not a mana ability.
     // It cannot be activated while a spell with split second is on the stack.
     if crate::rules::casting::has_split_second_on_stack(state) {
@@ -888,7 +837,6 @@ pub fn handle_cycle_card(
                 .into(),
         ));
     }
-
     // 2. Zone check (CR 702.29a): card must be in Hand(player).
     {
         let obj = state.object(card)?;
@@ -899,7 +847,6 @@ pub fn handle_cycle_card(
             )));
         }
     }
-
     // 3. Keyword check (CR 702.29a): card must have KeywordAbility::Cycling.
     {
         let obj = state.object(card)?;
@@ -914,11 +861,9 @@ pub fn handle_cycle_card(
             )));
         }
     }
-
     // 4. Look up cycling cost from CardRegistry (CR 702.29a).
     let card_id_opt = state.object(card)?.card_id.clone();
     let cycling_cost = get_cycling_cost(&card_id_opt, &state.card_registry.clone());
-
     // 5. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if let Some(ref cost) = cycling_cost {
@@ -934,12 +879,10 @@ pub fn handle_cycle_card(
             });
         }
     }
-
     // 6. Discard self as cost (CR 702.29a): move card from hand to graveyard (or exile if madness).
     // This happens BEFORE the ability goes on the stack.
     // Capture owner before zone move (move_object_to_zone resets controller to owner).
     let owner = state.object(card)?.owner;
-
     // CR 702.35a: If the card has madness, exile instead of graveyard.
     let cycle_card_id_opt = state.object(card)?.card_id.clone();
     let has_madness = state
@@ -947,14 +890,12 @@ pub fn handle_cycle_card(
         .characteristics
         .keywords
         .contains(&KeywordAbility::Madness);
-
     let discard_destination = if has_madness {
         ZoneId::Exile
     } else {
         ZoneId::Graveyard(owner)
     };
     let (new_grave_id, _) = state.move_object_to_zone(card, discard_destination)?;
-
     // Emit CardDiscarded (CR 701.8 — discard is always announced, even when going to exile).
     events.push(GameEvent::CardDiscarded {
         player,
@@ -967,7 +908,6 @@ pub fn handle_cycle_card(
         object_id: card,
         new_id: new_grave_id,
     });
-
     // CR 702.35a: If madness applied, queue the madness trigger via pending_triggers
     // so it goes through flush_pending_triggers and properly signals priority granting.
     if has_madness {
@@ -990,7 +930,6 @@ pub fn handle_cycle_card(
             ..PendingTrigger::blank(new_grave_id, player, PendingTriggerKind::Madness)
         });
     }
-
     // 7. Push cycling ability onto stack as ActivatedAbility with embedded DrawCards effect.
     // CR 602.2c: The source object (card) is now in the graveyard; source_object records
     // the retired ObjectId for reference. ability_index 0 is a placeholder.
@@ -1010,22 +949,18 @@ pub fn handle_cycle_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // 8. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.29a: Look up the cycling cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Cycling { cost }`, or `None`
@@ -1047,7 +982,6 @@ fn get_cycling_cost(
         })
     })
 }
-
 /// CR 702.59a: Look up the recover cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Recover { cost }`, or `None`
@@ -1068,11 +1002,9 @@ fn find_recover_cost(
         })
     })
 }
-
 // ---------------------------------------------------------------------------
 // Forecast (CR 702.57)
 // ---------------------------------------------------------------------------
-
 /// Handle an ActivateForecast command: validate timing/zone/once-per-turn,
 /// pay mana cost, push forecast ability onto stack.
 ///
@@ -1086,7 +1018,6 @@ pub fn handle_activate_forecast(
     targets: Vec<Target>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::state::turn::Step;
-
     // 1. Priority check (CR 602.2).
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -1094,7 +1025,6 @@ pub fn handle_activate_forecast(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): Forecast is an activated ability, not a mana
     //    ability. It cannot be activated while a spell with split second is on the stack.
     if crate::rules::casting::has_split_second_on_stack(state) {
@@ -1103,7 +1033,6 @@ pub fn handle_activate_forecast(
                 .into(),
         ));
     }
-
     // 3. Upkeep check (CR 702.57b): only during the upkeep step.
     if state.turn.step != Step::Upkeep {
         return Err(GameStateError::InvalidCommand(format!(
@@ -1112,7 +1041,6 @@ pub fn handle_activate_forecast(
             state.turn.step
         )));
     }
-
     // 4. Owner's upkeep check (CR 702.57b): the card's owner must be the active player.
     //    In multiplayer, only during the turn of the card's owner.
     if state.turn.active_player != player {
@@ -1122,7 +1050,6 @@ pub fn handle_activate_forecast(
             state.turn.active_player, player
         )));
     }
-
     // 5. Zone check (CR 702.57a): card must be in Hand(player).
     {
         let obj = state.object(card)?;
@@ -1134,7 +1061,6 @@ pub fn handle_activate_forecast(
             )));
         }
     }
-
     // 6. Keyword check (CR 702.57a): card must have KeywordAbility::Forecast.
     {
         let obj = state.object(card)?;
@@ -1149,7 +1075,6 @@ pub fn handle_activate_forecast(
             )));
         }
     }
-
     // 7. Once-per-turn check (CR 702.57b): card must not have already used forecast this turn.
     let card_id_opt = state.object(card)?.card_id.clone();
     if let Some(ref cid) = card_id_opt {
@@ -1160,7 +1085,6 @@ pub fn handle_activate_forecast(
             )));
         }
     }
-
     // 8. Look up cost and effect from AbilityDefinition::Forecast in card registry.
     let registry = state.card_registry.clone();
     let (forecast_cost, forecast_effect) = card_id_opt
@@ -1181,7 +1105,6 @@ pub fn handle_activate_forecast(
                 card
             ))
         })?;
-
     // 9. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if forecast_cost.mana_value() > 0 {
@@ -1195,12 +1118,10 @@ pub fn handle_activate_forecast(
             cost: forecast_cost,
         });
     }
-
     // 10. Mark forecast as used for this turn (CR 702.57b — once per card per turn).
     if let Some(cid) = card_id_opt {
         state.forecast_used_this_turn = state.forecast_used_this_turn.update(cid);
     }
-
     // 11. Push forecast ability onto stack.
     // The card stays in hand — no zone move.
     // Convert Vec<Target> → Vec<SpellTarget> capturing zone at activation time (CR 601.2c).
@@ -1229,26 +1150,21 @@ pub fn handle_activate_forecast(
     );
     stack_obj.targets = spell_targets;
     state.stack_objects.push_back(stack_obj);
-
     // 12. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 // ---------------------------------------------------------------------------
 // Bloodrush (CR 207.2c — ability word; underlying mechanics: CR 602)
 // ---------------------------------------------------------------------------
-
 /// Handle an ActivateBloodrush command: validate zone/target/mana, discard self
 /// as cost, and push BloodrushAbility onto the stack.
 ///
@@ -1275,7 +1191,6 @@ pub fn handle_activate_bloodrush(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): Bloodrush is an activated ability, not a mana
     //    ability. It cannot be activated while a spell with split second is on the stack.
     if crate::rules::casting::has_split_second_on_stack(state) {
@@ -1284,7 +1199,6 @@ pub fn handle_activate_bloodrush(
                 .into(),
         ));
     }
-
     // 3. Zone check (CR 602.2a): card must be in Hand(player).
     {
         let obj = state.object(card)?;
@@ -1296,7 +1210,6 @@ pub fn handle_activate_bloodrush(
             )));
         }
     }
-
     // 4. AbilityDefinition check: card must have AbilityDefinition::Bloodrush.
     //    We look up from the card registry, not the characteristics keywords,
     //    because bloodrush is an ability word (not a KeywordAbility variant).
@@ -1332,7 +1245,6 @@ pub fn handle_activate_bloodrush(
             ))
         })?;
     let (bloodrush_cost, power_boost, toughness_boost, grants_keyword) = bloodrush_def;
-
     // 5. Target validation (CR 115): target must be on the battlefield as a creature
     //    AND currently registered as an attacker in CombatState.
     {
@@ -1371,7 +1283,6 @@ pub fn handle_activate_bloodrush(
             target
         )));
     }
-
     // 6. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if bloodrush_cost.mana_value() > 0 {
@@ -1385,7 +1296,6 @@ pub fn handle_activate_bloodrush(
             cost: bloodrush_cost,
         });
     }
-
     // 7. Discard self as cost (CR 602.2b): the card goes to graveyard before
     //    the ability goes on the stack. Check for Madness first (CR 702.35a).
     let owner = state.object(card)?.owner;
@@ -1400,14 +1310,12 @@ pub fn handle_activate_bloodrush(
         ZoneId::Graveyard(owner)
     };
     let (new_grave_id, _) = state.move_object_to_zone(card, discard_destination)?;
-
     // Emit CardDiscarded (CR 701.8).
     events.push(GameEvent::CardDiscarded {
         player,
         object_id: card,
         new_id: new_grave_id,
     });
-
     // Handle Madness if present (CR 702.35a): queue Madness trigger.
     if has_madness {
         let madness_cost = card_id_opt.as_ref().and_then(|cid| {
@@ -1435,7 +1343,6 @@ pub fn handle_activate_bloodrush(
                 )
             });
     }
-
     // 8. Push BloodrushAbility onto stack (CR 602.2c).
     //    The source card is now in the graveyard; source_object records the
     //    pre-discard ObjectId for attribution only.
@@ -1457,18 +1364,15 @@ pub fn handle_activate_bloodrush(
         zone_at_cast: state.objects.get(&target).map(|o| o.zone),
     }];
     state.stack_objects.push_back(stack_obj);
-
     // 9. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-
     // CR 702.21a: Emit PermanentTargeted so Ward triggers fire when the target
     // creature has Ward. Mirrors the pattern in handle_activate_ability (lines
     // 464-470) which emits this event for every battlefield permanent targeted
@@ -1478,16 +1382,12 @@ pub fn handle_activate_bloodrush(
         targeting_stack_id: stack_id,
         targeting_controller: player,
     });
-
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 // ---------------------------------------------------------------------------
 // Unearth (CR 702.84)
 // ---------------------------------------------------------------------------
-
 /// Handle an UnearthCard command: validate, pay cost, push unearth ability onto stack.
 ///
 /// CR 702.84a: Unearth is an activated ability from the graveyard.
@@ -1506,7 +1406,6 @@ pub fn handle_unearth_card(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): activated abilities cannot be used when
     //    a spell with split second is on the stack.
     if casting::has_split_second_on_stack(state) {
@@ -1515,7 +1414,6 @@ pub fn handle_unearth_card(
                 .into(),
         ));
     }
-
     // 3. Zone check (CR 702.84a): card must be in player's own graveyard.
     {
         let obj = state.object(card)?;
@@ -1526,7 +1424,6 @@ pub fn handle_unearth_card(
             )));
         }
     }
-
     // 4. Keyword check (CR 702.84a): card must have KeywordAbility::Unearth.
     {
         let obj = state.object(card)?;
@@ -1541,7 +1438,6 @@ pub fn handle_unearth_card(
             )));
         }
     }
-
     // 5. Sorcery speed check (CR 702.84a: "activate only as a sorcery").
     //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
     {
@@ -1566,7 +1462,6 @@ pub fn handle_unearth_card(
             ));
         }
     }
-
     // 6. Look up unearth cost from CardRegistry.
     let card_id_opt = state.object(card)?.card_id.clone();
     let unearth_cost_opt = get_unearth_cost(&card_id_opt, &state.card_registry.clone());
@@ -1578,7 +1473,6 @@ pub fn handle_unearth_card(
             ));
         }
     };
-
     // 7. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if unearth_cost.mana_value() > 0 {
@@ -1592,7 +1486,6 @@ pub fn handle_unearth_card(
             cost: unearth_cost.clone(),
         });
     }
-
     // 8. Push the unearth ability onto the stack as UnearthAbility.
     //    The card stays in the graveyard until the ability resolves (unlike cycling
     //    where the card is discarded as a cost).
@@ -1606,22 +1499,18 @@ pub fn handle_unearth_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // 9. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.84a: Look up the unearth cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Unearth, .. }`,
@@ -1647,11 +1536,9 @@ fn get_unearth_cost(
         })
     })
 }
-
 // ---------------------------------------------------------------------------
 // Ninjutsu (CR 702.49)
 // ---------------------------------------------------------------------------
-
 /// Handle an ActivateNinjutsu command: validate, pay cost, return attacker to
 /// hand as a cost, then push ninjutsu ability onto the stack.
 ///
@@ -1671,7 +1558,6 @@ pub fn handle_ninjutsu(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): activated abilities cannot be used when
     //    a spell with split second is on the stack.
     if casting::has_split_second_on_stack(state) {
@@ -1680,7 +1566,6 @@ pub fn handle_ninjutsu(
                 .into(),
         ));
     }
-
     // 3. Combat phase + step check (CR 702.49c): must be in combat phase,
     //    at DeclareBlockers or later (not DeclareAttackers or BeginningOfCombat --
     //    before blockers are declared, creatures are neither blocked nor unblocked).
@@ -1703,14 +1588,12 @@ pub fn handle_ninjutsu(
             )));
         }
     }
-
     // 4. Combat state must exist (safety check).
     if state.combat.is_none() {
         return Err(GameStateError::InvalidCommand(
             "ActivateNinjutsu: no active combat state (CR 702.49c)".into(),
         ));
     }
-
     // 5. Zone check (CR 702.49a/d): ninja card must be in player's hand, OR,
     //    if it has CommanderNinjutsu, in the command zone ZoneId::Command(player).
     //    CRITICAL: ZoneId::Command(player), NOT ZoneId::CommandZone.
@@ -1732,7 +1615,6 @@ pub fn handle_ninjutsu(
         )));
     }
     let from_command_zone = in_command_zone;
-
     // 6. Keyword check (CR 702.49a/d): card must have Ninjutsu or CommanderNinjutsu.
     {
         let obj = state.object(ninja_card)?;
@@ -1748,7 +1630,6 @@ pub fn handle_ninjutsu(
             )));
         }
     }
-
     // 7. Attacker validation (CR 702.49c): attacker must be on battlefield,
     //    controlled by player, in combat.attackers, and unblocked.
     {
@@ -1779,7 +1660,6 @@ pub fn handle_ninjutsu(
                 .into(),
         ));
     }
-
     // 8. Capture attack target BEFORE returning the attacker (CR 702.49c):
     //    the ninja inherits the attack target of the returned creature.
     let attack_target = state
@@ -1791,7 +1671,6 @@ pub fn handle_ninjutsu(
                 "ActivateNinjutsu: could not retrieve attack target from combat state".into(),
             )
         })?;
-
     // 9. Cost lookup: find AbilityDefinition::Ninjutsu or ::CommanderNinjutsu.
     let card_id_opt = state.object(ninja_card)?.card_id.clone();
     let ninjutsu_cost_opt = get_ninjutsu_cost(&card_id_opt, &state.card_registry.clone());
@@ -1803,7 +1682,6 @@ pub fn handle_ninjutsu(
             ));
         }
     };
-
     // 10. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if ninjutsu_cost.mana_value() > 0 {
@@ -1817,7 +1695,6 @@ pub fn handle_ninjutsu(
             cost: ninjutsu_cost.clone(),
         });
     }
-
     // 11. Return attacker to its OWNER's hand (cost, CR 702.49a).
     //     "Return an unblocked attacking creature you control to its owner's hand."
     //     NOT the controller's hand -- in multiplayer theft, the attacker goes
@@ -1835,7 +1712,6 @@ pub fn handle_ninjutsu(
         object_id: attacker_to_return,
         new_hand_id,
     });
-
     // 12. Push ninjutsu ability onto stack as NinjutsuAbility.
     let stack_id = state.next_object_id();
     // MR-TC-25: use trigger_default for boilerplate cast-specific fields.
@@ -1850,22 +1726,18 @@ pub fn handle_ninjutsu(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // 13. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: ninja_card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.49a: Look up the ninjutsu cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Ninjutsu { cost }` or
@@ -1885,11 +1757,9 @@ fn get_ninjutsu_cost(
         })
     })
 }
-
 // ---------------------------------------------------------------------------
 // Embalm (CR 702.128)
 // ---------------------------------------------------------------------------
-
 /// Handle an EmbalmCard command: validate, pay cost, exile card, push embalm ability
 /// onto the stack.
 ///
@@ -1912,7 +1782,6 @@ pub fn handle_embalm_card(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): activated abilities cannot be used when
     //    a spell with split second is on the stack.
     if casting::has_split_second_on_stack(state) {
@@ -1921,7 +1790,6 @@ pub fn handle_embalm_card(
                 .into(),
         ));
     }
-
     // 3. Zone check (CR 702.128a): card must be in player's own graveyard.
     {
         let obj = state.object(card)?;
@@ -1932,7 +1800,6 @@ pub fn handle_embalm_card(
             )));
         }
     }
-
     // 4. Keyword check (CR 702.128a): card must have KeywordAbility::Embalm.
     {
         let obj = state.object(card)?;
@@ -1947,7 +1814,6 @@ pub fn handle_embalm_card(
             )));
         }
     }
-
     // 5. Sorcery speed check (CR 702.128a: "activate only as a sorcery").
     //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
     {
@@ -1970,7 +1836,6 @@ pub fn handle_embalm_card(
             ));
         }
     }
-
     // 6. Look up embalm cost from CardRegistry.
     let card_id_opt = state.object(card)?.card_id.clone();
     let embalm_cost_opt = get_embalm_cost(&card_id_opt, &state.card_registry.clone());
@@ -1982,7 +1847,6 @@ pub fn handle_embalm_card(
             ));
         }
     };
-
     // 7. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if embalm_cost.mana_value() > 0 {
@@ -1996,12 +1860,10 @@ pub fn handle_embalm_card(
             cost: embalm_cost.clone(),
         });
     }
-
     // 8. Capture the card_id BEFORE exiling (object identity is reset on zone change,
     //    CR 400.7 -- but card_id is the registry key and survives the move).
     //    We need it for EmbalmAbility so resolution can find the CardDefinition.
     let source_card_id = state.object(card)?.card_id.clone();
-
     // 9. Exile the card from graveyard as cost payment (CR 702.128a: "[Cost], Exile
     //    this card from your graveyard"). CRITICAL DIFFERENCE FROM UNEARTH:
     //    the card is exiled immediately as part of cost payment, not at resolution.
@@ -2014,7 +1876,6 @@ pub fn handle_embalm_card(
         object_id: card,
         new_exile_id: exile_id,
     });
-
     // 10. Push the embalm ability onto the stack as EmbalmAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
     //     because the card's ObjectId is now dead (zone change, CR 400.7).
@@ -2026,22 +1887,18 @@ pub fn handle_embalm_card(
         StackObjectKind::EmbalmAbility { source_card_id },
     );
     state.stack_objects.push_back(stack_obj);
-
     // 11. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.128a: Look up the embalm cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, .. }`,
@@ -2067,11 +1924,9 @@ fn get_embalm_cost(
         })
     })
 }
-
 // ---------------------------------------------------------------------------
 // Eternalize (CR 702.129)
 // ---------------------------------------------------------------------------
-
 /// Handle an EternalizeCard command: validate, pay cost, exile card, push eternalize ability
 /// onto the stack.
 ///
@@ -2094,7 +1949,6 @@ pub fn handle_eternalize_card(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): activated abilities cannot be used when
     //    a spell with split second is on the stack.
     if casting::has_split_second_on_stack(state) {
@@ -2103,7 +1957,6 @@ pub fn handle_eternalize_card(
                 .into(),
         ));
     }
-
     // 3. Zone check (CR 702.129a): card must be in player's own graveyard.
     {
         let obj = state.object(card)?;
@@ -2114,7 +1967,6 @@ pub fn handle_eternalize_card(
             )));
         }
     }
-
     // 4. Keyword check (CR 702.129a): card must have KeywordAbility::Eternalize.
     {
         let obj = state.object(card)?;
@@ -2129,7 +1981,6 @@ pub fn handle_eternalize_card(
             )));
         }
     }
-
     // 5. Sorcery speed check (CR 702.129a: "activate only as a sorcery").
     //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
     {
@@ -2154,7 +2005,6 @@ pub fn handle_eternalize_card(
             ));
         }
     }
-
     // 6. Look up eternalize cost from CardRegistry.
     let card_id_opt = state.object(card)?.card_id.clone();
     let eternalize_cost_opt = get_eternalize_cost(&card_id_opt, &state.card_registry.clone());
@@ -2166,7 +2016,6 @@ pub fn handle_eternalize_card(
             ));
         }
     };
-
     // 7. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if eternalize_cost.mana_value() > 0 {
@@ -2180,14 +2029,12 @@ pub fn handle_eternalize_card(
             cost: eternalize_cost.clone(),
         });
     }
-
     // 8. Capture the card_id and name BEFORE exiling (object identity is reset on zone
     //    change, CR 400.7 -- but card_id is the registry key and survives the move).
     //    We need both for EternalizeAbility so resolution can find the CardDefinition
     //    and the TUI can display the card name.
     let source_card_id = state.object(card)?.card_id.clone();
     let source_name = state.object(card)?.characteristics.name.clone();
-
     // 9. Exile the card from graveyard as cost payment (CR 702.129a: "[Cost], Exile
     //    this card from your graveyard"). CRITICAL DIFFERENCE FROM UNEARTH:
     //    the card is exiled immediately as part of cost payment, not at resolution.
@@ -2200,7 +2047,6 @@ pub fn handle_eternalize_card(
         object_id: card,
         new_exile_id: exile_id,
     });
-
     // 10. Push the eternalize ability onto the stack as EternalizeAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
     //     because the card's ObjectId is now dead (zone change, CR 400.7).
@@ -2216,22 +2062,18 @@ pub fn handle_eternalize_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // 11. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.129a: Look up the eternalize cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, .. }`,
@@ -2257,11 +2099,9 @@ fn get_eternalize_cost(
         })
     })
 }
-
 // ---------------------------------------------------------------------------
 // Encore (CR 702.141)
 // ---------------------------------------------------------------------------
-
 /// Handle an EncoreCard command: validate, pay cost, exile card, push encore ability
 /// onto the stack.
 ///
@@ -2287,7 +2127,6 @@ pub fn handle_encore_card(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): activated abilities cannot be used when
     //    a spell with split second is on the stack.
     if casting::has_split_second_on_stack(state) {
@@ -2296,7 +2135,6 @@ pub fn handle_encore_card(
                 .into(),
         ));
     }
-
     // 3. Zone check (CR 702.141a): card must be in player's own graveyard.
     {
         let obj = state.object(card)?;
@@ -2307,7 +2145,6 @@ pub fn handle_encore_card(
             )));
         }
     }
-
     // 4. Keyword check (CR 702.141a): card must have KeywordAbility::Encore.
     {
         let obj = state.object(card)?;
@@ -2322,7 +2159,6 @@ pub fn handle_encore_card(
             )));
         }
     }
-
     // 5. Sorcery speed check (CR 702.141a: "activate only as a sorcery").
     //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
     {
@@ -2345,7 +2181,6 @@ pub fn handle_encore_card(
             ));
         }
     }
-
     // 6. Look up encore cost from CardRegistry.
     let card_id_opt = state.object(card)?.card_id.clone();
     let encore_cost_opt = get_encore_cost(&card_id_opt, &state.card_registry.clone());
@@ -2357,7 +2192,6 @@ pub fn handle_encore_card(
             ));
         }
     };
-
     // 7. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if encore_cost.mana_value() > 0 {
@@ -2371,12 +2205,10 @@ pub fn handle_encore_card(
             cost: encore_cost.clone(),
         });
     }
-
     // 8. Capture the card_id BEFORE exiling (object identity is reset on zone change,
     //    CR 400.7 -- but card_id is the registry key and survives the move).
     //    We need it for EncoreAbility so resolution can find the CardDefinition.
     let source_card_id = state.object(card)?.card_id.clone();
-
     // 9. Exile the card from graveyard as cost payment (CR 702.141a: "[Cost], Exile
     //    this card from your graveyard"). CRITICAL DIFFERENCE FROM UNEARTH:
     //    the card is exiled immediately as part of cost payment, not at resolution.
@@ -2389,7 +2221,6 @@ pub fn handle_encore_card(
         object_id: card,
         new_exile_id: exile_id,
     });
-
     // 10. Push the encore ability onto the stack as EncoreAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
     //     because the card's ObjectId is now dead (zone change, CR 400.7).
@@ -2405,22 +2236,18 @@ pub fn handle_encore_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // 11. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.141a: Look up the encore cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, .. }`,
@@ -2446,11 +2273,9 @@ fn get_encore_cost(
         })
     })
 }
-
 // ---------------------------------------------------------------------------
 // Trigger checking
 // ---------------------------------------------------------------------------
-
 /// Scan all permanents for triggered abilities that fire in response to `events`.
 ///
 /// Called after any batch of events. Returns `PendingTrigger` entries for each
@@ -2463,7 +2288,6 @@ fn get_encore_cost(
 /// at trigger time; the ability only queues if the condition is true.
 pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTrigger> {
     let mut triggers = Vec::new();
-
     for event in events {
         match event {
             GameEvent::PermanentEnteredBattlefield { object_id, .. } => {
@@ -2475,7 +2299,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     Some(*object_id), // Only check this specific object
                     Some(*object_id), // entering_object_id: the permanent itself
                 );
-
                 // AnyPermanentEntersBattlefield: fires on ALL permanents (including the entering one).
                 // Pass the entering object so TriggerDoublerFilter::ArtifactOrCreatureETB can
                 // verify the entering object's card types (CR 603.2d).
@@ -2486,7 +2309,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,             // Check all battlefield permanents
                     Some(*object_id), // entering_object_id: the permanent that entered
                 );
-
                 // CR 702.74a: If the permanent was evoked, generate the evoke sacrifice trigger.
                 // "When this permanent enters, if its evoke cost was paid, its controller
                 // sacrifices it." This goes on the stack as a separate triggered ability,
@@ -2523,7 +2345,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         triggers.push(evoke_trigger);
                     }
                 }
-
                 // CR 702.110a: If the permanent has Exploit, generate the exploit trigger.
                 // "When this creature enters, you may sacrifice a creature."
                 // Each instance of Exploit in the card definition triggers separately.
@@ -2554,7 +2375,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             })
                             .unwrap_or(1)
                             .max(1);
-
                         let controller = obj.controller;
                         for _ in 0..exploit_count {
                             triggers.push(PendingTrigger {
@@ -2586,7 +2406,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.75a: Hideaway(N) — "When this permanent enters, look at
                 // the top N cards of your library. Exile one of them face down
                 // and put the rest on the bottom of your library in a random order."
@@ -2621,7 +2440,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
-
                 // CR 702.124j: Partner With ETB trigger —
                 // "When this permanent enters, target player may search their
                 // library for a card named [name], reveal it, put it into their
@@ -2663,7 +2481,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.165a: Backup -- "When this creature enters, put N +1/+1 counters
                 // on target creature. If that's another creature, it also gains the non-backup
                 // abilities of this creature printed below this one until end of turn."
@@ -2699,7 +2516,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 _ => None,
                                             })
                                             .collect();
-
                                         triggers.push(PendingTrigger {
                                             ability_index: idx,
                                             triggering_event: Some(
@@ -2719,7 +2535,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.72a: Champion ETB trigger.
                 // "When this permanent enters, sacrifice it unless you exile
                 // another [object] you control."
@@ -2749,7 +2564,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     })
                                 })
                                 .unwrap_or(ChampionFilter::AnyCreature);
-
                             triggers.push(PendingTrigger {
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
@@ -2763,7 +2577,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.95a: Soulbond — two ETB triggered abilities:
                 //   Trigger 1 (SelfETB): When a creature with soulbond enters, if its
                 //   controller controls another unpaired creature, pair them.
@@ -2784,7 +2597,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             })
                             .map(|chars| chars.card_types.contains(&CardType::Creature))
                             .unwrap_or(false);
-
                     if entering_is_creature {
                         if let Some(controller) = entering_controller {
                             // Trigger 1 (SoulbondSelfETB): entering creature itself has Soulbond.
@@ -2800,7 +2612,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     })
                                     .map(|c| c.keywords.contains(&KeywordAbility::Soulbond))
                                     .unwrap_or(false);
-
                             if entering_has_soulbond {
                                 // Intervening-if: controller has another unpaired creature.
                                 // CR 613.1d: Use layer-resolved types for creature check.
@@ -2821,7 +2632,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             .contains(&CardType::Creature)
                                     })
                                     .map(|obj| obj.id);
-
                                 if let Some(partner_id) = pair_target {
                                     triggers.push(PendingTrigger {
                                         triggering_event: Some(
@@ -2839,7 +2649,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     });
                                 }
                             }
-
                             // Trigger 2 (SoulbondOtherETB): other unpaired soulbond creatures
                             // controlled by same player pair with the entering creature.
                             // The entering creature must also be unpaired (checked at trigger time).
@@ -2848,7 +2657,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 .get(object_id)
                                 .map(|o| o.paired_with.is_none())
                                 .unwrap_or(false);
-
                             if entering_is_unpaired {
                                 let soulbond_sources: Vec<(ObjectId, PlayerId)> =
                                     state
@@ -2873,7 +2681,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         })
                                         .map(|obj| (obj.id, obj.controller))
                                         .collect();
-
                                 for (sb_id, sb_controller) in soulbond_sources {
                                     // Skip if sb_id has Soulbond and already fired SelfETB for this
                                     // same pair (sb_id == object_id handled by filter above).
@@ -2902,7 +2709,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.100a: Evolve — "Whenever a creature you control enters,
                 // if that creature's power is greater than this creature's power
                 // and/or that creature's toughness is greater than this creature's
@@ -2923,11 +2729,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             })
                             .map(|chars| chars.card_types.contains(&CardType::Creature))
                             .unwrap_or(false);
-
                     if entering_is_creature {
                         let entering_controller =
                             state.objects.get(object_id).map(|o| o.controller);
-
                         if let Some(controller) = entering_controller {
                             // Get the entering creature's P/T (layer-aware).
                             let entering_chars =
@@ -2938,12 +2742,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             .get(object_id)
                                             .map(|o| o.characteristics.clone())
                                     });
-
                             let (entering_power, entering_toughness) = entering_chars
                                 .as_ref()
                                 .map(|c| (c.power.unwrap_or(0), c.toughness.unwrap_or(0)))
                                 .unwrap_or((0, 0));
-
                             // Collect all creatures with evolve controlled by the same player.
                             // Exclude the entering creature itself (cannot evolve from itself).
                             let evolve_sources: Vec<ObjectId> = state
@@ -2961,7 +2763,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 })
                                 .map(|obj| obj.id)
                                 .collect();
-
                             for evolve_id in evolve_sources {
                                 // CR 603.4: Intervening-if check at trigger time.
                                 // Get the evolve creature's current P/T (layer-aware).
@@ -2974,12 +2775,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         .get(&evolve_id)
                                         .map(|o| o.characteristics.clone())
                                 });
-
                                 let (evolve_power, evolve_toughness) = evolve_chars
                                     .as_ref()
                                     .map(|c| (c.power.unwrap_or(0), c.toughness.unwrap_or(0)))
                                     .unwrap_or((0, 0));
-
                                 // CR 702.100a: trigger fires if entering P > evolve P
                                 // OR entering T > evolve T (inclusive or).
                                 if entering_power > evolve_power
@@ -2990,7 +2789,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         .get(&evolve_id)
                                         .map(|o| o.controller)
                                         .unwrap_or(controller);
-
                                     // CR 702.100d: Count evolve instances from card
                                     // definition — OrdSet deduplicates, so check the
                                     // card definition for the exact count.
@@ -3014,7 +2812,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         })
                                         .unwrap_or(1)
                                         .max(1);
-
                                     for _ in 0..evolve_count {
                                         triggers.push(PendingTrigger {
                                             triggering_event: Some(
@@ -3036,7 +2833,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.58a: Graft -- "Whenever another creature enters, if this
                 // permanent has a +1/+1 counter on it, you may move a +1/+1 counter
                 // from this permanent onto that creature."
@@ -3058,7 +2854,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             })
                             .map(|chars| chars.card_types.contains(&CardType::Creature))
                             .unwrap_or(false);
-
                     if entering_is_creature {
                         // Collect all battlefield permanents with Graft that:
                         // 1. Are not the entering creature itself ("another creature")
@@ -3093,7 +2888,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             })
                             .collect();
-
                         for (graft_id, graft_controller, graft_count) in graft_sources {
                             for _ in 0..graft_count {
                                 triggers.push(PendingTrigger {
@@ -3115,7 +2909,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::SpellCast {
                 player,
                 source_object_id,
@@ -3129,7 +2922,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,
                     None,
                 );
-
                 // CR 702.108a: Prowess — "Whenever you cast a noncreature spell."
                 // Check if the cast spell is noncreature by inspecting the source object's
                 // card types. Only fire if the spell lacks CardType::Creature.
@@ -3142,7 +2934,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .contains(&crate::state::types::CardType::Creature)
                     })
                     .unwrap_or(false);
-
                 if is_noncreature {
                     // Collect triggers only for permanents controlled by the caster.
                     // Prowess says "whenever YOU cast" -- only the controller's creatures trigger.
@@ -3156,7 +2947,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .map(|obj| obj.id)
                         .collect();
-
                     for obj_id in prowess_sources {
                         collect_triggers_for_event(
                             state,
@@ -3167,7 +2957,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         );
                     }
                 }
-
                 // CR 702.101a: Extort — "Whenever you cast a spell."
                 // Collect triggers only for permanents controlled by the caster.
                 // No type restriction (unlike Prowess which requires noncreature).
@@ -3183,7 +2972,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .map(|obj| obj.id)
                         .collect();
-
                     for obj_id in controller_sources {
                         collect_triggers_for_event(
                             state,
@@ -3194,7 +2982,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         );
                     }
                 }
-
                 // CR 603.2 / CR 102.2: "Whenever an opponent casts a spell."
                 // Collect triggers on all permanents whose controller is NOT the caster.
                 // In Commander FFA (CR 903.2, CR 102.2), all other players are opponents.
@@ -3209,7 +2996,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .map(|obj| obj.id)
                         .collect();
-
                     let pre_len = triggers.len();
                     for obj_id in opponent_sources {
                         collect_triggers_for_event(
@@ -3226,7 +3012,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         t.triggering_player = Some(*player);
                     }
                 }
-
                 // CR 113.6p / CR 114.4: Emblem triggers from command zone emblems.
                 // Emblems fire "whenever you cast" triggers for their controlling player.
                 // Only scan the caster's emblems (emblem abilities say "whenever YOU cast").
@@ -3243,7 +3028,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     Some(*player),
                 );
             }
-
             GameEvent::PermanentTapped { object_id, .. } => {
                 // SelfBecomesTapped: fires on the tapped permanent itself.
                 collect_triggers_for_event(
@@ -3254,7 +3038,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,
                 );
             }
-
             GameEvent::AttackersDeclared {
                 attacking_player,
                 attackers,
@@ -3282,7 +3065,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     for t in &mut triggers[pre_len..] {
                         t.defending_player_id = defending_player;
                     }
-
                     // CR 702.116a/b: Tag myriad triggers for special stack handling.
                     // A SelfAttacks trigger is a myriad trigger if its source object has
                     // the Myriad keyword. We check the triggered ability's description
@@ -3301,7 +3083,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                     }
-
                     // CR 702.39a/b: Tag provoke triggers for special stack handling.
                     // A SelfAttacks trigger is a provoke trigger if the triggered ability
                     // description starts with "Provoke" (set by builder.rs). At collection
@@ -3320,7 +3101,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             {
                                 if ta.description.starts_with("Provoke") {
                                     t.kind = PendingTriggerKind::Provoke;
-
                                     // Select target: first creature controlled by defending player
                                     // that has not already been claimed by a prior provoke trigger
                                     // from this attacker this combat.
@@ -3352,7 +3132,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                     }
-
                     // CR 702.121a/b: Tag melee triggers for special stack handling.
                     // A SelfAttacks trigger is a melee trigger if its triggered ability
                     // description starts with "Melee" (set by builder.rs). Unlike
@@ -3369,7 +3148,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                     }
-
                     // CR 702.154a: Enlist trigger post-processing.
                     // Each enlist pairing from combat.enlist_pairings for this attacker
                     // should match one "Enlist"-prefixed placeholder TriggeredAbilityDef.
@@ -3389,7 +3167,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     .collect()
                             })
                             .unwrap_or_default();
-
                         // Collect indices of Enlist placeholder triggers from this batch.
                         let mut enlist_trigger_indices: Vec<usize> = Vec::new();
                         for (i, t) in triggers[pre_len..].iter().enumerate() {
@@ -3403,7 +3180,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                         }
-
                         // Match pairings to placeholder triggers.
                         // Tag matched triggers; mark unmatched for removal.
                         let mut indices_to_remove: Vec<usize> = Vec::new();
@@ -3419,14 +3195,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 indices_to_remove.push(idx);
                             }
                         }
-
                         // Remove unmatched Enlist placeholder triggers (reverse order to
                         // preserve indices).
                         for &idx in indices_to_remove.iter().rev() {
                             triggers.remove(idx);
                         }
                     }
-
                     // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
                     // with the most life or tied for most life, put a +1/+1 counter on
                     // this creature."
@@ -3446,7 +3220,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .map(|p| p.life_total)
                             .max()
                             .unwrap_or(i32::MIN);
-
                         if defending_life >= max_life {
                             let pre_len_dethrone = triggers.len();
                             collect_triggers_for_event(
@@ -3463,7 +3236,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                     }
-
                     // CR 702.149a: Training -- "Whenever this creature and at least one
                     // other creature with power greater than this creature's power attack,
                     // put a +1/+1 counter on this creature."
@@ -3478,7 +3250,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             crate::rules::layers::calculate_characteristics(state, *attacker_id)
                                 .and_then(|c| c.power)
                                 .unwrap_or(0);
-
                         // Check if any OTHER attacker in this batch has strictly greater power.
                         let has_greater_power_ally = attackers.iter().any(|(other_id, _)| {
                             *other_id != *attacker_id && {
@@ -3490,7 +3261,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 other_power > attacker_power
                             }
                         });
-
                         if has_greater_power_ally {
                             let pre_len_training = triggers.len();
                             collect_triggers_for_event(
@@ -3508,7 +3278,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 701.54c (ring level >= 2): "Whenever your Ring-bearer attacks, draw a
                 // card, then discard a card." Queue a RingLoot PendingTrigger for each
                 // attacking creature that is this player's ring-bearer.
@@ -3557,7 +3326,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
                 // If exactly one creature is declared as an attacker, fire exalted triggers
                 // on ALL permanents controlled by the attacking player (not just the attacker).
@@ -3574,7 +3342,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .map(|obj| obj.id)
                         .collect();
-
                     let pre_len = triggers.len();
                     for obj_id in exalted_sources {
                         collect_triggers_for_event(
@@ -3592,7 +3359,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::BlockersDeclared {
                 blockers,
                 defending_player,
@@ -3607,7 +3373,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                     );
                 }
-
                 // CR 702.25a: Flanking -- "Whenever this creature becomes blocked by
                 // a creature without flanking, the blocking creature gets -1/-1 until
                 // end of turn."
@@ -3628,7 +3393,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if !attacker_chars.keywords.contains(&KeywordAbility::Flanking) {
                         continue;
                     }
-
                     // Check that the blocker does NOT have flanking (CR 702.25a).
                     let blocker_has_flanking = state
                         .objects
@@ -3643,7 +3407,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if blocker_has_flanking {
                         continue;
                     }
-
                     // Count flanking instances from card definition (CR 702.25b).
                     let flanking_count = attacker_obj
                         .card_id
@@ -3662,7 +3425,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .unwrap_or(1)
                         .max(1);
-
                     let controller = attacker_obj.controller;
                     let source_id = attacker_obj.id;
                     for _ in 0..flanking_count {
@@ -3679,7 +3441,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
-
                 // CR 509.1h / CR 702.45a / CR 702.23a: SelfBecomesBlocked -- fires
                 // on each ATTACKER that has at least one blocker declared against it.
                 // Collect unique attacker IDs to ensure each triggers only once
@@ -3690,7 +3451,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     .collect();
                 blocked_attackers.sort();
                 blocked_attackers.dedup();
-
                 for attacker_id in blocked_attackers {
                     let pre_len = triggers.len();
                     collect_triggers_for_event(
@@ -3700,7 +3460,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         Some(attacker_id),
                         None,
                     );
-
                     // CR 702.23a: Tag Rampage triggers with kind=Rampage and rampage_n.
                     // Each Rampage(n) keyword on the attacker generates a TriggeredAbilityDef
                     // with description starting "Rampage N (CR 702.23a):". We detect these
@@ -3730,7 +3489,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                     }
-
                     // CR 509.3c / CR 702.130a: Tag all SelfBecomesBlocked triggers with
                     // the defending player so flush_pending_triggers sets Target::Player at
                     // index 0. This enables PlayerTarget::DeclaredTarget { index: 0 } in
@@ -3743,7 +3501,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         t.defending_player_id = Some(*defending_player);
                     }
                 }
-
                 // CR 701.54c (ring level >= 3): "Whenever your Ring-bearer becomes blocked
                 // by a creature, that creature's controller sacrifices it at end of combat."
                 //
@@ -3753,7 +3510,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // is pushed here — the EOC tag pattern (used by Decayed/Myriad) avoids the
                 // bugs of an immediate-resolution trigger: wrong timing and wrong sacrifice target.
             }
-
             GameEvent::PermanentTargeted {
                 target_id,
                 targeting_stack_id,
@@ -3784,7 +3540,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::CreatureDied {
                 object_id: pre_death_object_id,
                 new_grave_id,
@@ -3804,7 +3559,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         if trigger_def.trigger_on != TriggerEvent::SelfDies {
                             continue;
                         }
-
                         // CR 603.4: Check intervening-if clause at trigger time.
                         // Pass pre_death_counters for persist/undying counter checks (CR 702.79a).
                         if let Some(ref cond) = trigger_def.intervening_if {
@@ -3817,7 +3571,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 continue;
                             }
                         }
-
                         // CR 702.43a: Detect if this is a Modular trigger. Tag it with
                         // the +1/+1 counter count from last-known information so that
                         // flush_pending_triggers can create a KeywordTrigger (Modular) stack entry.
@@ -3832,7 +3585,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         } else {
                             None
                         };
-
                         let kind = if is_modular {
                             PendingTriggerKind::Modular
                         } else {
@@ -3852,7 +3604,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
-
                 // CR 702.59a: Recover triggers. When a creature enters a player's
                 // graveyard from the battlefield, each Recover card in that same
                 // player's graveyard triggers independently.
@@ -3888,7 +3639,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             Some((obj_id, cost, obj.owner))
                         })
                         .collect();
-
                     for (recover_id, cost, card_owner) in recover_cards {
                         triggers.push(PendingTrigger {
                             triggering_event: Some(TriggerEvent::SelfDies),
@@ -3904,7 +3654,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
-
                 // CR 702.72a: Champion LTB trigger. When a Champion permanent leaves the
                 // battlefield (here: dies), check if it had a champion_exiled_card and
                 // fire the LTB trigger to return that card to the battlefield.
@@ -3927,7 +3676,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
-
                 // CR 702.55b: When a creature with Haunt dies, exile the dying creature
                 // haunting another target creature.
                 // Look back in time via new_grave_id to check if the dead creature had Haunt.
@@ -3954,7 +3702,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
-
                 // CR 702.55c: When the creature a haunt card haunts dies, fire the haunted
                 // creature dies trigger for each haunt card in exile that targets this creature.
                 // Scan exile for objects whose haunting_target matches the pre-death battlefield ID.
@@ -3979,7 +3726,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             Some((exiled_obj_id, obj.card_id.clone(), obj.controller))
                         })
                         .collect();
-
                     for (haunt_obj_id, haunt_card_id, haunt_controller) in haunt_exiled {
                         triggers.push(PendingTrigger {
                             triggering_event: Some(TriggerEvent::HauntedCreatureDies),
@@ -3996,7 +3742,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::AuraFellOff { new_grave_id, .. } => {
                 // CR 603.6c / CR 603.10a: "When ~ is put into a graveyard from the battlefield"
                 // triggers on Auras fire when the Aura moves to the graveyard via SBA 704.5m.
@@ -4011,14 +3756,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         if trigger_def.trigger_on != TriggerEvent::SelfDies {
                             continue;
                         }
-
                         // CR 603.4: Check intervening-if clause at trigger time.
                         if let Some(ref cond) = trigger_def.intervening_if {
                             if !check_intervening_if(state, cond, controller, None) {
                                 continue;
                             }
                         }
-
                         triggers.push(PendingTrigger {
                             source: *new_grave_id,
                             ability_index: idx,
@@ -4048,7 +3791,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::Surveilled { player, .. } => {
                 // CR 701.25d: "Whenever you surveil" triggers on all permanents
                 // controlled by the surveilling player.
@@ -4062,7 +3804,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     })
                     .map(|obj| obj.id)
                     .collect();
-
                 for obj_id in controller_sources {
                     collect_triggers_for_event(
                         state,
@@ -4073,7 +3814,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     );
                 }
             }
-
             GameEvent::Investigated { player, .. } => {
                 // CR 701.16a: "Whenever you investigate" triggers on all permanents
                 // controlled by the investigating player.
@@ -4087,7 +3827,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     })
                     .map(|obj| obj.id)
                     .collect();
-
                 for obj_id in controller_sources {
                     collect_triggers_for_event(
                         state,
@@ -4098,7 +3837,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     );
                 }
             }
-
             GameEvent::Amassed { player, .. } => {
                 // CR 701.47a: "Whenever you amass" triggers on all permanents
                 // controlled by the amassing player. No TriggerEvent::ControllerAmasses
@@ -4108,7 +3846,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // and update collect_triggers_for_event here.
                 let _ = player;
             }
-
             GameEvent::Connived { object_id, .. } => {
                 // CR 701.50b: "Whenever [this creature] connives" triggers fire even if
                 // the creature left the battlefield before the Connived event is processed.
@@ -4162,7 +3899,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::CombatDamageDealt { assignments } => {
                 // CR 510.3a / CR 603.2: "Whenever ~ deals combat damage to a player"
                 // triggers fire for each creature that dealt > 0 combat damage to a player.
@@ -4181,7 +3917,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             Some(assignment.source),
                             None,
                         );
-
                         // CR 702.115a: Ingest -- "Whenever this creature deals combat
                         // damage to a player, that player exiles the top card of
                         // their library."
@@ -4201,7 +3936,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     continue;
                                 };
                                 let damaged_player = *damaged_player;
-
                                 // Count ingest instances from card definition for
                                 // CR 702.115b: multiple instances trigger separately.
                                 let ingest_count = obj
@@ -4223,7 +3957,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     })
                                     .unwrap_or(1)
                                     .max(1);
-
                                 let controller = obj.controller;
                                 let source_id = obj.id;
                                 for _ in 0..ingest_count {
@@ -4243,7 +3976,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                         }
-
                         // CR 702.112a: Renown N -- "When this creature deals combat
                         // damage to a player, if it isn't renowned, put N +1/+1
                         // counters on it and it becomes renowned."
@@ -4286,7 +4018,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .collect()
                                     });
-
                                 let controller = obj.controller;
                                 let source_id = obj.id;
                                 for n in renown_values {
@@ -4304,7 +4035,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                         }
-
                         // CR 702.70a: Poisonous N -- "Whenever this creature deals combat
                         // damage to a player, that player gets N poison counters."
                         // CR 702.70b: Multiple instances trigger separately.
@@ -4317,7 +4047,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     continue;
                                 };
                                 let damaged_player = *damaged_player;
-
                                 // Collect Poisonous N values from card definition.
                                 // CR 702.70b: Each keyword instance triggers separately.
                                 let poisonous_values: Vec<u32> = obj
@@ -4346,7 +4075,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .collect()
                                     });
-
                                 let controller = obj.controller;
                                 let source_id = obj.id;
                                 for n in poisonous_values {
@@ -4367,7 +4095,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                         }
-
                         // CR 702.99b: Cipher -- "Whenever this creature deals combat damage to a
                         // player, you may copy the encoded card and cast the copy without paying
                         // its mana cost."  One trigger per encoded card per damaged player.
@@ -4409,7 +4136,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
-
                 // CR 207.2c / CR 120.3: Enrage -- "Whenever this creature is dealt damage."
                 // Collect unique creature ObjectIds that received > 0 combat damage in this
                 // simultaneous damage step. Per ruling 2018-01-19, multiple simultaneous
@@ -4435,7 +4161,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                     );
                 }
-
                 // CR 701.54c (ring level >= 4): "Whenever your Ring-bearer deals combat
                 // damage to a player, each opponent loses 3 life."
                 // Queue a RingCombatDamage PendingTrigger for each assignment where the
@@ -4495,7 +4220,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             GameEvent::Proliferated { controller, .. } => {
                 // CR 701.34: "Whenever you proliferate" triggers on all permanents
                 // controlled by the proliferating player.
@@ -4509,7 +4233,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     })
                     .map(|obj| obj.id)
                     .collect();
-
                 for obj_id in controller_sources {
                     collect_triggers_for_event(
                         state,
@@ -4520,7 +4243,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     );
                 }
             }
-
             // CR 702.72a: Champion LTB trigger -- when the champion permanent is destroyed
             // (non-creature), check champion_exiled_card on the graveyard object.
             GameEvent::PermanentDestroyed { new_grave_id, .. } => {
@@ -4540,7 +4262,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             // CR 702.72a: Champion LTB trigger -- when the champion permanent is exiled,
             // check champion_exiled_card on the exile-zone object.
             GameEvent::ObjectExiled { new_exile_id, .. } => {
@@ -4560,7 +4281,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             // CR 702.72a: Champion LTB trigger -- when the champion permanent bounces to hand,
             // check champion_exiled_card on the hand object.
             GameEvent::ObjectReturnedToHand { new_hand_id, .. } => {
@@ -4580,7 +4300,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             // CR 207.2c / CR 120.3: Enrage -- "Whenever this creature is dealt damage."
             // Non-combat damage to a creature fires SelfIsDealtDamage on that creature.
             // CR 603.2g: amount == 0 (fully prevented) does not trigger.
@@ -4597,7 +4316,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             // CR 702.140d: "Whenever this creature mutates" — fires on the merged permanent.
             // The merged permanent is the same object (same ObjectId) as the target permanent
             // before merging. After the merge, it has ALL abilities from ALL components
@@ -4616,7 +4334,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,
                 );
             }
-
             // CR 708.8 / CR 702.37e: "When this permanent is turned face up" triggers.
             // Fire the TurnFaceUp pending trigger for any WhenTurnedFaceUp ability in the
             // permanent's CardDefinition. The permanent is now face-up; look up its card_id
@@ -4669,7 +4386,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             // CR 701.54d: "Whenever the Ring tempts you" — fire triggers on permanents
             // controlled by the tempted player that have WheneverRingTemptsYou trigger condition.
             GameEvent::RingTempted {
@@ -4688,7 +4404,6 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     })
                     .map(|obj| obj.id)
                     .collect();
-
                 for obj_id in obj_ids {
                     let card_id = state.objects.get(&obj_id).and_then(|o| o.card_id.clone());
                     let Some(cid) = card_id else { continue };
@@ -4731,14 +4446,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-
             _ => {}
         }
     }
-
     triggers
 }
-
 /// Collect triggered abilities of type `event_type` from battlefield permanents.
 ///
 /// If `only_object` is `Some(id)`, only checks that specific object.
@@ -4764,7 +4476,6 @@ fn collect_triggers_for_event(
             .map(|obj| obj.id)
             .collect()
     };
-
     for obj_id in object_ids {
         let Some(obj) = state.objects.get(&obj_id) else {
             continue;
@@ -4772,7 +4483,6 @@ fn collect_triggers_for_event(
         if obj.zone != ZoneId::Battlefield {
             continue;
         }
-
         // CR 708.3: Face-down permanents have no triggered abilities.
         // A permanent entering the battlefield face-down (via Manifest, Cloak, or Morph cast)
         // must not fire its ETB triggered abilities. The morph cast path suppresses this at
@@ -4784,7 +4494,6 @@ fn collect_triggers_for_event(
         {
             continue;
         }
-
         // CR 613.1f (Layer 6): Use layer-resolved triggered abilities so that
         // ability-removing effects (Humility, Dress Down) suppress triggers.
         let resolved_chars = crate::rules::layers::calculate_characteristics(state, obj_id)
@@ -4793,7 +4502,6 @@ fn collect_triggers_for_event(
             if trigger_def.trigger_on != event_type {
                 continue;
             }
-
             // CR 603.2 / CR 207.2c: Apply ETB filter for Alliance and similar
             // "whenever [another] [creature] [you control] enters" triggers.
             // All filter conditions must pass (AND logic).
@@ -4832,7 +4540,6 @@ fn collect_triggers_for_event(
                     continue;
                 }
             }
-
             // CR 603.4: Check intervening-if at trigger time.
             // If the condition is false, the ability does not trigger.
             if let Some(ref cond) = trigger_def.intervening_if {
@@ -4840,7 +4547,6 @@ fn collect_triggers_for_event(
                     continue;
                 }
             }
-
             triggers.push(PendingTrigger {
                 source: obj_id,
                 ability_index: idx,
@@ -4870,11 +4576,9 @@ fn collect_triggers_for_event(
         }
     }
 }
-
 // ---------------------------------------------------------------------------
 // Emblem trigger scanning (CR 113.6p, CR 114.4)
 // ---------------------------------------------------------------------------
-
 /// Scan all emblem objects in the command zone for triggered abilities matching `event_type`.
 ///
 /// CR 113.6p / CR 114.4: Abilities of emblems function in the command zone.
@@ -4895,31 +4599,26 @@ pub(crate) fn collect_emblem_triggers_for_event(
         .filter(|obj| obj.is_emblem && matches!(obj.zone, ZoneId::Command(_)))
         .map(|obj| obj.id)
         .collect();
-
     for obj_id in emblem_ids {
         let Some(obj) = state.objects.get(&obj_id) else {
             continue;
         };
-
         // If a caster filter is given, only fire triggers for that player's emblems.
         if let Some(caster) = caster_player {
             if obj.controller != caster {
                 continue;
             }
         }
-
         for (idx, trigger_def) in obj.characteristics.triggered_abilities.iter().enumerate() {
             if trigger_def.trigger_on != event_type {
                 continue;
             }
-
             // CR 603.4: Check intervening-if at trigger time.
             if let Some(ref cond) = trigger_def.intervening_if {
                 if !check_intervening_if(state, cond, obj.controller, None) {
                     continue;
                 }
             }
-
             triggers.push(PendingTrigger {
                 source: obj_id,
                 ability_index: idx,
@@ -4949,11 +4648,9 @@ pub(crate) fn collect_emblem_triggers_for_event(
         }
     }
 }
-
 // ---------------------------------------------------------------------------
 // Trigger flushing
 // ---------------------------------------------------------------------------
-
 /// Place all pending triggered abilities onto the stack in APNAP order (CR 603.3).
 ///
 /// Called immediately before a player would receive priority. If no pending
@@ -4973,7 +4670,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
     if state.pending_triggers.is_empty() {
         return Vec::new();
     }
-
     // CR 603.2d: Remove stale TriggerDoubler entries whose source left the battlefield.
     // This prevents accumulation of dead entries from permanents that left the battlefield.
     state.trigger_doublers.retain(|d| {
@@ -4983,14 +4679,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             .map(|o| o.zone == ZoneId::Battlefield)
             .unwrap_or(false)
     });
-
     // Drain all pending triggers.
     let pending: Vec<PendingTrigger> = state.pending_triggers.iter().cloned().collect();
     state.pending_triggers = im::Vector::new();
-
     // Build APNAP order starting from the active player.
     let apnap = apnap_order(state);
-
     // Stable-sort by controller position in APNAP order.
     let mut sorted = pending;
     sorted.sort_by_key(|t| {
@@ -4999,14 +4692,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             .position(|&p| p == t.controller)
             .unwrap_or(usize::MAX)
     });
-
     let mut events = Vec::new();
-
     for trigger in sorted {
         // CR 603.2d: Check for Panharmonicon-style trigger doublers.
         // Compute how many times this trigger fires (1 base + additional from doublers).
         let additional_count = compute_trigger_doubling(state, &trigger);
-
         // CR 702.21a: For Ward triggers, the targeting stack object ID is carried
         // through PendingTrigger.targeting_stack_id. Set it as the triggered
         // ability's target so CounterSpell resolution can find the right stack entry.
@@ -5102,7 +4792,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     vec![]
                 }
             };
-
             if ability_targets.is_empty() {
                 // No targets required — proceed normally with empty targets.
                 Some(vec![])
@@ -5115,12 +4804,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     .map(|o| o.characteristics.clone());
                 let mut selected: Vec<SpellTarget> = Vec::new();
                 let mut all_satisfied = true;
-
                 for req in &ability_targets {
                     use crate::cards::card_definition::TargetRequirement;
                     use crate::rules::layers::calculate_characteristics;
                     use crate::state::types::CardType as CT;
-
                     let candidate: Option<SpellTarget> = match req {
                         // Player-targeting requirements: pick the first active opponent,
                         // falling back to the controller if no opponent is available.
@@ -5278,7 +4965,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                     })
                         }
                     };
-
                     if let Some(st) = candidate {
                         selected.push(st);
                     } else {
@@ -5287,7 +4973,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         break;
                     }
                 }
-
                 if all_satisfied {
                     Some(selected)
                 } else {
@@ -5297,13 +4982,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         } else {
             Some(vec![])
         };
-
         // CR 603.3d: If trigger_targets_opt is None, no legal target exists — skip trigger.
         let trigger_targets = match trigger_targets_opt {
             Some(t) => t,
             None => continue,
         };
-
         // Push the triggered ability onto the stack (1 + additional_count) times.
         for _ in 0..=(additional_count) {
             let stack_id = state.next_object_id();
@@ -5387,19 +5070,16 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             }
                         })
                         .map(|(id, _)| *id);
-
                     let Some(tid) = target_id else {
                         // No legal artifact creature target -- skip this trigger (CR 603.3d).
                         continue;
                     };
-
                     // Override trigger_targets with the selected artifact creature target.
                     // (trigger_targets computed above does not apply to modular triggers.)
                     let modular_targets = vec![SpellTarget {
                         target: Target::Object(tid),
                         zone_at_cast: Some(ZoneId::Battlefield),
                     }];
-
                     let counter_count = match trigger.data {
                         Some(TriggerData::DeathModular { counter_count }) => counter_count,
                         _ => 0,
@@ -5417,13 +5097,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     );
                     stack_obj.targets = modular_targets;
                     state.stack_objects.push_back(stack_obj);
-
                     events.push(GameEvent::AbilityTriggered {
                         controller: trigger.controller,
                         source_object_id: trigger.source,
                         stack_object_id: stack_id,
                     });
-
                     // For trigger doubling: already handled via additional_count loop below,
                     // but modular uses an early-exit path above. We run additional_count
                     // copies too. However, for simplicity and correctness, break out of the
@@ -5962,7 +5640,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             let mut stack_obj = StackObject::trigger_default(stack_id, trigger.controller, kind);
             stack_obj.targets = trigger_targets.clone();
             state.stack_objects.push_back(stack_obj);
-
             events.push(GameEvent::AbilityTriggered {
                 controller: trigger.controller,
                 source_object_id: trigger.source,
@@ -5970,19 +5647,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             });
         }
     }
-
     if !events.is_empty() {
         // Triggers going on the stack is a game action — reset priority pass count.
         state.turn.players_passed = OrdSet::new();
     }
-
     events
 }
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
 /// Returns player IDs in APNAP order starting from the active player.
 ///
 /// CR 101.4 (APNAP): Active Player, Non-Active Players in turn order.
@@ -6001,7 +5674,6 @@ pub fn apnap_order(state: &GameState) -> Vec<PlayerId> {
     let start = start_pos.unwrap_or(0);
     (0..n).map(|i| order[(start + i) % n]).collect()
 }
-
 /// CR 603.2d: Compute how many additional times a trigger should fire due to
 /// Panharmonicon-style trigger-doubling effects.
 ///
@@ -6016,16 +5688,13 @@ pub fn apnap_order(state: &GameState) -> Vec<PlayerId> {
 /// — each Panharmonicon adds another copy; they stack independently.
 fn compute_trigger_doubling(state: &GameState, trigger: &PendingTrigger) -> u32 {
     let mut additional = 0u32;
-
     for doubler in state.trigger_doublers.iter() {
         if doubler_applies_to_trigger(state, doubler, trigger) {
             additional += doubler.additional_triggers;
         }
     }
-
     additional
 }
-
 /// CR 603.2d: Determine whether a specific `TriggerDoubler` applies to the given trigger.
 ///
 /// For `ArtifactOrCreatureETB`: the trigger must be from a permanent entering the
@@ -6051,12 +5720,10 @@ fn doubler_applies_to_trigger(
     if !source_active {
         return false;
     }
-
     // The trigger must be controlled by the same player as the doubler.
     if trigger.controller != doubler.controller {
         return false;
     }
-
     match &doubler.filter {
         TriggerDoublerFilter::ArtifactOrCreatureETB => {
             // The triggering event must be AnyPermanentEntersBattlefield (CR 603.2d).
@@ -6067,7 +5734,6 @@ fn doubler_applies_to_trigger(
             if !is_etb {
                 return false;
             }
-
             // The entering object must be an artifact or creature (CR 603.2d).
             // Use entering_object_id (set by check_triggers from PermanentEnteredBattlefield event).
             // If entering_object_id is absent, we cannot confirm the type — conservatively skip.
@@ -6075,7 +5741,6 @@ fn doubler_applies_to_trigger(
                 Some(id) => id,
                 None => return false,
             };
-
             // Use calculate_characteristics for type checks under continuous effects,
             // falling back to raw characteristics if the object is no longer in the
             // objects map (e.g., it moved zones since entering).
@@ -6086,7 +5751,6 @@ fn doubler_applies_to_trigger(
                         .get(&entering_id)
                         .map(|o| o.characteristics.clone())
                 });
-
             entering_chars
                 .map(|chars| {
                     use crate::state::types::CardType;
@@ -6115,11 +5779,9 @@ fn doubler_applies_to_trigger(
         }
     }
 }
-
 // ---------------------------------------------------------------------------
 // Crew handler (CR 702.122)
 // ---------------------------------------------------------------------------
-
 /// Handle a CrewVehicle command: validate, tap crew creatures, push crew ability onto the stack.
 ///
 /// CR 702.122a: "Tap any number of other untapped creatures you control with total power N
@@ -6139,15 +5801,13 @@ pub fn handle_crew_vehicle(
     vehicle: ObjectId,
     crew_creatures: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    use std::collections::HashSet;
-
     use crate::cards::card_definition::ContinuousEffectDef;
     use crate::rules::layers::calculate_characteristics;
     use crate::state::continuous_effect::{
         EffectDuration, EffectFilter, EffectLayer, LayerModification,
     };
     use crate::state::types::CardType;
-
+    use std::collections::HashSet;
     // CR 602.2: Crewing requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -6155,7 +5815,6 @@ pub fn handle_crew_vehicle(
             actual: player,
         });
     }
-
     // CR 702.61a: If a spell with split second is on the stack, no non-mana
     // abilities can be activated.
     if crate::rules::casting::has_split_second_on_stack(state) {
@@ -6163,7 +5822,6 @@ pub fn handle_crew_vehicle(
             "a spell with split second is on the stack; crew ability cannot be activated (CR 702.61a)".into(),
         ));
     }
-
     // Validate the Vehicle: must be on the battlefield, controlled by the player,
     // and must have KeywordAbility::Crew(n). Use calculate_characteristics for
     // layer correctness (e.g., Humility may have removed the keyword).
@@ -6201,14 +5859,12 @@ pub fn handle_crew_vehicle(
             ))
         })?
     };
-
     // Validate crew_creatures is non-empty (you must tap at least one creature).
     if crew_creatures.is_empty() {
         return Err(GameStateError::InvalidCommand(
             "must provide at least one creature to crew the vehicle (CR 702.122a)".into(),
         ));
     }
-
     // CR 702.122a: Validate uniqueness — no duplicates in crew_creatures.
     let mut seen: HashSet<ObjectId> = HashSet::new();
     for &id in &crew_creatures {
@@ -6219,7 +5875,6 @@ pub fn handle_crew_vehicle(
             )));
         }
     }
-
     // CR 702.122a: Validate each crew creature — must be an untapped creature
     // you control on the battlefield, and must not be the vehicle itself.
     // Also sum total power for the crew cost threshold check.
@@ -6234,17 +5889,14 @@ pub fn handle_crew_vehicle(
                     .into(),
             ));
         }
-
         let obj = state
             .objects
             .get(&id)
             .ok_or(GameStateError::ObjectNotFound(id))?;
-
         // Must be on the battlefield.
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::ObjectNotOnBattlefield(id));
         }
-
         // Must be controlled by the player.
         if obj.controller != player {
             return Err(GameStateError::NotController {
@@ -6252,7 +5904,6 @@ pub fn handle_crew_vehicle(
                 object_id: id,
             });
         }
-
         // Must be untapped (CR 702.122a: "untapped creatures").
         if obj.status.tapped {
             return Err(GameStateError::InvalidCommand(format!(
@@ -6260,7 +5911,6 @@ pub fn handle_crew_vehicle(
                 id
             )));
         }
-
         // Must be a creature (use layer-computed characteristics).
         let chars = calculate_characteristics(state, id)
             .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()));
@@ -6274,12 +5924,10 @@ pub fn handle_crew_vehicle(
                 id
             )));
         }
-
         // Accumulate power for the total power check.
         let power = chars.and_then(|c| c.power).unwrap_or(0);
         total_power = total_power.saturating_add(power);
     }
-
     // CR 702.122a: Total power of tapped creatures must be >= N.
     if total_power < crew_cost_n as i32 {
         return Err(GameStateError::InvalidCommand(format!(
@@ -6287,7 +5935,6 @@ pub fn handle_crew_vehicle(
             total_power, crew_cost_n
         )));
     }
-
     // Pay the cost: tap all crew creatures (CR 602.2b analog for crew cost).
     let mut events = Vec::new();
     for &id in &crew_creatures {
@@ -6299,12 +5946,10 @@ pub fn handle_crew_vehicle(
             object_id: id,
         });
     }
-
     // Push the crew ability onto the stack as an activated ability.
     // The embedded effect is `ApplyContinuousEffect` that adds `Creature` type
     // in Layer 4 with `UntilEndOfTurn` duration, targeting the vehicle (source).
     let stack_id = state.next_object_id();
-
     // Build the embedded effect: AddCardTypes({Creature}) in Layer 4, on the source.
     let effect_def = ContinuousEffectDef {
         layer: EffectLayer::TypeChange,
@@ -6315,7 +5960,6 @@ pub fn handle_crew_vehicle(
     let embedded_effect = crate::cards::card_definition::Effect::ApplyContinuousEffect {
         effect_def: Box::new(effect_def),
     };
-
     // MR-TC-25: use trigger_default for the boilerplate cast-specific fields.
     let stack_obj = StackObject::trigger_default(
         stack_id,
@@ -6327,22 +5971,18 @@ pub fn handle_crew_vehicle(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: vehicle,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.171a: Handle the `SaddleMount` command.
 ///
 /// Validates that:
@@ -6368,11 +6008,9 @@ pub fn handle_saddle_mount(
     mount: ObjectId,
     saddle_creatures: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    use std::collections::HashSet;
-
     use crate::rules::layers::calculate_characteristics;
     use crate::state::types::CardType;
-
+    use std::collections::HashSet;
     // CR 602.2: Saddling requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -6380,7 +6018,6 @@ pub fn handle_saddle_mount(
             actual: player,
         });
     }
-
     // CR 702.61a: If a spell with split second is on the stack, no non-mana
     // abilities can be activated.
     if crate::rules::casting::has_split_second_on_stack(state) {
@@ -6388,7 +6025,6 @@ pub fn handle_saddle_mount(
             "a spell with split second is on the stack; saddle ability cannot be activated (CR 702.61a)".into(),
         ));
     }
-
     // CR 702.171a: "Activate only as a sorcery." Enforce sorcery-speed:
     // - Must be the active player's turn.
     // - Must be a main phase (PreCombatMain or PostCombatMain).
@@ -6412,7 +6048,6 @@ pub fn handle_saddle_mount(
             "saddle ability can only be activated when the stack is empty (CR 702.171a: 'activate only as a sorcery')".into(),
         ));
     }
-
     // Validate the Mount: must be on the battlefield, controlled by the player,
     // and must have KeywordAbility::Saddle(n). Use calculate_characteristics for
     // layer correctness (e.g., Humility may have removed the keyword).
@@ -6446,14 +6081,12 @@ pub fn handle_saddle_mount(
             ))
         })?
     };
-
     // Validate saddle_creatures is non-empty (you must tap at least one creature).
     if saddle_creatures.is_empty() {
         return Err(GameStateError::InvalidCommand(
             "must provide at least one creature to saddle the mount (CR 702.171a)".into(),
         ));
     }
-
     // CR 702.171a: Validate uniqueness — no duplicates in saddle_creatures.
     let mut seen: HashSet<ObjectId> = HashSet::new();
     for &id in &saddle_creatures {
@@ -6464,7 +6097,6 @@ pub fn handle_saddle_mount(
             )));
         }
     }
-
     // CR 702.171a: Validate each saddling creature — must be an untapped creature
     // you control on the battlefield, and must not be the mount itself.
     // Also sum total power for the saddle cost threshold check.
@@ -6479,17 +6111,14 @@ pub fn handle_saddle_mount(
                     .into(),
             ));
         }
-
         let obj = state
             .objects
             .get(&id)
             .ok_or(GameStateError::ObjectNotFound(id))?;
-
         // Must be on the battlefield.
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::ObjectNotOnBattlefield(id));
         }
-
         // Must be controlled by the player.
         if obj.controller != player {
             return Err(GameStateError::NotController {
@@ -6497,7 +6126,6 @@ pub fn handle_saddle_mount(
                 object_id: id,
             });
         }
-
         // Must be untapped (CR 702.171a: "untapped creatures").
         if obj.status.tapped {
             return Err(GameStateError::InvalidCommand(format!(
@@ -6505,7 +6133,6 @@ pub fn handle_saddle_mount(
                 id
             )));
         }
-
         // Must be a creature (use layer-computed characteristics).
         let chars = calculate_characteristics(state, id)
             .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()));
@@ -6519,12 +6146,10 @@ pub fn handle_saddle_mount(
                 id
             )));
         }
-
         // Accumulate power for the total power check.
         let power = chars.and_then(|c| c.power).unwrap_or(0);
         total_power = total_power.saturating_add(power);
     }
-
     // CR 702.171a: Total power of tapped creatures must be >= N.
     if total_power < saddle_cost_n as i32 {
         return Err(GameStateError::InvalidCommand(format!(
@@ -6532,7 +6157,6 @@ pub fn handle_saddle_mount(
             total_power, saddle_cost_n
         )));
     }
-
     // Pay the cost: tap all saddling creatures (CR 602.2b analog for saddle cost).
     let mut events = Vec::new();
     for &id in &saddle_creatures {
@@ -6544,11 +6168,9 @@ pub fn handle_saddle_mount(
             object_id: id,
         });
     }
-
     // Push the saddle ability onto the stack.
     // When resolved, `SaddleAbility` sets `is_saddled = true` on the Mount (resolution.rs).
     let stack_id = state.next_object_id();
-
     // MR-TC-25: use trigger_default for the boilerplate cast-specific fields.
     let stack_obj = StackObject::trigger_default(
         stack_id,
@@ -6558,22 +6180,18 @@ pub fn handle_saddle_mount(
         },
     );
     state.stack_objects.push_back(stack_obj);
-
     // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: mount,
         stack_object_id: stack_id,
     });
     events.push(GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
 ///
 /// `pre_death_counters` — counters captured from the creature just before it left
@@ -6600,11 +6218,9 @@ pub fn check_intervening_if(
             .unwrap_or(true),
     }
 }
-
 // ---------------------------------------------------------------------------
 // Scavenge (CR 702.97)
 // ---------------------------------------------------------------------------
-
 /// Handle a ScavengeCard command: validate, pay cost, snapshot power, exile card,
 /// push scavenge ability onto the stack targeting the specified creature.
 ///
@@ -6629,7 +6245,6 @@ pub fn handle_scavenge_card(
             actual: player,
         });
     }
-
     // 2. Split second check (CR 702.61a): activated abilities cannot be used when
     //    a spell with split second is on the stack.
     if casting::has_split_second_on_stack(state) {
@@ -6638,7 +6253,6 @@ pub fn handle_scavenge_card(
                 .into(),
         ));
     }
-
     // 3. Zone check (CR 702.97a): card must be in player's own graveyard.
     {
         let obj = state.object(card)?;
@@ -6649,7 +6263,6 @@ pub fn handle_scavenge_card(
             )));
         }
     }
-
     // 4. Keyword check (CR 702.97a): card must have KeywordAbility::Scavenge.
     {
         let obj = state.object(card)?;
@@ -6664,7 +6277,6 @@ pub fn handle_scavenge_card(
             )));
         }
     }
-
     // 5. Sorcery speed check (CR 702.97a: "activate only as a sorcery").
     //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
     {
@@ -6689,7 +6301,6 @@ pub fn handle_scavenge_card(
             ));
         }
     }
-
     // 6. Target validation: target_creature must be a creature on the battlefield.
     {
         let target_on_battlefield = state
@@ -6712,7 +6323,6 @@ pub fn handle_scavenge_card(
             ));
         }
     }
-
     // 7. Look up scavenge cost from CardRegistry.
     let card_id_opt = state.object(card)?.card_id.clone();
     let scavenge_cost = match get_scavenge_cost(&card_id_opt, &state.card_registry.clone()) {
@@ -6723,7 +6333,6 @@ pub fn handle_scavenge_card(
             ));
         }
     };
-
     // 8. Pay mana cost (CR 602.2b).
     let mut events = Vec::new();
     if scavenge_cost.mana_value() > 0 {
@@ -6737,7 +6346,6 @@ pub fn handle_scavenge_card(
             cost: scavenge_cost.clone(),
         });
     }
-
     // 9. Snapshot power BEFORE exile (Varolz ruling 2013-04-15: "the number of counters
     //    is based on the card's power as it last existed in the graveyard").
     //    Use layer-resolved characteristics to capture any in-graveyard modifiers.
@@ -6745,10 +6353,8 @@ pub fn handle_scavenge_card(
         .and_then(|c| c.power)
         .map(|p| p.max(0) as u32)
         .unwrap_or(0);
-
     // Capture source_card_id BEFORE exiling (registry key survives zone change, CR 400.7).
     let source_card_id = state.object(card)?.card_id.clone();
-
     // 10. Exile the card from graveyard as cost payment (CR 702.97a: "[Cost], Exile this
     //     card from your graveyard"). The card is exiled immediately at activation time.
     //     Ruling 2013-04-15: "Once the ability is activated and the cost is paid, it's too
@@ -6759,7 +6365,6 @@ pub fn handle_scavenge_card(
         object_id: card,
         new_exile_id: exile_id,
     });
-
     // 11. Push the ScavengeAbility onto the stack with the target creature.
     // MR-TC-25: use trigger_default; override targets with the scavenge target.
     let stack_id = state.next_object_id();
@@ -6776,22 +6381,18 @@ pub fn handle_scavenge_card(
         zone_at_cast: Some(ZoneId::Battlefield),
     }];
     state.stack_objects.push_back(stack_obj);
-
     // 12. Reset priority (CR 602.2e): active player gets priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
-
     events.push(crate::rules::events::GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
     events.push(crate::rules::events::GameEvent::PriorityGiven { player: active });
-
     Ok(events)
 }
-
 /// CR 702.97a: Look up the scavenge cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Scavenge { cost }`, or `None`

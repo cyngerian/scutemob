@@ -1,16 +1,12 @@
 //! Player identity and state types.
-
-use im::{OrdMap, OrdSet, Vector};
-use serde::{Deserialize, Serialize};
-
 use super::dungeon::DungeonId;
 use super::types::{ManaColor, ProtectionQuality, SubType};
 use crate::cards::card_definition::ManaRestriction;
-
+use im::{OrdMap, OrdSet, Vector};
+use serde::{Deserialize, Serialize};
 /// Identifies a player in the game. Unique within a game instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PlayerId(pub u64);
-
 /// Identifies a physical card across zone changes.
 ///
 /// A CardId persists even when the game object changes zones and gets a new
@@ -18,7 +14,6 @@ pub struct PlayerId(pub u64);
 /// commander damage — the physical card identity must survive zone changes.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct CardId(pub String);
-
 /// A single entry of restricted mana in a player's pool (CR 106.12).
 ///
 /// Restricted mana can only be spent on costs that match the restriction.
@@ -30,7 +25,6 @@ pub struct RestrictedMana {
     pub amount: u32,
     pub restriction: ManaRestriction,
 }
-
 /// Context about a spell being cast, used to check mana spending restrictions.
 #[derive(Clone, Debug)]
 pub struct SpellContext {
@@ -39,7 +33,6 @@ pub struct SpellContext {
     /// Creature subtypes of the spell (if any).
     pub subtypes: Vec<SubType>,
 }
-
 /// A player's mana pool (CR 106.4).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManaPool {
@@ -54,7 +47,6 @@ pub struct ManaPool {
     #[serde(default)]
     pub restricted: Vec<RestrictedMana>,
 }
-
 impl ManaPool {
     /// Total unrestricted mana in the pool.
     pub fn total(&self) -> u32 {
@@ -65,13 +57,11 @@ impl ManaPool {
             .saturating_add(self.green)
             .saturating_add(self.colorless)
     }
-
     /// Total mana including restricted entries.
     pub fn total_with_restricted(&self) -> u32 {
         self.total()
             .saturating_add(self.restricted.iter().map(|r| r.amount).sum::<u32>())
     }
-
     pub fn add(&mut self, color: ManaColor, amount: u32) {
         match color {
             ManaColor::White => self.white = self.white.saturating_add(amount),
@@ -82,7 +72,6 @@ impl ManaPool {
             ManaColor::Colorless => self.colorless = self.colorless.saturating_add(amount),
         }
     }
-
     /// Add restricted mana to the pool (CR 106.12).
     pub fn add_restricted(&mut self, color: ManaColor, amount: u32, restriction: ManaRestriction) {
         // Merge with existing entry if same color and restriction
@@ -98,7 +87,6 @@ impl ManaPool {
             restriction,
         });
     }
-
     /// Get the amount of restricted mana of a specific color that matches the spell context.
     pub fn restricted_available(&self, color: ManaColor, spell: &SpellContext) -> u32 {
         self.restricted
@@ -107,7 +95,6 @@ impl ManaPool {
             .map(|r| r.amount)
             .sum()
     }
-
     /// Spend restricted mana of a specific color that matches the spell context.
     /// Returns the amount actually spent.
     pub fn spend_restricted(
@@ -132,7 +119,6 @@ impl ManaPool {
         self.restricted.retain(|r| r.amount > 0);
         spent
     }
-
     /// Get the unrestricted amount of a specific color.
     pub fn get(&self, color: ManaColor) -> u32 {
         match color {
@@ -144,7 +130,6 @@ impl ManaPool {
             ManaColor::Colorless => self.colorless,
         }
     }
-
     /// Deduct unrestricted mana of a specific color.
     fn deduct(&mut self, color: ManaColor, amount: u32) {
         match color {
@@ -156,7 +141,6 @@ impl ManaPool {
             ManaColor::Colorless => self.colorless -= amount,
         }
     }
-
     /// Check if the pool has enough mana to pay a cost (CR 118.3).
     ///
     /// When a `SpellContext` is provided, restricted mana matching the spell
@@ -169,7 +153,6 @@ impl ManaPool {
         let available = |color: ManaColor| -> u32 {
             self.get(color) + spell.map_or(0, |s| self.restricted_available(color, s))
         };
-
         let colors = [
             (ManaColor::White, cost.white),
             (ManaColor::Blue, cost.blue),
@@ -178,22 +161,18 @@ impl ManaPool {
             (ManaColor::Green, cost.green),
             (ManaColor::Colorless, cost.colorless),
         ];
-
         for &(color, required) in &colors {
             if available(color) < required {
                 return false;
             }
         }
-
         // Remaining mana after paying colored and colorless requirements.
         let remaining: u32 = colors
             .iter()
             .map(|&(color, required)| available(color) - required)
             .sum();
-
         remaining >= cost.generic
     }
-
     /// Deduct a mana cost from the pool (CR 118.3). Caller must verify
     /// `can_spend` first.
     ///
@@ -219,17 +198,14 @@ impl ManaPool {
                 pool.deduct(color, remaining);
             }
         };
-
         spend_color(self, ManaColor::White, cost.white);
         spend_color(self, ManaColor::Blue, cost.blue);
         spend_color(self, ManaColor::Black, cost.black);
         spend_color(self, ManaColor::Red, cost.red);
         spend_color(self, ManaColor::Green, cost.green);
         spend_color(self, ManaColor::Colorless, cost.colorless);
-
         // Pay generic cost from remaining mana (restricted first, then unrestricted).
         let mut remaining = cost.generic;
-
         // Try restricted mana first for generic
         if let Some(s) = spell {
             for color in [
@@ -247,7 +223,6 @@ impl ManaPool {
                 remaining -= spent;
             }
         }
-
         // Then unrestricted
         for color in [
             ManaColor::Colorless,
@@ -266,16 +241,13 @@ impl ManaPool {
             }
         }
     }
-
     pub fn empty(&mut self) {
         *self = ManaPool::default();
     }
-
     pub fn is_empty(&self) -> bool {
         self.total() == 0 && self.restricted.is_empty()
     }
 }
-
 /// Check if a mana restriction matches the spell being cast.
 pub fn restriction_matches(restriction: &ManaRestriction, spell: &SpellContext) -> bool {
     match restriction {
@@ -298,7 +270,6 @@ pub fn restriction_matches(restriction: &ManaRestriction, spell: &SpellContext) 
         }
     }
 }
-
 /// Complete state of a single player.
 ///
 /// Commander-specific fields included per CR 903:

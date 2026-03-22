@@ -3,16 +3,13 @@
 //! All player actions are Commands. There is no way to change game state
 //! except through the Command enum. This enables networking, replay, and
 //! deterministic testing.
-
-use serde::{Deserialize, Serialize};
-
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::targeting::Target;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
-
+use serde::{Deserialize, Serialize};
 /// A player action submitted to the engine.
 ///
 /// All player actions are Commands. There is no way to change game state
@@ -25,10 +22,8 @@ use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpM
 pub enum Command {
     /// The player passes priority (CR 117.3d).
     PassPriority { player: PlayerId },
-
     /// The player concedes the game (CR 104.3a).
     Concede { player: PlayerId },
-
     /// Activate a mana ability by tapping a permanent (CR 605).
     ///
     /// Mana abilities do not use the stack and resolve immediately.
@@ -39,13 +34,11 @@ pub enum Command {
         source: ObjectId,
         ability_index: usize,
     },
-
     /// Play a land from hand to battlefield (CR 305.1).
     ///
     /// Playing a land is a special action — it does not use the stack.
     /// Legal only during the active player's main phase with an empty stack.
     PlayLand { player: PlayerId, card: ObjectId },
-
     /// Cast a spell from hand (CR 601).
     ///
     /// `targets` contains the targets announced at cast time (CR 601.2c). Pass an
@@ -132,7 +125,6 @@ pub enum Command {
         #[serde(default)]
         sacrifice_target: Option<ObjectId>,
     },
-
     // ── M6: Combat commands ───────────────────────────────────────────────
     /// Declare attacking creatures and their targets (CR 508.1).
     ///
@@ -160,7 +152,6 @@ pub enum Command {
         #[serde(default)]
         enlist_choices: Vec<(ObjectId, ObjectId)>,
     },
-
     /// Declare blocking creatures (CR 509.1).
     ///
     /// Legal only in the DeclareBlockers step. Each defending player may declare
@@ -171,7 +162,6 @@ pub enum Command {
         /// (blocker ObjectId, attacker ObjectId being blocked) pairs.
         blockers: Vec<(ObjectId, ObjectId)>,
     },
-
     /// Set the damage assignment order for an attacker with multiple blockers (CR 509.2).
     ///
     /// The attacking player chooses the order in which their attacker's damage
@@ -183,7 +173,6 @@ pub enum Command {
         attacker: ObjectId,
         order: Vec<ObjectId>,
     },
-
     // ── M8: Replacement effect commands ─────────────────────────────────
     /// Choose the order in which multiple replacement effects apply (CR 616.1).
     ///
@@ -194,7 +183,6 @@ pub enum Command {
         player: PlayerId,
         ids: Vec<ReplacementId>,
     },
-
     // ── M9: Commander zone return commands ───────────────────────────────
     /// Return a commander from graveyard or exile to its owner's command zone
     /// (CR 903.9a / CR 704.6d).
@@ -205,7 +193,6 @@ pub enum Command {
         player: PlayerId,
         object_id: ObjectId,
     },
-
     /// Leave a commander in its current zone (graveyard or exile) instead of
     /// returning it to the command zone (CR 903.9a — owner "may" return).
     ///
@@ -215,7 +202,6 @@ pub enum Command {
         player: PlayerId,
         object_id: ObjectId,
     },
-
     // ── M9: Mulligan commands (CR 103.5 / CR 103.5c) ─────────────────────
     /// Take a mulligan: shuffle hand into library, draw 7, then put N cards
     /// on the bottom where N = mulligan number (0 for the free mulligan).
@@ -223,7 +209,6 @@ pub enum Command {
     /// CR 103.5: Mulligan procedure. CR 103.5c: First mulligan in multiplayer
     /// is free (draw back to 7 with no cards to bottom).
     TakeMulligan { player: PlayerId },
-
     /// Keep hand (with optional cards to put on the bottom of library).
     ///
     /// CR 103.5: After deciding to keep, a player with N mulligans taken puts
@@ -235,14 +220,12 @@ pub enum Command {
         /// Length must equal the number of mulligans taken by this player.
         cards_to_bottom: Vec<ObjectId>,
     },
-
     // ── M9: Companion command (CR 702.139a) ───────────────────────────────
     /// Pay {3} to put companion from the sideboard into hand (CR 702.139a).
     ///
     /// Special action: costs {3}, requires main phase, stack empty, priority,
     /// and that the player has not already used this action.
     BringCompanion { player: PlayerId },
-
     // ── Cycling (CR 702.29) ───────────────────────────────────────────────
     /// Cycle a card from hand (CR 702.29a).
     ///
@@ -255,7 +238,6 @@ pub enum Command {
     /// (immediately), and a cycling ability is placed on the stack. When it
     /// resolves, the controller draws a card.
     CycleCard { player: PlayerId, card: ObjectId },
-
     // ── Forecast (CR 702.57) ─────────────────────────────────────────────
     /// Activate a forecast ability from hand (CR 702.57a).
     ///
@@ -271,7 +253,6 @@ pub enum Command {
         card: ObjectId,
         targets: Vec<crate::state::targeting::Target>,
     },
-
     // ── Bloodrush (CR 207.2c) ─────────────────────────────────────────────
     /// CR 207.2c: Activate a bloodrush ability from hand.
     ///
@@ -286,7 +267,6 @@ pub enum Command {
         card: ObjectId,
         target: ObjectId,
     },
-
     // ── Dredge (CR 702.52) ───────────────────────────────────────────────
     /// Choose whether to dredge a card from the graveyard instead of drawing (CR 702.52a).
     ///
@@ -301,7 +281,6 @@ pub enum Command {
         /// The dredge card to return from graveyard to hand, or None to draw normally.
         card: Option<ObjectId>,
     },
-
     // ── Miracle (CR 702.94) ──────────────────────────────────────────────
     /// Choose whether to reveal a miracle card drawn as the first card this turn (CR 702.94a).
     ///
@@ -321,7 +300,6 @@ pub enum Command {
         /// True = reveal and put miracle trigger on stack. False = decline (normal draw).
         reveal: bool,
     },
-
     // ── Crew (CR 702.122) ────────────────────────────────────────────────
     /// Crew a Vehicle by tapping creatures (CR 702.122a).
     ///
@@ -342,7 +320,6 @@ pub enum Command {
         /// be in this list ("other untapped creatures" per CR 702.122a).
         crew_creatures: Vec<ObjectId>,
     },
-
     // ── Saddle (CR 702.171) ──────────────────────────────────────────────────
     /// Saddle a Mount by tapping creatures (CR 702.171a).
     ///
@@ -362,7 +339,6 @@ pub enum Command {
         /// be in this list ("other untapped creatures" per CR 702.171a).
         saddle_creatures: Vec<ObjectId>,
     },
-
     // -- Foretell (CR 702.143) -----------------------------------------------
     /// Foretell a card from hand (CR 702.143a / CR 116.2h).
     ///
@@ -370,7 +346,6 @@ pub enum Command {
     /// This does not use the stack. Legal any time you have priority during your turn.
     /// The card can be cast for its foretell cost on a future turn.
     ForetellCard { player: PlayerId, card: ObjectId },
-
     // -- Plot (CR 702.170) -----------------------------------------------
     /// Plot a card from hand (CR 702.170a / CR 116.2k).
     ///
@@ -378,7 +353,6 @@ pub enum Command {
     /// This does not use the stack. Legal during your main phase while stack is empty.
     /// The card can be cast without paying its mana cost on a future turn.
     PlotCard { player: PlayerId, card: ObjectId },
-
     // -- Suspend (CR 702.62) -----------------------------------------------
     /// Suspend a card from hand (CR 702.62a / CR 116.2f).
     ///
@@ -391,7 +365,6 @@ pub enum Command {
     /// cast it without paying its mana cost (also a triggered ability). If cast via
     /// suspend and the card is a creature spell, it gains haste.
     SuspendCard { player: PlayerId, card: ObjectId },
-
     // -- Unearth (CR 702.84) -----------------------------------------------
     /// Activate a card's unearth ability from the graveyard (CR 702.84a).
     ///
@@ -406,7 +379,6 @@ pub enum Command {
     /// Unlike `CastSpell`, this is an activated ability, not a spell cast.
     /// No "cast" triggers fire.
     UnearthCard { player: PlayerId, card: ObjectId },
-
     // -- Embalm (CR 702.128) ------------------------------------------------
     /// Activate a card's embalm ability from the graveyard (CR 702.128a).
     ///
@@ -418,7 +390,6 @@ pub enum Command {
     /// Unlike Unearth, the card is exiled as part of the activation cost, NOT
     /// when the ability resolves.
     EmbalmCard { player: PlayerId, card: ObjectId },
-
     // -- Eternalize (CR 702.129) ---------------------------------------------
     /// Activate a card's eternalize ability from the graveyard (CR 702.129a).
     ///
@@ -430,7 +401,6 @@ pub enum Command {
     /// Unlike Unearth, the card is exiled as part of the activation cost, NOT
     /// when the ability resolves.
     EternalizeCard { player: PlayerId, card: ObjectId },
-
     // -- Encore (CR 702.141) ------------------------------------------------
     /// Activate a card's encore ability from the graveyard (CR 702.141a).
     ///
@@ -445,7 +415,6 @@ pub enum Command {
     /// Unlike `UnearthCard`, the card is exiled as part of the cost (before
     /// the ability goes on the stack), not moved to the battlefield.
     EncoreCard { player: PlayerId, card: ObjectId },
-
     // -- Scavenge (CR 702.97) -----------------------------------------------
     /// Activate a card's scavenge ability from the graveyard (CR 702.97a).
     ///
@@ -461,7 +430,6 @@ pub enum Command {
         card: ObjectId,
         target_creature: ObjectId,
     },
-
     // -- Ninjutsu (CR 702.49) -----------------------------------------------
     /// Activate a card's ninjutsu ability from hand (or command zone for
     /// commander ninjutsu).
@@ -483,7 +451,6 @@ pub enum Command {
         /// The unblocked attacking creature to return to its owner's hand.
         attacker_to_return: ObjectId,
     },
-
     // ── Echo (CR 702.30) ─────────────────────────────────────────────────
     /// Choose whether to pay the echo cost for a permanent (CR 702.30a).
     ///
@@ -497,7 +464,6 @@ pub enum Command {
         /// True = pay the echo cost. False = sacrifice the permanent.
         pay: bool,
     },
-
     // ── Cumulative Upkeep (CR 702.24) ─────────────────────────────────────────
     /// Choose whether to pay the cumulative upkeep cost for a permanent (CR 702.24a).
     ///
@@ -510,7 +476,6 @@ pub enum Command {
         /// True = pay the total cumulative upkeep cost. False = sacrifice.
         pay: bool,
     },
-
     // ── Recover (CR 702.59) ───────────────────────────────────────────────────
     /// Choose whether to pay the recover cost for a card in the graveyard (CR 702.59a).
     ///
@@ -524,7 +489,6 @@ pub enum Command {
         /// True = pay the recover cost and return to hand. False = exile the card.
         pay: bool,
     },
-
     // ── Transform (CR 701.27 / CR 712) ───────────────────────────────────────
     /// Transform a double-faced permanent (CR 701.27a).
     ///
@@ -542,7 +506,6 @@ pub enum Command {
         /// The permanent to transform.
         permanent: ObjectId,
     },
-
     // ── Craft (CR 702.167) ────────────────────────────────────────────────────
     /// Activate a permanent's craft ability (CR 702.167a).
     ///
@@ -560,7 +523,6 @@ pub enum Command {
         /// Cards/permanents to exile as the material cost.
         material_ids: Vec<ObjectId>,
     },
-
     // ── The Ring Tempts You (CR 701.54) ──────────────────────────────────────
     /// The ring tempts the given player (CR 701.54a).
     ///
@@ -572,7 +534,6 @@ pub enum Command {
     /// tempts you" as a keyword action (CR 701.54a). It is also the fallback used
     /// internally by `Effect::TheRingTemptsYou`.
     TheRingTemptsYou { player: PlayerId },
-
     // ── Dungeon / Venture (CR 701.49, CR 725) ────────────────────────────────
     /// Trigger a venture-into-the-dungeon action for the given player (CR 701.49).
     ///
@@ -585,7 +546,6 @@ pub enum Command {
     /// After advancing the marker, a `StackObjectKind::RoomAbility` is pushed onto the
     /// stack for the room the marker moved into (CR 309.4c).
     VentureIntoDungeon { player: PlayerId },
-
     /// Choose which room to advance to when a dungeon has branching paths (CR 309.5a).
     ///
     /// In the current deterministic implementation, this command is accepted but the
@@ -595,7 +555,6 @@ pub enum Command {
         player: PlayerId,
         room: crate::state::dungeon::RoomIndex,
     },
-
     // ── Morph / Manifest / Cloak (CR 702.37, 701.40, 701.58) ─────────────────
     /// Turn a face-down permanent face up (CR 702.37e, 702.168d, 701.40b, 701.58b).
     ///
@@ -622,7 +581,6 @@ pub enum Command {
         /// A manifested card with disguise may use either DisguiseCost or ManaCost (CR 701.40d).
         method: TurnFaceUpMethod,
     },
-
     /// CR 606: Activate a loyalty ability on a planeswalker (CR 306.5d).
     ///
     /// Special timing rules (CR 606.3): main phase, stack empty, once per permanent per turn.

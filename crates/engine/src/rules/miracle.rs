@@ -16,7 +16,7 @@
 //!    `casting.rs`). The miracle cost is used as the alternative cost.
 //! 5. When the MiracleTrigger resolves, it expires. The card stays in hand if
 //!    the player did not cast it.
-
+use super::events::GameEvent;
 use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{ManaCost, ObjectId};
@@ -26,9 +26,6 @@ use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
-use super::events::GameEvent;
-
 /// CR 702.94a: Handle a player's miracle reveal choice.
 ///
 /// Called from `engine.rs::process_command` when a `Command::ChooseMiracle` is received.
@@ -54,20 +51,17 @@ pub fn handle_choose_miracle(
         // CR 702.94a: Player declined reveal. Card stays in hand. No trigger.
         return Ok(vec![]);
     }
-
     // Validate the card is in the player's hand.
     let (card_id_opt, miracle_cost) = {
         let obj = state
             .objects
             .get(&card)
             .ok_or_else(|| GameStateError::InvalidCommand("miracle card not found".into()))?;
-
         if obj.zone != ZoneId::Hand(player) {
             return Err(GameStateError::InvalidCommand(
                 "miracle: card must be in your hand (CR 702.94a)".into(),
             ));
         }
-
         // Validate the card has the Miracle keyword.
         if !obj
             .characteristics
@@ -78,16 +72,13 @@ pub fn handle_choose_miracle(
                 "miracle: card does not have the Miracle keyword (CR 702.94a)".into(),
             ));
         }
-
         (obj.card_id.clone(), lookup_miracle_cost(state, card))
     };
-
     let miracle_cost = miracle_cost.ok_or_else(|| {
         GameStateError::InvalidCommand(
             "miracle: card has Miracle keyword but no miracle cost defined".into(),
         )
     })?;
-
     // Validate this is the first draw of the turn (CR 702.94a).
     let cards_drawn = state
         .players
@@ -100,12 +91,10 @@ pub fn handle_choose_miracle(
                 .into(),
         ));
     }
-
     // Queue the miracle trigger.
     let source = card_id_opt
         .map(|_| card) // use the current ObjectId as the source
         .unwrap_or(card);
-
     state.pending_triggers.push_back(PendingTrigger {
         data: Some(TriggerData::Miracle {
             revealed_card: card,
@@ -113,10 +102,8 @@ pub fn handle_choose_miracle(
         }),
         ..PendingTrigger::blank(source, player, PendingTriggerKind::Miracle)
     });
-
     Ok(vec![])
 }
-
 /// CR 702.94a: Check if a just-drawn card has miracle and is eligible for reveal.
 ///
 /// Returns `Some(MiracleRevealChoiceRequired)` if:
@@ -135,7 +122,6 @@ pub fn check_miracle_eligible(
     if cards_drawn != 1 {
         return None;
     }
-
     // Step 2: Does the drawn card have the Miracle keyword?
     let obj = state.objects.get(&drawn_card_id)?;
     if !obj
@@ -145,17 +131,14 @@ pub fn check_miracle_eligible(
     {
         return None;
     }
-
     // Step 3: Look up the miracle cost from the card definition.
     let miracle_cost = lookup_miracle_cost(state, drawn_card_id)?;
-
     Some(GameEvent::MiracleRevealChoiceRequired {
         player,
         card_object_id: drawn_card_id,
         miracle_cost,
     })
 }
-
 /// Look up the miracle cost for the given card object from the registry.
 fn lookup_miracle_cost(state: &GameState, card: ObjectId) -> Option<ManaCost> {
     let card_id = state.objects.get(&card)?.card_id.clone();

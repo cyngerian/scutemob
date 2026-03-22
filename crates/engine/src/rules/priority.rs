@@ -1,12 +1,8 @@
 //! Priority system: APNAP ordering, priority passing (CR 116-117).
-
-use im::OrdSet;
-
+use super::events::GameEvent;
 use crate::state::player::PlayerId;
 use crate::state::GameState;
-
-use super::events::GameEvent;
-
+use im::OrdSet;
 /// Result of a priority pass action.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PriorityResult {
@@ -15,7 +11,6 @@ pub enum PriorityResult {
     /// All active players have passed in succession.
     AllPassed,
 }
-
 /// CR 116.3d: "If all players pass in succession (that is, if all players pass
 /// without any player taking an action in between passing), the spell or ability
 /// on top of the stack resolves or, if the stack is empty, the phase or step ends."
@@ -34,17 +29,13 @@ pub fn pass_priority(
             actual: player,
         });
     }
-
     let mut events = vec![GameEvent::PriorityPassed { player }];
-
     // Add to passed set
     let mut passed = state.turn.players_passed.clone();
     passed.insert(player);
-
     // Check if all active players have passed
     let active_players = state.active_players();
     let all_passed = active_players.iter().all(|p| passed.contains(p));
-
     if all_passed {
         events.push(GameEvent::AllPlayersPassed);
         Ok((PriorityResult::AllPassed, events))
@@ -56,7 +47,6 @@ pub fn pass_priority(
         Ok((PriorityResult::PlayerHasPriority { player: next }, events))
     }
 }
-
 /// CR 116.3: "Which player has priority is determined by the following rules:"
 /// Priority passes in APNAP order (Active Player, Non-Active Player).
 ///
@@ -68,13 +58,10 @@ pub fn next_priority_player(state: &GameState, current: PlayerId) -> Option<Play
     if len == 0 {
         return None;
     }
-
     let current_pos = order.iter().position(|&p| p == current)?;
-
     for offset in 1..=len {
         let idx = (current_pos + offset) % len;
         let candidate = order[idx];
-
         // Skip eliminated players
         if let Some(player) = state.players.get(&candidate) {
             if player.has_lost || player.has_conceded {
@@ -83,18 +70,14 @@ pub fn next_priority_player(state: &GameState, current: PlayerId) -> Option<Play
         } else {
             continue;
         }
-
         // Skip players who already passed
         if state.turn.players_passed.contains(&candidate) {
             continue;
         }
-
         return Some(candidate);
     }
-
     None
 }
-
 /// Grant initial priority to the active player at the start of a step.
 /// Resets the passed set.
 pub fn grant_initial_priority(state: &GameState) -> (OrdSet<PlayerId>, Vec<GameEvent>) {

@@ -37,16 +37,13 @@
 //! Threshold of 3 recurrences is used because some game patterns legitimately
 //! repeat once (e.g., triggers resolving symmetrically) but true infinite loops
 //! will always recur. 3 occurrences of the exact same state indicates a mandatory loop.
-
 use crate::rules::events::GameEvent;
 use crate::state::hash::HashInto;
 use crate::state::GameState;
 use blake3::Hasher;
-
 /// Threshold: if the same game state hash is seen this many times during a
 /// mandatory-action sequence, it is declared an infinite loop (CR 104.4b).
 pub const LOOP_DETECTION_THRESHOLD: u32 = 3;
-
 /// CR 104.4b: Check whether the current game state has been seen enough times
 /// during a mandatory-action sequence to constitute a mandatory infinite loop.
 ///
@@ -69,11 +66,9 @@ pub const LOOP_DETECTION_THRESHOLD: u32 = 3;
 /// HashInto implementation, so this mutation does not affect distributed consistency.
 pub fn check_for_mandatory_loop(state: &mut GameState) -> Option<GameEvent> {
     let hash = compute_mandatory_state_hash(state);
-
     // Increment or insert the occurrence count for this hash
     let count = state.loop_detection_hashes.get(&hash).copied().unwrap_or(0) + 1;
     state.loop_detection_hashes.insert(hash, count);
-
     if count >= LOOP_DETECTION_THRESHOLD {
         Some(GameEvent::LoopDetected {
             description: format!(
@@ -86,7 +81,6 @@ pub fn check_for_mandatory_loop(state: &mut GameState) -> Option<GameEvent> {
         None
     }
 }
-
 /// Reset the loop detection hash table.
 ///
 /// Call this whenever a player makes a meaningful choice (any Command that
@@ -96,7 +90,6 @@ pub fn check_for_mandatory_loop(state: &mut GameState) -> Option<GameEvent> {
 pub fn reset_loop_detection(state: &mut GameState) {
     state.loop_detection_hashes = im::OrdMap::new();
 }
-
 /// Compute a hash of the game state for loop detection purposes.
 ///
 /// This is intentionally a restricted view of the state — it hashes only
@@ -115,12 +108,10 @@ pub fn reset_loop_detection(state: &mut GameState) {
 /// The loop_detection_hashes field itself is EXCLUDED (it's metadata, not game state).
 fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     let mut hasher = Hasher::new();
-
     // 1. Turn state (phase/step only, not priority pass state)
     state.turn.phase.hash_into(&mut hasher);
     state.turn.step.hash_into(&mut hasher);
     state.turn.active_player.hash_into(&mut hasher);
-
     // 2. All game objects (board state) — sorted by ObjectId for determinism.
     // MR-M9.4-09: state.objects is an im::OrdMap which iterates in key order,
     // so no manual collect+sort is needed.
@@ -135,27 +126,22 @@ fn compute_mandatory_state_hash(state: &GameState) -> u64 {
             }
         }
     }
-
     // 3. Stack objects (spells and abilities waiting to resolve)
     for so in &state.stack_objects {
         so.hash_into(&mut hasher);
     }
-
     // 4. Pending triggers (abilities waiting to be put on the stack)
     for pt in &state.pending_triggers {
         pt.hash_into(&mut hasher);
     }
-
     // 5. Active continuous effects (affect board state)
     for ce in &state.continuous_effects {
         ce.hash_into(&mut hasher);
     }
-
     // 6. Pending zone changes
     for pzc in &state.pending_zone_changes {
         pzc.hash_into(&mut hasher);
     }
-
     // Extract the first 8 bytes as a u64 (truncated hash for compact storage)
     let full_hash = hasher.finalize();
     let bytes = full_hash.as_bytes();

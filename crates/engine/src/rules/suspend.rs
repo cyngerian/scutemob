@@ -18,7 +18,6 @@
 //!   - Others (sorcery, creature, etc.): active player, main phase, empty stack
 //! - Card enters exile FACE UP (unlike foretell which is face down)
 //! - Creature spells cast via the third ability gain haste (CR 702.62a)
-
 use crate::cards::card_definition::AbilityDefinition;
 use crate::rules::casting;
 use crate::rules::events::GameEvent;
@@ -29,7 +28,6 @@ use crate::state::turn::Step;
 use crate::state::types::{CardType, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
 /// CR 702.62a / CR 116.2f: Handle the SuspendCard special action.
 ///
 /// Validates:
@@ -57,7 +55,6 @@ pub fn handle_suspend_card(
     card: ObjectId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // CR 116.2f: Suspend requires the player to have priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -65,7 +62,6 @@ pub fn handle_suspend_card(
             actual: player,
         });
     }
-
     // Validate the card is in the player's hand.
     let (has_suspend, is_instant_speed) = {
         let card_obj = state.object(card)?;
@@ -74,13 +70,11 @@ pub fn handle_suspend_card(
                 "suspend: card must be in your hand (CR 702.62a)".into(),
             ));
         }
-
         // Validate the card has the Suspend keyword (CR 702.62a).
         let has_suspend = card_obj
             .characteristics
             .keywords
             .contains(&KeywordAbility::Suspend);
-
         // CR 702.62c: The player must be able to "begin to cast" the card.
         // Instants and Flash cards can be cast at any time; others require sorcery timing.
         let is_instant_speed = card_obj
@@ -91,16 +85,13 @@ pub fn handle_suspend_card(
                 .characteristics
                 .keywords
                 .contains(&KeywordAbility::Flash);
-
         (has_suspend, is_instant_speed)
     };
-
     if !has_suspend {
         return Err(GameStateError::InvalidCommand(
             "suspend: card does not have the Suspend keyword (CR 702.62a)".into(),
         ));
     }
-
     // CR 702.62c: Check timing restrictions for the suspend special action.
     // The player must be able to "begin to cast" the card normally.
     if !is_instant_speed {
@@ -117,14 +108,12 @@ pub fn handle_suspend_card(
             return Err(GameStateError::StackNotEmpty);
         }
     }
-
     // Look up AbilityDefinition::Suspend { cost, time_counters } from the card registry.
     // CR 702.62a: The suspend cost and N are printed on the card and stored in the card def.
     let (suspend_cost, time_counters) = {
         let card_obj = state.object(card)?;
         let card_id = card_obj.card_id.clone();
         let registry = state.card_registry.clone();
-
         card_id
             .as_ref()
             .and_then(|cid| registry.get(cid.clone()))
@@ -147,7 +136,6 @@ pub fn handle_suspend_card(
                 )
             })?
     };
-
     // Validate and deduct the suspend cost (CR 702.62a).
     {
         let ps = state.player(player)?;
@@ -157,16 +145,13 @@ pub fn handle_suspend_card(
         let ps_mut = state.player_mut(player)?;
         casting::pay_cost(&mut ps_mut.mana_pool, &suspend_cost);
     }
-
     // Emit ManaCostPaid event for the suspend cost.
     events.push(GameEvent::ManaCostPaid {
         player,
         cost: suspend_cost,
     });
-
     // Move the card from hand to exile (CR 400.7: new ObjectId after zone change).
     let (new_exile_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Exile)?;
-
     // Set suspend attributes on the new exile object.
     // - is_suspended: true (marks this as a suspended card for upkeep trigger scanning)
     // - face_down: false (suspended cards are exiled FACE UP, unlike foretell)
@@ -184,7 +169,6 @@ pub fn handle_suspend_card(
             .counters
             .update(CounterType::Time, current + time_counters);
     }
-
     // Emit CardSuspended event.
     events.push(GameEvent::CardSuspended {
         player,
@@ -192,6 +176,5 @@ pub fn handle_suspend_card(
         new_exile_id,
         time_counters,
     });
-
     Ok(events)
 }

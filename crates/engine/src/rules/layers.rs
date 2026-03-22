@@ -8,10 +8,6 @@
 //!
 //! The main entry point is `calculate_characteristics`, which returns the effective
 //! characteristics of any game object after applying all active continuous effects.
-
-use im::OrdSet;
-use std::collections::VecDeque;
-
 use crate::state::{
     continuous_effect::{
         ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
@@ -21,7 +17,8 @@ use crate::state::{
     zone::ZoneId,
     GameState,
 };
-
+use im::OrdSet;
+use std::collections::VecDeque;
 /// Calculate the effective characteristics of an object after applying all active
 /// continuous effects through the layer system (CR 613).
 ///
@@ -37,14 +34,12 @@ pub fn calculate_characteristics(
     let obj = state.objects.get(&object_id)?;
     let obj_zone = obj.zone;
     let mut chars = obj.characteristics.clone();
-
     // Collect all active continuous effects once (avoids repeated filtering).
     let active_effects: Vec<&ContinuousEffect> = state
         .continuous_effects
         .iter()
         .filter(|e| is_effect_active(state, e))
         .collect();
-
     // Process layers in order (CR 613.1). Layer 7 is split into sublayers 7a–7d.
     let layers_in_order = [
         EffectLayer::Copy,
@@ -58,7 +53,6 @@ pub fn calculate_characteristics(
         EffectLayer::PtModify,
         EffectLayer::PtSwitch,
     ];
-
     // CR 701.60c: A suspected permanent has menace and "This creature can't block"
     // for as long as it's suspected. Menace is inserted into base keywords BEFORE the
     // layer loop so that Layer 6 ability-removal effects (e.g., Humility) can correctly
@@ -71,7 +65,6 @@ pub fn calculate_characteristics(
     if obj.designations.contains(Designations::SUSPECTED) && obj.zone == ZoneId::Battlefield {
         chars.keywords.insert(KeywordAbility::Menace);
     }
-
     // CR 701.54c (ring level >= 1): Ring-bearer is legendary.
     //
     // The Legendary supertype is applied pre-layer-loop (Layer 4 analogue) so that
@@ -84,7 +77,6 @@ pub fn calculate_characteristics(
     if obj.designations.contains(Designations::RING_BEARER) && obj.zone == ZoneId::Battlefield {
         chars.supertypes.insert(SuperType::Legendary);
     }
-
     // CR 712.8d/712.8e: Double-Faced Card face resolution.
     //
     // When a DFC permanent has its back face up (is_transformed == true), its effective
@@ -140,7 +132,6 @@ pub fn calculate_characteristics(
             }
         }
     }
-
     // CR 712.8g: Melded permanent face resolution.
     //
     // When a permanent is melded (meld_component is Some), its effective characteristics
@@ -206,7 +197,6 @@ pub fn calculate_characteristics(
             }
         }
     }
-
     // CR 708.2 / 708.2a: Face-down permanent characteristic override.
     //
     // When a permanent is face-down AND has a face_down_as value (distinguishing
@@ -243,7 +233,6 @@ pub fn calculate_characteristics(
             chars.keywords.insert(KeywordAbility::Ward(2));
         }
     }
-
     // CR 729.2a: Merged permanent — Layer 1 (Copy) integration.
     // If this permanent has non-empty merged_components, the topmost component's
     // characteristics become the base characteristics before applying any continuous effects.
@@ -252,7 +241,6 @@ pub fn calculate_characteristics(
     if obj.zone == ZoneId::Battlefield && !obj.merged_components.is_empty() {
         chars = obj.merged_components[0].characteristics.clone();
     }
-
     for &layer in &layers_in_order {
         // CR 702.73a + CR 613.3: Changeling is a characteristic-defining ability that adds
         // all creature subtypes in Layer 4 (TypeChange), before any non-CDA Layer 4 effects.
@@ -265,7 +253,6 @@ pub fn calculate_characteristics(
                 chars.subtypes.insert(s.clone());
             }
         }
-
         // CR 702.114a + CR 613.3: Devoid is a characteristic-defining ability that makes
         // the object colorless in Layer 5 (ColorChange), before any non-CDA Layer 5 effects.
         // CDAs apply first within each layer (CR 613.3), so this runs before gathering
@@ -276,7 +263,6 @@ pub fn calculate_characteristics(
         if layer == EffectLayer::ColorChange && chars.keywords.contains(&KeywordAbility::Devoid) {
             chars.colors = OrdSet::new();
         }
-
         // CR 702.176a: Impending -- "As long as this permanent's impending cost was paid
         // and it has a time counter on it, it's not a creature."
         // Applied at Layer 4 (TypeChange) inline, after CDAs, before non-CDA Layer 4 effects.
@@ -302,7 +288,6 @@ pub fn calculate_characteristics(
                 }
             }
         }
-
         // CR 702.151b: Reconfigure -- "While attached, the Equipment stops being a creature
         // (and loses creature subtypes)."
         // Applied at Layer 4 (TypeChange) using the is_reconfigured flag -- NOT the keyword.
@@ -327,7 +312,6 @@ pub fn calculate_characteristics(
                 }
             }
         }
-
         // CR 702.161a: Living Metal -- "During your turn, this permanent is an
         // artifact creature in addition to its other types."
         // Applied at Layer 4 (TypeChange) inline, after CDAs, before non-CDA Layer 4
@@ -347,7 +331,6 @@ pub fn calculate_characteristics(
                 }
             }
         }
-
         // Gather effects for this layer that apply to this object.
         // The filter is evaluated against `chars` as modified by earlier layers —
         // this is correct because type changes from layer 4 affect whether "AllCreatures"
@@ -359,10 +342,8 @@ pub fn calculate_characteristics(
                 e.layer == layer && effect_applies_to(state, e, object_id, obj_zone, &chars)
             })
             .collect();
-
         // Sort by CDAs first, then dependency/timestamp order (CR 613.3, 613.7, 613.8).
         let ordered = resolve_layer_order(layer_effects);
-
         // The mana value comes from the base mana cost (printed on the card).
         // Used by SetPtToManaValue modifications (Opalescence-style).
         let mana_value = chars
@@ -370,11 +351,9 @@ pub fn calculate_characteristics(
             .as_ref()
             .map(|c| c.mana_value())
             .unwrap_or(0);
-
         for effect in ordered {
             apply_layer_modification(state, &mut chars, &effect.modification, mana_value);
         }
-
         // Layer 7c (PtModify): also apply counter P/T contributions (CR 613.4c).
         // Counters are not modeled as ContinuousEffects — they live on the GameObject.
         // We apply them here (at the correct layer position) regardless of whether there
@@ -406,7 +385,6 @@ pub fn calculate_characteristics(
             }
         }
     }
-
     // CR 702.140e / CR 729.3: Merged permanent — Layer 6 (Ability) integration.
     // ALL components of a merged permanent contribute their abilities. The topmost
     // component's abilities were already included in the base characteristics (via the
@@ -441,10 +419,8 @@ pub fn calculate_characteristics(
             }
         }
     }
-
     Some(chars)
 }
-
 /// Returns true if a continuous effect is currently active.
 ///
 /// An effect is active when its duration condition is met:
@@ -487,7 +463,6 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
         }
     }
 }
-
 /// Returns true if a continuous effect applies to the given object.
 ///
 /// The filter is evaluated against `chars`, which reflects all modifications applied
@@ -510,7 +485,6 @@ pub(crate) fn effect_applies_to_object(
 ) -> bool {
     effect_applies_to(state, effect, object_id, obj_zone, chars)
 }
-
 fn effect_applies_to(
     state: &GameState,
     effect: &ContinuousEffect,
@@ -531,42 +505,33 @@ fn effect_applies_to(
             }
         }
     }
-
     match &effect.filter {
         EffectFilter::SingleObject(id) => *id == object_id,
-
         EffectFilter::AllCreatures => {
             obj_zone == ZoneId::Battlefield && chars.card_types.contains(&CardType::Creature)
         }
-
         EffectFilter::AllLands => {
             obj_zone == ZoneId::Battlefield && chars.card_types.contains(&CardType::Land)
         }
-
         EffectFilter::AllNonbasicLands => {
             obj_zone == ZoneId::Battlefield
                 && chars.card_types.contains(&CardType::Land)
                 && !chars.supertypes.contains(&SuperType::Basic)
         }
-
         EffectFilter::AllEnchantments => {
             obj_zone == ZoneId::Battlefield && chars.card_types.contains(&CardType::Enchantment)
         }
-
         EffectFilter::AllNonAuraEnchantments => {
             obj_zone == ZoneId::Battlefield
                 && chars.card_types.contains(&CardType::Enchantment)
                 && !chars.subtypes.contains(&SubType("Aura".to_string()))
         }
-
         // MR-M5-05: CR 110.4 defines permanents as anything on the battlefield.
         // The old 6-type check incorrectly missed objects whose card type was
         // set by a layer effect (e.g., an enchantment made into a Battle) and
         // would also fail for future card types. Zone membership is the correct test.
         EffectFilter::AllPermanents => obj_zone == ZoneId::Battlefield,
-
         EffectFilter::AllCardsInGraveyards => matches!(obj_zone, ZoneId::Graveyard(_)),
-
         EffectFilter::ControlledBy(player_id) => {
             obj_zone == ZoneId::Battlefield
                 && state
@@ -575,7 +540,6 @@ fn effect_applies_to(
                     .map(|o| o.controller == *player_id)
                     .unwrap_or(false)
         }
-
         EffectFilter::CreaturesControlledBy(player_id) => {
             obj_zone == ZoneId::Battlefield
                 && chars.card_types.contains(&CardType::Creature)
@@ -585,15 +549,12 @@ fn effect_applies_to(
                     .map(|o| o.controller == *player_id)
                     .unwrap_or(false)
         }
-
         // DeclaredTarget should be resolved to SingleObject before being stored in state.
         // If it somehow reaches here unresolved, treat it as non-matching.
         EffectFilter::DeclaredTarget { .. } => false,
-
         // Source should be resolved to SingleObject(ctx.source) at ApplyContinuousEffect
         // execution time. If it somehow reaches here unresolved, treat it as non-matching.
         EffectFilter::Source => false,
-
         // CR 301.5 / CR 702.6a: Equipment static ability applies only to the equipped
         // creature. The source object's `attached_to` field identifies that creature.
         // If the equipment is not attached to anything, the filter matches nothing.
@@ -615,7 +576,6 @@ fn effect_applies_to(
                 false
             }
         }
-
         // CR 301.6 / CR 702.67a: Fortification static ability applies only to the
         // fortified land. The source object's `attached_to` field identifies that land.
         // The SBA already ensures Fortifications are only attached to lands.
@@ -635,7 +595,6 @@ fn effect_applies_to(
                 false
             }
         }
-
         // CR 604.2: Static ability "Creatures you control have [keyword]."
         // Resolves the source's controller dynamically at layer-application time.
         EffectFilter::CreaturesYouControl => {
@@ -650,7 +609,6 @@ fn effect_applies_to(
                 false
             }
         }
-
         // CR 604.2: Static ability "Other creatures you control have [keyword]."
         // Same as CreaturesYouControl but excludes the source object itself.
         EffectFilter::OtherCreaturesYouControl => {
@@ -668,7 +626,6 @@ fn effect_applies_to(
                 false
             }
         }
-
         // CR 604.2: Static ability "Other [Subtype] creatures you control get [bonus]."
         // Filters by subtype and excludes the source object.
         EffectFilter::OtherCreaturesYouControlWithSubtype(subtype) => {
@@ -691,7 +648,6 @@ fn effect_applies_to(
         }
     }
 }
-
 /// Apply a single layer modification to the given characteristics.
 ///
 /// `state` is needed for Layer 1 copy effects to look up the target object's
@@ -728,13 +684,11 @@ fn apply_layer_modification(
                 chars.defense = target_chars.defense;
             }
         }
-
         // Layer 2: Control-changing — controller lives on GameObject, not Characteristics.
         // Control-change effects are applied to obj.controller separately.
         LayerModification::SetController(_) => {
             // Handled outside calculate_characteristics (controller is on GameObject).
         }
-
         // Layer 4: Type-changing
         LayerModification::SetTypeLine {
             supertypes,
@@ -745,23 +699,19 @@ fn apply_layer_modification(
             chars.card_types = card_types.clone();
             chars.subtypes = subtypes.clone();
         }
-
         LayerModification::AddCardTypes(types) => {
             for t in types {
                 chars.card_types.insert(*t);
             }
         }
-
         LayerModification::AddSubtypes(subtypes) => {
             for s in subtypes {
                 chars.subtypes.insert(s.clone());
             }
         }
-
         LayerModification::LoseAllSubtypes => {
             chars.subtypes = OrdSet::new();
         }
-
         // CR 702.73a, CR 205.3m: Adds every creature type (used by Changeling CDA and
         // Maskwood Nexus-style "is every creature type" continuous effects).
         LayerModification::AddAllCreatureTypes => {
@@ -769,33 +719,27 @@ fn apply_layer_modification(
                 chars.subtypes.insert(s.clone());
             }
         }
-
         // Layer 5: Color-changing
         LayerModification::SetColors(colors) => {
             chars.colors = colors.clone();
         }
-
         LayerModification::AddColors(colors) => {
             for c in colors {
                 chars.colors.insert(*c);
             }
         }
-
         LayerModification::BecomeColorless => {
             chars.colors = OrdSet::new();
         }
-
         // Layer 6: Ability-adding/removing
         LayerModification::AddKeyword(kw) => {
             chars.keywords.insert(kw.clone());
         }
-
         LayerModification::AddKeywords(kws) => {
             for kw in kws {
                 chars.keywords.insert(kw.clone());
             }
         }
-
         LayerModification::RemoveAllAbilities => {
             // Removes all static, activated, triggered, and keyword abilities.
             // The continuous effect itself persists (CR 611.2d — effects from removed
@@ -806,42 +750,35 @@ fn apply_layer_modification(
             chars.triggered_abilities = Vec::new();
             chars.abilities = im::Vector::new();
         }
-
         LayerModification::RemoveKeyword(kw) => {
             chars.keywords.remove(kw);
         }
-
         // Layer 7a: CDAs
         LayerModification::SetPtViaCda { power, toughness } => {
             chars.power = Some(*power);
             chars.toughness = Some(*toughness);
         }
-
         LayerModification::SetPtToManaValue => {
             let mv = mana_value as i32;
             chars.power = Some(mv);
             chars.toughness = Some(mv);
         }
-
         // Layer 7b: P/T-setting
         LayerModification::SetPowerToughness { power, toughness } => {
             chars.power = Some(*power);
             chars.toughness = Some(*toughness);
         }
-
         // Layer 7c: P/T-modifying
         LayerModification::ModifyPower(delta) => {
             if let Some(p) = &mut chars.power {
                 *p += delta;
             }
         }
-
         LayerModification::ModifyToughness(delta) => {
             if let Some(t) = &mut chars.toughness {
                 *t += delta;
             }
         }
-
         LayerModification::ModifyBoth(delta) => {
             if let Some(p) = &mut chars.power {
                 *p += delta;
@@ -850,7 +787,6 @@ fn apply_layer_modification(
                 *t += delta;
             }
         }
-
         // Layer 7d: P/T-switching
         LayerModification::SwitchPowerToughness => {
             let old_p = chars.power;
@@ -860,7 +796,6 @@ fn apply_layer_modification(
         }
     }
 }
-
 /// Sort effects for a single layer in the order they must be applied.
 ///
 /// Ordering rules (CR 613.3, 613.7, 613.8):
@@ -871,19 +806,14 @@ fn resolve_layer_order(effects: Vec<&ContinuousEffect>) -> Vec<&ContinuousEffect
     if effects.is_empty() {
         return effects;
     }
-
     // Partition into CDAs and non-CDAs.
     let (mut cdas, non_cdas): (Vec<_>, Vec<_>) = effects.into_iter().partition(|e| e.is_cda);
-
     // CDAs apply in timestamp order (CR 613.3).
     cdas.sort_by_key(|e| e.timestamp);
-
     // Non-CDAs: dependency-aware topological sort, timestamp as tiebreaker.
     let sorted_non_cdas = toposort_with_timestamp_fallback(non_cdas);
-
     cdas.into_iter().chain(sorted_non_cdas).collect()
 }
-
 /// Topologically sort effects by dependency order (CR 613.8).
 ///
 /// If A depends on B, B is applied first (B → A in the output order).
@@ -894,17 +824,14 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
     if n <= 1 {
         return effects;
     }
-
     // Sort by timestamp as the baseline ordering (CR 613.7).
     // The topological sort will preserve timestamp order for independent effects.
     effects.sort_by_key(|e| e.timestamp);
-
     // Build the dependency graph.
     // in_degree[i]: number of effects that must be applied before effects[i].
     // adj[j]: list of i where effects[i] depends on effects[j] (j must come before i).
     let mut in_degree = vec![0u32; n];
     let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
-
     for i in 0..n {
         for j in 0..n {
             if i != j && depends_on(effects[i], effects[j]) {
@@ -916,17 +843,14 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
             }
         }
     }
-
     // Kahn's algorithm: process nodes with in-degree 0, in index order (= timestamp order).
     // MR-M5-06: use VecDeque so pop_front() is O(1) instead of Vec::remove(0) O(n).
     let mut ready: VecDeque<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
     let mut result: Vec<&ContinuousEffect> = Vec::with_capacity(n);
-
     while !ready.is_empty() {
         // Take the first ready node (already in timestamp/index order).
         let i = ready.pop_front().unwrap();
         result.push(effects[i]);
-
         for &j in &adj[i] {
             in_degree[j] -= 1;
             if in_degree[j] == 0 {
@@ -936,7 +860,6 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
             }
         }
     }
-
     // Cycle handling (CR 613.8b): any remaining effects form a dependency loop.
     // Apply them in timestamp order (index order = timestamp order since effects is sorted).
     if result.len() < n {
@@ -950,10 +873,8 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
             }
         }
     }
-
     result
 }
-
 /// Returns true if effect `a` depends on effect `b` within the same layer (CR 613.8a).
 ///
 /// A depends on B if:
@@ -967,7 +888,6 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
     if a.is_cda != b.is_cda {
         return false;
     }
-
     match (&a.modification, &b.modification) {
         // --- Layer 4 dependencies ---
         //
@@ -989,12 +909,10 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
             // b must be applied before a.
             true
         }
-
         // All other combinations are independent (apply in timestamp order).
         _ => false,
     }
 }
-
 /// Remove all "until end of turn" continuous effects and replacement effects
 /// during the Cleanup step (CR 514.2).
 ///
@@ -1003,7 +921,6 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
 /// `PreventDamage` shields don't persist across turns.
 pub fn expire_end_of_turn_effects(state: &mut GameState) {
     use crate::state::replacement_effect::ReplacementId;
-
     // Expire UntilEndOfTurn continuous effects (CR 514.2).
     let keep: im::Vector<ContinuousEffect> = state
         .continuous_effects
@@ -1012,7 +929,6 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         .cloned()
         .collect();
     state.continuous_effects = keep;
-
     // Expire UntilEndOfTurn replacement effects (CR 514.2).
     // Collect IDs to remove first so we can also clean up prevention_counters.
     let expired_ids: Vec<ReplacementId> = state
@@ -1021,7 +937,6 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         .filter(|e| e.duration == EffectDuration::UntilEndOfTurn)
         .map(|e| e.id)
         .collect();
-
     if !expired_ids.is_empty() {
         let keep_replacements: im::Vector<_> = state
             .replacement_effects
@@ -1030,7 +945,6 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
             .cloned()
             .collect();
         state.replacement_effects = keep_replacements;
-
         // Also remove any prevention shield counters for the expired effects.
         for id in &expired_ids {
             state.prevention_counters.remove(id);

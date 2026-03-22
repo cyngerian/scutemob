@@ -7,15 +7,12 @@
 //! - **T**argeting: this permanent can't be targeted by spells or abilities from sources with the quality (CR 702.16b)
 //!
 //! Protection is a static ability that applies continuously while the permanent is on the battlefield.
-
-use im::OrdSet;
-
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Characteristics, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::types::{KeywordAbility, ProtectionQuality};
 use crate::state::GameState;
-
+use im::OrdSet;
 /// CR 702.16a: Check if a set of keywords contains protection from a given source.
 ///
 /// Returns `true` if any `ProtectionFrom(q)` keyword in `keywords` matches the
@@ -40,7 +37,6 @@ pub fn has_protection_from_source(
     }
     false
 }
-
 /// CR 702.16b: Validate that a target is not protected from the source that is targeting it.
 ///
 /// Called from `rules/mod.rs:validate_target_protection` during both spell casting
@@ -61,7 +57,6 @@ pub fn check_protection_targeting(
     }
     Ok(())
 }
-
 /// CR 702.16e: Check whether a source's damage to a target is prevented by protection.
 ///
 /// Returns `true` if the target's protection blocks all damage from the source.
@@ -72,7 +67,6 @@ pub fn protection_prevents_damage(
 ) -> bool {
     has_protection_from_source(target_keywords, source_chars)
 }
-
 /// CR 702.16f: Check whether a blocker is prevented from blocking an attacker by protection.
 ///
 /// Returns `true` if the attacker has protection from a quality that the blocker matches.
@@ -83,7 +77,6 @@ pub fn protection_prevents_blocking(
 ) -> bool {
     has_protection_from_source(attacker_keywords, blocker_chars)
 }
-
 /// CR 702.16c / 702.16d: Check if an aura or equipment is illegal on its target due to protection.
 ///
 /// Returns `true` if the target permanent's keywords include protection from a quality
@@ -94,7 +87,6 @@ pub fn attachment_is_illegal_due_to_protection(
 ) -> bool {
     has_protection_from_source(target_keywords, attachment_chars)
 }
-
 /// CR 702.16b/e: Check if a single `ProtectionQuality` matches a source's characteristics.
 ///
 /// Convenience helper for player protection checks, where protection qualities are stored
@@ -105,7 +97,6 @@ pub fn has_protection_from_source_quality(
 ) -> bool {
     matches_quality(quality, source_chars)
 }
-
 /// Retrieve the computed characteristics of the source object, if available.
 ///
 /// Convenience wrapper for callers that need source characteristics for protection
@@ -118,7 +109,6 @@ pub fn source_characteristics(state: &GameState, source_id: ObjectId) -> Option<
             .map(|o| o.characteristics.clone())
     })
 }
-
 /// Check if a source with characteristics `source_chars` is controller `caster` targeting
 /// an object with `target_keywords` controlled by `target_controller`. Returns `Ok` if the
 /// targeting is allowed, or `Err` if protection blocks it.
@@ -149,7 +139,6 @@ pub fn check_full_targeting_protection(
     }
     Ok(())
 }
-
 /// CR 702.16f: Check whether a potential blocker is prevented from blocking by protection.
 ///
 /// Returns `true` if the attacker has protection from a quality that the blocker matches
@@ -161,11 +150,9 @@ pub fn can_block(
 ) -> bool {
     !protection_prevents_blocking(attacker_keywords, blocker_chars)
 }
-
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
 /// Returns true if a `ProtectionQuality` matches the given source characteristics.
 fn matches_quality(quality: &ProtectionQuality, source_chars: &Characteristics) -> bool {
     match quality {

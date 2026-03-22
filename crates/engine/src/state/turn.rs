@@ -1,10 +1,7 @@
 //! Turn structure types: phases, steps, and turn state (CR 500-514).
-
+use super::player::PlayerId;
 use im::{OrdSet, Vector};
 use serde::{Deserialize, Serialize};
-
-use super::player::PlayerId;
-
 /// Game phases (CR 500.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Phase {
@@ -14,7 +11,6 @@ pub enum Phase {
     PostCombatMain,
     Ending,
 }
-
 /// Steps within phases (CR 501-514).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Step {
@@ -45,7 +41,6 @@ pub enum Step {
     /// CR 514: Cleanup step (normally no priority)
     Cleanup,
 }
-
 impl Step {
     /// Returns the phase this step belongs to.
     pub fn phase(&self) -> Phase {
@@ -62,7 +57,6 @@ impl Step {
             Step::End | Step::Cleanup => Phase::Ending,
         }
     }
-
     /// Whether players normally receive priority in this step.
     /// CR 502.3: No player receives priority during the untap step.
     /// CR 514.3: Normally no priority during cleanup.
@@ -70,7 +64,6 @@ impl Step {
         !matches!(self, Step::Untap | Step::Cleanup)
     }
 }
-
 impl Step {
     /// Returns the next step in normal turn order.
     ///
@@ -94,7 +87,6 @@ impl Step {
         }
     }
 }
-
 /// State of the current turn (CR 500).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TurnState {

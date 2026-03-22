@@ -2,7 +2,6 @@
 //! companion, and partner mechanics.
 //!
 //! See architecture doc Section 3.x and CR 903 for design rationale.
-
 use crate::cards::{CardDefinition, CardRegistry};
 use crate::rules::casting;
 use crate::rules::events::GameEvent;
@@ -13,16 +12,13 @@ use crate::state::turn::Step;
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 use crate::state::{CardId, CardType, Color, ManaCost, SuperType};
-
 // ── Deck Validation ───────────────────────────────────────────────────────────
-
 /// Result of validating a Commander deck (CR 903.5).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeckValidationResult {
     pub valid: bool,
     pub violations: Vec<DeckViolation>,
 }
-
 /// A single violation found during deck validation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DeckViolation {
@@ -46,7 +42,6 @@ pub enum DeckViolation {
     /// always an error — unknown cards silently pass all other validation checks.
     UnknownCard { card_id: String },
 }
-
 /// Validate a Commander deck against the format rules.
 ///
 /// CR 903.5a: deck size must be exactly 100, including the commander(s).
@@ -63,7 +58,6 @@ pub fn validate_deck(
     banned_list: &[String],
 ) -> DeckValidationResult {
     let mut violations = Vec::new();
-
     // MR-M9-17: reject decks submitted with zero commanders.
     if commander_card_ids.is_empty() {
         violations.push(DeckViolation::InvalidCommander {
@@ -71,7 +65,6 @@ pub fn validate_deck(
             reason: "a Commander deck must have exactly 1 or 2 commanders".to_string(),
         });
     }
-
     // CR 902.124h / CR 903.5: if 2 commanders, both must have partner keyword.
     // A single commander needs no partner check.
     if commander_card_ids.len() == 2 {
@@ -91,7 +84,6 @@ pub fn validate_deck(
             reason: "more than 2 commanders is not allowed".to_string(),
         });
     }
-
     // CR 903.5a: total deck size must be exactly 100
     if deck_card_ids.len() != 100 {
         violations.push(DeckViolation::WrongDeckSize {
@@ -99,7 +91,6 @@ pub fn validate_deck(
             expected: 100,
         });
     }
-
     // Validate each commander.
     // CR 903.3: each commander must be a legendary creature (or special case).
     // CR 702.124k exception: in a Choose a Background pair, the Background
@@ -135,7 +126,6 @@ pub fn validate_deck(
             }
         }
     }
-
     // Compute combined commander color identity
     let commander_colors: Vec<Color> = {
         let mut colors = Vec::new();
@@ -151,11 +141,9 @@ pub fn validate_deck(
         colors.sort();
         colors
     };
-
     // Check each card in the deck
     let mut name_counts: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
-
     for card_id in deck_card_ids {
         let def = match registry.get(card_id.clone()) {
             Some(d) => d,
@@ -168,21 +156,18 @@ pub fn validate_deck(
                 continue;
             }
         };
-
         // CR 903.5b: singleton rule — basic lands are exempt
         let is_basic_land = def.types.supertypes.contains(&SuperType::Basic)
             && def.types.card_types.contains(&CardType::Land);
         if !is_basic_land {
             *name_counts.entry(def.name.clone()).or_insert(0) += 1;
         }
-
         // Banned list check
         if banned_list.iter().any(|b| b == &def.name) {
             violations.push(DeckViolation::BannedCard {
                 name: def.name.clone(),
             });
         }
-
         // CR 903.5c: color identity must be subset of commander's identity
         let card_identity = compute_color_identity(def);
         for color in &card_identity {
@@ -196,20 +181,17 @@ pub fn validate_deck(
             }
         }
     }
-
     // CR 903.5b: report duplicates
     for (name, count) in name_counts {
         if count > 1 {
             violations.push(DeckViolation::DuplicateCard { name, count });
         }
     }
-
     DeckValidationResult {
         valid: violations.is_empty(),
         violations,
     }
 }
-
 /// Compute a card's color identity (CR 903.4).
 ///
 /// CR 903.4: A card's color identity is determined by its mana cost, color indicator,
@@ -221,16 +203,13 @@ pub fn validate_deck(
 /// Alesha, Who Smiles at Death ({W/B} in ability text → Mardu identity).
 pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
     let mut colors = Vec::new();
-
     // Extract colors from mana cost symbols
     if let Some(ref cost) = def.mana_cost {
         add_colors_from_mana_cost(cost, &mut colors);
     }
-
     // CR 903.4: also extract colors from mana symbols in oracle text.
     // Scan for `{...}` symbols and add any colored mana they contain.
     add_colors_from_oracle_text(&def.oracle_text, &mut colors);
-
     // CR 903.4 / CR 702.160: Scan prototype costs for colored mana symbols.
     // A prototype card's color identity includes colors from its prototype mana cost,
     // since the prototype ability text contains colored mana symbols.
@@ -246,15 +225,12 @@ pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
             add_colors_from_mana_cost(cost, &mut colors);
         }
     }
-
     // Deduplicate and sort for determinism
     colors.sort();
     colors.dedup();
     colors
 }
-
 // ── Commander Tax ─────────────────────────────────────────────────────────────
-
 /// Apply commander tax to a base mana cost (CR 903.8).
 ///
 /// CR 903.8: Each time you cast a commander from the command zone, it costs an
@@ -282,9 +258,7 @@ pub fn apply_commander_tax(base_cost: &ManaCost, tax: u32) -> ManaCost {
         x_count: base_cost.x_count,
     }
 }
-
 // ── Commander Zone Return SBA (CR 903.9a / CR 704.6d) ────────────────────────
-
 /// CR 903.9a / CR 704.6d: Check if any commander is in graveyard or exile and,
 /// if so, emit a `CommanderZoneReturnChoiceRequired` event for the owner.
 ///
@@ -301,11 +275,9 @@ pub fn apply_commander_tax(base_cost: &ManaCost, tax: u32) -> ManaCost {
 /// Called from `sba::apply_sbas_once` after counter annihilation.
 pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // Collect (owner, card_id, object_id, from_zone_type) for all commanders
     // found in graveyard or exile that don't already have a pending choice.
     let mut needs_choice: Vec<(PlayerId, CardId, ObjectId, ZoneType)> = Vec::new();
-
     for (&owner, player_state) in state.players.iter() {
         for card_id in player_state.commander_ids.iter() {
             // Check graveyard
@@ -332,7 +304,6 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
                     }
                 }
             }
-
             // Check exile
             let exile_zone_id = ZoneId::Exile;
             if let Some(zone) = state.zones.get(&exile_zone_id) {
@@ -354,7 +325,6 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
             }
         }
     }
-
     // For each commander needing a choice, record the pending entry and emit the event.
     for (owner, card_id, object_id, from_zone) in needs_choice {
         state
@@ -367,10 +337,8 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
             from_zone,
         });
     }
-
     events
 }
-
 /// Handle a `LeaveCommanderInZone` command (CR 903.9a / CR 704.6d).
 ///
 /// The owner has chosen to leave their commander in its current zone (graveyard
@@ -386,31 +354,26 @@ pub fn handle_leave_commander_in_zone(
         .objects
         .get(&object_id)
         .ok_or(GameStateError::ObjectNotFound(object_id))?;
-
     if obj.owner != player {
         return Err(GameStateError::InvalidCommand(
             "can only decide zone for your own commander".to_string(),
         ));
     }
-
     // Remove the pending choice entry.
     let before = state.pending_commander_zone_choices.len();
     state
         .pending_commander_zone_choices
         .retain(|(_, oid)| *oid != object_id);
     let removed = before - state.pending_commander_zone_choices.len();
-
     if removed == 0 {
         return Err(GameStateError::InvalidCommand(
             "no pending commander zone-return choice for this object".to_string(),
         ));
     }
-
     // No zone move — commander stays where it is. No event emitted beyond
     // confirming the pending choice is cleared.
     Ok(vec![])
 }
-
 /// Handle a `ReturnCommanderToCommandZone` command (CR 903.9a / CR 704.6d).
 ///
 /// Moves the specified object from its current zone (graveyard or exile) to the
@@ -422,23 +385,19 @@ pub fn handle_return_commander_to_command_zone(
     object_id: ObjectId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // Look up the object and validate it belongs to the player
     let obj = state
         .objects
         .get(&object_id)
         .ok_or(GameStateError::ObjectNotFound(object_id))?;
-
     let obj_owner = obj.owner;
     let obj_card_id = obj.card_id.clone();
     let obj_zone = obj.zone;
-
     if obj_owner != player {
         return Err(GameStateError::InvalidCommand(
             "can only return your own commander to command zone".to_string(),
         ));
     }
-
     // Validate the card_id is registered as this player's commander
     let is_commander = {
         let ps = state.player(player)?;
@@ -447,13 +406,11 @@ pub fn handle_return_commander_to_command_zone(
             .map(|cid| ps.commander_ids.contains(cid))
             .unwrap_or(false)
     };
-
     if !is_commander {
         return Err(GameStateError::InvalidCommand(
             "object is not registered as this player's commander".to_string(),
         ));
     }
-
     // Validate zone: must be in graveyard or exile
     let from_zone_type = match obj_zone {
         ZoneId::Graveyard(_) => ZoneType::Graveyard,
@@ -464,13 +421,11 @@ pub fn handle_return_commander_to_command_zone(
             ));
         }
     };
-
     // Clear any pending choice for this object (may not exist if command issued
     // independently without a prior SBA choice event).
     state
         .pending_commander_zone_choices
         .retain(|(_, oid)| *oid != object_id);
-
     let command_zone_id = ZoneId::Command(player);
     if let Ok((_, _)) = state.move_object_to_zone(object_id, command_zone_id) {
         if let Some(cid) = obj_card_id {
@@ -481,12 +436,9 @@ pub fn handle_return_commander_to_command_zone(
             });
         }
     }
-
     Ok(events)
 }
-
 // ── Partner Commanders (CR 702.124) ───────────────────────────────────────────
-
 /// Validate that two commanders can serve as partner commanders (CR 702.124h).
 ///
 /// CR 702.124: Partner is a keyword ability. A legendary creature card with
@@ -511,7 +463,6 @@ pub fn validate_partner_commanders(
     cmd2: &CardDefinition,
 ) -> Result<(), String> {
     use crate::state::KeywordAbility;
-
     // Check for plain Partner keyword.
     let cmd1_has_partner = cmd1.abilities.iter().any(|a| {
         matches!(
@@ -525,7 +476,6 @@ pub fn validate_partner_commanders(
             crate::cards::AbilityDefinition::Keyword(KeywordAbility::Partner)
         )
     });
-
     // Check for "Partner with [name]" keyword.
     let cmd1_partner_with: Option<&str> = cmd1.abilities.iter().find_map(|a| {
         if let crate::cards::AbilityDefinition::Keyword(KeywordAbility::PartnerWith(name)) = a {
@@ -541,7 +491,6 @@ pub fn validate_partner_commanders(
             None
         }
     });
-
     // Check for "Friends forever" keyword (CR 702.124i).
     let cmd1_has_friends_forever = cmd1.abilities.iter().any(|a| {
         matches!(
@@ -555,7 +504,6 @@ pub fn validate_partner_commanders(
             crate::cards::AbilityDefinition::Keyword(KeywordAbility::FriendsForever)
         )
     });
-
     // Check for "Choose a Background" keyword (CR 702.124k).
     let cmd1_has_choose_background = cmd1.abilities.iter().any(|a| {
         matches!(
@@ -569,7 +517,6 @@ pub fn validate_partner_commanders(
             crate::cards::AbilityDefinition::Keyword(KeywordAbility::ChooseABackground)
         )
     });
-
     // Check for "Doctor's companion" keyword (CR 702.124m).
     let cmd1_has_doctors_companion = cmd1.abilities.iter().any(|a| {
         matches!(
@@ -583,12 +530,10 @@ pub fn validate_partner_commanders(
             crate::cards::AbilityDefinition::Keyword(KeywordAbility::DoctorsCompanion)
         )
     });
-
     // Case 1: Both have plain Partner — valid pair (CR 702.124h).
     if cmd1_has_partner && cmd2_has_partner {
         return Ok(());
     }
-
     // Case 2: Both have PartnerWith — verify names cross-reference each other
     // (CR 702.124j: each must have 'partner with [name]' naming the other).
     if let (Some(pw1), Some(pw2)) = (cmd1_partner_with, cmd2_partner_with) {
@@ -602,13 +547,11 @@ pub fn validate_partner_commanders(
             ));
         }
     }
-
     // Case 3: Both have Friends Forever — valid pair (CR 702.124i).
     // "Partner--Friends forever" requires both commanders to have the same ability.
     if cmd1_has_friends_forever && cmd2_has_friends_forever {
         return Ok(());
     }
-
     // Case 4: Choose a Background pair — one has the keyword, the other is a
     // legendary Background enchantment (CR 702.124k).
     if cmd1_has_choose_background || cmd2_has_choose_background {
@@ -634,7 +577,6 @@ pub fn validate_partner_commanders(
             chooser.name, other.name
         ));
     }
-
     // Case 5: Doctor's Companion pair — one has the keyword, the other is a
     // legendary Time Lord Doctor creature with no other creature types (CR 702.124m).
     if cmd1_has_doctors_companion || cmd2_has_doctors_companion {
@@ -652,7 +594,6 @@ pub fn validate_partner_commanders(
             companion.name, doctor.name
         ));
     }
-
     // Case 6: Mixed variants — check for cross-variant combinations (CR 702.124f).
     // At this point we know no positive match was found. Check if any partner
     // variant is present on either side to produce a meaningful error.
@@ -666,7 +607,6 @@ pub fn validate_partner_commanders(
         || cmd2_has_friends_forever
         || cmd2_has_choose_background
         || cmd2_has_doctors_companion;
-
     if cmd1_has_any_partner && cmd2_has_any_partner {
         return Err(format!(
             "'{}' and '{}' have incompatible partner abilities that cannot be combined \
@@ -674,7 +614,6 @@ pub fn validate_partner_commanders(
             cmd1.name, cmd2.name
         ));
     }
-
     // Case 7: Mixed Partner + PartnerWith — not allowed (CR 702.124f).
     if (cmd1_has_partner && cmd2_partner_with.is_some())
         || (cmd2_has_partner && cmd1_partner_with.is_some())
@@ -685,7 +624,6 @@ pub fn validate_partner_commanders(
             cmd1.name, cmd2.name
         ));
     }
-
     // Case 8: One has PartnerWith but the other has nothing — incomplete pair.
     if cmd1_partner_with.is_some() || cmd2_partner_with.is_some() {
         return Err(format!(
@@ -693,7 +631,6 @@ pub fn validate_partner_commanders(
             cmd1.name, cmd2.name
         ));
     }
-
     // Case 9: One has Friends Forever but the other does not.
     if cmd1_has_friends_forever || cmd2_has_friends_forever {
         let missing = if cmd1_has_friends_forever {
@@ -706,7 +643,6 @@ pub fn validate_partner_commanders(
             missing
         ));
     }
-
     // Case 10: Neither has any partner ability — not a valid partner pair.
     if !cmd1_has_partner && !cmd2_has_partner {
         return Err(format!(
@@ -720,13 +656,11 @@ pub fn validate_partner_commanders(
             cmd1.name
         ));
     }
-
     Err(format!(
         "'{}' does not have partner (CR 702.124h)",
         cmd2.name
     ))
 }
-
 /// CR 702.124k: Returns true if `def` is a legendary Background enchantment.
 ///
 /// The Background enchantment commander qualifies by type, not by keyword.
@@ -740,7 +674,6 @@ fn is_legendary_background(def: &CardDefinition) -> bool {
             .subtypes
             .contains(&SubType("Background".to_string()))
 }
-
 /// CR 702.124m: Returns true if `def` is a legendary Time Lord Doctor creature
 /// with no other creature types.
 ///
@@ -765,9 +698,7 @@ fn is_time_lord_doctor(def: &CardDefinition) -> bool {
     let only_time_lord_and_doctor = def.types.subtypes.len() == 2;
     is_legendary && is_creature && has_time_lord && has_doctor && only_time_lord_and_doctor
 }
-
 // ── Mulligan (CR 103.5 / CR 103.5c) ───────────────────────────────────────────
-
 /// Handle a `TakeMulligan` command (CR 103.5 / CR 103.5c).
 ///
 /// CR 103.5: A player who mulligans shuffles all cards from their hand into their
@@ -785,17 +716,14 @@ pub fn handle_take_mulligan(
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // Increment mulligan count for this player
     let mulligan_number = {
         let ps = state.player_mut(player)?;
         ps.mulligan_count += 1;
         ps.mulligan_count
     };
-
     // First mulligan is free in multiplayer (CR 103.5c)
     let is_free = mulligan_number == 1;
-
     // Shuffle hand back into library: move all hand cards to library
     let hand_zone_id = ZoneId::Hand(player);
     let hand_objects: Vec<ObjectId> = state
@@ -803,17 +731,14 @@ pub fn handle_take_mulligan(
         .get(&hand_zone_id)
         .map(|z| z.object_ids())
         .unwrap_or_default();
-
     // Move each card from hand to library
     let lib_zone_id = ZoneId::Library(player);
     for obj_id in hand_objects {
         // Move card back to library (ignore errors for individual cards)
         let _ = state.move_object_to_zone(obj_id, lib_zone_id);
     }
-
     // Shuffle library (represented by event; order is not tracked in state)
     events.push(GameEvent::LibraryShuffled { player });
-
     // Draw 7 cards for the new hand.
     // MR-M9-05: Do not use draw_card here — it triggers PlayerLost on empty library.
     // During the pregame mulligan procedure (CR 103.5) the game has not started yet;
@@ -838,16 +763,13 @@ pub fn handle_take_mulligan(
             }
         }
     }
-
     events.push(GameEvent::MulliganTaken {
         player,
         mulligan_number,
         is_free,
     });
-
     Ok(events)
 }
-
 /// Handle a `KeepHand` command (CR 103.5).
 ///
 /// CR 103.5: After deciding to keep, the player with N mulligans taken must
@@ -864,13 +786,11 @@ pub fn handle_keep_hand(
     cards_to_bottom: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // Determine how many cards must go to the bottom
     let mulligans_taken = state.player(player)?.mulligan_count;
     // First mulligan is free (CR 103.5c): 1 mulligan taken → 0 cards to bottom.
     // saturating_sub handles 0 mulligans (keep without mulligan) and 1 mulligan (free).
     let required_bottom = mulligans_taken.saturating_sub(1);
-
     if cards_to_bottom.len() != required_bottom as usize {
         return Err(GameStateError::InvalidCommand(format!(
             "player {} must put {} cards on bottom (took {} mulligans), got {}",
@@ -880,23 +800,18 @@ pub fn handle_keep_hand(
             cards_to_bottom.len()
         )));
     }
-
     // Move each card from hand to bottom of library
     let lib_zone_id = ZoneId::Library(player);
     for obj_id in cards_to_bottom.iter() {
         state.move_object_to_zone(*obj_id, lib_zone_id)?;
     }
-
     events.push(GameEvent::MulliganKept {
         player,
         cards_to_bottom,
     });
-
     Ok(events)
 }
-
 // ── Companion (CR 702.139a) ────────────────────────────────────────────────────
-
 /// Handle a `BringCompanion` command (CR 702.139a).
 ///
 /// CR 702.139a: Once per game, any time you could cast a sorcery (during your main
@@ -918,7 +833,6 @@ pub fn handle_bring_companion(
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-
     // Validate player exists and has a companion
     let companion_card_id = {
         let ps = state.player(player)?;
@@ -931,7 +845,6 @@ pub fn handle_bring_companion(
             }
         }
     };
-
     // Validate companion not yet used
     {
         let ps = state.player(player)?;
@@ -941,7 +854,6 @@ pub fn handle_bring_companion(
             ));
         }
     }
-
     // Validate sorcery speed: active player, main phase, empty stack
     if state.turn.active_player != player {
         return Err(GameStateError::InvalidCommand(
@@ -949,22 +861,18 @@ pub fn handle_bring_companion(
                 .to_string(),
         ));
     }
-
     let is_main_phase =
         state.turn.step == Step::PreCombatMain || state.turn.step == Step::PostCombatMain;
-
     if !is_main_phase {
         return Err(GameStateError::InvalidCommand(
             "companion special action requires main phase (CR 702.139a)".to_string(),
         ));
     }
-
     if !state.stack_objects.is_empty() {
         return Err(GameStateError::InvalidCommand(
             "companion special action requires empty stack (CR 702.139a)".to_string(),
         ));
     }
-
     // Validate {3} mana available and deduct it
     {
         let ps = state.player(player)?;
@@ -973,7 +881,6 @@ pub fn handle_bring_companion(
             return Err(GameStateError::InsufficientMana);
         }
     }
-
     // Deduct 3 generic mana from pool via shared pay_cost logic.
     {
         let companion_cost = ManaCost {
@@ -983,7 +890,6 @@ pub fn handle_bring_companion(
         let ps = state.player_mut(player)?;
         casting::pay_cost(&mut ps.mana_pool, &companion_cost);
     }
-
     // Emit mana cost paid event
     events.push(GameEvent::ManaCostPaid {
         player,
@@ -992,7 +898,6 @@ pub fn handle_bring_companion(
             ..Default::default()
         },
     });
-
     // Find the companion card object in the command zone (or treat as not yet in game)
     // The companion's card is in the player's command zone (stored there at setup)
     let companion_zone_id = ZoneId::Command(player);
@@ -1006,32 +911,26 @@ pub fn handle_bring_companion(
                 .unwrap_or(false)
         })
     });
-
     // If companion is in command zone, move it to hand
     if let Some(obj_id) = companion_obj_id {
         let hand_zone_id = ZoneId::Hand(player);
         state.move_object_to_zone(obj_id, hand_zone_id)?;
     }
     // If not in command zone, it may have been moved there; either way emit the event
-
     // Mark companion as used
     if let Some(ps) = state.players.get_mut(&player) {
         ps.companion_used = true;
     }
-
     events.push(GameEvent::CompanionBroughtToHand {
         player,
         card_id: companion_card_id,
     });
-
     Ok(events)
 }
-
 /// Add colors present in a mana cost to the accumulator.
 fn add_colors_from_mana_cost(cost: &ManaCost, colors: &mut Vec<Color>) {
     use crate::state::game_object::{HybridMana, PhyrexianMana};
     use crate::state::types::ManaColor;
-
     if cost.white > 0 && !colors.contains(&Color::White) {
         colors.push(Color::White);
     }
@@ -1047,7 +946,6 @@ fn add_colors_from_mana_cost(cost: &ManaCost, colors: &mut Vec<Color>) {
     if cost.green > 0 && !colors.contains(&Color::Green) {
         colors.push(Color::Green);
     }
-
     // CR 903.4 / CR 202.2d: Hybrid and Phyrexian symbols add their component colors.
     let add_mc = |colors: &mut Vec<Color>, mc: &ManaColor| {
         let color = match mc {
@@ -1083,7 +981,6 @@ fn add_colors_from_mana_cost(cost: &ManaCost, colors: &mut Vec<Color>) {
         }
     }
 }
-
 /// CR 903.4: Scan oracle text for mana symbols and add any colored mana to the accumulator.
 ///
 /// Handles simple colored symbols `{W}`, `{U}`, `{B}`, `{R}`, `{G}` and hybrid

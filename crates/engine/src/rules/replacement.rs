@@ -9,9 +9,7 @@
 //! - CR 616.1: When multiple replacements apply, affected player chooses order.
 //! - CR 616.1a: Self-replacement effects must be chosen first.
 //! - CR 616.1f: After applying one, repeat with remaining applicable effects.
-
-use std::collections::HashSet;
-
+use super::events::{CombatDamageTarget, GameEvent};
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
@@ -22,9 +20,7 @@ use crate::state::replacement_effect::{
 use crate::state::types::{CardType, CounterType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-
-use super::events::{CombatDamageTarget, GameEvent};
-
+use std::collections::HashSet;
 /// The result of checking for applicable replacement effects.
 #[derive(Debug)]
 pub enum ReplacementResult {
@@ -39,7 +35,6 @@ pub enum ReplacementResult {
         event_description: String,
     },
 }
-
 /// Implements CR 614/616: find all active replacement effects matching a trigger.
 ///
 /// Checks duration validity (source still on battlefield for `WhileSourceOnBattlefield`)
@@ -54,18 +49,15 @@ pub fn find_applicable(
 ) -> Vec<ReplacementId> {
     let mut self_replacements = Vec::new();
     let mut other_replacements = Vec::new();
-
     for effect in state.replacement_effects.iter() {
         // CR 614.5: skip effects already applied to this event chain
         if already_applied.contains(&effect.id) {
             continue;
         }
-
         // Check duration validity
         if !is_effect_active(state, effect.duration, effect.source) {
             continue;
         }
-
         // Check trigger match
         if trigger_matches(state, &effect.trigger, trigger) {
             // CR 614.15: partition self-replacement effects
@@ -76,12 +68,10 @@ pub fn find_applicable(
             }
         }
     }
-
     // CR 614.15 / 616.1a: self-replacements come first
     self_replacements.extend(other_replacements);
     self_replacements
 }
-
 /// Implements CR 616.1: determine what action to take given applicable replacements.
 ///
 /// - 0 applicable: `NoApplicable`
@@ -98,11 +88,9 @@ pub fn determine_action(
     if applicable.is_empty() {
         return ReplacementResult::NoApplicable;
     }
-
     if applicable.len() == 1 {
         return ReplacementResult::AutoApply(applicable[0]);
     }
-
     // CR 616.1a: If any self-replacements exist, they must be chosen first
     let self_ids: Vec<ReplacementId> = applicable
         .iter()
@@ -114,12 +102,10 @@ pub fn determine_action(
                 .any(|e| e.id == *id && e.is_self_replacement)
         })
         .collect();
-
     if self_ids.len() == 1 {
         // Exactly one self-replacement: auto-apply it (CR 616.1a)
         return ReplacementResult::AutoApply(self_ids[0]);
     }
-
     if self_ids.len() > 1 {
         // Multiple self-replacements: player chooses among them (CR 616.1a)
         return ReplacementResult::NeedsChoice {
@@ -128,7 +114,6 @@ pub fn determine_action(
             event_description: event_description.to_string(),
         };
     }
-
     // No self-replacements: player chooses among all (CR 616.1e)
     ReplacementResult::NeedsChoice {
         player: affected_player,
@@ -136,7 +121,6 @@ pub fn determine_action(
         event_description: event_description.to_string(),
     }
 }
-
 /// Handle the `Command::OrderReplacements` command (CR 616.1).
 ///
 /// Validates the player and IDs, then applies the first chosen replacement.
@@ -153,7 +137,6 @@ pub fn handle_order_replacements(
             "OrderReplacements requires at least one replacement ID".to_string(),
         ));
     }
-
     // Validate all IDs exist in the state
     for id in &ids {
         if !state.replacement_effects.iter().any(|e| e.id == *id) {
@@ -163,14 +146,12 @@ pub fn handle_order_replacements(
             )));
         }
     }
-
     // Validate the player is the affected player of a pending zone change
     // or the controller of at least one of the effects.
     let pending_idx = state
         .pending_zone_changes
         .iter()
         .position(|p| p.affected_player == player);
-
     let player_controls_any = ids.iter().any(|id| {
         state
             .replacement_effects
@@ -178,20 +159,17 @@ pub fn handle_order_replacements(
             .any(|e| e.id == *id && e.controller == player)
     });
     let is_affected_player = pending_idx.is_some();
-
     if !player_controls_any && !is_affected_player {
         return Err(GameStateError::InvalidCommand(format!(
             "player {:?} does not control any of the specified replacement effects",
             player
         )));
     }
-
     // If there's a pending zone change for this player, resolve it.
     if let Some(idx) = pending_idx {
         let first_id = ids[0];
         return resolve_pending_zone_change(state, first_id, idx);
     }
-
     // No pending zone change — emit the applied event (Session 2 fallback).
     let mut events = Vec::new();
     let first_id = ids[0];
@@ -201,15 +179,12 @@ pub fn handle_order_replacements(
         .find(|e| e.id == first_id)
         .map(|e| format!("{:?}", e.modification))
         .unwrap_or_default();
-
     events.push(GameEvent::ReplacementEffectApplied {
         effect_id: first_id,
         description,
     });
-
     Ok(events)
 }
-
 /// Check whether a replacement effect is currently active based on its duration.
 ///
 /// - `WhileSourceOnBattlefield`: source object must still exist on the battlefield.
@@ -257,7 +232,6 @@ fn is_effect_active(
         }
     }
 }
-
 /// Check whether an effect's trigger matches the event trigger.
 ///
 /// For zone-change triggers, checks zone matching (effect's `from: None` is wildcard)
@@ -375,7 +349,6 @@ fn trigger_matches(
         _ => false,
     }
 }
-
 /// Check if the object identified by the event filter matches the effect's filter predicate.
 ///
 /// The event filter identifies a specific object (typically `SpecificObject(id)`).
@@ -389,7 +362,6 @@ fn event_object_matches_filter(
     if *effect_filter == ObjectFilter::Any {
         return true;
     }
-
     // Extract the specific object from the event filter
     match event_filter {
         ObjectFilter::SpecificObject(obj_id) => {
@@ -402,7 +374,6 @@ fn event_object_matches_filter(
         }
     }
 }
-
 /// Check if a specific game object matches a filter predicate.
 pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &ObjectFilter) -> bool {
     match filter {
@@ -458,19 +429,16 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
             .unwrap_or(false),
     }
 }
-
 /// Check if the player identified by the event filter matches the effect's filter.
 fn event_player_matches_filter(event_filter: &PlayerFilter, effect_filter: &PlayerFilter) -> bool {
     if *effect_filter == PlayerFilter::Any {
         return true;
     }
-
     match event_filter {
         PlayerFilter::Specific(player_id) => player_matches_filter(*player_id, effect_filter),
         _ => event_filter == effect_filter,
     }
 }
-
 /// Check if a specific player matches a filter predicate.
 pub fn player_matches_filter(player_id: PlayerId, filter: &PlayerFilter) -> bool {
     match filter {
@@ -479,7 +447,6 @@ pub fn player_matches_filter(player_id: PlayerId, filter: &PlayerFilter) -> bool
         PlayerFilter::OpponentsOf(id) => player_id != *id,
     }
 }
-
 /// Bind a PlayerFilter placeholder to the actual controller's PlayerId.
 ///
 /// Card definitions use `Specific(PlayerId(0))` as a placeholder for "the controller"
@@ -492,7 +459,6 @@ fn bind_player_filter(filter: &PlayerFilter, controller: PlayerId) -> PlayerFilt
         other => other.clone(),
     }
 }
-
 /// Bind an ObjectFilter placeholder to the actual controller's PlayerId.
 ///
 /// Card definitions use `ControlledBy(PlayerId(0))` as a placeholder for
@@ -504,9 +470,7 @@ fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilt
         other => other.clone(),
     }
 }
-
 // ── Draw interception helpers (Session 4) ─────────────────────────────────
-
 /// The result of checking WouldDraw replacement effects for a draw event.
 #[derive(Debug)]
 pub enum DrawAction {
@@ -523,7 +487,6 @@ pub enum DrawAction {
     /// The engine pauses until a `Command::ChooseDredge` is received.
     DredgeAvailable(GameEvent),
 }
-
 /// CR 614.11: Check WouldDraw replacement effects before performing a draw.
 ///
 /// Finds applicable replacements for `player` drawing a card, determines the
@@ -543,7 +506,6 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
         PlayerFilter, ReplacementModification, ReplacementTrigger,
     };
     use crate::state::types::KeywordAbility;
-
     // CR 702.52a: Scan the player's graveyard for dredge-eligible cards.
     // A card is eligible if:
     //   1. It has KeywordAbility::Dredge(n) in its keywords.
@@ -551,7 +513,6 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
     let graveyard_zone = ZoneId::Graveyard(player);
     let library_zone = ZoneId::Library(player);
     let library_count = state.zones.get(&library_zone).map(|z| z.len()).unwrap_or(0);
-
     let mut dredge_options: Vec<(ObjectId, u32)> = state
         .objects
         .values()
@@ -570,10 +531,8 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
             })
         })
         .collect();
-
     // Sort for determinism (by ObjectId).
     dredge_options.sort_by_key(|(id, _)| *id);
-
     if !dredge_options.is_empty() {
         // CR 702.52a: Dredge options available — pause for player choice.
         return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
@@ -581,13 +540,11 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
             options: dredge_options,
         });
     }
-
     let trigger = ReplacementTrigger::WouldDraw {
         player_filter: PlayerFilter::Specific(player),
     };
     let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
     let action = determine_action(state, &applicable, player, "draw a card");
-
     match action {
         ReplacementResult::NoApplicable => DrawAction::Proceed,
         ReplacementResult::AutoApply(id) => {
@@ -621,7 +578,6 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
         }
     }
 }
-
 /// Check if the damage target identified by the event matches the effect's filter.
 fn event_damage_target_matches_filter(
     event_filter: &DamageTargetFilter,
@@ -634,9 +590,7 @@ fn event_damage_target_matches_filter(
     // the event filter to match the actual damage event)
     event_filter == effect_filter
 }
-
 // ── Zone-change interception helpers (Session 3) ──────────────────────────
-
 /// The result of checking replacement effects for a zone change.
 #[derive(Debug)]
 pub enum ZoneChangeAction {
@@ -658,7 +612,6 @@ pub enum ZoneChangeAction {
         event_description: String,
     },
 }
-
 /// Check whether replacement effects apply to a zone change and return the action to take.
 ///
 /// Called by interception sites (SBAs, effects) before moving an object between zones.
@@ -675,7 +628,6 @@ pub fn check_zone_change_replacement(
     already_applied: &HashSet<ReplacementId>,
 ) -> ZoneChangeAction {
     use crate::state::zone::ZoneType;
-
     // CR 702.84a: Unearth replacement effect -- "If it would leave the battlefield,
     // exile it instead of putting it anywhere else."
     //
@@ -701,7 +653,6 @@ pub fn check_zone_change_replacement(
             }
         }
     }
-
     // CR 702.146b: Disturb replacement effect -- "If a permanent with disturb would be
     // put into a graveyard from the battlefield, exile it instead."
     //
@@ -723,17 +674,13 @@ pub fn check_zone_change_replacement(
             }
         }
     }
-
     let trigger = ReplacementTrigger::WouldChangeZone {
         from: Some(from),
         to,
         filter: ObjectFilter::SpecificObject(object_id),
     };
-
     let applicable = find_applicable(state, &trigger, already_applied);
-
     let description = format!("{:?} would move from {:?} to {:?}", object_id, from, to);
-
     match determine_action(state, &applicable, owner, &description) {
         ReplacementResult::NoApplicable => ZoneChangeAction::Proceed,
         ReplacementResult::AutoApply(id) => {
@@ -743,7 +690,6 @@ pub fn check_zone_change_replacement(
                 .iter()
                 .find(|e| e.id == id)
                 .map(|e| e.modification.clone());
-
             match modification {
                 Some(ReplacementModification::RedirectToZone(zone_type)) => {
                     let dest = resolve_zone_type_to_zone_id(zone_type, owner);
@@ -794,7 +740,6 @@ pub fn check_zone_change_replacement(
         },
     }
 }
-
 /// Resolve a `ZoneType` to a concrete `ZoneId`, using the object owner for
 /// per-player zones (graveyard, hand, library, command zone).
 pub fn resolve_zone_type_to_zone_id(
@@ -812,7 +757,6 @@ pub fn resolve_zone_type_to_zone_id(
         ZoneType::Command => ZoneId::Command(owner),
     }
 }
-
 /// Complete a pending zone change after a player has chosen the replacement order.
 ///
 /// Called from `handle_order_replacements` when a `Command::OrderReplacements`
@@ -827,7 +771,6 @@ pub fn resolve_pending_zone_change(
     let mut events = Vec::new();
     let mut already_applied: HashSet<ReplacementId> =
         pending.already_applied.iter().copied().collect();
-
     // Apply the chosen replacement
     let modification = state
         .replacement_effects
@@ -837,14 +780,11 @@ pub fn resolve_pending_zone_change(
         .ok_or_else(|| {
             GameStateError::InvalidCommand(format!("replacement effect {:?} not found", chosen_id))
         })?;
-
     already_applied.insert(chosen_id);
-
     events.push(GameEvent::ReplacementEffectApplied {
         effect_id: chosen_id,
         description: format!("{:?}", modification),
     });
-
     // Determine the final destination
     let dest = match &modification {
         ReplacementModification::RedirectToZone(zone_type) => {
@@ -862,14 +802,12 @@ pub fn resolve_pending_zone_change(
             resolve_zone_type_to_zone_id(pending.original_destination, pending.affected_player)
         }
     };
-
     // Check for additional applicable replacements on the modified event (CR 616.1f)
     let new_to = match &modification {
         ReplacementModification::RedirectToZone(zt) => *zt,
         ReplacementModification::ShuffleIntoOwnerLibrary => crate::state::zone::ZoneType::Library,
         _ => pending.original_destination,
     };
-
     // If shuffling into library, emit shuffle event.
     if matches!(
         &modification,
@@ -879,7 +817,6 @@ pub fn resolve_pending_zone_change(
             player: pending.affected_player,
         });
     }
-
     // Re-check with the modified destination, using the stored original_from zone
     // so non-battlefield zone changes use the correct "from" zone (MR-M8-01).
     let action = check_zone_change_replacement(
@@ -890,10 +827,8 @@ pub fn resolve_pending_zone_change(
         pending.affected_player,
         &already_applied,
     );
-
     // Remove the pending entry
     state.pending_zone_changes.remove(pending_idx);
-
     match action {
         ZoneChangeAction::Proceed | ZoneChangeAction::Redirect { .. } => {
             // Determine final destination (may have been further redirected)
@@ -908,7 +843,6 @@ pub fn resolve_pending_zone_change(
                 }
                 _ => dest,
             };
-
             // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
             // CR 702.79a: capture counters before move_object_to_zone resets them.
             let (pre_move_controller, pre_death_counters) = state
@@ -949,12 +883,9 @@ pub fn resolve_pending_zone_change(
             });
         }
     }
-
     Ok(events)
 }
-
 // ── ETB replacement interception (Session 4) ──────────────────────────────
-
 /// CR 614.12 / 614.15: Apply self-ETB replacement abilities from a card definition.
 ///
 /// Called immediately after a permanent enters the battlefield (before emitting
@@ -973,14 +904,12 @@ pub fn apply_self_etb_from_definition(
     registry: &crate::cards::registry::CardRegistry,
 ) -> Vec<GameEvent> {
     use crate::cards::card_definition::AbilityDefinition;
-
     let Some(cid) = card_id else {
         return Vec::new();
     };
     let Some(def) = registry.get(cid.clone()) else {
         return Vec::new();
     };
-
     let mut evts = Vec::new();
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
@@ -1006,7 +935,6 @@ pub fn apply_self_etb_from_definition(
             ));
         }
     }
-
     // CR 306.5b: "This permanent enters with a number of loyalty counters on it
     // equal to its printed loyalty number." This is an intrinsic replacement effect.
     if let Some(loyalty) = def.starting_loyalty {
@@ -1021,7 +949,6 @@ pub fn apply_self_etb_from_definition(
             }
         }
     }
-
     // CR 714.3a: As a Saga enters the battlefield, its controller puts a lore counter on it.
     // This is a turn-based action that happens as part of the ETB event.
     let has_saga_chapters = def
@@ -1038,7 +965,6 @@ pub fn apply_self_etb_from_definition(
         let chapter_evts = fire_saga_chapter_triggers(state, new_id, controller, 0, 1, &def);
         evts.extend(chapter_evts);
     }
-
     // CR 716.2d: When a Class enters the battlefield, set its level to 1.
     let has_class_levels = def
         .abilities
@@ -1049,10 +975,8 @@ pub fn apply_self_etb_from_definition(
             obj.class_level = 1;
         }
     }
-
     evts
 }
-
 /// CR 714.2b: Fire chapter ability triggers when lore counters are added to a Saga.
 ///
 /// "{rN}—[Effect]" means "When one or more lore counters are put onto this Saga, if the
@@ -1069,7 +993,6 @@ pub fn fire_saga_chapter_triggers(
 ) -> Vec<GameEvent> {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
-
     let evts = Vec::new();
     for (ability_index, ability) in def.abilities.iter().enumerate() {
         if let AbilityDefinition::SagaChapter { chapter, .. } = ability {
@@ -1106,7 +1029,6 @@ pub fn fire_saga_chapter_triggers(
     }
     evts
 }
-
 /// CR 603.3, 603.6a: Queue "When ~ enters the battlefield" triggered abilities from a
 /// card definition as `PendingTrigger` entries so they go on the stack the next time a
 /// player would receive priority (CR 603.3).
@@ -1136,14 +1058,12 @@ pub fn queue_carddef_etb_triggers(
     use crate::effects::{execute_effect, EffectContext};
     use crate::state::stubs::{ETBSuppressFilter, PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};
-
     // CR 708.3: Face-down permanents have no triggered abilities.
     if let Some(obj) = state.objects.get(&new_id) {
         if obj.status.face_down && obj.face_down_as.is_some() {
             return Vec::new();
         }
     }
-
     // IG-1 (CR 603.2, 613 Layer 6): If any active continuous effect applies
     // RemoveAllAbilities (Layer 6) to the entering permanent, its CardDef triggered
     // abilities are suppressed — do not queue any ETB triggers.
@@ -1156,7 +1076,6 @@ pub fn queue_carddef_etb_triggers(
     {
         use crate::rules::layers;
         use crate::state::continuous_effect::{EffectLayer, LayerModification};
-
         let abilities_removed = state
             .continuous_effects
             .iter()
@@ -1179,12 +1098,10 @@ pub fn queue_carddef_etb_triggers(
                     .unwrap_or_default();
                 layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
             });
-
         if abilities_removed {
             return Vec::new();
         }
     }
-
     // IG-2 (CR 614.16a): If any active ETB suppressor on the battlefield applies
     // to this entering permanent, its CardDef ETB triggered abilities are suppressed.
     //
@@ -1206,31 +1123,26 @@ pub fn queue_carddef_etb_triggers(
                     .contains(&crate::state::types::CardType::Creature)
             })
             .unwrap_or(false);
-
         let etb_suppressed = state.etb_suppressors.iter().any(|s| match &s.filter {
             ETBSuppressFilter::CreaturesOnly => entering_is_creature,
             ETBSuppressFilter::AllPermanents => true,
         });
-
         if etb_suppressed {
             return Vec::new();
         }
     }
-
     let Some(cid) = card_id else {
         return Vec::new();
     };
     let Some(def) = registry.get(cid.clone()) else {
         return Vec::new();
     };
-
     // CR 702.104b: Retrieve tribute_was_paid status from the permanent for trigger condition check.
     let tribute_was_paid = state
         .objects
         .get(&new_id)
         .map(|o| o.tribute_was_paid)
         .unwrap_or(false);
-
     let mut evts = Vec::new();
     for (idx, ability) in def.abilities.iter().enumerate() {
         match ability {
@@ -1324,7 +1236,6 @@ pub fn queue_carddef_etb_triggers(
             _ => {}
         }
     }
-
     // CR 702.123a: Fabricate N -- "When this permanent enters, you may put N
     // +1/+1 counters on it. If you don't, create N 1/1 colorless Servo
     // artifact creature tokens."
@@ -1347,14 +1258,12 @@ pub fn queue_carddef_etb_triggers(
                 _ => None,
             })
             .collect();
-
         for n in fabricate_instances {
             let permanent_on_bf = state
                 .objects
                 .get(&new_id)
                 .map(|o| o.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
-
             if permanent_on_bf {
                 // Bot choice: put N +1/+1 counters on it (CR 702.123a).
                 if n > 0 {
@@ -1405,10 +1314,8 @@ pub fn queue_carddef_etb_triggers(
             }
         }
     }
-
     evts
 }
-
 /// CR 614.12: Apply global ETB replacement effects to a just-entered permanent.
 ///
 /// Called in resolution.rs and lands.rs immediately after a permanent enters the
@@ -1430,7 +1337,6 @@ pub fn apply_etb_replacements(
     if applicable.is_empty() {
         return Vec::new();
     }
-
     let mut etb_events = Vec::new();
     for id in applicable {
         let modification = state
@@ -1438,7 +1344,6 @@ pub fn apply_etb_replacements(
             .iter()
             .find(|e| e.id == id)
             .map(|e| e.modification.clone());
-
         etb_events.extend(emit_etb_modification(
             state,
             new_id,
@@ -1449,7 +1354,6 @@ pub fn apply_etb_replacements(
     }
     etb_events
 }
-
 /// Apply a single ETB modification directly (used for self-ETB replacements from card
 /// definitions, which are not registered in `state.replacement_effects`).
 ///
@@ -1462,7 +1366,6 @@ pub fn apply_self_etb_modification(
 ) -> Vec<GameEvent> {
     emit_etb_modification(state, new_id, controller, None, Some(modification.clone()))
 }
-
 /// Internal: set state and produce events for one ETB modification.
 ///
 /// If `effect_id` is Some, emits `ReplacementEffectApplied` (for global effects with a
@@ -1565,7 +1468,6 @@ fn emit_etb_modification(
     }
     evts
 }
-
 /// Produce appropriate GameEvents for a zone change based on the destination.
 ///
 /// `owner` is used for the `ObjectExiled` player field and `CommanderZoneRedirect`.
@@ -1622,9 +1524,7 @@ fn zone_change_events(
         _ => vec![],
     }
 }
-
 // ── Global replacement registration (Session 6) ───────────────────────────
-
 /// Register global replacement abilities from a card definition when a permanent
 /// enters the battlefield (CR 614, 615).
 ///
@@ -1649,14 +1549,12 @@ pub fn register_permanent_replacement_abilities(
 ) {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::continuous_effect::EffectDuration;
-
     let Some(cid) = card_id else {
         return;
     };
     let Some(def) = registry.get(cid.clone()) else {
         return;
     };
-
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
             trigger,
@@ -1671,7 +1569,6 @@ pub fn register_permanent_replacement_abilities(
                     continue;
                 }
             }
-
             // For self-replacement zone-change effects, bind the filter to this
             // specific object at registration time. The card definition uses
             // `ObjectFilter::Any` as a placeholder meaning "this object," but
@@ -1748,7 +1645,6 @@ pub fn register_permanent_replacement_abilities(
                     other => other.clone(),
                 }
             };
-
             let id = state.next_replacement_id();
             state.replacement_effects.push_back(ReplacementEffect {
                 id,
@@ -1762,9 +1658,7 @@ pub fn register_permanent_replacement_abilities(
         }
     }
 }
-
 // ── Static continuous effect registration (Session 2, M9.4) ──────────────
-
 /// Register static continuous effects from a card definition when a permanent
 /// enters the battlefield (CR 604, CR 613).
 ///
@@ -1787,21 +1681,18 @@ pub fn register_static_continuous_effects(
 ) {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::continuous_effect::{ContinuousEffect, EffectId};
-
     let Some(cid) = card_id else {
         return;
     };
     let Some(def) = registry.get(cid.clone()) else {
         return;
     };
-
     // Get the controller of the entering permanent for TriggerDoubler registration.
     let controller = state
         .objects
         .get(&new_id)
         .map(|obj| obj.controller)
         .unwrap_or_else(|| crate::state::player::PlayerId(0));
-
     for ability in &def.abilities {
         match ability {
             AbilityDefinition::Static { continuous_effect } => {
@@ -1856,9 +1747,7 @@ pub fn register_static_continuous_effects(
         }
     }
 }
-
 // ── Damage prevention interception (Session 5) ────────────────────────────
-
 /// CR 615 + CR 702.16e: Check and apply damage prevention effects to a damage event.
 ///
 /// Called by damage interception sites (`DealDamage` effect, `apply_combat_damage`)
@@ -1910,7 +1799,6 @@ pub fn apply_damage_prevention(
             }
         }
     }
-
     // Build the event trigger for this specific damage target.
     let target_filter = match target {
         CombatDamageTarget::Player(p) => DamageTargetFilter::Player(*p),
@@ -1919,27 +1807,22 @@ pub fn apply_damage_prevention(
         }
     };
     let trigger = ReplacementTrigger::DamageWouldBeDealt { target_filter };
-
     let applicable = find_applicable(state, &trigger, &HashSet::new());
     if applicable.is_empty() {
         return (amount, Vec::new());
     }
-
     let mut remaining = amount;
     let mut events = Vec::new();
     let mut exhausted: Vec<ReplacementId> = Vec::new();
-
     for id in applicable {
         if remaining == 0 {
             break;
         }
-
         let modification = state
             .replacement_effects
             .iter()
             .find(|e| e.id == id)
             .map(|e| e.modification.clone());
-
         match modification {
             Some(ReplacementModification::PreventDamage(shield_max)) => {
                 // Use the live counter if present; initialise from the modification otherwise.
@@ -1951,7 +1834,6 @@ pub fn apply_damage_prevention(
                 let prevented = counter.min(remaining);
                 let new_counter = counter - prevented;
                 remaining -= prevented;
-
                 events.push(GameEvent::DamagePrevented {
                     source,
                     target: target.clone(),
@@ -1965,7 +1847,6 @@ pub fn apply_damage_prevention(
                         prevented, new_counter
                     ),
                 });
-
                 if new_counter == 0 {
                     // Shield exhausted — remove the counter and queue the effect for removal.
                     state.prevention_counters.remove(&id);
@@ -1977,7 +1858,6 @@ pub fn apply_damage_prevention(
             Some(ReplacementModification::PreventAllDamage) => {
                 let prevented = remaining;
                 remaining = 0;
-
                 events.push(GameEvent::DamagePrevented {
                     source,
                     target: target.clone(),
@@ -2003,19 +1883,15 @@ pub fn apply_damage_prevention(
             }
         }
     }
-
     // Remove exhausted prevention shields.
     for id in exhausted {
         if let Some(pos) = state.replacement_effects.iter().position(|e| e.id == id) {
             state.replacement_effects.remove(pos);
         }
     }
-
     (remaining, events)
 }
-
 // ── Dredge command handler (CR 702.52) ────────────────────────────────────
-
 /// CR 702.52: Handle the player's choice to dredge or draw normally.
 ///
 /// Called from `engine.rs::process_command` when a `Command::ChooseDredge` is received.
@@ -2037,7 +1913,6 @@ pub fn handle_choose_dredge(
     card: Option<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::state::types::KeywordAbility;
-
     match card {
         None => {
             // Player declined dredge — perform normal draw.
@@ -2079,7 +1954,6 @@ pub fn handle_choose_dredge(
                         ))
                     })?
             };
-
             // Step 2: Validate library has >= n cards (CR 702.52b).
             let library_zone = ZoneId::Library(player);
             let library_count = state.zones.get(&library_zone).map(|z| z.len()).unwrap_or(0);
@@ -2089,9 +1963,7 @@ pub fn handle_choose_dredge(
                     card_id.0, library_count, dredge_n
                 )));
             }
-
             let mut events = Vec::new();
-
             // Step 3: Mill n cards from the top of library.
             for _ in 0..dredge_n {
                 let top = state.zones.get(&library_zone).and_then(|z| z.top());
@@ -2103,7 +1975,6 @@ pub fn handle_choose_dredge(
                     }
                 }
             }
-
             // Step 4: Move the dredge card from graveyard to hand (CR 400.7: new ObjectId).
             let (new_hand_id, _) = state
                 .move_object_to_zone(card_id, ZoneId::Hand(player))
@@ -2113,7 +1984,6 @@ pub fn handle_choose_dredge(
                         e
                     ))
                 })?;
-
             // Step 5: Emit Dredged event.
             // Step 6: Do NOT increment cards_drawn_this_turn (CR 702.52a).
             events.push(GameEvent::Dredged {
@@ -2121,12 +1991,10 @@ pub fn handle_choose_dredge(
                 card_new_id: new_hand_id,
                 milled: dredge_n,
             });
-
             Ok(events)
         }
     }
 }
-
 /// Perform a normal draw for `player`, bypassing the dredge check.
 ///
 /// Called when a player declines dredge (`ChooseDredge { card: None }`). We
@@ -2140,14 +2008,12 @@ fn draw_card_skipping_dredge(
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::rules::events::LossReason;
-
     // Eliminated / conceded players cannot draw.
     if let Some(p) = state.players.get(&player) {
         if p.has_lost || p.has_conceded {
             return Ok(vec![]);
         }
     }
-
     // Check non-dredge WouldDraw replacement effects.
     use crate::state::replacement_effect::{
         PlayerFilter, ReplacementModification, ReplacementTrigger,
@@ -2157,7 +2023,6 @@ fn draw_card_skipping_dredge(
     };
     let applicable = find_applicable(state, &trigger, &HashSet::new());
     let action = determine_action(state, &applicable, player, "draw a card");
-
     match action {
         ReplacementResult::AutoApply(id) => {
             let modification = state
@@ -2185,7 +2050,6 @@ fn draw_card_skipping_dredge(
         }
         ReplacementResult::NoApplicable => {}
     }
-
     // Perform the actual draw.
     let library_zone = ZoneId::Library(player);
     let top_id = match state.zones.get(&library_zone).and_then(|z| z.top()) {
@@ -2201,18 +2065,15 @@ fn draw_card_skipping_dredge(
             }]);
         }
     };
-
     let (new_id, _) = state.move_object_to_zone(top_id, ZoneId::Hand(player))?;
     if let Some(p) = state.players.get_mut(&player) {
         p.has_drawn_for_turn = true;
         p.cards_drawn_this_turn += 1;
     }
-
     let mut events = vec![GameEvent::CardDrawn {
         player,
         new_object_id: new_id,
     }];
-
     // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
     // (After the player declined dredge, this is a normal draw and miracle applies.)
     if let Some(miracle_event) =
@@ -2220,12 +2081,9 @@ fn draw_card_skipping_dredge(
     {
         events.push(miracle_event);
     }
-
     Ok(events)
 }
-
 // ── Regeneration helpers (CR 701.19) ─────────────────────────────────────
-
 /// CR 701.19a/614.8: Check if a regeneration shield can replace destruction.
 ///
 /// Returns `Some(shield_id)` if a regeneration shield exists for this permanent,
@@ -2243,7 +2101,6 @@ pub fn check_regeneration_shield(state: &GameState, object_id: ObjectId) -> Opti
             .any(|e| e.id == *id && e.modification == ReplacementModification::Regenerate)
     })
 }
-
 /// CR 701.19a: Apply a regeneration shield to a permanent that would be destroyed.
 ///
 /// Performs the regeneration replacement:
@@ -2259,18 +2116,15 @@ pub fn apply_regeneration(
     shield_id: ReplacementId,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // 1. Remove all damage
     if let Some(obj) = state.objects.get_mut(&object_id) {
         obj.damage_marked = 0;
         obj.deathtouch_damage = false;
     }
-
     // 2. Tap the permanent
     if let Some(obj) = state.objects.get_mut(&object_id) {
         obj.status.tapped = true;
     }
-
     // 3. Remove from combat (if attacking or blocking)
     if let Some(combat) = &mut state.combat {
         combat.attackers.remove(&object_id);
@@ -2293,7 +2147,6 @@ pub fn apply_regeneration(
             .collect();
         combat.damage_assignment_order = updated;
     }
-
     // 4. Remove the one-shot shield (consumed)
     let keep: im::Vector<_> = state
         .replacement_effects
@@ -2302,15 +2155,12 @@ pub fn apply_regeneration(
         .cloned()
         .collect();
     state.replacement_effects = keep;
-
     events.push(GameEvent::Regenerated {
         object_id,
         shield_id,
     });
-
     events
 }
-
 /// CR 702.89a: Check if an Aura with umbra armor can replace destruction.
 ///
 /// Scans the battlefield for Auras with the `UmbraArmor` keyword that are
@@ -2327,7 +2177,6 @@ pub fn apply_regeneration(
 pub fn check_umbra_armor(state: &GameState, object_id: ObjectId) -> Vec<ObjectId> {
     use crate::state::types::KeywordAbility;
     use crate::state::zone::ZoneId;
-
     let mut auras: Vec<ObjectId> = state
         .objects
         .iter()
@@ -2361,7 +2210,6 @@ pub fn check_umbra_armor(state: &GameState, object_id: ObjectId) -> Vec<ObjectId
     auras.sort();
     auras
 }
-
 /// CR 702.89a: Apply umbra armor replacement -- destroy the Aura instead of the enchanted permanent.
 ///
 /// Instead of destroying the enchanted permanent:
@@ -2380,13 +2228,11 @@ pub fn apply_umbra_armor(
     aura_id: ObjectId,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // 1. Remove all damage from the protected permanent and clear deathtouch flag.
     if let Some(obj) = state.objects.get_mut(&protected_id) {
         obj.damage_marked = 0;
         obj.deathtouch_damage = false;
     }
-
     // 2. Destroy the Aura -- move to its owner's graveyard.
     let aura_owner = match state.objects.get(&aura_id) {
         Some(obj) => obj.owner,
@@ -2404,12 +2250,9 @@ pub fn apply_umbra_armor(
             aura_id,
         });
     }
-
     events
 }
-
 // ── Counter placement replacement helpers (CR 122.6, 614.1) ──────────────
-
 /// CR 122.6 / CR 614.1: Apply counter-placement replacement effects.
 ///
 /// Before placing `count` counters of type `counter` on a permanent, check
@@ -2440,14 +2283,11 @@ pub fn apply_counter_replacement(
     if count == 0 {
         return (0, events);
     }
-
     let event_trigger = ReplacementTrigger::WouldPlaceCounters {
         placer_filter: PlayerFilter::Specific(placer),
         receiver_filter: ObjectFilter::SpecificObject(receiver_id),
     };
-
     let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
-
     let mut modified_count = count;
     for effect_id in &applicable {
         if let Some(effect) = state
@@ -2481,10 +2321,8 @@ pub fn apply_counter_replacement(
             }
         }
     }
-
     (modified_count, events)
 }
-
 /// CR 122.6 / CR 614.1: Apply counter-placement replacement effects for player receivers.
 ///
 /// Vorinclex, Monstrous Raider oracle: "If you would put one or more counters on a
@@ -2512,7 +2350,6 @@ pub fn apply_counter_replacement_player(
     // TODO: implement player-receiver counter replacement (PB-12 deferred).
     (count, Vec::new())
 }
-
 /// CR 111.1 / CR 614.1: Apply token-creation replacement effects.
 ///
 /// Before creating `count` tokens, check for registered WouldCreateTokens
@@ -2526,13 +2363,10 @@ pub fn apply_token_creation_replacement(
     if count == 0 {
         return (0, events);
     }
-
     let event_trigger = ReplacementTrigger::WouldCreateTokens {
         controller_filter: PlayerFilter::Specific(controller),
     };
-
     let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
-
     let mut modified_count = count;
     for effect_id in &applicable {
         if let Some(effect) = state
@@ -2549,10 +2383,8 @@ pub fn apply_token_creation_replacement(
             }
         }
     }
-
     (modified_count, events)
 }
-
 /// CR 701.23 / CR 614.1: Apply library-search replacement effects.
 ///
 /// Before searching a library, check for registered WouldSearchLibrary
@@ -2563,13 +2395,10 @@ pub fn apply_search_library_replacement(
     searcher: PlayerId,
 ) -> (Option<u32>, Vec<GameEvent>) {
     let mut events = Vec::new();
-
     let event_trigger = ReplacementTrigger::WouldSearchLibrary {
         searcher_filter: PlayerFilter::Specific(searcher),
     };
-
     let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
-
     let mut restriction: Option<u32> = None;
     for effect_id in &applicable {
         if let Some(effect) = state
@@ -2590,10 +2419,8 @@ pub fn apply_search_library_replacement(
             }
         }
     }
-
     (restriction, events)
 }
-
 /// CR 614.1: Apply damage-doubling replacement effects.
 ///
 /// Checks for registered DamageWouldBeDealt replacements with DoubleDamage
@@ -2616,9 +2443,7 @@ pub fn apply_damage_doubling(
     if amount == 0 {
         return (0, events);
     }
-
     let source_controller = state.objects.get(&source).map(|o| o.controller);
-
     let mut modified = amount;
     for effect in state.replacement_effects.iter() {
         if let ReplacementModification::DoubleDamage = &effect.modification {
@@ -2652,7 +2477,6 @@ pub fn apply_damage_doubling(
                 if !applies {
                     continue;
                 }
-
                 modified *= 2;
                 events.push(GameEvent::ReplacementEffectApplied {
                     effect_id: effect.id,
@@ -2661,10 +2485,8 @@ pub fn apply_damage_doubling(
             }
         }
     }
-
     (modified, events)
 }
-
 /// Helper: check if a damage target is an opponent of `controller_pid` or a permanent
 /// they control. Used by `DamageTargetFilter::ToOpponentOrTheirPermanent`.
 fn damage_target_is_opponent_or_their_permanent(
@@ -2681,7 +2503,6 @@ fn damage_target_is_opponent_or_their_permanent(
             .unwrap_or(false),
     }
 }
-
 /// CR 614.1: Apply life-loss doubling replacement effects.
 ///
 /// Checks for registered WouldLoseLife replacements with DoubleLifeLoss
@@ -2697,13 +2518,10 @@ pub fn apply_life_loss_doubling(
     if amount == 0 {
         return (0, events);
     }
-
     let event_trigger = ReplacementTrigger::WouldLoseLife {
         player_filter: PlayerFilter::Specific(player),
     };
-
     let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
-
     let mut modified = amount;
     for effect_id in &applicable {
         if let Some(effect) = state
@@ -2725,10 +2543,8 @@ pub fn apply_life_loss_doubling(
             }
         }
     }
-
     (modified, events)
 }
-
 /// CR 701.34 / CR 614.1: Check if proliferate should be doubled.
 ///
 /// Returns the number of times to proliferate (1 normally, 2 with Tekuthal, etc.)
@@ -2738,13 +2554,10 @@ pub fn apply_proliferate_replacement(
     controller: PlayerId,
 ) -> (u32, Vec<GameEvent>) {
     let mut events = Vec::new();
-
     let event_trigger = ReplacementTrigger::WouldProliferate {
         player_filter: PlayerFilter::Specific(controller),
     };
-
     let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
-
     let mut times = 1u32;
     for effect_id in &applicable {
         if let Some(effect) = state
@@ -2764,6 +2577,5 @@ pub fn apply_proliferate_replacement(
             }
         }
     }
-
     (times, events)
 }

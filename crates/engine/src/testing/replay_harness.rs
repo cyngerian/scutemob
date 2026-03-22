@@ -1,3 +1,17 @@
+use crate::state::combat::AttackTarget;
+use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
+use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
+use crate::testing::script_schema::{
+    ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
+};
+use crate::{
+    all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
+    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, Designations,
+    ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility,
+    ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController, TimingRestriction,
+    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+};
+use im::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
 /// so that external tools (e.g. `tools/replay-viewer`) can reuse the same
 /// `build_initial_state` logic without code duplication.
@@ -13,25 +27,7 @@
 /// - [`parse_counter_type`] — maps counter string → [`CounterType`]
 /// - [`translate_player_action`] — maps a script `PlayerAction` string → `Command`
 use std::collections::HashMap;
-
-use im::OrdMap;
-
-use crate::state::combat::AttackTarget;
-use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
-use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
-use crate::testing::script_schema::{
-    ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
-};
-use crate::{
-    all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
-    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, Designations,
-    ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility,
-    ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController, TimingRestriction,
-    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
-};
-
 // ── Public API ────────────────────────────────────────────────────────────────
-
 /// Build a [`GameState`] from a [`GameScript`]'s initial state description.
 ///
 /// Returns the state and a mapping from script player names → [`PlayerId`].
@@ -42,39 +38,31 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     // Sort player names deterministically.
     let mut names: Vec<String> = init.players.keys().cloned().collect();
     names.sort();
-
     let player_map: HashMap<String, PlayerId> = names
         .iter()
         .enumerate()
         .map(|(i, name)| (name.clone(), PlayerId(i as u64 + 1)))
         .collect();
-
     let active = player_map
         .get(&init.active_player)
         .copied()
         .unwrap_or(PlayerId(1));
-
     let step = parse_step(&init.phase);
-
     // Load card definitions once for registry and for spec enrichment.
     let cards = all_cards();
     let defs: HashMap<String, CardDefinition> =
         cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
-
     // Build registry (for spell effect execution during resolution).
     let registry = CardRegistry::new(cards); // returns Arc<CardRegistry>
-
     let mut builder = GameStateBuilder::new()
         .at_step(step)
         .active_player(active)
         .with_registry(registry);
-
     // Add players with their initial life / mana.
     for name in &names {
         let pid = player_map[name];
         builder = builder.add_player(pid);
     }
-
     // Helper closure: build a card spec enriched with definition characteristics.
     let make_spec = |owner: PlayerId, name: &str, zone: ZoneId| -> ObjectSpec {
         let base = ObjectSpec::card(owner, name)
@@ -82,7 +70,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             .with_card_id(card_name_to_id(name));
         enrich_spec_from_def(base, &defs)
     };
-
     // Add battlefield permanents (under each player's control).
     for (ctrl_name, permanents) in &init.zones.battlefield {
         if let Some(&ctrl) = player_map.get(ctrl_name) {
@@ -103,7 +90,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             }
         }
     }
-
     // Add hand cards.
     for (owner_name, hand_cards) in &init.zones.hand {
         if let Some(&owner) = player_map.get(owner_name) {
@@ -117,7 +103,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             }
         }
     }
-
     // Add graveyard cards.
     for (owner_name, gy_cards) in &init.zones.graveyard {
         if let Some(&owner) = player_map.get(owner_name) {
@@ -126,7 +111,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             }
         }
     }
-
     // Add exile cards (including suspended cards with time counters).
     for card in &init.zones.exile {
         let owner = card
@@ -143,7 +127,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
         builder = builder.object(spec);
     }
-
     // Add library cards (top-to-bottom order).
     for (owner_name, lib_cards) in &init.zones.library {
         if let Some(&owner) = player_map.get(owner_name) {
@@ -152,9 +135,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             }
         }
     }
-
     let mut state = builder.build().unwrap();
-
     // Patch life totals, mana pools, and land plays (can't do these via builder).
     for (name, pstate) in &init.players {
         if let Some(&pid) = player_map.get(name) {
@@ -170,7 +151,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             }
         }
     }
-
     // Patch is_suspended on exile objects (CR 702.62: cards suspended from hand have
     // this flag set so upkeep_actions can find them). The spec builder always sets it
     // false, so we must patch post-build using name matching in the exile zone.
@@ -193,7 +173,6 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             }
         }
     }
-
     // Register commanders: populate PlayerState::commander_ids from the script's
     // commander fields, then register zone-change replacement effects (CR 903.9).
     let mut any_commanders = false;
@@ -214,10 +193,8 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     if any_commanders {
         register_commander_zone_replacements(&mut state);
     }
-
     (state, player_map)
 }
-
 /// Map a script `PlayerAction` string and its parameters to a [`Command`].
 ///
 /// Returns `None` for unrecognized action strings (future-proof: new actions
@@ -308,7 +285,6 @@ pub fn translate_player_action(
 ) -> Option<Command> {
     match action {
         "pass_priority" => Some(Command::PassPriority { player }),
-
         "play_land" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             Some(Command::PlayLand {
@@ -316,7 +292,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         "cast_spell" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players);
@@ -364,7 +339,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.34a: Cast a spell with flashback from the player's graveyard.
         // The engine determines it's a flashback cast by checking the card's zone
         // (graveyard) and whether it has the Flashback keyword. No new Command variant
@@ -391,7 +365,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.74a: Cast a spell with evoke from the player's hand.
         // The evoke cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_evoke" => {
@@ -415,7 +388,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.103a: Cast a spell with bestow from the player's hand.
         // The bestow cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_bestow" => {
@@ -439,7 +411,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.35a: Cast a madness card from exile by paying the madness cost.
         // The card is located in the caster's exile zone (put there by the discard
         // replacement effect). Madness is auto-detected from the card's zone + keyword.
@@ -464,7 +435,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.94a: Cast a miracle card from hand by paying the miracle cost.
         // The card is in hand (drawn this turn as first draw). A MiracleTrigger must
         // be on the stack (the player already chose to reveal via ChooseMiracle).
@@ -489,7 +459,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.138a: Cast a spell with escape from the player's graveyard.
         // The escape cost (mana + exiling other cards) is paid instead of the mana cost.
         // The action uses the `escape` field: names of other cards to exile from graveyard.
@@ -519,7 +488,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.94a: Choose to reveal a miracle card drawn this turn.
         // Sent in response to a `MiracleRevealChoiceRequired` event.
         // In scripts, `choose_miracle` always means `reveal: true` (to use miracle).
@@ -532,7 +500,6 @@ pub fn translate_player_action(
                 reveal: true,
             })
         }
-
         // CR 702.94a: Decline to reveal a miracle card drawn this turn.
         // Use this if the player drew a miracle card but does not want to cast it.
         "choose_miracle_decline" => {
@@ -543,7 +510,6 @@ pub fn translate_player_action(
                 reveal: false,
             })
         }
-
         "tap_for_mana" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
             // Assume ability index 0 for basic mana abilities.
@@ -553,7 +519,6 @@ pub fn translate_player_action(
                 ability_index: 0,
             })
         }
-
         "activate_ability" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players);
@@ -573,7 +538,6 @@ pub fn translate_player_action(
                 sacrifice_target: sacrifice_target_id,
             })
         }
-
         // CR 606: Activate a loyalty ability on a planeswalker.
         "activate_loyalty_ability" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
@@ -586,7 +550,6 @@ pub fn translate_player_action(
                 x_value: None, // TODO: add x_value field to PlayerAction for -X abilities
             })
         }
-
         "cycle_card" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             Some(Command::CycleCard {
@@ -594,7 +557,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 207.2c: Activate a bloodrush ability from hand during combat.
         // card_name is the name of the bloodrush card in the player's hand.
         // targets[0] is the attacking creature to pump.
@@ -620,7 +582,6 @@ pub fn translate_player_action(
                 target: target_id,
             })
         }
-
         // CR 702.57a: Activate a forecast ability from hand during the owner's upkeep.
         // card_name is the name of the forecast card in the player's hand.
         "activate_forecast" => {
@@ -632,7 +593,6 @@ pub fn translate_player_action(
                 targets: target_list,
             })
         }
-
         // CR 702.84a: Activate an unearth ability from the graveyard.
         // card_name is the name of the card with unearth in the player's graveyard.
         "unearth_card" => {
@@ -642,7 +602,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.128a: Activate an embalm ability from the graveyard.
         // card_name is the name of the card with embalm in the player's graveyard.
         // The card is exiled immediately as cost (CR 702.128a); token is created on resolution.
@@ -653,7 +612,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.129a: Activate an eternalize ability from the graveyard.
         // card_name is the name of the card with eternalize in the player's graveyard.
         // The card is exiled immediately as cost (CR 702.129a); token is created on resolution.
@@ -664,7 +622,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.49a: Activate ninjutsu from hand (or command zone for commander
         // ninjutsu, CR 702.49d). `card_name` is the ninja card; `attacker_name` is
         // the unblocked attacking creature to return to its owner's hand.
@@ -685,7 +642,6 @@ pub fn translate_player_action(
                 attacker_to_return: attacker_id,
             })
         }
-
         // CR 702.141a: Activate an encore ability from the graveyard.
         // card_name is the name of the card with encore in the player's graveyard.
         // The card is exiled immediately as cost (CR 702.141a); tokens are created on resolution.
@@ -696,7 +652,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.97a: Activate a scavenge ability from the graveyard.
         // card_name is the name of the card with scavenge in the player's graveyard.
         // target_creature_name is the name of the creature to receive +1/+1 counters.
@@ -711,7 +666,6 @@ pub fn translate_player_action(
                 target_creature: target_id,
             })
         }
-
         // CR 702.62a: Suspend a card from the player's hand. card_name is the card
         // to suspend. The player pays the suspend cost; the card is exiled with N time
         // counters (as defined by the card's AbilityDefinition::Suspend).
@@ -722,14 +676,12 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.52a: Choose to use dredge instead of drawing. card_name is the
         // dredge card to return from graveyard; if absent, declines dredge (draws normally).
         "choose_dredge" => {
             let card = card_name.and_then(|name| find_in_graveyard(state, player, name));
             Some(Command::ChooseDredge { player, card })
         }
-
         // CR 702.59a: Pay the recover cost for a card in the graveyard. card_name is the
         // recover card to return; if absent, declines (exiles the recover card).
         "pay_recover" => {
@@ -750,7 +702,6 @@ pub fn translate_player_action(
                 pay,
             })
         }
-
         // CR 508.1: Declare attackers. Resolve creature names to ObjectIds on the
         // battlefield, and player names to AttackTarget::Player.
         "declare_attackers" => {
@@ -794,7 +745,6 @@ pub fn translate_player_action(
                 enlist_choices,
             })
         }
-
         // CR 509.1: Declare blockers. Resolve creature names to ObjectIds on the
         // battlefield. The blocker is controlled by the declaring player; the attacker
         // may be controlled by any player.
@@ -810,9 +760,7 @@ pub fn translate_player_action(
                 blockers: blk_pairs,
             })
         }
-
         "concede" => Some(Command::Concede { player }),
-
         "return_commander_to_command_zone" => {
             // Find the commander by card name in graveyard or exile.
             let card_name = card_name?;
@@ -831,7 +779,6 @@ pub fn translate_player_action(
                 object_id: obj_id,
             })
         }
-
         "leave_commander_in_zone" => {
             // Find the commander by card name in graveyard or exile.
             let card_name = card_name?;
@@ -850,7 +797,6 @@ pub fn translate_player_action(
                 object_id: obj_id,
             })
         }
-
         // CR 702.122a: Crew a vehicle by tapping creatures.
         // `card_name` is the vehicle's display name; `crew_creatures` field (reusing
         // `convoke_names` for harness re-use) is a JSON array of crew creature names.
@@ -866,7 +812,6 @@ pub fn translate_player_action(
                 crew_creatures: crew_ids,
             })
         }
-
         // CR 702.171a: Saddle a Mount by tapping creatures.
         // `card_name` is the Mount's display name; the saddling creatures are
         // provided in the `convoke_names` field (reused from Crew pattern).
@@ -882,7 +827,6 @@ pub fn translate_player_action(
                 saddle_creatures: saddle_ids,
             })
         }
-
         // CR 702.143a / CR 116.2h: Foretell a card from the player's hand.
         // The player pays {2} and exiles the named card face-down. Legal any time
         // the player has priority during their own turn.
@@ -893,7 +837,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.143a: Cast a foretold card from exile by paying the foretell cost.
         // The card must have been foretold on a prior turn (is_foretold == true,
         // foretold_turn < current turn). Uses cast_with_foretell: true.
@@ -918,7 +861,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.170a / CR 116.2k: Plot a card from the player's hand.
         // The player pays the plot cost and exiles the named card face-up.
         // Legal during the player's own main phase with empty stack.
@@ -929,7 +871,6 @@ pub fn translate_player_action(
                 card: card_id,
             })
         }
-
         // CR 702.170d: Cast a plotted card from exile without paying its mana cost.
         // The card must have been plotted on a prior turn (is_plotted == true,
         // plotted_turn < current turn). Uses AltCostKind::Plot.
@@ -955,7 +896,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.96a: Cast a spell with overload from the player's hand.
         // The overload cost (an alternative cost) is paid instead of the mana cost.
         // The spell has no targets -- it affects all valid objects.
@@ -980,7 +920,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.81a: Cast a spell with retrace from the player's graveyard.
         // The player discards a land card from hand as an additional cost.
         // The spell uses its normal mana cost (retrace is additional, not alternative).
@@ -1008,7 +947,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.133a: Cast a spell with jump-start from the player's graveyard.
         // The player pays the card's normal mana cost PLUS discards a card from hand.
         // Unlike retrace, the discarded card may be any card type (not just a land).
@@ -1036,7 +974,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.127a: Cast the aftermath half of a split card from the player's graveyard.
         // The aftermath half's mana cost is paid (alternative cost) and the card is exiled
         // when it leaves the stack. The card must have AbilityDefinition::Aftermath.
@@ -1061,7 +998,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.160 / CR 718: Cast a spell using its prototype cost from the player's hand.
         // Prototype is NOT an alternative cost (CR 118.9 / 2022-10-14 ruling) — orthogonal
         // to alt_cost and can be combined with alternative costs like Flashback or Escape.
@@ -1086,7 +1022,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.109a: Cast a spell with dash from the player's hand.
         // The dash cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_dash" => {
@@ -1110,7 +1045,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.152a: Cast a spell with blitz from the player's hand.
         // The blitz cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_blitz" => {
@@ -1134,7 +1068,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.176a: Cast a spell with impending from the player's hand.
         // The impending cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_impending" => {
@@ -1158,7 +1091,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.166a: Cast a spell with bargain from the player's hand, sacrificing
         // an artifact, enchantment, or token as the optional additional cost.
         // Bargain is an additional cost (CR 118.8), not an alternative cost -- the
@@ -1188,7 +1120,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 701.59a: Cast a spell with collect evidence from the player's hand, exiling
         // cards from the caster's graveyard with total mana value >= N as an additional cost.
         // Collect evidence is an additional cost (CR 118.8), not an alternative cost -- the
@@ -1222,7 +1153,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.119a: Cast a spell with emerge from the player's hand, sacrificing
         // a creature as part of the emerge alternative cost. The total mana cost is
         // reduced by the sacrificed creature's mana value.
@@ -1251,7 +1181,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.137a: Cast a spell with spectacle from the player's hand.
         // The spectacle cost (an alternative cost) is paid instead of the mana cost.
         // Precondition: an opponent of the casting player must have lost life this turn.
@@ -1276,7 +1205,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         "cast_spell_surge" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players);
@@ -1298,7 +1226,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.153a: Cast a spell with casualty from the player's hand, optionally
         // sacrificing a creature with power >= N as the casualty additional cost.
         // Casualty is an additional cost (CR 118.8), not an alternative cost -- the
@@ -1330,7 +1257,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.132a: Cast a spell with assist from the player's hand. The assist player
         // pays some amount of the generic mana cost from their own mana pool. The caster
         // pays the remainder. Assist is not an alternative cost — the caster still pays
@@ -1366,7 +1292,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.56a: Cast a spell with the replicate additional cost paid N times.
         // `replicate_count` is the number of times the replicate cost is paid.
         // Each payment adds the replicate cost to the total mana cost.
@@ -1399,7 +1324,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.47a: Cast a spell with splice cards declared.
         // `splice_card_names` lists the names of cards in the caster's hand to splice
         // onto the spell. Each named card must have the Splice ability and be in hand.
@@ -1438,7 +1362,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.148a: Cast with Cleave — pay the cleave cost to remove bracketed text.
         "cast_spell_cleave" => {
             let card_id = find_in_hand(state, player, card_name?)?;
@@ -1460,7 +1383,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.140a: Cast a creature spell using its mutate alternative cost, merging it
         // with a target non-Human creature the caster owns. `target_creature_name` names the
         // target creature on the battlefield. `mutate_on_top` controls whether the mutating
@@ -1492,7 +1414,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.42a: Cast a modal spell with the entwine additional cost paid.
         // When entwine_paid = true, all modes of the spell are chosen and the entwine
         // cost is added to the total mana cost. The spell must have KeywordAbility::Entwine.
@@ -1517,7 +1438,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.120a: Cast a modal spell with escalate additional cost paid.
         // `escalate_modes` is the number of extra modes beyond the first. The escalate
         // cost is multiplied by this count and added to the total mana cost.
@@ -1549,7 +1469,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.82a: Cast with Devour -- sacrifice creatures as an ETB replacement effect.
         // `convoke_names` (reused parameter slot) lists the names of creatures on the
         // battlefield controlled by the caster to sacrifice. Empty list = no sacrifice (devour 0).
@@ -1584,7 +1503,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 700.2a / 601.2b: Cast a modal spell with explicit mode indices chosen.
         // `modes_chosen` specifies which mode indices (0-indexed) to execute at resolution.
         // For "choose one" spells: exactly one index (e.g., [0], [1], [2]).
@@ -1611,7 +1529,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.102a: Cast a fused split card from hand, paying the combined mana cost
         // of both halves (CR 702.102c). At resolution, the left half's effect executes
         // first, then the right half's (CR 702.102d). Card must be in the caster's hand
@@ -1637,7 +1554,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.157a: Cast a creature spell with the squad additional cost paid N times.
         // `squad_count` is the number of times the squad cost is paid (from the action).
         // Each payment adds the squad cost (from AbilityDefinition::Squad { cost }) to the
@@ -1667,7 +1583,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.175a: Cast a creature spell with the offspring additional cost paid.
         // Sets `offspring_paid: true` on CastSpell. On ETB, an OffspringTrigger creates
         // 1 token copy of the creature except it's 1/1.
@@ -1692,7 +1607,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.37a / CR 702.168a: Cast a spell face-down via Morph, Megamorph, or Disguise.
         // The card is cast from the player's hand for {3} (the morph cost). The face_down_kind
         // field carries which variant (Morph/Megamorph/Disguise) is used.
@@ -1742,7 +1656,6 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
-
         // CR 702.37e / CR 702.168d / CR 701.40b: Turn a face-down permanent face up.
         // This is a special action (CR 116.2b) — does NOT use the stack.
         // Action JSON fields:
@@ -1787,33 +1700,28 @@ pub fn translate_player_action(
                 method,
             })
         }
-
         // CR 701.23a: Document a library search result in a script.
         // The engine resolves SearchLibrary effects deterministically (minimum ObjectId
         // matching the filter). This action is a documentation marker only — no Command
         // is issued. When M10 adds interactive search (Command::SelectLibraryCard),
         // this arm should issue that Command instead.
         "search_library" => None,
-
         // CR 701.54a: Manually trigger "the Ring tempts you" for the given player.
         // Used in scripts to test ring-temptation directly (without casting a spell).
         // Schema: { "action_type": "ring_tempts_you", "priority_player": "p1" }
         // Deterministic fallback in the engine picks the ring-bearer automatically (lowest ObjectId creature).
         "ring_tempts_you" => Some(Command::TheRingTemptsYou { player }),
-
         // CR 701.49a-c: Manually trigger a venture into the dungeon for the given player.
         // Used in scripts to test dungeon progression directly (without casting a venture spell).
         // Schema: { "action_type": "venture_into_dungeon", "priority_player": "p1" }
         // Deterministic fallback in the engine picks the dungeon/room automatically.
         "venture_into_dungeon" => Some(Command::VentureIntoDungeon { player }),
-
         _ => {
             // Unrecognized action — skip without error.
             None
         }
     }
 }
-
 /// Convert a card's display name to its canonical [`CardId`] (kebab-case, lowercase).
 ///
 /// Examples:
@@ -1829,7 +1737,6 @@ pub fn card_name_to_id(name: &str) -> CardId {
         .replace("--", "-"); // avoid double-dashes from punctuation
     CardId(id)
 }
-
 /// Map a phase/step string from a script to the engine's [`Step`] enum.
 pub fn parse_step(phase: &str) -> Step {
     match phase {
@@ -1849,7 +1756,6 @@ pub fn parse_step(phase: &str) -> Step {
         _ => Step::PreCombatMain, // Default to main phase.
     }
 }
-
 /// Map a counter type string to the engine's [`CounterType`] enum.
 pub fn parse_counter_type(s: &str) -> Option<CounterType> {
     match s.to_lowercase().as_str() {
@@ -1862,7 +1768,6 @@ pub fn parse_counter_type(s: &str) -> Option<CounterType> {
         _ => None,
     }
 }
-
 /// Enrich an [`ObjectSpec`] with card type, mana cost, keyword, and mana-ability
 /// information from the card's definition, if available.
 ///
@@ -1876,29 +1781,23 @@ pub fn enrich_spec_from_def(
     let Some(def) = defs.get(&spec.name) else {
         return spec;
     };
-
     // Apply card types (Land, Instant, Sorcery, Artifact, etc.)
     spec.card_types = def.types.card_types.iter().cloned().collect();
-
     // Apply supertypes (Legendary, Basic, etc.)
     if !def.types.supertypes.is_empty() {
         spec.supertypes = def.types.supertypes.iter().cloned().collect();
     }
-
     // Apply subtypes (Aura, Equipment, Human, etc.) so that SBA checks and
     // the Enchant restriction enforcement can identify the object type.
     if !def.types.subtypes.is_empty() {
         spec.subtypes = def.types.subtypes.iter().cloned().collect();
     }
-
     // Apply mana cost (for cost-payment validation at cast time).
     spec.mana_cost = def.mana_cost.clone();
-
     // Apply oracle text for display.
     if !def.oracle_text.is_empty() {
         spec.rules_text = def.oracle_text.clone();
     }
-
     // CR 204: Color indicator overrides mana-cost-derived colors.
     if let Some(ref ci) = def.color_indicator {
         spec.colors = ci.clone();
@@ -1924,7 +1823,6 @@ pub fn enrich_spec_from_def(
             spec.colors = colors;
         }
     }
-
     // Apply printed power/toughness for creatures.
     // This allows EffectAmount::PowerOf / ToughnessOf to read correct values.
     if def.power.is_some() {
@@ -1933,19 +1831,16 @@ pub fn enrich_spec_from_def(
     if def.toughness.is_some() {
         spec.toughness = def.toughness;
     }
-
     // CR 306.5a: Apply starting loyalty for planeswalkers.
     if let Some(loyalty) = def.starting_loyalty {
         spec.loyalty = Some(loyalty as i32);
     }
-
     // Apply keyword abilities (Haste, Vigilance, Hexproof, etc.)
     for ability in &def.abilities {
         if let AbilityDefinition::Keyword(kw) = ability {
             spec = spec.with_keyword(kw.clone());
         }
     }
-
     // Convert simple tap-for-mana activated abilities into mana abilities.
     // This covers basic lands and any rock with `{T}: Add {N mana}`.
     // Multi-step costs (e.g. Evolving Wilds's tap+sacrifice) are intentionally
@@ -1959,7 +1854,6 @@ pub fn enrich_spec_from_def(
             }
         }
     }
-
     // Populate non-mana activated abilities into characteristics.activated_abilities.
     // This is required so that Command::ActivateAbility can look up the ability by index.
     for ability in &def.abilities {
@@ -2001,7 +1895,6 @@ pub fn enrich_spec_from_def(
             }
         }
     }
-
     // CR 702.72: AbilityDefinition::Champion { .. } adds KeywordAbility::Champion marker.
     // The champion filter is looked up at trigger time from the card registry.
     for ability in &def.abilities {
@@ -2009,7 +1902,6 @@ pub fn enrich_spec_from_def(
             spec = spec.with_keyword(KeywordAbility::Champion);
         }
     }
-
     // CR 702.95: AbilityDefinition::Soulbond { .. } adds KeywordAbility::Soulbond marker.
     // The soulbond grants are looked up at SoulbondTrigger resolution from the card registry.
     for ability in &def.abilities {
@@ -2017,7 +1909,6 @@ pub fn enrich_spec_from_def(
             spec = spec.with_keyword(KeywordAbility::Soulbond);
         }
     }
-
     // CR 702.99a: AbilityDefinition::Cipher adds KeywordAbility::Cipher marker.
     // The resolution path checks obj.characteristics.keywords.contains(&KeywordAbility::Cipher)
     // to decide whether to offer cipher encoding. Without this propagation, cards placed
@@ -2027,7 +1918,6 @@ pub fn enrich_spec_from_def(
             spec = spec.with_keyword(KeywordAbility::Cipher);
         }
     }
-
     // CR 702.174a: AbilityDefinition::Gift adds KeywordAbility::Gift marker.
     // The casting validation checks chars.keywords.contains(&KeywordAbility::Gift) to confirm
     // the spell supports a gift opponent choice. Without this propagation, gift spells placed
@@ -2037,7 +1927,6 @@ pub fn enrich_spec_from_def(
             spec = spec.with_keyword(KeywordAbility::Gift);
         }
     }
-
     // CR 702.151a: AbilityDefinition::Reconfigure expands into TWO activated abilities:
     // 1. Attach: "[Cost]: Attach this permanent to another target creature you control.
     //    Activate only as a sorcery." (uses AttachEquipment effect, same as Equip)
@@ -2048,7 +1937,6 @@ pub fn enrich_spec_from_def(
     for ability in &def.abilities {
         if let AbilityDefinition::Reconfigure { cost } = ability {
             spec = spec.with_keyword(KeywordAbility::Reconfigure);
-
             // Ability 1: Attach to a target creature you control (sorcery speed).
             let attach_ab = ActivatedAbility {
                 targets: vec![],
@@ -2063,7 +1951,6 @@ pub fn enrich_spec_from_def(
                 activation_condition: None,
             };
             spec = spec.with_activated_ability(attach_ab);
-
             // Ability 2: Unattach from the equipped creature (sorcery speed).
             // Activation restriction "only if attached" is enforced in handle_activate_ability.
             let detach_ab = ActivatedAbility {
@@ -2080,7 +1967,6 @@ pub fn enrich_spec_from_def(
             spec = spec.with_activated_ability(detach_ab);
         }
     }
-
     // CR 702.107a: Expand AbilityDefinition::Outlast into an ActivatedAbility.
     // "Outlast [cost]" means "[Cost], {T}: Put a +1/+1 counter on this creature.
     // Activate only as a sorcery."
@@ -2109,7 +1995,6 @@ pub fn enrich_spec_from_def(
             spec = spec.with_activated_ability(ab);
         }
     }
-
     // CR 603.6c / CR 700.4: Convert "When ~ dies" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
     // This covers self-referential dies triggers (e.g. Solemn Simulacrum).
@@ -2130,7 +2015,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 508.1m / CR 508.3a: Convert "Whenever ~ attacks" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
     // This covers self-referential attack triggers (e.g. Audacious Thief).
@@ -2155,7 +2039,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 509.1: Convert "Whenever ~ blocks" card-definition triggers into runtime
     // TriggeredAbilityDef entries so check_triggers can dispatch them.
     // This covers self-referential block triggers (e.g. a creature with "Whenever ~ blocks").
@@ -2176,7 +2059,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 510.3a / CR 603.2: Convert "Whenever ~ deals combat damage to a player"
     // card-definition triggers into runtime TriggeredAbilityDef entries so
     // check_triggers can dispatch them via CombatDamageDealt events.
@@ -2199,7 +2081,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 207.2c / CR 120.3: Convert "Whenever ~ is dealt damage" (Enrage ability
     // word) card-definition triggers into runtime TriggeredAbilityDef entries so
     // check_triggers can dispatch them via CombatDamageDealt and DamageDealt events.
@@ -2222,7 +2103,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 603.2 / CR 102.2: Convert "Whenever an opponent casts a spell"
     // card-definition triggers into runtime TriggeredAbilityDef entries so
     // check_triggers can dispatch them via SpellCast events.
@@ -2245,7 +2125,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 701.25d: Convert "Whenever you surveil" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
     // via Surveilled events.
@@ -2266,7 +2145,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 701.50b: Convert "Whenever this creature connives" card-definition triggers
     // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
     // via Connived events. Fires even if the creature left the battlefield
@@ -2288,7 +2166,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 701.16a: Convert "Whenever you investigate" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
     // via Investigated events.
@@ -2309,7 +2186,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 603.2: Convert "Whenever you cast a spell" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
     // via SpellCast events. Covers Inexorable Tide and similar enchantments.
@@ -2332,7 +2208,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 207.2c / CR 603.2: Convert "Whenever [another] creature [you control] enters"
     // card-definition triggers into runtime TriggeredAbilityDef entries so
     // check_triggers can dispatch them via AnyPermanentEntersBattlefield events.
@@ -2373,7 +2248,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // CR 702.140d: Convert "Whenever this creature mutates" card-definition triggers
     // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
     // via CreatureMutated events. Only fires on the merged permanent itself (CR 729.2c).
@@ -2394,7 +2268,6 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     // "Whenever this permanent becomes tapped" — fires on any tap event (mana, combat,
     // opponent effects). Used by City of Brass. Maps to TriggerEvent::SelfBecomesTapped
     // which is already dispatched from GameEvent::PermanentTapped in check_triggers.
@@ -2415,12 +2288,9 @@ pub fn enrich_spec_from_def(
             });
         }
     }
-
     spec
 }
-
 // ── Private helpers ───────────────────────────────────────────────────────────
-
 fn resolve_targets(
     targets: &[ActionTarget],
     state: &GameState,
@@ -2465,7 +2335,6 @@ fn resolve_targets(
         })
         .collect()
 }
-
 fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> Option<crate::state::ObjectId> {
     state.objects.iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == ZoneId::Hand(player) {
@@ -2475,7 +2344,6 @@ fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> Option<crate
         }
     })
 }
-
 /// CR 702.49d: Find a named card in a player's command zone (for commander ninjutsu).
 fn find_in_command_zone(
     state: &GameState,
@@ -2490,7 +2358,6 @@ fn find_in_command_zone(
         }
     })
 }
-
 /// CR 702.34a: Find a named card in a player's graveyard (for flashback casting).
 fn find_in_graveyard(
     state: &GameState,
@@ -2505,7 +2372,6 @@ fn find_in_graveyard(
         }
     })
 }
-
 fn find_in_exile(
     state: &GameState,
     _player: PlayerId,
@@ -2519,7 +2385,6 @@ fn find_in_exile(
         }
     })
 }
-
 /// CR 702.143a: Find a named foretold card in exile owned by the given player.
 ///
 /// Foretell cards are in ZoneId::Exile with is_foretold == true. Unlike general
@@ -2541,7 +2406,6 @@ fn find_foretold_in_exile(
         }
     })
 }
-
 /// CR 702.170a: Find a named plotted card in exile owned by the given player.
 ///
 /// Plotted cards are in ZoneId::Exile with is_plotted == true. Unlike general
@@ -2563,7 +2427,6 @@ fn find_plotted_in_exile(
         }
     })
 }
-
 fn find_on_battlefield(
     state: &GameState,
     controller: PlayerId,
@@ -2580,7 +2443,6 @@ fn find_on_battlefield(
         }
     })
 }
-
 /// CR 509.1: Find any permanent on the battlefield by name, regardless of controller.
 ///
 /// Used when declaring blockers — the attacker being blocked is controlled by an
@@ -2600,7 +2462,6 @@ fn find_on_battlefield_by_name(state: &GameState, name: &str) -> Option<crate::s
         }
     })
 }
-
 /// If `effect` is `AddMana` with exactly one non-zero single-color entry,
 /// return a corresponding `ManaAbility::tap_for`. Returns `None` otherwise.
 ///
@@ -2639,7 +2500,6 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     }
     None
 }
-
 /// Convert a ManaPool into a ManaAbility, returning None if no mana is produced.
 fn mana_pool_to_ability(
     mana: &crate::state::player::ManaPool,
@@ -2657,11 +2517,9 @@ fn mana_pool_to_ability(
         .iter()
         .filter(|(_, amount)| *amount > 0)
         .collect();
-
     if non_zero.is_empty() {
         return None;
     }
-
     let mut produces = OrdMap::new();
     for (color, amount) in &non_zero {
         produces.insert(*color, *amount);
@@ -2674,7 +2532,6 @@ fn mana_pool_to_ability(
         damage_to_controller,
     })
 }
-
 /// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.
 ///
 /// Handles `Tap`, `Mana`, `Sacrifice`, `DiscardCard`, and `Sequence` (recursively).
@@ -2684,7 +2541,6 @@ fn cost_to_activation_cost(cost: &Cost) -> ActivationCost {
     flatten_cost_into(cost, &mut ac);
     ac
 }
-
 fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
     match cost {
         Cost::Tap => ac.requires_tap = true,
@@ -2718,7 +2574,6 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::PayLife(_) => {} // no ActivationCost representation yet
     }
 }
-
 fn parse_mana_color(s: &str) -> Option<ManaColor> {
     match s.to_lowercase().as_str() {
         "white" | "w" => Some(ManaColor::White),

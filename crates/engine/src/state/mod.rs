@@ -2,7 +2,6 @@
 //!
 //! All state uses `im` persistent data structures for structural sharing,
 //! enabling cheap snapshots and deterministic replay.
-
 pub mod builder;
 pub mod combat;
 pub mod continuous_effect;
@@ -18,8 +17,9 @@ pub mod targeting;
 pub mod turn;
 pub mod types;
 pub mod zone;
-
 // Re-export primary types for convenient access via `use mtg_engine::state::*`
+use crate::cards::CardRegistry;
+use crate::rules::events::GameEvent;
 pub use builder::{
     register_commander_zone_replacements, GameStateBuilder, ObjectSpec, PlayerBuilder,
 };
@@ -35,12 +35,15 @@ pub use game_object::{
     ManaCost, MergedComponent, ObjectId, ObjectStatus, PhyrexianMana, SacrificeFilter,
     TriggerEvent, TriggeredAbilityDef,
 };
+use im::{OrdMap, Vector};
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{
     DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
+use serde::{Deserialize, Serialize};
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
+use std::sync::Arc;
 pub use stubs::{
     ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
     PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
@@ -53,15 +56,6 @@ pub use types::{
     ManaColor, ProtectionQuality, SubType, SuperType, TurnFaceUpMethod,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
-
-use std::sync::Arc;
-
-use im::{OrdMap, Vector};
-use serde::{Deserialize, Serialize};
-
-use crate::cards::CardRegistry;
-use crate::rules::events::GameEvent;
-
 /// The complete state of an MTG game at a point in time.
 ///
 /// Uses `im` persistent data structures for O(1) cloning via structural sharing.
@@ -251,66 +245,56 @@ pub struct GameState {
     #[serde(skip)]
     pub card_registry: Arc<CardRegistry>,
 }
-
 impl GameState {
     /// Generates the next unique ObjectId, incrementing the timestamp counter.
     pub fn next_object_id(&mut self) -> ObjectId {
         self.timestamp_counter += 1;
         ObjectId(self.timestamp_counter)
     }
-
     /// Returns the current timestamp value (for continuous effect ordering).
     pub fn current_timestamp(&self) -> u64 {
         self.timestamp_counter
     }
-
     /// Generates the next unique ReplacementId, incrementing the counter.
     pub fn next_replacement_id(&mut self) -> ReplacementId {
         let id = ReplacementId(self.next_replacement_id);
         self.next_replacement_id += 1;
         id
     }
-
     /// Look up a player by ID.
     pub fn player(&self, id: PlayerId) -> Result<&PlayerState, GameStateError> {
         self.players
             .get(&id)
             .ok_or(GameStateError::PlayerNotFound(id))
     }
-
     /// Look up a mutable player by ID.
     pub fn player_mut(&mut self, id: PlayerId) -> Result<&mut PlayerState, GameStateError> {
         self.players
             .get_mut(&id)
             .ok_or(GameStateError::PlayerNotFound(id))
     }
-
     /// Look up a game object by ID.
     pub fn object(&self, id: ObjectId) -> Result<&GameObject, GameStateError> {
         self.objects
             .get(&id)
             .ok_or(GameStateError::ObjectNotFound(id))
     }
-
     /// Look up a mutable game object by ID.
     pub fn object_mut(&mut self, id: ObjectId) -> Result<&mut GameObject, GameStateError> {
         self.objects
             .get_mut(&id)
             .ok_or(GameStateError::ObjectNotFound(id))
     }
-
     /// Look up a zone by ID.
     pub fn zone(&self, id: &ZoneId) -> Result<&Zone, GameStateError> {
         self.zones.get(id).ok_or(GameStateError::ZoneNotFound(*id))
     }
-
     /// Look up a mutable zone by ID.
     pub fn zone_mut(&mut self, id: &ZoneId) -> Result<&mut Zone, GameStateError> {
         self.zones
             .get_mut(id)
             .ok_or(GameStateError::ZoneNotFound(*id))
     }
-
     /// Add a new game object to a zone, assigning it a fresh ObjectId and timestamp.
     /// Returns the assigned ObjectId.
     pub fn add_object(
@@ -322,19 +306,16 @@ impl GameState {
         object.id = id;
         object.zone = zone_id;
         object.timestamp = self.timestamp_counter;
-
         // Add to zone — MR-M1-01/MR-M1-04: single access, no redundant guard.
         let zone = self
             .zones
             .get_mut(&zone_id)
             .ok_or(GameStateError::ZoneNotFound(zone_id))?;
         zone.insert(id);
-
         // Add to objects map
         self.objects.insert(id, object);
         Ok(id)
     }
-
     /// Move a game object from its current zone to a new zone.
     ///
     /// Implements CR 400.7: "An object that moves from one zone to another becomes
@@ -354,7 +335,6 @@ impl GameState {
         if !self.zones.contains_key(&to) {
             return Err(GameStateError::ZoneNotFound(to));
         }
-
         // Look up the current object
         let old_object = self
             .objects
@@ -362,7 +342,6 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
-
         // Remove from old zone
         let from_zone = self
             .zones
@@ -371,10 +350,8 @@ impl GameState {
         if !from_zone.remove(&object_id) {
             return Err(GameStateError::ObjectNotInZone(object_id, from));
         }
-
         // Remove old object from objects map
         self.objects.remove(&object_id);
-
         // Create new object with fresh ID (CR 400.7)
         let new_id = self.next_object_id();
         let mut new_object = GameObject {
@@ -477,9 +454,9 @@ impl GameState {
             class_level: 0,
             designations: Designations::default(),
             // CR 712.4a / CR 400.7: meld component is cleared on zone change.
+            adventure_exiled_by: None,
             meld_component: None,
         };
-
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
         // We already have old_object.paired_with from the clone taken before removal.
         if let Some(partner_id) = old_object.paired_with {
@@ -487,7 +464,6 @@ impl GameState {
                 partner.paired_with = None;
             }
         }
-
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's
         // printed values. The prototype-modified P/T, mana_cost, and colors were written
@@ -507,7 +483,6 @@ impl GameState {
                 }
             }
         }
-
         // CR 729.3: When a merged permanent leaves the battlefield, the primary new object
         // takes the characteristics of the topmost component (merged_components[0]).
         // Without this override, new_object would have the underlying game-object's
@@ -518,17 +493,14 @@ impl GameState {
             new_object.card_id = top.card_id.clone();
             new_object.is_token = top.is_token;
         }
-
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
         let to_zone = self
             .zones
             .get_mut(&to)
             .ok_or(GameStateError::ZoneNotFound(to))?;
         to_zone.insert(new_id);
-
         // Insert new object
         self.objects.insert(new_id, new_object);
-
         // CR 729.3: Merged permanent zone-change splitting.
         // When a merged permanent leaves the battlefield, each component becomes a separate
         // object in the destination zone. The topmost component (index 0) is the primary new
@@ -615,6 +587,7 @@ impl GameState {
                     class_level: 0,
                     designations: Designations::default(),
                     // CR 712.4a / CR 400.7: meld pairing is cleared on zone change.
+                    adventure_exiled_by: None,
                     meld_component: None,
                 };
                 // Add component to destination zone and objects map.
@@ -628,7 +601,6 @@ impl GameState {
                 }
             }
         }
-
         // CR 712.4a: Meld zone-change splitting.
         // When a melded permanent leaves the battlefield, the meld component card
         // becomes a separate object in the destination zone (similar to Mutate splitting).
@@ -718,6 +690,7 @@ impl GameState {
                         loyalty_ability_activated_this_turn: false,
                         class_level: 0,
                         designations: Designations::default(),
+                        adventure_exiled_by: None,
                         meld_component: None,
                     };
                     if let Some(zone_set) = self.zones.get_mut(&to) {
@@ -731,7 +704,6 @@ impl GameState {
                 }
             }
         }
-
         // CR 702.69a: Track permanents entering a graveyard from the battlefield.
         // Tokens count (CR 704.5d — they briefly exist in the graveyard before SBA removes them).
         // Non-permanent cards (instants, sorceries) go from the stack, not the battlefield, so
@@ -741,10 +713,8 @@ impl GameState {
                 self.permanents_put_into_graveyard_this_turn += 1;
             }
         }
-
         Ok((new_id, old_object))
     }
-
     /// CR 708.9: Build a `FaceDownRevealed` event for a face-down permanent that is
     /// about to leave the battlefield, if applicable.
     ///
@@ -779,7 +749,6 @@ impl GameState {
             card_name,
         })
     }
-
     /// Move an object to the bottom of an ordered zone (CR 702.85a).
     ///
     /// Identical to `move_object_to_zone` but inserts the new object at
@@ -794,14 +763,12 @@ impl GameState {
         if !self.zones.contains_key(&to) {
             return Err(GameStateError::ZoneNotFound(to));
         }
-
         let old_object = self
             .objects
             .get(&object_id)
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
-
         // Remove from old zone.
         let from_zone = self
             .zones
@@ -810,10 +777,8 @@ impl GameState {
         if !from_zone.remove(&object_id) {
             return Err(GameStateError::ObjectNotInZone(object_id, from));
         }
-
         // Remove old object from objects map.
         self.objects.remove(&object_id);
-
         // Create new object with fresh ID (CR 400.7).
         let new_id = self.next_object_id();
         let mut new_object = GameObject {
@@ -910,16 +875,15 @@ impl GameState {
             class_level: 0,
             designations: Designations::default(),
             // CR 712.4a / CR 400.7: meld component is cleared on zone change.
+            adventure_exiled_by: None,
             meld_component: None,
         };
-
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
         if let Some(partner_id) = old_object.paired_with {
             if let Some(partner) = self.objects.get_mut(&partner_id) {
                 partner.paired_with = None;
             }
         }
-
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's
         // printed values.
@@ -938,27 +902,22 @@ impl GameState {
                 }
             }
         }
-
         // Insert at the front (= bottom) of the destination zone.
         let to_zone = self
             .zones
             .get_mut(&to)
             .ok_or(GameStateError::ZoneNotFound(to))?;
         to_zone.push_front(new_id);
-
         // Insert new object.
         self.objects.insert(new_id, new_object);
-
         // CR 702.69a: Track permanents entering a graveyard from the battlefield.
         if old_object.zone == ZoneId::Battlefield {
             if let ZoneId::Graveyard(_) = to {
                 self.permanents_put_into_graveyard_this_turn += 1;
             }
         }
-
         Ok((new_id, old_object))
     }
-
     /// Returns all active (non-lost, non-conceded) player IDs in turn order.
     pub fn active_players(&self) -> Vec<PlayerId> {
         self.turn
@@ -973,12 +932,10 @@ impl GameState {
             .copied()
             .collect()
     }
-
     /// Returns the total number of game objects across all zones.
     pub fn total_objects(&self) -> usize {
         self.objects.len()
     }
-
     /// Find all objects in a given zone.
     pub fn objects_in_zone(&self, zone_id: &ZoneId) -> Vec<&GameObject> {
         match self.zones.get(zone_id) {

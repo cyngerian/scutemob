@@ -24,11 +24,11 @@
 //! - 704.5n: Equipment/fortification attached illegally → becomes unattached.
 //! - 704.5q: +1/+1 and -1/-1 counter pairs annihilate each other.
 //! - 704.5u: Commander — player received 21+ combat damage from one commander → loses.
-
-use std::collections::HashMap;
-
-use im::OrdMap;
-
+use super::abilities;
+use super::commander;
+use super::events::{GameEvent, LossReason};
+use super::layers::calculate_characteristics;
+use super::replacement;
 use crate::state::dungeon::get_dungeon;
 use crate::state::game_object::{Characteristics, Designations, ObjectId};
 use crate::state::player::PlayerId;
@@ -39,15 +39,9 @@ use crate::state::types::{
 };
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
-
-use super::abilities;
-use super::commander;
-use super::events::{GameEvent, LossReason};
-use super::layers::calculate_characteristics;
-use super::replacement;
-
+use im::OrdMap;
+use std::collections::HashMap;
 // ── Module-level constants ───────────────────────────────────────────────────
-
 // MR-M4-10: Lazily-initialized SubType singletons used in hot SBA loops.
 // Without these, every SBA pass allocates a new String for each comparison.
 // std::sync::LazyLock is stable since Rust 1.80.
@@ -57,9 +51,7 @@ static SUBTYPE_EQUIPMENT: std::sync::LazyLock<SubType> =
     std::sync::LazyLock::new(|| SubType("Equipment".to_string()));
 static SUBTYPE_FORTIFICATION: std::sync::LazyLock<SubType> =
     std::sync::LazyLock::new(|| SubType("Fortification".to_string()));
-
 // ── Public interface ────────────────────────────────────────────────────────
-
 /// CR 704.3: Check and apply all applicable state-based actions as a fixed-point loop.
 ///
 /// Called before any player would receive priority. Runs until no SBAs apply.
@@ -88,9 +80,7 @@ pub fn check_and_apply_sbas(state: &mut GameState) -> Vec<GameEvent> {
     }
     all_events
 }
-
 // ── CR 702.131b: Ascend check ────────────────────────────────────────────────
-
 /// CR 702.131b: Ascend on a permanent is a static ability.
 /// "Any time you control ten or more permanents and you don't have the city's
 /// blessing, you get the city's blessing for the rest of the game."
@@ -108,7 +98,6 @@ fn check_ascend(
     chars_map: &HashMap<ObjectId, Characteristics>,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
     for pid in player_ids {
         // Skip players who already have the city's blessing (CR 702.131c: permanent).
@@ -120,7 +109,6 @@ fn check_ascend(
         if already_has {
             continue;
         }
-
         // CR 702.131b: Player must control a permanent with Ascend.
         let has_ascend_permanent = state.objects.iter().any(|(id, obj)| {
             obj.zone == ZoneId::Battlefield
@@ -133,7 +121,6 @@ fn check_ascend(
         if !has_ascend_permanent {
             continue;
         }
-
         // Count all permanents controlled by this player (tokens and non-tokens alike).
         // CR 702.131 ruling: "A permanent is any object on the battlefield, including tokens."
         // CR 702.26b: Phased-out permanents are excluded.
@@ -144,7 +131,6 @@ fn check_ascend(
                 obj.zone == ZoneId::Battlefield && obj.controller == pid && obj.is_phased_in()
             })
             .count();
-
         if permanent_count >= 10 {
             if let Some(p) = state.players.get_mut(&pid) {
                 p.has_citys_blessing = true;
@@ -152,12 +138,9 @@ fn check_ascend(
             events.push(GameEvent::CitysBlessingGained { player: pid });
         }
     }
-
     events
 }
-
 // ── One pass of SBA checking ────────────────────────────────────────────────
-
 /// Apply all applicable SBAs simultaneously in one pass.
 /// Returns events produced; empty means nothing fired.
 fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
@@ -185,15 +168,12 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
             Some((id, chars))
         })
         .collect();
-
     let mut events = Vec::new();
-
     // CR 702.131b: Ascend check runs FIRST so the player gets the city's blessing
     // before other SBAs (legend rule, creature death) may remove permanents in the
     // same pass. This enforces the ruling: "If your tenth permanent enters and then
     // leaves immediately (e.g., legend rule), you still get the city's blessing."
     let ascend_events = check_ascend(state, &chars_map);
-
     // CR 702.131d: "After a player gets the city's blessing, continuous effects are
     // reapplied before the game checks to see if the game state or preceding events
     // have matched any trigger conditions."
@@ -218,9 +198,7 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     } else {
         chars_map
     };
-
     events.extend(ascend_events);
-
     // Collect events from each SBA category. Order matches CR 704.5 numbering
     // but all are treated as simultaneous within a pass.
     events.extend(check_player_sbas(state));
@@ -240,27 +218,21 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     // return them to the command zone. Called after counter annihilation per
     // the plan (704.6d runs after 704.5 SBAs).
     events.extend(commander::check_commander_zone_return_sba(state));
-
     // CR 704.5t / CR 309.6: Remove completed dungeon from command zone when the
     // venture marker is on the bottommost room and no room ability from that dungeon
     // is on the stack.
     events.extend(check_dungeon_completion_sba(state));
-
     // CR 701.54a: Clear ring-bearer designation when the ring-bearer leaves the
     // battlefield or another player gains control of it.
     check_ring_bearer_sba(state);
-
     events
 }
-
 // ── CR 704.5a / 704.5c / 704.5u ─────────────────────────────────────────────
-
 /// CR 704.5a: Player at 0 or less life loses.
 /// CR 704.5c: Player with 10+ poison counters loses.
 /// CR 704.5u (Commander): Player who received 21+ combat damage from one commander loses.
 fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
     for id in player_ids {
         let Some(player) = state.players.get(&id) else {
@@ -269,7 +241,6 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
         if player.has_lost || player.has_conceded {
             continue; // Already eliminated — skip.
         }
-
         // CR 704.5a: life total ≤ 0.
         if player.life_total <= 0 {
             if let Some(p) = state.players.get_mut(&id) {
@@ -285,7 +256,6 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             events.extend(transfer_monarch_on_player_leave(state, id));
             continue; // Only emit one loss event per player per pass.
         }
-
         // CR 704.5c: 10+ poison counters.
         if player.poison_counters >= 10 {
             if let Some(p) = state.players.get_mut(&id) {
@@ -301,7 +271,6 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             events.extend(transfer_monarch_on_player_leave(state, id));
             continue;
         }
-
         // CR 704.5u (Commander): 21+ combat damage from a single commander.
         // MR-M4-01: use if-let instead of unwrap — player may have been removed mid-pass.
         let Some(player_ref) = state.players.get(&id) else {
@@ -325,10 +294,8 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             events.extend(transfer_monarch_on_player_leave(state, id));
         }
     }
-
     events
 }
-
 /// CR 725.4: If the player who has the initiative leaves the game, the active player
 /// takes the initiative. If the active player is also leaving, the next player in turn
 /// order takes the initiative.
@@ -346,7 +313,6 @@ pub fn transfer_initiative_on_player_leave(
     if state.has_initiative != Some(leaving_player) {
         return Vec::new();
     }
-
     // CR 725.4: The active player takes the initiative first, unless they are also
     // the leaving player or have already lost/conceded.
     let active = state.turn.active_player;
@@ -356,7 +322,6 @@ pub fn transfer_initiative_on_player_leave(
             .get(&active)
             .map(|p| !p.has_lost && !p.has_conceded)
             .unwrap_or(false);
-
     let new_holder = if active_is_eligible {
         Some(active)
     } else {
@@ -382,13 +347,11 @@ pub fn transfer_initiative_on_player_leave(
             }
         })
     };
-
     let Some(new_holder) = new_holder else {
         // No other active player — game is over.
         state.has_initiative = None;
         return Vec::new();
     };
-
     state.has_initiative = Some(new_holder);
     let mut events = vec![GameEvent::InitiativeTaken { player: new_holder }];
     // CR 725.2: Taking the initiative also ventures into the Undercity.
@@ -402,7 +365,6 @@ pub fn transfer_initiative_on_player_leave(
     }
     events
 }
-
 /// CR 724.4: If the monarch leaves the game, the active player becomes the monarch.
 ///
 /// Mirrors `transfer_initiative_on_player_leave`. If the active player is also
@@ -415,7 +377,6 @@ pub fn transfer_monarch_on_player_leave(
     if state.monarch != Some(leaving_player) {
         return Vec::new();
     }
-
     let active = state.turn.active_player;
     let active_is_eligible = active != leaving_player
         && state
@@ -423,7 +384,6 @@ pub fn transfer_monarch_on_player_leave(
             .get(&active)
             .map(|p| !p.has_lost && !p.has_conceded)
             .unwrap_or(false);
-
     let new_monarch = if active_is_eligible {
         Some(active)
     } else {
@@ -447,20 +407,16 @@ pub fn transfer_monarch_on_player_leave(
             }
         })
     };
-
     let Some(new_monarch) = new_monarch else {
         state.monarch = None;
         return Vec::new();
     };
-
     state.monarch = Some(new_monarch);
     vec![GameEvent::PlayerBecameMonarch {
         player: new_monarch,
     }]
 }
-
 // ── CR 704.5d ────────────────────────────────────────────────────────────────
-
 /// CR 704.5d: If a token is in a zone other than the battlefield, it ceases to exist.
 ///
 /// Tokens are never put into any zone during SBA checks themselves (tokens die
@@ -469,14 +425,12 @@ pub fn transfer_monarch_on_player_leave(
 /// removed here.
 fn check_token_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     let token_ids: Vec<ObjectId> = state
         .objects
         .iter()
         .filter(|(_, obj)| obj.is_token && obj.zone != ZoneId::Battlefield)
         .map(|(id, _)| *id)
         .collect();
-
     for id in token_ids {
         // Remove from its zone and from the objects map.
         if let Some(obj) = state.objects.get(&id) {
@@ -489,12 +443,9 @@ fn check_token_sbas(state: &mut GameState) -> Vec<GameEvent> {
         state.objects.remove(&id);
         events.push(GameEvent::TokenCeasedToExist { object_id: id });
     }
-
     events
 }
-
 // ── CR 704.5f / 704.5g / 704.5h ─────────────────────────────────────────────
-
 /// CR 704.5f: Creature with toughness ≤ 0 → owner's graveyard.
 /// CR 704.5g: Creature with lethal damage (damage_marked ≥ toughness > 0) → destroyed.
 /// CR 704.5h: Creature that was dealt damage by a deathtouch source → destroyed.
@@ -508,7 +459,6 @@ fn check_creature_sbas(
     chars_map: &HashMap<ObjectId, Characteristics>,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // Collect creatures on the battlefield that need to die.
     // MR-M5-02: use `chars_map` (layer-computed) instead of raw `obj.characteristics`.
     // damage_marked and deathtouch_damage remain on the GameObject (not in chars).
@@ -523,29 +473,23 @@ fn check_creature_sbas(
             if obj.zone != ZoneId::Battlefield {
                 return None;
             }
-
             // Use layer-computed characteristics so continuous effects are visible.
             let chars = chars_map.get(id)?;
-
             if !chars.card_types.contains(&CardType::Creature) {
                 return None;
             }
-
             // CR 704.5f/g/h only apply to creatures with a defined toughness.
             // A creature without toughness (e.g., a test card) is skipped.
             let toughness = chars.toughness?;
-
             // MR-M5-02: indestructible is now read from layer-computed keywords —
             // an effect that removes Indestructible (e.g., Humility) is correctly seen.
             let is_indestructible = chars.keywords.contains(&KeywordAbility::Indestructible);
-
             // CR 704.5f: toughness ≤ 0. Indestructible does NOT prevent this
             // (CR 702.12a only prevents "destroy"; zero-toughness is a state replacement).
             // is_destruction = false: regeneration cannot prevent this (CR 701.19a).
             if toughness <= 0 {
                 return Some((*id, false));
             }
-
             // CR 704.5g: lethal damage (damage ≥ toughness > 0).
             // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
             // MR-M4-04: compare in u32 space to avoid u32→i32 wrapping on large damage values.
@@ -554,23 +498,19 @@ fn check_creature_sbas(
             {
                 return Some((*id, true)); // is_destruction = true
             }
-
             // CR 704.5h: any damage from a deathtouch source.
             // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
             if !is_indestructible && obj.deathtouch_damage && obj.damage_marked > 0 {
                 return Some((*id, true)); // is_destruction = true
             }
-
             None
         })
         .collect();
-
     for (id, is_destruction) in dying {
         // Skip objects that already have a pending replacement choice.
         if state.pending_zone_changes.iter().any(|p| p.object_id == id) {
             continue;
         }
-
         // CR 701.19a/614.8: Check regeneration shields before destruction (704.5g/h only).
         // CR 704.5f (zero toughness) is NOT destruction -- regeneration cannot prevent it.
         if is_destruction {
@@ -580,7 +520,6 @@ fn check_creature_sbas(
                 continue; // Skip destruction -- permanent stays on battlefield
             }
         }
-
         // CR 702.89a: Check umbra armor -- only applies to destruction (not 704.5f zero-toughness).
         // Unlike regeneration, umbra armor does NOT tap the permanent or remove it from combat.
         // "Can't be regenerated" does NOT block umbra armor (separate mechanics -- ruling).
@@ -597,17 +536,14 @@ fn check_creature_sbas(
                 continue; // Skip destruction -- permanent stays on battlefield
             }
         }
-
         let (owner, pre_death_controller, pre_death_counters) = match state.objects.get(&id) {
             Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
             None => continue, // Already removed in a previous SBA this pass.
         };
-
         // CR 708.9: A face-down permanent leaving the battlefield must be revealed to all
         // players. Capture the reveal event BEFORE moving the object (after move, old ObjectId
         // is dead and face_down_as has been cleared on the new object).
         let face_down_reveal = state.face_down_reveal_for(id);
-
         // CR 614: Check replacement effects before moving to graveyard.
         let action = replacement::check_zone_change_replacement(
             state,
@@ -617,7 +553,6 @@ fn check_creature_sbas(
             owner,
             &std::collections::HashSet::new(),
         );
-
         match action {
             replacement::ZoneChangeAction::Proceed => {
                 // No replacement — move to graveyard normally.
@@ -693,12 +628,9 @@ fn check_creature_sbas(
             }
         }
     }
-
     events
 }
-
 // ── CR 704.5i ────────────────────────────────────────────────────────────────
-
 /// CR 704.5i: Planeswalker with 0 loyalty counters → owner's graveyard.
 ///
 /// Loyalty is tracked in two ways (M4 supports both):
@@ -712,7 +644,6 @@ fn check_planeswalker_sbas(
     chars_map: &HashMap<ObjectId, Characteristics>,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // MR-M5-02: use layer-computed characteristics so continuous effects are visible.
     let dying: Vec<ObjectId> = state
         .objects
@@ -742,18 +673,15 @@ fn check_planeswalker_sbas(
         })
         .map(|(id, _)| *id)
         .collect();
-
     for id in dying {
         // Skip objects that already have a pending replacement choice.
         if state.pending_zone_changes.iter().any(|p| p.object_id == id) {
             continue;
         }
-
         let owner = match state.objects.get(&id) {
             Some(obj) => obj.owner,
             None => continue,
         };
-
         // CR 614: Check replacement effects before moving to graveyard.
         let action = replacement::check_zone_change_replacement(
             state,
@@ -763,7 +691,6 @@ fn check_planeswalker_sbas(
             owner,
             &std::collections::HashSet::new(),
         );
-
         match action {
             replacement::ZoneChangeAction::Proceed => {
                 if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
@@ -818,21 +745,16 @@ fn check_planeswalker_sbas(
             }
         }
     }
-
     events
 }
-
 // ── CR 714.4 ─────────────────────────────────────────────────────────────────
-
 /// CR 714.4: If the number of lore counters on a Saga permanent with one or more
 /// chapter abilities is greater than or equal to its final chapter number, and it
 /// isn't the source of a chapter ability that has triggered but not yet left the
 /// stack, that Saga's controller sacrifices it.
 fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
     use crate::cards::card_definition::AbilityDefinition;
-
     let mut events = Vec::new();
-
     // Collect Sagas on the battlefield.
     let sagas: Vec<(ObjectId, crate::state::player::PlayerId)> = state
         .objects
@@ -841,7 +763,6 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
         .filter_map(|(id, obj)| {
             let cid = obj.card_id.as_ref()?;
             let def = state.card_registry.get(cid.clone())?;
-
             // Find the final chapter number (greatest chapter N among SagaChapter abilities).
             let final_chapter = def
                 .abilities
@@ -851,14 +772,11 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
                     _ => None,
                 })
                 .max();
-
             let Some(final_ch) = final_chapter else {
                 return None; // Not a Saga (no chapter abilities).
             };
-
             // Check lore counter count.
             let lore_count = obj.counters.get(&CounterType::Lore).copied().unwrap_or(0);
-
             if lore_count >= final_ch {
                 Some((*id, obj.controller))
             } else {
@@ -866,7 +784,6 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             }
         })
         .collect();
-
     for (saga_id, _controller) in sagas {
         // CR 714.4: Don't sacrifice if a chapter ability from this Saga is still on the stack.
         let has_pending_chapter = state.stack_objects.iter().any(|so| {
@@ -896,17 +813,14 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 false
             }
         });
-
         if has_pending_chapter {
             continue; // Don't sacrifice yet — chapter ability still on the stack.
         }
-
         // Sacrifice the Saga (move to graveyard).
         let owner = match state.objects.get(&saga_id) {
             Some(obj) => obj.owner,
             None => continue,
         };
-
         let Ok((new_id, _)) = state.move_object_to_zone(saga_id, ZoneId::Graveyard(owner)) else {
             continue;
         };
@@ -915,12 +829,9 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             new_grave_id: new_id,
         });
     }
-
     events
 }
-
 // ── CR 704.5j ────────────────────────────────────────────────────────────────
-
 /// CR 704.5j: If a player controls two or more legendary permanents with the
 /// same name, that player keeps one and the rest go to their owners' graveyards.
 ///
@@ -928,11 +839,9 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
 /// (most recently entered the battlefield). Real player choice is M7+.
 fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // Gather all legendary battlefield permanents, grouped by (controller, name).
     // Key: (PlayerId, name) → Vec<ObjectId> sorted ascending (lowest = oldest).
     let mut by_controller_name: OrdMap<(PlayerId, String), Vec<ObjectId>> = OrdMap::new();
-
     for (id, obj) in &state.objects {
         if obj.zone != ZoneId::Battlefield {
             continue;
@@ -952,12 +861,10 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         let key = (obj.controller, chars.name);
         by_controller_name.entry(key).or_default().push(*id);
     }
-
     for ((controller, _name), mut ids) in by_controller_name {
         if ids.len() < 2 {
             continue; // No violation.
         }
-
         // Sort by ObjectId: highest = most recently entered. Keep the last one.
         // MR-M4-03: let-else instead of unwrap (ids.len() >= 2 is checked above).
         ids.sort();
@@ -965,9 +872,7 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
             continue;
         };
         let to_remove = &ids[..ids.len() - 1];
-
         let mut graves: Vec<(ObjectId, ObjectId)> = Vec::new();
-
         for &old_id in to_remove {
             let owner = match state.objects.get(&old_id) {
                 Some(obj) => obj.owner,
@@ -978,23 +883,18 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
                 graves.push((old_id, new_id));
             }
         }
-
         if !graves.is_empty() {
             events.push(GameEvent::LegendaryRuleApplied {
                 kept_id: kept,
                 put_to_graveyard: graves,
             });
-
             // Suppress unused variable warning: controller is used as the map key above.
             let _ = controller;
         }
     }
-
     events
 }
-
 // ── CR 704.5m ────────────────────────────────────────────────────────────────
-
 /// CR 702.5a: Extract the EnchantTarget from an Aura's computed keywords.
 ///
 /// Returns the first `Enchant(target)` keyword found, or `None` if the
@@ -1008,7 +908,6 @@ pub(crate) fn get_enchant_target(keywords: &im::OrdSet<KeywordAbility>) -> Optio
         }
     })
 }
-
 /// CR 702.5a: Check if a target's characteristics satisfy the Enchant restriction.
 ///
 /// Used both at cast time (CR 303.4a) and in the Aura SBA (CR 704.5m).
@@ -1030,7 +929,6 @@ pub(crate) fn matches_enchant_target(
         }
     }
 }
-
 /// CR 704.5m: If an Aura is attached to an object or player it can't legally
 /// be attached to, put it into its owner's graveyard.
 ///
@@ -1044,7 +942,6 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
     // MR-M4-10: use module-level static to avoid String allocation per SBA pass.
     let subtype_aura = &*SUBTYPE_AURA;
-
     let illegal_auras: Vec<ObjectId> = state
         .objects
         .iter()
@@ -1125,7 +1022,6 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
         })
         .map(|(id, _)| *id)
         .collect();
-
     // CR 702.103f: Separate bestowed Auras from normal illegal Auras.
     // Bestowed Auras revert to creatures instead of going to the graveyard.
     // Normal illegal Auras go to the graveyard (CR 704.5m).
@@ -1137,7 +1033,6 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 .map(|obj| obj.designations.contains(Designations::BESTOWED))
                 .unwrap_or(false)
         });
-
     // CR 702.103f: For bestowed Auras — clear attachment, revert to creature.
     for aura_id in bestowed_auras {
         // Clear the attachment link on the target.
@@ -1162,14 +1057,12 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
         }
         events.push(GameEvent::BestowReverted { object_id: aura_id });
     }
-
     // CR 704.5m: Normal illegal Auras go to the graveyard.
     for id in normal_auras {
         let owner = match state.objects.get(&id) {
             Some(obj) => obj.owner,
             None => continue,
         };
-
         if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
             events.push(GameEvent::AuraFellOff {
                 object_id: id,
@@ -1177,12 +1070,9 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             });
         }
     }
-
     events
 }
-
 // ── CR 704.5n ────────────────────────────────────────────────────────────────
-
 /// CR 704.5n: If an Equipment or Fortification is attached to an illegal
 /// permanent, it becomes unattached.
 ///
@@ -1197,7 +1087,6 @@ fn check_equipment_sbas(
     // MR-M4-10: use module-level statics to avoid String allocations per SBA pass.
     let subtype_equipment = &*SUBTYPE_EQUIPMENT;
     let subtype_fortification = &*SUBTYPE_FORTIFICATION;
-
     // MR-M5-02: use layer-computed characteristics for both the equipment's own
     // subtypes (could be added by effects) and the target's card types (e.g., a
     // creature that lost Creature type due to a continuous effect).
@@ -1264,7 +1153,6 @@ fn check_equipment_sbas(
         })
         .map(|(id, _)| *id)
         .collect();
-
     // CR 702.151b + ruling 2022-02-18: If a reconfigured Equipment is still a creature
     // (e.g., due to March of the Machines animating all artifacts), it immediately becomes
     // unattached. Add these to the illegal_equip set as well.
@@ -1292,41 +1180,32 @@ fn check_equipment_sbas(
         })
         .map(|(id, _)| *id)
         .collect();
-
     let all_illegal: Vec<crate::state::ObjectId> = illegal_equip
         .into_iter()
         .chain(reconfigure_creature_ids)
         .collect();
-
     for id in all_illegal {
         // Unattach: clear attached_to on equipment and remove from target's attachments.
         let target_id = state.objects.get(&id).and_then(|obj| obj.attached_to);
-
         if let Some(obj) = state.objects.get_mut(&id) {
             obj.attached_to = None;
             // CR 702.151b: clear reconfigure flag when SBA unattaches the Equipment.
             obj.designations.remove(Designations::RECONFIGURED);
         }
-
         if let Some(target_id) = target_id {
             if let Some(target) = state.objects.get_mut(&target_id) {
                 target.attachments.retain(|&x| x != id);
             }
         }
-
         events.push(GameEvent::EquipmentUnattached { object_id: id });
     }
-
     events
 }
-
 // ── CR 704.5q ────────────────────────────────────────────────────────────────
-
 /// CR 704.5q: If a permanent has both a +1/+1 counter and a -1/-1 counter on it,
 /// N pairs are removed, where N = min(+1/+1 count, -1/-1 count).
 fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // CR 702.26b: Phased-out permanents are treated as if they don't exist.
     let ids: Vec<ObjectId> = state
         .objects
@@ -1349,12 +1228,10 @@ fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
         })
         .map(|(id, _)| *id)
         .collect();
-
     for id in ids {
         let Some(obj) = state.objects.get_mut(&id) else {
             continue;
         };
-
         let plus = obj
             .counters
             .get(&CounterType::PlusOnePlusOne)
@@ -1366,38 +1243,30 @@ fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
             .copied()
             .unwrap_or(0);
         let remove = plus.min(minus);
-
         if remove == 0 {
             continue;
         }
-
         let new_plus = plus - remove;
         let new_minus = minus - remove;
-
         if new_plus == 0 {
             obj.counters.remove(&CounterType::PlusOnePlusOne);
         } else {
             obj.counters.insert(CounterType::PlusOnePlusOne, new_plus);
         }
-
         if new_minus == 0 {
             obj.counters.remove(&CounterType::MinusOneMinusOne);
         } else {
             obj.counters
                 .insert(CounterType::MinusOneMinusOne, new_minus);
         }
-
         events.push(GameEvent::CountersAnnihilated {
             object_id: id,
             amount: remove,
         });
     }
-
     events
 }
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
 /// Check if a `KeywordAbility` is present on an object's effective characteristics.
 ///
 /// Uses `calculate_characteristics` (layer system) rather than raw `obj.characteristics`
@@ -1409,9 +1278,7 @@ pub fn has_keyword(state: &GameState, id: ObjectId, keyword: KeywordAbility) -> 
         .map(|chars| chars.keywords.contains(&keyword))
         .unwrap_or(false)
 }
-
 // ── Soulbond unpairing SBA (CR 702.95e) ──────────────────────────────────────
-
 /// CR 702.95e: A paired creature becomes unpaired if any of the following occur:
 /// - Another player gains control of it or the creature it's paired with.
 /// - It or the paired creature stops being a creature.
@@ -1456,7 +1323,6 @@ fn check_soulbond_unpairing(state: &mut GameState) {
             None
         })
         .collect();
-
     // Clear paired_with on both objects.
     for (a, b) in pairs_to_clear {
         if let Some(obj) = state.objects.get_mut(&a) {
@@ -1467,9 +1333,7 @@ fn check_soulbond_unpairing(state: &mut GameState) {
         }
     }
 }
-
 // ── CR 704.5t / CR 309.6 ─────────────────────────────────────────────────────
-
 /// CR 704.5t: If a player has a dungeon in the command zone whose venture marker
 /// is on the bottommost room, and no room ability from that dungeon is on the stack,
 /// that dungeon leaves the game and the player completes that dungeon.
@@ -1493,22 +1357,18 @@ fn check_soulbond_unpairing(state: &mut GameState) {
 /// mutually exclusive, so there is no double-counting.
 fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
-
     // Collect players whose dungeon is on the bottommost room.
     let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
-
     for player_id in player_ids {
         // Check if player has a dungeon in their command zone.
         let Some(ds) = state.dungeon_state.get(&player_id).cloned() else {
             continue;
         };
-
         // Is the venture marker on the bottommost room?
         let dungeon_def = get_dungeon(ds.dungeon);
         if ds.current_room != dungeon_def.bottommost_room {
             continue;
         }
-
         // CR 309.6: Check if any RoomAbility from this dungeon for this player
         // is still on the stack. If so, wait.
         let room_ability_on_stack = state.stack_objects.iter().any(|so| {
@@ -1518,31 +1378,25 @@ fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
                 if *owner == player_id && *dungeon == ds.dungeon
             )
         });
-
         if room_ability_on_stack {
             // CR 309.6: Cannot remove the dungeon while its room ability is still on the stack.
             continue;
         }
-
         // Remove the completed dungeon from the player's command zone.
         state.dungeon_state.remove(&player_id);
-
         // CR 309.7: Player "completes" the dungeon when it is removed from the game.
         // Increment dungeons_completed and add to the set.
         if let Some(ps) = state.players.get_mut(&player_id) {
             ps.dungeons_completed += 1;
             ps.dungeons_completed_set.insert(ds.dungeon);
         }
-
         events.push(super::events::GameEvent::DungeonCompleted {
             player: player_id,
             dungeon: ds.dungeon,
         });
     }
-
     events
 }
-
 /// CR 701.54a: Clear ring-bearer when the creature leaves the battlefield or
 /// another player gains control of it.
 ///
@@ -1556,7 +1410,6 @@ fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
 fn check_ring_bearer_sba(state: &mut GameState) {
     use crate::state::game_object::Designations;
     use crate::state::zone::ZoneId;
-
     // Collect players that need their ring_bearer_id cleared.
     let players_to_clear: Vec<crate::state::player::PlayerId> = state
         .players
@@ -1576,7 +1429,6 @@ fn check_ring_bearer_sba(state: &mut GameState) {
             }
         })
         .collect();
-
     for player_id in players_to_clear {
         // Also clear RING_BEARER designation from any lingering object.
         let bearer_id = state

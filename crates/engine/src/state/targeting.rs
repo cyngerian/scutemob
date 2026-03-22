@@ -6,13 +6,10 @@
 //!
 //! Partial fizzle (some but not all targets illegal): spell resolves normally,
 //! but illegal targets are unaffected by the spell's effect (M7+).
-
-use serde::{Deserialize, Serialize};
-
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::zone::ZoneId;
-
+use serde::{Deserialize, Serialize};
 /// A target that a spell or ability can point at (CR 109.1 / 114).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Target {
@@ -21,7 +18,6 @@ pub enum Target {
     /// A game object (card, token, etc.) in any zone.
     Object(ObjectId),
 }
-
 /// A recorded target for a spell or ability on the stack.
 ///
 /// Captures the target at cast time including a zone snapshot for fizzle detection.

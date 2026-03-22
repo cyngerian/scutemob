@@ -2,10 +2,6 @@
 //!
 //! Events are the single source of truth for "what happened." The network
 //! layer broadcasts them; the UI consumes them; the history log records them.
-
-use im::OrdMap;
-use serde::{Deserialize, Serialize};
-
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::{CardId, PlayerId};
@@ -13,7 +9,8 @@ use crate::state::replacement_effect::ReplacementId;
 use crate::state::turn::{Phase, Step};
 use crate::state::types::{CounterType, ManaColor};
 use crate::state::zone::{ZoneId, ZoneType};
-
+use im::OrdMap;
+use serde::{Deserialize, Serialize};
 /// The target of a combat damage assignment: a creature, player, or planeswalker.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CombatDamageTarget {
@@ -24,7 +21,6 @@ pub enum CombatDamageTarget {
     /// Damage dealt to a planeswalker permanent.
     Planeswalker(ObjectId),
 }
-
 /// A single source-to-target combat damage assignment (CR 510.2).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CombatDamageAssignment {
@@ -35,7 +31,6 @@ pub struct CombatDamageAssignment {
     /// Amount of damage assigned.
     pub amount: u32,
 }
-
 /// Why a player lost the game.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LossReason {
@@ -50,7 +45,6 @@ pub enum LossReason {
     /// CR 104.3a: player conceded
     Conceded,
 }
-
 /// A game event describing a state change.
 ///
 /// Every state transition produces one or more events. Events are appended
@@ -59,38 +53,29 @@ pub enum LossReason {
 pub enum GameEvent {
     /// A new turn has started for the given player.
     TurnStarted { player: PlayerId, turn_number: u32 },
-
     /// The game has moved to a new step (and implicitly a new phase).
     StepChanged { step: Step, phase: Phase },
-
     /// A player has been granted priority.
     PriorityGiven { player: PlayerId },
-
     /// A player passed priority.
     PriorityPassed { player: PlayerId },
-
     /// All players have passed priority in succession (stack empty).
     AllPlayersPassed,
-
     /// Active player's permanents were untapped (CR 502.2).
     PermanentsUntapped {
         player: PlayerId,
         objects: Vec<ObjectId>,
     },
-
     /// A card was drawn (moved from library to hand).
     CardDrawn {
         player: PlayerId,
         /// The new ObjectId in hand (per CR 400.7 zone-change identity).
         new_object_id: ObjectId,
     },
-
     /// Mana pools were emptied at step transition (CR 500.4).
     ManaPoolsEmptied,
-
     /// Cleanup step actions were performed (CR 514).
     CleanupPerformed,
-
     /// A card was discarded to meet hand size limit (CR 514.1).
     DiscardedToHandSize {
         player: PlayerId,
@@ -98,45 +83,36 @@ pub enum GameEvent {
         zone_from: ZoneId,
         zone_to: ZoneId,
     },
-
     /// Damage was cleared from all permanents.
     DamageCleared,
-
     /// A player has lost the game.
     PlayerLost {
         player: PlayerId,
         reason: LossReason,
     },
-
     /// A player has conceded.
     PlayerConceded { player: PlayerId },
-
     /// The game is over. Winner is None if it's a draw.
     GameOver { winner: Option<PlayerId> },
-
     /// An extra turn has been added to the queue.
     ExtraTurnAdded { player: PlayerId },
-
     /// A land was played from hand to battlefield (CR 305.1).
     LandPlayed {
         player: PlayerId,
         /// ObjectId of the land on the battlefield (new per CR 400.7).
         new_land_id: ObjectId,
     },
-
     /// Mana was added to a player's mana pool (CR 605).
     ManaAdded {
         player: PlayerId,
         color: ManaColor,
         amount: u32,
     },
-
     /// A permanent became tapped (CR 701.21).
     PermanentTapped {
         player: PlayerId,
         object_id: ObjectId,
     },
-
     /// A spell was cast and entered the stack (CR 601.2).
     ///
     /// `stack_object_id` is the ID of the `StackObject` entry.
@@ -147,7 +123,6 @@ pub enum GameEvent {
         stack_object_id: ObjectId,
         source_object_id: ObjectId,
     },
-
     /// A spell or ability on the stack resolved (CR 608.2n, 608.3).
     ///
     /// For instant/sorcery spells, `source_object_id` is the card's new ID in
@@ -158,7 +133,6 @@ pub enum GameEvent {
         stack_object_id: ObjectId,
         source_object_id: ObjectId,
     },
-
     /// A permanent spell resolved and the card entered the battlefield (CR 608.3a).
     ///
     /// `object_id` is the permanent's new ObjectId on the battlefield (new per
@@ -167,7 +141,6 @@ pub enum GameEvent {
         player: PlayerId,
         object_id: ObjectId,
     },
-
     /// A spell was countered without resolving (CR 608.2b, 701.5).
     ///
     /// The card is put into its owner's graveyard. `source_object_id` is the
@@ -177,7 +150,6 @@ pub enum GameEvent {
         stack_object_id: ObjectId,
         source_object_id: ObjectId,
     },
-
     /// A spell fizzled because all of its targets became illegal (CR 608.2b).
     ///
     /// Distinct from `SpellCountered`: fizzle is caused by illegal targets, not an
@@ -189,13 +161,11 @@ pub enum GameEvent {
         stack_object_id: ObjectId,
         source_object_id: ObjectId,
     },
-
     /// A player paid a mana cost to cast a spell (CR 601.2f-h).
     ///
     /// Emitted when a spell with a non-zero mana cost is cast and the cost is
     /// deducted from the player's mana pool.
     ManaCostPaid { player: PlayerId, cost: ManaCost },
-
     /// A non-mana activated ability was activated and placed on the stack (CR 602).
     ///
     /// `source_object_id` is the source object (remains in its current zone;
@@ -206,7 +176,6 @@ pub enum GameEvent {
         source_object_id: ObjectId,
         stack_object_id: ObjectId,
     },
-
     /// A triggered ability was placed on the stack (CR 603.3).
     ///
     /// Emitted when pending triggers are flushed to the stack in APNAP order.
@@ -217,7 +186,6 @@ pub enum GameEvent {
         source_object_id: ObjectId,
         stack_object_id: ObjectId,
     },
-
     /// An activated or triggered ability resolved (CR 608.3b).
     ///
     /// The ability was popped from the stack. Effects (M7+) would execute here.
@@ -228,7 +196,6 @@ pub enum GameEvent {
         controller: PlayerId,
         stack_object_id: ObjectId,
     },
-
     // ── M4: State-Based Action events ──────────────────────────────────────
     /// A creature was put into its owner's graveyard as a state-based action
     /// (CR 704.5f: toughness ≤ 0; CR 704.5g: lethal damage; CR 704.5h: deathtouch damage).
@@ -248,30 +215,25 @@ pub enum GameEvent {
         /// trigger time. Captured before `move_object_to_zone` resets counters.
         pre_death_counters: OrdMap<CounterType, u32>,
     },
-
     /// A planeswalker was put into its owner's graveyard because its loyalty
     /// reached 0 (CR 704.5i).
     PlaneswalkerDied {
         object_id: ObjectId,
         new_grave_id: ObjectId,
     },
-
     /// An aura was put into its owner's graveyard because it became attached to
     /// an illegal or non-existent object (CR 704.5m).
     AuraFellOff {
         object_id: ObjectId,
         new_grave_id: ObjectId,
     },
-
     /// CR 702.103f: A bestowed Aura became unattached and reverted to an
     /// enchantment creature. Unlike normal Auras (AuraFellOff), the permanent
     /// stays on the battlefield.
     BestowReverted { object_id: ObjectId },
-
     /// An equipment (or fortification) became unattached because the object it
     /// was attached to is no longer a legal attachment target (CR 704.5n).
     EquipmentUnattached { object_id: ObjectId },
-
     /// An Equipment was attached to a creature via the Equip ability (CR 702.6a).
     /// Emitted when the equip effect resolves and the attachment state changes.
     EquipmentAttached {
@@ -282,7 +244,6 @@ pub enum GameEvent {
         /// The player who activated the equip ability.
         controller: PlayerId,
     },
-
     /// A Fortification was attached to a land via the Fortify ability (CR 702.67a).
     /// Emitted when the fortify effect resolves and the attachment state changes.
     FortificationAttached {
@@ -293,7 +254,6 @@ pub enum GameEvent {
         /// The player who activated the fortify ability.
         controller: PlayerId,
     },
-
     /// An Aura resolved and was attached to its target (CR 303.4a, 303.4b).
     ///
     /// Emitted when an Aura permanent spell resolves and enters the battlefield
@@ -306,14 +266,11 @@ pub enum GameEvent {
         /// The controller of the Aura.
         controller: PlayerId,
     },
-
     /// A token in a non-battlefield zone ceased to exist (CR 704.5d).
     TokenCeasedToExist { object_id: ObjectId },
-
     /// +1/+1 and -1/-1 counters were annihilated on a permanent (CR 704.5q).
     /// `amount` is how many pairs were removed.
     CountersAnnihilated { object_id: ObjectId, amount: u32 },
-
     /// The legendary rule was applied: multiple legendary permanents with the
     /// same name were controlled by the same player; all but one went to the
     /// owners' graveyards (CR 704.5j).
@@ -328,7 +285,6 @@ pub enum GameEvent {
         kept_id: ObjectId,
         put_to_graveyard: Vec<(ObjectId, ObjectId)>,
     },
-
     // ── M6: Combat events ──────────────────────────────────────────────────
     /// The active player declared attacking creatures (CR 508.1).
     ///
@@ -339,7 +295,6 @@ pub enum GameEvent {
         /// (attacker ObjectId, attack target) pairs.
         attackers: Vec<(ObjectId, AttackTarget)>,
     },
-
     /// A defending player declared blocking creatures (CR 509.1).
     ///
     /// In multiplayer, each defending player declares independently.
@@ -348,7 +303,6 @@ pub enum GameEvent {
         /// (blocker ObjectId, attacker ObjectId being blocked) pairs.
         blockers: Vec<(ObjectId, ObjectId)>,
     },
-
     /// Combat damage was dealt simultaneously (CR 510.2).
     ///
     /// All damage is assigned and dealt in a single batch. After this event,
@@ -356,17 +310,13 @@ pub enum GameEvent {
     CombatDamageDealt {
         assignments: Vec<CombatDamageAssignment>,
     },
-
     /// The combat phase ended and combat state was cleared (CR 511.1).
     CombatEnded,
-
     /// A player gained life (CR 118.4). Generated by lifelink (CR 702.15a),
     /// GainLife effects, and other life-gain sources.
     LifeGained { player: PlayerId, amount: u32 },
-
     /// A player lost life outside of damage (CR 118.4).
     LifeLost { player: PlayerId, amount: u32 },
-
     /// A player received poison counters from an infect source (CR 120.3b, CR 702.90b).
     ///
     /// Emitted when infect damage is dealt to a player, replacing the normal LifeLost
@@ -380,7 +330,6 @@ pub enum GameEvent {
         /// The source of the infect damage.
         source: ObjectId,
     },
-
     // ── M7: Effect execution events ────────────────────────────────────────
     /// Non-combat damage was dealt by a spell or ability (CR 120).
     ///
@@ -393,7 +342,6 @@ pub enum GameEvent {
         /// Amount of damage dealt.
         amount: u32,
     },
-
     /// An object was exiled by a spell or ability (CR 701.5).
     ObjectExiled {
         /// Player whose spell/ability caused the exile.
@@ -403,7 +351,6 @@ pub enum GameEvent {
         /// New ObjectId of the object in the exile zone (CR 400.7).
         new_exile_id: ObjectId,
     },
-
     /// A non-creature permanent was destroyed by a spell or ability (CR 701.7).
     ///
     /// Creature destruction emits `CreatureDied` instead (via SBA).
@@ -413,13 +360,11 @@ pub enum GameEvent {
         /// New ObjectId in the owner's graveyard (CR 400.7).
         new_grave_id: ObjectId,
     },
-
     /// A permanent was untapped by a spell or ability (CR 701.17).
     PermanentUntapped {
         player: PlayerId,
         object_id: ObjectId,
     },
-
     /// A card was discarded from a player's hand (CR 701.8).
     CardDiscarded {
         player: PlayerId,
@@ -428,7 +373,6 @@ pub enum GameEvent {
         /// New ObjectId in the graveyard (CR 400.7).
         new_id: ObjectId,
     },
-
     /// A card was cycled from a player's hand (CR 702.29a).
     ///
     /// This event fires IN ADDITION TO `CardDiscarded` (CR 702.29d: "cycles or discards"
@@ -441,14 +385,12 @@ pub enum GameEvent {
         /// New ObjectId in the graveyard.
         new_id: ObjectId,
     },
-
     /// A card was put into a graveyard from the top of a library (mill, CR 701.13).
     CardMilled {
         player: PlayerId,
         /// New ObjectId of the card in the graveyard (CR 400.7).
         new_id: ObjectId,
     },
-
     /// A token permanent was created on the battlefield (CR 701.6).
     TokenCreated {
         /// The controlling player.
@@ -456,10 +398,8 @@ pub enum GameEvent {
         /// ObjectId of the token on the battlefield.
         object_id: ObjectId,
     },
-
     /// A player's library was shuffled (CR 701.20).
     LibraryShuffled { player: PlayerId },
-
     /// A counter was placed on a permanent or player (CR 122.1).
     CounterAdded {
         /// ObjectId of the permanent (or sentinel for player counters).
@@ -467,14 +407,12 @@ pub enum GameEvent {
         counter: crate::state::types::CounterType,
         count: u32,
     },
-
     /// A counter was removed from a permanent or player (CR 122.1).
     CounterRemoved {
         object_id: ObjectId,
         counter: crate::state::types::CounterType,
         count: u32,
     },
-
     // ── MR-M7-01: Correct zone-move events ─────────────────────────────────
     /// An object was returned to a player's hand by a spell or ability (CR 400).
     ///
@@ -487,7 +425,6 @@ pub enum GameEvent {
         /// New ObjectId in hand (CR 400.7).
         new_hand_id: ObjectId,
     },
-
     /// An object was put into a graveyard by a spell or ability, not via
     /// destruction or death (CR 400).
     ///
@@ -501,7 +438,6 @@ pub enum GameEvent {
         /// New ObjectId in the graveyard (CR 400.7).
         new_grave_id: ObjectId,
     },
-
     /// An object was put onto a player's library by a spell or ability (CR 400).
     ObjectPutOnLibrary {
         /// Whose library the object was placed in.
@@ -511,7 +447,6 @@ pub enum GameEvent {
         /// New ObjectId in the library (CR 400.7).
         new_lib_id: ObjectId,
     },
-
     // ── M8: Replacement/prevention effect events ────────────────────────
     /// A commander was sent to its owner's command zone instead of changing zones
     /// (CR 903.9a — owner may choose command zone when commander would change zones).
@@ -527,7 +462,6 @@ pub enum GameEvent {
         /// The commander's owner.
         owner: PlayerId,
     },
-
     /// A replacement effect was applied to an event (CR 614).
     ///
     /// Emitted whenever a replacement effect intercepts and modifies an event
@@ -537,7 +471,6 @@ pub enum GameEvent {
         effect_id: ReplacementId,
         description: String,
     },
-
     /// Multiple replacement effects apply to the same event and the affected
     /// player must choose the order (CR 616.1).
     ///
@@ -549,7 +482,6 @@ pub enum GameEvent {
         event_description: String,
         choices: Vec<ReplacementId>,
     },
-
     /// Damage was prevented by a prevention effect (CR 615).
     ///
     /// `prevented` is the amount actually prevented; `remaining` is the damage
@@ -560,7 +492,6 @@ pub enum GameEvent {
         prevented: u32,
         remaining: u32,
     },
-
     // ── M9: Commander casting events (discriminant 57) ────────────────────
     /// A commander was cast from the command zone (CR 903.8).
     ///
@@ -575,7 +506,6 @@ pub enum GameEvent {
         card_id: CardId,
         tax_paid: u32,
     },
-
     // ── M9: Commander zone return SBA (discriminant 58) ──────────────────
     /// A commander was returned to its owner's command zone following the owner's
     /// explicit choice via `ReturnCommanderToCommandZone` (CR 903.9a / CR 704.6d).
@@ -587,7 +517,6 @@ pub enum GameEvent {
         owner: PlayerId,
         from_zone: ZoneType,
     },
-
     // ── M9 fix: Commander zone return player choice (discriminant 62) ─────
     /// The SBA detected a commander in graveyard or exile and is awaiting the
     /// owner's choice: return it to the command zone or leave it where it is
@@ -604,7 +533,6 @@ pub enum GameEvent {
         object_id: ObjectId,
         from_zone: ZoneType,
     },
-
     // ── M9: Mulligan events (discriminants 59-60) ─────────────────────────
     /// A player took a mulligan (CR 103.5 / CR 103.5c).
     ///
@@ -616,7 +544,6 @@ pub enum GameEvent {
         mulligan_number: u32,
         is_free: bool,
     },
-
     /// A player kept their hand (or mulliganed hand) (CR 103.5).
     ///
     /// `cards_to_bottom` lists the ObjectIds of cards put on the bottom of
@@ -626,7 +553,6 @@ pub enum GameEvent {
         player: PlayerId,
         cards_to_bottom: Vec<ObjectId>,
     },
-
     // ── M9: Companion event (discriminant 61) ─────────────────────────────
     /// A player paid {3} to bring their companion from the sideboard into hand
     /// (CR 702.139a).
@@ -634,7 +560,6 @@ pub enum GameEvent {
     /// Emitted when `handle_bring_companion` successfully completes the special
     /// action. The companion card is now in the player's hand.
     CompanionBroughtToHand { player: PlayerId, card_id: CardId },
-
     // ── M9.4: Cascade events ─────────────────────────────────────────────────
     /// Cards were exiled from the top of a library during cascade resolution
     /// (CR 702.85b). Emitted once per cascade trigger listing all exiled card IDs.
@@ -645,7 +570,6 @@ pub enum GameEvent {
         /// exiled; last = the card that will be cast or put on the bottom).
         cards_exiled: Vec<ObjectId>,
     },
-
     /// A card was cast without paying its mana cost as a result of cascade
     /// (CR 702.85b). Emitted after `CascadeExiled` when the player casts the
     /// found card. The remaining exiled cards are placed on the bottom of the
@@ -656,7 +580,6 @@ pub enum GameEvent {
         /// ObjectId of the card that was cast (now in the Stack zone).
         card_id: ObjectId,
     },
-
     // ── B13: Discover events (CR 701.57) ─────────────────────────────────
     /// Cards were exiled from the top of a library during discover resolution
     /// (CR 701.57a). Emitted once per discover action listing all exiled card IDs
@@ -674,7 +597,6 @@ pub enum GameEvent {
         /// or DiscoverToHand). These are the cards placed on the library bottom.
         cards_exiled: Vec<ObjectId>,
     },
-
     /// A card was cast without paying its mana cost as a result of discover
     /// (CR 701.57a). Emitted after `DiscoverExiled` when the player casts the
     /// found card. The remaining exiled cards are placed on the bottom of the
@@ -685,7 +607,6 @@ pub enum GameEvent {
         /// ObjectId of the card that was cast (now in the Stack zone).
         card_id: ObjectId,
     },
-
     /// The discovered card was put into the player's hand instead of being cast
     /// (CR 701.57a). Emitted when the player declines to cast the discovered card,
     /// or when the card cannot be legally cast. Unlike Cascade, Discover puts the
@@ -696,7 +617,6 @@ pub enum GameEvent {
         /// ObjectId of the card that was put into the player's hand.
         card_id: ObjectId,
     },
-
     // ── M9.4: Storm / spell copy events ──────────────────────────────────
     /// A spell was copied on the stack (CR 707.10, CR 702.40a).
     ///
@@ -711,7 +631,6 @@ pub enum GameEvent {
         /// The controller of the copy (usually the storm spell's caster).
         controller: PlayerId,
     },
-
     // ── Ward targeting events (CR 702.21a) ───────────────────────────────
     /// A battlefield permanent became the target of a spell or ability (CR 702.21a).
     ///
@@ -725,7 +644,6 @@ pub enum GameEvent {
         targeting_stack_id: ObjectId,
         targeting_controller: PlayerId,
     },
-
     // ── M9.4: Infinite loop detection (CR 104.4b) ────────────────────────
     /// The engine detected a mandatory infinite loop and the game is a draw.
     ///
@@ -736,7 +654,6 @@ pub enum GameEvent {
     /// Emitted when the same board state hash has been observed N times (threshold 3)
     /// during a mandatory-action sequence (SBA + trigger cycles with no player choices).
     LoopDetected { description: String },
-
     // ── M9.4: Scry event ──────────────────────────────────────────────────
     /// A player performed a scry action (CR 701.18).
     ///
@@ -744,7 +661,6 @@ pub enum GameEvent {
     /// of their library and rearranges them (deterministic fallback: top cards
     /// moved to bottom in ObjectId order).
     Scried { player: PlayerId, count: u32 },
-
     // ── Surveil event ─────────────────────────────────────────────────────
     /// A player performed a surveil action (CR 701.25).
     ///
@@ -752,7 +668,6 @@ pub enum GameEvent {
     /// of their library and puts some into the graveyard, rest on top.
     /// CR 701.25c: NOT emitted when surveilling 0.
     Surveilled { player: PlayerId, count: u32 },
-
     // ── Investigate event ─────────────────────────────────────────────────
     /// A player performed an investigate action (CR 701.16a).
     ///
@@ -760,7 +675,6 @@ pub enum GameEvent {
     /// Enables "whenever you investigate" triggers (future cards like
     /// Lonis, Cryptozoologist). NOT emitted when investigating 0.
     Investigated { player: PlayerId, count: u32 },
-
     // ── Amass event ───────────────────────────────────────────────────────
     /// A player performed an amass action (CR 701.47a).
     ///
@@ -774,7 +688,6 @@ pub enum GameEvent {
         /// Number of +1/+1 counters placed.
         count: u32,
     },
-
     // ── M9.4: Goaded event ────────────────────────────────────────────────
     /// A permanent was goaded (CR 701.38).
     ///
@@ -787,7 +700,6 @@ pub enum GameEvent {
         /// The player who goaded the creature.
         goading_player: PlayerId,
     },
-
     // ── Suspect events (CR 701.60) ────────────────────────────────────────
     /// A permanent was suspected (CR 701.60a).
     ///
@@ -809,7 +721,6 @@ pub enum GameEvent {
         /// The controller of the effect that removed the suspicion.
         controller: PlayerId,
     },
-
     // ── Miracle events (CR 702.94) ────────────────────────────────────────
     /// CR 702.94a: A card with miracle was drawn as the first card this turn.
     /// The player may choose to reveal it and trigger the miracle ability.
@@ -822,7 +733,6 @@ pub enum GameEvent {
         card_object_id: ObjectId,
         miracle_cost: crate::state::game_object::ManaCost,
     },
-
     // ── Dredge events (CR 702.52) ─────────────────────────────────────────
     /// One or more dredge cards are available in the player's graveyard and
     /// the player must choose whether to dredge one or draw normally (CR 702.52a).
@@ -833,7 +743,6 @@ pub enum GameEvent {
         player: PlayerId,
         options: Vec<(ObjectId, u32)>,
     },
-
     /// CR 702.52: A player dredged a card — milled N cards and returned the
     /// dredge card from graveyard to hand instead of drawing.
     ///
@@ -846,7 +755,6 @@ pub enum GameEvent {
         /// Number of cards milled as part of the dredge.
         milled: u32,
     },
-
     // ── Foretell events (CR 702.143) ─────────────────────────────────────
     /// A card was foretold -- exiled face-down from hand via the foretell special
     /// action (CR 702.143a / CR 116.2h). The {2} cost was paid.
@@ -861,7 +769,6 @@ pub enum GameEvent {
         /// New ObjectId in the exile zone.
         new_exile_id: ObjectId,
     },
-
     // ── Plot events (CR 702.170) ──────────────────────────────────────────
     /// CR 702.170a / CR 116.2k: A card was plotted -- exiled face-up from hand via
     /// the plot special action. The plot cost was paid.
@@ -876,7 +783,6 @@ pub enum GameEvent {
         /// New ObjectId in the exile zone.
         new_exile_id: ObjectId,
     },
-
     // ── Suspend events (CR 702.62) ────────────────────────────────────────
     /// CR 702.62a / CR 116.2f: A card was exiled from hand via the suspend special
     /// action. The suspend cost was paid and the card was exiled with N time counters.
@@ -892,7 +798,6 @@ pub enum GameEvent {
         /// Number of time counters placed on the card.
         time_counters: u32,
     },
-
     // ── Ascend event (CR 702.131) ─────────────────────────────────────────
     /// CR 702.131: A player gained the city's blessing designation.
     ///
@@ -900,7 +805,6 @@ pub enum GameEvent {
     /// the player controls 10+ permanents. The city's blessing is permanent --
     /// once gained, it is never removed (CR 702.131c).
     CitysBlessingGained { player: PlayerId },
-
     // ── Connive event (CR 701.50) ─────────────────────────────────────────
     /// CR 701.50b: A permanent connived. Emitted after the draw/discard/counter
     /// sequence completes, even if some or all of those actions were impossible.
@@ -914,7 +818,6 @@ pub enum GameEvent {
         /// left the battlefield, or draw/discard was impossible).
         counters_placed: u32,
     },
-
     // ── Regeneration events (CR 701.19) ──────────────────────────────────
     /// A regeneration shield was created on a permanent (CR 701.19a).
     ///
@@ -928,7 +831,6 @@ pub enum GameEvent {
         /// The controller who created the shield.
         controller: PlayerId,
     },
-
     /// A permanent was regenerated -- destruction was replaced (CR 701.19a/614.8).
     ///
     /// Emitted when a regeneration shield intercepts destruction. The permanent
@@ -940,7 +842,6 @@ pub enum GameEvent {
         /// The shield that was consumed.
         shield_id: ReplacementId,
     },
-
     // ── Umbra Armor event (CR 702.89a) ─────────────────────────────────────
     /// Umbra armor replacement applied -- an Aura was destroyed to save the enchanted permanent.
     ///
@@ -954,7 +855,6 @@ pub enum GameEvent {
         /// The Aura that was destroyed to save it (now in graveyard).
         aura_id: ObjectId,
     },
-
     // ── Hideaway event (CR 702.75a) ────────────────────────────────────────
     /// A card was exiled face-down by a Hideaway ETB trigger (CR 702.75a).
     ///
@@ -972,7 +872,6 @@ pub enum GameEvent {
         /// Number of cards put back on the bottom of the library.
         remaining_count: u32,
     },
-
     // ── Echo events (CR 702.30) ───────────────────────────────────────────
     /// CR 702.30a: An echo trigger has resolved. The controller must choose
     /// whether to pay the echo cost or sacrifice the permanent.
@@ -983,7 +882,6 @@ pub enum GameEvent {
         permanent: ObjectId,
         cost: crate::state::game_object::ManaCost,
     },
-
     /// CR 702.30a: A player paid the echo cost for a permanent.
     ///
     /// Emitted when the player sends `Command::PayEcho { pay: true }` and
@@ -993,7 +891,6 @@ pub enum GameEvent {
         player: PlayerId,
         permanent: ObjectId,
     },
-
     // ── Cumulative Upkeep events (CR 702.24) ─────────────────────────────────
     /// CR 702.24a: A cumulative upkeep trigger has resolved. The age counter
     /// has been added. The controller must choose whether to pay the total
@@ -1008,14 +905,12 @@ pub enum GameEvent {
         /// Number of age counters currently on the permanent (after adding one).
         age_counter_count: u32,
     },
-
     /// CR 702.24a: A player paid the cumulative upkeep cost for a permanent.
     CumulativeUpkeepPaid {
         player: PlayerId,
         permanent: ObjectId,
         age_counter_count: u32,
     },
-
     // ── Recover events (CR 702.59) ────────────────────────────────────────────
     /// CR 702.59a: A recover trigger has resolved. The controller must choose
     /// whether to pay the recover cost or exile the card.
@@ -1026,7 +921,6 @@ pub enum GameEvent {
         recover_card: ObjectId,
         cost: crate::state::game_object::ManaCost,
     },
-
     /// CR 702.59a: A player paid the recover cost for a card and it was
     /// returned from the graveyard to the player's hand.
     RecoverPaid {
@@ -1034,7 +928,6 @@ pub enum GameEvent {
         recover_card: ObjectId,
         new_hand_id: ObjectId,
     },
-
     /// CR 702.59a: A player declined to pay the recover cost. The card
     /// was exiled from the graveyard.
     RecoverDeclined {
@@ -1042,7 +935,6 @@ pub enum GameEvent {
         recover_card: ObjectId,
         new_exile_id: ObjectId,
     },
-
     // -- Proliferate event (CR 701.34) ------------------------------------------
     /// CR 701.34a: A player proliferated.
     ///
@@ -1058,7 +950,6 @@ pub enum GameEvent {
         /// Number of players that received additional counters.
         players_affected: u32,
     },
-
     // -- Phasing events (CR 702.26) -------------------------------------------
     /// CR 702.26a: Permanents phased out during the untap step.
     ///
@@ -1071,7 +962,6 @@ pub enum GameEvent {
         /// ObjectIds of permanents that phased out (direct + indirect).
         objects: Vec<ObjectId>,
     },
-
     /// CR 702.26a: Permanents phased in during the untap step.
     ///
     /// Phasing in is NOT a zone change (CR 702.26d) -- no ETB triggers fire.
@@ -1082,7 +972,6 @@ pub enum GameEvent {
         /// ObjectIds of permanents that phased in.
         objects: Vec<ObjectId>,
     },
-
     // ── Cipher events (CR 702.99) ─────────────────────────────────────────────
     /// CR 702.99a: A cipher card was exiled and encoded on a creature.
     ///
@@ -1099,7 +988,6 @@ pub enum GameEvent {
         /// The ObjectId of the creature the card is encoded on.
         creature: ObjectId,
     },
-
     // ── Mutate events (CR 702.140) ────────────────────────────────────────────
     /// CR 702.140d: A mutating creature spell successfully merged with its target.
     ///
@@ -1117,7 +1005,6 @@ pub enum GameEvent {
         /// The controller of the mutating spell (and the merged permanent's controller).
         player: PlayerId,
     },
-
     // ── Haunt events (CR 702.55) ──────────────────────────────────────────────
     /// CR 702.55a: A haunt card was exiled haunting a creature.
     ///
@@ -1133,7 +1020,6 @@ pub enum GameEvent {
         /// The ObjectId of the creature being haunted (on the battlefield).
         haunted_creature: ObjectId,
     },
-
     // ── Transform events (CR 701.27 / CR 712) ────────────────────────────────
     /// CR 701.27a: A double-faced permanent transformed (its other face is now up).
     ///
@@ -1148,7 +1034,6 @@ pub enum GameEvent {
         /// False if it transformed back to its front face.
         to_back_face: bool,
     },
-
     /// CR 730.1: The game's day/night designation changed.
     ///
     /// Emitted when it becomes day or night due to CR 730.2, or when a Daybound/Nightbound
@@ -1159,7 +1044,6 @@ pub enum GameEvent {
         /// The new day/night designation.
         now: crate::state::DayNight,
     },
-
     /// CR 702.167a: A permanent's craft ability was activated and the materials exiled.
     ///
     /// Emitted after the cost is paid (source + materials exiled). The craft ability
@@ -1174,7 +1058,6 @@ pub enum GameEvent {
         /// ObjectIds of the exiled material cards/permanents.
         exiled_materials: Vec<ObjectId>,
     },
-
     /// CR 702.37e / 702.168d / 701.40b / 701.58b: A face-down permanent was turned face up.
     ///
     /// The special action has resolved: the cost was paid, `face_down` is now false,
@@ -1189,7 +1072,6 @@ pub enum GameEvent {
         /// The permanent that was turned face up.
         permanent: ObjectId,
     },
-
     /// CR 708.9: A face-down permanent left the battlefield and must be revealed.
     ///
     /// All players must be shown the card's real identity when a face-down permanent
@@ -1207,7 +1089,6 @@ pub enum GameEvent {
         /// The real name of the card revealed to all players.
         card_name: String,
     },
-
     // ── Dungeon / Venture events (CR 309, CR 701.49, CR 725) ─────────────────
     /// CR 309.5a / CR 701.49: A player's venture marker moved into a dungeon room.
     ///
@@ -1223,7 +1104,6 @@ pub enum GameEvent {
         /// The room index the venture marker moved to.
         room: crate::state::dungeon::RoomIndex,
     },
-
     /// CR 309.7: A player completed a dungeon (the dungeon was removed from the game).
     ///
     /// Emitted when the venture marker was on the bottommost room, the dungeon is removed,
@@ -1236,7 +1116,6 @@ pub enum GameEvent {
         /// Which dungeon was completed and removed.
         dungeon: crate::state::dungeon::DungeonId,
     },
-
     /// CR 725.2: A player took the initiative.
     ///
     /// Emitted when `Effect::TakeTheInitiative` resolves. The player who took
@@ -1247,7 +1126,6 @@ pub enum GameEvent {
         /// The player who now has the initiative.
         player: PlayerId,
     },
-
     /// CR 701.54a-c: The Ring tempted a player.
     ///
     /// Emitted after the ring level advances. Fires even when the player has no
@@ -1261,7 +1139,6 @@ pub enum GameEvent {
         /// The new ring level (1-4) after this temptation.
         new_level: u8,
     },
-
     /// CR 701.54a: A creature was chosen as a player's ring-bearer.
     ///
     /// Emitted after `RingTempted` when a creature is available to be chosen.
@@ -1274,7 +1151,6 @@ pub enum GameEvent {
         /// The creature that became the ring-bearer.
         creature: crate::state::game_object::ObjectId,
     },
-
     /// CR 724.1/724.3: A player became the monarch.
     ///
     /// Emitted when a player becomes the monarch (from an effect or from
@@ -1298,7 +1174,6 @@ pub enum GameEvent {
         /// True = heads (win), false = tails (lose).
         result: bool,
     },
-
     /// CR 706.2: A die was rolled.
     ///
     /// Emitted by `Effect::RollDice` before executing the matched branch.
@@ -1312,7 +1187,6 @@ pub enum GameEvent {
         /// The result of the roll (1..=sides).
         result: u32,
     },
-
     /// An additional combat phase was added to the turn (CR 500.8).
     AdditionalCombatPhaseCreated {
         /// The player whose turn is gaining the extra phase.
@@ -1320,7 +1194,6 @@ pub enum GameEvent {
         /// Whether an additional main phase follows the extra combat.
         followed_by_main: bool,
     },
-
     /// CR 707.2: A permanent became a copy of another permanent.
     ///
     /// Emitted by `Effect::BecomeCopyOf` when the Layer 1 copy effect is registered.
@@ -1332,7 +1205,6 @@ pub enum GameEvent {
         /// The permanent it became a copy of.
         source: crate::state::game_object::ObjectId,
     },
-
     /// CR 114.2: A player gets an emblem with abilities.
     ///
     /// Emitted by `Effect::CreateEmblem` when the emblem GameObject is placed
@@ -1346,7 +1218,6 @@ pub enum GameEvent {
         object_id: crate::state::game_object::ObjectId,
     },
 }
-
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.
     ///

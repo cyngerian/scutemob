@@ -2,23 +2,17 @@
 //!
 //! These exist so GameState can compile with all fields from the architecture
 //! doc. Each type will be fully fleshed out in its respective milestone.
-
-use serde::{Deserialize, Serialize};
-
 use super::game_object::{ManaCost, ObjectId};
 use super::player::PlayerId;
 use super::stack::TriggerData;
-
+use serde::{Deserialize, Serialize};
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
-
 /// A delayed trigger waiting for a condition (CR 603.7). Implemented in M3.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DelayedTrigger {
     pub source: ObjectId,
 }
-
 // ReplacementEffect has moved to `state/replacement_effect.rs` (M8).
-
 /// Discriminant for PendingTrigger — replaces per-trigger boolean fields.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PendingTriggerKind {
@@ -190,7 +184,6 @@ pub enum PendingTriggerKind {
     RingCombatDamage,
     // Add new trigger kinds here as abilities are implemented
 }
-
 /// A triggered ability queued to go on the stack (CR 603.3).
 ///
 /// Collected after each event in `GameState::pending_triggers`; placed on
@@ -348,7 +341,6 @@ pub struct PendingTrigger {
     #[serde(skip)]
     pub data: Option<TriggerData>,
 }
-
 impl PendingTrigger {
     /// Construct a PendingTrigger with all Option fields as `None` and default values.
     ///
@@ -393,20 +385,15 @@ impl PendingTrigger {
         }
     }
 }
-
 impl PendingTriggerKind {
     /// Default constructor for serde skip fields.
     pub fn normal_default() -> PendingTriggerKind {
         PendingTriggerKind::Normal
     }
 }
-
 // StackObject has moved to `state/stack.rs` (M3-A).
-
 // CombatState has moved to `state/combat.rs` (M6).
-
 // GameEvent has moved to crate::rules::events (M2).
-
 /// Which triggers are doubled by a `TriggerDoubler` (CR 603.2d).
 ///
 /// Used to filter which pending triggers get additional copies queued when
@@ -427,7 +414,6 @@ pub enum TriggerDoublerFilter {
     /// is the triggering event.
     CreatureDeath,
 }
-
 /// A Panharmonicon-style trigger-doubling effect (CR 603.2d).
 ///
 /// When a trigger that matches the filter would be queued, it is queued an
@@ -447,7 +433,6 @@ pub struct TriggerDoubler {
     /// How many additional times the trigger fires (usually 1).
     pub additional_triggers: u32,
 }
-
 /// Which permanents have their ETB triggered abilities suppressed by an `ETBSuppressor`.
 ///
 /// CR 614.16a: A "creatures entering the battlefield don't cause abilities to trigger"
@@ -462,7 +447,6 @@ pub enum ETBSuppressFilter {
     /// Suppresses ETB triggered abilities on all permanents.
     AllPermanents,
 }
-
 /// A Torpor Orb-style ETB trigger suppressor (CR 614.16a).
 ///
 /// When a permanent matching the filter enters the battlefield, its ETB triggered
@@ -477,9 +461,7 @@ pub struct ETBSuppressor {
     /// Which entering permanents are affected.
     pub filter: ETBSuppressFilter,
 }
-
 // ── Game Restrictions (PB-18: Stax / Action Restrictions) ────────────────────
-
 /// What kind of restriction is imposed on the game (CR 604).
 ///
 /// Restrictions are static abilities that prevent players from taking certain actions.
@@ -492,33 +474,27 @@ pub enum GameRestriction {
     /// (Rule of Law, Archon of Emeria, Eidolon of Rhetoric)
     /// CR 101.2: restriction overrides permission.
     MaxSpellsPerTurn { max: u32 },
-
     /// "Your opponents can't cast spells during your turn."
     /// (Dragonlord Dromoka, Grand Abolisher, Myrel)
     /// The controller's opponents are restricted during the controller's turn.
     OpponentsCantCastDuringYourTurn,
-
     /// "Your opponents can't cast spells or activate abilities of artifacts,
     /// creatures, or enchantments [during your turn]."
     /// (Grand Abolisher, Myrel — superset of OpponentsCantCastDuringYourTurn)
     OpponentsCantCastOrActivateDuringYourTurn,
-
     /// "Your opponents can't cast spells from anywhere other than their hands."
     /// (Drannith Magistrate)
     OpponentsCantCastFromNonHand,
-
     /// "Creatures can't attack you unless their controller pays {N} for each."
     /// (Propaganda, Ghostly Prison)
     CantAttackYouUnlessPay {
         cost_per_creature: super::game_object::ManaCost,
     },
-
     /// "Activated abilities of artifacts can't be activated."
     /// (Collector Ouphe, Stony Silence)
     /// Mana abilities of artifacts are also restricted (CR 605.3b).
     ArtifactAbilitiesCantBeActivated,
 }
-
 /// An active restriction in the game, registered from a static ability of a
 /// permanent on the battlefield.
 ///

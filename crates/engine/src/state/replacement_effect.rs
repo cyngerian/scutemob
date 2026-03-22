@@ -9,19 +9,15 @@
 //! - CR 614.15: Self-replacement effects apply before other replacements.
 //! - CR 615.7: Prevention shields reduce by the amount of damage prevented.
 //! - CR 616.1: When multiple replacements apply, affected player chooses order.
-
-use serde::{Deserialize, Serialize};
-
 use super::continuous_effect::EffectDuration;
 use super::game_object::ObjectId;
 use super::player::{CardId, PlayerId};
 use super::types::{CardType, CounterType, SubType};
 use super::zone::ZoneType;
-
+use serde::{Deserialize, Serialize};
 /// Unique identifier for a replacement effect instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ReplacementId(pub u64);
-
 /// Which event a replacement effect watches for (CR 614.1).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReplacementTrigger {
@@ -71,7 +67,6 @@ pub enum ReplacementTrigger {
     /// Used by Tekuthal: "If you would proliferate, proliferate twice instead."
     WouldProliferate { player_filter: PlayerFilter },
 }
-
 /// What a replacement effect does when it applies (CR 614.6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReplacementModification {
@@ -143,7 +138,6 @@ pub enum ReplacementModification {
     /// Used by Tekuthal, Inquiry Dominus.
     DoubleProliferate,
 }
-
 /// Filters which objects a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ObjectFilter {
@@ -168,7 +162,6 @@ pub enum ObjectFilter {
     /// Bound at registration time with the controller's PlayerId.
     OwnedByOpponentsOf(PlayerId),
 }
-
 /// Filters which players a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlayerFilter {
@@ -179,7 +172,6 @@ pub enum PlayerFilter {
     /// Matches any opponent of a specific player.
     OpponentsOf(PlayerId),
 }
-
 /// Filters which damage targets a prevention/replacement applies to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DamageTargetFilter {
@@ -199,7 +191,6 @@ pub enum DamageTargetFilter {
     /// The PlayerId is the Twinflame Tyrant controller; opponents are all other players.
     ToOpponentOrTheirPermanent(PlayerId),
 }
-
 /// A replacement or prevention effect active in the game (CR 614, 615).
 ///
 /// Replacement effects intercept events as they happen and modify them
@@ -226,7 +217,6 @@ pub struct ReplacementEffect {
     /// What this effect does when it applies.
     pub modification: ReplacementModification,
 }
-
 /// Tracks a zone change that is waiting for the affected player to choose
 /// which replacement effect to apply (CR 616.1).
 ///

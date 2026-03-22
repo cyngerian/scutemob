@@ -3,18 +3,14 @@
 //! Continuous effects modify game objects and apply in a strict order across eight
 //! layers (CR 613.1). Within each layer, effects apply in timestamp order (CR 613.7)
 //! unless a dependency relationship overrides the timestamp (CR 613.8).
-
-use im::OrdSet;
-use serde::{Deserialize, Serialize};
-
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::types::{CardType, Color, KeywordAbility, SubType, SuperType};
-
+use im::OrdSet;
+use serde::{Deserialize, Serialize};
 /// Unique identifier for a continuous effect instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EffectId(pub u64);
-
 /// Which layer a continuous effect applies in (CR 613.1).
 ///
 /// Effects must be applied in layer order (Copy → Control → Text → TypeChange →
@@ -42,7 +38,6 @@ pub enum EffectLayer {
     /// Layer 7d: P/T-switching effects (CR 613.4d).
     PtSwitch,
 }
-
 /// How long a continuous effect lasts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectDuration {
@@ -59,7 +54,6 @@ pub enum EffectDuration {
     /// Used for soulbond "as long as paired" grants registered at SoulbondTrigger resolution.
     WhilePaired(ObjectId, ObjectId),
 }
-
 /// Which objects a continuous effect applies to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectFilter {
@@ -129,7 +123,6 @@ pub enum EffectFilter {
     /// where only creatures of a specific type benefit.
     OtherCreaturesYouControlWithSubtype(SubType),
 }
-
 /// What a continuous effect does when applied.
 ///
 /// Each variant corresponds to a specific type of game modification within a layer.
@@ -138,11 +131,9 @@ pub enum LayerModification {
     // --- Layer 1: Copy effects ---
     /// Sets the copiable values of the object to those of another object (CR 707).
     CopyOf(ObjectId),
-
     // --- Layer 2: Control-changing ---
     /// Changes the controller of a permanent to a specific player (CR 613.1b).
     SetController(PlayerId),
-
     // --- Layer 4: Type-changing ---
     /// Sets the complete type line: replaces all supertypes, card types, and subtypes.
     ///
@@ -171,7 +162,6 @@ pub enum LayerModification {
     /// ("creatures you control are every creature type").
     /// No payload needed — the engine's `ALL_CREATURE_TYPES` constant supplies the list.
     AddAllCreatureTypes,
-
     // --- Layer 5: Color-changing ---
     /// Replaces all colors with the given set.
     SetColors(OrdSet<Color>),
@@ -179,7 +169,6 @@ pub enum LayerModification {
     AddColors(OrdSet<Color>),
     /// Makes the object colorless (removes all colors).
     BecomeColorless,
-
     // --- Layer 6: Ability-adding/removing ---
     /// Grants a single keyword ability (CR 702).
     AddKeyword(KeywordAbility),
@@ -190,7 +179,6 @@ pub enum LayerModification {
     RemoveAllAbilities,
     /// Removes a specific keyword ability.
     RemoveKeyword(KeywordAbility),
-
     // --- Layer 7a: P/T from characteristic-defining abilities ---
     /// Sets P/T via a CDA to fixed values.
     ///
@@ -203,13 +191,11 @@ pub enum LayerModification {
     /// Used by Opalescence-style effects: "has base power and toughness each equal
     /// to its mana value." The mana value is taken from the object's printed mana cost.
     SetPtToManaValue,
-
     // --- Layer 7b: P/T-setting effects ---
     /// Sets base power and toughness to specific values (CR 613.4b).
     ///
     /// Used by Humility ("All creatures have base power and toughness 1/1").
     SetPowerToughness { power: i32, toughness: i32 },
-
     // --- Layer 7c: P/T-modifying effects ---
     /// Adds to power only (e.g., "+1/+0" effects).
     ModifyPower(i32),
@@ -217,12 +203,10 @@ pub enum LayerModification {
     ModifyToughness(i32),
     /// Adds equally to both power and toughness (e.g., "+2/+2" effects).
     ModifyBoth(i32),
-
     // --- Layer 7d: P/T-switching ---
     /// Switches power and toughness values (e.g., Inside Out, Behind the Scenes).
     SwitchPowerToughness,
 }
-
 /// A single continuous effect active in the game (CR 611).
 ///
 /// Continuous effects apply to game objects through the layer system (CR 613).
