@@ -18,8 +18,23 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // TODO: Triggered — When this land enters, return a land you control to its owner's hand.
-            // DSL gap: targeted_trigger (ETB trigger cannot select a land target).
+            // CR 603.1: When this land enters, return a land you control to its owner's hand.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                    },
+                    controller_override: None,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Land),
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+            },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {

@@ -1,12 +1,6 @@
 // Shrieking Drake — {U}, Creature — Drake 1/1
 // "Flying
 // When this creature enters, return a creature you control to its owner's hand."
-//
-// Flying is implemented.
-//
-// TODO: DSL gap — "return a creature you control to its owner's hand" is an ETB triggered
-// ability that bounces a creature you control. No Effect::ReturnToHand targeting a creature
-// you control exists in the current DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,6 +14,22 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            // CR 603.1: When this creature enters, return a creature you control to its owner's hand.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                    },
+                    controller_override: None,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+            },
         ],
         ..Default::default()
     }
