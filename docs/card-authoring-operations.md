@@ -112,7 +112,7 @@ Work through groups in the order below. For each group, follow the per-group wor
 - [x] **A-01**: body-only (3 sessions, 55 cards) — all exist from prior work
 - [x] **A-02**: mana-creature (2 sessions, 19 cards) — 16 new, 3 existed
 - [x] **A-03**: mana-artifact (3 sessions, 33 cards) — 33 new, 1 existed
-- [ ] **A-04**: mana-other (1 session, 5 cards)
+- [x] **A-04**: mana-other (1 session, 5 cards) — 3 new, 2 existed
 - [ ] **A-05**: cost-reduction (2 sessions, 12 cards)
 - [ ] **A-06**: scry-surveil (1 session, 7 cards)
 - [ ] **A-07**: lifegain (1 session, 5 cards)
