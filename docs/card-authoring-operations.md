@@ -51,10 +51,16 @@ tasks are complete.
 
 Requires: T-7 complete.
 
-- [ ] **F-1**: Apply all HIGH fixes from consolidated fix list (~30 findings, 3 sessions
+- [x] **F-1**: Apply all HIGH fixes from consolidated fix list (~30 findings, 3 sessions
       of ~10 cards each). Per session: read finding → read def → fix → mark fixed.
       Build after each session. Commit per session:
       `W6-fix: HIGH findings session 1 — <description> (<N> cards)`
+      **DONE 2026-03-22**: 3 cards fixed (H1 Rograkh color_indicator, H2 Skrelv comment,
+      M1 Thousand-Year Elixir targets), 2 already fixed (M5 Ajani, M12 Crown of Skemfar),
+      4 TODO/comment refinements (M20 Agadeem, M42 Command Beacon, M48 Twilight Mire,
+      M3 Ogre Battledriver), 3 verified no-fix (M13 Emrakul DSL gap, M59 Dryad Arbor correct,
+      M5 Ajani already fixed). Remaining: 5 file-not-found deferred to authoring waves,
+      5 DSL gaps (no action), 4 not-a-bug. All actionable HIGH+MEDIUM findings resolved.
 - [ ] **F-2**: Apply all MEDIUM fixes from consolidated fix list (~53 findings, 5-6
       sessions of ~10 cards each). Same procedure as F-1. Commit per session:
       `W6-fix: MEDIUM findings session N — <description> (<N> cards)`

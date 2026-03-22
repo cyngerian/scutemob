@@ -21,7 +21,8 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // TODO: {T}, Sacrifice: Put your commander into your hand from the command zone
-            // — Cost::SacrificeSelf available; blocked on command-zone-to-hand effect
+            // — Cost::Sequence([Cost::Tap, Cost::SacrificeThis]) is expressible;
+            // blocked on Effect to move a card from command zone to hand
         ],
         ..Default::default()
     }

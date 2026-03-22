@@ -56,10 +56,10 @@ Source: 73 review files (20 Phase 1, 38 Wave 002, 15 Wave 003)
 | H28 | Battle Squadron | `defs/battle_squadron.rs` | `*/*` encoded as Some(0)/Some(0). | w002-b29 | **Already fixed** | Lines 12-13 have `power: None, toughness: None` |
 | H29 | Cavern of Souls | `defs/cavern_of_souls.rs` | Missing {T}: Add {C}. | w003-b03 | **Already fixed** | Lines 26-31 have colorless tap ability |
 
-### HIGH Summary: 8 still need attention
-- **1 card fix** (H1: Rograkh color indicator)
-- **1 comment fix** (H2: Skrelv misleading comment)
-- **2 file-not-found** (H6: Ink-Eyes, H7: Dirge Bat — need investigation)
+### HIGH Summary: 0 actionable remain
+- ~~1 card fix~~ (H1: Rograkh color indicator) — **FIXED 2026-03-22**
+- ~~1 comment fix~~ (H2: Skrelv misleading comment) — **FIXED 2026-03-22**
+- **2 file-not-found** (H6: Ink-Eyes, H7: Dirge Bat — deferred to authoring waves)
 - **2 DSL gap** (H22: Blazemire, H26: Wastewood — correctly empty, no action)
 - **22 already fixed** by PB work
 
@@ -111,12 +111,12 @@ Source: 73 review files (20 Phase 1, 38 Wave 002, 15 Wave 003)
 | M59 | Dryad Arbor | `defs/dryad_arbor.rs` | Redundant explicit Forest mana ability. | p1-b12 | **Needs verification** | If engine derives mana from basic land subtypes, this is a double-mana bug. If not, it's correct. |
 | M60 | Connive // Concoct | `defs/connive.rs` | Missing TODO for hybrid mana gap. | p1-b17 | **Already fixed** | Now uses proper `HybridMana` — no gap |
 
-### MEDIUM Summary: 11 still need attention
-- **2 card fixes** (M1: Thousand-Year Elixir targets, M12: Crown of Skemfar Reach grant)
-- **3 comment/TODO fixes** (M20: Agadeem's X cost TODO, M42: Command Beacon TODO, M48: Twilight Mire TODO)
-- **2 need verification** (M5: Ajani CMC, M13: Emrakul protection, M59: Dryad Arbor mana)
-- **1 partially valid** (M3: Ogre Battledriver TODO)
-- **3 file-not-found** (M52-M54: Hydroelectric Lab, Kabira Plateau, Coil and Catch)
+### MEDIUM Summary: 0 actionable remain
+- ~~2 card fixes~~ (M1: Thousand-Year Elixir targets, M12: Crown of Skemfar Reach grant) — **M1 FIXED 2026-03-22, M12 already fixed**
+- ~~3 comment/TODO fixes~~ (M20: Agadeem, M42: Command Beacon, M48: Twilight Mire) — **FIXED 2026-03-22**
+- ~~3 need verification~~ (M5: Ajani already fixed, M13: Emrakul confirmed DSL gap, M59: Dryad Arbor correct) — **RESOLVED 2026-03-22**
+- ~~1 partially valid~~ (M3: Ogre Battledriver TODO refined) — **FIXED 2026-03-22**
+- **3 file-not-found** (M52-M54: Hydroelectric Lab, Kabira Plateau, Coil and Catch — deferred to authoring waves)
 - **3 DSL gaps** (M10: Endurance, M11: Grief, M14: Grateful Apparition)
 - **4 not a bug** (M4, M44, M49, M55)
 - **24+ already fixed**

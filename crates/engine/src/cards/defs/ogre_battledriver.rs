@@ -2,9 +2,9 @@
 // Whenever another creature you control enters, that creature gets +2/+0 and gains haste
 // until end of turn.
 //
-// TODO: DSL gap — "that creature" references the specific triggering creature.
-// WheneverCreatureEntersBattlefield fires, but the effect needs EffectTarget::TriggeringCreature
-// to pump/grant haste to that specific entering creature. TriggeringCreature is not in DSL.
+// TODO: DSL gap — ETBTriggerFilter (creature_only, controller_you, exclude_self) exists for
+// filtering which ETBs trigger this, but EffectTarget::TriggeringCreature is not in DSL.
+// The effect needs to pump/grant haste to the specific entering creature, not all creatures.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,8 +17,8 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
-            // TODO: WheneverCreatureEntersBattlefield — effect targets triggering creature
-            // (EffectTarget::TriggeringCreature not in DSL; +2/+0 + haste until EOT)
+            // TODO: WheneverCreatureEntersBattlefield trigger — ETBTriggerFilter available,
+            // but EffectTarget::TriggeringCreature not in DSL (+2/+0 + haste until EOT)
         ],
         ..Default::default()
     }

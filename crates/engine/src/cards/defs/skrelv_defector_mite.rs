@@ -5,7 +5,7 @@
 // hexproof from that color until end of turn. It can't be blocked by creatures of that
 // color this turn. ({W/P} can be paid with either {W} or 2 life.)
 //
-// Toxic 1 implemented. CantBlock has no KeywordAbility variant (DSL gap).
+// Toxic 1 implemented. CantBlock is a DSL gap (no KeywordAbility variant); Skrelv's can't-block is omitted.
 //
 // TODO: DSL gap — the activated ability requires:
 // 1. Phyrexian mana cost ({W/P}) — NOW representable via ManaCost.phyrexian (PB-9).

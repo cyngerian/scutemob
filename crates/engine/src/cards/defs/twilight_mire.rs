@@ -20,8 +20,8 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G}.
-            // TODO: Triple-choice mana output not expressible with current DSL.
-            // Hybrid activation cost is correct; defaulting output to {B}{G}.
+            // TODO: Multi-option mana output (choose one of 3 color combos) not expressible.
+            // Hybrid activation cost is correct; defaulting output to {B}{G} as approximation.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {

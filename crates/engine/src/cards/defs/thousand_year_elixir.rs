@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: None,
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
             },
         ],

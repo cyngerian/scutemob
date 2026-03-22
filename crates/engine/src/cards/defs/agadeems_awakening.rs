@@ -1,4 +1,8 @@
-// Agadeem's Awakening // Agadeem, the Undercrypt — Return from your graveyard to the battlefield any number of target cre
+// Agadeem's Awakening // Agadeem, the Undercrypt — {X}{B}{B}{B} Sorcery
+// Return from your graveyard to the battlefield any number of target creature cards
+// that each have a different mana value X or less.
+// TODO: X cost spell — needs X mana cost support + multi-target graveyard selection + MV filter.
+// CMC 3 is correct for non-stack zones (CR 202.3e).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
