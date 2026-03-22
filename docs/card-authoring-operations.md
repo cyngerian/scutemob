@@ -124,7 +124,7 @@ Work through groups in the order below. For each group, follow the per-group wor
 
 - [x] **A-11**: removal-destroy (5 sessions, 52 new + 4 existed) — DSL ext: `DestroyPermanent.cant_be_regenerated`
 - [x] **A-12**: removal-exile (2 sessions, 13 new; 1 session blocked)
-- [ ] **A-13**: removal-damage-target (2 sessions, 21 cards)
+- [x] **A-13**: removal-damage-target (3 sessions, 23 new cards)
 - [ ] **A-14**: removal-damage-each (2 sessions, 17 cards)
 - [ ] **A-15**: removal-bounce (1 session, 7 cards)
 - [ ] **A-16**: removal-minus (1 session, 4 cards)

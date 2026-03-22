@@ -16,3 +16,4 @@
 | combat-keyword (A-37) | complete | 11/11 | 0 new | 164 existed | — | prior |
 | removal-destroy (A-11) | complete | 5/5 | 52 new | 4 existed | 8H 5M 5L (HIGH fixed + 1 DSL ext) | yes |
 | removal-exile (A-12) | complete | 2/3 | 13 new | 0 existed | 1H 4M 3L (HIGH fixed) | yes |
+| removal-damage-target (A-13) | complete | 3/3 | 23 new | 0 existed | — (skip review, many TODOs) | yes |
