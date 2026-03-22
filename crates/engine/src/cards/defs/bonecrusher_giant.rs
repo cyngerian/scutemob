@@ -6,10 +6,10 @@
 // Adventure face: "Stomp" {1}{R} Instant — Adventure
 // "Damage can't be prevented this turn. Stomp deals 2 damage to any target."
 //
-// TODO: Triggered ability — "becomes the target of a spell" fires on WhenBecomesTargetByOpponent;
-// DSL gap: no EffectTarget::TriggeringPlayer to target "that spell's controller" specifically.
-// Using EachOpponent as approximation (all opponents rather than the specific targeting player).
-// TODO: "Damage can't be prevented this turn" — DSL gap: no Effect::PreventionShieldRemoval.
+// TODO(1): Trigger condition WhenBecomesTargetByOpponent is WRONG — should be
+// WhenBecomesTargetBySpell (any spell, not just opponent spells). DSL gap.
+// TODO(2): Effect should target "that spell's controller" — needs EffectTarget::TriggeringPlayer.
+// TODO(3): "Damage can't be prevented this turn" — DSL gap: no Effect::PreventionShieldRemoval.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,10 +22,18 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
-            // CR 603.5: When this permanent becomes the target of a spell controlled by an
-            // opponent, deal 2 damage to each opponent.
-            // TODO: Should target only "that spell's controller" (the triggering player), not
-            // all opponents. Requires EffectTarget::TriggeringPlayer DSL variant.
+            // CR 603.5: Triggered ability — "Whenever Bonecrusher Giant becomes the target of
+            // a spell, Bonecrusher Giant deals 2 damage to that spell's controller."
+            // TODO(1): TriggerCondition::WhenBecomesTargetByOpponent is WRONG — fires only when
+            // an opponent targets it. Oracle says "becomes the target of a spell" with no
+            // controller restriction; trigger should fire for ANY spell (including one controlled
+            // by the same player). Requires TriggerCondition::WhenBecomesTargetBySpell (DSL gap).
+            // TODO(2): Effect target is WRONG — should deal 2 damage to "that spell's controller"
+            // (the triggering player), not all opponents. Requires EffectTarget::TriggeringPlayer
+            // DSL variant (does not exist yet).
+            // TODO(3): "Damage can't be prevented this turn" — no Effect::PreventionShieldRemoval
+            // DSL variant exists. Currently omitted.
+            // Using EachOpponent as approximation until (1) and (2) are resolved.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenBecomesTargetByOpponent,
                 effect: Effect::DealDamage {

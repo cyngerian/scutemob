@@ -132,6 +132,17 @@ pub trait LegalActionProvider: Send + Sync {
 /// - Enrage/Alliance (B12), Collect Evidence (B13), Blood tokens/Reconfigure (B14):
 ///   all passive or handled via existing `ActivateAbility`/`CastSpell` paths — no new
 ///   `LegalAction` variants needed.
+///
+/// **PB-22 S7 (2026-03-21) — Adventure gap (deferred to W2)**:
+/// TODO(W2): Adventure casting paths are not offered to the bot. Two gaps:
+///   (a) `CastAsAdventure { card: ObjectId }` — cast a card in hand as its Adventure half
+///       (CR 715.3); requires checking `adventure_face.is_some()` on CardDefinition and
+///       comparing mana against the adventure_face cost. The engine supports
+///       `alt_cost: Some(AltCostKind::Adventure)` on CastSpell; bot never sets it.
+///   (b) `CastFromAdventureExile { card: ObjectId }` — cast a creature from adventure exile
+///       (CR 715.3d); requires checking `adventure_exiled_by == Some(player)` on GameObject.
+///   Both gaps are consistent with other alt-cost keywords (Spectacle, Surge, etc.) where
+///   the bot always uses `alt_cost: None`. Deferred to W2 TUI/simulator improvements.
 pub struct StubProvider;
 
 impl LegalActionProvider for StubProvider {

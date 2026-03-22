@@ -9,7 +9,9 @@
 //! values of the object being copied AFTER all copy effects on that object have
 //! been applied in layer 1.  This means a Clone copying a Clone-that-copied-a-Bear
 //! becomes a Bear — not a Clone.
-
+use super::layers::calculate_characteristics;
+use crate::rules::events::GameEvent;
+use crate::state::continuous_effect::LayerModification;
 use crate::state::{
     continuous_effect::{ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer},
     error::GameStateError,
@@ -20,17 +22,10 @@ use crate::state::{
     zone::ZoneId,
     GameState,
 };
-
-use super::layers::calculate_characteristics;
-
-use crate::rules::events::GameEvent;
-use crate::state::continuous_effect::LayerModification;
-
 // Maximum recursion depth for clone-chain resolution (CR 707.3).
 // In practice more than 5 nested copies is impossible in a real game,
 // but the limit prevents potential infinite loops from bad state.
 const MAX_COPY_CHAIN_DEPTH: u32 = 16;
-
 /// CR 707.2: Returns the copiable values of `source_id`.
 ///
 /// The copiable values are the printed characteristics of the source object,
@@ -43,7 +38,6 @@ const MAX_COPY_CHAIN_DEPTH: u32 = 16;
 pub fn get_copiable_values(state: &GameState, source_id: ObjectId) -> Option<Characteristics> {
     get_copiable_values_inner(state, source_id, 0)
 }
-
 /// Internal recursive helper for clone-chain resolution.
 ///
 /// `depth` guards against hypothetical infinite loops in malformed state.
@@ -59,12 +53,9 @@ fn get_copiable_values_inner(
             .get(&source_id)
             .map(|obj| obj.characteristics.clone());
     }
-
     let obj = state.objects.get(&source_id)?;
-
     // Start with the object's base (printed) characteristics.
     let mut chars = obj.characteristics.clone();
-
     // Find all Layer 1 (Copy) effects that apply to this object (CR 707.3).
     // Apply them in timestamp order (no dependency ordering needed in layer 1).
     let mut copy_effects: Vec<&ContinuousEffect> = state
@@ -72,10 +63,8 @@ fn get_copiable_values_inner(
         .iter()
         .filter(|e| e.layer == EffectLayer::Copy && copy_effect_applies_to(state, e, source_id))
         .collect();
-
     // Sort by timestamp (earliest first = applied first).
     copy_effects.sort_by_key(|e| e.timestamp);
-
     for ce in copy_effects {
         if let LayerModification::CopyOf(target_id) = ce.modification {
             // Recursively resolve the target's copiable values (CR 707.3).
@@ -104,10 +93,8 @@ fn get_copiable_values_inner(
             }
         }
     }
-
     Some(chars)
 }
-
 /// Returns true if a Layer 1 copy effect applies to the given object.
 ///
 /// Uses `EffectFilter::SingleObject` semantics — copy effects target specific objects.
@@ -127,7 +114,6 @@ fn copy_effect_applies_to(
         _ => false,
     }
 }
-
 /// CR 707.10: Create a copy of a spell on the stack.
 ///
 /// A copy of a spell on the stack has the same characteristics as the original:
@@ -155,11 +141,9 @@ pub fn copy_spell_on_stack(
         .find(|s| s.id == stack_object_id)
         .ok_or(GameStateError::ObjectNotFound(stack_object_id))?
         .clone();
-
     // CR 707.10: The copy has the same characteristics as the original.
     // Assign a new unique ID for the copy stack object.
     let copy_id = state.next_object_id();
-
     // CR 707.10: Copies have no physical card — is_copy = true signals resolution
     // to skip the zone-move of the source card. The copy still executes the same
     // effect as the original.
@@ -220,6 +204,8 @@ pub fn copy_spell_on_stack(
         was_casualty_paid: false,
         // CR 702.148a: copies are not cleave casts.
         was_cleaved: false,
+        // CR 715.3c: Copies of an Adventure spell are also Adventures — propagate from original.
+        was_cast_as_adventure: original.was_cast_as_adventure,
         // was_entwined, escalate_modes_paid: REMOVED — propagated via additional_costs
         // CR 702.47a: copies do not inherit spliced effects.
         spliced_effects: vec![],
@@ -250,19 +236,15 @@ pub fn copy_spell_on_stack(
             .cloned()
             .collect(),
     };
-
     // Push the copy onto the stack (above the original).
     state.stack_objects.push_back(copy);
-
     let event = GameEvent::SpellCopied {
         original_stack_id: stack_object_id,
         copy_stack_id: copy_id,
         controller,
     };
-
     Ok((copy_id, event))
 }
-
 /// CR 702.40a: Create N copies of a storm spell on the stack.
 ///
 /// Called when a spell with the Storm keyword resolves its storm trigger.
@@ -288,7 +270,6 @@ pub fn create_storm_copies(
     }
     events
 }
-
 /// CR 702.40a: Compute the storm count for the current caster.
 ///
 /// Storm count = number of OTHER spells cast before the storm spell this turn.
@@ -301,7 +282,6 @@ pub fn storm_count(state: &GameState, caster: PlayerId) -> u32 {
         .map(|p| p.spells_cast_this_turn.saturating_sub(1))
         .unwrap_or(0)
 }
-
 /// CR 702.85: Resolve cascade for the given spell.
 ///
 /// Cascade triggers when the cascade spell is cast. Resolution:
@@ -335,7 +315,6 @@ pub fn resolve_cascade(
     let mut events = Vec::new();
     let mut exiled_ids: Vec<ObjectId> = Vec::new();
     let mut cast_id: Option<ObjectId> = None;
-
     // Step 1–2: Exile cards one at a time from the top of the caster's library.
     loop {
         // Get top card of library (ordered zone: first element = top).
@@ -346,19 +325,16 @@ pub fn resolve_cascade(
             // (push_back appends; draw_card uses top() = last()).
             library.and_then(|z| z.top())
         };
-
         let Some(top_id) = top_card_id else {
             // Library empty: stop searching.
             break;
         };
-
         // Exile the top card.
         let (exile_id, _old) = match state.move_object_to_zone(top_id, ZoneId::Exile) {
             Ok(r) => r,
             Err(_) => break,
         };
         exiled_ids.push(exile_id);
-
         // Check if this is a qualifying card: nonland with mana value < spell_mana_value.
         // CR 702.85a: use the card's actual characteristics (applying continuous effects such
         // as Mycosynth Lattice or Trinisphere), falling back to raw characteristics if the
@@ -374,7 +350,6 @@ pub fn resolve_cascade(
                     .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
                     .unwrap_or(false)
             });
-
         let card_mv = calc_chars
             .as_ref()
             .and_then(|c| c.mana_cost.as_ref())
@@ -387,7 +362,6 @@ pub fn resolve_cascade(
                     .map(|mc| mc.mana_value())
                     .unwrap_or(0)
             });
-
         if !is_land && card_mv < spell_mana_value {
             // Found the qualifying card. Cast it for free (deterministic: always cast).
             // Step 3: Put it on the stack without paying mana cost.
@@ -402,7 +376,6 @@ pub fn resolve_cascade(
             };
             // Remove it from the exiled list (it was cast, not put on bottom).
             exiled_ids.pop();
-
             // Create a StackObject for the cascaded spell.
             // CR 702.85c: cascade IS a cast — it triggers "whenever you cast a spell".
             let stack_obj = StackObject {
@@ -446,6 +419,7 @@ pub fn resolve_cascade(
                 was_casualty_paid: false,
                 // CR 702.148a: cascade free-cast spells are not cleave casts.
                 was_cleaved: false,
+                was_cast_as_adventure: false,
                 // CR 702.47a: cascade free-cast spells have no spliced effects.
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
@@ -458,13 +432,11 @@ pub fn resolve_cascade(
                 additional_costs: vec![],
             };
             state.stack_objects.push_back(stack_obj);
-
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
             // Use saturating_add to match defensive overflow handling used elsewhere (CR 702.85).
             if let Some(ps) = state.players.get_mut(&caster) {
                 ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
             }
-
             events.push(GameEvent::SpellCast {
                 player: caster,
                 stack_object_id: stack_entry_id,
@@ -474,13 +446,11 @@ pub fn resolve_cascade(
                 player: caster,
                 card_id: stack_source_id,
             });
-
             cast_id = Some(stack_source_id);
             break;
         }
         // Non-qualifying card: continue to next card.
     }
-
     // Emit CascadeExiled for all cards that were exiled (not including the cast card).
     if !exiled_ids.is_empty() {
         events.insert(
@@ -491,7 +461,6 @@ pub fn resolve_cascade(
             },
         );
     }
-
     // Step 4: Put remaining exiled cards on the bottom of the library (CR 702.85a).
     // Deterministic order: sort by ObjectId (ascending) so placement is reproducible.
     // Each card is moved to position 0 (the front/bottom) of the library zone via
@@ -510,10 +479,8 @@ pub fn resolve_cascade(
             // This branch is unreachable in well-formed game state.
         }
     }
-
     (events, cast_id)
 }
-
 /// Resolve the Discover keyword action for one player (CR 701.57).
 ///
 /// CR 701.57a: Exile cards from the top of the specified player's library
@@ -545,7 +512,6 @@ pub fn resolve_discover(
     let mut events = Vec::new();
     let mut exiled_ids: Vec<ObjectId> = Vec::new();
     let mut result_id: Option<ObjectId> = None;
-
     // Step 1: Exile cards one at a time from the top of the player's library.
     // CR 701.57a: "Exile cards from the top of your library until you exile a
     // nonland card with mana value N or less."
@@ -556,19 +522,16 @@ pub fn resolve_discover(
             // top() returns the last element (push_back appends; top = last = drawn first)
             library.and_then(|z| z.top())
         };
-
         let Some(top_id) = top_card_id else {
             // CR 701.57b: library empty — discover completes with no qualifying card.
             break;
         };
-
         // Exile the top card.
         let (exile_id, _old) = match state.move_object_to_zone(top_id, ZoneId::Exile) {
             Ok(r) => r,
             Err(_) => break,
         };
         exiled_ids.push(exile_id);
-
         // Check if this card qualifies: nonland with mana value <= discover_n.
         // CR 701.57a: "nonland card with mana value N or less"
         // Note: Cascade uses strictly-less-than (< spell_MV); Discover uses <= N.
@@ -583,7 +546,6 @@ pub fn resolve_discover(
                     .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
                     .unwrap_or(false)
             });
-
         let card_mv = calc_chars
             .as_ref()
             .and_then(|c| c.mana_cost.as_ref())
@@ -596,7 +558,6 @@ pub fn resolve_discover(
                     .map(|mc| mc.mana_value())
                     .unwrap_or(0)
             });
-
         if !is_land && card_mv <= discover_n {
             // Found the qualifying card (the "discovered card" per CR 701.57c).
             //
@@ -618,7 +579,6 @@ pub fn resolve_discover(
             // Discover is a keyword action, not a cast trigger. However, putting the
             // card on the stack IS still casting it (it goes through the stack).
             let stack_entry_id = state.next_object_id();
-
             // Move card from exile to stack zone (new ObjectId via CR 400.7).
             let (stack_source_id, _old) = match state.move_object_to_zone(exile_id, ZoneId::Stack) {
                 Ok(r) => r,
@@ -641,7 +601,6 @@ pub fn resolve_discover(
             // Remove the discovered card from the exiled list (it was cast, not put
             // on library bottom along with the other exiled cards).
             exiled_ids.pop();
-
             // Create a StackObject for the discovered spell.
             // Discover free-cast IS casting — it triggers "whenever you cast a spell"
             // abilities (same as cascade per CR 702.85c precedent; discover has no
@@ -678,6 +637,7 @@ pub fn resolve_discover(
                 was_surged: false,
                 was_casualty_paid: false,
                 was_cleaved: false,
+                was_cast_as_adventure: false,
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
                 modes_chosen: vec![],
@@ -688,12 +648,10 @@ pub fn resolve_discover(
                 additional_costs: vec![],
             };
             state.stack_objects.push_back(stack_obj);
-
             // Discover free-cast triggers "whenever you cast a spell".
             if let Some(ps) = state.players.get_mut(&player) {
                 ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
             }
-
             events.push(GameEvent::SpellCast {
                 player,
                 stack_object_id: stack_entry_id,
@@ -703,13 +661,11 @@ pub fn resolve_discover(
                 player,
                 card_id: stack_source_id,
             });
-
             result_id = Some(stack_source_id);
             break;
         }
         // Non-qualifying card (land or MV > N): continue exiling.
     }
-
     // Emit DiscoverExiled for all cards that were exiled (not including the
     // discovered card if it was cast — it was popped from exiled_ids before
     // going onto the stack). Prepend so exile event precedes cast/hand events.
@@ -721,7 +677,6 @@ pub fn resolve_discover(
             cards_exiled: exiled_ids.clone(),
         },
     );
-
     // Step 3: Put remaining exiled cards on the bottom of the library in a
     // random order (CR 701.57a). Deterministic: sort by ObjectId ascending.
     exiled_ids.sort();
@@ -732,10 +687,8 @@ pub fn resolve_discover(
             // Unreachable in well-formed game state.
         }
     }
-
     (events, result_id)
 }
-
 /// Create a Layer 1 copy continuous effect: `copier_id` copies `source_id`.
 ///
 /// Returns a `ContinuousEffect` with the following properties:
@@ -759,7 +712,6 @@ pub fn create_copy_effect(
     state.timestamp_counter += 1;
     let effect_id = state.timestamp_counter;
     state.timestamp_counter += 1;
-
     ContinuousEffect {
         id: EffectId(effect_id),
         source: Some(copier_id),

@@ -5,7 +5,7 @@ session: S7
 title: Adventure (CR 715) + dual-zone search
 cards_affected: ~8 (Monster Manual, Lozhan + ~3 adventure cards + Finale of Devastation pattern)
 started: 2026-03-21
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-22-s7.md
 
 ## Deferred from Prior PBs
@@ -40,15 +40,6 @@ plan_file: memory/primitives/pb-plan-22-s7.md
 
 - [x] 4. Unit tests (Adventure: 5, dual-zone: 3)
   - adventure_tests.rs: 9 tests (6 Adventure + 3 dual-zone)
-    - test_adventure_cast_adventure_half_from_hand (CR 715.3a, 715.3b)
-    - test_adventure_exile_on_resolution (CR 715.3d)
-    - test_adventure_cast_creature_from_exile (CR 715.3d)
-    - test_adventure_countered_goes_to_graveyard (CR 715.3d)
-    - test_adventure_cannot_recast_as_adventure_from_exile (CR 715.3d)
-    - test_adventure_normal_characteristics_in_hand (CR 715.4)
-    - test_search_library_only (CR 701.23)
-    - test_search_library_and_graveyard (CR 701.23)
-    - test_search_graveyard_still_shuffles_library (CR 701.23)
   - ALL 9 PASSING
 
 - [x] 5. Workspace build verification
@@ -56,3 +47,14 @@ plan_file: memory/primitives/pb-plan-22-s7.md
   - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean
+
+## Review
+findings: 4 (HIGH: 1, MEDIUM: 3, LOW: 0)
+verdict: fixed
+review_file: memory/primitives/pb-review-22-s7.md
+
+Fixes applied (2026-03-21):
+- [x] HIGH-3: monster_manual.rs — replaced SearchLibrary adventure face with Effect::MillCards(5) + Effect::MoveZone to hand; target: TargetCardInYourGraveyard(Creature); oracle_text corrected
+- [x] MEDIUM-1: copy.rs:207 — was_cast_as_adventure: original.was_cast_as_adventure (CR 715.3c); cascade/discover sites remain false (correct — new casts, not copies)
+- [x] MEDIUM-2: legal_actions.rs — added TODO(W2) block in StubProvider doc comment documenting both Adventure casting gaps (cast as adventure from hand, cast creature from adventure exile)
+- [x] MEDIUM-4: bonecrusher_giant.rs — updated TODO to document 3 gaps: (1) WhenBecomesTargetByOpponent is WRONG (should be WhenBecomesTargetBySpell for any spell); (2) EachOpponent is WRONG (needs EffectTarget::TriggeringPlayer); (3) prevention removal omitted

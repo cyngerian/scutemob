@@ -22,9 +22,7 @@ pub fn card() -> CardDefinition {
         // TODO: activated ability blocked by TargetCardInHand DSL gap
         abilities: vec![],
         // CR 715.2: Adventure face — Zoological Study.
-        // Note: Per Scryfall oracle, Zoological Study is "Search your library for a creature
-        // card, put it onto the battlefield, then shuffle" (not mill+return as first thought).
-        // Implemented as SearchLibrary putting creature onto battlefield, then shuffle.
+        // Oracle: "Mill five cards, then return a creature card from your graveyard to your hand."
         adventure_face: Some(CardFace {
             name: "Zoological Study".to_string(),
             mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
@@ -36,29 +34,28 @@ pub fn card() -> CardDefinition {
                     .collect(),
                 supertypes: Default::default(),
             },
-            oracle_text: "Search your library for a creature card, put it onto the battlefield, then shuffle.".to_string(),
+            oracle_text: "Mill five cards, then return a creature card from your graveyard to your hand.".to_string(),
             power: None,
             toughness: None,
             color_indicator: None,
             abilities: vec![AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![
-                    // CR 701.23: Search library for a creature card, put onto battlefield.
-                    Effect::SearchLibrary {
+                    // CR 701.23a: Mill five cards (put top 5 cards from library to graveyard).
+                    Effect::MillCards {
                         player: PlayerTarget::Controller,
-                        filter: TargetFilter {
-                            has_card_type: Some(CardType::Creature),
-                            ..Default::default()
-                        },
-                        reveal: false,
-                        destination: ZoneTarget::Battlefield { tapped: false },
-                        shuffle_before_placing: false,
-                        also_search_graveyard: false,
+                        count: EffectAmount::Fixed(5),
                     },
-                    Effect::Shuffle {
-                        player: PlayerTarget::Controller,
+                    // CR 400.7: Return target creature card from your graveyard to your hand.
+                    Effect::MoveZone {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        controller_override: None,
                     },
                 ]),
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
                 modes: None,
                 cant_be_countered: false,
             }],
