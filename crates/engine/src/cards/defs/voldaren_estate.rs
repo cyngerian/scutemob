@@ -24,11 +24,8 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell.
-            // TODO: Pay 1 life cost is not expressible (Cost enum lacks Cost::PayLife variant).
-            // DSL gap: use Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]) when available.
-            // Modeled as tap-only until then; game state is incorrect (no life payment required).
             AbilityDefinition::Activated {
-                cost: Cost::Tap,
+                cost: Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]),
                 effect: Effect::AddManaAnyColorRestricted {
                     player: PlayerTarget::Controller,
                     restriction: ManaRestriction::SubtypeOnly(SubType("Vampire".to_string())),
@@ -37,8 +34,20 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {5}, {T}: Create a Blood token. This ability costs {1} less to activate for
-            // each Vampire you control. DSL gap: no variable cost reduction based on board state.
+            // {5}, {T}: Create a Blood token. This ability costs {1} less for each Vampire you control.
+            // TODO: Cost reduction per Vampire not expressible (G-27). Using full {5} cost.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 5, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::CreateToken {
+                    spec: blood_token_spec(1),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

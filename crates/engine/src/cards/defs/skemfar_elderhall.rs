@@ -26,7 +26,52 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — {2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens.
+            // {2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control
+            // gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens.
+            // Activate only as a sorcery.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, black: 2, green: 1, ..Default::default() }),
+                    Cost::Tap,
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::Sequence(vec![
+                    // Target creature you don't control gets -2/-2 until end of turn.
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::PtModify,
+                            modification: crate::state::LayerModification::ModifyBoth(-2),
+                            filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                            duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                    // Create two 1/1 green Elf Warrior creature tokens.
+                    Effect::CreateToken {
+                        spec: TokenSpec {
+                            name: "Elf Warrior".to_string(),
+                            power: 1,
+                            toughness: 1,
+                            colors: [Color::Green].into_iter().collect(),
+                            supertypes: im::OrdSet::new(),
+                            card_types: [CardType::Creature].into_iter().collect(),
+                            subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                            keywords: im::OrdSet::new(),
+                            count: 2,
+                            tapped: false,
+                            enters_attacking: false,
+                            mana_color: None,
+                            mana_abilities: vec![],
+                            activated_abilities: vec![],
+                        },
+                    },
+                ]),
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::Opponent,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

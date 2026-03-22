@@ -1,4 +1,4 @@
-// Geier Reach Sanitarium — Legendary Land, {T}: Add {C}. {2},{T}: Each player draws then discards (TODO).
+// Geier Reach Sanitarium — Legendary Land, {T}: Add {C}. {2}, {T}: Each player draws a card, then discards a card.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +19,29 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {2},{T}: Each player draws a card then discards a card — ForEach EachPlayer with Sequence draw+discard not in DSL
+            // {2}, {T}: Each player draws a card, then discards a card.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachPlayer,
+                    effect: Box::new(Effect::Sequence(vec![
+                        Effect::DrawCards {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            count: EffectAmount::Fixed(1),
+                        },
+                        Effect::DiscardCards {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            count: EffectAmount::Fixed(1),
+                        },
+                    ])),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

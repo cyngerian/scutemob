@@ -1,5 +1,5 @@
 // Wasteland — Land
-// {T}: Add {C}. {T}, Sacrifice: Destroy target nonbasic land (PB-5: targeted activated).
+// {T}: Add {C}. {T}, Sacrifice this land: Destroy target nonbasic land.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +20,18 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {T}, Sacrifice this land: Destroy target nonbasic land — PB-5
-            // Cost::SacrificeSelf is available; blocked on targeted land destruction effect
+            // {T}, Sacrifice this land: Destroy target nonbasic land.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
+                effect: Effect::DestroyPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                // TODO: Target should be "nonbasic land" — TargetFilter lacks non_basic exclusion field.
+                // Using TargetLand as approximation (allows targeting basic lands too).
+                targets: vec![TargetRequirement::TargetLand],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

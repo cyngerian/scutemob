@@ -1,5 +1,5 @@
 // Strip Mine — Land
-// {T}: Add {C}. {T}, Sacrifice: Destroy target land (PB-5: targeted activated).
+// {T}: Add {C}. {T}, Sacrifice this land: Destroy target land.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +20,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {T}, Sacrifice this land: Destroy target land — PB-5 (targeted activated)
-            // Cost::SacrificeSelf is available; blocked on targeted land destruction effect
+            // {T}, Sacrifice this land: Destroy target land.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
+                effect: Effect::DestroyPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetLand],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

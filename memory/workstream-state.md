@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | F-1: Apply HIGH fixes from consolidated fix list | ACTIVE | 2026-03-22 | Phase 0 triage DONE. Starting Phase 1 fixes. |
+| W6: Primitive + Card Authoring | F-4: Re-author now-expressible TODOs | ACTIVE | 2026-03-22 | F-1/F-2/F-3 DONE. Starting F-4 |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,30 +25,33 @@
 
 **Date**: 2026-03-22
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 0 triage (T-1 through T-7)
+**Task**: Phase 1 fixes (F-1 through F-3)
 
 **Completed**:
-- T-1: DSL gap audit — 569 TODOs classified (143 now-expressible, 96 partial, 313 blocked, 17 stale)
-- T-2: 28 blocked sessions re-evaluated — 17 unblocked to ready
-- T-3: 6 deferred sessions re-evaluated — 4 → ready, 2 → blocked
-- T-4: 73 review files consolidated — 15 actionable cards remain (most fixed by PB work)
-- T-5: 264 pre-existing defs inventoried — 7 silent wrong-state cards identified
-- T-6: Triage summary written
-- T-7: Committed (9a27d9c)
+- F-1: Applied all actionable HIGH+MEDIUM fixes (3 card fixes: H1 Rograkh color_indicator, H2 Skrelv comment, M1 Thousand-Year Elixir targets; 4 TODO refinements: M20, M42, M48, M3; 2 verified already fixed: M5 Ajani, M12 Crown of Skemfar; 3 verified no-fix: M13 Emrakul DSL gap, M59 Dryad Arbor correct, M5 already fixed). Commit 00c38a9.
+- F-2: All MEDIUM findings resolved — 11 "still valid" handled in F-1, 24+ already fixed by PB, 3 file-not-found deferred. Commit a354532.
+- F-3: LOW findings verified — planeswalker loyalty correct (7/7), remaining LOWs cosmetic. Stale TODOs overlap with F-4.
 
 **Next**:
-1. F-1: Apply HIGH fixes from consolidated fix list (5 cards, ~30 min)
-2. Then F-2 (MEDIUM fixes), F-3 (LOW fixes)
-3. Then fix NOW_EXPRESSIBLE TODOs (~100 cards, ~12 sessions)
-4. Then author ready sessions (168 sessions, ~1,467 new cards)
+1. F-4: Re-author ~143 cards whose TODOs are now expressible (from T-1 "now expressible" list)
+2. F-5: Review all fixed/re-authored cards
+3. F-6: Build verification
+4. F-7: Phase 1 complete commit
+5. Then Phase 2 authoring (A-01 through A-33)
 
 **Hazards**:
-- 7 silent wrong-state cards (empty abilities, no TODO): beast_within, call_of_the_nightwing, generous_gift, hanweir_the_writhing_township, overlord_of_the_hauntwoods, swan_song, mana_crypt
-- Many pre-existing unstaged changes in working tree from prior sessions (engine code, tests, docs) — not related to this triage work
+- 7 silent wrong-state cards still present: beast_within, call_of_the_nightwing, generous_gift, hanweir_the_writhing_township, overlord_of_the_hauntwoods, swan_song, mana_crypt
+- Many pre-existing unstaged changes in working tree from prior sessions (engine code, tests, docs)
 
-**Commit prefix used**: `W6-triage:`
+**Commit prefix used**: `W6-fix:`
 
 ## Handoff History
+
+### 2026-03-22 — W6: Phase 1 Fixes (F-1 through F-3)
+- F-1: 3 card fixes + 4 TODO refinements + 5 verified (already fixed / DSL gap / correct)
+- F-2: All MEDIUM resolved (most by prior PB work). F-3: LOWs verified cosmetic-only.
+- 0 actionable HIGH/MEDIUM remaining in consolidated fix list
+- Commits: 00c38a9, a354532
 
 ### 2026-03-22 — W6: Card Authoring Infrastructure (I-1 through I-6)
 - Created card-fix-applicator agent, 3 new skills (triage-cards, author-wave, audit-cards)

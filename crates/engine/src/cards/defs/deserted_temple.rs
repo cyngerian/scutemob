@@ -1,4 +1,4 @@
-// Deserted Temple — Land, {T}: Add {C}. {1},{T}: Untap target land (TODO).
+// Deserted Temple — Land, {T}: Add {C}. {1}, {T}: Untap target land.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +19,19 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {1},{T}: Untap target land — UntapPermanent effect not in DSL
+            // {1}, {T}: Untap target land.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetLand],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

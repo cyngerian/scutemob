@@ -1,5 +1,5 @@
 // Castle Embereth — This land enters tapped unless you control a Mountain. {T}: Add {R}.
-// {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn. (complex activated ability — TODO)
+// {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,7 +28,24 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.
+            // {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, red: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::PtModify,
+                        modification: crate::state::LayerModification::ModifyPower(1),
+                        filter: crate::state::EffectFilter::CreaturesYouControl,
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

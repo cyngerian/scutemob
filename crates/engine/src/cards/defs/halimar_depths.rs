@@ -18,7 +18,14 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // TODO: Triggered — When this land enters, look at the top three cards of your library, then put them back in any order.
+            // When this land enters, look at the top three cards of your library, then put them back in any order.
+            // Approximated as Scry 3 (look + reorder top cards).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Scry { player: PlayerTarget::Controller, count: EffectAmount::Fixed(3) },
+                intervening_if: None,
+                targets: vec![],
+            },
             // {T}: Add {U}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

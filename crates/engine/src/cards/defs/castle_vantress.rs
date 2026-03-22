@@ -1,5 +1,5 @@
 // Castle Vantress — This land enters tapped unless you control an Island. {T}: Add {U}.
-// {2}{U}{U}, {T}: Scry 2. (complex activated ability — TODO)
+// {2}{U}{U}, {T}: Scry 2.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,7 +28,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — {2}{U}{U}, {T}: Scry 2.
+            // {2}{U}{U}, {T}: Scry 2.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Scry { player: PlayerTarget::Controller, count: EffectAmount::Fixed(2) },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

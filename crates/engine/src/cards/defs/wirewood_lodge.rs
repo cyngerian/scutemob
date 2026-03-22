@@ -1,5 +1,5 @@
 // Wirewood Lodge — Land
-// {T}: Add {C}. {G},{T}: Untap target Elf (untap ability not expressible).
+// {T}: Add {C}. {G}, {T}: Untap target Elf.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,10 +20,22 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {G},{T}: Untap target Elf — tap-plus-pay-mana cost with
-            // untap-creature effect targeting a specific subtype is not
-            // expressible in the DSL (no Effect::UntapPermanent or combined
-            // mana+tap Cost variant; no subtype target filter for untap)
+            // {G}, {T}: Untap target Elf.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { green: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    has_subtype: Some(SubType("Elf".to_string())),
+                    ..Default::default()
+                })],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

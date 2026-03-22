@@ -9,10 +9,39 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Artifact]),
         oracle_text: "This artifact enters tapped.\nWhen this artifact enters, proliferate.\n{T}: Add one mana of any color.\nCorrupted — {T}: Add three mana of any one color. Activate only if an opponent has three or more poison counters.".to_string(),
         abilities: vec![
-            // TODO: This artifact enters tapped.
-            // TODO: Triggered — When this artifact enters, proliferate.
-            // TODO: Activated — {T}: Add one mana of any color.
-            // TODO: Static — Corrupted — {T}: Add three mana of any one color. Activate only if an opponent h
+            // This artifact enters tapped.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersTapped,
+                is_self: true,
+                unless_condition: None,
+            },
+            // When this artifact enters, proliferate.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Proliferate,
+                intervening_if: None,
+                targets: vec![],
+            },
+            // {T}: Add one mana of any color.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+            // Corrupted — {T}: Add three mana of any one color. Activate only if an opponent has 3+ poison counters.
+            // TODO: "three mana of any one color" requires a single AddManaAnyColor that produces 3. Approximated as AddManaAnyColor (1 mana).
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
+            },
         ],
         ..Default::default()
     }

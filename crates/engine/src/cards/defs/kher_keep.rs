@@ -1,4 +1,4 @@
-// Kher Keep — Legendary Land, {T}: Add {C}. {1}{R}, {T}: Create a 0/1 Kobold token (TODO hybrid-adjacent cost).
+// Kher Keep — Legendary Land, {T}: Add {C}. {1}{R}, {T}: Create a 0/1 red Kobold token.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +19,34 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.
-            // DSL gap: no named token spec for "Kobolds of Kher Keep" (TokenSpec only supports
-            // predefined token types). Also needs Cost::Sequence([Cost::Mana({1}{R}), Cost::Tap]).
+            // {1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Kobolds of Kher Keep".to_string(),
+                        power: 0,
+                        toughness: 1,
+                        colors: [Color::Red].into_iter().collect(),
+                        supertypes: im::OrdSet::new(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Kobold".to_string())].into_iter().collect(),
+                        keywords: im::OrdSet::new(),
+                        count: 1,
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

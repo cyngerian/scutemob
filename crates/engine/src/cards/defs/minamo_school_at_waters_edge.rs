@@ -1,5 +1,5 @@
 // Minamo, School at Water's Edge — Legendary Land
-// {T}: Add {U}. {U},{T}: Untap target legendary permanent (untap ability not expressible).
+// {T}: Add {U}. {U}, {T}: Untap target legendary permanent.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +20,22 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {U},{T}: Untap target legendary permanent — tap-plus-pay-mana
-            // cost with untap-permanent effect is not expressible in the DSL
-            // (no Effect::UntapPermanent or combined mana+tap Cost variant)
+            // {U}, {T}: Untap target legendary permanent.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { blue: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    ..Default::default()
+                })],
+                // TODO: Target should be "legendary permanent" — TargetFilter lacks supertype constraint.
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

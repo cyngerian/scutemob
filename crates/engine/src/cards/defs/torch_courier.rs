@@ -13,8 +13,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: Sacrifice: target creature gains haste until EOT — PB-5 (targeted activated)
-            // Cost::SacrificeSelf available; blocked on targeted grant-keyword effect
+            // Sacrifice this creature: Another target creature gains haste until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::SacrificeSelf,
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(KeywordAbility::Haste),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

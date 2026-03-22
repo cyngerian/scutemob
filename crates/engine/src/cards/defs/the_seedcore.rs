@@ -38,9 +38,33 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
-            // DSL gap: activated ability with targets + conditional activation
-            // (opponent has 3+ poison counters) not expressible.
+            // Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
+            // Activate only if an opponent has three or more poison counters.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::PtModify,
+                            modification: crate::state::LayerModification::ModifyPower(2),
+                            filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                            duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::PtModify,
+                            modification: crate::state::LayerModification::ModifyToughness(1),
+                            filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                            duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                // TODO: Target should be "1/1 creature" — TargetFilter lacks exact P/T constraint.
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
+            },
         ],
         ..Default::default()
     }

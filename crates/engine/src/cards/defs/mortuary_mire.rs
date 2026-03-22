@@ -18,7 +18,20 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // TODO: Triggered — When this land enters, you may put target creature card from your graveyard on top of your library.
+            // When this land enters, you may put target creature card from your graveyard on top of your library.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Library { owner: PlayerTarget::Controller, position: LibraryPosition::Top },
+                    controller_override: None,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
+            },
             // {T}: Add {B}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

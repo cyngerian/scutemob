@@ -1,4 +1,4 @@
-// Tainted Isle — Land, {T}: Add {C}; conditional {U} or {B} if you control a Swamp
+// Tainted Isle — Land, {T}: Add {C}. {T}: Add {U} or {B}. Activate only if you control a Swamp.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +20,27 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {T}: Add {U} or {B}. Activate only if you control a Swamp.
-            // DSL gap: conditional mana activation (requires "control a Swamp" filter)
-            // and the full {U}/{B} choice are not expressible together.
+            // {T}: Add {U} or {B}. Activate only if you control a Swamp.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 1, 0, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+            },
         ],
         ..Default::default()
     }

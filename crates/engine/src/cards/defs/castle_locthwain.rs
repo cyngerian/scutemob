@@ -1,5 +1,5 @@
 // Castle Locthwain — This land enters tapped unless you control a Swamp. {T}: Add {B}.
-// {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand. (complex activated ability — TODO)
+// {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,7 +28,30 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand.
+            // {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, black: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    Effect::LoseLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::CardCount {
+                            zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                            player: PlayerTarget::Controller,
+                            filter: None,
+                        },
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

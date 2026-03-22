@@ -1,4 +1,4 @@
-// Karn's Bastion — Land, {T}: Add {C}; {4},{T}: Proliferate (TODO)
+// Karn's Bastion — Land, {T}: Add {C}; {4},{T}: Proliferate
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +20,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {4}, {T}: Proliferate
-            // — generic mana cost in activated ability + Proliferate effect not expressible in DSL
+            // {4}, {T}: Proliferate.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Proliferate,
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

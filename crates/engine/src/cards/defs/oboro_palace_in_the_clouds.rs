@@ -1,6 +1,5 @@
 // Oboro, Palace in the Clouds — Legendary Land; {T}: Add {U};
 // {1}: Return Oboro to its owner's hand.
-// TODO: bounce-self activated ability not expressible in current DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,8 +20,18 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {1}: return this land to owner's hand — self-bounce activated ability
-            // not expressible in current DSL.
+            // {1}: Return Oboro to its owner's hand.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::Source,
+                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    controller_override: None,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

@@ -1,5 +1,5 @@
 // Castle Ardenvale — This land enters tapped unless you control a Plains. {T}: Add {W}.
-// {2}{W}{W}, {T}: Create a 1/1 white Human creature token. (complex activated ability — TODO)
+// {2}{W}{W}, {T}: Create a 1/1 white Human creature token.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,7 +28,34 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — {2}{W}{W}, {T}: Create a 1/1 white Human creature token.
+            // {2}{W}{W}, {T}: Create a 1/1 white Human creature token.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, white: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Human".to_string(),
+                        power: 1,
+                        toughness: 1,
+                        colors: [Color::White].into_iter().collect(),
+                        supertypes: im::OrdSet::new(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Human".to_string())].into_iter().collect(),
+                        keywords: im::OrdSet::new(),
+                        count: 1,
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }
