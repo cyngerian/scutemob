@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
                 ]),
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand { owner: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
                     controller_override: None,
                 },
                 timing_restriction: None,

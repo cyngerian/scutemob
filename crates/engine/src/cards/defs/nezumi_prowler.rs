@@ -1,14 +1,5 @@
 // Nezumi Prowler — {1}{B}, Artifact Creature — Rat Ninja 3/1
-// Ninjutsu {1}{B}
-// When this creature enters, target creature you control gains deathtouch and lifelink
-// until end of turn.
-//
-// TODO: DSL gap — ETB pump omitted.
-// "When this creature enters, target creature you control gains deathtouch and lifelink
-// until end of turn." Requires a targeted ETB triggered ability granting two keywords
-// (Deathtouch + Lifelink) to a creature you control until end of turn. DSL gap:
-// no activated_ability_targets field on triggered abilities; granting multiple keywords
-// as a continuous effect to a declared target is not currently expressible.
+// Ninjutsu {1}{B}; ETB: target creature you control gains deathtouch and lifelink until EOT.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,6 +15,34 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
                 cost: ManaCost { generic: 1, black: 1, ..Default::default() },
+            },
+            // CR 603.1: When this creature enters, target creature you control gains
+            // deathtouch and lifelink until end of turn.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Lifelink),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
             },
         ],
         ..Default::default()

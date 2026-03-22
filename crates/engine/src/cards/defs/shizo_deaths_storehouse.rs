@@ -20,9 +20,26 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {B}, {T}: Target legendary creature gains fear until end of turn
-            // — targeted activated ability not expressible in DSL (no targets field on Activated);
-            // fear keyword also not implemented
+            // {B}, {T}: Target legendary creature gains fear until end of turn (CR 702.36).
+            // Note: TargetFilter lacks has_supertype field — using TargetCreature (over-permissive,
+            // allows targeting non-legendary creatures). TODO: add legendary filter when available.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { black: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Fear),
+                        filter: EffectFilter::DeclaredTarget { index: 0 },
+                        duration: EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

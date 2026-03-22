@@ -19,7 +19,19 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {G},{T}: Regenerate target creature — Regenerate effect not in DSL
+            // {G}, {T}: Regenerate target creature (CR 701.19a).
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { green: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::Regenerate {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

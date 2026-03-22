@@ -1,19 +1,5 @@
 // Skithiryx, the Blight Dragon — {3}{B}{B}, Legendary Creature — Phyrexian Dragon Skeleton 4/4
-// "Flying
-// Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players
-// in the form of poison counters.)
-// {B}: Skithiryx gains haste until end of turn.
-// {B}{B}: Regenerate Skithiryx."
-//
-// Flying and Infect are implemented.
-//
-// TODO: DSL gap — "{B}: Skithiryx gains haste until end of turn" is an activated ability that
-// applies ApplyContinuousEffect targeting self — no confirmed "grant keyword to self" activated
-// ability pattern in current DSL.
-//
-// TODO: DSL gap — "{B}{B}: Regenerate Skithiryx" is a Regenerate activated ability.
-// KeywordAbility::Regenerate is a static keyword; an activated self-regeneration ability
-// is not directly expressible in the current DSL.
+// Flying, Infect, {B}: haste until EOT, {B}{B}: Regenerate
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,6 +18,31 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Infect),
+            // {B}: Skithiryx gains haste until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { black: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+            // {B}{B}: Regenerate Skithiryx (CR 701.19a).
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { black: 2, ..Default::default() }),
+                effect: Effect::Regenerate {
+                    target: EffectTarget::Source,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }
