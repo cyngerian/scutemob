@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **Tier 1 COMPLETE** (A-01 through A-10 + A-31/A-37). Next: Tier 2 A-11 removal-destroy. |
+| W6: Primitive + Card Authoring | — | available | — | **A-11/A-12/A-13 DONE** (Tier 2 removal groups). Next: A-14 removal-damage-each. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,36 +25,41 @@
 
 **Date**: 2026-03-22
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-05 through A-10 (Tier 1 completion)
+**Task**: Phase 2 authoring — A-11 through A-13 (Tier 2 removal groups)
 
 **Completed**:
-- A-05 cost-reduction: 12 new cards + 5 DSL extensions (SpellCostFilter::HasColor, SpellCostFilter::InstantOrSorcery, SelfCostReduction::PerOpponent, LifeLostFromStarting, ConditionalPowerThreshold) — all with casting.rs enforcement
-- A-06 scry-surveil: 7 new cards (Faerie Seer, Doom Whisperer, Woe Strider, Umbral Collar Zealot, Retreat to Coralhelm, Aqueous Form, Hermes)
-- A-07 lifegain: 5 new cards (Jaddi Offshoot, Courser of Kruphix, Nadier's Nightblade, Bontu's Monument, Bloodchief Ascension)
-- A-08 lifedrain: 6 new cards (Marauding Blight-Priest, Blood Seeker, Scrawling Crawler, Torment of Hailfire, Blind Obedience, Crypt Ghast)
-- A-09 protection: 1 new card (Teferi's Protection)
-- A-10 aura: 5 new + 1 existed (Wild Growth, Elvish Guidance, Animate Dead, Kasmina's Transmutation, Eaten by Piranhas)
-- All cards reviewed (card-batch-reviewer agents), 8H+9M+10L findings — all HIGH fixed
-- **Tier 1 COMPLETE**: A-01 through A-10 + A-31/A-37 pre-existing = 12 groups done
-- Commits: d6634d6 (A-05), 2097db8 (A-06–A-10), 4d0999e (review fixes), 034385a (wave progress)
-- 2281 tests, 0 clippy, clean workspace build
+- A-11 removal-destroy: 52 new cards across 5 sessions + DSL extension (`DestroyPermanent.cant_be_regenerated: bool` — CR 701.19c). 11 review batches, HIGH findings fixed (Pyroblast targeting, Nature's Claim controller, Staff untap, Elspeth Storm Slayer replacement trigger). 66 existing files updated for new field.
+- A-12 removal-exile: 13 new cards across 2 sessions (1 blocked: Touch the Spirit Realm). 3 review batches, 1 HIGH fixed (Shiko exile-only ETB → TODO).
+- A-13 removal-damage-target: 23 new cards across 3 sessions. Damage patterns (DealDamage, modal, planeswalker, equipment, sacrifice-as-cost, tribal triggers).
+- Total: 88 new card defs, 1 DSL extension, ~968 total card files
+- Commits: 52be340 (A-11), 18ca67e (A-12), 68e2b9f + 064ccbb (A-13)
+- All tests passing, 0 clippy, workspace builds clean
 
 **Next**:
-1. **A-11 removal-destroy** (48 cards, 4 sessions) — first Tier 2 group
-2. Continue Tier 2 (A-11 through A-28), then Tier 3 (A-29 through A-42)
-3. Direct authoring preferred for complex cards; agents for simple patterns
+1. **A-14 removal-damage-each** (17 cards, 2 sessions) — board damage patterns
+2. **A-15 removal-bounce** (10 cards, 2 sessions) — return-to-hand patterns
+3. **A-16 removal-minus** (4 cards, 1 session) — -X/-X effects
+4. **A-17 counter** (16 cards, 3 sessions) — counterspells
+5. Then A-18 draw (161 cards) — largest group, will need many sessions
 
 **Hazards**:
-- Same systemic hazards (beast_within/generous_gift/swan_song controller_override, Shizo has_supertype, MDFC back faces)
-- Direct authoring is faster for complex cards. bulk-card-author stalls ~50% on DSL research.
-- For groups >10 cards, use bulk-card-author with explicit DSL snippets in prompt
-- Bontu's Monument, Blood Seeker: compound SpellCostFilter (HasColor+HasCardType) DSL gap
-- "that player" trigger target reference: DSL gap (Blood Seeker, Scrawling Crawler)
-- WheneverYouCastSpell lacks spell type filter (noncreature, creature) — DSL gap
+- bulk-card-author agents stall ~40% of the time on complex cards (planeswalkers, multi-ability creatures). Write these directly — faster and more reliable.
+- Session 141 (A-13) agent stalled completely; had to write all 12 cards manually.
+- `CreateToken` still lacks player field — systemic DSL gap for "its controller creates a token" pattern (Pongify, Beast Within, Stroke of Midnight, Resculpt, Rapid Hybridization)
+- `WheneverYouDrawCard` trigger event not in DSL — blocks Niv-Mizzet, Teferi emblem
+- `WheneverACreatureDies` with subtype filter not in DSL — blocks tribal death triggers
+- `Cost::TapCreatureYouControl` not in DSL — blocks Kyren Negotiations, Convoke-style cards
+- Modal activated abilities not supported — blocks Goblin Cratermaker
+- `ProtectionQuality` must be imported separately (`use crate::state::types::ProtectionQuality;`) — not in helpers.rs
 
 **Commit prefix used**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-22 — W6: Phase 2 authoring A-05 through A-10 (Tier 1 completion)
+- 36 new cards (A-05 through A-10). All reviewed, 8H+9M+10L findings — all HIGH fixed.
+- Tier 1 COMPLETE: A-01 through A-10 + A-31/A-37 pre-existing = 12 groups done.
+- Commits: d6634d6, 2097db8, 4d0999e, 034385a. 2281 tests.
 
 ### 2026-03-22 — W6: Phase 2 authoring A-01 through A-04
 - 52 new card defs authored (16 mana-creature + 33 mana-artifact + 3 mana-other).
@@ -72,7 +77,3 @@
 ### 2026-03-22 — W6: F-4 session 5 (12 land mana abilities)
 - 8 pathway lands (mana tap) + 4 verge lands (conditional mana). Review: 2H fixed (stale oracle text).
 - Commit: 8c2aded. 2281 tests.
-
-### 2026-03-22 — W6: F-4 session 4 (18 card abilities)
-- 10 new implementations + 6 prior unstaged + 2 stale cleanups. Review: 1H+1M fixed.
-- Commit: e4cd042. 2281 tests.
