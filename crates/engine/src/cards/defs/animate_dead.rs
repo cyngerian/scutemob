@@ -6,9 +6,9 @@
 // When this leaves the battlefield, that creature's controller sacrifices it.
 // Enchanted creature gets -1/-0.
 //
-// TODO: Complex reanimation Aura — enchants graveyard card, changes enchant target on ETB,
-//   returns creature, self-attaches, LTB sacrifice trigger, and -1/-0 static. Multiple DSL
-//   gaps: enchant-graveyard-card target, dynamic enchant-target change, reanimation+attach.
+// TODO: Complex reanimation Aura — enchants graveyard card (no EnchantTarget variant for
+//   graveyard), changes enchant target on ETB, returns creature, self-attaches, LTB sacrifice
+//   trigger, and -1/-0 static. Multiple DSL gaps make this inexpressible.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,9 +18,7 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
         oracle_text: "Enchant creature card in a graveyard\nWhen Animate Dead enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with Animate Dead.\" Return enchanted creature card to the battlefield under your control and attach Animate Dead to it. When Animate Dead leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
-        ],
+        abilities: vec![],
         ..Default::default()
     }
 }

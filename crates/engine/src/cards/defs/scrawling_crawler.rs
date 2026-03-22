@@ -2,8 +2,9 @@
 // At the beginning of your upkeep, each player draws a card.
 // Whenever an opponent draws a card, that player loses 1 life.
 //
-// TODO: "Whenever an opponent draws a card" — WheneverPlayerDrawsCard doesn't filter by
-//   opponent. Using it as-is (fires on all draws — slightly wrong for self-draws).
+// TODO: "Whenever an opponent draws a card, that player loses 1 life" — needs
+//   opponent-only draw trigger + "that player" target reference. WheneverPlayerDrawsCard
+//   fires on all draws and EachOpponent targets wrong players in multiplayer.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,17 +23,6 @@ pub fn card() -> CardDefinition {
                 effect: Effect::DrawCards {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-            },
-            // Whenever an opponent draws a card, that player loses 1 life
-            // TODO: should only fire on opponent draws
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverPlayerDrawsCard,
-                effect: Effect::LoseLife {
-                    player: PlayerTarget::EachOpponent,
-                    amount: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
                 targets: vec![],

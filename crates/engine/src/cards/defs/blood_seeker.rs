@@ -1,9 +1,10 @@
 // Blood Seeker — {1}{B}, Creature — Vampire Shaman 1/1
 // Whenever a creature an opponent controls enters, you may have that player lose 1 life.
 //
-// TODO: "you may have that player lose 1 life" — optional effect targeting the entering
-//   creature's controller. Using mandatory drain from EachOpponent on any creature ETB
-//   (slightly wrong — should be per-opponent, optional, triggered by their creatures only).
+// TODO: "that player" — effect should target the entering creature's controller specifically,
+//   not all opponents. PlayerTarget lacks "triggering player" reference. Additionally, the
+//   effect is optional ("you may") which is not expressible. Wrong multiplayer behavior
+//   if implemented with EachOpponent.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,22 +16,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever a creature an opponent controls enters, you may have that player lose 1 life.".to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
-                    filter: Some(TargetFilter {
-                        controller: TargetController::Opponent,
-                        ..Default::default()
-                    }),
-                },
-                effect: Effect::LoseLife {
-                    player: PlayerTarget::EachOpponent,
-                    amount: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-            },
-        ],
+        abilities: vec![],
         ..Default::default()
     }
 }
