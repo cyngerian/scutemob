@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | A-18: draw (161 cards, 14 sessions) | ACTIVE | 2026-03-22 | Phase 2 authoring — Tier 2 cont'd |
+| W6: Primitive + Card Authoring | — | available | — | **A-18 draw IN PROGRESS** (10/16 sessions done, 119 new cards). Next: S20-S23+S25. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,33 +25,39 @@
 
 **Date**: 2026-03-22
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-14 through A-17 (Tier 2 cont'd: damage-each, bounce, minus, counter)
+**Task**: Phase 2 authoring — A-18 draw (sessions 10-19 of 16)
 
 **Completed**:
-- A-14 removal-damage-each: 16 new cards. Goblin Chainwhirler full ETB (EachPermanentMatching for creatures+planeswalkers). 5H 4M 3L, all HIGH fixed.
-- A-15 removal-bounce: 9 new cards + 1 existed (Cyclonic Rift). Snap, Ninjutsu creatures, Auras. 1H 2M 2L, HIGH fixed.
-- A-16 removal-minus: 4 new cards (Dismember w/ Phyrexian mana, Drown in Ichor w/ Proliferate). 2H 1M 1L, HIGH fixed.
-- A-17 counter: 16 new cards. Mental Misstep uses TargetSpellWithFilter(max_cmc=1, min_cmc=1). 10 wrong-game-state partials stripped (counter-unless, missing costs). 8H 3M 1L, all HIGH fixed.
-- Total: 45 new card defs, 963 total card files
-- Commit: 6ddc832
+- A-18 draw sessions 10-19: 119 new card defs (10 sessions of 16 complete)
+- Added ProtectionQuality to helpers.rs prelude
+- Key cards: Phyrexian Arena, Opt, Preordain, The One Ring, Tatyova, Beast Whisperer, Psychosis Crawler, Teferi Temporal Pilgrim, The Locust God, Liliana Dreadhorde General, Tireless Tracker, Nadir Kraken, Chasm Skulker, and 106 more
+- Commits: 4a15b5e, 9bf3870, 6ecdb68
+- Total: ~1082 card def files
 - All 2281 tests passing, 0 clippy, workspace builds clean
 
 **Next**:
-1. **A-18 draw** (161 cards, 14 sessions) — largest group, will need many sessions
-2. **A-19 token-create** (146 cards, 13 sessions) — second largest
+1. **A-18 draw sessions 20-23+25** (43 remaining cards, 5 sessions) — finish the draw group
+2. **A-19 token-create** (146 cards, 13 sessions) — second largest group
 3. Then A-20 through remaining groups
 
 **Hazards**:
-- Writing cards directly is faster than bulk-card-author agents for complex cards
-- CounterUnlessPays not in DSL — all "counter unless pays" cards stripped
-- `WheneverYouDiscard` trigger not in DSL — blocks Glint-Horn Buccaneer, Brallin
-- `EachPermanentMatching` works for damage-to-all-opponents-creatures (Goblin Chainwhirler pattern)
-- `TargetSpellWithFilter` with `max_cmc`/`min_cmc` works for MV-restricted counterspells
-- Same DSL gaps as prior session still apply (CreateToken player, WheneverACreatureDies filter, etc.)
+- Direct authoring is 5-10x faster than bulk-card-author agents for complex draw cards
+- `WheneverYouDrawACard` trigger EXISTS in DSL — agents were told it doesn't, stale info
+- `WheneverCreatureDies` is overbroad (all creatures, no controller/type filter) — used as approx for many death-draw cards
+- Per-creature combat damage triggers NOT in DSL — Coastal Piracy, Bident, Ohran Frostfang all have TODOs
+- `WheneverYouCastSpell` lacks spell-type filter — Beast Whisperer, Sram use unfiltered approx
+- `MayPayOrElse` is opponent-pays-or-else, NOT self-may-pay — Nadir Kraken, Miara simplified
+- Horizon lands (Fiery Islet, Silent Clearing, Nurturing Peatland) use `AddManaChoice` for "Add X or Y"
+- Session 24 blocked (6 cards including Life from the Loam)
+- Kaito, Bane of Nightmares already existed (skipped in S14)
 
 **Commit prefix used**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-22 — W6: Phase 2 authoring A-14 through A-17 (Tier 2 cont'd)
+- 45 new cards (damage-each, bounce, minus, counter). All HIGH fixed.
+- Commit: 6ddc832. 2281 tests.
 
 ### 2026-03-22 — W6: Phase 2 authoring A-11 through A-13 (Tier 2 start)
 - 88 new cards (A-11 destroy + A-12 exile + A-13 damage-target). DSL ext: DestroyPermanent.cant_be_regenerated.
@@ -63,10 +69,6 @@
 
 ### 2026-03-22 — W6: Phase 2 authoring A-01 through A-04
 - 52 new card defs authored (16 mana-creature + 33 mana-artifact + 3 mana-other).
-- 5 groups verified pre-existing (body-only, land-etb-tapped, combat-keyword, mana-land).
 
 ### 2026-03-22 — W6: Phase 1 close (F-4 sweep + F-5/F-6/F-7)
 - Phase 1 Fix COMPLETE. Next: Phase 2 authoring A-01.
-
-### 2026-03-22 — W6: F-4 session 6 (11 now-expressible cards)
-- 3 lands, 1 conditional mana, 1 conditional ETB, 1 equipment bounce, 3 keyword additions. 2281 tests.
