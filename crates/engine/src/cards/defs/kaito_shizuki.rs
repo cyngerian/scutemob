@@ -21,39 +21,21 @@ pub fn card() -> CardDefinition {
         starting_loyalty: Some(3),
         abilities: vec![
             // TODO: "If entered this turn, phases out" — conditional end-step phase-out.
-            // +1: Draw (conditional discard simplified)
+            // TODO: +1 draw + conditional discard ("unless you attacked") not in DSL.
+            //   Free unconditional draw is wrong game state.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
+                effect: Effect::Nothing,
                 targets: vec![],
             },
-            // −2: Create 1/1 unblockable Ninja
+            // TODO: −2 Ninja token needs "can't be blocked" — TokenSpec lacks static
+            //   abilities (only keywords). Unblockable is a static, not a keyword.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
-                effect: Effect::CreateToken {
-                    spec: TokenSpec {
-                        name: "Ninja".to_string(),
-                        card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Ninja".to_string())].into_iter().collect(),
-                        colors: [Color::Blue].into_iter().collect(),
-                        power: 1,
-                        toughness: 1,
-                        count: 1,
-                        supertypes: im::OrdSet::new(),
-                        keywords: im::OrdSet::new(),
-                        tapped: false,
-                        enters_attacking: false,
-                        mana_color: None,
-                        mana_abilities: vec![],
-                        activated_abilities: vec![],
-                    },
-                },
+                effect: Effect::Nothing,
                 targets: vec![],
             },
-            // −7: Emblem — too complex for DSL.
+            // TODO: −7 emblem with combat damage → search library. Not expressible.
         ],
         ..Default::default()
     }

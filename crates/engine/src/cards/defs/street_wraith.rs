@@ -16,13 +16,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Landwalk(
                 LandwalkType::BasicType(SubType("Swamp".to_string())),
             )),
-            // Cycling — Pay 2 life (not mana cost)
-            AbilityDefinition::Keyword(KeywordAbility::Cycling),
-            // TODO: Cycling with life cost instead of mana — Cycling { cost } only takes ManaCost.
-            //   Using zero-cost cycling as approximation.
-            AbilityDefinition::Cycling {
-                cost: ManaCost::default(),
-            },
+            // TODO: Cycling with life cost (pay 2 life) — Cycling DSL only accepts ManaCost.
+            //   Needs LifeCycling DSL extension. Stripped to avoid free cycling.
         ],
         ..Default::default()
     }

@@ -17,17 +17,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Morph {
                 cost: ManaCost { black: 1, ..Default::default() },
             },
-            // TODO: WheneverCreatureDies is overbroad (all creatures, not "another nontoken
-            //   creature you control"). Using it as approximation.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-            },
+            // TODO: "Whenever another nontoken creature you control dies, draw a card"
+            //   — WheneverCreatureDies lacks controller filter + exclude-self + nontoken.
+            //   Overbroad trigger draws on all deaths (opponents' too) = wrong game state.
         ],
         ..Default::default()
     }

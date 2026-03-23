@@ -13,17 +13,8 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "May sacrifice another creature" on attack — optional sac + draw +
-            //   "can't be blocked" not expressible. Using draw on attack as approximation.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenAttacks,
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-            },
+            // TODO: "May sacrifice another creature on attack → draw + can't be blocked"
+            //   — optional sacrifice gate + evasion grant not in DSL.
         ],
         ..Default::default()
     }
