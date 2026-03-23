@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **A-19 token-create 13/14 DONE** (S53 blocked). Next: A-20 pump-buff. ~1269 card defs. |
+| W6: Primitive + Card Authoring | — | available | — | **A-20 through A-23 DONE** (121 new cards). Next: A-24 attack-trigger. ~1391 card defs. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,33 +25,37 @@
 
 **Date**: 2026-03-23
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-19 token-create S44-S52
+**Task**: Phase 2 authoring — A-20 through A-23
 
 **Completed**:
-- A-19 token-create sessions S44-S52: 96 new cards (9 sessions)
-- Agents authored bulk, hand-wrote 15 cards where agents ran out of budget
-- Reviewed 20 representative cards across 4 batches: 3H 1M findings
-- 3 HIGH fixed: Hero of Bladehold (BattleCry keyword), Grave Titan (attack trigger), Bitterblossom (Kindred type)
-- 1 MEDIUM documented: Sengir Autocrat LTB gap (WhenLeavesBattlefield not in DSL)
-- Commits: 5d967ca, 83c1302
-- A-19 total: 144/146 cards (S40-S52), S53 blocked (9 cards)
-- Total: ~1269 card def files
+- A-20 pump-buff: 27 cards authored, reviewed (4 batches), 4 HIGH fixed (Ezuri self-target, Elesh Norn/Eldrazi Monument/Mikaeus stripped to empty per W5)
+- A-21 counters-plus: 49 cards authored (landfall, tribal counters, sacrifice outlets, mutate)
+- A-22 equipment: 11 cards authored (Swords cycle, Bone Saw, Kite Shield, etc.)
+- A-23 death-trigger: 34 cards authored (Blood Artist, Grave Pact, Kokusho, etc.)
+- Commits: e5b0436, ec08405
+- Total: ~1391 card def files (+121 this session)
 - All 2281 tests passing, workspace builds clean
 
 **Next**:
-1. **A-20 pump-buff** (3 sessions, 26 cards) — next authoring group
-2. Review A-19 S40-S43 still pending (48 cards from prior session not yet reviewed)
-3. Continue through A-21 counters-plus, A-22 equipment, etc.
+1. **A-24 attack-trigger** (4 sessions, 33 cards) — next authoring group
+2. Continue through A-25 activated-tap, A-26 activated-sacrifice, etc.
+3. A-19 S40-S43 review still pending (48 cards from 2026-03-22 session)
 
 **Hazards**:
-- Bulk-card-author frequently misses 3-6 cards per session — always verify file count
-- Common DSL misses by agents: `Effect::NoEffect` (use `Nothing`), `ActivationCost` (use `Cost`), missing `modes`/`cant_be_countered` on `Spell`, `loyalty:` (use `starting_loyalty:`), `WheneverYouAttack` (doesn't exist)
-- `AbilityDefinition::Spell` needs ALL 4 fields: `effect, targets, modes, cant_be_countered`
-- S53 blocked (9 cards including Scute Swarm, Revel in Riches, Titania)
+- `WheneverCreatureDies` has no controller filter — fires on ALL creatures dying. Cards needing "creature you control dies" must use TODO, not the unfiltered trigger (W5 wrong game state)
+- `DrainLife { amount }` has no `target` field — it drains all opponents automatically. Don't add `target:` field.
+- `AbilityDefinition::Equip` does not exist — use `Keyword(KeywordAbility::Equip)` only
+- `AbilityDefinition::Ninjutsu` has no `is_commander` field
+- `Cost::RemoveCounter` does not exist — cards needing counter removal as cost use TODO
+- `EffectFilter::CreaturesOpponentsControl` does not exist — buff-without-debuff cards must be stripped per W5
 
 **Commit prefix used**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-23 — W6: Phase 2 authoring A-19 token-create S44-S52
+- A-19 token-create S44-S52: 96 new cards. Reviewed, 3H fixed.
+- Commits: 5d967ca, 83c1302. 2281 tests.
 
 ### 2026-03-22 — W6: Phase 2 authoring A-18 draw + A-19 start
 - A-18 S20-S25 (43 new), A-19 S40-S43 (48 new). 91 total. 4H fixed.
@@ -68,6 +72,3 @@
 ### 2026-03-22 — W6: Phase 2 authoring A-11 through A-13 (Tier 2 start)
 - 88 new cards (A-11 destroy + A-12 exile + A-13 damage-target). DSL ext: DestroyPermanent.cant_be_regenerated.
 - Commits: 52be340, 18ca67e, 68e2b9f, 064ccbb. 2281 tests.
-
-### 2026-03-22 — W6: Phase 2 authoring A-05 through A-10 (Tier 1 completion)
-- 36 new cards (A-05 through A-10). All reviewed, 8H+9M+10L findings — all HIGH fixed.
