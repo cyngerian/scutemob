@@ -134,7 +134,17 @@ If failures: fix and re-test.
 **Fixes applied**: N
 **Total card defs**: <new total>
 **Next group**: <next-group> (A-<next>)
+
+**Deferred findings for Phase 3 X-2** (subtle issues not fixed this session):
+- <card>: <issue> (severity, source)
+- ...
+(If none, write "None")
 ```
+
+The "Deferred findings" section captures MEDIUM/LOW issues that are technically wrong
+but not wrong-game-state — things like `Effect::Conditional` vs `intervening_if` (CR 603.4),
+minor targeting approximations, or cosmetic DSL mismatches. These are logged in
+`memory/project_x1_fixlist.md` (auto-memory) so they don't get lost before Phase 3.
 
 ## Notes
 

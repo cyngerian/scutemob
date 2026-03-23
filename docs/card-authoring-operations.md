@@ -130,7 +130,7 @@ Work through groups in the order below. For each group, follow the per-group wor
 - [x] **A-16**: removal-minus (1 session, 4 new cards)
 - [x] **A-17**: counter (3 sessions, 16 new cards)
 - [x] **A-18**: draw (14 sessions, 161 cards) — COMPLETE (S24 blocked/6 skipped; 155 authored)
-- [ ] **A-19**: token-create (13 sessions, 146 cards)
+- [x] **A-19**: token-create (13 sessions, 144 cards) — S53 blocked (9 cards: complex triggers, copy-self tokens, alternate win conditions)
 - [x] **A-20**: pump-buff (27 cards — reviewed, 4 HIGH fixed)
 - [x] **A-21**: counters-plus (49 cards)
 - [x] **A-22**: equipment (11 cards)

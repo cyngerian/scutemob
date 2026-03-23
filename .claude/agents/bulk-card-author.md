@@ -45,6 +45,11 @@ auto-discovers all files. Adding a card = creating one new file. No other files 
    explaining the gap. A wrong implementation is worse than an empty one.
 6. **Compile check**: Run `~/.cargo/bin/cargo build --lib -p mtg-engine` after writing all files.
    Fix any compile errors before finishing.
+7. **DO NOT grep or read engine source files** (card_definition.rs, effects/mod.rs,
+   continuous_effect.rs, state/, rules/). Everything you need is in the DSL Quick Reference
+   section below and in the reference card defs. If you can't find a pattern, use
+   `abilities: vec![]` + TODO. Spending tool calls exploring the engine is the #1 cause
+   of agent stalls.
 
 ## Workflow
 
@@ -61,6 +66,11 @@ with their `oracle_text`, `types`, `keywords`, `mana_cost`.
 ### Step 2: Read a reference card definition
 
 Read 1-2 existing card defs from the same group to learn the exact DSL pattern.
+**Do NOT grep engine source files** (card_definition.rs, effects/mod.rs, state/, rules/).
+Everything you need is in the DSL Quick Reference below and the reference card defs.
+If a pattern isn't covered, use `abilities: vec![]` with a TODO — do NOT spend tool calls
+exploring the engine codebase.
+
 Choose references based on the group:
 
 | Group | Reference File(s) |
@@ -332,6 +342,108 @@ Effect::CreateTokenCopy { source: ..., modifications: vec![] }
 ### Emblem Creation (planeswalkers)
 ```rust
 Effect::CreateEmblem { emblem: EmblemSpec { ... } }
+```
+
+### Cost Reduction (static)
+```rust
+AbilityDefinition::Static {
+    continuous_effect: ContinuousEffectDef {
+        layer: crate::state::EffectLayer::CostReduction,
+        modification: crate::state::LayerModification::ReduceGenericCost(1),
+        filter: crate::state::EffectFilter::SpellsYouCast,
+        duration: crate::state::EffectDuration::WhileOnBattlefield,
+    },
+}
+```
+
+### Static Keyword Grant (all your creatures)
+```rust
+AbilityDefinition::Static {
+    continuous_effect: ContinuousEffectDef {
+        layer: crate::state::EffectLayer::AbilityGrant,
+        modification: crate::state::LayerModification::GrantKeyword(KeywordAbility::Trample),
+        filter: crate::state::EffectFilter::CreaturesYouControl,
+        duration: crate::state::EffectDuration::WhileOnBattlefield,
+    },
+}
+```
+
+### Static P/T Buff (lord effect)
+```rust
+AbilityDefinition::Static {
+    continuous_effect: ContinuousEffectDef {
+        layer: crate::state::EffectLayer::PtModify,
+        modification: crate::state::LayerModification::ModifyBoth(1),
+        filter: crate::state::EffectFilter::CreaturesYouControlWithSubtype(SubType("Elf".to_string())),
+        duration: crate::state::EffectDuration::WhileOnBattlefield,
+    },
+}
+```
+
+### Temporary P/T Buff (until end of turn)
+```rust
+Effect::ApplyContinuousEffect {
+    effect_def: Box::new(ContinuousEffectDef {
+        layer: crate::state::EffectLayer::PtModify,
+        modification: crate::state::LayerModification::ModifyBoth(2),
+        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+        duration: crate::state::EffectDuration::UntilEndOfTurn,
+    }),
+}
+```
+
+### Temporary Keyword Grant (until end of turn)
+```rust
+Effect::ApplyContinuousEffect {
+    effect_def: Box::new(ContinuousEffectDef {
+        layer: crate::state::EffectLayer::AbilityGrant,
+        modification: crate::state::LayerModification::GrantKeyword(KeywordAbility::Haste),
+        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+        duration: crate::state::EffectDuration::UntilEndOfTurn,
+    }),
+}
+```
+
+### Mana Cost with Sacrifice ({T}, Sacrifice: effect)
+```rust
+Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf])
+```
+
+### Mana Cost with Life ({T}, Pay 1 life: effect)
+```rust
+Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)])
+```
+
+### Return to Hand
+```rust
+Effect::ReturnToHand { target: EffectTarget::DeclaredTarget { index: 0 } }
+```
+
+### Proliferate
+```rust
+Effect::Proliferate
+```
+
+### Goad
+```rust
+Effect::Goad { target: EffectTarget::DeclaredTarget { index: 0 } }
+```
+
+### Add Counters
+```rust
+Effect::AddCounters { target: EffectTarget::Source, counter_type: CounterType::PlusOnePlusOne, count: EffectAmount::Fixed(1) }
+```
+
+### ForEach EachPlayer / EachOpponent
+```rust
+// "Each player draws a card"
+Effect::ForEach {
+    over: ForEachTarget::EachPlayer,
+    effect: Box::new(Effect::DrawCards {
+        player: PlayerTarget::DeclaredTarget { index: 0 },  // iteration variable
+        count: EffectAmount::Fixed(1),
+    }),
+}
 ```
 
 ### Fight / Bite

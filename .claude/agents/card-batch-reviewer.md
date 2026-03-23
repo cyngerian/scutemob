@@ -99,6 +99,28 @@ Write findings to the specified output file. Use this format:
 - Clean cards: <list>
 ```
 
+## CRITICAL: "Legal-But-Wrong" Checks
+
+These are the most dangerous bugs — cards that compile, pass structural tests, and
+produce internally consistent state, but DO THE WRONG THING in multiplayer. No automated
+invariant checker can catch these. You are the last line of defense.
+
+**For every card with non-empty abilities, verify ALL of these:**
+
+| Check | What to look for | Example bug |
+|-------|-----------------|-------------|
+| **Token recipient** | Oracle says "its controller creates" or "that player creates" — does CreateToken go to the right player? | Beast Within gives token to caster instead of destroyed permanent's controller |
+| **Effect target player** | Oracle says "target player" or "its controller" — does the effect hit the right player? | GainLife going to caster when oracle says "its controller gains" |
+| **Damage recipient** | Oracle says "deals damage to that creature's controller" — does DealDamage target the right entity? | Damage going to caster instead of creature's controller |
+| **"Each opponent" vs "each player"** | Oracle specifies one — does the ForEach use the right variant? | EachPlayer when oracle says EachOpponent (or vice versa) |
+| **"You" vs "target player"** | Oracle says "target player" but effect uses PlayerTarget::Controller | Spell can only affect caster, not target |
+| **"Another" exclusion** | Oracle says "another creature" — does the trigger/filter exclude self? | Creature triggering on its own death/ETB when it shouldn't |
+| **"Up to one" vs required** | Oracle says "up to one target" — can the spell be cast with 0 targets? | Forced targeting when oracle allows none |
+| **Controller vs Owner** | In multiplayer, controller ≠ owner — oracle specifying "owner" with PlayerTarget::Controller | Wrong player in multiplayer gain-control scenarios |
+
+**If ANY of these are wrong, it's HIGH severity.** A card that does the wrong thing is
+worse than a card with `abilities: vec![]`.
+
 ## Known Issue Patterns
 
 These are bugs found in previous reviews. Check for all of them:

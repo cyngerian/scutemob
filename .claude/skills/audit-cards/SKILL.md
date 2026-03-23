@@ -33,7 +33,7 @@ Scan every card def file in `crates/engine/src/cards/defs/`:
 1. **TODO scan**: Grep for `TODO` comments. For each:
    - Is the TODO still valid? (check against current DSL)
    - If DSL now supports it: flag as "fixable"
-   - If DSL doesn't: flag as "legitimate gap" (candidate for KNOWN_GAP)
+   - If DSL doesn't: flag as "DSL extension needed"
 
 2. **Empty abilities scan**: Grep for `abilities: vec![]`. For each:
    - Is this a vanilla creature (no oracle text abilities)? → OK
@@ -51,6 +51,32 @@ Scan every card def file in `crates/engine/src/cards/defs/`:
 6. **Type line spot-check**: Sample 10% of card defs, verify type line against oracle
    - Pay special attention to supertypes (Legendary, Basic, Snow)
 
+7. **CRITICAL — "Legal-but-wrong" semantic audit**: For EVERY card with non-empty
+   abilities, check these multiplayer-correctness patterns. These are the most
+   dangerous bugs — they compile, pass tests, produce consistent state, but do
+   the wrong thing. No automated invariant checker catches them.
+
+   **7a. Token recipient audit**: Grep all `CreateToken` usage. For each, look up
+   oracle text. If oracle says "its controller creates" or "that player creates" or
+   "target player creates" — verify the token goes to the correct player, not the
+   spell's controller. Flag every mismatch as **CRITICAL**.
+
+   **7b. Effect target player audit**: For cards with `PlayerTarget::Controller`,
+   check oracle text. If oracle says "its controller", "its owner", "that player",
+   or "target player" — verify the PlayerTarget is correct for multiplayer. Controller
+   ≠ Owner when permanents are stolen.
+
+   **7c. "Another" exclusion audit**: For triggered abilities, check if oracle says
+   "another creature" or "another permanent" — verify the trigger or filter excludes
+   self. `WheneverCreatureDies` without a self-exclusion filter fires on the card's
+   own death.
+
+   **7d. ForEach variant audit**: For `ForEach` effects, verify `EachPlayer` vs
+   `EachOpponent` matches oracle text exactly.
+
+   **7e. "Up to" targeting audit**: For cards with "up to one target" or "up to N
+   targets" in oracle text, verify the targeting allows 0 targets.
+
 Write results to `memory/card-authoring/audit-report.md`:
 
 ```markdown
@@ -66,12 +92,17 @@ Write results to `memory/card-authoring/audit-report.md`:
 | Category | Count | Severity |
 |----------|-------|----------|
 | Fixable TODOs (DSL supports it) | N | HIGH |
-| Legitimate TODOs (DSL gap) | N | INFO |
+| DSL extensions needed | N | HIGH |
 | Missing implementations (empty abilities) | N | MEDIUM |
 | Known-issue pattern matches | N | varies |
 | ETB-tapped mismatches | N | HIGH |
 | Mana cost errors (sample) | N | HIGH |
 | Type line errors (sample) | N | HIGH |
+| **CRITICAL: Wrong token recipient** | N | **CRITICAL** |
+| **CRITICAL: Wrong effect target player** | N | **CRITICAL** |
+| **CRITICAL: Missing "another" exclusion** | N | **CRITICAL** |
+| **CRITICAL: Wrong ForEach variant** | N | **CRITICAL** |
+| **CRITICAL: Missing "up to" 0-target** | N | **CRITICAL** |
 
 ## Per-Card Issues
 
