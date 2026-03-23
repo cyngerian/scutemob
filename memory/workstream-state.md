@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **A-18 draw COMPLETE**; A-19 token-create 4/14 sessions done (48 cards). Next: S44+. |
+| W6: Primitive + Card Authoring | Phase 2: A-19 token-create S44+ | ACTIVE | 2026-03-23 | A-19 token-create 4/14 sessions done (48 cards). Continuing S44+. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -29,10 +29,10 @@
 
 **Completed**:
 - A-18 draw sessions S20-S25 COMPLETE: 43 new cards (S24 blocked, 6 cards skipped)
-- Reviewed by card-batch-reviewer: 11 HIGH findings fixed (overbroad triggers, wrong costs)
+- Reviewed by card-batch-reviewer: 11 HIGH + 4 MEDIUM findings fixed (overbroad triggers, wrong costs, free draws)
 - A-19 token-create sessions S40-S43: 48 new cards
 - Total this session: 91 new card defs
-- Commits: fc27279, 047532f, f43d88b
+- Commits: fc27279, 047532f, f43d88b, 0de9b8c
 - Total: ~1173 card def files
 - All 2281 tests passing, 0 clippy, workspace builds clean
 
