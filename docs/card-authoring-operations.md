@@ -129,7 +129,7 @@ Work through groups in the order below. For each group, follow the per-group wor
 - [x] **A-15**: removal-bounce (2 sessions, 9 new + 1 existed)
 - [x] **A-16**: removal-minus (1 session, 4 new cards)
 - [x] **A-17**: counter (3 sessions, 16 new cards)
-- [ ] **A-18**: draw (14 sessions, 161 cards)
+- [x] **A-18**: draw (14 sessions, 161 cards) — COMPLETE (S24 blocked/6 skipped; 155 authored)
 - [ ] **A-19**: token-create (13 sessions, 146 cards)
 - [ ] **A-20**: pump-buff (3 sessions, 26 cards)
 - [ ] **A-21**: counters-plus (5 sessions, 42 cards)

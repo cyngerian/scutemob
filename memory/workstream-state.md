@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **A-18 draw IN PROGRESS** (10/16 sessions done, 119 new cards). Next: S20-S23+S25. |
+| W6: Primitive + Card Authoring | — | available | — | **A-18 draw COMPLETE**; A-19 token-create 4/14 sessions done (48 cards). Next: S44+. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,35 +25,41 @@
 
 **Date**: 2026-03-22
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-18 draw (sessions 10-19 of 16)
+**Task**: Phase 2 authoring — A-18 draw completion + A-19 token-create start
 
 **Completed**:
-- A-18 draw sessions 10-19: 119 new card defs (10 sessions of 16 complete)
-- Added ProtectionQuality to helpers.rs prelude
-- Key cards: Phyrexian Arena, Opt, Preordain, The One Ring, Tatyova, Beast Whisperer, Psychosis Crawler, Teferi Temporal Pilgrim, The Locust God, Liliana Dreadhorde General, Tireless Tracker, Nadir Kraken, Chasm Skulker, and 106 more
-- Commits: 4a15b5e, 9bf3870, 6ecdb68
-- Total: ~1082 card def files
+- A-18 draw sessions S20-S25 COMPLETE: 43 new cards (S24 blocked, 6 cards skipped)
+- Reviewed by card-batch-reviewer: 11 HIGH findings fixed (overbroad triggers, wrong costs)
+- A-19 token-create sessions S40-S43: 48 new cards
+- Total this session: 91 new card defs
+- Commits: fc27279, 047532f, f43d88b
+- Total: ~1173 card def files
 - All 2281 tests passing, 0 clippy, workspace builds clean
 
 **Next**:
-1. **A-18 draw sessions 20-23+25** (43 remaining cards, 5 sessions) — finish the draw group
-2. **A-19 token-create** (146 cards, 13 sessions) — second largest group
-3. Then A-20 through remaining groups
+1. **A-19 token-create sessions S44-S53** (107 remaining cards, 10 sessions) — continue token group
+2. Review A-19 S40-S43 with card-batch-reviewer
+3. Then A-20 pump-buff through remaining groups
 
 **Hazards**:
-- Direct authoring is 5-10x faster than bulk-card-author agents for complex draw cards
-- `WheneverYouDrawACard` trigger EXISTS in DSL — agents were told it doesn't, stale info
-- `WheneverCreatureDies` is overbroad (all creatures, no controller/type filter) — used as approx for many death-draw cards
-- Per-creature combat damage triggers NOT in DSL — Coastal Piracy, Bident, Ohran Frostfang all have TODOs
-- `WheneverYouCastSpell` lacks spell-type filter — Beast Whisperer, Sram use unfiltered approx
-- `MayPayOrElse` is opponent-pays-or-else, NOT self-may-pay — Nadir Kraken, Miara simplified
-- Horizon lands (Fiery Islet, Silent Clearing, Nurturing Peatland) use `AddManaChoice` for "Add X or Y"
-- Session 24 blocked (6 cards including Life from the Loam)
-- Kaito, Bane of Nightmares already existed (skipped in S14)
+- Direct authoring 5-10x faster than bulk-card-author for complex cards
+- `WheneverYouCastSpell` lacks spell-type filter — Lys Alana Huntmaster, Murmuring Mystic have empty abilities to avoid wrong game state
+- `WheneverCreatureDies` overbroad (all creatures, not "your creatures") — Bastion of Remembrance, Pawn of Ulamog, etc. use it as approximation
+- Per-creature combat damage triggers NOT in DSL — Old Gnawbone, Professional Face-Breaker have TODOs
+- Copy-token creation not in DSL — Kiki-Jiki, Miirym have TODOs
+- Token doubling replacement not in DSL — Doubling Season, Parallel Lives body-only
+- Count-based token amounts not in DSL — Dockside Extortionist, Avenger of Zendikar use fixed approximations
+- `Ward(u32)` takes a parameter (not bare `Ward`) — caught in S42 build
+- `KeywordAbility::Mentor` does not exist — caught in S43 build
+- 3 existing cards in A-19: Hanweir Garrison (S45), Basri Ket (S46), Wrenn and Seven (S53) — skip these
 
 **Commit prefix used**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-22 — W6: Phase 2 authoring A-18 draw S10-S19
+- 119 new cards (10 sessions of 16 complete)
+- Commits: 4a15b5e, 9bf3870, 6ecdb68. 2281 tests.
 
 ### 2026-03-22 — W6: Phase 2 authoring A-14 through A-17 (Tier 2 cont'd)
 - 45 new cards (damage-each, bounce, minus, counter). All HIGH fixed.
@@ -69,6 +75,3 @@
 
 ### 2026-03-22 — W6: Phase 2 authoring A-01 through A-04
 - 52 new card defs authored (16 mana-creature + 33 mana-artifact + 3 mana-other).
-
-### 2026-03-22 — W6: Phase 1 close (F-4 sweep + F-5/F-6/F-7)
-- Phase 1 Fix COMPLETE. Next: Phase 2 authoring A-01.
