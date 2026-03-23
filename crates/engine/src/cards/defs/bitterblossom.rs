@@ -8,7 +8,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("bitterblossom"),
         name: "Bitterblossom".to_string(),
         mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
-        types: types_sub(&[CardType::Enchantment], &["Faerie"]),
+        types: types_sub(&[CardType::Kindred, CardType::Enchantment], &["Faerie"]),
         oracle_text: "At the beginning of your upkeep, you lose 1 life and create a 1/1 black Faerie Rogue creature token with flying.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {

@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
-            // TODO: Battle cry keyword not in DSL KeywordAbility enum.
+            AbilityDefinition::Keyword(KeywordAbility::BattleCry),
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken {

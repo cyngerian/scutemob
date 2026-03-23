@@ -38,8 +38,30 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "Whenever this creature ... attacks" — WhenDeclaredAttacker trigger not
-            // in DSL. Only the ETB half is implemented above.
+            // Attack trigger: same token creation
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenAttacks,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Zombie".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Zombie".to_string())].into_iter().collect(),
+                        colors: [Color::Black].into_iter().collect(),
+                        power: 2,
+                        toughness: 2,
+                        count: 2,
+                        supertypes: im::OrdSet::new(),
+                        keywords: im::OrdSet::new(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }
