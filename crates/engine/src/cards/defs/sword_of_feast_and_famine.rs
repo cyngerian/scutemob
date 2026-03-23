@@ -1,0 +1,46 @@
+// Sword of Feast and Famine — {3}, Artifact — Equipment
+// Equipped creature gets +2/+2 and has protection from black and from green.
+// Whenever equipped creature deals combat damage to a player, that player discards a card
+// and you untap all lands you control.
+// Equip {2}
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("sword-of-feast-and-famine"),
+        name: "Sword of Feast and Famine".to_string(),
+        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        types: types_sub(&[CardType::Artifact], &["Equipment"]),
+        oracle_text: "Equipped creature gets +2/+2 and has protection from black and from green.\nWhenever equipped creature deals combat damage to a player, that player discards a card and you untap all lands you control.\nEquip {2}".to_string(),
+        abilities: vec![
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBoth(2),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Black))),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Green))),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+            },
+            // TODO: DSL gap — "Whenever equipped creature deals combat damage to a player"
+            // trigger + discard + untap all lands.
+            AbilityDefinition::Keyword(KeywordAbility::Equip),
+        ],
+        ..Default::default()
+    }
+}
