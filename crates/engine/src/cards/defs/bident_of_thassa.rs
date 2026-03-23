@@ -20,8 +20,21 @@ pub fn card() -> CardDefinition {
             &[],
         ),
         oracle_text: "Whenever a creature you control deals combat damage to a player, you may draw a card.\n{1}{U}, {T}: Creatures your opponents control attack this turn if able.".to_string(),
-        // TODO: Both abilities require DSL extensions.
-        abilities: vec![],
+        abilities: vec![
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "{1}{U}, {T}: Creatures your opponents control attack this turn if able."
+            // Forced attack effect not expressible in current DSL.
+        ],
         ..Default::default()
     }
 }

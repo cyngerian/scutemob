@@ -44,6 +44,14 @@ pub struct CardHealth {
     pub not_authored: u32,
     pub total_universe: u32,
     pub total_authored: u32,
+    /// Cards with no TODO and non-empty abilities (fully implemented).
+    pub fully_implemented: u32,
+    /// Cards with no TODO and empty abilities (vanilla/intentional).
+    pub vanilla: u32,
+    /// Cards with TODOs but some abilities (partial implementation).
+    pub partial: u32,
+    /// Cards with TODOs and empty abilities (stripped).
+    pub stripped: u32,
 }
 
 #[derive(Debug, Default, Clone)]

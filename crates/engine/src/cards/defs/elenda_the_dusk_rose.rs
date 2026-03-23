@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             // TODO: WheneverCreatureDies is overbroad (all creatures, not "another").
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::PlusOnePlusOne,

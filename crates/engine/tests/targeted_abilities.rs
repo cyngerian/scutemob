@@ -290,6 +290,7 @@ fn triggered_ability_targets_propagate_to_runtime() {
                 amount: EffectAmount::Fixed(1),
             }),
             etb_filter: None,
+            death_filter: None,
             targets: vec![TargetRequirement::TargetCreature],
         })
         .in_zone(ZoneId::Battlefield);
@@ -327,6 +328,7 @@ fn triggered_ability_target_player_propagates() {
             description: "Target player discards a card".to_string(),
             effect: None,
             etb_filter: None,
+            death_filter: None,
             targets: vec![TargetRequirement::TargetPlayer],
         })
         .in_zone(ZoneId::Battlefield);
@@ -365,6 +367,7 @@ fn triggered_ability_no_targets_backward_compatible() {
                 count: EffectAmount::Fixed(1),
             }),
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
         })
         .in_zone(ZoneId::Battlefield);

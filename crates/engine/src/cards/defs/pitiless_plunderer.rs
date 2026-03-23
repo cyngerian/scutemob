@@ -14,7 +14,21 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever another creature you control dies, create a Treasure token.".to_string(),
         power: Some(1),
         toughness: Some(4),
-        abilities: vec![],
+        abilities: vec![
+            // CR 603.10a: "Whenever another creature you control dies, create a Treasure token."
+            // PB-23: controller_you filter via DeathTriggerFilter.
+            // TODO: exclude_self not yet wired in enrich_spec_from_def.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+        ],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],

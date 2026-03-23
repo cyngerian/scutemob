@@ -368,6 +368,7 @@ impl GameStateBuilder {
                 if let KeywordAbility::Ward(cost_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesTargetByOpponent,
                         intervening_if: None,
@@ -399,6 +400,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Prowess) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::ControllerCastsNoncreatureSpell,
                         intervening_if: None,
@@ -421,6 +423,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Exalted) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::ControllerCreatureAttacksAlone,
                         intervening_if: None,
@@ -443,6 +446,7 @@ impl GameStateBuilder {
                 if let KeywordAbility::Annihilator(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -464,6 +468,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::BattleCry) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -494,6 +499,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Dethrone) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacksPlayerWithMostLife,
                         intervening_if: None,
@@ -519,6 +525,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Training) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacksWithGreaterPowerAlly,
                         intervening_if: None,
@@ -543,6 +550,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Melee) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -567,6 +575,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Enlist) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -592,6 +601,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Persist) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
@@ -627,6 +637,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Undying) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
@@ -661,6 +672,7 @@ impl GameStateBuilder {
                 if let KeywordAbility::Afterlife(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: None,
@@ -698,6 +710,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Extort) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::ControllerCastsSpell,
                         intervening_if: None,
@@ -718,6 +731,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::LivingWeapon) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfEntersBattlefield,
                         intervening_if: None,
@@ -760,6 +774,7 @@ impl GameStateBuilder {
                 if let KeywordAbility::Modular(_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: None,
@@ -783,6 +798,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Myriad) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -810,6 +826,7 @@ impl GameStateBuilder {
                     // Trigger 1: "Whenever this creature blocks"
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBlocks,
                         intervening_if: None,
@@ -822,6 +839,7 @@ impl GameStateBuilder {
                     // Trigger 2: "Whenever this creature becomes blocked"
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
@@ -843,6 +861,7 @@ impl GameStateBuilder {
                 if let KeywordAbility::Rampage(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
@@ -864,6 +883,7 @@ impl GameStateBuilder {
                 if matches!(kw, KeywordAbility::Provoke) {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -882,6 +902,7 @@ impl GameStateBuilder {
                 if let KeywordAbility::Afflict(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
+                        death_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,

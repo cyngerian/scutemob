@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "nontoken creature you control" — WheneverCreatureDies is overbroad
             //   (fires on all creature deaths, not just nontoken you control).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {
                         target: EffectTarget::Controller,

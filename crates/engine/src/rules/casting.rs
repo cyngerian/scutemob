@@ -5832,14 +5832,12 @@ fn evaluate_self_cost_reduction(
         } => {
             // Bolt Bend — costs {N} less if you control a creature with power >= threshold.
             let has_big_creature = state.objects.values().any(|obj| {
-                obj.zone == ZoneId::Battlefield
-                    && obj.controller == caster
-                    && {
-                        let chars = calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
-                        chars.card_types.contains(&CardType::Creature)
-                            && chars.power.unwrap_or(0) >= *threshold
-                    }
+                obj.zone == ZoneId::Battlefield && obj.controller == caster && {
+                    let chars = calculate_characteristics(state, obj.id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
+                    chars.card_types.contains(&CardType::Creature)
+                        && chars.power.unwrap_or(0) >= *threshold
+                }
             });
             if has_big_creature {
                 *reduction

@@ -13,9 +13,27 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: DSL gap — "this creature or another creature you control dies" trigger
-            // needs controller filter on WheneverCreatureDies. Using unfiltered trigger
-            // would fire on opponents' creatures dying (wrong game state per W5).
+            // CR 603.10a: "Whenever this creature or another creature you control dies,
+            // target opponent loses 1 life and you gain 1 life."
+            // PB-23: controller_you filter applied via DeathTriggerFilter.
+            // "Target opponent" is approximated as DeclaredTarget { index: 0 }.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::LoseLife {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    },
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPlayer],
+            },
         ],
         ..Default::default()
     }

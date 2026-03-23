@@ -12,10 +12,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever a creature you control attacks, you may put a quest counter on this enchantment.\nAs long as this enchantment has seven or more quest counters on it, creatures you control get +5/+5.".to_string(),
         abilities: vec![
-            // TODO: DSL gap — "Whenever a creature you control attacks" trigger condition
-            // (WheneverCreatureYouControlAttacks) does not exist.
-            // TODO: DSL gap — conditional static: "As long as this has 7+ quest counters,
-            // creatures you control get +5/+5." Needs Condition-gated Static ability.
+            // CR 508.1m: "Whenever a creature you control attacks, put a quest counter on this."
+            // PB-23: WheneverCreatureYouControlAttacks.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::Custom("quest".to_string()),
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "As long as this has 7+ quest counters, creatures you control get +5/+5."
+            // Condition-gated static ability not expressible in current DSL.
         ],
         ..Default::default()
     }

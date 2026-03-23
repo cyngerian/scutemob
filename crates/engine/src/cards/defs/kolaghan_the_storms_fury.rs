@@ -19,8 +19,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — "Whenever a Dragon you control attacks" trigger condition.
-            // WheneverCreatureYouControlAttacks with subtype filter does not exist.
+            // CR 508.1m: "Whenever a Dragon you control attacks, creatures you control get +1/+0."
+            // PB-23: WheneverCreatureYouControlAttacks. TODO: Dragon subtype filter not in DSL.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(1),
+                        filter: EffectFilter::CreaturesYouControl,
+                        duration: EffectDuration::UntilEndOfTurn,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Dash),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Dash,

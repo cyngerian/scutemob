@@ -19,8 +19,20 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: DSL gap — "Whenever a creature an opponent controls dies" trigger.
-            // WheneverCreatureDies exists but no filter for "an opponent controls".
+            // CR 603.10a: "Whenever a creature an opponent controls dies, put a +1/+1
+            // counter on Yahenni." — controller_opponent filter on WheneverCreatureDies.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::Opponent),
+                },
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Activated {
                 cost: Cost::Sacrifice(TargetFilter {
                     has_card_type: Some(CardType::Creature),

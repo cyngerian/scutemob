@@ -171,6 +171,7 @@ fn test_emblem_triggered_ability_fires() {
             count: EffectAmount::Fixed(1),
         }),
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
     };
 
@@ -380,6 +381,7 @@ fn test_multiple_emblems_stack() {
             count: EffectAmount::Fixed(1),
         }),
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
     };
 

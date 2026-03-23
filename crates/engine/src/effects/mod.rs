@@ -663,9 +663,8 @@ fn execute_effect_inner(
                         if let Some(shield_id) =
                             crate::rules::replacement::check_regeneration_shield(state, id)
                         {
-                            let regen_events = crate::rules::replacement::apply_regeneration(
-                                state, id, shield_id,
-                            );
+                            let regen_events =
+                                crate::rules::replacement::apply_regeneration(state, id, shield_id);
                             events.extend(regen_events);
                             continue; // Skip destruction -- permanent stays on battlefield
                         }

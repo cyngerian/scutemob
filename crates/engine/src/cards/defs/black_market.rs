@@ -14,7 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // "Whenever a creature dies" = any creature, no filter needed.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Charge,

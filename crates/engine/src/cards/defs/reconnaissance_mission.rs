@@ -1,9 +1,6 @@
 // Reconnaissance Mission — {2}{U}{U}, Enchantment
 // Whenever a creature you control deals combat damage to a player, you may draw a card.
 // Cycling {2}
-//
-// TODO: "Whenever a creature you control deals combat damage to a player" —
-//   needs per-creature combat damage trigger, not in DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,7 +11,17 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever a creature you control deals combat damage to a player, you may draw a card.\nCycling {2}".to_string(),
         abilities: vec![
-            // TODO: Per-creature combat damage trigger not in DSL.
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // Cycling {2}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {

@@ -988,6 +988,7 @@ fn test_603_self_attacks_trigger_fires() {
 
     let triggered_ability = TriggeredAbilityDef {
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
         trigger_on: TriggerEvent::SelfAttacks,
         intervening_if: None,
@@ -1799,6 +1800,7 @@ fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
 
     let triggered_ability = TriggeredAbilityDef {
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,
@@ -1891,6 +1893,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
 
     let triggered_ability = TriggeredAbilityDef {
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,
@@ -1988,6 +1991,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
 
     let triggered_ability = TriggeredAbilityDef {
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,
@@ -2074,6 +2078,7 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
 
     let make_trigger = || TriggeredAbilityDef {
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,

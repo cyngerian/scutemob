@@ -1764,8 +1764,17 @@ pub enum TriggerCondition {
     WheneverOpponentCastsSpell,
     /// "Whenever a player draws a card."
     WheneverPlayerDrawsCard,
-    /// "Whenever a creature dies."
-    WheneverCreatureDies,
+    /// "Whenever a creature dies" (with optional controller filter).
+    ///
+    /// - `controller: None` — fires on ANY creature dying (global).
+    /// - `controller: Some(TargetController::You)` — "whenever a creature you control dies".
+    /// - `controller: Some(TargetController::Opponent)` — "whenever a creature an opponent controls dies".
+    ///
+    /// CR 603.10a: death triggers look back in time. The dying creature's
+    /// pre-death controller is used for the controller filter.
+    WheneverCreatureDies {
+        controller: Option<TargetController>,
+    },
     /// "Whenever a creature enters the battlefield" (with optional filter).
     WheneverCreatureEntersBattlefield { filter: Option<TargetFilter> },
     /// "Whenever a permanent enters the battlefield" (with optional filter).
@@ -1862,6 +1871,19 @@ pub enum TriggerCondition {
     /// Dispatched via `GameEvent::PermanentTapped` → `TriggerEvent::SelfBecomesTapped`
     /// in `check_triggers`.
     WhenSelfBecomesTapped,
+    /// "Whenever a creature you control attacks" — fires once per attacking creature
+    /// you control.
+    ///
+    /// CR 508.1m / CR 603.2: Fires after attackers are declared, once per attacker
+    /// controlled by the trigger source's controller.
+    WheneverCreatureYouControlAttacks,
+    /// "Whenever a creature you control deals combat damage to a player."
+    ///
+    /// CR 510.3a / CR 603.2: Fires after combat damage is dealt, once per
+    /// creature controlled by the trigger source's controller that dealt damage to
+    /// a player (not a creature or planeswalker). The source creature must be on
+    /// the battlefield when damage is dealt (NOT a look-back trigger).
+    WheneverCreatureYouControlDealsCombatDamageToPlayer,
 }
 // ── Conditions ────────────────────────────────────────────────────────────────
 /// A boolean condition checked at trigger time or in Conditional effects (CR 603.4).

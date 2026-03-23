@@ -11,10 +11,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever a creature you control attacks, put a charge counter on this enchantment.\nRemove a charge counter from this enchantment: Add one mana of any color.".to_string(),
         abilities: vec![
-            // TODO: DSL gap — "Whenever a creature you control attacks" trigger condition
-            // (WheneverCreatureYouControlAttacks) does not exist.
-            // TODO: Cost::RemoveCounter does not exist — "Remove a charge counter: Add one
-            // mana of any color" cannot be expressed as an activated ability.
+            // CR 508.1m: "Whenever a creature you control attacks, put a charge counter on this."
+            // PB-23: WheneverCreatureYouControlAttacks.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::Charge,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "Remove a charge counter: Add one mana of any color."
+            // Cost::RemoveCounter not in DSL. Activated mana ability deferred.
         ],
         ..Default::default()
     }

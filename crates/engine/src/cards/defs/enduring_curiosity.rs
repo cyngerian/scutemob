@@ -19,7 +19,18 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
-            // TODO: Per-creature combat damage trigger + Glimmer death return not in DSL.
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: Glimmer death return mechanic (becomes non-creature enchantment) not in DSL.
         ],
         ..Default::default()
     }

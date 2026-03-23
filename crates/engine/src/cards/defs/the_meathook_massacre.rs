@@ -13,8 +13,32 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
         abilities: vec![
             // TODO: DSL gap — X cost ETB: "each creature gets -X/-X" needs X mana value
             // at resolution + mass ApplyContinuousEffect to AllCreatures.
-            // TODO: DSL gap — two death triggers with controller filters (you vs opponent).
-            // WheneverCreatureDies has no controller filter.
+            // CR 603.10a: "Whenever a creature you control dies, each opponent loses 1 life."
+            // PB-23: controller_you filter applied via DeathTriggerFilter.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                },
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::EachOpponent,
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // CR 603.10a: "Whenever a creature an opponent controls dies, you gain 1 life."
+            // PB-23: controller_opponent filter applied via DeathTriggerFilter.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::Opponent),
+                },
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

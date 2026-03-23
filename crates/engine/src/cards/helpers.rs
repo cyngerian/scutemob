@@ -16,8 +16,8 @@ pub use crate::state::continuous_effect::{
 };
 pub use crate::state::dungeon::{DungeonId, DungeonState, RoomIndex};
 pub use crate::state::game_object::{
-    Designations, ETBTriggerFilter, HybridMana, HybridManaPayment, InterveningIf, ManaAbility,
-    PhyrexianMana, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
+    DeathTriggerFilter, Designations, ETBTriggerFilter, HybridMana, HybridManaPayment,
+    InterveningIf, ManaAbility, PhyrexianMana, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
 };
 pub use crate::state::player::PlayerId;
 pub use crate::state::replacement_effect::{

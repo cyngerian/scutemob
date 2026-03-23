@@ -87,6 +87,7 @@ pub fn card() -> CardDefinition {
                                 count: EffectAmount::Fixed(2),
                             }),
                             etb_filter: None,
+                            death_filter: None,
                             targets: vec![],
                         },
                     ],

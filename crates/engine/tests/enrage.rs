@@ -142,6 +142,7 @@ fn test_enrage_combat_damage_triggers() {
         .with_card_id(CardId("enrage-test-1".to_string()))
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -266,6 +267,7 @@ fn test_enrage_noncombat_damage_triggers() {
         .with_card_id(CardId("enrage-test-2".to_string()))
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -398,6 +400,7 @@ fn test_enrage_zero_damage_no_trigger() {
     let enrage_creature = ObjectSpec::creature(p1, "Raptor NoTrigger", 4, 5)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -488,6 +491,7 @@ fn test_enrage_multiple_blockers_triggers_once() {
     let enrage_creature = ObjectSpec::creature(p1, "Enrage Attacker", 5, 5).with_triggered_ability(
         TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -606,6 +610,7 @@ fn test_enrage_lethal_damage_still_triggers() {
     let enrage_creature = ObjectSpec::creature(p1, "Doomed Raptor", 2, 3).with_triggered_ability(
         TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,

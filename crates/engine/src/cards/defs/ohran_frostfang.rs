@@ -15,8 +15,19 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(6),
         abilities: vec![
-            // TODO: "Attacking creatures have deathtouch" — conditional static grant not expressible.
-            // TODO: Per-creature combat damage trigger not in DSL.
+            // TODO: "Attacking creatures you control have deathtouch" — conditional static grant
+            // (filtering by "attacking" status) not expressible in current DSL.
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

@@ -65,7 +65,7 @@ fn destroy_effect(target_id: ObjectId) -> (Effect, mtg_engine::effects::EffectCo
     use mtg_engine::effects::EffectContext;
     let effect = Effect::DestroyPermanent {
         target: CardEffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+        cant_be_regenerated: false,
     };
     let ctx = EffectContext::new(
         PlayerId(1),

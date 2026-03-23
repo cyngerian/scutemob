@@ -14,9 +14,9 @@ use super::continuous_effect::{
 };
 use super::dungeon::{DungeonId, DungeonState};
 use super::game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
-    GameObject, HybridMana, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus,
-    PhyrexianMana, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, DeathTriggerFilter,
+    ETBTriggerFilter, GameObject, HybridMana, InterveningIf, ManaAbility, ManaCost, ObjectId,
+    ObjectStatus, PhyrexianMana, SacrificeFilter, TriggerEvent, TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState, RestrictedMana};
 use super::replacement_effect::{
@@ -1748,6 +1748,12 @@ impl HashInto for TriggerEvent {
             TriggerEvent::AtBeginningOfEachUpkeep => 25u8.hash_into(hasher),
             TriggerEvent::AtBeginningOfYourEndStep => 26u8.hash_into(hasher),
             TriggerEvent::AtBeginningOfCombat => 27u8.hash_into(hasher),
+            // CR 603.10a: fires on all battlefield permanents when any creature dies — discriminant 28
+            TriggerEvent::AnyCreatureDies => 28u8.hash_into(hasher),
+            // CR 508.1m: fires on all battlefield permanents when any creature you control attacks — discriminant 29
+            TriggerEvent::AnyCreatureYouControlAttacks => 29u8.hash_into(hasher),
+            // CR 510.3a: fires on all battlefield permanents when any creature you control deals combat damage to a player — discriminant 30
+            TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer => 30u8.hash_into(hasher),
         }
     }
 }
@@ -1811,6 +1817,14 @@ impl HashInto for ETBTriggerFilter {
         self.exclude_self.hash_into(hasher);
     }
 }
+impl HashInto for DeathTriggerFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.controller_you.hash_into(hasher);
+        self.controller_opponent.hash_into(hasher);
+        self.exclude_self.hash_into(hasher);
+        self.nontoken_only.hash_into(hasher);
+    }
+}
 impl HashInto for TriggeredAbilityDef {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.trigger_on.hash_into(hasher);
@@ -1818,6 +1832,7 @@ impl HashInto for TriggeredAbilityDef {
         self.description.hash_into(hasher);
         self.effect.hash_into(hasher);
         self.etb_filter.hash_into(hasher);
+        self.death_filter.hash_into(hasher);
         self.targets.hash_into(hasher);
     }
 }
@@ -3838,7 +3853,10 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenDealsCombatDamageToPlayer => 4u8.hash_into(hasher),
             TriggerCondition::WheneverOpponentCastsSpell => 5u8.hash_into(hasher),
             TriggerCondition::WheneverPlayerDrawsCard => 6u8.hash_into(hasher),
-            TriggerCondition::WheneverCreatureDies => 7u8.hash_into(hasher),
+            TriggerCondition::WheneverCreatureDies { controller } => {
+                7u8.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
             TriggerCondition::WheneverCreatureEntersBattlefield { filter } => {
                 8u8.hash_into(hasher);
                 filter.hash_into(hasher);
@@ -3880,6 +3898,12 @@ impl HashInto for TriggerCondition {
             // CR 701.54d: "Whenever the Ring tempts you" — discriminant 26
             TriggerCondition::WheneverRingTemptsYou => 26u8.hash_into(hasher),
             TriggerCondition::WhenSelfBecomesTapped => 27u8.hash_into(hasher),
+            // CR 508.1m / CR 603.2: "Whenever a creature you control attacks" — discriminant 28
+            TriggerCondition::WheneverCreatureYouControlAttacks => 28u8.hash_into(hasher),
+            // CR 510.3a / CR 603.2: "Whenever a creature you control deals combat damage to a player" — discriminant 29
+            TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer => {
+                29u8.hash_into(hasher)
+            }
         }
     }
 }

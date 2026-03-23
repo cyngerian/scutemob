@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: WheneverCreatureDies is overbroad (all creatures, not just yours).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {
                         over: ForEachTarget::EachOpponent,

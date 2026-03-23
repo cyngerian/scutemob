@@ -66,6 +66,7 @@ fn etb_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
     }
 }
@@ -78,6 +79,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
     }
 }
@@ -771,6 +773,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
     let conditional_creature = ObjectSpec::creature(p1, "High Life Watcher", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(50)),
@@ -839,6 +842,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
     let conditional_creature = ObjectSpec::creature(p1, "Sanctuary Warden", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(30)),
@@ -1411,6 +1415,7 @@ fn dies_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
     }
 }
@@ -1427,6 +1432,7 @@ fn dies_draw_trigger() -> TriggeredAbilityDef {
             count: EffectAmount::Fixed(1),
         }),
         etb_filter: None,
+        death_filter: None,
     }
 }
 
@@ -2231,6 +2237,7 @@ fn attack_trigger(description: &str) -> TriggeredAbilityDef {
         description: description.to_string(),
         effect: None,
         etb_filter: None,
+        death_filter: None,
         targets: vec![],
     }
 }
@@ -2247,6 +2254,7 @@ fn attack_draw_trigger() -> TriggeredAbilityDef {
             count: EffectAmount::Fixed(1),
         }),
         etb_filter: None,
+        death_filter: None,
     }
 }
 

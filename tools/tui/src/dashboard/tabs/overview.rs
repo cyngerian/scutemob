@@ -433,44 +433,57 @@ fn render_scripts(f: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_card_authoring(f: &mut Frame, area: Rect, app: &App) {
-    let c = &app.data.cards;
-    let total = c.total;
-    let ratio = if total > 0 {
-        c.authored as f64 / total as f64
-    } else {
-        0.0
-    };
+    let h = &app.data.progress.card_health;
+    let total = h.total_universe.max(1);
+    let authored = h.total_authored;
+    let ratio = authored as f64 / total as f64;
 
     let inner_width = area.width.saturating_sub(4);
     let bar = progress_bar(
         ratio,
         inner_width,
-        &format!("{}/{} ({:.0}%)", c.authored, total, ratio * 100.0),
+        &format!("{}/{} ({:.0}%)", authored, total, ratio * 100.0),
         Color::Cyan,
     );
+
+    let ok_pct = if authored > 0 {
+        h.fully_implemented * 100 / authored
+    } else {
+        0
+    };
 
     let lines = vec![
         bar,
         Line::from(vec![
             Span::styled(
-                format!("Authored: {:>3}", c.authored),
-                Style::default().fg(Color::Cyan),
+                format!("OK: {:>4}", h.fully_implemented),
+                Style::default().fg(theme::GREEN),
             ),
             Span::raw("  "),
             Span::styled(
-                format!("Ready: {:>4}", c.ready),
-                Style::default().fg(theme::GREEN),
+                format!("TODO: {:>4}", h.has_todos),
+                Style::default().fg(if h.has_todos > authored / 2 {
+                    theme::RED
+                } else {
+                    Color::Yellow
+                }),
             ),
         ]),
         Line::from(vec![
             Span::styled(
-                format!("Blocked: {:>3}", c.blocked),
-                Style::default().fg(theme::RED),
+                format!("{}% clean", ok_pct),
+                Style::default().fg(if ok_pct >= 80 {
+                    theme::GREEN
+                } else if ok_pct >= 50 {
+                    Color::Yellow
+                } else {
+                    theme::RED
+                }),
             ),
             Span::raw("  "),
             Span::styled(
-                format!("Deferred: {:>2}", c.deferred),
-                Style::default().fg(theme::ARTIFACT),
+                format!("Left: {:>3}", h.not_authored),
+                Style::default().fg(Color::DarkGray),
             ),
         ]),
     ];
@@ -479,7 +492,7 @@ fn render_card_authoring(f: &mut Frame, area: Rect, app: &App) {
         Paragraph::new(Text::from(lines)).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Card Authoring "),
+                .title(" Card Health (live) "),
         ),
         area,
     );

@@ -1,60 +1,59 @@
-# Primitive WIP: PB-22 S7 -- Adventure + Dual-Zone Search
+# Primitive WIP: PB-23 -- Controller-filtered creature triggers
 
-batch: PB-22
-session: S7
-title: Adventure (CR 715) + dual-zone search
-cards_affected: ~8 (Monster Manual, Lozhan + ~3 adventure cards + Finale of Devastation pattern)
-started: 2026-03-21
-phase: closed
-plan_file: memory/primitives/pb-plan-22-s7.md
+batch: PB-23
+title: Controller-filtered creature triggers
+cards_affected: ~145
+started: 2026-03-23
+phase: implement
+plan_file: memory/primitives/pb-plan-23.md
+
+## Gap Reference
+- G-1 from docs/dsl-gap-closure-plan.md
+- Add `controller` field to `WheneverCreatureDies`, `WheneverCreatureEntersBattlefield`
+- New variants: `WheneverCreatureYouControlAttacks`, `WheneverCreatureYouControlDealsCombatDamage`
+- ~145 card defs have TODOs blocked by missing controller-filtered triggers
 
 ## Deferred from Prior PBs
-- Adventure (cast from exile) — PB-13m
-- Dual-zone search (library OR graveyard) — Finale of Devastation pattern
+- `WheneverCreatureDies` has no controller filter — fires on ALL creatures dying (from A-23 handoff)
+- `WheneverCreatureYouControlAttacks` trigger does not exist (blocks most A-24 cards)
 
 ## Step Checklist
-- [x] 1. Engine changes: AltCostKind::Adventure, exile-on-resolution, cast creature from exile
-  - Added `AltCostKind::Adventure` (disc 27) to types.rs
-  - Added `adventure_face: Option<CardFace>` to CardDefinition
-  - Added `was_cast_as_adventure: bool` to StackObject
-  - Added `adventure_exiled_by: Option<PlayerId>` to GameObject
-  - casting.rs: cast_with_adventure binding, zone validation, type override (CR 715.3a), cost from adventure_face
-  - resolution.rs: is_permanent=false override, adventure face effect selection, exile-on-resolution + adventure_exiled_by set (CR 715.3d)
-  - resolution.rs: comment at fizzle/counter paths (CR 715.3d: exile only on resolution)
-  - hash.rs: AltCostKind::Adventure => 27, was_cast_as_adventure on StackObject, adventure_exiled_by on GameObject
-
-- [x] 2. Engine changes: dual-zone search (extend SearchLibrary or new Effect)
-  - Added `also_search_graveyard: bool` to Effect::SearchLibrary (card_definition.rs)
-  - Updated effects/mod.rs: candidate collection includes graveyard when also_search_graveyard=true
-  - Updated hash.rs: also_search_graveyard in SearchLibrary arm
-  - Updated dungeon.rs: also_search_graveyard: false in The Undercity room
-  - Updated all 26 card defs with SearchLibrary (also_search_graveyard: false by default)
-
-- [x] 3. Card definition fixes (Monster Manual, etc.)
-  - monster_manual.rs: added adventure_face with Zoological Study (SearchLibrary creature, then shuffle)
-  - finale_of_devastation.rs: also_search_graveyard: true (dual-zone search implemented), updated TODOs
-  - lozhan_dragons_legacy.rs: updated TODO to note Adventure framework now exists
-  - bonecrusher_giant.rs: NEW — Bonecrusher Giant // Stomp with adventure_face
-  - lovestruck_beast.rs: NEW — Lovestruck Beast // Heart's Desire with adventure_face
-  - adventure_face: None added to all 136 card defs that needed it
-
-- [x] 4. Unit tests (Adventure: 5, dual-zone: 3)
-  - adventure_tests.rs: 9 tests (6 Adventure + 3 dual-zone)
-  - ALL 9 PASSING
-
-- [x] 5. Workspace build verification
-  - cargo test --all: 2281 passing, 0 failing
-  - cargo clippy -- -D warnings: clean
-  - cargo build --workspace: clean
+- [x] 1. Engine changes (add controller field to existing triggers, new trigger variants, event wiring)
+  - Added `controller: Option<TargetController>` to `WheneverCreatureDies` in card_definition.rs
+  - Added `WheneverCreatureYouControlAttacks` and `WheneverCreatureYouControlDealsCombatDamageToPlayer` to TriggerCondition
+  - Added `AnyCreatureDies`, `AnyCreatureYouControlAttacks`, `AnyCreatureYouControlDealsCombatDamageToPlayer` to TriggerEvent
+  - Added `DeathTriggerFilter` struct with controller_you/controller_opponent/exclude_self/nontoken_only fields
+  - Added `death_filter: Option<DeathTriggerFilter>` to `TriggeredAbilityDef`
+  - Updated hash.rs for all new types/variants
+  - Updated exports: state/mod.rs, lib.rs, cards/helpers.rs, testing/replay_harness.rs imports
+  - Wired all three trigger conditions in enrich_spec_from_def (replay_harness.rs)
+  - Wired AnyCreatureDies dispatch in CreatureDied handler (abilities.rs)
+  - Wired AnyCreatureYouControlAttacks dispatch in AttackersDeclared handler
+  - Wired AnyCreatureYouControlDealsCombatDamageToPlayer dispatch in CombatDamageDealt handler
+  - Updated TriggerDoublerFilter::CreatureDeath to also match AnyCreatureDies
+  - Updated 23 card defs with bare WheneverCreatureDies to use controller parameter
+  - Fixed all TriggeredAbilityDef struct literals (card defs, tests, engine files) to include death_filter: None
+- [x] 2. Card definition fixes (controller-filtered trigger TODO → real implementation)
+  - WheneverCreatureDies (controller_you): bastion_of_remembrance, dark_prophecy, moldervine_reclamation, liliana_dreadhorde_general, marionette_apprentice, midnight_reaper, morbid_opportunist, pawn_of_ulamog, skemfar_avenger, crossway_troublemakers, vindictive_vampire, elas_il_kor, pitiless_plunderer, grim_haruspex, sifter_of_skulls, vengeful_bloodwitch, agent_venom (+ controller update from TODO)
+  - WheneverCreatureDies (controller_opponent): yahenni_undying_partisan
+  - WheneverCreatureDies (controller: None, global): blood_artist, cordial_vampire, falkenrath_noble, fecundity, black_market, vein_ripper, poison_tip_archer, zulaport_cutthroat, elenda_the_dusk_rose, syr_konrad_the_grim
+  - The Meathook Massacre: two death triggers (you + opponent) now implemented
+  - WheneverCreatureYouControlAttacks: beastmaster_ascension, druids_repository, mardu_ascendancy, utvara_hellkite, kolaghan_the_storms_fury
+  - WheneverCreatureYouControlDealsCombatDamageToPlayer: coastal_piracy, reconnaissance_mission, bident_of_thassa, toski_bearer_of_secrets, ohran_frostfang, enduring_curiosity
+  - Remaining TODO cards kept as TODO (complex effects, subtype filters, or other DSL gaps)
+- [x] 3. Unit tests (10 tests in creature_triggers.rs, all passing)
+  - test_whenever_creature_you_control_dies_fires_on_your_creature
+  - test_whenever_creature_you_control_dies_ignores_opponent_creature
+  - test_whenever_any_creature_dies_fires_on_any
+  - test_whenever_creature_opponent_controls_dies_fires
+  - test_whenever_creature_opponent_controls_dies_ignores_your_creature
+  - test_whenever_creature_you_control_attacks_fires
+  - test_whenever_creature_you_control_attacks_ignores_opponent
+  - test_whenever_creature_you_control_attacks_fires_per_creature
+  - test_whenever_creature_you_control_deals_combat_damage_to_player_fires
+  - test_whenever_creature_you_control_deals_combat_damage_ignores_opponent
+- [x] 4. Workspace build verification
+  - cargo test --all: 2291 passing (2281 + 10 new), 0 failures
+  - cargo clippy -- -D warnings: 0 warnings (fixed 2 map_or → is_some_and/is_none_or)
+  - cargo build --workspace: clean build (engine + simulator + network + replay-viewer + tui)
   - cargo fmt --check: clean
-
-## Review
-findings: 4 (HIGH: 1, MEDIUM: 3, LOW: 0)
-verdict: fixed
-review_file: memory/primitives/pb-review-22-s7.md
-
-Fixes applied (2026-03-21):
-- [x] HIGH-3: monster_manual.rs — replaced SearchLibrary adventure face with Effect::MillCards(5) + Effect::MoveZone to hand; target: TargetCardInYourGraveyard(Creature); oracle_text corrected
-- [x] MEDIUM-1: copy.rs:207 — was_cast_as_adventure: original.was_cast_as_adventure (CR 715.3c); cascade/discover sites remain false (correct — new casts, not copies)
-- [x] MEDIUM-2: legal_actions.rs — added TODO(W2) block in StubProvider doc comment documenting both Adventure casting gaps (cast as adventure from hand, cast creature from adventure exile)
-- [x] MEDIUM-4: bonecrusher_giant.rs — updated TODO to document 3 gaps: (1) WhenBecomesTargetByOpponent is WRONG (should be WhenBecomesTargetBySpell for any spell); (2) EachOpponent is WRONG (needs EffectTarget::TriggeringPlayer); (3) prevention removal omitted

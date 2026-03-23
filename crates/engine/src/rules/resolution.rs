@@ -616,6 +616,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         obj.characteristics.triggered_abilities.push(
                             crate::state::game_object::TriggeredAbilityDef {
                                 etb_filter: None,
+                                death_filter: None,
                                 targets: vec![],
                                 trigger_on: crate::state::game_object::TriggerEvent::SelfDies,
                                 intervening_if: None,

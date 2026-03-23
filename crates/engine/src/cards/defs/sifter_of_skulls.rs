@@ -14,10 +14,39 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
-            // TODO: "Whenever another nontoken creature you control dies" —
-            // WheneverCreatureDies trigger is overbroad (KI-5): it would trigger on
-            // token deaths and on opponents' creatures. DSL lacks nontoken + controller-you
-            // + self-exclusion filter on WhenDies triggers. Using TODO per W5 policy.
+            // CR 603.10a: "Whenever another nontoken creature you control dies, create
+            // a 1/1 colorless Eldrazi Scion token."
+            // PB-23: controller_you filter now applied via DeathTriggerFilter.
+            // TODO: nontoken_only and exclude_self filters not yet wired from card def
+            // into DeathTriggerFilter in enrich_spec_from_def — will over-trigger on
+            // token deaths and on Sifter of Skulls itself dying.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Eldrazi Scion".to_string(),
+                        power: 1,
+                        toughness: 1,
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Eldrazi".to_string()), SubType("Scion".to_string())]
+                            .into_iter()
+                            .collect(),
+                        count: 1,
+                        mana_abilities: vec![ManaAbility {
+                            sacrifice_self: true,
+                            any_color: true,
+                            requires_tap: false,
+                            produces: im::OrdMap::new(),
+                            damage_to_controller: 0,
+                        }],
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

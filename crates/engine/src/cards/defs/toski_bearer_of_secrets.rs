@@ -15,10 +15,20 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: All abilities stripped per W5 policy — Indestructible without must-attack
-            // constraint produces wrong game state (unkillable blocker instead of forced attacker).
-            // Needs: CantBeCountered, Indestructible, MustAttack, and
-            // WhenAnyCreatureYouControlDealsCombatDamage trigger (DSL gaps).
+            // Indestructible — correct standalone.
+            AbilityDefinition::Keyword(KeywordAbility::Indestructible),
+            // TODO: "Toski attacks each combat if able." — MustAttack restriction not in DSL.
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

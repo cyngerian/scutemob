@@ -3326,6 +3326,23 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
+                // CR 508.1m / CR 603.2: AnyCreatureYouControlAttacks — fires on ALL battlefield
+                // permanents for each creature that attacks, controller-filtered so only permanents
+                // controlled by the same player as the attacking creature receive the trigger.
+                //
+                // Fires once per attacking creature (CR 603.2c — one trigger per attacker).
+                // The attacking creature's ObjectId is passed as `entering_object` so that
+                // collect_triggers_for_event can check controller match for controller_you filtering
+                // (using entering_obj.controller == trigger_source.controller).
+                for (attacker_id, _) in attackers {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::AnyCreatureYouControlAttacks,
+                        None,
+                        Some(*attacker_id),
+                    );
+                }
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
                 // If exactly one creature is declared as an attacker, fire exalted triggers
                 // on ALL permanents controlled by the attacking player (not just the attacker).
@@ -3739,6 +3756,102 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 PendingTriggerKind::HauntedCreatureDies,
                             )
                         });
+                    }
+                }
+                // CR 603.10a / CR 603.2: AnyCreatureDies — fires on ALL battlefield permanents
+                // when any creature dies. death_filter is applied inside collect_triggers_for_event
+                // to check controller_you/controller_opponent/exclude_self/nontoken_only against
+                // the dying creature's PRE-DEATH state.
+                //
+                // We pass new_grave_id as the entering_object parameter (reused for death filter
+                // checks — the dying creature is now in the graveyard, but its pre-death controller
+                // is stored in the death_controller parameter from the event).
+                //
+                // Important: We also store the pre-death controller so collect_triggers_for_event
+                // can compare it against trigger sources' controllers for the controller_you filter.
+                // Since collect_triggers_for_event reads entering_object from state.objects, and
+                // the dying creature is now in the graveyard with controller reset to owner by
+                // move_object_to_zone, we must filter using death_controller directly here.
+                {
+                    let dying_obj_id = *new_grave_id;
+                    let dying_controller = *death_controller;
+                    let dying_is_token =
+                        state.objects.get(&dying_obj_id).is_some_and(|o| o.is_token);
+                    // Collect all battlefield permanents that have AnyCreatureDies triggers.
+                    let candidate_ids: Vec<ObjectId> = state
+                        .objects
+                        .values()
+                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
+                        .map(|obj| obj.id)
+                        .collect();
+                    for obj_id in candidate_ids {
+                        let Some(obj) = state.objects.get(&obj_id) else {
+                            continue;
+                        };
+                        let resolved_chars =
+                            crate::rules::layers::calculate_characteristics(state, obj_id)
+                                .unwrap_or_else(|| obj.characteristics.clone());
+                        for (idx, trigger_def) in
+                            resolved_chars.triggered_abilities.iter().enumerate()
+                        {
+                            if trigger_def.trigger_on != TriggerEvent::AnyCreatureDies {
+                                continue;
+                            }
+                            // Apply death_filter using the pre-death controller (not graveyard object's
+                            // controller, which was reset to owner by move_object_to_zone).
+                            if let Some(ref df) = trigger_def.death_filter {
+                                // controller_you: dying creature must share controller with trigger source
+                                if df.controller_you && dying_controller != obj.controller {
+                                    continue;
+                                }
+                                // controller_opponent: dying creature must be controlled by an opponent
+                                if df.controller_opponent && dying_controller == obj.controller {
+                                    continue;
+                                }
+                                // exclude_self: dying creature must not be the trigger source
+                                if df.exclude_self && dying_obj_id == obj_id {
+                                    continue;
+                                }
+                                // nontoken_only: dying creature must not be a token
+                                if df.nontoken_only && dying_is_token {
+                                    continue;
+                                }
+                            }
+                            // CR 603.4: Check intervening-if at trigger time.
+                            if let Some(ref cond) = trigger_def.intervening_if {
+                                if !check_intervening_if(state, cond, obj.controller, None) {
+                                    continue;
+                                }
+                            }
+                            triggers.push(PendingTrigger {
+                                source: obj_id,
+                                ability_index: idx,
+                                controller: obj.controller,
+                                kind: PendingTriggerKind::Normal,
+                                triggering_event: Some(TriggerEvent::AnyCreatureDies),
+                                // Reuse entering_object_id to carry the dying creature's graveyard
+                                // ObjectId for post-trigger use if needed.
+                                entering_object_id: Some(dying_obj_id),
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
+                                data: None,
+                            });
+                        }
                     }
                 }
             }
@@ -4161,6 +4274,36 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                     );
                 }
+                // CR 510.3a / CR 603.2: AnyCreatureYouControlDealsCombatDamageToPlayer —
+                // fires on ALL battlefield permanents when any creature controlled by their
+                // controller deals combat damage to a player. Controller filtering is applied
+                // inside collect_triggers_for_event via the entering_object check.
+                //
+                // Fires once per creature per damage event (CR 603.2c).
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue; // CR 603.2g: fully prevented damage does not trigger
+                    }
+                    if !matches!(assignment.target, CombatDamageTarget::Player(_)) {
+                        continue; // only triggers on damage to players (not creatures)
+                    }
+                    // Only trigger if the source creature is still on the battlefield
+                    // (CR 603.10: NOT a look-back trigger for combat damage triggers).
+                    if state
+                        .objects
+                        .get(&assignment.source)
+                        .is_none_or(|o| o.zone != ZoneId::Battlefield)
+                    {
+                        continue;
+                    }
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
+                        None,
+                        Some(assignment.source),
+                    );
+                }
                 // CR 701.54c (ring level >= 4): "Whenever your Ring-bearer deals combat
                 // damage to a player, each opponent loses 3 life."
                 // Queue a RingCombatDamage PendingTrigger for each assignment where the
@@ -4501,6 +4644,32 @@ fn collect_triggers_for_event(
         for (idx, trigger_def) in resolved_chars.triggered_abilities.iter().enumerate() {
             if trigger_def.trigger_on != event_type {
                 continue;
+            }
+            // CR 508.1m / CR 603.2: AnyCreatureYouControlAttacks and
+            // AnyCreatureYouControlDealsCombatDamageToPlayer controller filtering.
+            // These events use `entering_object` to carry the attacking/damage-dealing
+            // creature. We only fire on trigger sources controlled by the same player
+            // as the attacking/dealing creature.
+            if matches!(
+                event_type,
+                TriggerEvent::AnyCreatureYouControlAttacks
+                    | TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer
+            ) {
+                if let Some(attacking_id) = entering_object {
+                    if let Some(attacking_obj) = state.objects.get(&attacking_id) {
+                        // Only trigger if the attacking/dealing creature is controlled by
+                        // the same player as the trigger source ("you control" filter).
+                        if attacking_obj.controller != obj.controller {
+                            continue;
+                        }
+                    } else {
+                        // Attacking creature not found — skip conservatively.
+                        continue;
+                    }
+                } else {
+                    // No attacker context — skip.
+                    continue;
+                }
             }
             // CR 603.2 / CR 207.2c: Apply ETB filter for Alliance and similar
             // "whenever [another] [creature] [you control] enters" triggers.
@@ -5761,21 +5930,13 @@ fn doubler_applies_to_trigger(
         }
         TriggerDoublerFilter::CreatureDeath => {
             // CR 603.2d: The triggering event must be a creature dying.
-            // Matches SelfDies triggers (the dying creature's own "when ~ dies" abilities).
-            //
-            // TODO (PB-12 deferred): Also double "whenever a creature dies" triggers on
-            // other permanents (e.g., Zulaport Cutthroat, Blood Artist). This requires:
-            //   1. Add TriggerEvent::AnyCreatureDies variant.
-            //   2. Wire TriggerCondition::WheneverCreatureDies → TriggerEvent::AnyCreatureDies
-            //      in enrich_spec_from_def (replay_harness.rs).
-            //   3. In the CreatureDied handler (abilities.rs), call collect_triggers_for_event
-            //      with TriggerEvent::AnyCreatureDies for all battlefield objects.
-            //   4. Update this filter arm to also match AnyCreatureDies triggers.
-            //
-            // Note: WheneverCreatureDies CardDef triggers currently do NOT fire at all
-            // (they're not wired in enrich_spec_from_def), so doubling them is moot
-            // until the underlying trigger infrastructure is fixed.
-            matches!(trigger.triggering_event, Some(TriggerEvent::SelfDies))
+            // Matches both SelfDies (the dying creature's own "when ~ dies" abilities)
+            // and AnyCreatureDies (other permanents with "whenever a creature dies" abilities
+            // like Blood Artist, Zulaport Cutthroat, Grave Pact, etc.). PB-23 wired both.
+            matches!(
+                trigger.triggering_event,
+                Some(TriggerEvent::SelfDies) | Some(TriggerEvent::AnyCreatureDies)
+            )
         }
     }
 }

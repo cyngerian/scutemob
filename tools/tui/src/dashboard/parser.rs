@@ -10,6 +10,10 @@ pub fn parse_all(root: &Path) -> DashboardData {
     reviews.engine_loc = src_loc;
     reviews.test_loc = test_loc;
 
+    let mut progress = parse_project_status(root).unwrap_or_default();
+    // Override card health with live filesystem scan
+    progress.card_health = scan_card_health_live(root);
+
     DashboardData {
         current_state: parse_claude_md(root).unwrap_or_default(),
         abilities: parse_ability_coverage(root).unwrap_or_default(),
@@ -18,7 +22,7 @@ pub fn parse_all(root: &Path) -> DashboardData {
         reviews,
         scripts: count_scripts(root).unwrap_or_default(),
         cards: parse_card_worklist(root).unwrap_or_default(),
-        progress: parse_project_status(root).unwrap_or_default(),
+        progress,
     }
 }
 
@@ -1046,4 +1050,62 @@ fn parse_project_status(root: &Path) -> Option<ProjectProgress> {
     }
 
     Some(progress)
+}
+
+// ─── live card health scanner ─────────────────────────────────────────────
+
+/// Scan all card def files on disk and compute health metrics directly.
+/// This replaces the stale project-status.md card health section with live data.
+fn scan_card_health_live(root: &Path) -> CardHealth {
+    let defs_dir = root.join("crates/engine/src/cards/defs");
+    let entries = match fs::read_dir(&defs_dir) {
+        Ok(e) => e,
+        Err(_) => return CardHealth::default(),
+    };
+
+    let mut fully_implemented: u32 = 0;
+    let mut vanilla: u32 = 0;
+    let mut partial: u32 = 0;
+    let mut stripped: u32 = 0;
+    let mut total: u32 = 0;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        if path.file_stem().and_then(|s| s.to_str()) == Some("mod") {
+            continue;
+        }
+
+        total += 1;
+
+        let content = match fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let has_todo = content.contains("TODO");
+        let has_empty_abilities = content.contains("abilities: vec![]");
+
+        match (has_todo, has_empty_abilities) {
+            (false, false) => fully_implemented += 1,
+            (false, true) => vanilla += 1,
+            (true, true) => stripped += 1,
+            (true, false) => partial += 1,
+        }
+    }
+
+    CardHealth {
+        fully_implemented,
+        vanilla,
+        partial,
+        stripped,
+        complete: fully_implemented,
+        has_todos: partial + stripped,
+        wrong_state: 0, // Can't determine from file scan alone
+        not_authored: 1743u32.saturating_sub(total), // universe size
+        total_universe: 1743,
+        total_authored: total,
+    }
 }

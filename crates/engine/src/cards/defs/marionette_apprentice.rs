@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another creature or artifact dies" — WheneverCreatureDies
             //   doesn't cover artifacts. Using it as approximation.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::LoseLife {

@@ -68,6 +68,7 @@ pub fn card() -> CardDefinition {
                                 count: 2,
                             }),
                             etb_filter: None,
+                            death_filter: None,
                             // TODO: Should be TargetOpponent; TargetPlayer is an approximation.
                             targets: vec![TargetRequirement::TargetPlayer],
                         },

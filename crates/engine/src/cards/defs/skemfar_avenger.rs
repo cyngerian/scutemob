@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Another nontoken Elf or Berserker you control dies" — WheneverCreatureDies
             //   is overbroad (all creatures, not just Elf/Berserker, nontoken, yours, another).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,

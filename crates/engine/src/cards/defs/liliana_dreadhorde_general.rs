@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: WheneverCreatureDies overbroad (all creatures, not just yours).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

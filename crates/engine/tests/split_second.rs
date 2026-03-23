@@ -832,6 +832,7 @@ fn test_split_second_triggered_abilities_still_fire() {
     let creature = ObjectSpec::creature(p1, "Spell Watcher", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
+            death_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::AnySpellCast,
             intervening_if: None,

@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // Whenever a Vampire you control dies, draw (pay 2 life simplified away)
             // TODO: WheneverCreatureDies lacks subtype filter (Vampire only).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

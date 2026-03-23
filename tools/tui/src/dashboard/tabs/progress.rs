@@ -52,6 +52,11 @@ fn render_pipeline_funnel(f: &mut Frame, area: Rect, app: &App) {
         .iter()
         .filter(|b| b.status == "done")
         .count();
+    let batches_planned = p
+        .primitive_batches
+        .iter()
+        .filter(|b| b.status == "planned")
+        .count();
     let batches_total = p.primitive_batches.len();
     let review_done = p
         .review_backlog
@@ -61,16 +66,26 @@ fn render_pipeline_funnel(f: &mut Frame, area: Rect, app: &App) {
 
     let mut lines = vec![
         Line::from(vec![
-            Span::styled("Primitives: ", Style::default().fg(Color::Gray)),
+            Span::styled("PB done: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("{}/{}", batches_done, batches_total),
+                format!("{}", batches_done),
                 Style::default()
-                    .fg(if batches_done == batches_total {
-                        Color::Green
-                    } else {
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("  gap: {}", batches_planned),
+                Style::default()
+                    .fg(if batches_planned > 0 {
                         Color::Yellow
+                    } else {
+                        Color::Green
                     })
                     .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("  total: {}", batches_total),
+                Style::default().fg(Color::DarkGray),
             ),
             Span::raw("  "),
             Span::styled("Reviews: ", Style::default().fg(Color::Gray)),
@@ -93,10 +108,28 @@ fn render_pipeline_funnel(f: &mut Frame, area: Rect, app: &App) {
             ),
             Span::raw("  "),
             Span::styled("Abilities: ", Style::default().fg(Color::Gray)),
-            Span::raw("194/204"),
+            Span::raw(format!(
+                "{}/{}",
+                app.data
+                    .abilities
+                    .summary
+                    .iter()
+                    .map(|s| s.validated)
+                    .sum::<u32>(),
+                app.data
+                    .abilities
+                    .summary
+                    .iter()
+                    .map(|s| s.total)
+                    .sum::<u32>()
+            )),
             Span::raw("  "),
             Span::styled("Corner: ", Style::default().fg(Color::Gray)),
-            Span::raw("32/36"),
+            Span::raw(format!(
+                "{}/{}",
+                app.data.corner_cases.covered,
+                app.data.corner_cases.total()
+            )),
         ]),
     ];
 
@@ -129,51 +162,55 @@ fn render_pipeline_funnel(f: &mut Frame, area: Rect, app: &App) {
 fn render_card_health(f: &mut Frame, area: Rect, app: &App) {
     let h = &app.data.progress.card_health;
     let total = h.total_universe.max(1);
+    let authored = h.total_authored;
+    let todo_pct = if authored > 0 {
+        h.has_todos * 100 / authored
+    } else {
+        0
+    };
 
     let lines = vec![
         Line::from(vec![
-            Span::styled("Universe: ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                format!("{}", h.total_universe),
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("  "),
             Span::styled("Authored: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("{}", h.total_authored),
-                Style::default().fg(Color::Cyan),
+                format!("{}", authored),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
+            Span::styled(format!("/{}", total), Style::default().fg(Color::DarkGray)),
+            Span::raw("  "),
+            Span::styled("Remaining: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!(" ({}%)", h.total_authored * 100 / total),
+                format!("{}", h.not_authored),
                 Style::default().fg(Color::DarkGray),
             ),
         ]),
         Line::from(vec![
             Span::styled(
-                " OK  ",
+                " OK ",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::raw(format!("{:<6}", h.complete)),
-            Span::styled(
-                " TODO ",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(format!("{:<6}", h.has_todos)),
-            Span::styled(
-                " BAD  ",
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(format!("{:<6}", h.wrong_state)),
+            Span::raw(format!("{:<5}", h.fully_implemented)),
+            Span::styled(" Partial ", Style::default().fg(Color::Yellow)),
+            Span::raw(format!("{:<5}", h.partial)),
+            Span::styled(" Strip ", Style::default().fg(Color::Red)),
+            Span::raw(format!("{:<4}", h.stripped)),
         ]),
         Line::from(vec![
-            Span::styled("Not authored: ", Style::default().fg(Color::Gray)),
+            Span::styled(" Van ", Style::default().fg(Color::DarkGray)),
+            Span::raw(format!("{:<5}", h.vanilla)),
             Span::styled(
-                format!("{}", h.not_authored),
-                Style::default().fg(Color::DarkGray),
+                format!("TODO: {}% of authored", todo_pct),
+                if todo_pct > 40 {
+                    Style::default().fg(Color::Red)
+                } else if todo_pct > 20 {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default().fg(Color::Green)
+                },
             ),
         ]),
     ];
@@ -182,7 +219,7 @@ fn render_card_health(f: &mut Frame, area: Rect, app: &App) {
         Paragraph::new(Text::from(lines)).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Card Health "),
+                .title(" Card Health (live) "),
         ),
         area,
     );

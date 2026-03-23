@@ -72,6 +72,7 @@ pub fn card() -> CardDefinition {
                                 },
                             }),
                             etb_filter: None,
+                            death_filter: None,
                             targets: vec![],
                         },
                     ],

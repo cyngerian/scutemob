@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: WheneverCreatureDies is overbroad (all creatures, not "nontoken you control").
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Eldrazi Spawn".to_string(),

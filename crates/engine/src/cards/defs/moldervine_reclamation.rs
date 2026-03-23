@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
             // TODO: WheneverCreatureDies is overbroad — fires on all creature deaths,
             //   not just "a creature you control". No controller filter available.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
                 effect: Effect::Sequence(vec![
                     Effect::GainLife {
                         player: PlayerTarget::Controller,

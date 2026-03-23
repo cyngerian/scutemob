@@ -373,6 +373,31 @@ pub enum TriggerEvent {
     ///
     /// Fired from `check_triggers` on `GameEvent::PermanentTurnedFaceUp`.
     SelfTurnedFaceUp,
+    /// CR 603.10a: Fires on ALL battlefield permanents when ANY creature dies.
+    ///
+    /// "Whenever a creature [you control / an opponent controls] dies" patterns
+    /// use this event type. The `DeathTriggerFilter` on the `TriggeredAbilityDef`
+    /// controls which dying creatures cause the trigger to fire (controller_you,
+    /// controller_opponent, exclude_self, nontoken_only).
+    ///
+    /// The dying creature's pre-death controller is passed as the `entering_object`
+    /// parameter of `collect_triggers_for_event` (reused for death filter checks).
+    AnyCreatureDies,
+    /// CR 508.1m: Fires on ALL battlefield permanents when a creature you control attacks.
+    ///
+    /// "Whenever a creature you control attacks" patterns use this event type.
+    /// Controller filtering is applied at trigger-collection time by checking that
+    /// the attacking creature's controller matches the trigger source's controller.
+    /// The attacking creature's ObjectId is passed via the `entering_object` parameter.
+    AnyCreatureYouControlAttacks,
+    /// CR 510.3a: Fires on ALL battlefield permanents when a creature you control
+    /// deals combat damage to a player.
+    ///
+    /// "Whenever a creature you control deals combat damage to a player" patterns
+    /// use this event type. Controller filtering is applied at trigger-collection
+    /// time. The attacking creature's ObjectId is passed via the `entering_object`
+    /// parameter.
+    AnyCreatureYouControlDealsCombatDamageToPlayer,
     // ── Step/phase-based triggers (primarily used by emblem triggered abilities) ──
     //
     // These are fired from the step-transition turn actions (upkeep_actions,
@@ -410,6 +435,30 @@ pub enum InterveningIf {
     /// in the graveyard with no counters; MoveZone will simply find nothing if
     /// the source has since left the graveyard).
     SourceHadNoCounterOfType(crate::state::types::CounterType),
+}
+/// Filter applied to death triggers to restrict which dying creatures cause
+/// the trigger to fire. All `true` fields must be satisfied (AND logic).
+///
+/// Used by "whenever a creature you control dies" (controller_you),
+/// "whenever a creature an opponent controls dies" (controller_opponent),
+/// "whenever another creature you control dies" (controller_you + exclude_self),
+/// and "whenever a nontoken creature you control dies" (controller_you + nontoken_only).
+///
+/// The dying creature's pre-death controller is compared against the trigger
+/// source's controller for the controller_you / controller_opponent checks.
+/// CR 603.10a / CR 603.2
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeathTriggerFilter {
+    /// If true, the dying creature must have been controlled by the trigger source's controller.
+    /// "Whenever a creature you control dies"
+    pub controller_you: bool,
+    /// If true, the dying creature must have been controlled by an opponent of the trigger source's controller.
+    /// "Whenever a creature an opponent controls dies"
+    pub controller_opponent: bool,
+    /// If true, the dying creature must NOT be the trigger source itself ("another creature").
+    pub exclude_self: bool,
+    /// If true, the dying creature must be a nontoken.
+    pub nontoken_only: bool,
 }
 /// Filter applied to ETB triggers to restrict which entering permanents cause
 /// the trigger to fire. All `true` fields must be satisfied (AND logic).
@@ -451,6 +500,11 @@ pub struct TriggeredAbilityDef {
     /// CR 207.2c / CR 603.2
     #[serde(default)]
     pub etb_filter: Option<ETBTriggerFilter>,
+    /// Optional death filter for "whenever [another] [nontoken] creature [you control / an opponent controls] dies"
+    /// triggers. When present, the trigger only fires if the dying creature
+    /// matches all specified criteria. CR 603.10a / CR 603.2
+    #[serde(default)]
+    pub death_filter: Option<DeathTriggerFilter>,
     /// Target requirements for this triggered ability (CR 601.2c).
     /// Empty = no targets required.
     #[serde(default)]

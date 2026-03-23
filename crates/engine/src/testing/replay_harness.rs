@@ -6,10 +6,10 @@ use crate::testing::script_schema::{
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
-    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, Designations,
-    ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder, KeywordAbility,
-    ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController, TimingRestriction,
-    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, DeathTriggerFilter,
+    Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
+    KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController,
+    TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use im::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -2007,6 +2007,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
                 intervening_if: None,
                 targets: vec![],
@@ -2031,6 +2032,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
                 intervening_if: None,
                 targets: vec![],
@@ -2051,6 +2053,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
                 intervening_if: None,
                 targets: vec![],
@@ -2073,6 +2076,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
                 intervening_if: None,
                 targets: vec![],
@@ -2094,6 +2098,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfIsDealtDamage,
                 intervening_if: None,
                 targets: vec![],
@@ -2117,6 +2122,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2137,6 +2143,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
                 intervening_if: None,
                 targets: vec![],
@@ -2158,6 +2165,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
                 targets: vec![],
@@ -2178,6 +2186,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
                 intervening_if: None,
                 targets: vec![],
@@ -2200,6 +2209,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2244,6 +2254,7 @@ pub fn enrich_spec_from_def(
                     .to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: Some(etb_filter),
+                death_filter: None,
                 targets: vec![],
             });
         }
@@ -2260,6 +2271,7 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfMutates,
                 intervening_if: None,
                 targets: vec![],
@@ -2280,11 +2292,96 @@ pub fn enrich_spec_from_def(
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
+                death_filter: None,
                 trigger_on: TriggerEvent::SelfBecomesTapped,
                 intervening_if: None,
                 targets: vec![],
                 description: "Whenever this permanent becomes tapped".to_string(),
                 effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 603.10a: Convert "Whenever [another] [nontoken] creature [you control / an opponent controls] dies"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers can
+    // dispatch them via AnyCreatureDies events.
+    //
+    // The controller filter, exclude_self, and nontoken_only fields are set on DeathTriggerFilter
+    // and applied at trigger-collection time in collect_triggers_for_event.
+    //
+    // NOTE: DeathTriggerFilter.exclude_self is not yet wired from card defs — cards that use
+    // "another creature" need manual fix-up. For now we set exclude_self: false (conservative;
+    // over-triggers rather than under-triggers).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverCreatureDies { controller },
+            effect,
+            ..
+        } = ability
+        {
+            let death_filter = DeathTriggerFilter {
+                controller_you: matches!(controller, Some(TargetController::You)),
+                controller_opponent: matches!(controller, Some(TargetController::Opponent)),
+                exclude_self: false,
+                nontoken_only: false,
+            };
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureDies,
+                intervening_if: None,
+                description: "Whenever a creature dies (CR 603.10a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: Some(death_filter),
+                targets: vec![],
+            });
+        }
+    }
+    // CR 508.1m / CR 603.2: Convert "Whenever a creature you control attacks" card-definition
+    // triggers into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via AnyCreatureYouControlAttacks events.
+    //
+    // Controller filtering is applied at trigger-collection time by checking that the attacking
+    // creature's controller matches the trigger source's controller.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
+                intervening_if: None,
+                description: "Whenever a creature you control attacks (CR 508.1m)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2: Convert "Whenever a creature you control deals combat damage to a
+    // player" card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers
+    // can dispatch them via AnyCreatureYouControlDealsCombatDamageToPlayer events.
+    //
+    // Controller filtering is applied at trigger-collection time by checking that the source
+    // creature's controller matches the trigger source's controller.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
+                intervening_if: None,
+                description:
+                    "Whenever a creature you control deals combat damage to a player (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
             });
         }
     }
