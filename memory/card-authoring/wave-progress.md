@@ -21,4 +21,5 @@
 | removal-bounce (A-15) | complete | 2/2 | 9 new | 1 existed | 1H 2M 2L (HIGH fixed) | yes |
 | removal-minus (A-16) | complete | 1/1 | 4 new | 0 existed | 2H 1M 1L (HIGH fixed) | yes |
 | counter (A-17) | complete | 3/3 | 16 new | 0 existed | 8H 3M 1L (HIGH fixed) | yes |
-| draw (A-18) | in-progress | 10/16 | 119 new | 1 existed (Kaito) | — (no review yet) | partial (3 commits) |
+| draw (A-18) | complete | 16/16 | 162 new | 1 existed (Kaito) | 4H 4M (HIGH fixed) | yes (prior session) |
+| token-create (A-19) | in-progress | 13/14 | 144 new | 2 existed (Hanweir, Basri) | 3H 1M (HIGH fixed) | partial (2 commits) |

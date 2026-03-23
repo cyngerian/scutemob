@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | Phase 2: A-19 token-create S44+ | ACTIVE | 2026-03-23 | A-19 token-create 4/14 sessions done (48 cards). Continuing S44+. |
+| W6: Primitive + Card Authoring | — | available | — | **A-19 token-create 13/14 DONE** (S53 blocked). Next: A-20 pump-buff. ~1269 card defs. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,39 +23,39 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-22
+**Date**: 2026-03-23
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-18 draw completion + A-19 token-create start
+**Task**: Phase 2 authoring — A-19 token-create S44-S52
 
 **Completed**:
-- A-18 draw sessions S20-S25 COMPLETE: 43 new cards (S24 blocked, 6 cards skipped)
-- Reviewed by card-batch-reviewer: 11 HIGH + 4 MEDIUM findings fixed (overbroad triggers, wrong costs, free draws)
-- A-19 token-create sessions S40-S43: 48 new cards
-- Total this session: 91 new card defs
-- Commits: fc27279, 047532f, f43d88b, 0de9b8c
-- Total: ~1173 card def files
-- All 2281 tests passing, 0 clippy, workspace builds clean
+- A-19 token-create sessions S44-S52: 96 new cards (9 sessions)
+- Agents authored bulk, hand-wrote 15 cards where agents ran out of budget
+- Reviewed 20 representative cards across 4 batches: 3H 1M findings
+- 3 HIGH fixed: Hero of Bladehold (BattleCry keyword), Grave Titan (attack trigger), Bitterblossom (Kindred type)
+- 1 MEDIUM documented: Sengir Autocrat LTB gap (WhenLeavesBattlefield not in DSL)
+- Commits: 5d967ca, 83c1302
+- A-19 total: 144/146 cards (S40-S52), S53 blocked (9 cards)
+- Total: ~1269 card def files
+- All 2281 tests passing, workspace builds clean
 
 **Next**:
-1. **A-19 token-create sessions S44-S53** (107 remaining cards, 10 sessions) — continue token group
-2. Review A-19 S40-S43 with card-batch-reviewer
-3. Then A-20 pump-buff through remaining groups
+1. **A-20 pump-buff** (3 sessions, 26 cards) — next authoring group
+2. Review A-19 S40-S43 still pending (48 cards from prior session not yet reviewed)
+3. Continue through A-21 counters-plus, A-22 equipment, etc.
 
 **Hazards**:
-- Direct authoring 5-10x faster than bulk-card-author for complex cards
-- `WheneverYouCastSpell` lacks spell-type filter — Lys Alana Huntmaster, Murmuring Mystic have empty abilities to avoid wrong game state
-- `WheneverCreatureDies` overbroad (all creatures, not "your creatures") — Bastion of Remembrance, Pawn of Ulamog, etc. use it as approximation
-- Per-creature combat damage triggers NOT in DSL — Old Gnawbone, Professional Face-Breaker have TODOs
-- Copy-token creation not in DSL — Kiki-Jiki, Miirym have TODOs
-- Token doubling replacement not in DSL — Doubling Season, Parallel Lives body-only
-- Count-based token amounts not in DSL — Dockside Extortionist, Avenger of Zendikar use fixed approximations
-- `Ward(u32)` takes a parameter (not bare `Ward`) — caught in S42 build
-- `KeywordAbility::Mentor` does not exist — caught in S43 build
-- 3 existing cards in A-19: Hanweir Garrison (S45), Basri Ket (S46), Wrenn and Seven (S53) — skip these
+- Bulk-card-author frequently misses 3-6 cards per session — always verify file count
+- Common DSL misses by agents: `Effect::NoEffect` (use `Nothing`), `ActivationCost` (use `Cost`), missing `modes`/`cant_be_countered` on `Spell`, `loyalty:` (use `starting_loyalty:`), `WheneverYouAttack` (doesn't exist)
+- `AbilityDefinition::Spell` needs ALL 4 fields: `effect, targets, modes, cant_be_countered`
+- S53 blocked (9 cards including Scute Swarm, Revel in Riches, Titania)
 
 **Commit prefix used**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-22 — W6: Phase 2 authoring A-18 draw + A-19 start
+- A-18 S20-S25 (43 new), A-19 S40-S43 (48 new). 91 total. 4H fixed.
+- Commits: fc27279, 047532f, f43d88b, 0de9b8c. 2281 tests.
 
 ### 2026-03-22 — W6: Phase 2 authoring A-18 draw S10-S19
 - 119 new cards (10 sessions of 16 complete)
@@ -71,7 +71,3 @@
 
 ### 2026-03-22 — W6: Phase 2 authoring A-05 through A-10 (Tier 1 completion)
 - 36 new cards (A-05 through A-10). All reviewed, 8H+9M+10L findings — all HIGH fixed.
-- Tier 1 COMPLETE: A-01 through A-10 + A-31/A-37 pre-existing = 12 groups done.
-
-### 2026-03-22 — W6: Phase 2 authoring A-01 through A-04
-- 52 new card defs authored (16 mana-creature + 33 mana-artifact + 3 mana-other).
