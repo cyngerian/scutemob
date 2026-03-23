@@ -135,13 +135,63 @@ Work through groups in the order below. For each group, follow the per-group wor
 - [x] **A-21**: counters-plus (49 cards)
 - [x] **A-22**: equipment (11 cards)
 - [x] **A-23**: death-trigger (34 cards)
-- [ ] **A-24**: attack-trigger (4 sessions, 33 cards)
-- [ ] **A-25**: activated-tap (4 sessions, 25 cards)
-- [ ] **A-26**: activated-sacrifice (3 sessions, 19 cards)
-- [ ] **A-27**: sacrifice-outlet (1 session, 6 cards)
-- [ ] **A-28**: discard-effect (1 session, 7 cards)
+- [x] **A-24**: attack-trigger (24 new cards — 8 HIGH fixed, reviewed)
+- [x] **A-25**: activated-tap (19 new cards — 5 HIGH fixed, reviewed)
+- [x] **A-26**: activated-sacrifice (7 new cards — reviewed)
+- [x] **A-27**: sacrifice-outlet (4 new cards — 1 HIGH fixed, reviewed)
+- [x] **A-28**: discard-effect (7 new cards — reviewed)
 
-**Tier 3: Complex patterns**
+### Phase 2.5: DSL Gap Closure
+
+Requires: A-28 complete (or current stopping point reached).
+
+**Problem**: 814 of 1,452 card defs (56%) have TODOs. The original primitive plan (PB-0
+through PB-22) underestimated the gaps. Continuing to author without closing these gaps
+produces stubs, not implementations.
+
+**Approach**: Close all remaining DSL gaps as primitive batches (PB-23 through PB-37).
+After each batch, backfill ALL existing card defs it unblocks. Full plan:
+`docs/dsl-gap-closure-plan.md`.
+
+Each PB-N uses `/implement-primitive` pipeline (plan → implement → review → fix → close).
+Backfill is part of the close step — the batch is not done until all unblocked cards have
+their TODOs removed.
+
+- [ ] **PB-23**: Controller-filtered creature triggers (~145 cards unblocked)
+- [ ] **PB-24**: Conditional statics ("as long as X") (~201 cards)
+- [ ] **PB-25**: Continuous effect grants (~98 cards)
+- [ ] **PB-26**: Trigger variants (spell-type, discard, sacrifice, attack, LTB, draw, cast) (~72 cards)
+- [ ] **PB-27**: X-cost spells (~42 cards)
+- [ ] **PB-28**: CDA / count-based P/T (~32 cards)
+- [ ] **PB-29**: Cost reduction statics (~30 cards)
+- [ ] **PB-30**: Combat damage triggers (~49 cards)
+- [ ] **PB-31**: Cost primitives (RemoveCounter, AdditionalSacrificeCost) (~23 cards)
+- [ ] **PB-32**: Static/effect primitives (additional lands, prevention, control change, land animation) (~39 cards)
+- [ ] **PB-33**: Copy/clone + exile/flicker timing (~39 cards)
+- [ ] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards)
+- [ ] **PB-35**: Modal triggers + graveyard conditions + planeswalker abilities (~60 cards)
+- [ ] **PB-36**: Evasion/protection extensions (~21 cards)
+- [ ] **PB-37**: Complex activated abilities — residual after PB-23 to PB-36 (TBD)
+- [ ] **BF-1**: Post-gap-closure re-triage — scan all TODO cards, re-classify against new DSL
+- [ ] **BF-2**: Commit: `W6-prim: gap closure complete — PB-23 through PB-37`
+
+### Phase 2 (continued): Author Remaining Cards
+
+Requires: BF-2 complete.
+
+After gap closure + backfill, many cards from the original Tier 2/3 groups will already
+be implemented. Re-triage (BF-1) will shrink these groups. Only genuinely new cards
+(not yet authored at all) remain.
+
+**Tier 2 (continued)**
+
+- [x] **A-24**: attack-trigger (4 sessions, 33 cards) — authored with TODOs; backfill in PB-23/PB-30
+- [x] **A-25**: activated-tap (4 sessions, 25 cards) — authored with TODOs; backfill in PB-23+
+- [x] **A-26**: activated-sacrifice (3 sessions, 19 cards) — authored with TODOs; backfill in PB-31
+- [x] **A-27**: sacrifice-outlet (1 session, 6 cards) — authored with TODOs; backfill in PB-31
+- [x] **A-28**: discard-effect (1 session, 7 cards) — authored with TODOs; backfill in PB-26
+
+**Tier 3: Complex patterns** (re-triage sizes after BF-1)
 
 - [ ] **A-29**: cant-restriction (3 sessions, 24 cards)
 - [ ] **A-30**: untap-phase (2 sessions, 12 cards)

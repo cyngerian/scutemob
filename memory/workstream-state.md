@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **A-20 through A-23 DONE** (121 new cards). Next: A-24 attack-trigger. ~1391 card defs. |
+| W6: Primitive + Card Authoring | — | available | — | **A-24 through A-28 DONE** (61 new cards). Next: A-29 cant-restriction. ~1452 card defs. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,33 +25,40 @@
 
 **Date**: 2026-03-23
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-20 through A-23
+**Task**: Phase 2 authoring — A-24 through A-28
 
 **Completed**:
-- A-20 pump-buff: 27 cards authored, reviewed (4 batches), 4 HIGH fixed (Ezuri self-target, Elesh Norn/Eldrazi Monument/Mikaeus stripped to empty per W5)
-- A-21 counters-plus: 49 cards authored (landfall, tribal counters, sacrifice outlets, mutate)
-- A-22 equipment: 11 cards authored (Swords cycle, Bone Saw, Kite Shield, etc.)
-- A-23 death-trigger: 34 cards authored (Blood Artist, Grave Pact, Kokusho, etc.)
-- Commits: e5b0436, ec08405
-- Total: ~1391 card def files (+121 this session)
+- A-24 attack-trigger: 24 new cards (Shared Animosity, Aurelia, Derevi, etc.)
+- A-25 activated-tap: 19 new cards (Maze of Ith, Birthing Pod, Arcanis, etc.)
+- A-26 activated-sacrifice: 7 new cards (Altar of Dementia, Dreamstone Hedron, etc.)
+- A-27 sacrifice-outlet: 4 new cards (Miren, Diamond Valley, Claws of Gix, Altar of Bone)
+- A-28 discard-effect: 7 new cards (Waste Not, Megrim, Burglar Rat, etc.)
+- 4 review batches completed, 8 HIGH findings fixed
+- Commit: 1afbf25
+- Total: ~1452 card def files (+61 this session)
 - All 2281 tests passing, workspace builds clean
 
 **Next**:
-1. **A-24 attack-trigger** (4 sessions, 33 cards) — next authoring group
-2. Continue through A-25 activated-tap, A-26 activated-sacrifice, etc.
+1. **A-29 cant-restriction** (3 sessions, 24 cards) — next authoring group
+2. Continue through A-30 untap-phase, A-32 land-fetch, etc.
 3. A-19 S40-S43 review still pending (48 cards from 2026-03-22 session)
 
 **Hazards**:
-- `WheneverCreatureDies` has no controller filter — fires on ALL creatures dying. Cards needing "creature you control dies" must use TODO, not the unfiltered trigger (W5 wrong game state)
-- `DrainLife { amount }` has no `target` field — it drains all opponents automatically. Don't add `target:` field.
-- `AbilityDefinition::Equip` does not exist — use `Keyword(KeywordAbility::Equip)` only
-- `AbilityDefinition::Ninjutsu` has no `is_commander` field
-- `Cost::RemoveCounter` does not exist — cards needing counter removal as cost use TODO
-- `EffectFilter::CreaturesOpponentsControl` does not exist — buff-without-debuff cards must be stripped per W5
+- `WheneverCreatureDies` has no controller filter — fires on ALL creatures dying
+- `WheneverCreatureYouControlAttacks` trigger does not exist (blocks most A-24 cards)
+- `WheneverOpponentDiscards` trigger does not exist (blocks all A-28 cards)
+- `Cost::RemoveCounter` does not exist — counter removal as cost uses TODO
+- `EffectAmount::PowerOfSacrificedCreature` does not exist (blocks Altar of Dementia, Greater Good, Life's Legacy)
+- `AdditionalCost::SacrificeCreature` for spells does not exist (blocks Altar of Bone, Life's Legacy)
+- `PlayerTarget::Owner` does not exist — zone returns use Controller as proxy (wrong under steal effects)
 
 **Commit prefix used**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-23 — W6: Phase 2 authoring A-20 through A-23
+- A-20 pump-buff (27), A-21 counters-plus (49), A-22 equipment (11), A-23 death-trigger (34). 121 total. 4H fixed.
+- Commits: e5b0436, ec08405. 2281 tests.
 
 ### 2026-03-23 — W6: Phase 2 authoring A-19 token-create S44-S52
 - A-19 token-create S44-S52: 96 new cards. Reviewed, 3H fixed.
@@ -68,7 +75,3 @@
 ### 2026-03-22 — W6: Phase 2 authoring A-14 through A-17 (Tier 2 cont'd)
 - 45 new cards (damage-each, bounce, minus, counter). All HIGH fixed.
 - Commit: 6ddc832. 2281 tests.
-
-### 2026-03-22 — W6: Phase 2 authoring A-11 through A-13 (Tier 2 start)
-- 88 new cards (A-11 destroy + A-12 exile + A-13 damage-target). DSL ext: DestroyPermanent.cant_be_regenerated.
-- Commits: 52be340, 18ca67e, 68e2b9f, 064ccbb. 2281 tests.
