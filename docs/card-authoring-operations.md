@@ -125,10 +125,10 @@ Work through groups in the order below. For each group, follow the per-group wor
 - [x] **A-11**: removal-destroy (5 sessions, 52 new + 4 existed) — DSL ext: `DestroyPermanent.cant_be_regenerated`
 - [x] **A-12**: removal-exile (2 sessions, 13 new; 1 session blocked)
 - [x] **A-13**: removal-damage-target (3 sessions, 23 new cards)
-- [ ] **A-14**: removal-damage-each (2 sessions, 17 cards)
-- [ ] **A-15**: removal-bounce (1 session, 7 cards)
-- [ ] **A-16**: removal-minus (1 session, 4 cards)
-- [ ] **A-17**: counter (2 sessions, 15 cards)
+- [x] **A-14**: removal-damage-each (2 sessions, 16 new cards)
+- [x] **A-15**: removal-bounce (2 sessions, 9 new + 1 existed)
+- [x] **A-16**: removal-minus (1 session, 4 new cards)
+- [x] **A-17**: counter (3 sessions, 16 new cards)
 - [ ] **A-18**: draw (14 sessions, 161 cards)
 - [ ] **A-19**: token-create (13 sessions, 146 cards)
 - [ ] **A-20**: pump-buff (3 sessions, 26 cards)
@@ -163,14 +163,24 @@ Work through groups in the order below. For each group, follow the per-group wor
 Requires: All A-* items complete (or all ready sessions exhausted).
 
 - [ ] **X-1**: Full re-scan — every card def file checked for TODOs, empty abilities,
-      known-issue patterns, oracle text correctness. Output:
+      known-issue patterns, oracle text correctness. **CRITICAL**: includes
+      "legal-but-wrong" semantic audit (see audit-cards skill X-1 step 7):
+      - X-1a: Token recipient audit (every CreateToken verified against oracle)
+      - X-1b: Effect target player audit (PlayerTarget correctness in multiplayer)
+      - X-1c: "Another" exclusion audit (self-exclusion on triggers)
+      - X-1d: ForEach variant audit (EachPlayer vs EachOpponent)
+      - X-1e: "Up to" targeting audit (0-target legality)
+      These are the most dangerous bugs — they compile, pass tests, but do the wrong
+      thing. No automated invariant checker catches them. Output:
       `memory/card-authoring/audit-report.md`
 - [ ] **X-2**: Fix ALL remaining gaps found in X-1. For each gap: extend the DSL
       (add the primitive/variant/filter needed), then implement the card ability.
-      No card gets a KNOWN_GAP — either implement it fully or cut it from the
-      target set with documented justification (e.g., zero Commander-playable cards
-      use this mechanic). Every card in the set must be complete.
-- [ ] **X-3**: Re-scan to verify X-2 resolved everything.
+      **CRITICAL findings from X-1a through X-1e are fixed FIRST** — these are
+      cards that actively produce wrong game state. No card gets deferred — either
+      implement it fully or cut it from the target set with documented justification
+      (e.g., zero Commander-playable cards use this mechanic).
+- [ ] **X-3**: Re-scan to verify X-2 resolved everything. X-1a through X-1e
+      must return zero findings.
 - [ ] **X-4**: Final build + test: `cargo build --workspace && cargo test --all && cargo clippy -- -D warnings`
 - [ ] **X-5**: Update documentation: CLAUDE.md, primitive-card-plan.md, workstream-coordination.md
 - [ ] **X-6**: Write certification: `memory/card-authoring/audit-certification.md`

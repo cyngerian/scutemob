@@ -17,3 +17,7 @@
 | removal-destroy (A-11) | complete | 5/5 | 52 new | 4 existed | 8H 5M 5L (HIGH fixed + 1 DSL ext) | yes |
 | removal-exile (A-12) | complete | 2/3 | 13 new | 0 existed | 1H 4M 3L (HIGH fixed) | yes |
 | removal-damage-target (A-13) | complete | 3/3 | 23 new | 0 existed | — (skip review, many TODOs) | yes |
+| removal-damage-each (A-14) | complete | 2/2 | 16 new | 0 existed | 5H 4M 3L (HIGH fixed) | yes |
+| removal-bounce (A-15) | complete | 2/2 | 9 new | 1 existed | 1H 2M 2L (HIGH fixed) | yes |
+| removal-minus (A-16) | complete | 1/1 | 4 new | 0 existed | 2H 1M 1L (HIGH fixed) | yes |
+| counter (A-17) | complete | 3/3 | 16 new | 0 existed | 8H 3M 1L (HIGH fixed) | yes |
