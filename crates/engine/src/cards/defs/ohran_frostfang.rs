@@ -13,10 +13,18 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(6),
         abilities: vec![
-            // TODO: "Attacking creatures you control have deathtouch" — conditional static grant
-            // (filtering by "attacking" status) not expressible in current DSL.
+            // CR 613.1f / CR 611.3a: "Attacking creatures you control have deathtouch."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
+                    filter: EffectFilter::AttackingCreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
             // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
-            // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
+            // draw a card." (PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer)
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
                 effect: Effect::DrawCards {

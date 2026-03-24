@@ -14,9 +14,25 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "{R}: Creatures you control gain haste until EOT" — mass keyword grant not in DSL
-            // TODO: "{3}{R}{R}: Create Dragon Spirit" — activation condition "control attacking
-            // modified creature" not in DSL (modified = equipment/aura/counters)
+            // CR 613.1f: "{R}: Creatures you control gain haste until end of turn."
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                        filter: EffectFilter::CreaturesYouControl,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+            // TODO: "{3}{R}{R}: Create Dragon Spirit token. Activate only if you control
+            // an attacking modified creature." Blocked: activation condition "control
+            // attacking modified creature" not in DSL (modified = equipment/aura/counters).
         ],
         ..Default::default()
     }

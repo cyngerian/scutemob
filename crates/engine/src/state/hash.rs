@@ -1175,6 +1175,43 @@ impl HashInto for EffectFilter {
                 16u8.hash_into(hasher);
                 subtype.hash_into(hasher);
             }
+            EffectFilter::CreaturesOpponentsControl => 17u8.hash_into(hasher),
+            EffectFilter::CreaturesYouControlWithSubtype(st) => {
+                18u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            EffectFilter::AttackingCreaturesYouControl => 19u8.hash_into(hasher),
+            EffectFilter::ArtifactsYouControl => 20u8.hash_into(hasher),
+            EffectFilter::CreaturesYouControlWithSupertype(st) => {
+                21u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            EffectFilter::CreaturesYouControlWithColor(c) => {
+                22u8.hash_into(hasher);
+                c.hash_into(hasher);
+            }
+            EffectFilter::OtherCreaturesYouControlExcludingSubtype(st) => {
+                23u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            EffectFilter::CreaturesYouControlExcludingSubtype(st) => {
+                24u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            EffectFilter::AttackingCreaturesYouControlWithSubtype(st) => {
+                25u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            EffectFilter::AllCreaturesWithSubtype(st) => {
+                26u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            EffectFilter::OtherCreaturesYouControlWithSubtypes(sts) => {
+                27u8.hash_into(hasher);
+                for st in sts {
+                    st.hash_into(hasher);
+                }
+            }
         }
     }
 }

@@ -11,7 +11,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Creatures you control have haste.\nLegendary creatures you control get +1/+0.".to_string(),
         abilities: vec![
-            // CR 613.1f / Layer 6: "Creatures you control have haste."
+            // CR 613.1f (Layer 6): "Creatures you control have haste."
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
@@ -21,8 +21,16 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — "Legendary creatures you control get +1/+0."
-            // No EffectFilter for creatures you control with a supertype (Legendary).
+            // CR 613.4c (Layer 7c): "Legendary creatures you control get +1/+0."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyPower(1),
+                    filter: EffectFilter::CreaturesYouControlWithSupertype(SuperType::Legendary),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
         ],
         ..Default::default()
     }

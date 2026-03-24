@@ -668,6 +668,197 @@ fn effect_applies_to(
                 false
             }
         }
+        // CR 604.2: "Creatures your opponents control get -2/-2."
+        // Applies to all creatures NOT controlled by the source's controller.
+        EffectFilter::CreaturesOpponentsControl => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some()
+                    && obj_controller.is_some()
+                    && source_controller != obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "[Subtype] creatures you control get +N/+N" (includes source).
+        // Used for activated abilities like Ezuri where the source Elf benefits too.
+        EffectFilter::CreaturesYouControlWithSubtype(subtype) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !chars.subtypes.contains(subtype) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 611.3a: "Attacking creatures you control have [keyword]."
+        // Dynamic — checks state.combat.attackers at layer-application time.
+        // Outside combat (state.combat is None), matches nothing.
+        EffectFilter::AttackingCreaturesYouControl => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !state
+                .combat
+                .as_ref()
+                .is_some_and(|c| c.attackers.contains_key(&object_id))
+            {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "Artifacts you control have [keyword]." (Indomitable Archangel).
+        EffectFilter::ArtifactsYouControl => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Artifact) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "Legendary creatures you control get +1/+0." (Rising of the Day).
+        // Checks supertypes — already layer-resolved at this point (Layers 4-5 before 6/7).
+        EffectFilter::CreaturesYouControlWithSupertype(supertype) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !chars.supertypes.contains(supertype) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "Red creatures you control have first strike." (Bloodmark Mentor).
+        // Uses layer-resolved colors (colors resolved before Layer 6 ability grants).
+        EffectFilter::CreaturesYouControlWithColor(color) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !chars.colors.contains(color) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "Other non-[Subtype] creatures you control get +1/+1 and have undying."
+        // (Mikaeus, the Unhallowed). Excludes source AND any creatures with the subtype.
+        EffectFilter::OtherCreaturesYouControlExcludingSubtype(subtype) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if chars.subtypes.contains(subtype) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                if source_id == object_id {
+                    return false;
+                }
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "Non-[Subtype] creatures you control get +3/+3 until end of turn."
+        // (Return of the Wildspeaker). Includes source — used for spell/ability effects.
+        EffectFilter::CreaturesYouControlExcludingSubtype(subtype) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if chars.subtypes.contains(subtype) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 611.3a: "Attacking [Subtype] creatures you control have [keyword]."
+        // (Crossway Troublemakers, Elderfang Venom). Dynamic — checks combat state.
+        EffectFilter::AttackingCreaturesYouControlWithSubtype(subtype) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !chars.subtypes.contains(subtype) {
+                return false;
+            }
+            if !state
+                .combat
+                .as_ref()
+                .is_some_and(|c| c.attackers.contains_key(&object_id))
+            {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
+        // CR 604.2: "[Subtype] creatures get +1/+1 until end of turn" (Bladewing the Risen).
+        // No controller restriction — affects ALL players' creatures of the given type.
+        EffectFilter::AllCreaturesWithSubtype(subtype) => {
+            obj_zone == ZoneId::Battlefield
+                && chars.card_types.contains(&CardType::Creature)
+                && chars.subtypes.contains(subtype)
+        }
+        // CR 604.2: "Other [Subtype A] and [Subtype B] creatures you control get +1/+1."
+        // (Silver-Fur Master). OR semantics: matches if creature has ANY of the subtypes.
+        // Excludes source object.
+        EffectFilter::OtherCreaturesYouControlWithSubtypes(subtypes) => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if !subtypes.iter().any(|st| chars.subtypes.contains(st)) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                if source_id == object_id {
+                    return false;
+                }
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
     }
 }
 /// Apply a single layer modification to the given characteristics.

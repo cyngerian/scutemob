@@ -21,10 +21,16 @@ pub fn card() -> CardDefinition {
                     allow_duplicate_modes: false,
                     mode_costs: None,
                     modes: vec![
-                        // Mode 0: Creatures you control get +2/+0 until end of turn.
-                        // TODO: ApplyContinuousEffect to all creatures you control (mass buff) —
-                        // EffectFilter::CreaturesYouControl for ApplyContinuousEffect not in DSL.
-                        Effect::Nothing,
+                        // Mode 0: CR 613.4c: "Creatures you control get +2/+0 until end of turn."
+                        Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::PtModify,
+                                modification: LayerModification::ModifyPower(2),
+                                filter: EffectFilter::CreaturesYouControl,
+                                duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
+                            }),
+                        },
                         // Mode 1: Create two 1/1 red Goblin creature tokens.
                         Effect::CreateToken {
                             spec: TokenSpec {

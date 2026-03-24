@@ -122,6 +122,70 @@ pub enum EffectFilter {
     /// Used for tribal lords like Markov Baron ("Other Vampires you control get +1/+1.")
     /// where only creatures of a specific type benefit.
     OtherCreaturesYouControlWithSubtype(SubType),
+    /// Applies to all creature permanents controlled by opponents of the source's controller.
+    ///
+    /// Used for "Creatures your opponents control get -2/-2" (Elesh Norn, Grand Cenobite).
+    /// Resolved dynamically at layer-application time using `effect.source`.
+    CreaturesOpponentsControl,
+    /// Applies to all creature permanents controlled by the source's controller that have
+    /// the specified subtype (INCLUDING the source object).
+    ///
+    /// Used for activated abilities like Ezuri "{2}{G}{G}{G}: Elf creatures you control get
+    /// +3/+3 and gain trample until end of turn." where the source should benefit.
+    /// For "other" exclusion, use `OtherCreaturesYouControlWithSubtype`.
+    CreaturesYouControlWithSubtype(SubType),
+    /// Applies to all attacking creature permanents controlled by the source's controller.
+    ///
+    /// Used for "Attacking creatures you control have deathtouch" (Ohran Frostfang),
+    /// "Attacking creatures you control have double strike" (Blade Historian).
+    /// Checks `state.combat.attackers` at layer-application time (dynamic, CR 611.3a).
+    /// Outside of combat (`state.combat == None`), matches nothing.
+    AttackingCreaturesYouControl,
+    /// Applies to all artifact permanents controlled by the source's controller.
+    ///
+    /// Used for "Artifacts you control have shroud" (Indomitable Archangel).
+    ArtifactsYouControl,
+    /// Applies to all creature permanents controlled by the source's controller
+    /// that have the specified supertype.
+    ///
+    /// Used for "Legendary creatures you control get +1/+0" (Rising of the Day).
+    CreaturesYouControlWithSupertype(SuperType),
+    /// Applies to all creature permanents controlled by the source's controller
+    /// that have the specified color (evaluated via layer-resolved characteristics).
+    ///
+    /// Used for "Red creatures you control have first strike" (Bloodmark Mentor).
+    CreaturesYouControlWithColor(Color),
+    /// Applies to all creature permanents controlled by the source's controller
+    /// that do NOT have the specified subtype, excluding the source.
+    ///
+    /// Used for "Other non-Human creatures you control get +1/+1 and have undying"
+    /// (Mikaeus, the Unhallowed). Also covers "non-Elf" effects.
+    OtherCreaturesYouControlExcludingSubtype(SubType),
+    /// Applies to all creature permanents controlled by the source's controller
+    /// that do NOT have the specified subtype (INCLUDING the source).
+    ///
+    /// Used for instant/sorcery effects: "Non-Human creatures you control get +3/+3
+    /// until end of turn" (Return of the Wildspeaker mode 2).
+    CreaturesYouControlExcludingSubtype(SubType),
+    /// Applies to all attacking creature permanents controlled by the source's controller
+    /// that have the specified subtype.
+    ///
+    /// Used for "Attacking Vampires you control have deathtouch and lifelink"
+    /// (Crossway Troublemakers), "Attacking Elves you control have deathtouch"
+    /// (Elderfang Venom).
+    AttackingCreaturesYouControlWithSubtype(SubType),
+    /// Applies to all creature permanents on the battlefield (any controller) with the
+    /// specified subtype.
+    ///
+    /// Used for "Dragon creatures get +1/+1 until end of turn" (Bladewing the Risen) --
+    /// no controller restriction, affects all players' creatures of the type.
+    AllCreaturesWithSubtype(SubType),
+    /// Applies to all creature permanents controlled by the source's controller that have
+    /// ANY of the specified subtypes, excluding the source object.
+    ///
+    /// Used for "Other Ninja and Rogue creatures you control get +1/+1" (Silver-Fur Master)
+    /// where multiple subtypes are a disjunction (Ninja OR Rogue).
+    OtherCreaturesYouControlWithSubtypes(Vec<SubType>),
 }
 /// What a continuous effect does when applied.
 ///

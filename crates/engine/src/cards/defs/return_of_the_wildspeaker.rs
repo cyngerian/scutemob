@@ -21,13 +21,21 @@ pub fn card() -> CardDefinition {
                     allow_duplicate_modes: false,
                     mode_costs: None,
                     modes: vec![
-                        // Mode 0: Draw cards equal to greatest power among non-Human creatures you control.
+                        // Mode 0: Draw cards equal to greatest power among non-Human creatures.
                         // TODO: DSL gap — EffectAmount::GreatestPowerAmong(filter) does not exist.
                         Effect::Nothing,
-                        // Mode 1: Non-Human creatures you control get +3/+3 until end of turn.
-                        // TODO: DSL gap — EffectFilter for "non-Human creatures you control" does not exist.
-                        // CreaturesYouControl exists but no exclusion by subtype.
-                        Effect::Nothing,
+                        // Mode 1: CR 613.4c: "Non-Human creatures you control get +3/+3 until EOT."
+                        Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::PtModify,
+                                modification: LayerModification::ModifyBoth(3),
+                                filter: EffectFilter::CreaturesYouControlExcludingSubtype(
+                                    SubType("Human".to_string()),
+                                ),
+                                duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
+                            }),
+                        },
                     ],
                 }),
                 cant_be_countered: false,

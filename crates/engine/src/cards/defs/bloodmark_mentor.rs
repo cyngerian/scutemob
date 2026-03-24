@@ -1,9 +1,8 @@
 // Bloodmark Mentor — {1}{R}, Creature — Goblin Warrior 1/1
-// "Red creatures you control have first strike."
+// Red creatures you control have first strike.
 //
-// TODO: DSL gap — "Red creatures you control have first strike" is a continuous keyword-grant
-// effect (Layer 6) filtered by color. No static continuous ability with a color filter
-// for "all creatures you control" is expressible in the current DSL.
+// CR 613.1f (Layer 6): Static ability — grant filtered by color.
+// Colors are layer-resolved before Layer 6 (Layers 4-5 precede ability grants).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,7 +14,18 @@ pub fn card() -> CardDefinition {
         oracle_text: "Red creatures you control have first strike.".to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![],
+        abilities: vec![
+            // CR 613.1f (Layer 6): "Red creatures you control have first strike."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::FirstStrike),
+                    filter: EffectFilter::CreaturesYouControlWithColor(Color::Red),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+        ],
         ..Default::default()
     }
 }

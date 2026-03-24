@@ -45,11 +45,28 @@ pub fn card() -> CardDefinition {
                                 activated_abilities: vec![],
                             },
                         },
-                        // Mode 1: Creatures you control get +1/+1 and gain haste until EOT.
-                        // TODO: ApplyContinuousEffect to all creatures you control — no
-                        // EffectFilter::CreaturesYouControl variant for Effect::ApplyContinuousEffect
-                        // that applies to ALL creatures at once (only DeclaredTarget index).
-                        Effect::Nothing,
+                        // Mode 1: CR 613.4c / CR 613.1f: "Creatures you control get +1/+1
+                        // and gain haste until end of turn."
+                        Effect::Sequence(vec![
+                            Effect::ApplyContinuousEffect {
+                                effect_def: Box::new(ContinuousEffectDef {
+                                    layer: EffectLayer::PtModify,
+                                    modification: LayerModification::ModifyBoth(1),
+                                    filter: EffectFilter::CreaturesYouControl,
+                                    duration: EffectDuration::UntilEndOfTurn,
+                                    condition: None,
+                                }),
+                            },
+                            Effect::ApplyContinuousEffect {
+                                effect_def: Box::new(ContinuousEffectDef {
+                                    layer: EffectLayer::Ability,
+                                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                                    filter: EffectFilter::CreaturesYouControl,
+                                    duration: EffectDuration::UntilEndOfTurn,
+                                    condition: None,
+                                }),
+                            },
+                        ]),
                     ],
                 }),
                 cant_be_countered: false,

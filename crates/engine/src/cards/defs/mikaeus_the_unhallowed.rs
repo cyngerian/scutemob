@@ -18,14 +18,33 @@ pub fn card() -> CardDefinition {
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
-            // TODO: All abilities stripped per W5 policy — Intimidate alone without
-            // the undying grant produces wrong death behavior for all other creatures.
-            // DSL gaps:
-            // 1. Intimidate — keyword exists but partial impl is wrong game state.
-            // 2. "Whenever a Human deals damage to you, destroy it." — trigger on
-            //    damage-by-subtype not in DSL.
-            // 3. "Other non-Human creatures you control get +1/+1 and have undying." —
-            //    subtype exclusion filter + Undying keyword grant not in DSL.
+            AbilityDefinition::Keyword(KeywordAbility::Intimidate),
+            // TODO: "Whenever a Human deals damage to you, destroy it." Blocked: trigger
+            // on damage-by-subtype not in DSL.
+            // CR 613.4c (Layer 7c): "Other non-Human creatures you control get +1/+1."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBoth(1),
+                    filter: EffectFilter::OtherCreaturesYouControlExcludingSubtype(
+                        SubType("Human".to_string()),
+                    ),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // CR 613.1f (Layer 6): "Other non-Human creatures you control have undying."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Undying),
+                    filter: EffectFilter::OtherCreaturesYouControlExcludingSubtype(
+                        SubType("Human".to_string()),
+                    ),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
         ],
         ..Default::default()
     }

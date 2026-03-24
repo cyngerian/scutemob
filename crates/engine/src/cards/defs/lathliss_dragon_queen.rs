@@ -16,8 +16,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever another nontoken Dragon enters" — subtype-filtered ETB trigger not in DSL
-            // TODO: "{1}{R}: Dragons you control get +1/+0 until EOT" — filtered pump not in DSL
+            // TODO: "Whenever another nontoken Dragon enters" — nontoken subtype-filtered ETB
+            // trigger not in DSL (blocked on PB-26).
+            // CR 613.4c: "{1}{R}: Dragons you control get +1/+0 until end of turn."
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(1),
+                        filter: EffectFilter::CreaturesYouControlWithSubtype(
+                            SubType("Dragon".to_string()),
+                        ),
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

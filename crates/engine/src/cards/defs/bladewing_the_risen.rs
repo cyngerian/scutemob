@@ -47,8 +47,25 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
             },
-            // TODO: {B}{R}: Dragon creatures get +1/+1 until end of turn.
-            // DSL gap: creature-type-filtered temporary pump (EffectFilter::HasSubtype + UntilEndOfTurn).
+            // CR 613.4c: "{B}{R}: Dragon creatures get +1/+1 until end of turn."
+            // AllCreaturesWithSubtype — no controller restriction, affects all players' Dragons.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { black: 1, red: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyBoth(1),
+                        filter: EffectFilter::AllCreaturesWithSubtype(
+                            SubType("Dragon".to_string()),
+                        ),
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

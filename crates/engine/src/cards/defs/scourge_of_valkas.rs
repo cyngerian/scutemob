@@ -3,19 +3,6 @@
 // Whenever this creature or another Dragon you control enters, it deals X damage to any
 // target, where X is the number of Dragons you control.
 // {R}: This creature gets +1/+0 until end of turn.
-//
-// Flying is implemented.
-//
-// TODO: DSL gap — the first triggered ability requires:
-// 1. A trigger that fires when this creature OR another Dragon you control enters — no
-//    "trigger on self OR creature-type-filtered ETB" variant exists.
-// 2. EffectAmount based on count of Dragons you control — EffectAmount::CountCreaturesYouControl
-//    with a subtype filter does not exist in the DSL.
-//
-// TODO: DSL gap — {R}: This creature gets +1/+0 until end of turn — ApplyContinuousEffect
-// with EffectFilter::Source and ModifyPower(1) UntilEndOfTurn is expressible in principle,
-// but no "target self" EffectFilter::Source pattern is confirmed for Activated abilities.
-// Both non-keyword abilities are omitted.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,6 +16,27 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            // TODO: "Whenever this creature or another Dragon you control enters, it deals X
+            // damage to any target, where X is the number of Dragons you control."
+            // Blocked on multiple gaps: "this creature OR another Dragon ETB" trigger variant
+            // + EffectAmount::CountCreaturesYouControl(filter) not in DSL.
+            // CR 613.4c: "{R}: This creature gets +1/+0 until end of turn."
+            // EffectFilter::Source resolves to SingleObject(ctx.source) at execution time.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(1),
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

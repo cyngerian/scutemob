@@ -2,10 +2,10 @@
 // Creatures you control have flying.
 // Creatures your opponents control lose flying and can't have or gain flying.
 //
-// CR 604.2 / CR 613.1f: Static ability — Layer 6 keyword grant to creatures you control.
-// TODO: DSL gap — "Creatures your opponents control lose flying and can't have or gain flying"
-// requires EffectFilter::CreaturesOpponentsControl and a RemoveKeyword + prevention effect,
-// neither of which exist in the DSL. Removal half omitted until those filters are added.
+// CR 604.2 / CR 613.1f: Static abilities — Layer 6.
+// The "can't have or gain flying" prevention is not expressible in the current DSL
+// (keyword prevention/lock is a separate engine feature). The RemoveKeyword half IS
+// implemented; the prevention sub-clause is left as a TODO.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,12 +18,23 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
-            // "Creatures you control have flying." — grant half implemented.
+            // CR 613.1f (Layer 6): "Creatures you control have flying."
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Flying),
                     filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // CR 613.1f (Layer 6): "Creatures your opponents control lose flying."
+            // NOTE: "can't have or gain flying" prevention not yet expressible — TODO.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::RemoveKeyword(KeywordAbility::Flying),
+                    filter: EffectFilter::CreaturesOpponentsControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },

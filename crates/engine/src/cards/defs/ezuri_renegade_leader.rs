@@ -24,18 +24,47 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: None,
-                // NOTE: oracle says "another target Elf" — exclude_self not on TargetFilter.
-                // TODO: DSL gap — "another" self-exclusion on TargetRequirement not in DSL.
+                // NOTE: oracle says "another target Elf" — self-exclusion on TargetRequirement
+                // not in DSL; implemented without self-exclusion.
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     has_subtype: Some(SubType("Elf".to_string())),
                     ..Default::default()
                 })],
                 activation_condition: None,
             },
-            // {2}{G}{G}{G}: Elf creatures you control get +3/+3 and gain trample until EOT.
-            // TODO: DSL gap — mass pump targeting "Elf creatures you control" (not "other").
-            // EffectFilter::CreaturesYouControlWithSubtype does not exist (only Other variant).
-            // Using empty abilities as placeholder to avoid wrong game state.
+            // CR 613.4c / CR 613.1f: "{2}{G}{G}{G}: Elf creatures you control get +3/+3
+            // and gain trample until end of turn." Uses CreaturesYouControlWithSubtype
+            // (includes source Ezuri himself, as oracle says "Elf creatures you control").
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 2, green: 3, ..Default::default() }),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtModify,
+                            modification: LayerModification::ModifyBoth(3),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(
+                                SubType("Elf".to_string()),
+                            ),
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Trample),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(
+                                SubType("Elf".to_string()),
+                            ),
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

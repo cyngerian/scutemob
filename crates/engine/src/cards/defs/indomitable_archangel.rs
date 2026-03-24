@@ -2,11 +2,8 @@
 // Flying
 // Metalcraft — Artifacts you control have shroud as long as you control three or more artifacts.
 //
-// Flying is implemented.
-// TODO: Metalcraft — condition is now expressible: Condition::YouControlNOrMoreWithFilter
-//   { count: 3, filter: artifact_filter }. BLOCKED on EffectFilter for "artifacts you control"
-//   (PB-25 scope: no EffectFilter::ArtifactsYouControl variant). The shroud grant to all your
-//   artifacts cannot be expressed without a filter that scopes to controlled artifacts.
+// CR 702.45a (Metalcraft): The condition checks that you control 3+ artifacts.
+// CR 613.1f (Layer 6): Static ability — grants shroud to all artifacts you control.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +17,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Metalcraft — BLOCKED on EffectFilter::ArtifactsYouControl (PB-25 scope).
-            // Condition is expressible (YouControlNOrMoreWithFilter { count: 3, artifact_filter })
-            // but the target filter "artifacts you control" is not yet a supported EffectFilter.
+            // CR 613.1f (Layer 6): "Artifacts you control have shroud as long as you
+            // control three or more artifacts." (Metalcraft condition)
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Shroud),
+                    filter: EffectFilter::ArtifactsYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::YouControlNOrMoreWithFilter {
+                        count: 3,
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Artifact),
+                            ..Default::default()
+                        },
+                    }),
+                },
+            },
         ],
         ..Default::default()
     }

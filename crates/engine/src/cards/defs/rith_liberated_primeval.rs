@@ -21,9 +21,21 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Ward(2)),
-            // TODO: "Other Dragons have ward {2}" — static keyword grant with subtype
-            //   filter partially expressible but Ward value not parameterized.
-            // TODO: "Excess damage this turn" intervening-if not in DSL.
+            // CR 613.1f (Layer 6): "Other Dragons you control have ward {2}."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Ward(2)),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(
+                        SubType("Dragon".to_string()),
+                    ),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // TODO: "At the beginning of your end step, if a creature or planeswalker an
+            // opponent controlled was dealt excess damage this turn, create a 4/4 Dragon token."
+            // Blocked: "excess damage this turn" intervening-if condition not in DSL.
         ],
         ..Default::default()
     }

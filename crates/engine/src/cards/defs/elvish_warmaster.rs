@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             // TODO: "Once each turn" + "other Elves entering" — both not in DSL.
-            //   Using generic creature ETB (overbroad but token is correct type).
+            // Using generic creature ETB (overbroad but token is correct type).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
@@ -45,7 +45,38 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: {5}{G}{G} pump all Elves — ApplyContinuousEffect not wired to DSL.
+            // CR 613.4c / CR 613.1f: "{5}{G}{G}: Elves you control get +2/+2 and gain
+            // deathtouch until end of turn."
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 5, green: 2, ..Default::default() }),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtModify,
+                            modification: LayerModification::ModifyBoth(2),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(
+                                SubType("Elf".to_string()),
+                            ),
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(
+                                SubType("Elf".to_string()),
+                            ),
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }
