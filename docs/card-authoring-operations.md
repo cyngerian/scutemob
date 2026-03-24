@@ -179,17 +179,13 @@ their TODOs removed.
 
 Requires: BF-2 complete.
 
-After gap closure + backfill, many cards from the original Tier 2/3 groups will already
-be implemented. Re-triage (BF-1) will shrink these groups. Only genuinely new cards
-(not yet authored at all) remain.
+After gap closure + backfill, many cards from the original Tier 3 groups will already
+be implemented via backfill. Re-triage (BF-1) will shrink these groups. Only genuinely
+new cards (not yet authored at all) remain.
 
-**Tier 2 (continued)**
-
-- [x] **A-24**: attack-trigger (4 sessions, 33 cards) — authored with TODOs; backfill in PB-23/PB-30
-- [x] **A-25**: activated-tap (4 sessions, 25 cards) — authored with TODOs; backfill in PB-23+
-- [x] **A-26**: activated-sacrifice (3 sessions, 19 cards) — authored with TODOs; backfill in PB-31
-- [x] **A-27**: sacrifice-outlet (1 session, 6 cards) — authored with TODOs; backfill in PB-31
-- [x] **A-28**: discard-effect (1 session, 7 cards) — authored with TODOs; backfill in PB-26
+**Note**: A-24 through A-28 were authored with TODOs — their TODOs will be resolved by
+PB-23 (triggers), PB-26 (discard triggers), PB-30 (combat damage), PB-31 (counter/sacrifice
+costs) during the backfill step.
 
 **Tier 3: Complex patterns** (re-triage sizes after BF-1)
 

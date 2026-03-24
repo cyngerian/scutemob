@@ -643,16 +643,54 @@ W5 (wave-based card authoring) is **retired**. All card work goes through W6.
 
 ---
 
+## Phase 1.5: DSL Gap Closure (PB-23 through PB-37)
+
+Card authoring (Phase 2) revealed that PB-0 through PB-22 left significant DSL gaps.
+As of 2026-03-23, 814 of 1,452 card defs (56%) have TODOs. These batches close the
+remaining gaps. Full plan with gap inventory: `docs/dsl-gap-closure-plan.md`.
+
+Each batch uses `/implement-primitive`. After each batch, backfill all existing card
+defs it unblocks — the batch is not done until all unblocked TODOs are removed.
+
+| Batch | Gap ID | Summary | Cards Unblocked |
+|-------|--------|---------|----------------:|
+| PB-23 | G-1 | Controller-filtered creature triggers | ~145 |
+| PB-24 | G-2 | Conditional statics ("as long as X") | ~201 |
+| PB-25 | G-3 | Continuous effect grants | ~98 |
+| PB-26 | G-4,9-15 | Trigger variants (all remaining) | ~72 |
+| PB-27 | G-5 | X-cost spells | ~42 |
+| PB-28 | G-6 | CDA / count-based P/T | ~32 |
+| PB-29 | G-7 | Cost reduction statics | ~30 |
+| PB-30 | G-8 | Combat damage triggers | ~49 |
+| PB-31 | G-16,17 | Cost primitives (RemoveCounter, SacrificeCost) | ~23 |
+| PB-32 | G-18-21 | Static/effect (lands, prevention, control, animation) | ~39 |
+| PB-33 | G-22,28 | Copy/clone + exile/flicker timing | ~39 |
+| PB-34 | G-23-25 | Mana production (filter, devotion, conditional) | ~40 |
+| PB-35 | G-27,29,30 | Modal triggers + graveyard + planeswalker | ~60 |
+| PB-36 | G-31 | Evasion/protection extensions | ~21 |
+| PB-37 | G-26 | Complex activated abilities (residual) | TBD |
+
+### Execution order
+
+1. PB-23, PB-26, PB-30 (trigger gaps — highest leverage, ~266 cards)
+2. PB-24, PB-25 (static gaps — ~299 cards)
+3. PB-27, PB-28, PB-29 (cost/layer gaps — ~104 cards)
+4. PB-31, PB-34, PB-32 (cost + mana + effect primitives — ~102 cards)
+5. PB-33, PB-35, PB-36 (complex interactions — ~120 cards)
+6. PB-37 (residual — re-assess after 23-36)
+
+### Batch Details
+
+See `docs/dsl-gap-closure-plan.md` for the full gap inventory, engine change
+descriptions, and backfill protocol.
+
+---
+
 ## Total Effort Estimate
 
 | Phase | Sessions | Cards |
 |-------|----------|-------|
-| Phase 1: Primitive batches (PB-0 to PB-21) | 42-60 | ~400 fixed + new |
-| Phase 2: Complete authoring (W-A to W-P) | ~76 | ~1,025 new |
+| Phase 1: Primitive batches (PB-0 to PB-22) | 42-60 | ~400 fixed + new |
+| Phase 1.5: Gap closure (PB-23 to PB-37) | TBD | ~814 backfilled |
+| Phase 2: Complete authoring (remaining) | reduced | re-triage after 1.5 |
 | Phase 3: Final audit | 2-3 | fixes only |
-| **Total** | **~120-139** | **1,743** |
-
-With unlimited compute (max x20 plan), sessions can be parallelized aggressively:
-- Independent PBs run concurrently (PB-1/2/3/4/19 can all run in parallel)
-- Phase 2 authoring waves run 2-3 sessions simultaneously
-- Estimated calendar time: significantly less than session count suggests

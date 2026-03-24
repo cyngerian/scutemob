@@ -40,6 +40,8 @@ add a keyword), primitives add DSL expressiveness.
 2. **Read `memory/primitive-wip.md`** to determine which PB batch you're planning.
 3. **Read the PB-N section of `docs/primitive-card-plan.md`** for the batch specification:
    which primitive, which cards, estimated sessions, dependencies.
+   **For PB-23+**: batch details are in `docs/dsl-gap-closure-plan.md` (gap inventory,
+   engine change descriptions, backfill protocol). Read both files.
 4. **Read `memory/conventions.md`** for coding standards.
 5. **Read `memory/gotchas-rules.md`** and `memory/gotchas-infra.md` for known pitfalls.
 6. **Check deferred items** — read `memory/workstream-state.md` "Last Handoff" section for

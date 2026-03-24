@@ -34,9 +34,25 @@
 | PB-19 | Mass destroy / board wipes | done | 12 | 0 | fixed | 2 |
 | PB-20 | Additional combat phases | done | 3 | 0 | fixed | 1 |
 | PB-21 | Fight & Bite | done | 4 | 0 | fixed | 1 |
+| PB-23 | Controller-filtered creature triggers | done | 34 | ~111 | fixed | 1 |
+| **PB-24** | **Conditional statics ("as long as X")** | **planned** | — | ~201 | — | — |
+| **PB-25** | **Continuous effect grants** | **planned** | — | ~98 | — | — |
+| **PB-26** | **Trigger variants (all remaining)** | **planned** | — | ~72 | — | — |
+| **PB-27** | **X-cost spells** | **planned** | — | ~42 | — | — |
+| **PB-28** | **CDA / count-based P/T** | **planned** | — | ~32 | — | — |
+| **PB-29** | **Cost reduction statics** | **planned** | — | ~30 | — | — |
+| **PB-30** | **Combat damage triggers** | **planned** | — | ~49 | — | — |
+| **PB-31** | **Cost primitives (RemoveCounter, SacCost)** | **planned** | — | ~23 | — | — |
+| **PB-32** | **Static/effect (lands, prevention, ctrl, anim)** | **planned** | — | ~39 | — | — |
+| **PB-33** | **Copy/clone + exile/flicker timing** | **planned** | — | ~39 | — | — |
+| **PB-34** | **Mana production (filter, devotion, cond.)** | **planned** | — | ~40 | — | — |
+| **PB-35** | **Modal triggers + graveyard + PW** | **planned** | — | ~60 | — | — |
+| **PB-36** | **Evasion/protection extensions** | **planned** | — | ~21 | — | — |
+| **PB-37** | **Complex activated (residual)** | **planned** | — | TBD | — | — |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
+**Note**: PB-23+ are gap closure batches. Full plan: `docs/dsl-gap-closure-plan.md`.
 
 ---
 
@@ -44,12 +60,16 @@
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| Complete (no TODOs, correct game state) | 412 | 57% |
-| Has TODOs (compiles but incomplete) | 309 | 43% |
-| Wrong Game State (dangerous partials) | 122 | 17% |
-| Not Yet Authored | 1025 | — |
+| Complete (no TODOs, has abilities) | 583 | 40% |
+| Vanilla (no TODO, intentionally empty) | 55 | 4% |
+| Partial (some abilities, some TODOs) | 670 | 46% |
+| Stripped (empty abilities + TODO comments) | 144 | 10% |
+| Not Yet Authored | ~291 | — |
 | **Total Universe** | **1743** | — |
-| **Total Authored** | **721** | **41%** |
+| **Total Authored** | **1452** | **83%** |
+
+**Gap closure needed**: 814 cards have TODOs. See `docs/dsl-gap-closure-plan.md`.
+As of 2026-03-23 (post A-28).
 
 ---
 
@@ -62,12 +82,12 @@
 | W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S2 DONE**. S3 next: fix MEDIUM sites |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-03-19 | **ALL PBs DONE (PB-0 through PB-21)**. Phase 2: author ~1,025 remaining cards |
+| W6 | Primitive + Card Authoring | active | 2026-03-23 | **Phase 2.5: DSL gap closure (PB-23+)**. 814/1452 cards have TODOs. Close gaps before authoring more. |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
-**W6-review COMPLETE**: All 21/21 reviews done (20 retroactive + PB-21 inline).
-**NEXT OBJECTIVE**: Phase 2 card authoring (~1,025 remaining cards), then Phase 3 audit.
+**W6-review COMPLETE**: All 21/21 reviews done (PB-0 through PB-21).
+**NEXT OBJECTIVE**: Phase 2.5 DSL gap closure (PB-23 through PB-37), then resume authoring, then Phase 3 audit.
 
 ---
 

@@ -68,14 +68,20 @@ For each engine change in the plan:
 
 5. **Check off in `memory/primitive-wip.md`**: change `- [ ]` to `- [x]` with details.
 
-### Step 2: Card Definition Fixes
+### Step 2: Card Definition Fixes (Backfill)
 
 For each card def listed in the plan:
 
 1. **Read the existing card def** file in `crates/engine/src/cards/defs/`
-2. **Apply the fix** described in the plan — replace TODOs with actual DSL usage
-3. **Verify** the card def uses the new primitive correctly
-4. **Run `cargo check`** — card defs must compile with the new types
+2. **Look up the card's oracle text** via `mcp__mtg-rules__lookup_card` if needed
+3. **Apply the fix** described in the plan — replace TODOs with actual DSL usage
+4. **Verify** the card def uses the new primitive correctly
+5. **Run `cargo check`** — card defs must compile with the new types
+
+**For PB-23+ (gap closure batches)**: the card fix list will be large (50-200 cards).
+Grep for the relevant TODO pattern (e.g., "creature you control" for PB-23) across all
+defs to find every card that's unblocked, not just those listed explicitly in the plan.
+The batch is not complete until ALL matching TODOs are resolved.
 
 ### Step 3: New Card Definitions (if any)
 
