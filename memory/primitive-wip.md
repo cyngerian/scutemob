@@ -4,7 +4,7 @@ batch: PB-25
 title: Continuous effect grants ("creatures you control get/have")
 cards_affected: ~98
 started: 2026-03-23
-phase: implement
+phase: closed
 plan_file: memory/primitives/pb-plan-25.md
 
 ## Gap Reference

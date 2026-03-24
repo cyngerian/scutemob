@@ -159,7 +159,7 @@ their TODOs removed.
 
 - [x] **PB-23**: Controller-filtered creature triggers (~145 cards unblocked) — 34 fixed, 2H 11M fixed, 2291 tests
 - [x] **PB-24**: Conditional statics ("as long as X") (~201 cards) — 13 fixed, 1H 2M fixed, 2302 tests
-- [ ] **PB-25**: Continuous effect grants (~98 cards)
+- [x] **PB-25**: Continuous effect grants (~98 cards) — 28 fixed, review clean, 2287 tests
 - [ ] **PB-26**: Trigger variants (spell-type, discard, sacrifice, attack, LTB, draw, cast) (~72 cards)
 - [ ] **PB-27**: X-cost spells (~42 cards)
 - [ ] **PB-28**: CDA / count-based P/T (~32 cards)

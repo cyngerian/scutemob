@@ -23,26 +23,24 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-23
-**Workstream**: Executive/oversight (no workstream claimed) + W6 worker in parallel
-**Task**: TUI redesign (oversight session) + PB-24 close (worker session)
+**Date**: 2026-03-24
+**Workstream**: W6 (PB-25)
+**Task**: PB-25 continuous effect grants
 
 **Completed**:
-- **TUI redesign**: 8 tabs → 4 tabs (Dashboard, Pipeline, Cards, Milestones). Deleted 6 stale tabs (Abilities, Corner Cases, Reviews, Scripts, old Cards, Progress). New Pipeline tab with reverse-sorted PB batches (next at top, done at bottom) + worker status from `primitive-wip.md`. New Cards tab with live filesystem scan replacing stale `_authoring_worklist.json`. Dashboard has compact summary lines for abilities/corner cases/reviews/scripts/engine LOC. Milestones tab puts future (M10/M11/M12) at top, completed dimmed at bottom.
-- **Worker completed PB-24**: closed, project-status + ops plan updated. 2302 tests, 0 clippy.
-- TUI changes bundled into worker's PB-24 commit (a69d458). Clean build, zero warnings.
+- **PB-25 DONE**: 11 new EffectFilter variants, 28 card defs fixed, 13 new tests. Review: clean (0 findings). 2287 tests, 0 clippy.
+- Commit: 0e6605f (implement).
 
 **Next**:
-1. Continue gap closure: PB-25 (continuous effect grants, ~98 cards) or PB-26 (trigger variants, ~72 cards)
-2. TUI: test with `cargo run --bin mtg-tui -- dashboard` in interactive terminal
-3. ~201 card defs still need backfill sweep for PB-24 conditions
+1. Continue gap closure: PB-26 (trigger variants, ~72 cards) is next
+2. ~201 card defs still need backfill sweep for PB-24 conditions
+3. ~70 cards remaining from PB-25 scope (need other PB gaps first)
 
 **Hazards**:
-- TUI changes were committed by the worker session (bundled into PB-24 commit) — no separate W2 commit
 - Backfill not yet run for PB-24 conditions
-- Some cards blocked on PB-25 (EffectFilter extensions for "creatures you control have X")
+- Some PB-25 scope cards also need PB-26 triggers or PB-29 cost reduction
 
-**Commit prefix used**: `chore:` (oversight), TUI bundled into `W6-prim:`
+**Commit prefix used**: `W6-prim:`
 
 ## Handoff History
 
