@@ -157,8 +157,8 @@ Each PB-N uses `/implement-primitive` pipeline (plan → implement → review �
 Backfill is part of the close step — the batch is not done until all unblocked cards have
 their TODOs removed.
 
-- [ ] **PB-23**: Controller-filtered creature triggers (~145 cards unblocked)
-- [ ] **PB-24**: Conditional statics ("as long as X") (~201 cards)
+- [x] **PB-23**: Controller-filtered creature triggers (~145 cards unblocked) — 34 fixed, 2H 11M fixed, 2291 tests
+- [x] **PB-24**: Conditional statics ("as long as X") (~201 cards) — 13 fixed, 1H 2M fixed, 2302 tests
 - [ ] **PB-25**: Continuous effect grants (~98 cards)
 - [ ] **PB-26**: Trigger variants (spell-type, discard, sacrifice, attack, LTB, draw, cast) (~72 cards)
 - [ ] **PB-27**: X-cost spells (~42 cards)

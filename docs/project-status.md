@@ -35,7 +35,7 @@
 | PB-20 | Additional combat phases | done | 3 | 0 | fixed | 1 |
 | PB-21 | Fight & Bite | done | 4 | 0 | fixed | 1 |
 | PB-23 | Controller-filtered creature triggers | done | 34 | ~111 | fixed | 1 |
-| **PB-24** | **Conditional statics ("as long as X")** | **planned** | — | ~201 | — | — |
+| PB-24 | Conditional statics ("as long as X") | done | 13 | ~188 | fixed | 1 |
 | **PB-25** | **Continuous effect grants** | **planned** | — | ~98 | — | — |
 | **PB-26** | **Trigger variants (all remaining)** | **planned** | — | ~72 | — | — |
 | **PB-27** | **X-cost spells** | **planned** | — | ~42 | — | — |
@@ -112,8 +112,8 @@ As of 2026-03-23 (post A-28).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2281 |
-| Test files | 212 |
+| Total tests | 2302 |
+| Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
 | Abilities validated | 194 / 204 |
