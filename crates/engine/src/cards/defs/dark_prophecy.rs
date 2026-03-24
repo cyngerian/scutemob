@@ -10,10 +10,10 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever a creature you control dies, you draw a card and you lose 1 life.".to_string(),
         abilities: vec![
-            // TODO: WheneverCreatureDies is overbroad — fires on all creature deaths,
-            //   not just "a creature you control".
+            // CR 603.10a: "Whenever a creature you control dies, you draw a card and you lose 1 life."
+            // PB-23: controller_you filter applied via DeathTriggerFilter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false },
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,

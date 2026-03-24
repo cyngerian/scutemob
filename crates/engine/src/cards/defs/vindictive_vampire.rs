@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureDies is overbroad (fires on all creature deaths, not just
             // "another creature you control"). DSL gap — no controller/exclusion filter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: false },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {
                         over: ForEachTarget::EachOpponent,

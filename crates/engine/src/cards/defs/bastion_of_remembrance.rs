@@ -34,9 +34,10 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: WheneverCreatureDies is overbroad (all creatures, not just yours).
+            // CR 603.10a: "Whenever a creature you control dies, each opponent loses 1 life and you gain 1 life."
+            // PB-23: controller_you filter applied via DeathTriggerFilter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {
                         over: ForEachTarget::EachOpponent,

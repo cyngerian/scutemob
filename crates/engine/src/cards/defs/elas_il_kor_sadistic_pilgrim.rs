@@ -29,8 +29,24 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: DSL gap — "Whenever another creature you control dies" trigger.
-            // WheneverCreatureDies has no controller filter.
+            // CR 603.10a: "Whenever another creature you control dies, each opponent loses 1 life."
+            // PB-23: controller_you + exclude_self filters via DeathTriggerFilter.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: false,
+                },
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::LoseLife {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

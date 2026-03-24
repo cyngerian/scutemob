@@ -16,13 +16,12 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
             // CR 603.10a: "Whenever another nontoken creature you control dies, create
             // a 1/1 colorless Eldrazi Scion token."
-            // PB-23: controller_you filter now applied via DeathTriggerFilter.
-            // TODO: nontoken_only and exclude_self filters not yet wired from card def
-            // into DeathTriggerFilter in enrich_spec_from_def — will over-trigger on
-            // token deaths and on Sifter of Skulls itself dying.
+            // PB-23: controller_you + exclude_self + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: true,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

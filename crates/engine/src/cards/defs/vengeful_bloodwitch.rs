@@ -20,6 +20,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
                 },
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {

@@ -15,9 +15,10 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever a creature you control dies, draw a card.\n+1: Create a 2/2 black Zombie creature token.\n\u{2212}4: Each player sacrifices two creatures.\n\u{2212}9: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest.".to_string(),
         starting_loyalty: Some(6),
         abilities: vec![
-            // TODO: WheneverCreatureDies overbroad (all creatures, not just yours).
+            // CR 603.10a: "Whenever a creature you control dies, draw a card."
+            // PB-23: controller_you filter applied via DeathTriggerFilter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

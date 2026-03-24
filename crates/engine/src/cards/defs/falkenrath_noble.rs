@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // "this creature or another creature dies" = any creature dies.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false },
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
                 intervening_if: None,
                 targets: vec![],

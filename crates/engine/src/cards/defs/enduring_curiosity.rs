@@ -4,7 +4,6 @@
 // When Enduring Curiosity dies, if it was a creature, return it to the battlefield
 // under its owner's control. It's an enchantment. (It's not a creature.)
 //
-// TODO: Per-creature combat damage trigger not in DSL.
 // TODO: Death return as enchantment-only — Glimmer mechanic not in DSL.
 use crate::cards::helpers::*;
 
@@ -13,7 +12,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("enduring-curiosity"),
         name: "Enduring Curiosity".to_string(),
         mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
-        types: creature_types(&["Cat", "Glimmer"]),
+        types: full_types(&[], &[CardType::Enchantment, CardType::Creature], &["Cat", "Glimmer"]),
         oracle_text: "Flash\nWhenever a creature you control deals combat damage to a player, draw a card.\nWhen Enduring Curiosity dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment.".to_string(),
         power: Some(4),
         toughness: Some(3),

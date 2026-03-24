@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // (sacrifice) not in KeywordAbility::Ward variant.
             // "Whenever a creature dies" = any creature, no filter needed.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false },
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,
                 targets: vec![],

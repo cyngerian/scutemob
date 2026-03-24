@@ -3853,9 +3853,15 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenDealsCombatDamageToPlayer => 4u8.hash_into(hasher),
             TriggerCondition::WheneverOpponentCastsSpell => 5u8.hash_into(hasher),
             TriggerCondition::WheneverPlayerDrawsCard => 6u8.hash_into(hasher),
-            TriggerCondition::WheneverCreatureDies { controller } => {
+            TriggerCondition::WheneverCreatureDies {
+                controller,
+                exclude_self,
+                nontoken_only,
+            } => {
                 7u8.hash_into(hasher);
                 controller.hash_into(hasher);
+                exclude_self.hash_into(hasher);
+                nontoken_only.hash_into(hasher);
             }
             TriggerCondition::WheneverCreatureEntersBattlefield { filter } => {
                 8u8.hash_into(hasher);

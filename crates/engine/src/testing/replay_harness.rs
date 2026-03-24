@@ -2308,12 +2308,18 @@ pub fn enrich_spec_from_def(
     // The controller filter, exclude_self, and nontoken_only fields are set on DeathTriggerFilter
     // and applied at trigger-collection time in collect_triggers_for_event.
     //
-    // NOTE: DeathTriggerFilter.exclude_self is not yet wired from card defs — cards that use
-    // "another creature" need manual fix-up. For now we set exclude_self: false (conservative;
-    // over-triggers rather than under-triggers).
+    // CR 603.10a: Convert "Whenever [another] [nontoken] creature [you control / an opponent controls] dies"
+    // card-definition triggers into runtime TriggeredAbilityDef entries.
+    // The exclude_self and nontoken_only fields from the card def are forwarded directly to
+    // DeathTriggerFilter and applied at trigger-collection time.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverCreatureDies { controller },
+            trigger_condition:
+                TriggerCondition::WheneverCreatureDies {
+                    controller,
+                    exclude_self,
+                    nontoken_only,
+                },
             effect,
             ..
         } = ability
@@ -2321,8 +2327,8 @@ pub fn enrich_spec_from_def(
             let death_filter = DeathTriggerFilter {
                 controller_you: matches!(controller, Some(TargetController::You)),
                 controller_opponent: matches!(controller, Some(TargetController::Opponent)),
-                exclude_self: false,
-                nontoken_only: false,
+                exclude_self: *exclude_self,
+                nontoken_only: *nontoken_only,
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 trigger_on: TriggerEvent::AnyCreatureDies,

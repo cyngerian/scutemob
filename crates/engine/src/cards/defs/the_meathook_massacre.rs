@@ -18,6 +18,8 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
                 },
                 effect: Effect::LoseLife {
                     player: PlayerTarget::EachOpponent,
@@ -31,6 +33,8 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::Opponent),
+                    exclude_self: false,
+                    nontoken_only: false,
                 },
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

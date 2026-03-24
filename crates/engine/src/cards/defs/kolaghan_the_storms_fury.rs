@@ -20,7 +20,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 508.1m: "Whenever a Dragon you control attacks, creatures you control get +1/+0."
-            // PB-23: WheneverCreatureYouControlAttacks. TODO: Dragon subtype filter not in DSL.
+            // PB-23: WheneverCreatureYouControlAttacks.
+            // TODO: Dragon subtype filter not yet in DSL — over-triggers on non-Dragon attackers.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
                 effect: Effect::ApplyContinuousEffect {

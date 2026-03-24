@@ -13,9 +13,11 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: WheneverCreatureDies is overbroad (all creatures, not "nontoken you control").
+            // CR 603.10a: "Whenever Pawn of Ulamog or another nontoken creature you control dies."
+            // PB-23: controller_you + nontoken_only filters via DeathTriggerFilter.
+            // Note: "Pawn of Ulamog or another" = self included, so exclude_self: false.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: true },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Eldrazi Spawn".to_string(),

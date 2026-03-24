@@ -18,11 +18,12 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { black: 1, ..Default::default() },
             },
             // CR 603.10a: "Whenever another nontoken creature you control dies, draw a card."
-            // PB-23: controller_you filter applied via DeathTriggerFilter.
-            // TODO: nontoken_only and exclude_self not yet wired in enrich_spec_from_def.
+            // PB-23: controller_you + exclude_self + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: true,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

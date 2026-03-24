@@ -1,8 +1,5 @@
 // Pitiless Plunderer — {3}{B}, Creature — Human Pirate 1/4.
 // "Whenever another creature you control dies, create a Treasure token."
-// TODO: DSL gap — WheneverCreatureDies triggers on ALL creature deaths, not
-// just "another creature you control." Empty abilities per W5 policy until
-// death trigger filtering is supported.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,11 +13,12 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             // CR 603.10a: "Whenever another creature you control dies, create a Treasure token."
-            // PB-23: controller_you filter via DeathTriggerFilter.
-            // TODO: exclude_self not yet wired in enrich_spec_from_def.
+            // PB-23: controller_you + exclude_self filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: false,
                 },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),

@@ -4,7 +4,7 @@ batch: PB-23
 title: Controller-filtered creature triggers
 cards_affected: ~145
 started: 2026-03-23
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-23.md
 
 ## Gap Reference
@@ -57,3 +57,32 @@ plan_file: memory/primitives/pb-plan-23.md
   - cargo clippy -- -D warnings: 0 warnings (fixed 2 map_or → is_some_and/is_none_or)
   - cargo build --workspace: clean build (engine + simulator + network + replay-viewer + tui)
   - cargo fmt --check: clean
+
+## Review
+findings: 14 (HIGH: 2, MEDIUM: 11, LOW: 1)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-23.md
+
+## Fix Phase Results (2026-03-23)
+- [x] F1 (MEDIUM): Added `exclude_self` and `nontoken_only` fields to `WheneverCreatureDies` in card_definition.rs. Updated hash.rs and replay_harness.rs to wire them. Updated all 30 affected card defs.
+- [x] F2 (MEDIUM): Same as F1 — `nontoken_only` wired from card def. grim_haruspex + midnight_reaper + agent_venom + sifter_of_skulls now use `nontoken_only: true`.
+- [x] F3 (HIGH): zulaport_cutthroat.rs — changed `controller: None` to `controller: Some(TargetController::You)` (oracle: "this creature or another creature you control").
+- [x] F4 (HIGH): elas_il_kor_sadistic_pilgrim.rs — added missing death trigger with WheneverCreatureDies { controller_you, exclude_self: true } + ForEach EachOpponent LoseLife(1).
+- [x] F5 (MEDIUM): enduring_curiosity.rs — changed `creature_types` to `full_types` with Enchantment + Creature. Removed stale header TODO about per-creature combat damage trigger.
+- [x] F6 (MEDIUM): kolaghan_the_storms_fury.rs — updated TODO to explicitly say "over-triggers on non-Dragon attackers."
+- [x] F7 (MEDIUM): utvara_hellkite.rs — already had explicit TODO. No change needed.
+- [x] F8 (MEDIUM): dark_prophecy.rs — removed stale TODO comment.
+- [x] F9 (MEDIUM): moldervine_reclamation.rs — removed stale TODO comment.
+- [x] F10 (MEDIUM): liliana_dreadhorde_general.rs — removed stale TODO comment.
+- [x] F11 (MEDIUM): bastion_of_remembrance.rs — removed stale TODO comment.
+- [x] F12 (MEDIUM): enduring_curiosity.rs header — removed stale "per-creature combat damage trigger" TODO. Done in F5.
+- [x] F13 (MEDIUM): ohran_frostfang.rs — removed stale header TODO.
+- [x] F14 (MEDIUM): pitiless_plunderer.rs — removed stale header TODO. Updated exclude_self: true.
+- [x] F16 (MEDIUM): mardu_ascendancy.rs — updated TODO to explicitly say "over-triggers on token attackers, needs nontoken filter."
+- Finding 15 (LOW): Informational only — no fix needed.
+- cargo test --all: 2291 passing, 0 failures
+- cargo clippy -- -D warnings: 0 warnings
+- cargo build --workspace: clean
+- cargo fmt --check: clean
+
+phase: done

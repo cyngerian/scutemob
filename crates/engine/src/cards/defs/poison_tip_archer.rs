@@ -19,7 +19,7 @@ Whenever another creature dies, each opponent loses 1 life.".to_string(),
             // WheneverCreatureDies triggers on ALL creatures (including your own + opponents').
             // This is correct for Poison-Tip Archer ("another creature" = any creature).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::DealDamage {

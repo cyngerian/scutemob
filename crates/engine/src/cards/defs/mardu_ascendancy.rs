@@ -14,8 +14,9 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 508.1m: "Whenever a nontoken creature you control attacks, create a 1/1 red
             // Goblin token tapped and attacking."
-            // PB-23: WheneverCreatureYouControlAttacks. Note: nontoken filter not yet wired
-            // in enrich_spec_from_def — will over-trigger on token attacks too.
+            // PB-23: WheneverCreatureYouControlAttacks.
+            // TODO: Nontoken filter not yet in DSL for attack triggers — over-triggers on token
+            // attackers (including Goblin tokens created by this ability itself).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
                 effect: Effect::CreateToken {

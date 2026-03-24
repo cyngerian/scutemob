@@ -1774,6 +1774,14 @@ pub enum TriggerCondition {
     /// pre-death controller is used for the controller filter.
     WheneverCreatureDies {
         controller: Option<TargetController>,
+        /// If true, the dying creature must NOT be the trigger source itself ("another creature").
+        /// Maps to `DeathTriggerFilter::exclude_self`.
+        #[serde(default)]
+        exclude_self: bool,
+        /// If true, only fires when a nontoken creature dies.
+        /// Maps to `DeathTriggerFilter::nontoken_only`.
+        #[serde(default)]
+        nontoken_only: bool,
     },
     /// "Whenever a creature enters the battlefield" (with optional filter).
     WheneverCreatureEntersBattlefield { filter: Option<TargetFilter> },

@@ -1,8 +1,6 @@
 // Ohran Frostfang — {3}{G}{G}, Snow Creature — Snake 2/6
 // Attacking creatures you control have deathtouch.
 // Whenever a creature you control deals combat damage to a player, draw a card.
-//
-// TODO: Per-creature combat damage trigger not in DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
