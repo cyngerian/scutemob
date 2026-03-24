@@ -4,7 +4,7 @@ batch: PB-26
 title: Trigger variants (spell-type, discard, sacrifice, attack, LTB, draw, cast)
 cards_affected: ~72
 started: 2026-03-24
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-26.md
 
 ## Gap Reference

@@ -37,7 +37,7 @@
 | PB-23 | Controller-filtered creature triggers | done | 34 | ~111 | fixed | 1 |
 | PB-24 | Conditional statics ("as long as X") | done | 13 | ~188 | fixed | 1 |
 | PB-25 | Continuous effect grants | done | 28 | ~70 | clean | 1 |
-| **PB-26** | **Trigger variants (all remaining)** | **planned** | — | ~72 | — | — |
+| PB-26 | Trigger variants (all remaining) | done | 55 | ~17 | fixed | 1 |
 | **PB-27** | **X-cost spells** | **planned** | — | ~42 | — | — |
 | **PB-28** | **CDA / count-based P/T** | **planned** | — | ~32 | — | — |
 | **PB-29** | **Cost reduction statics** | **planned** | — | ~30 | — | — |

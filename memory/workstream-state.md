@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-25: Continuous effect grants (~98 cards) | ACTIVE | 2026-03-23 | PB-24 done. Starting PB-25 (G-3 gap). |
+| W6: Primitive + Card Authoring | PB-26: Trigger variants | ACTIVE | 2026-03-24 | PB-26: spell-type, discard, sacrifice, attack, LTB, draw, cast triggers (~72 cards) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,25 +24,29 @@
 ## Last Handoff
 
 **Date**: 2026-03-24
-**Workstream**: W6 (PB-25)
-**Task**: PB-25 continuous effect grants
+**Workstream**: W6 (PB-26)
+**Task**: PB-26 trigger variants
 
 **Completed**:
-- **PB-25 DONE**: 11 new EffectFilter variants, 28 card defs fixed, 13 new tests. Review: clean (0 findings). 2287 tests, 0 clippy.
-- Commit: 0e6605f (implement).
+- **PB-26 DONE**: 8 trigger gaps closed (G-4 through G-15), 6 new TriggerCondition variants, 3 extended, 9 new TriggerEvent variants, PermanentSacrificed GameEvent, PlayerTarget::TriggeringPlayer. ~55 card defs fixed, 19 new tests. Review: 1H 2M fixed. 2334 tests, 0 clippy.
+- Commits: b25abc3 (implement), 00a334d (fixes).
 
 **Next**:
-1. Continue gap closure: PB-26 (trigger variants, ~72 cards) is next
-2. ~201 card defs still need backfill sweep for PB-24 conditions
-3. ~70 cards remaining from PB-25 scope (need other PB gaps first)
+1. Continue gap closure: PB-27 (X-cost spells, ~42 cards) is next
+2. ~17 cards remaining from PB-26 scope (need other PB gaps first)
+3. PB-24 backfill (~188 defs) still pending
+4. PB-25 remaining (~70 cards) still pending
 
 **Hazards**:
-- Backfill not yet run for PB-24 conditions
-- Some PB-25 scope cards also need PB-26 triggers or PB-29 cost reduction
+- Backfill sweeps for PB-23/24/25/26 accumulating — consider dedicated backfill session
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-24 — W6: PB-26 trigger variants
+- PB-26: 8 trigger gaps (G-4 through G-15), ~55 card defs fixed, 1H 2M fixed. 2334 tests.
+- Commits: b25abc3, 00a334d.
 
 ### 2026-03-23 — W6: PB-24 conditional statics + TUI redesign
 - PB-24: 13 card defs fixed, 1H 2M fixed, ~170 defs updated with `condition: None`. 2302 tests.
