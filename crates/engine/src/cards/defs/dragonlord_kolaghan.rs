@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Haste),
                     filter: EffectFilter::OtherCreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: triggered — opponent casts a spell with same name as a card in their graveyard → loses 10 life.

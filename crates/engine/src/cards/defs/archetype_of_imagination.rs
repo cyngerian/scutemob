@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Flying),
                     filter: EffectFilter::CreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

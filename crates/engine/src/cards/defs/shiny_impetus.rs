@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(2),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: "Enchanted creature is goaded" — static goad applied to attached creature

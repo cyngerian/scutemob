@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Goblin".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Sacrifice a Goblin: Destroy target artifact.

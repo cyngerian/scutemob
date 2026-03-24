@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             AbilityDefinition::Static {
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyToughness(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 702.9a: Enchanted creature has flying (layer 6).
@@ -39,6 +41,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Flying),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: "When a Ninja you control enters, you may return this from your graveyard

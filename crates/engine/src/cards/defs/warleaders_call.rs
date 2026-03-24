@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::CreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Whenever a creature you control enters, deal 1 to each opponent.

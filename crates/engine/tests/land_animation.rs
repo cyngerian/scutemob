@@ -62,6 +62,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
                         ),
                         filter: EffectFilter::Source,
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 Effect::ApplyContinuousEffect {
@@ -70,6 +71,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
                         modification: LayerModification::SetPowerToughness { power, toughness },
                         filter: EffectFilter::Source,
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 Effect::ApplyContinuousEffect {
@@ -78,6 +80,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
                         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
                         filter: EffectFilter::Source,
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
             ])),

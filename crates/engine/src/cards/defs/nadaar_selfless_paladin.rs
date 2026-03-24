@@ -5,12 +5,8 @@
 //
 // CR 702.20a: Vigilance — doesn't tap when attacking.
 // CR 701.49a-c: Venture into the dungeon.
-// CR 309.7: "as long as you've completed a dungeon" checked via CompletedADungeon condition.
-//
-// DSL gap: "Other creatures you control get +1/+1 as long as you've completed a dungeon"
-// requires EffectFilter::OtherCreaturesControlledBy (excludes self, scoped to controller).
-// The AbilityDefinition::Static has no condition field for "as long as" clauses.
-// Both gaps are deferred; tracked alongside Ultramarines Honour Guard (same DSL gap).
+// CR 309.7 / CR 604.2 / CR 613.1c (Layer 7c): "Other creatures you control get +1/+1 as
+// long as you've completed a dungeon." Conditional static on Condition::CompletedADungeon.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -44,12 +40,17 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // CR 309.7 / CR 613.1c: "Other creatures you control get +1/+1 as long as
-            // you've completed a dungeon."
-            // TODO: AbilityDefinition::Static lacks a condition field for "as long as" clauses.
-            // The OtherCreaturesYouControl filter is now available, but the dungeon-completion
-            // condition is still needed. Unconditionally granting +1/+1 would be incorrect.
-            // Deferred until condition-on-static is implemented.
+            // CR 309.7 / CR 613.1c (Layer 7c): "Other creatures you control get +1/+1 as long
+            // as you've completed a dungeon." Conditional static using OtherCreaturesYouControl.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBoth(1),
+                    filter: EffectFilter::OtherCreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::CompletedADungeon),
+                },
+            },
         ],
         color_indicator: None,
         back_face: None,

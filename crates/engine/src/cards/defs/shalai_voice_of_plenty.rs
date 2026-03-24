@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Hexproof),
                     filter: EffectFilter::OtherCreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — "You have hexproof" (player hexproof) not in layer system.

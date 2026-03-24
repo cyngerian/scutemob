@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                         modification: crate::state::LayerModification::ModifyPower(1),
                         filter: crate::state::EffectFilter::CreaturesYouControl,
                         duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 timing_restriction: None,

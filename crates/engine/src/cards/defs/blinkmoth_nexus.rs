@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -45,6 +46,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -53,6 +55,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -61,6 +64,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Flying),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),
@@ -81,6 +85,7 @@ pub fn card() -> CardDefinition {
                         modification: LayerModification::ModifyBoth(1),
                         filter: EffectFilter::DeclaredTarget { index: 0 },
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 timing_restriction: None,

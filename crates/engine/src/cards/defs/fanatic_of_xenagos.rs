@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Haste),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

@@ -35,6 +35,7 @@ Equipped creature gets +1/+1 and has double strike."
                     modification: LayerModification::ModifyPower(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 613.4c: Equipped creature gets +1 toughness (layer 7c).
@@ -44,6 +45,7 @@ Equipped creature gets +1/+1 and has double strike."
                     modification: LayerModification::ModifyToughness(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 702.4a: Equipped creature has double strike (layer 6).
@@ -53,6 +55,7 @@ Equipped creature gets +1/+1 and has double strike."
                     modification: LayerModification::AddKeyword(KeywordAbility::DoubleStrike),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(2),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 702.19a: Enchanted creature has trample (layer 6, ability grant).
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Trample),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 603.1: When Rancor is put into a graveyard from the battlefield,

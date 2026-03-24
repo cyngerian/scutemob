@@ -1986,6 +1986,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
                 modification: LayerModification::AddKeyword(KeywordAbility::CantBeBlocked),
                 filter: EffectFilter::DeclaredTarget { index: 0 },
                 duration: EffectDuration::UntilEndOfTurn,
+                condition: None,
             }),
         }),
         sorcery_speed: false,

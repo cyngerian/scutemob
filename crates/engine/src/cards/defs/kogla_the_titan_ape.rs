@@ -70,6 +70,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

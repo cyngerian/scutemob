@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 613.4c: Enchanted creature gets +1 toughness (layer 7c, P/T modify).
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyToughness(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 702.7a: Enchanted creature has first strike (layer 6, ability grant).
@@ -45,6 +47,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::FirstStrike),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 702.89a: Umbra armor lives on the Aura itself. The engine's

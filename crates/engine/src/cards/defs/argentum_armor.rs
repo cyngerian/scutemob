@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(6),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: "Whenever equipped creature attacks, destroy target permanent."

@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::DoubleStrike),
                             filter: EffectFilter::DeclaredTarget { index: 1 },
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ],

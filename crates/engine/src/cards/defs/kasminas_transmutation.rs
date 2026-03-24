@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::RemoveAllAbilities,
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Enchanted creature has base P/T 1/1 (Layer 7b)
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

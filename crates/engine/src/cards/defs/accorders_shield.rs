@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyToughness(3),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Static: equipped creature has vigilance
@@ -29,6 +30,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Equip {3}

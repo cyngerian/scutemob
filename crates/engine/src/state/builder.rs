@@ -411,6 +411,7 @@ impl GameStateBuilder {
                                 modification: LayerModification::ModifyBoth(1),
                                 filter: CEFilter::Source,
                                 duration: CEDuration::UntilEndOfTurn,
+                                condition: None,
                             }),
                         }),
                     });
@@ -434,6 +435,7 @@ impl GameStateBuilder {
                                 modification: LayerModification::ModifyBoth(1),
                                 filter: CEFilter::DeclaredTarget { index: 0 },
                                 duration: CEDuration::UntilEndOfTurn,
+                                condition: None,
                             }),
                         }),
                     });
@@ -483,6 +485,7 @@ impl GameStateBuilder {
                                     modification: LayerModification::ModifyPower(1),
                                     filter: CEFilter::DeclaredTarget { index: 0 },
                                     duration: CEDuration::UntilEndOfTurn,
+                                    condition: None,
                                 }),
                             }),
                         }),
@@ -821,6 +824,7 @@ impl GameStateBuilder {
                             modification: LayerModification::ModifyBoth(*n as i32),
                             filter: CEFilter::Source,
                             duration: CEDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     };
                     // Trigger 1: "Whenever this creature blocks"

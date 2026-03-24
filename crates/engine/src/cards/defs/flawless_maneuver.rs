@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                         ),
                         filter: EffectFilter::DeclaredTarget { index: 0 },
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 }),
             },

@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -46,6 +47,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -54,6 +56,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -64,6 +67,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Static: Equipped creature gets -1 toughness (layer 7c, CR 613.4c).
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyToughness(-1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: Triggered ability omitted — DSL cannot express "whenever the

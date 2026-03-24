@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                         modification: LayerModification::ModifyBoth(1),
                         filter: EffectFilter::DeclaredTarget { index: 0 },
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 intervening_if: None,

@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::OtherCreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

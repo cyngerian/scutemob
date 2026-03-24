@@ -7,10 +7,8 @@ use ratatui::{
 };
 
 use super::super::app::App;
-use crate::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
-    // Split vertically: table (top) + deliverable detail (bottom)
     let sel = app.milestone_table_state.selected().unwrap_or(0);
     let has_detail =
         sel < app.data.milestones.len() && app.data.milestones[sel].total_deliverables > 0;
@@ -37,6 +35,23 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
     let milestones = &app.data.milestones;
 
+    // Sort: future/active at top, completed at bottom
+    let mut indices: Vec<usize> = (0..milestones.len()).collect();
+    indices.sort_by(|&a, &b| {
+        let ma = &milestones[a];
+        let mb = &milestones[b];
+        let order = |m: &super::super::data::MilestoneStatus| -> u8 {
+            if m.is_active {
+                0
+            } else if m.is_future {
+                1
+            } else {
+                2
+            }
+        };
+        order(ma).cmp(&order(mb))
+    });
+
     let header = Row::new(vec![
         Cell::from("ID").style(Style::default().add_modifier(Modifier::BOLD)),
         Cell::from("Name").style(Style::default().add_modifier(Modifier::BOLD)),
@@ -46,9 +61,10 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
     ])
     .style(Style::default().fg(Color::White).bg(Color::DarkGray));
 
-    let rows: Vec<Row> = milestones
+    let rows: Vec<Row> = indices
         .iter()
-        .map(|m| {
+        .map(|&idx| {
+            let m = &milestones[idx];
             let pct = m.completion_pct();
             let deliverables_str = format!(
                 "{}/{} ({:.0}%)",
@@ -57,6 +73,8 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
                 pct * 100.0
             );
 
+            let is_done = pct >= 1.0;
+
             let status_cell = if m.is_active {
                 Cell::from(Span::styled(
                     "ACTIVE",
@@ -64,41 +82,64 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ))
-            } else if pct >= 1.0 {
-                Cell::from(Span::styled("✓ DONE", Style::default().fg(theme::GREEN)))
+            } else if m.is_future {
+                Cell::from(Span::styled(
+                    "UPCOMING",
+                    Style::default().fg(Color::Cyan),
+                ))
+            } else if is_done {
+                Cell::from(Span::styled(
+                    "v DONE",
+                    Style::default().fg(Color::DarkGray),
+                ))
             } else if pct > 0.0 {
-                Cell::from(Span::styled("partial", Style::default().fg(theme::GOLD)))
+                Cell::from(Span::styled(
+                    "partial",
+                    Style::default().fg(Color::Yellow),
+                ))
             } else {
-                Cell::from(Span::styled("—", Style::default().fg(Color::DarkGray)))
+                Cell::from(Span::styled(
+                    "\u{2014}",
+                    Style::default().fg(Color::DarkGray),
+                ))
             };
 
-            let id_style = if m.is_active {
+            // Dim completed milestones
+            let base_style = if is_done && !m.is_active {
+                Style::default().fg(Color::DarkGray)
+            } else if m.is_active {
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD)
-            } else if pct >= 1.0 {
-                Style::default().fg(theme::GREEN)
+            } else if m.is_future {
+                Style::default().fg(Color::Cyan)
             } else {
                 Style::default().fg(Color::White)
             };
 
-            let review_style = match m.review_status.as_str() {
-                "RE-REVIEWED" => Style::default().fg(theme::BLUE),
-                "REVIEWED" => Style::default().fg(theme::GREEN),
-                _ => Style::default().fg(Color::DarkGray),
-            };
             let review_text = if m.review_status.is_empty() {
-                "—"
+                "\u{2014}"
             } else {
                 &m.review_status
             };
+            let review_style = if is_done && !m.is_active {
+                Style::default().fg(Color::DarkGray)
+            } else if m.review_status.contains("REVIEWED") {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
 
             Row::new(vec![
-                Cell::from(Span::styled(m.id.clone(), id_style)),
-                Cell::from(m.name.clone()),
+                Cell::from(Span::styled(m.id.clone(), base_style)),
+                Cell::from(Span::styled(m.name.clone(), base_style)),
                 Cell::from(Span::styled(
                     deliverables_str,
-                    Style::default().fg(Color::Gray),
+                    if is_done && !m.is_active {
+                        Style::default().fg(Color::DarkGray)
+                    } else {
+                        Style::default().fg(Color::Gray)
+                    },
                 )),
                 Cell::from(Span::styled(review_text.to_owned(), review_style)),
                 status_cell,
@@ -116,13 +157,17 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
 
     let table = Table::new(rows, widths)
         .header(header)
-        .block(Block::default().borders(Borders::ALL).title(" Milestones "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Milestones (future at top) "),
+        )
         .row_highlight_style(
             Style::default()
                 .bg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol("→ ");
+        .highlight_symbol("\u{2192} ");
 
     f.render_stateful_widget(table, area, &mut app.milestone_table_state);
 }
@@ -130,8 +175,6 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
 fn render_detail(f: &mut Frame, area: Rect, app: &App, sel: usize) {
     let m = &app.data.milestones[sel];
 
-    // We can't easily get deliverable text from the parsed data (we only stored counts).
-    // Show a summary instead.
     let mut lines: Vec<Line> = vec![
         Line::from(vec![
             Span::styled(
@@ -161,14 +204,21 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App, sel: usize) {
     if !m.review_status.is_empty() {
         lines.push(Line::from(vec![
             Span::styled("  Review status: ", Style::default().fg(Color::Gray)),
-            Span::styled(&m.review_status, Style::default().fg(theme::GREEN)),
+            Span::styled(&m.review_status, Style::default().fg(Color::Green)),
         ]));
     }
 
     if m.is_active {
         lines.push(Line::from(Span::styled(
-            "  ← Active milestone",
+            "  <- Active milestone",
             Style::default().fg(Color::Yellow),
+        )));
+    }
+
+    if m.is_future {
+        lines.push(Line::from(Span::styled(
+            "  Upcoming — not yet started",
+            Style::default().fg(Color::Cyan),
         )));
     }
 

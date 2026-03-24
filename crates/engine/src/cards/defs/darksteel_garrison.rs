@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedLand,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: TriggerCondition::WhenFortifiedLandBecomesTapped does not exist yet.

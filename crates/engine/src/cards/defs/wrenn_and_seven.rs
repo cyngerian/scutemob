@@ -92,6 +92,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::Indefinite,
+                            condition: None,
                         },
                     ],
                 },

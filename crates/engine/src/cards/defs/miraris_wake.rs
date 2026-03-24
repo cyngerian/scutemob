@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::CreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — "Whenever you tap a land for mana, add one mana of any type

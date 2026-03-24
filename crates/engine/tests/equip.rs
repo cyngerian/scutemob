@@ -1121,6 +1121,7 @@ fn test_equip_grants_keywords_via_layer_system() {
                 [KeywordAbility::Haste].into_iter().collect(),
             ),
             is_cda: false,
+            condition: None,
         });
     }
 

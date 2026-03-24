@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                             ),
                             // Indefinite: emblems never leave the command zone (CR 114.1).
                             duration: EffectDuration::Indefinite,
+                            condition: None,
                         },
                     ],
                 },

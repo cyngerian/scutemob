@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(3),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — dynamic protection from colors not in commander's color identity.

@@ -30,6 +30,7 @@ fn copy_effect_of(
         filter: EffectFilter::SingleObject(copier_id),
         modification: LayerModification::CopyOf(source_id),
         is_cda: false,
+        condition: None,
     }
 }
 
@@ -223,6 +224,7 @@ fn test_copy_effect_layer_1_applies_before_other_layers() {
         filter: EffectFilter::SingleObject(clone_id),
         modification: LayerModification::ModifyBoth(2),
         is_cda: false,
+        condition: None,
     };
 
     state.continuous_effects.push_back(copy_eff);

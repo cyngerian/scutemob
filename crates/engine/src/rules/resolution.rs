@@ -3110,6 +3110,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         modification:
                             crate::state::continuous_effect::LayerModification::ModifyBoth(-1),
                         is_cda: false,
+                        condition: None,
                     },
                 );
             }
@@ -3158,6 +3159,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     bonus,
                                 ),
                             is_cda: false,
+                            condition: None,
                         },
                     );
                 }
@@ -3290,6 +3292,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     bonus,
                                 ),
                             is_cda: false,
+                            condition: None,
                         },
                     );
                 }
@@ -3360,6 +3363,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     enlisted_power,
                                 ),
                             is_cda: false,
+                            condition: None,
                         },
                     );
                 }
@@ -4016,6 +4020,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         ),
                                         timestamp: ts,
                                         is_cda: false,
+                                        condition: None,
                                     });
                                     // Grant applies to the paired partner too.
                                     let ts2 = state.timestamp_counter;
@@ -4033,6 +4038,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         ),
                                         timestamp: ts2,
                                         is_cda: false,
+                                        condition: None,
                                     });
                                 }
                             }
@@ -4444,6 +4450,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     toughness: 1,
                 },
                 is_cda: false,
+                condition: None,
             };
             state.continuous_effects.push_back(pt_override);
             events.push(GameEvent::TokenCreated {
@@ -4835,6 +4842,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::ModifyBoth(power_boost),
                         is_cda: false,
+                        condition: None,
                     });
                 } else {
                     // Asymmetric boost: register Power and Toughness separately.
@@ -4847,6 +4855,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::ModifyPower(power_boost),
                         is_cda: false,
+                        condition: None,
                     });
                     let ts2 = state.timestamp_counter;
                     state.timestamp_counter += 1;
@@ -4860,6 +4869,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::ModifyToughness(toughness_boost),
                         is_cda: false,
+                        condition: None,
                     });
                 }
                 // If a keyword is granted, register Layer 6 effect (UntilEndOfTurn).
@@ -4878,6 +4888,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::AddKeywords(kw_set),
                         is_cda: false,
+                        condition: None,
                     });
                 }
             }
@@ -4949,6 +4960,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         filter: EffectFilter::SingleObject(target_creature),
                         duration: EffectDuration::UntilEndOfTurn,
                         is_cda: false,
+                        condition: None,
                         timestamp: ts,
                     };
                     state.continuous_effects.push_back(eff);
@@ -6750,6 +6762,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         filter: continuous_effect.filter.clone(),
                                         modification: continuous_effect.modification.clone(),
                                         is_cda: false,
+                                        condition: None,
                                     },
                                 );
                             }

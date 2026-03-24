@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Equip {2}: sorcery-speed attach (CR 702.6b/d).

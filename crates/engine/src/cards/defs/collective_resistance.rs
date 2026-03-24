@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
                                     ),
                                     filter: EffectFilter::DeclaredTarget { index: 2 },
                                     duration: EffectDuration::UntilEndOfTurn,
+                                    condition: None,
                                 }),
                             },
                             Effect::ApplyContinuousEffect {
@@ -68,6 +69,7 @@ pub fn card() -> CardDefinition {
                                     ),
                                     filter: EffectFilter::DeclaredTarget { index: 2 },
                                     duration: EffectDuration::UntilEndOfTurn,
+                                    condition: None,
                                 }),
                             },
                         ]),

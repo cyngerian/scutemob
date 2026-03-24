@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                         ),
                         filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                         duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 timing_restriction: None,

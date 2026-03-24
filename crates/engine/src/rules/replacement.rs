@@ -1699,15 +1699,24 @@ pub fn register_static_continuous_effects(
                 let eff_id = state.next_object_id().0;
                 let ts = state.timestamp_counter;
                 state.timestamp_counter += 1;
+                // Resolve EffectFilter::Source to a concrete ObjectId at registration time
+                // so the filter is stable across zone changes (CR 400.7).
+                let resolved_filter = match &continuous_effect.filter {
+                    crate::state::continuous_effect::EffectFilter::Source => {
+                        crate::state::continuous_effect::EffectFilter::SingleObject(new_id)
+                    }
+                    other => other.clone(),
+                };
                 state.continuous_effects.push_back(ContinuousEffect {
                     id: EffectId(eff_id),
                     source: Some(new_id),
                     timestamp: ts,
                     layer: continuous_effect.layer,
                     duration: continuous_effect.duration,
-                    filter: continuous_effect.filter.clone(),
+                    filter: resolved_filter,
                     modification: continuous_effect.modification.clone(),
                     is_cda: false,
+                    condition: continuous_effect.condition.clone(),
                 });
             }
             // CR 603.2d: Register a Panharmonicon-style trigger-doubling effect.

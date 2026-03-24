@@ -4,14 +4,13 @@
 // Creatures you control have menace.
 // Prevent all damage that would be dealt to attacking creatures you control.
 //
-// Indestructible and menace grant are implemented.
+// CR 700.5 / CR 604.2 / CR 613.1d (Layer 4): "As long as your devotion to red and white
+// is less than seven, Iroas isn't a creature." Multi-color devotion counts any mana symbol
+// that is red OR white (CR 700.5).
 //
-// TODO: DSL gap — devotion-based "isn't a creature" requires a conditional type-removal
-// continuous effect (Layer 4) parameterized on devotion count — no such effect in DSL.
-//
-// TODO: DSL gap — "Prevent all damage that would be dealt to attacking creatures you control"
-// is a blanket prevention replacement effect scoped to attacking creatures — no such
-// replacement pattern exists in the DSL.
+// TODO: "Prevent all damage that would be dealt to attacking creatures you control." is a
+// blanket prevention replacement effect scoped to attacking creatures — no such replacement
+// pattern exists in the DSL (PB-25+ scope).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,6 +28,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
+            // CR 700.5 / CR 613.1d (Layer 4): "As long as your devotion to red and white
+            // is less than seven, Iroas isn't a creature." Multi-color devotion: counts any
+            // mana symbol that is red OR white (including {R/W} hybrid symbols).
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::RemoveCardTypes(
+                        [CardType::Creature].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::DevotionToColorsLessThan {
+                        colors: vec![Color::Red, Color::White],
+                        threshold: 7,
+                    }),
+                },
+            },
             // "Creatures you control have menace." — CR 604.2 / CR 613.1f: Layer 6 grant.
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -36,8 +52,11 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Menace),
                     filter: EffectFilter::CreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
+            // TODO: "Prevent all damage that would be dealt to attacking creatures you control."
+            // DSL gap: no blanket damage prevention replacement for attacking creatures.
         ],
         ..Default::default()
     }

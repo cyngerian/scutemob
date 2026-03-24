@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(2),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Static: Equipped creature has First Strike, Vigilance, Trample, Haste (layer 6).
@@ -40,6 +41,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Equip {3}: attach this Equipment to target creature you control (CR 702.6b/d).

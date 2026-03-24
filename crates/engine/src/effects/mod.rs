@@ -2015,6 +2015,7 @@ fn execute_effect_inner(
                 duration: effect_def.duration,
                 is_cda: false,
                 timestamp: ts,
+                condition: effect_def.condition.clone(),
             };
             state.continuous_effects.push_back(eff);
         }
@@ -3824,6 +3825,7 @@ fn execute_effect_inner(
                     filter: se.filter.clone(),
                     duration: crate::state::continuous_effect::EffectDuration::Indefinite,
                     is_cda: false,
+                    condition: None,
                     timestamp: ts,
                 };
                 state.continuous_effects.push_back(eff);
@@ -5289,7 +5291,186 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             }
             type_set.len() >= *n as usize
         }
+        // ── PB-24: Conditional static variants ──────────────────────────────
+        // These delegate to check_static_condition using the EffectContext's source and controller.
+        Condition::OpponentLifeAtMost(_) => {
+            check_static_condition(state, condition, ctx.source, ctx.controller)
+        }
+        Condition::SourceIsUntapped => {
+            check_static_condition(state, condition, ctx.source, ctx.controller)
+        }
+        Condition::IsYourTurn => {
+            check_static_condition(state, condition, ctx.source, ctx.controller)
+        }
+        Condition::YouControlNOrMoreWithFilter { .. } => {
+            check_static_condition(state, condition, ctx.source, ctx.controller)
+        }
+        Condition::DevotionToColorsLessThan { .. } => {
+            check_static_condition(state, condition, ctx.source, ctx.controller)
+        }
     }
+}
+/// Evaluate a condition in a static ability context (no EffectContext available).
+///
+/// CR 604.2: Called at layer-application time for conditional continuous effects.
+/// Constructs a minimal EffectContext from the source and controller, then delegates
+/// to check_condition for most variants. Cast-time conditions (WasKicked, WasOverloaded,
+/// etc.) always return false in a static context since they have no spell resolution to
+/// reference. New PB-24 variants are handled directly.
+pub fn check_static_condition(
+    state: &GameState,
+    condition: &Condition,
+    source: ObjectId,
+    controller: PlayerId,
+) -> bool {
+    match condition {
+        // CR 604.2: "as long as an opponent has N or less life" (Bloodghast).
+        // True when ANY living opponent of the controller has life total <= N.
+        Condition::OpponentLifeAtMost(n) => state
+            .players
+            .iter()
+            .any(|(pid, ps)| *pid != controller && !ps.has_lost && ps.life_total <= *n as i32),
+        // CR 604.2: "as long as it's untapped" (Dragonlord Ojutai).
+        // True when the source permanent is untapped on the battlefield.
+        Condition::SourceIsUntapped => state
+            .objects
+            .get(&source)
+            .map(|obj| obj.zone == ZoneId::Battlefield && !obj.status.tapped)
+            .unwrap_or(false),
+        // CR 500.1: "during your turn" / "as long as it's your turn".
+        // True when the active player is the controller of this effect's source.
+        Condition::IsYourTurn => state.turn.active_player == controller,
+        // CR 604.2: "as long as you control N or more [filter]" (Metalcraft).
+        // True when the controller controls at least `count` battlefield permanents
+        // matching the filter (phased-in only).
+        Condition::YouControlNOrMoreWithFilter { count, filter } => {
+            let matching = state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == controller
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            matches_filter(&chars, filter)
+                        }
+                })
+                .count();
+            matching >= *count as usize
+        }
+        // CR 700.5: "as long as your devotion to [colors] is less than N" (Theros gods).
+        // True when the calculated devotion to any of the listed colors < threshold.
+        Condition::DevotionToColorsLessThan { colors, threshold } => {
+            let devotion = calculate_devotion_to_colors(state, controller, colors);
+            devotion < *threshold
+        }
+        // Delegate all other variants to check_condition with a minimal context.
+        // Cast-time variants (WasKicked, WasOverloaded, etc.) return false since there
+        // is no spell context in a static ability evaluation.
+        _ => {
+            let ctx = EffectContext {
+                controller,
+                source,
+                targets: vec![],
+                target_remaps: std::collections::HashMap::new(),
+                kicker_times_paid: 0,
+                was_overloaded: false,
+                was_bargained: false,
+                was_cleaved: false,
+                evidence_collected: false,
+                x_value: 0,
+                gift_was_given: false,
+                gift_opponent: None,
+                last_effect_count: 0,
+                last_dice_roll: 0,
+                last_created_permanent: None,
+            };
+            check_condition(state, condition, &ctx)
+        }
+    }
+}
+/// Calculate a player's devotion to a set of colors (CR 700.5).
+///
+/// Counts mana symbols matching ANY of the listed colors in mana costs of permanents
+/// the player controls on the battlefield (phased-in only). Used for multi-color Theros
+/// god conditions (e.g., Athreos: devotion to W+B).
+///
+/// Per CR 700.5: hybrid mana symbols count once toward each matching color, but are
+/// counted once per symbol regardless of how many listed colors they match.
+pub fn calculate_devotion_to_colors(state: &GameState, player: PlayerId, colors: &[Color]) -> u32 {
+    use crate::state::game_object::{HybridMana, PhyrexianMana};
+    use crate::state::types::ManaColor;
+    fn color_to_mana_color(c: &Color) -> ManaColor {
+        match c {
+            Color::White => ManaColor::White,
+            Color::Blue => ManaColor::Blue,
+            Color::Black => ManaColor::Black,
+            Color::Red => ManaColor::Red,
+            Color::Green => ManaColor::Green,
+        }
+    }
+    let mc_colors: Vec<ManaColor> = colors.iter().map(color_to_mana_color).collect();
+    state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield && obj.is_phased_in() && obj.controller == player
+        })
+        .map(|obj| {
+            obj.characteristics
+                .mana_cost
+                .as_ref()
+                .map(|mc| {
+                    // Base color pips: count each matching color pip once.
+                    let base: u32 = mc_colors
+                        .iter()
+                        .map(|c| match c {
+                            ManaColor::White => mc.white,
+                            ManaColor::Blue => mc.blue,
+                            ManaColor::Black => mc.black,
+                            ManaColor::Red => mc.red,
+                            ManaColor::Green => mc.green,
+                            // Colorless is not a color for devotion purposes (CR 700.5).
+                            ManaColor::Colorless => 0,
+                        })
+                        .sum();
+                    // Hybrid pips: count if EITHER half matches ANY listed color.
+                    // Each hybrid symbol counts once even if both halves match.
+                    let hybrid_count: u32 = mc
+                        .hybrid
+                        .iter()
+                        .map(|h| {
+                            let matches = match h {
+                                HybridMana::ColorColor(c1, c2) => {
+                                    mc_colors.contains(c1) || mc_colors.contains(c2)
+                                }
+                                HybridMana::GenericColor(c) => mc_colors.contains(c),
+                            };
+                            u32::from(matches)
+                        })
+                        .sum();
+                    // Phyrexian pips: count if any half matches.
+                    let phyrexian_count: u32 = mc
+                        .phyrexian
+                        .iter()
+                        .map(|p| {
+                            let matches = match p {
+                                PhyrexianMana::Single(c) => mc_colors.contains(c),
+                                PhyrexianMana::Hybrid(c1, c2) => {
+                                    mc_colors.contains(c1) || mc_colors.contains(c2)
+                                }
+                            };
+                            u32::from(matches)
+                        })
+                        .sum();
+                    base + hybrid_count + phyrexian_count
+                })
+                .unwrap_or(0)
+        })
+        .sum()
 }
 // ── ForEach collection ────────────────────────────────────────────────────────
 fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext) -> Vec<ObjectId> {

@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                             modification: crate::state::LayerModification::ModifyPower(2),
                             filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                             duration: crate::state::EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
                             ),
                             filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                             duration: crate::state::EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

@@ -3,6 +3,14 @@
 // As long as your devotion to white and black is less than seven, Athreos isn't a creature.
 // Whenever another creature you own dies, return it to your hand unless target opponent
 // pays 3 life.
+//
+// CR 700.5 / CR 604.2 / CR 613.1d (Layer 4): "As long as your devotion to white and black
+// is less than seven, Athreos isn't a creature." Multi-color devotion counts mana symbols
+// of EITHER color (CR 700.5: each matching symbol counts once).
+//
+// TODO: "Whenever another creature you own dies, return it to your hand unless target opponent
+// pays 3 life." Requires a death trigger with opponent-choice (pay 3 life or allow return).
+// DSL gap: no mechanic for opponent paying life as an alternative to an effect.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +28,25 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
-            // TODO: DSL gap — Devotion-based creature type loss (Theros Gods).
-            // TODO: DSL gap — "Whenever another creature you own dies" with opponent
-            // choice to pay life or return. Multiple DSL gaps.
+            // CR 700.5 / CR 613.1d (Layer 4): "As long as your devotion to white and black
+            // is less than seven, Athreos isn't a creature." Multi-color devotion: counts
+            // any mana symbol that is white OR black (including {W/B} hybrid symbols).
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::RemoveCardTypes(
+                        [CardType::Creature].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::DevotionToColorsLessThan {
+                        colors: vec![Color::White, Color::Black],
+                        threshold: 7,
+                    }),
+                },
+            },
+            // TODO: "Whenever another creature you own dies, return it to your hand unless
+            // target opponent pays 3 life." DSL gap: no opponent-pays-life alternative.
         ],
         ..Default::default()
     }

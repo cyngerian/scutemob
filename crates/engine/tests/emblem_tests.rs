@@ -534,6 +534,7 @@ fn test_emblem_static_effect() {
         modification: LayerModification::ModifyBoth(1),
         filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Ninja".to_string())),
         duration: EffectDuration::Indefinite,
+        condition: None,
     };
 
     let pw_def = emblem_pw_def(vec![], vec![ninja_static]);

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     modification: crate::state::LayerModification::ModifyBoth(1),
                     filter: crate::state::EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Elf".to_string())),
                     duration: crate::state::EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

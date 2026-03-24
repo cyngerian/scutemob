@@ -609,6 +609,7 @@ fn test_lightning_greaves_grants_haste_shroud() {
                 .collect(),
         ),
         is_cda: false,
+        condition: None,
     };
 
     let mut state = GameStateBuilder::new()
@@ -691,6 +692,7 @@ fn test_swiftfoot_boots_grants_haste_hexproof() {
                 .collect(),
         ),
         is_cda: false,
+        condition: None,
     };
 
     let mut state = GameStateBuilder::new()

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             AbilityDefinition::Static {
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyToughness(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — "Whenever equipped creature attacks" trigger condition

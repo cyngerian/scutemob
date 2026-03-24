@@ -31,6 +31,7 @@ fn indef_effect(
         filter,
         modification,
         is_cda: false,
+        condition: None,
     }
 }
 

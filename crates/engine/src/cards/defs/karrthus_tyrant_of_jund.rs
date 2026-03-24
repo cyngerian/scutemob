@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Haste),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Dragon".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

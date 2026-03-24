@@ -819,6 +819,7 @@ fn test_phasing_excluded_from_continuous_effects() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        condition: None,
     });
 
     let active_id = find_object(&state, "Active Creature");

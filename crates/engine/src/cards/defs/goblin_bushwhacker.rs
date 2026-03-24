@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                                 modification: LayerModification::ModifyPower(1),
                                 filter: EffectFilter::CreaturesYouControl,
                                 duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
                             }),
                         },
                         // CR 613.1f / Layer 6: creatures you control gain haste until EOT.
@@ -40,6 +41,7 @@ pub fn card() -> CardDefinition {
                                 modification: LayerModification::AddKeyword(KeywordAbility::Haste),
                                 filter: EffectFilter::CreaturesYouControl,
                                 duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
                             }),
                         },
                     ])),

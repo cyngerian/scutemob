@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 613.1f / Layer 6: "Other Vampire creatures you control have first strike."
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::FirstStrike),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

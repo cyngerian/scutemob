@@ -428,7 +428,7 @@ pub fn calculate_characteristics(
 /// - `UntilEndOfTurn`: always active (removed explicitly by `expire_end_of_turn_effects`)
 /// - `Indefinite`: always active
 pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
-    match effect.duration {
+    let duration_active = match effect.duration {
         EffectDuration::WhileSourceOnBattlefield => match effect.source {
             Some(source_id) => state
                 .objects
@@ -461,7 +461,29 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
                 .unwrap_or(false);
             a_ok && b_ok
         }
+    };
+    if !duration_active {
+        return false;
     }
+    // CR 604.2: Conditional static abilities — check the condition if present.
+    // Conditions are evaluated against the current game state at layer-application time.
+    if let Some(ref condition) = effect.condition {
+        if let Some(source_id) = effect.source {
+            let controller = state
+                .objects
+                .get(&source_id)
+                .map(|obj| obj.controller)
+                .unwrap_or_else(|| crate::state::player::PlayerId(0));
+            if !crate::effects::check_static_condition(state, condition, source_id, controller) {
+                return false;
+            }
+        } else {
+            // A conditional effect without a source object has no controller to evaluate
+            // the condition against — treat it as inactive.
+            return false;
+        }
+    }
+    true
 }
 /// Returns true if a continuous effect applies to the given object.
 ///
@@ -702,6 +724,14 @@ fn apply_layer_modification(
         LayerModification::AddCardTypes(types) => {
             for t in types {
                 chars.card_types.insert(*t);
+            }
+        }
+        // CR 604.2: "As long as your devotion to [color] is less than N, [this] isn't a creature."
+        // Removes the specified card types without affecting other types on the type line.
+        // Applied conditionally via ContinuousEffect::condition in is_effect_active.
+        LayerModification::RemoveCardTypes(types_to_remove) => {
+            for ct in types_to_remove {
+                chars.card_types.remove(ct);
             }
         }
         LayerModification::AddSubtypes(subtypes) => {

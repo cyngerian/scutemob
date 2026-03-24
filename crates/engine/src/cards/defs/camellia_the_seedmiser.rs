@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Menace),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Squirrel".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
 

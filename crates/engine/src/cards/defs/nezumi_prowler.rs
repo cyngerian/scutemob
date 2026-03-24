@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -35,6 +36,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Lifelink),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

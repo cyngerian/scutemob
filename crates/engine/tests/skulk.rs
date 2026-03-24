@@ -463,6 +463,7 @@ fn test_702_118_skulk_with_power_pump() {
         filter: EffectFilter::SingleObject(attacker_id),
         modification: LayerModification::ModifyPower(2),
         is_cda: false,
+        condition: None,
     });
 
     state.combat = Some({

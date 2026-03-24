@@ -1,4 +1,20 @@
-// Arixmethes, Slumbering Isle
+// Arixmethes, Slumbering Isle — {2}{G}{U}, Legendary Creature — Kraken 12/12
+// Arixmethes enters tapped with five slumber counters on it.
+// As long as Arixmethes has a slumber counter on it, it's a land. (It's not a creature.)
+// Whenever you cast a spell, you may remove a slumber counter from Arixmethes.
+// {T}: Add {G}{U}.
+//
+// CR 614.1c: "Enters tapped" — self-ETB replacement.
+// CR 604.2 / CR 613.1d (Layer 4): "As long as Arixmethes has a slumber counter on it,
+// it's a land. (It's not a creature.)" Two effects: RemoveCardTypes(Creature) and (implicitly)
+// the existing Creature type is suppressed. Arixmethes remains a Creature in its base type
+// line, but the conditional static removes Creature when slumber counters are present.
+//
+// NOTE: "Enters with five slumber counters" — ETB-with-counters replacement not in DSL.
+// The enters-tapped replacement IS implemented; the counter placement is a TODO.
+//
+// TODO: "Whenever you cast a spell, you may remove a slumber counter from Arixmethes."
+// DSL gap: no WheneverYouCastASpell trigger condition.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -10,8 +26,6 @@ pub fn card() -> CardDefinition {
         oracle_text: "Arixmethes enters tapped with five slumber counters on it.\nAs long as Arixmethes has a slumber counter on it, it's a land. (It's not a creature.)\nWhenever you cast a spell, you may remove a slumber counter from Arixmethes.\n{T}: Add {G}{U}.".to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — enters tapped.
-            // Note: oracle says "enters tapped WITH five slumber counters" — counters are a
-            // DSL gap but enters-tapped is expressible and reduces wrong game state.
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
@@ -19,6 +33,38 @@ pub fn card() -> CardDefinition {
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
                 unless_condition: None,
+            },
+            // CR 604.2 / CR 613.1d (Layer 4): "As long as Arixmethes has a slumber counter
+            // on it, it's a land." Adds Land type when slumber counters are present.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::AddCardTypes(
+                        [CardType::Land].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::SourceHasCounters {
+                        counter: CounterType::Slumber,
+                        min: 1,
+                    }),
+                },
+            },
+            // CR 604.2 / CR 613.1d (Layer 4): "As long as Arixmethes has a slumber counter
+            // on it, it's not a creature." Removes Creature type when slumber counters present.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::RemoveCardTypes(
+                        [CardType::Creature].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::SourceHasCounters {
+                        counter: CounterType::Slumber,
+                        min: 1,
+                    }),
+                },
             },
             // {T}: Add {G}{U}.
             AbilityDefinition::Activated {
@@ -32,9 +78,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // TODO: ETB — five slumber counters (ETB-with-counters replacement not in DSL).
-            // TODO: Static — "as long as it has a slumber counter, it's a land (not a creature)"
-            // DSL gap: conditional type-change (Layer 4) based on counter presence.
-            // TODO: Triggered — "whenever you cast a spell, may remove a slumber counter"
+            // TODO: "Whenever you cast a spell, you may remove a slumber counter from Arixmethes."
             // DSL gap: WheneverYouCastASpell trigger condition.
         ],
         power: Some(12),

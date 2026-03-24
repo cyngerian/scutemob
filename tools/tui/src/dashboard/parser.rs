@@ -11,24 +11,27 @@ pub fn parse_all(root: &Path) -> DashboardData {
     reviews.test_loc = test_loc;
 
     let mut progress = parse_project_status(root).unwrap_or_default();
-    // Override card health with live filesystem scan
     progress.card_health = scan_card_health_live(root);
+
+    let (live_cards, card_dsl) = scan_live_cards(root);
 
     DashboardData {
         current_state: parse_claude_md(root).unwrap_or_default(),
         abilities: parse_ability_coverage(root).unwrap_or_default(),
-        milestones: parse_roadmap(root, &parse_reviews_for_review_status(root)).unwrap_or_default(),
+        milestones: parse_roadmap(root, &parse_reviews_for_review_status(root))
+            .unwrap_or_default(),
         corner_cases: parse_corner_case_audit(root).unwrap_or_default(),
         reviews,
         scripts: count_scripts(root).unwrap_or_default(),
-        cards: parse_card_worklist(root).unwrap_or_default(),
         progress,
+        live_cards,
+        card_dsl,
+        worker_status: parse_worker_status(root),
     }
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-/// Split a markdown table row on `|`, trim cells, skip first/last empty.
 fn table_cells(line: &str) -> Vec<String> {
     let parts: Vec<&str> = line.split('|').collect();
     if parts.len() < 3 {
@@ -40,17 +43,14 @@ fn table_cells(line: &str) -> Vec<String> {
         .collect()
 }
 
-/// Strip markdown bold markers and backticks from a cell value.
 fn clean_cell(s: &str) -> String {
     s.trim().replace("**", "").replace('`', "")
 }
 
-/// Return true for separator rows like `|---|---|`.
 fn is_separator(line: &str) -> bool {
     line.starts_with('|') && line.contains("---")
 }
 
-/// Extract the first integer from a string.
 fn first_number(s: &str) -> u32 {
     s.split_whitespace()
         .find_map(|tok| tok.trim_matches(|c: char| !c.is_ascii_digit()).parse().ok())
@@ -77,25 +77,20 @@ fn parse_claude_md(root: &Path) -> anyhow::Result<CurrentState> {
         }
 
         if let Some(rest) = line.strip_prefix("- **Active Milestone**: ") {
-            // "M9.5 DONE — advancing to M10 (Networking Layer)"
-            // Try to extract the advancing-to milestone.
             if let Some(idx) = rest.find("advancing to ") {
                 let after = &rest[idx + "advancing to ".len()..];
                 state.active_milestone =
                     after.split_whitespace().next().unwrap_or(rest).to_string();
             } else {
-                // Just take the first token.
-                state.active_milestone = rest.split_whitespace().next().unwrap_or(rest).to_string();
+                state.active_milestone =
+                    rest.split_whitespace().next().unwrap_or(rest).to_string();
             }
         } else if let Some(rest) = line.strip_prefix("- **Status**: ") {
-            state.status_line = rest.to_string();
             for part in rest.split(';') {
                 let part = part.trim();
                 if part.contains("tests passing") {
                     state.test_count = first_number(part);
                 } else if part.contains("approved") {
-                    // "71 approved" or "~78 approved + 10 pending_review scripts"
-                    // first_number finds the leading count before "approved"
                     state.script_count = first_number(part);
                 }
             }
@@ -107,267 +102,76 @@ fn parse_claude_md(root: &Path) -> anyhow::Result<CurrentState> {
     Ok(state)
 }
 
-// ─── ability-coverage.md ───────────────────────────────────────────────────
+// ─── ability-coverage.md (summary only) ─────────────────────────────────────
 
 fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
     let content = fs::read_to_string(root.join("docs/mtg-engine-ability-coverage.md"))?;
     let mut coverage = AbilityCoverage::default();
-    let mut mode = ParseMode::None;
-    let mut current_section: Option<AbilitySection> = None;
-    // Sections 1-12: | Ability | CR | Priority | Status | Engine File(s) | ...
-    // Section 13:    | Pattern | Priority | Status | Engine File(s) | ...  (no CR column)
-    let mut has_cr_col = true;
-    let mut current_gap_priority = String::new();
-
-    enum ParseMode {
-        None,
-        Summary,
-        Section,
-        Gaps,
-    }
+    let mut in_summary = false;
 
     for line in content.lines() {
         if line.starts_with("## Summary") {
-            mode = ParseMode::Summary;
+            in_summary = true;
             continue;
         }
-
-        if line.starts_with("## Section ") {
-            // Save previous section.
-            if let Some(sec) = current_section.take() {
-                coverage.sections.push(sec);
-            }
-            let name = line.trim_start_matches("## ").to_string();
-            current_section = Some(AbilitySection { name, rows: vec![] });
-            mode = ParseMode::Section;
-            has_cr_col = true; // reset; header row will correct this
+        if in_summary && line.starts_with("## ") {
+            break;
+        }
+        if !in_summary || !line.starts_with('|') || is_separator(line) {
             continue;
         }
-
-        if line.starts_with("## Priority Gaps") {
-            if let Some(sec) = current_section.take() {
-                coverage.sections.push(sec);
-            }
-            mode = ParseMode::Gaps;
-            current_gap_priority = String::new();
+        let cells = table_cells(line);
+        if cells.len() < 3 {
             continue;
         }
-
-        if line.starts_with("## ")
-            && !line.starts_with("## Section ")
-            && !line.starts_with("## Summary")
-        {
-            // Different top-level section — stop section parsing.
-            if let Some(sec) = current_section.take() {
-                coverage.sections.push(sec);
-            }
-            mode = ParseMode::None;
+        if cells[0].to_lowercase() == "priority" || cells[0].to_lowercase().contains("total") {
             continue;
         }
-
-        match mode {
-            ParseMode::None => {}
-            ParseMode::Gaps => {
-                if line.starts_with("### ") {
-                    // "### P2 Gaps (Commander staples)" → extract "P2"
-                    current_gap_priority = line
-                        .trim_start_matches("### ")
-                        .split_whitespace()
-                        .next()
-                        .unwrap_or("")
-                        .to_string();
-                    continue;
-                }
-                let trimmed = line.trim();
-                if trimmed.is_empty() || trimmed.starts_with("**Resolved**") {
-                    continue;
-                }
-                if !current_gap_priority.is_empty() {
-                    let clean = trimmed.replace("**", "").replace('`', "");
-                    coverage
-                        .gap_notes
-                        .push(format!("{}: {}", current_gap_priority, clean));
-                }
-            }
-            ParseMode::Summary => {
-                if !line.starts_with('|') {
-                    continue;
-                }
-                if is_separator(line) {
-                    continue;
-                }
-                let cells = table_cells(line);
-                if cells.len() < 7 {
-                    continue;
-                }
-                // Header row: "Priority", skip
-                if cells[0].to_lowercase() == "priority" {
-                    continue;
-                }
-                // Total row: starts with "Total"
-                if cells[0].to_lowercase().contains("total") {
-                    continue;
-                }
-                let row = PrioritySummary {
-                    priority: cells[0].clone(),
-                    total: cells[1].parse().unwrap_or(0),
-                    validated: cells[2].parse().unwrap_or(0),
-                    complete: cells[3].parse().unwrap_or(0),
-                    partial: cells[4].parse().unwrap_or(0),
-                    none: cells[5].parse().unwrap_or(0),
-                    na: cells[6].parse().unwrap_or(0),
-                };
-                coverage.summary.push(row);
-            }
-            ParseMode::Section => {
-                if !line.starts_with('|') {
-                    continue;
-                }
-                if is_separator(line) {
-                    continue;
-                }
-                let cells = table_cells(line);
-                if cells.len() < 2 {
-                    continue;
-                }
-                // Header row: first cell is "Ability" (sections 1-12) or "Pattern" (section 13).
-                // Detect column layout: sections with a "CR" column have it at index 1.
-                let first_lower = cells[0].to_lowercase();
-                if first_lower == "ability" || first_lower == "pattern" {
-                    has_cr_col = cells
-                        .get(1)
-                        .map(|c| c.trim().to_lowercase() == "cr")
-                        .unwrap_or(true);
-                    continue;
-                }
-                // Apply correct column offsets based on layout.
-                // With CR:    [0]=name [1]=cr [2]=priority [3]=status [4]=engine [5]=card [6]=script [7]=notes
-                // Without CR: [0]=name [1]=priority [2]=status [3]=engine [4]=card [5]=script [6]=depends [7]=notes
-                let (cr_idx, prio_idx, status_idx, engine_idx, card_idx, script_idx) = if has_cr_col
-                {
-                    (Some(1usize), 2usize, 3usize, 4usize, 5usize, 6usize)
-                } else {
-                    (None, 1, 2, 3, 4, 5)
-                };
-                let row = AbilityRow {
-                    name: cells.first().cloned().unwrap_or_default(),
-                    cr: cr_idx
-                        .and_then(|i| cells.get(i))
-                        .cloned()
-                        .unwrap_or_default(),
-                    priority: cells.get(prio_idx).cloned().unwrap_or_default(),
-                    status: cells.get(status_idx).cloned().unwrap_or_default(),
-                    engine_files: cells.get(engine_idx).cloned().unwrap_or_default(),
-                    card_def: cells.get(card_idx).cloned().unwrap_or_default(),
-                    script: cells.get(script_idx).cloned().unwrap_or_default(),
-                    notes: cells.get(7).cloned().unwrap_or_default(),
-                };
-                if let Some(sec) = current_section.as_mut() {
-                    sec.rows.push(row);
-                }
-            }
-        }
-    }
-
-    // Push final section.
-    if let Some(sec) = current_section.take() {
-        coverage.sections.push(sec);
+        coverage.summary.push(PrioritySummary {
+            priority: cells[0].clone(),
+            total: cells[1].parse().unwrap_or(0),
+            validated: cells[2].parse().unwrap_or(0),
+        });
     }
 
     Ok(coverage)
 }
 
-// ─── corner-case-audit.md ──────────────────────────────────────────────────
+// ─── corner-case-audit.md (summary only) ────────────────────────────────────
 
 fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
     let content = fs::read_to_string(root.join("docs/mtg-engine-corner-case-audit.md"))?;
     let mut audit = CornerCaseAudit::default();
-
-    enum ParseMode {
-        None,
-        Summary,
-        Table,
-    }
-    let mut mode = ParseMode::None;
+    let mut in_summary = false;
 
     for line in content.lines() {
         if line.starts_with("## Summary") {
-            mode = ParseMode::Summary;
+            in_summary = true;
             continue;
         }
-        if line.starts_with("## Corner Case Coverage Table") {
-            mode = ParseMode::Table;
+        if in_summary && line.starts_with("## ") {
+            break;
+        }
+        if !in_summary || !line.starts_with('|') || is_separator(line) {
             continue;
         }
-        if line.starts_with("## ") {
-            mode = ParseMode::None;
+        let cells = table_cells(line);
+        if cells.len() < 2 || cells[0].to_lowercase() == "status" {
             continue;
         }
-
-        match mode {
-            ParseMode::None => {}
-            ParseMode::Summary => {
-                if !line.starts_with('|') {
-                    continue;
-                }
-                if is_separator(line) {
-                    continue;
-                }
-                let cells = table_cells(line);
-                if cells.len() < 2 {
-                    continue;
-                }
-                if cells[0].to_lowercase() == "status" {
-                    continue;
-                }
-                let count: u32 = cells[1].parse().unwrap_or(0);
-                match cells[0].to_lowercase().as_str() {
-                    "covered" => audit.covered = count,
-                    "partial" => audit.partial = count,
-                    "gap" => audit.gap = count,
-                    "deferred" => audit.deferred = count,
-                    _ => {}
-                }
-            }
-            ParseMode::Table => {
-                if !line.starts_with('|') {
-                    continue;
-                }
-                if is_separator(line) {
-                    continue;
-                }
-                let cells = table_cells(line);
-                if cells.len() < 4 {
-                    continue;
-                }
-                // Header: "#", skip
-                if cells[0] == "#" {
-                    continue;
-                }
-                let number: u32 = cells[0].parse().unwrap_or(0);
-                if number == 0 {
-                    continue;
-                }
-
-                // Status cell may be "**COVERED**" etc — already cleaned by clean_cell.
-                let status = cells.get(3).cloned().unwrap_or_default();
-                let milestone = cells.get(5).cloned().unwrap_or_default();
-
-                audit.cases.push(CornerCase {
-                    number,
-                    name: cells.get(1).cloned().unwrap_or_default(),
-                    cr_refs: cells.get(2).cloned().unwrap_or_default(),
-                    status,
-                    milestone,
-                });
-            }
+        let count: u32 = cells[1].parse().unwrap_or(0);
+        match cells[0].to_lowercase().as_str() {
+            "covered" => audit.covered = count,
+            "gap" => audit.gap = count,
+            _ => {}
         }
     }
-
+    audit.total = audit.covered + audit.gap;
+    // Also add partial/deferred to total
     Ok(audit)
 }
 
-// ─── milestone-reviews.md ──────────────────────────────────────────────────
+// ─── milestone-reviews.md ───────────────────────────────────────────────────
 
 fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
     let content = fs::read_to_string(root.join("docs/mtg-engine-milestone-reviews.md"))?;
@@ -385,35 +189,21 @@ fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
         if line.starts_with("## ") {
             break;
         }
-
-        // Table rows
-        if !line.starts_with('|') {
-            continue;
-        }
-        if is_separator(line) {
+        if !line.starts_with('|') || is_separator(line) {
             continue;
         }
         let cells = table_cells(line);
-        if cells.len() < 2 {
+        if cells.len() < 2 || cells[0].to_lowercase() == "metric" {
             continue;
         }
-        if cells[0].to_lowercase() == "metric" {
-            continue;
-        }
-
-        let metric = cells[0].as_str();
         let value = &cells[1];
-
-        match metric {
-            "Total unique issue IDs" => stats.total_issues = first_number(value),
+        match cells[0].as_str() {
             "HIGH (OPEN)" => stats.high_open = first_number(value),
             "HIGH (CLOSED)" => stats.high_closed = first_number(value),
             "MEDIUM (OPEN)" => stats.medium_open = first_number(value),
             "MEDIUM (CLOSED)" => stats.medium_closed = first_number(value),
             "LOW (OPEN)" => stats.low_open = first_number(value),
             "LOW (CLOSED)" => stats.low_closed = first_number(value),
-            "INFO" => stats.info = first_number(value),
-            "Milestones reviewed" => stats.milestones_reviewed = first_number(value),
             _ => {}
         }
     }
@@ -421,11 +211,9 @@ fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
     Ok(stats)
 }
 
-// ─── milestone-reviews.md (review status per milestone) ────────────────────
+// ─── milestone-reviews.md (review status per milestone) ─────────────────────
 
-/// Extract review status per milestone ID from the Table of Contents section.
-/// Returns a map of milestone ID → "RE-REVIEWED" | "REVIEWED" | "".
-pub fn parse_reviews_for_review_status(root: &Path) -> std::collections::HashMap<String, String> {
+fn parse_reviews_for_review_status(root: &Path) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
     let content = match fs::read_to_string(root.join("docs/mtg-engine-milestone-reviews.md")) {
         Ok(c) => c,
@@ -433,13 +221,11 @@ pub fn parse_reviews_for_review_status(root: &Path) -> std::collections::HashMap
     };
 
     for line in content.lines() {
-        // Lines like: `- [M0: ...](#...) **(RE-REVIEWED)**`
         if !line.starts_with("- [M") {
             continue;
         }
-        // Extract milestone ID: between "[M" and ":"
         if let Some(start) = line.find("[M") {
-            let rest = &line[start + 1..]; // "M0: ..."
+            let rest = &line[start + 1..];
             let id: String = rest.chars().take_while(|c| *c != ':').collect();
             let status = if line.contains("RE-REVIEWED") {
                 "RE-REVIEWED"
@@ -455,7 +241,7 @@ pub fn parse_reviews_for_review_status(root: &Path) -> std::collections::HashMap
     map
 }
 
-// ─── roadmap.md ────────────────────────────────────────────────────────────
+// ─── roadmap.md ─────────────────────────────────────────────────────────────
 
 fn parse_roadmap(
     root: &Path,
@@ -463,7 +249,6 @@ fn parse_roadmap(
 ) -> anyhow::Result<Vec<MilestoneStatus>> {
     let content = fs::read_to_string(root.join("docs/mtg-engine-roadmap.md"))?;
 
-    // Parse the active milestone from CLAUDE.md (simple re-parse here).
     let active_id = parse_claude_md(root)
         .map(|s| s.active_milestone)
         .unwrap_or_default();
@@ -473,13 +258,10 @@ fn parse_roadmap(
     let mut in_deliverables = false;
 
     for line in content.lines() {
-        // Milestone header: "### M0: Project Scaffold..."
         if line.starts_with("### M") {
-            // Save previous.
             if let Some(m) = current.take() {
                 milestones.push(m);
             }
-            // Parse "### M0: Name" or "### M9.5: Name"
             let rest = line.trim_start_matches("### ");
             let (id, name) = if let Some(colon) = rest.find(':') {
                 let id = rest[..colon].trim().to_string();
@@ -499,6 +281,7 @@ fn parse_roadmap(
                 completed_deliverables: 0,
                 is_active,
                 review_status: review,
+                is_future: false,
             });
             in_deliverables = false;
             continue;
@@ -537,10 +320,15 @@ fn parse_roadmap(
         milestones.push(m);
     }
 
+    // Mark future milestones (incomplete and not active)
+    for m in &mut milestones {
+        m.is_future = m.completion_pct() < 1.0 && !m.is_active;
+    }
+
     Ok(milestones)
 }
 
-// ─── scripts directory ─────────────────────────────────────────────────────
+// ─── scripts directory (counts only) ────────────────────────────────────────
 
 fn count_scripts(root: &Path) -> anyhow::Result<ScriptCounts> {
     let scripts_dir = root.join("test-data/generated-scripts");
@@ -550,175 +338,131 @@ fn count_scripts(root: &Path) -> anyhow::Result<ScriptCounts> {
         return Ok(counts);
     }
 
-    let mut by_dir: Vec<(String, u32)> = vec![];
-    let mut entries: Vec<super::data::ScriptEntry> = vec![];
-
     for entry in fs::read_dir(&scripts_dir)? {
         let entry = entry?;
         if !entry.file_type()?.is_dir() {
             continue;
         }
-        let dir_name = entry.file_name().to_string_lossy().into_owned();
-        let mut dir_count = 0u32;
-
-        let mut dir_scripts: Vec<super::data::ScriptEntry> = vec![];
         for script in fs::read_dir(entry.path())? {
             let script = script?;
             let path = script.path();
             if path.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;
             }
-            dir_count += 1;
-            if let Some(se) = parse_script_entry(&path, &dir_name) {
-                dir_scripts.push(se);
-            }
-        }
-        // Sort each directory's scripts alphabetically by filename
-        dir_scripts.sort_by(|a, b| a.filename.cmp(&b.filename));
-        counts.total += dir_count;
-        by_dir.push((dir_name, dir_count));
-        entries.extend(dir_scripts);
-    }
-
-    by_dir.sort_by(|a, b| b.1.cmp(&a.1)); // sort descending by count
-    counts.by_directory = by_dir;
-
-    // Sort entries: pending_review first, then by dir+filename
-    entries.sort_by(|a, b| {
-        let a_pending = a.status == "pending_review";
-        let b_pending = b.status == "pending_review";
-        b_pending
-            .cmp(&a_pending)
-            .then(a.directory.cmp(&b.directory))
-            .then(a.filename.cmp(&b.filename))
-    });
-
-    counts.approved = entries.iter().filter(|e| e.status == "approved").count() as u32;
-    counts.pending_review = entries
-        .iter()
-        .filter(|e| e.status == "pending_review")
-        .count() as u32;
-    counts.entries = entries;
-
-    Ok(counts)
-}
-
-fn parse_script_entry(path: &Path, dir: &str) -> Option<super::data::ScriptEntry> {
-    let content = fs::read_to_string(path).ok()?;
-    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
-
-    let metadata = json.get("metadata")?;
-    let id = metadata
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let name = metadata
-        .get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let status = metadata
-        .get("review_status")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown")
-        .to_string();
-    let filename = path
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_default();
-
-    let assertion_count = count_assert_states(&json);
-
-    Some(super::data::ScriptEntry {
-        id,
-        name,
-        directory: dir.to_string(),
-        filename,
-        status,
-        assertion_count,
-    })
-}
-
-fn count_assert_states(json: &serde_json::Value) -> u32 {
-    let script = match json.get("script").and_then(|s| s.as_array()) {
-        Some(s) => s,
-        None => return 0,
-    };
-    let mut count = 0u32;
-    for step in script {
-        if let Some(actions) = step.get("actions").and_then(|a| a.as_array()) {
-            for action in actions {
-                if action.get("type").and_then(|t| t.as_str()) == Some("assert_state") {
-                    count += 1;
+            counts.total += 1;
+            if let Ok(content) = fs::read_to_string(&path) {
+                if content.contains("\"approved\"") {
+                    counts.approved += 1;
                 }
             }
         }
     }
-    count
+
+    Ok(counts)
 }
 
-// ─── card authoring worklist ────────────────────────────────────────────────
+// ─── project-status.md parser ───────────────────────────────────────────────
 
-fn parse_card_worklist(root: &Path) -> anyhow::Result<CardWorklist> {
-    let path = root.join("test-data/test-decks/_authoring_worklist.json");
-    let content = fs::read_to_string(path)?;
-    let json: serde_json::Value = serde_json::from_str(&content)?;
+fn parse_project_status(root: &Path) -> Option<ProjectProgress> {
+    let path = root.join("docs/project-status.md");
+    let content = fs::read_to_string(path).ok()?;
+    let mut progress = ProjectProgress::default();
 
-    let summary = json.get("summary").unwrap_or(&serde_json::Value::Null);
-    let mut wl = CardWorklist {
-        total: summary
-            .get("total_cards")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as u32,
-        authored: summary
-            .get("authored")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as u32,
-        ready: summary.get("ready").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-        blocked: summary.get("blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-        deferred: summary
-            .get("deferred")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as u32,
-        unknown: summary.get("unknown").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-        entries: vec![],
-        card_dsl: parse_card_dsl(root),
-    };
+    let mut section = "";
+    let mut in_table = false;
 
-    // Parse each category
-    for (status_key, status_label) in &[
-        ("authored", "authored"),
-        ("ready", "ready"),
-        ("blocked", "blocked"),
-        ("deferred", "deferred"),
-    ] {
-        if let Some(arr) = json.get(*status_key).and_then(|v| v.as_array()) {
-            for item in arr {
-                wl.entries.push(parse_card_entry(item, status_label));
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("## Primitive Batches") {
+            section = "batches";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Card Health") {
+            section = "health";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Workstreams") {
+            section = "workstreams";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## Path to Alpha") {
+            section = "alpha";
+            in_table = false;
+            continue;
+        } else if trimmed.starts_with("## ") {
+            section = "";
+            in_table = false;
+            continue;
+        }
+
+        if trimmed.starts_with("|---") || trimmed.starts_with("| ---") {
+            in_table = true;
+            continue;
+        }
+        if !trimmed.starts_with('|') {
+            continue;
+        }
+        if !in_table {
+            continue;
+        }
+
+        let cells = table_cells(trimmed);
+
+        match section {
+            "batches" if cells.len() >= 6 => {
+                progress.primitive_batches.push(PrimitiveBatch {
+                    batch: cells[0].clone(),
+                    title: cells[1].clone(),
+                    status: cells[2].clone(),
+                    cards_fixed: cells[3].parse().unwrap_or(0),
+                    cards_remaining: cells[4].parse().unwrap_or(0),
+                    review: cells[5].clone(),
+                });
             }
+            "health" if cells.len() >= 2 => {
+                let val: u32 = cells[1].parse().unwrap_or(0);
+                let cat = cells[0].to_lowercase();
+                if cat.contains("not yet") {
+                    progress.card_health.not_authored = val;
+                } else if cat.contains("total universe") {
+                    progress.card_health.total_universe = val;
+                } else if cat.contains("total authored") {
+                    progress.card_health.total_authored = val;
+                }
+            }
+            "workstreams" if cells.len() >= 3 => {
+                progress.workstreams.push(WorkstreamEntry {
+                    number: cells[0].clone(),
+                    name: cells[1].clone(),
+                    status: cells[2].clone(),
+                });
+            }
+            "alpha" if cells.len() >= 4 => {
+                progress.path_to_alpha.push(AlphaMilestone {
+                    name: cells[0].clone(),
+                    status: cells[1].clone(),
+                    blocked_by: cells[2].clone(),
+                    deliverable: cells[3].clone(),
+                });
+            }
+            _ => {}
         }
     }
 
-    // Sort by appears_in_decks descending, then name ascending
-    wl.entries.sort_by(|a, b| {
-        b.appears_in_decks
-            .cmp(&a.appears_in_decks)
-            .then(a.name.cmp(&b.name))
-    });
-
-    Ok(wl)
+    Some(progress)
 }
 
-/// Extract `CardDefinition { ... }` blocks from per-card files in `defs/`, keyed by card name.
-fn parse_card_dsl(root: &Path) -> std::collections::HashMap<String, String> {
-    let mut map = std::collections::HashMap::new();
-    let defs_dir = root.join("crates/engine/src/cards/defs");
+// ─── live card scanner ──────────────────────────────────────────────────────
 
+fn scan_card_health_live(root: &Path) -> CardHealth {
+    let defs_dir = root.join("crates/engine/src/cards/defs");
     let entries = match fs::read_dir(&defs_dir) {
         Ok(e) => e,
-        Err(_) => return map,
+        Err(_) => return CardHealth::default(),
     };
+
+    let mut h = CardHealth::default();
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -728,18 +472,141 @@ fn parse_card_dsl(root: &Path) -> std::collections::HashMap<String, String> {
         if path.file_stem().and_then(|s| s.to_str()) == Some("mod") {
             continue;
         }
+
+        h.total_authored += 1;
+
         let content = match fs::read_to_string(&path) {
             Ok(c) => c,
             Err(_) => continue,
         };
-        extract_card_dsl_from_file(&content, &mut map);
+
+        let has_todo = content.contains("TODO");
+        let has_empty_abilities = content.contains("abilities: vec![]");
+
+        match (has_todo, has_empty_abilities) {
+            (false, false) => h.fully_implemented += 1,
+            (false, true) => h.vanilla += 1,
+            (true, true) => h.stripped += 1,
+            (true, false) => h.partial += 1,
+        }
     }
 
-    map
+    h.has_todos = h.partial + h.stripped;
+    h.total_universe = 1743;
+    h.not_authored = h.total_universe.saturating_sub(h.total_authored);
+    h
 }
 
-/// Extract `CardDefinition { ... }` block from a single card file.
-fn extract_card_dsl_from_file(content: &str, map: &mut std::collections::HashMap<String, String>) {
+/// Scan all card def files, return per-card entries + DSL source map.
+fn scan_live_cards(
+    root: &Path,
+) -> (Vec<LiveCardEntry>, std::collections::HashMap<String, String>) {
+    let defs_dir = root.join("crates/engine/src/cards/defs");
+    let entries = match fs::read_dir(&defs_dir) {
+        Ok(e) => e,
+        Err(_) => return (vec![], std::collections::HashMap::new()),
+    };
+
+    let mut cards: Vec<LiveCardEntry> = vec![];
+    let mut dsl_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let file_stem = match path.file_stem().and_then(|s| s.to_str()) {
+            Some("mod") => continue,
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+
+        let content = match fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let has_todo = content.contains("TODO");
+        let has_empty_abilities = content.contains("abilities: vec![]");
+
+        let status = match (has_todo, has_empty_abilities) {
+            (false, false) => "ok",
+            (false, true) => "vanilla",
+            (true, true) => "stripped",
+            (true, false) => "partial",
+        };
+
+        // Extract card name from file content
+        let card_name = extract_card_name_from_content(&content)
+            .unwrap_or_else(|| title_case(&file_stem));
+
+        // Extract TODO lines
+        let todo_lines: Vec<String> = content
+            .lines()
+            .filter(|l| l.contains("TODO"))
+            .map(|l| l.trim().to_string())
+            .collect();
+
+        // Extract DSL for detail view
+        extract_card_dsl_from_file(&content, &card_name, &mut dsl_map);
+
+        cards.push(LiveCardEntry {
+            name: card_name,
+            file_name: file_stem,
+            status: status.to_string(),
+            todo_lines,
+        });
+    }
+
+    // Sort: todo cards first (partial, stripped), then ok, then vanilla. Within each group, by name.
+    cards.sort_by(|a, b| {
+        let order = |s: &str| -> u8 {
+            match s {
+                "stripped" => 0,
+                "partial" => 1,
+                "ok" => 2,
+                "vanilla" => 3,
+                _ => 4,
+            }
+        };
+        order(&a.status)
+            .cmp(&order(&b.status))
+            .then(a.name.cmp(&b.name))
+    });
+
+    (cards, dsl_map)
+}
+
+fn extract_card_name_from_content(content: &str) -> Option<String> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("name: \"") {
+            if let Some(end) = rest.find('"') {
+                return Some(rest[..end].to_string());
+            }
+        }
+    }
+    None
+}
+
+fn title_case(slug: &str) -> String {
+    slug.split('_')
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().to_string() + c.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn extract_card_dsl_from_file(
+    content: &str,
+    card_name: &str,
+    map: &mut std::collections::HashMap<String, String>,
+) {
     let lines: Vec<&str> = content.lines().collect();
     let mut i = 0;
     while i < lines.len() {
@@ -763,9 +630,7 @@ fn extract_card_dsl_from_file(content: &str, map: &mut std::collections::HashMap
             }
             let block: String = lines[start..=end].join("\n");
             let dedented = dedent_block(&block);
-            if let Some(name) = extract_card_name(&block) {
-                map.insert(name, dedented);
-            }
+            map.insert(card_name.to_string(), dedented);
             i = end + 1;
         } else {
             i += 1;
@@ -773,7 +638,6 @@ fn extract_card_dsl_from_file(content: &str, map: &mut std::collections::HashMap
     }
 }
 
-/// Strip common leading whitespace from all lines in a block.
 fn dedent_block(block: &str) -> String {
     let min_indent = block
         .lines()
@@ -797,20 +661,8 @@ fn dedent_block(block: &str) -> String {
         .join("\n")
 }
 
-/// Extract the card name from a `name: "..."` line inside a CardDefinition block.
-fn extract_card_name(block: &str) -> Option<String> {
-    for line in block.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("name: \"") {
-            if let Some(end) = rest.find('"') {
-                return Some(rest[..end].to_string());
-            }
-        }
-    }
-    None
-}
+// ─── engine LOC ─────────────────────────────────────────────────────────────
 
-/// Count lines of `.rs` files under a directory, recursively.
 fn count_lines_recursive(dir: &Path) -> u32 {
     let mut total = 0u32;
     let entries = match fs::read_dir(dir) {
@@ -830,282 +682,34 @@ fn count_lines_recursive(dir: &Path) -> u32 {
     total
 }
 
-/// Compute engine source and test LOC by walking the filesystem.
-/// Returns (source_loc, test_loc).
 fn compute_engine_loc(root: &Path) -> (u32, u32) {
     let src_loc = count_lines_recursive(&root.join("crates/engine/src"));
     let test_loc = count_lines_recursive(&root.join("crates/engine/tests"));
     (src_loc, test_loc)
 }
 
-fn parse_card_entry(item: &serde_json::Value, status: &str) -> CardWorklistEntry {
-    let name = item
-        .get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let appears_in_decks = item
-        .get("appears_in_decks")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as u32;
+// ─── worker status (primitive-wip.md) ───────────────────────────────────────
 
-    let types: Vec<String> = item
-        .get("types")
-        .and_then(|v| v.as_array())
-        .map(|a| {
-            a.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let keywords: Vec<String> = item
-        .get("keywords")
-        .and_then(|v| v.as_array())
-        .map(|a| {
-            a.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let blocking_keywords: Vec<String> = item
-        .get("blocking_keywords")
-        .and_then(|v| v.as_array())
-        .map(|a| {
-            a.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let keyword_statuses: Vec<(String, String)> = item
-        .get("keyword_statuses")
-        .and_then(|v| v.as_object())
-        .map(|obj| {
-            obj.iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    CardWorklistEntry {
-        name,
-        appears_in_decks,
-        types,
-        keywords,
-        status: status.to_string(),
-        blocking_keywords,
-        keyword_statuses,
-    }
-}
-
-// ─── project-status.md parser ──────────────────────────────────────────────
-
-fn parse_project_status(root: &Path) -> Option<ProjectProgress> {
-    let path = root.join("docs/project-status.md");
+fn parse_worker_status(root: &Path) -> Option<WorkerStatus> {
+    let path = root.join("memory/primitive-wip.md");
     let content = fs::read_to_string(path).ok()?;
-    let lines: Vec<&str> = content.lines().collect();
-    let mut progress = ProjectProgress::default();
+    let mut ws = WorkerStatus::default();
 
-    let mut section = "";
-    let mut in_table = false;
-
-    for line in &lines {
-        let trimmed = line.trim();
-
-        // Detect sections
-        if trimmed.starts_with("## Primitive Batches") {
-            section = "batches";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## Card Health") {
-            section = "health";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## Workstreams") {
-            section = "workstreams";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## Path to Alpha") {
-            section = "alpha";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## Engine Test Summary") {
-            section = "tests";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## Deferred Items") {
-            section = "deferred";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## Review Backlog") {
-            section = "review";
-            in_table = false;
-            continue;
-        } else if trimmed.starts_with("## ") {
-            section = "";
-            in_table = false;
-            continue;
-        }
-
-        // Skip separator rows and empty lines
-        if trimmed.starts_with("|---") || trimmed.starts_with("| ---") {
-            in_table = true;
-            continue;
-        }
-        if !trimmed.starts_with('|') {
-            // Parse progress line
-            if section == "review" && trimmed.starts_with("**Progress**:") {
-                let parts: Vec<&str> = trimmed.split('/').collect();
-                if parts.len() == 2 {
-                    progress.review_progress_done = parts[0]
-                        .chars()
-                        .filter(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .parse()
-                        .unwrap_or(0);
-                    progress.review_progress_total = parts[1]
-                        .chars()
-                        .filter(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .parse()
-                        .unwrap_or(0);
-                }
-            }
-            continue;
-        }
-        if !in_table {
-            // This is the header row — skip it, wait for separator
-            continue;
-        }
-
-        let cells = table_cells(trimmed);
-
-        match section {
-            "batches" if cells.len() >= 7 => {
-                progress.primitive_batches.push(PrimitiveBatch {
-                    batch: cells[0].clone(),
-                    title: cells[1].clone(),
-                    status: cells[2].clone(),
-                    cards_fixed: cells[3].parse().unwrap_or(0),
-                    cards_remaining: cells[4].parse().unwrap_or(0),
-                    review: cells[5].clone(),
-                });
-            }
-            "health" if cells.len() >= 2 => {
-                let val: u32 = cells[1].parse().unwrap_or(0);
-                let cat = cells[0].to_lowercase();
-                if cat.contains("complete") && !cat.contains("total") {
-                    progress.card_health.complete = val;
-                } else if cat.contains("todo") {
-                    progress.card_health.has_todos = val;
-                } else if cat.contains("wrong") {
-                    progress.card_health.wrong_state = val;
-                } else if cat.contains("not yet") {
-                    progress.card_health.not_authored = val;
-                } else if cat.contains("total universe") {
-                    progress.card_health.total_universe = val;
-                } else if cat.contains("total authored") {
-                    progress.card_health.total_authored = val;
-                }
-            }
-            "workstreams" if cells.len() >= 5 => {
-                progress.workstreams.push(WorkstreamEntry {
-                    number: cells[0].clone(),
-                    name: cells[1].clone(),
-                    status: cells[2].clone(),
-                    last_activity: cells[3].clone(),
-                    next_action: cells[4].clone(),
-                });
-            }
-            "alpha" if cells.len() >= 4 => {
-                progress.path_to_alpha.push(AlphaMilestone {
-                    name: cells[0].clone(),
-                    status: cells[1].clone(),
-                    blocked_by: cells[2].clone(),
-                    deliverable: cells[3].clone(),
-                });
-            }
-            "deferred" if cells.len() >= 4 => {
-                progress.deferred_items.push(DeferredItem {
-                    item: cells[0].clone(),
-                    deferred_from: cells[1].clone(),
-                    blocked_until: cells[2].clone(),
-                    impact: cells[3].clone(),
-                });
-            }
-            "review" if cells.len() >= 6 => {
-                progress.review_backlog.push(ReviewBacklogEntry {
-                    number: cells[0].parse().unwrap_or(0),
-                    batch: cells[1].clone(),
-                    title: cells[2].clone(),
-                    cards_fixed: cells[3].parse().unwrap_or(0),
-                    review_status: cells[4].clone(),
-                    findings: cells[5].clone(),
-                });
-            }
-            _ => {}
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("batch: ") {
+            ws.batch = rest.trim().to_string();
+        } else if let Some(rest) = line.strip_prefix("title: ") {
+            ws.title = rest.trim().to_string();
+        } else if let Some(rest) = line.strip_prefix("phase: ") {
+            ws.phase = rest.trim().to_string();
+        } else if let Some(rest) = line.strip_prefix("started: ") {
+            ws.started = rest.trim().to_string();
         }
     }
 
-    Some(progress)
-}
-
-// ─── live card health scanner ─────────────────────────────────────────────
-
-/// Scan all card def files on disk and compute health metrics directly.
-/// This replaces the stale project-status.md card health section with live data.
-fn scan_card_health_live(root: &Path) -> CardHealth {
-    let defs_dir = root.join("crates/engine/src/cards/defs");
-    let entries = match fs::read_dir(&defs_dir) {
-        Ok(e) => e,
-        Err(_) => return CardHealth::default(),
-    };
-
-    let mut fully_implemented: u32 = 0;
-    let mut vanilla: u32 = 0;
-    let mut partial: u32 = 0;
-    let mut stripped: u32 = 0;
-    let mut total: u32 = 0;
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
-            continue;
-        }
-        if path.file_stem().and_then(|s| s.to_str()) == Some("mod") {
-            continue;
-        }
-
-        total += 1;
-
-        let content = match fs::read_to_string(&path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        let has_todo = content.contains("TODO");
-        let has_empty_abilities = content.contains("abilities: vec![]");
-
-        match (has_todo, has_empty_abilities) {
-            (false, false) => fully_implemented += 1,
-            (false, true) => vanilla += 1,
-            (true, true) => stripped += 1,
-            (true, false) => partial += 1,
-        }
-    }
-
-    CardHealth {
-        fully_implemented,
-        vanilla,
-        partial,
-        stripped,
-        complete: fully_implemented,
-        has_todos: partial + stripped,
-        wrong_state: 0, // Can't determine from file scan alone
-        not_authored: 1743u32.saturating_sub(total), // universe size
-        total_universe: 1743,
-        total_authored: total,
+    if ws.batch.is_empty() {
+        None
+    } else {
+        Some(ws)
     }
 }

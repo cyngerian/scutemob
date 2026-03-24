@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Indestructible),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // TODO: DSL gap — Addendum: "if during main phase" condition check

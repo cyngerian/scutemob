@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(2),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Protection from red and blue
@@ -34,6 +35,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: "Whenever equipped creature deals combat damage to a player" trigger —

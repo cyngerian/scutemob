@@ -678,6 +678,8 @@ fn format_counter_type(ct: &CounterType) -> String {
         CounterType::Time => "time".to_string(),
         CounterType::Fade => "fade".to_string(),
         CounterType::Age => "age".to_string(),
+        CounterType::Quest => "quest".to_string(),
+        CounterType::Slumber => "slumber".to_string(),
         CounterType::Custom(s) => s.clone(),
     }
 }

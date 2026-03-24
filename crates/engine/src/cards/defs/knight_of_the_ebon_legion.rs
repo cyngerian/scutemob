@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyBoth(3),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     Effect::ApplyContinuousEffect {
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

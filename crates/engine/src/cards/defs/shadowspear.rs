@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Static: Equipped creature has Trample and Lifelink (layer 6).
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // Equip {2}: attach this Equipment to target creature you control (CR 702.6b/d).

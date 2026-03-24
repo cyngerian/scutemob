@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyPower(2),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             AbilityDefinition::Static {
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyToughness(2),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — "Whenever this creature attacks, untap all lands you control"

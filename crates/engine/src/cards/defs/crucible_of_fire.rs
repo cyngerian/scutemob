@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(3),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Dragon".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
         ],

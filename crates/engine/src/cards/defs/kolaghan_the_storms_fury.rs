@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                         modification: LayerModification::ModifyPower(1),
                         filter: EffectFilter::CreaturesYouControl,
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 intervening_if: None,

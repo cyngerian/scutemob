@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyBoth(1),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

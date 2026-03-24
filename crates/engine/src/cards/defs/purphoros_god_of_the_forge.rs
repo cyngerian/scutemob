@@ -3,6 +3,13 @@
 // As long as your devotion to red is less than five, Purphoros isn't a creature.
 // Whenever another creature you control enters, Purphoros deals 2 damage to each opponent.
 // {2}{R}: Creatures you control get +1/+0 until end of turn.
+//
+// CR 700.5 / CR 604.2 / CR 613.1d (Layer 4): "As long as your devotion to red is less than
+// five, Purphoros isn't a creature." Implemented as a conditional RemoveCardTypes static.
+//
+// TODO: "{2}{R}: Creatures you control get +1/+0 until end of turn." Requires an activated
+// ability that applies a transient continuous effect to all your creatures. DSL gap for
+// activated abilities that apply effects to all creatures you control.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +27,25 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
-            // TODO: "As long as your devotion to red is less than five, Purphoros isn't a creature."
-            // Requires devotion count + type-changing continuous effect (Layer 4).
-            // Whenever another creature you control enters, deal 2 to each opponent.
+            // CR 700.5 / CR 613.1d (Layer 4): "As long as your devotion to red is less than
+            // five, Purphoros isn't a creature." Removes the Creature card type conditionally.
+            // The threshold is devotion < 5 (i.e., 4 or fewer red mana symbols in mana costs
+            // of permanents you control).
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::RemoveCardTypes(
+                        [CardType::Creature].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::DevotionToColorsLessThan {
+                        colors: vec![Color::Red],
+                        threshold: 5,
+                    }),
+                },
+            },
+            // Whenever another creature you control enters, Purphoros deals 2 damage to each opponent.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
@@ -41,7 +64,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // TODO: "{2}{R}: Creatures you control get +1/+0 until end of turn."
-            // Requires activated ability that applies a continuous effect to all your creatures.
+            // Requires activated ability applying a transient effect to all your creatures.
         ],
         ..Default::default()
     }

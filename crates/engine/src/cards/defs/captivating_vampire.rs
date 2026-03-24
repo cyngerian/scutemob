@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — "Tap five untapped Vampires you control: Gain control of target

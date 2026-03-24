@@ -2,9 +2,9 @@
 // Metalcraft — {T}: Add one mana of any color. Activate only if you control
 // three or more artifacts.
 //
-// TODO: Metalcraft activation condition — "control three or more artifacts" requires
-//   a count-based Condition (e.g. YouControlNOrMorePermanents { count: 3, filter })
-//   which doesn't exist in the DSL yet. Implementing the tap ability without the condition.
+// CR 702.45a (Metalcraft ability word): The activation condition checks that you control
+// 3+ artifacts. Using Condition::YouControlNOrMoreWithFilter with count: 3 and
+// has_card_type: Some(CardType::Artifact).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,9 +20,14 @@ pub fn card() -> CardDefinition {
                 effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
                 timing_restriction: None,
                 targets: vec![],
-                // TODO: activation_condition: Some(Condition::YouControlNOrMorePermanents { count: 3,
-                //   filter: TargetFilter { has_card_type: Some(CardType::Artifact), ..Default::default() } })
-                activation_condition: None,
+                // CR 702.45a: Metalcraft — only active when you control 3+ artifacts.
+                activation_condition: Some(Condition::YouControlNOrMoreWithFilter {
+                    count: 3,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Artifact),
+                        ..Default::default()
+                    },
+                }),
             },
         ],
         ..Default::default()

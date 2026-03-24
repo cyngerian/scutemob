@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyPower(1),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // CR 613.1f / Layer 6: gains infect until EOT.
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Infect),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

@@ -168,6 +168,7 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::RemoveAllAbilities,
         is_cda: false,
+        condition: None,
     };
 
     let state = GameStateBuilder::new()

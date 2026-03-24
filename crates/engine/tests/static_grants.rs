@@ -62,6 +62,7 @@ fn test_creatures_you_control_grants_keyword_to_own_creatures_only() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        condition: None,
     });
 
     // P1's creature gets haste
@@ -101,6 +102,7 @@ fn test_creatures_you_control_excludes_non_creatures() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        condition: None,
     });
 
     let land_chars = calculate_characteristics(&state, land_id).unwrap();
@@ -140,6 +142,7 @@ fn test_other_creatures_you_control_excludes_source() {
         filter: EffectFilter::OtherCreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        condition: None,
     });
 
     // P1's other creature gets haste
@@ -208,6 +211,7 @@ fn test_other_creatures_with_subtype_filters_correctly() {
         filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        condition: None,
     });
 
     // P1's other Vampire gets +1/+1
@@ -259,6 +263,7 @@ fn test_creatures_you_control_no_source_matches_nothing() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        condition: None,
     });
 
     let chars = calculate_characteristics(&state, bear_id).unwrap();
@@ -296,6 +301,7 @@ fn test_multiple_controllers_grant_independently() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        condition: None,
     });
 
     // P2's enchantment grants flying
@@ -308,6 +314,7 @@ fn test_multiple_controllers_grant_independently() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        condition: None,
     });
 
     // P1's soldier: haste (from P1 enchantment), no flying

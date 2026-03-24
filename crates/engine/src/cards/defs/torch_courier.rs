@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                         modification: crate::state::LayerModification::AddKeyword(KeywordAbility::Haste),
                         filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                         duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 timing_restriction: None,

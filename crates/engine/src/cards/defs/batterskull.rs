@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(4),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // CR 702.6a: Equipped creature has vigilance and lifelink (layer 6).
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // {3}: Return this Equipment to its owner's hand.

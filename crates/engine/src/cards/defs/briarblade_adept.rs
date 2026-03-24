@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                         modification: crate::state::LayerModification::ModifyBoth(-1),
                         filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                         duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 intervening_if: None,

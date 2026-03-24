@@ -2036,6 +2036,33 @@ pub enum Condition {
     /// Artifact, Enchantment, Land, Planeswalker, Tribal, Battle) among all cards in
     /// the controller's graveyard. Used by Delirium cards like Shifting Woodland.
     CardTypesInGraveyardAtLeast(u32),
+    // ── PB-24: Conditional static variants ──────────────────────────────────
+    /// "as long as an opponent has N or less life" (e.g., Bloodghast: N=10).
+    ///
+    /// True when ANY living opponent of the controller has a life total <= N.
+    /// Eliminated opponents (has_lost == true) are excluded. CR 604.2.
+    OpponentLifeAtMost(u32),
+    /// "as long as it's untapped" (e.g., Dragonlord Ojutai).
+    ///
+    /// True when the source permanent is untapped on the battlefield. CR 604.2.
+    SourceIsUntapped,
+    /// "during your turn" / "as long as it's your turn" (e.g., Razorkin Needlehead).
+    ///
+    /// True when the active player is the same as the source's controller. CR 500.1.
+    IsYourTurn,
+    /// "as long as you control N or more [filter]" (e.g., Metalcraft: 3+ artifacts).
+    ///
+    /// True when the controller controls at least `count` permanents matching `filter`
+    /// on the battlefield (phased-in only). CR 604.2.
+    YouControlNOrMoreWithFilter { count: u32, filter: TargetFilter },
+    /// "as long as your devotion to [colors] is less than N" (Theros gods).
+    ///
+    /// CR 700.5: Counts mana symbols matching ANY of the listed colors in mana costs
+    /// of permanents the controller controls. For single-color devotion, pass a one-element
+    /// vec. For multi-color (Athreos: W+B, Iroas: R+W), pass both colors. Each mana
+    /// symbol matching any listed color counts once (hybrid symbols that match either
+    /// color count once, not twice). True when calculated devotion < threshold.
+    DevotionToColorsLessThan { colors: Vec<Color>, threshold: u32 },
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).
@@ -2404,6 +2431,12 @@ pub struct ContinuousEffectDef {
     pub modification: crate::state::LayerModification,
     pub filter: crate::state::EffectFilter,
     pub duration: crate::state::EffectDuration,
+    /// Optional condition that must be true for this effect to be active (CR 604.2).
+    ///
+    /// Used by "as long as X" conditional static abilities. Evaluated at layer-application
+    /// time against the current game state. `None` = always active (unconditional).
+    #[serde(default)]
+    pub condition: Option<Condition>,
 }
 // ── Spell Cost Modification ─────────────────────────────────────────────────
 /// A static cost modifier from a permanent on the battlefield (or command zone for Eminence).

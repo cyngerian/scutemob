@@ -61,6 +61,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyBoth(2),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::Indefinite,
+                            condition: None,
                         },
                         // Grant flying to creatures you control
                         ContinuousEffectDef {
@@ -68,6 +69,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Flying),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::Indefinite,
+                            condition: None,
                         },
                     ],
                 },

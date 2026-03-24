@@ -2,6 +2,9 @@
 // Whenever a Goblin you control enters, you may put a quest counter on this enchantment.
 // As long as this enchantment has five or more quest counters on it, creatures you control
 // get +2/+0.
+//
+// CR 604.2 / CR 613.1c (Layer 7c): "As long as this has 5+ quest counters, creatures you
+// control get +2/+0." Implemented as conditional static with Condition::SourceHasCounters.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,14 +26,26 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
-                    counter: CounterType::Custom("quest".to_string()),
+                    counter: CounterType::Quest,
                     count: 1,
                 },
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: DSL gap — conditional static: "As long as this has 5+ quest counters,
-            // creatures you control get +2/+0." Needs Condition-gated Static ability.
+            // CR 604.2 / CR 613.1c (Layer 7c): "As long as this has five or more quest
+            // counters on it, creatures you control get +2/+0."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyPower(2),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::SourceHasCounters {
+                        counter: CounterType::Quest,
+                        min: 5,
+                    }),
+                },
+            },
         ],
         ..Default::default()
     }

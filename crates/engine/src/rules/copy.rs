@@ -721,5 +721,6 @@ pub fn create_copy_effect(
         filter: EffectFilter::SingleObject(copier_id),
         modification: LayerModification::CopyOf(source_id),
         is_cda: false,
+        condition: None,
     }
 }

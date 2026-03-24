@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::ModifyBoth(-5),
                     filter: EffectFilter::DeclaredTarget { index: 0 },
                     duration: EffectDuration::UntilEndOfTurn,
+                    condition: None,
                 }),
             },
             targets: vec![TargetRequirement::TargetCreature],

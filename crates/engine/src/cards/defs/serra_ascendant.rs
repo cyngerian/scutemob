@@ -2,16 +2,10 @@
 // Lifelink (Damage dealt by this creature also causes you to gain that much life.)
 // As long as you have 30 or more life, this creature gets +5/+5 and has flying.
 //
-// Lifelink is implemented.
-//
-// TODO: "As long as you have 30 or more life, this creature gets +5/+5 and has flying" —
-// conditional static ability. Condition::ControllerLifeAtLeast(30) EXISTS in the Condition enum
-// and InterveningIf enum, but there is no EffectDuration variant for "while condition X holds".
-// EffectDuration has: WhileSourceOnBattlefield, UntilEndOfTurn, Indefinite, WhilePaired.
-// No "WhileCondition(Condition)" variant exists. DSL gap.
-// Also, a +5/+5 PtModify + Flying Ability grant would require TWO ContinuousEffectDef entries
-// under a single conditional static, which AbilityDefinition::Static does not support.
-// Full implementation deferred until EffectDuration::WhileCondition is added to the layer system.
+// CR 604.2 / CR 613.1c: The "as long as" clause makes both the P/T boost and the
+// flying grant into conditional static abilities. Both are gated on the same condition
+// (ControllerLifeAtLeast(30)). Two separate AbilityDefinition::Static entries are used,
+// one for the P/T modification (Layer 7c) and one for the ability grant (Layer 6).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,6 +19,28 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
+            // CR 604.2 / CR 613.1c (Layer 7c): "As long as you have 30 or more life,
+            // this creature gets +5/+5."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBoth(5),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::ControllerLifeAtLeast(30)),
+                },
+            },
+            // CR 604.2 / CR 613.1f (Layer 6): "As long as you have 30 or more life,
+            // this creature has flying."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Flying),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::ControllerLifeAtLeast(30)),
+                },
+            },
         ],
         ..Default::default()
     }

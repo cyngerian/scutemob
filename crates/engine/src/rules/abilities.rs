@@ -6117,6 +6117,7 @@ pub fn handle_crew_vehicle(
         modification: LayerModification::AddCardTypes(im::OrdSet::from(vec![CardType::Creature])),
         filter: EffectFilter::Source, // resolved to SingleObject(vehicle) at execution
         duration: EffectDuration::UntilEndOfTurn,
+        condition: None,
     };
     let embedded_effect = crate::cards::card_definition::Effect::ApplyContinuousEffect {
         effect_def: Box::new(effect_def),

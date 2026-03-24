@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyBoth(1),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // CR 613.1f / Layer 6: creatures you control gain trample until EOT.
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Trample),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // CR 613.1f / Layer 6: creatures you control gain infect until EOT.
@@ -37,6 +39,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::AddKeyword(KeywordAbility::Infect),
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                 ]),

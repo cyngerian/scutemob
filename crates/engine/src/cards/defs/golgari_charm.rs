@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyBoth(-1),
                             filter: EffectFilter::AllCreatures,
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // Mode 1: Destroy target enchantment.

@@ -221,6 +221,10 @@ pub enum CounterType {
     /// One age counter is added at the beginning of each upkeep before the
     /// payment check. The total number of age counters determines the total cost.
     Age,
+    /// Quest counters for enchantments like Beastmaster Ascension, Quest for the Goblin Lord.
+    Quest,
+    /// Slumber counters for Arixmethes, Slumbering Isle (transitions from land to creature).
+    Slumber,
     /// Catch-all for counter types not explicitly enumerated.
     Custom(String),
 }

@@ -212,6 +212,10 @@ impl HashInto for CounterType {
             CounterType::Fade => 14u8.hash_into(hasher),
             // Age (discriminant 15) -- CR 702.24a
             CounterType::Age => 15u8.hash_into(hasher),
+            // Quest (discriminant 16) -- for quest enchantments like Beastmaster Ascension
+            CounterType::Quest => 16u8.hash_into(hasher),
+            // Slumber (discriminant 17) -- for Arixmethes, Slumbering Isle
+            CounterType::Slumber => 17u8.hash_into(hasher),
             CounterType::Custom(s) => {
                 13u8.hash_into(hasher);
                 s.hash_into(hasher);
@@ -1252,6 +1256,11 @@ impl HashInto for LayerModification {
             LayerModification::SwitchPowerToughness => 19u8.hash_into(hasher),
             // AddAllCreatureTypes (discriminant 20) -- CR 702.73a, 205.3m
             LayerModification::AddAllCreatureTypes => 20u8.hash_into(hasher),
+            // RemoveCardTypes (discriminant 21) -- PB-24: Theros gods "isn't a creature"
+            LayerModification::RemoveCardTypes(types) => {
+                21u8.hash_into(hasher);
+                types.hash_into(hasher);
+            }
         }
     }
 }
@@ -1265,6 +1274,7 @@ impl HashInto for ContinuousEffect {
         self.filter.hash_into(hasher);
         self.modification.hash_into(hasher);
         self.is_cda.hash_into(hasher);
+        self.condition.hash_into(hasher);
     }
 }
 // --- Stub type implementations ---
@@ -4032,6 +4042,26 @@ impl HashInto for Condition {
                 31u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // PB-24: Conditional static variants (discriminants 32-36)
+            Condition::OpponentLifeAtMost(n) => {
+                32u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            Condition::SourceIsUntapped => 33u8.hash_into(hasher),
+            Condition::IsYourTurn => 34u8.hash_into(hasher),
+            Condition::YouControlNOrMoreWithFilter { count, filter } => {
+                35u8.hash_into(hasher);
+                count.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            Condition::DevotionToColorsLessThan { colors, threshold } => {
+                36u8.hash_into(hasher);
+                (colors.len() as u32).hash_into(hasher);
+                for c in colors {
+                    c.hash_into(hasher);
+                }
+                threshold.hash_into(hasher);
+            }
         }
     }
 }
@@ -4041,6 +4071,7 @@ impl HashInto for ContinuousEffectDef {
         self.modification.hash_into(hasher);
         self.filter.hash_into(hasher);
         self.duration.hash_into(hasher);
+        self.condition.hash_into(hasher);
     }
 }
 impl HashInto for Cost {

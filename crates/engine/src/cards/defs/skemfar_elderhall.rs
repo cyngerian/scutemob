@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                             modification: crate::state::LayerModification::ModifyBoth(-2),
                             filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                             duration: crate::state::EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // Create two 1/1 green Elf Warrior creature tokens.

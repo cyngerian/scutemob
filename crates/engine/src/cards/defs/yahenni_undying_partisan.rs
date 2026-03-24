@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                         modification: LayerModification::AddKeyword(KeywordAbility::Indestructible),
                         filter: EffectFilter::Source,
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 timing_restriction: None,

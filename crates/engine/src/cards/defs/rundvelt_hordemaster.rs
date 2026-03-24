@@ -18,6 +18,7 @@ Whenever Rundvelt Hordemaster or another Goblin you control dies, exile the top 
                     modification: LayerModification::ModifyBoth(1),
                     filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Goblin".to_string())),
                     duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
                 },
             },
             // TODO: DSL gap — death trigger with controller filter (Goblin you control)

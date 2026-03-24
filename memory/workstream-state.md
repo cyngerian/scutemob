@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | Phase 2.5: DSL gap closure (PB-24 next) | paused | — | **PB-23 DONE** (34 cards fixed, 2291 tests). Gap closure plan: `docs/dsl-gap-closure-plan.md`. TUI improvements in progress. |
+| W6: Primitive + Card Authoring | Phase 2.5: DSL gap closure (PB-24 next) | ACTIVE | 2026-03-23 | **PB-23 DONE**. Starting PB-24 (conditional statics, ~201 cards). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

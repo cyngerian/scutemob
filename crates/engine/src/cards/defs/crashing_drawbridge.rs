@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
                         filter: EffectFilter::CreaturesYouControl,
                         duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
                 },
                 timing_restriction: None,

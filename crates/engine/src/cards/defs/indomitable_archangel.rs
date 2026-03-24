@@ -3,9 +3,10 @@
 // Metalcraft — Artifacts you control have shroud as long as you control three or more artifacts.
 //
 // Flying is implemented.
-// TODO: DSL gap — Metalcraft conditional static (requires controlling 3+ artifacts) grants shroud
-//   to all your artifacts. Needs Condition::ControlsNOrMoreArtifacts(3) + EffectFilter::CreaturesYouControl
-//   filtered to artifacts — not in DSL.
+// TODO: Metalcraft — condition is now expressible: Condition::YouControlNOrMoreWithFilter
+//   { count: 3, filter: artifact_filter }. BLOCKED on EffectFilter for "artifacts you control"
+//   (PB-25 scope: no EffectFilter::ArtifactsYouControl variant). The shroud grant to all your
+//   artifacts cannot be expressed without a filter that scopes to controlled artifacts.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +20,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Metalcraft — conditional shroud grant to all your artifacts (count threshold static)
+            // TODO: Metalcraft — BLOCKED on EffectFilter::ArtifactsYouControl (PB-25 scope).
+            // Condition is expressible (YouControlNOrMoreWithFilter { count: 3, artifact_filter })
+            // but the target filter "artifacts you control" is not yet a supported EffectFilter.
         ],
         ..Default::default()
     }

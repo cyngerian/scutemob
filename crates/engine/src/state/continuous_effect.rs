@@ -149,6 +149,12 @@ pub enum LayerModification {
     /// Used by effects like Opalescence ("each other non-Aura enchantment is a creature
     /// in addition to its other types").
     AddCardTypes(OrdSet<CardType>),
+    /// Removes specified card types without affecting other types (Layer 4).
+    ///
+    /// Used by Theros gods: "As long as your devotion to [color] is less than N,
+    /// [this] isn't a creature." Removes Creature from the type line while keeping
+    /// Enchantment (and any other types). Applied conditionally via `ContinuousEffect::condition`.
+    RemoveCardTypes(OrdSet<CardType>),
     /// Adds subtypes without removing existing ones.
     ///
     /// Used by Urborg, Tomb of Yawgmoth ("Each land is a Swamp in addition to its
@@ -243,4 +249,9 @@ pub struct ContinuousEffect {
     /// CDAs apply before other effects within the same layer (CR 613.3).
     /// Note: CDAs and non-CDAs cannot depend on each other (CR 613.8a(c)).
     pub is_cda: bool,
+    /// Optional condition that must be true for this effect to be active (CR 604.2).
+    ///
+    /// Used by "as long as X" conditional static abilities. Evaluated at layer-application
+    /// time in `is_effect_active`. `None` = always active (unconditional).
+    pub condition: Option<crate::cards::card_definition::Condition>,
 }

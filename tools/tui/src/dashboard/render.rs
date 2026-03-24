@@ -11,7 +11,6 @@ use super::tabs;
 
 /// Minimum inner width (excluding borders) needed to fit all tabs on one line.
 fn tabs_single_row_min_width() -> u16 {
-    // Each tab: name + " │ " separator (3 chars); last tab has no separator
     let total: usize = TAB_NAMES
         .iter()
         .enumerate()
@@ -31,7 +30,6 @@ fn build_tab_lines(current_tab: usize, inner_width: u16) -> Vec<Line<'static>> {
         let sep = if i + 1 < TAB_NAMES.len() { " │ " } else { "" };
         let entry_len = name.len() + sep.len();
 
-        // Wrap before this tab if it wouldn't fit (never wrap before the first tab)
         if !spans.is_empty() && row_len + entry_len > avail {
             lines.push(Line::from(spans.clone()));
             spans.clear();
@@ -65,18 +63,16 @@ fn build_tab_lines(current_tab: usize, inner_width: u16) -> Vec<Line<'static>> {
 pub fn render(f: &mut Frame, app: &mut App) {
     let area = f.area();
 
-    // ─── dynamic tabs height: 1 content row normally, 2 rows when narrow ──
-    let inner_width = area.width.saturating_sub(2); // subtract left+right borders
+    let inner_width = area.width.saturating_sub(2);
     let needs_wrap = inner_width < tabs_single_row_min_width();
-    let tabs_height: u16 = if needs_wrap { 4 } else { 3 }; // 2/1 content + 2 borders
+    let tabs_height: u16 = if needs_wrap { 4 } else { 3 };
 
-    // ─── outer layout ───────────────────────────────────────────────────────
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(tabs_height), // tabs bar
-            Constraint::Min(0),              // content
-            Constraint::Length(1),           // status bar
+            Constraint::Length(tabs_height),
+            Constraint::Min(0),
+            Constraint::Length(1),
         ])
         .split(area);
 
@@ -85,33 +81,25 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let tabs_widget = Paragraph::new(Text::from(tab_lines)).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" MTG Commander Rules Engine — Progress Dashboard "),
+            .title(" MTG Commander Rules Engine "),
     );
     f.render_widget(tabs_widget, chunks[0]);
 
     // ─── tab content ────────────────────────────────────────────────────────
     match app.current_tab {
-        0 => tabs::overview::render(f, chunks[1], app),
-        1 => tabs::milestones::render(f, chunks[1], app),
-        2 => tabs::abilities::render(f, chunks[1], app),
-        3 => tabs::corner_cases::render(f, chunks[1], app),
-        4 => tabs::reviews::render(f, chunks[1], app),
-        5 => tabs::scripts::render(f, chunks[1], app),
-        6 => tabs::cards::render(f, chunks[1], app),
-        7 => tabs::progress::render(f, chunks[1], app),
+        0 => tabs::dashboard::render(f, chunks[1], app),
+        1 => tabs::pipeline::render(f, chunks[1], app),
+        2 => tabs::cards::render(f, chunks[1], app),
+        3 => tabs::milestones::render(f, chunks[1], app),
         _ => {}
     }
 
     // ─── status bar ─────────────────────────────────────────────────────────
     let help = match app.current_tab {
-        0 => "q:quit  Tab:next  1-8:jump  r:refresh",
+        0 => "q:quit  Tab:next  1-4:jump  r:refresh",
         1 => "q:quit  Tab:next  j/k:scroll  r:refresh",
-        2 => "q:quit  Tab:next  j/k:scroll  r:refresh",
-        3 => "q:quit  Tab:next  j/k:scroll  g:gaps only  r:refresh",
-        4 => "q:quit  Tab:next  r:refresh",
-        5 => "q:quit  Tab:next  j/k:scroll  p:pending only  a:all  r:refresh",
-        6 => "q:quit  Tab:next  j/k:scroll  c:authored  r:ready  b:blocked  d:deferred  a:all",
-        7 => "q:quit  Tab:next  h/l:focus  j/k:scroll  r:refresh",
+        2 => "q:quit  Tab:next  j/k:scroll  J/K:detail  t:todo  o:ok  p:partial  s:stripped  a:all",
+        3 => "q:quit  Tab:next  j/k:scroll  r:refresh",
         _ => "q:quit",
     };
     let test_str = match &app.live_test_count {
@@ -119,8 +107,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
         LiveTestCount::Done(n) => n.to_string(),
     };
     let status_text = format!(
-        " {:<60} Active: {}  Tests: {}  Scripts: {} ",
-        help, app.data.current_state.active_milestone, test_str, app.data.scripts.total,
+        " {:<80} Tests: {}  Scripts: {} ",
+        help, test_str, app.data.scripts.total,
     );
     f.render_widget(
         ratatui::widgets::Paragraph::new(status_text)

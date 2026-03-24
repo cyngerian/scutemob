@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                             modification: LayerModification::ModifyBoth(2),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
                         }),
                     },
                     // CR 701.14a: It fights up to one target creature you don't control.
