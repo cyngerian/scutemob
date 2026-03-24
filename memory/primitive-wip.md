@@ -4,7 +4,7 @@ batch: PB-26
 title: Trigger variants (spell-type, discard, sacrifice, attack, LTB, draw, cast)
 cards_affected: ~72
 started: 2026-03-24
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-26.md
 
 ## Gap Reference
@@ -44,3 +44,14 @@ G-4, G-9, G-10, G-11, G-12, G-13, G-14, G-15 from `docs/dsl-gap-closure-plan.md`
 - [x] 3. New card definitions (if any) — none required
 - [x] 4. Unit tests — crates/engine/tests/trigger_variants.rs (19 tests, all passing)
 - [x] 5. Workspace build verification — 2334 tests passing, 0 clippy warnings, clean build
+
+## Review
+findings: 3 (HIGH: 1, MEDIUM: 2, LOW: 0)
+verdict: fixed
+review_file: memory/primitives/pb-review-26.md
+
+## Fix Phase
+- [x] HIGH-1: abilities.rs CardDrawn dispatch — added `pre_len` capture + triggering_player tagging block after AnyPlayerDrawsCard collection
+- [x] MEDIUM-2: resolution.rs Champion sacrifice — added PermanentSacrificed emission in both Redirect and Proceed arms
+- [x] MEDIUM-3: camellia_the_seedmiser.rs — replaced TODO with WheneverYouSacrifice{Food subtype filter} triggered ability creating 1/1 green Squirrel token
+- 2334 tests pass, 0 clippy warnings, workspace builds clean

@@ -4867,6 +4867,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             // CR 603.2: "Whenever you draw a card" / "Whenever a player draws a card"
             // dispatch. Fires ControllerDrawsCard, OpponentDrawsCard, AnyPlayerDrawsCard.
             GameEvent::CardDrawn { player, .. } => {
+                let pre_len = triggers.len();
                 // ControllerDrawsCard: fire on permanents controlled by the drawing player.
                 let controller_sources: Vec<ObjectId> = state
                     .objects
@@ -4915,6 +4916,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,
                     None,
                 );
+                // Tag draw triggers with the drawing player so PlayerTarget::TriggeringPlayer
+                // resolves correctly (e.g. Scrawling Crawler, Razorkin Needlehead).
+                for t in &mut triggers[pre_len..] {
+                    t.triggering_player = Some(*player);
+                }
             }
             // CR 603.2 / CR 118.4: "Whenever you gain life" dispatch.
             // Fires ControllerGainsLife on permanents controlled by the gaining player.

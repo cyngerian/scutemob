@@ -3845,6 +3845,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             });
                                         }
                                     }
+                                    // CR 701.21a: Champion sacrifice emits PermanentSacrificed
+                                    // so "whenever you sacrifice a permanent" triggers fire.
+                                    events.push(GameEvent::PermanentSacrificed {
+                                        player: pre_sacrifice_controller,
+                                        object_id: source_object,
+                                        new_id,
+                                    });
                                 }
                             }
                             crate::rules::replacement::ZoneChangeAction::Proceed => {
@@ -3856,6 +3863,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         new_grave_id,
                                         controller: pre_sacrifice_controller,
                                         pre_death_counters,
+                                    });
+                                    // CR 701.21a: Champion sacrifice emits PermanentSacrificed
+                                    // so "whenever you sacrifice a permanent" triggers fire.
+                                    events.push(GameEvent::PermanentSacrificed {
+                                        player: pre_sacrifice_controller,
+                                        object_id: source_object,
+                                        new_id: new_grave_id,
                                     });
                                 }
                             }

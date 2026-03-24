@@ -30,9 +30,38 @@ pub fn card() -> CardDefinition {
                 },
             },
 
-            // TODO: "Whenever you sacrifice one or more Foods, create a 1/1 green Squirrel token."
-            // Requires TriggerCondition::WheneverYouSacrificeFood (not yet implemented).
-            // Deferred until sacrifice-trigger infrastructure is added.
+            // CR 701.21a / CR 603.2: "Whenever you sacrifice one or more Foods, create a 1/1
+            // green Squirrel creature token." Per-sacrifice firing (not batched) is the engine-wide
+            // approximation; "one or more" is not enforceable with per-event triggers.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Food".to_string())),
+                        ..Default::default()
+                    }),
+                    player_filter: None,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Squirrel".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Squirrel".to_string())].into_iter().collect(),
+                        colors: [Color::Green].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: im::OrdSet::new(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
 
             // CR 701.61a: "{2}, Forage: Put a +1/+1 counter on each other Squirrel you control."
             // Note: TargetFilter has no exclude_source field, so this also targets Camellia
