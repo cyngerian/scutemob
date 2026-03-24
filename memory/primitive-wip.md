@@ -4,7 +4,7 @@ batch: PB-24
 title: Conditional statics ("as long as X")
 cards_affected: ~201
 started: 2026-03-23
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-24.md
 
 ## Gap Reference
@@ -61,3 +61,17 @@ none
   - cargo clippy -- -D warnings: 0 warnings
   - cargo build --workspace: clean (engine + simulator + network + replay-viewer + tui)
   - cargo fmt --check: clean
+
+## Review
+findings: 8 (HIGH: 1, MEDIUM: 2, LOW: 5)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-24.md
+
+## Fix Phase
+- [x] HIGH-4: nadaar_selfless_paladin.rs — mana cost {3}{W} → {2}{W} (header comment + ManaCost field)
+- [x] MEDIUM-1: effects/mod.rs calculate_devotion_to_colors — added CR 700.5a known-deviation doc comment
+- [x] MEDIUM-2: effects/mod.rs YouControlNOrMoreWithFilter — added re-entrancy safety doc comment
+- LOW findings: informational only, no fixes applied
+- cargo test --all: all pass, 0 failures
+- cargo clippy -- -D warnings: 0 warnings
+- cargo build --workspace: clean

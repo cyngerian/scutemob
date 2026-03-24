@@ -1,4 +1,4 @@
-// Nadaar, Selfless Paladin — {3}{W}, Legendary Creature — Dragon Knight 3/3
+// Nadaar, Selfless Paladin — {2}{W}, Legendary Creature — Dragon Knight 3/3
 // Vigilance
 // Whenever Nadaar, Selfless Paladin enters the battlefield or attacks, venture into the dungeon.
 // Other creatures you control get +1/+1 as long as you've completed a dungeon.
@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nadaar-selfless-paladin"),
         name: "Nadaar, Selfless Paladin".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],

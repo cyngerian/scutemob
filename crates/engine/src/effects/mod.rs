@@ -5352,6 +5352,18 @@ pub fn check_static_condition(
                         && obj.is_phased_in()
                         && obj.controller == controller
                         && {
+                            // NOTE: `calculate_characteristics` is called here from within
+                            // `check_static_condition`, which is itself called from
+                            // `is_effect_active`, which is called from within
+                            // `calculate_characteristics` for each active continuous effect.
+                            // This is re-entrant but safe: `im-rs` persistent data structures
+                            // are immutable, so there is no risk of observing partial mutations.
+                            // Termination is guaranteed because we are checking the types of
+                            // *other* battlefield objects, not the object currently being
+                            // calculated — there is no direct self-referential cycle.
+                            // If performance becomes an issue, consider using base
+                            // characteristics (`obj.characteristics`) for the filter check
+                            // instead of calling `calculate_characteristics` again.
                             let chars =
                                 crate::rules::layers::calculate_characteristics(state, obj.id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
@@ -5400,6 +5412,15 @@ pub fn check_static_condition(
 ///
 /// Per CR 700.5: hybrid mana symbols count once toward each matching color, but are
 /// counted once per symbol regardless of how many listed colors they match.
+///
+/// **Known deviation (CR 700.5a)**: CR 700.5a states devotion is calculated "after
+/// considering any copy, control, or text-changing effects" (i.e., using Layer 1-3
+/// resolved mana costs). This implementation reads `obj.characteristics.mana_cost`,
+/// which is the base (printed) mana cost. The full fix would require computing
+/// Layer 1-3 partial characteristics per permanent before summing devotion, which
+/// involves significant complexity. The deviation only matters when a Layer 1 copy
+/// effect or Layer 3 text-changing effect modifies the mana cost of a battlefield
+/// permanent (rare). Acceptable as a known limitation pre-alpha.
 pub fn calculate_devotion_to_colors(state: &GameState, player: PlayerId, colors: &[Color]) -> u32 {
     use crate::state::game_object::{HybridMana, PhyrexianMana};
     use crate::state::types::ManaColor;
