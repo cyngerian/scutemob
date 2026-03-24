@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **A-24 through A-28 DONE** (61 new cards). Next: A-29 cant-restriction. ~1452 card defs. |
+| W6: Primitive + Card Authoring | Phase 2.5: DSL gap closure (PB-24 next) | paused | — | **PB-23 DONE** (34 cards fixed, 2291 tests). Gap closure plan: `docs/dsl-gap-closure-plan.md`. TUI improvements in progress. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,37 +24,36 @@
 ## Last Handoff
 
 **Date**: 2026-03-23
-**Workstream**: W6: Primitive + Card Authoring
-**Task**: Phase 2 authoring — A-24 through A-28
+**Workstream**: Executive/oversight (no workstream claimed)
+**Task**: DSL gap analysis, gap closure plan, TUI improvements
 
 **Completed**:
-- A-24 attack-trigger: 24 new cards (Shared Animosity, Aurelia, Derevi, etc.)
-- A-25 activated-tap: 19 new cards (Maze of Ith, Birthing Pod, Arcanis, etc.)
-- A-26 activated-sacrifice: 7 new cards (Altar of Dementia, Dreamstone Hedron, etc.)
-- A-27 sacrifice-outlet: 4 new cards (Miren, Diamond Valley, Claws of Gix, Altar of Bone)
-- A-28 discard-effect: 7 new cards (Waste Not, Megrim, Burglar Rat, etc.)
-- 4 review batches completed, 8 HIGH findings fixed
-- Commit: 1afbf25
-- Total: ~1452 card def files (+61 this session)
-- All 2281 tests passing, workspace builds clean
+- Full DSL gap audit: 1,348 TODOs across 814/1,452 card defs (56%), categorized into 31 gap types
+- Created `docs/dsl-gap-closure-plan.md` — 15 new primitive batches (PB-23 through PB-37)
+- Updated `docs/card-authoring-operations.md` — Phase 2.5 inserted before Tier 3 authoring
+- Updated `docs/primitive-card-plan.md` — Phase 1.5 section with PB-23+ batch table
+- Updated `docs/project-status.md` — PB-23+ rows, live card health numbers
+- Updated agents: `primitive-impl-planner` (PB-23+ file reference), `primitive-impl-runner` (backfill protocol)
+- TUI improvements: live card health scanner (replaces hardcoded values), dynamic ability/corner stats, new card health breakdown (OK/partial/stripped/vanilla with TODO%), pipeline funnel shows done/gap/total
+- Reviewed PB-23 output after worker session completed it (34 cards fixed, 2H found and fixed)
 
 **Next**:
-1. **A-29 cant-restriction** (3 sessions, 24 cards) — next authoring group
-2. Continue through A-30 untap-phase, A-32 land-fetch, etc.
-3. A-19 S40-S43 review still pending (48 cards from 2026-03-22 session)
+1. Continue gap closure: PB-24 (conditional statics, ~201 cards) or PB-26 (trigger variants, ~72 cards)
+2. TUI: Cards tab still reads stale `_authoring_worklist.json`, needs rework; test count re-run on refresh; workstream panel should read `workstream-state.md`
+3. Oversight: spot-check PB-24+ output quality as worker progresses
 
 **Hazards**:
-- `WheneverCreatureDies` has no controller filter — fires on ALL creatures dying
-- `WheneverCreatureYouControlAttacks` trigger does not exist (blocks most A-24 cards)
-- `WheneverOpponentDiscards` trigger does not exist (blocks all A-28 cards)
-- `Cost::RemoveCounter` does not exist — counter removal as cost uses TODO
-- `EffectAmount::PowerOfSacrificedCreature` does not exist (blocks Altar of Dementia, Greater Good, Life's Legacy)
-- `AdditionalCost::SacrificeCreature` for spells does not exist (blocks Altar of Bone, Life's Legacy)
-- `PlayerTarget::Owner` does not exist — zone returns use Controller as proxy (wrong under steal effects)
+- TUI changes compile but were verified alongside PB-23 engine changes — if engine regresses, TUI may need rebuild
+- 800 cards still have TODOs (was 814 before PB-23)
+- Worker session should continue `/implement-primitive PB-24` or PB-26 next
 
-**Commit prefix used**: `W6-cards:`
+**Commit prefix used**: `chore:` (oversight), `W2:` (TUI)
 
 ## Handoff History
+
+### 2026-03-23 — W6: PB-23 controller-filtered creature triggers
+- PB-23: 34 cards fixed, 2H 11M fixed. New: controller filter on WheneverCreatureDies, WheneverCreatureYouControlAttacks, WheneverCreatureYouControlDealsCombatDamageToPlayer.
+- Commits: b5066d4, 5104b27. 2291 tests.
 
 ### 2026-03-23 — W6: Phase 2 authoring A-20 through A-23
 - A-20 pump-buff (27), A-21 counters-plus (49), A-22 equipment (11), A-23 death-trigger (34). 121 total. 4H fixed.

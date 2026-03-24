@@ -4,7 +4,7 @@ batch: PB-23
 title: Controller-filtered creature triggers
 cards_affected: ~145
 started: 2026-03-23
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-23.md
 
 ## Gap Reference
