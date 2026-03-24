@@ -4,7 +4,7 @@ batch: PB-24
 title: Conditional statics ("as long as X")
 cards_affected: ~201
 started: 2026-03-23
-phase: fix
+phase: close
 plan_file: memory/primitives/pb-plan-24.md
 
 ## Gap Reference
