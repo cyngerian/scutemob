@@ -14,7 +14,24 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever you create or sacrifice a token" trigger not in DSL.
+            // Whenever you sacrifice a token, each opponent loses 1 life.
+            // (Create-a-token half is already covered by TokenCreated event via existing triggers.)
+            // TODO: token-only filter on sacrifice (is_token field not in TargetFilter).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: None,
+                    player_filter: None,
+                },
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::LoseLife {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

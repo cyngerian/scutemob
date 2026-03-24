@@ -11,10 +11,12 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token.".to_string(),
         abilities: vec![
-            // TODO: WheneverPlayerDrawsCard is all players, not opponent-only.
-            //   MayPayOrElse is opponent-pays-or-else pattern. Using simplified trigger.
+            // Opponent-draw filter applied.
+            // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverPlayerDrawsCard,
+                trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
+                    player_filter: Some(TargetController::Opponent),
+                },
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,
                 targets: vec![],

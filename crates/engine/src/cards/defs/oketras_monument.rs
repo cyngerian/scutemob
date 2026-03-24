@@ -15,11 +15,35 @@ pub fn card() -> CardDefinition {
         ),
         oracle_text: "White creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, create a 1/1 white Warrior creature token with vigilance.".to_string(),
         abilities: vec![
-            // TODO: Cost reduction only applies to white creature spells. DSL CostReduction
-            //   uses SpellsYouCast (all spells) with no color+type filter. Omitting to avoid
-            //   wrong game state (reducing non-white creature spells incorrectly).
-            // Warrior token trigger: WheneverYouCastSpell fires on any spell, not just creatures.
-            // TODO: WheneverYouCastSpell has no creature-only filter. Omitting per W5 policy.
+            // TODO: "White creature spells cost {1} less" — color+type cost reduction not in DSL.
+            // Whenever you cast a creature spell, create a 1/1 white Warrior token with vigilance.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Creature]),
+                    noncreature_only: false,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Warrior".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Warrior".to_string())].into_iter().collect(),
+                        colors: [Color::White].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: [KeywordAbility::Vigilance].into_iter().collect(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

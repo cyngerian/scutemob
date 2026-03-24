@@ -1607,6 +1607,10 @@ pub enum PlayerTarget {
     /// The owner of the specified permanent (used for bounce spells that say
     /// "return to its owner's hand", e.g. Cyclonic Rift — CR 108.3).
     OwnerOf(Box<EffectTarget>),
+    /// The player who triggered this ability (e.g., the discarding player in "that player loses 2 life"
+    /// patterns for discard/draw triggers). Resolved from PendingTrigger::triggering_player at
+    /// effect execution time.
+    TriggeringPlayer,
 }
 /// How an effect produces a numeric value.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1761,9 +1765,23 @@ pub enum TriggerCondition {
     /// "Whenever ~ deals combat damage to a player."
     WhenDealsCombatDamageToPlayer,
     /// "Whenever an opponent casts a spell."
-    WheneverOpponentCastsSpell,
-    /// "Whenever a player draws a card."
-    WheneverPlayerDrawsCard,
+    /// Optional spell_type_filter restricts to specific card types (e.g. creature, instant/sorcery).
+    /// noncreature_only=true restricts to noncreature spells.
+    WheneverOpponentCastsSpell {
+        /// Optional card type filter. None = any spell. Some(types) = spell must have at least one.
+        #[serde(default)]
+        spell_type_filter: Option<Vec<CardType>>,
+        /// If true, only fires on noncreature spells.
+        #[serde(default)]
+        noncreature_only: bool,
+    },
+    /// "Whenever a player draws a card" / "Whenever an opponent draws a card" (CR 603.2).
+    /// player_filter: None = any player, Some(Opponent) = opponents only, Some(You) = you only.
+    WheneverPlayerDrawsCard {
+        /// None = any player. Some(Opponent) = opponents only. Some(You) = controller only.
+        #[serde(default)]
+        player_filter: Option<TargetController>,
+    },
     /// "Whenever a creature dies" (with optional controller filter).
     ///
     /// - `controller: None` — fires on ANY creature dying (global).
@@ -1803,6 +1821,12 @@ pub enum TriggerCondition {
     WheneverYouCastSpell {
         /// If true, only fires during opponents' turns (not controller's own turn).
         during_opponent_turn: bool,
+        /// Optional card type filter. None = any spell. Some(types) = spell must have at least one.
+        #[serde(default)]
+        spell_type_filter: Option<Vec<CardType>>,
+        /// If true, only fires on noncreature spells.
+        #[serde(default)]
+        noncreature_only: bool,
     },
     /// "Whenever you gain life."
     WheneverYouGainLife,
@@ -1892,6 +1916,47 @@ pub enum TriggerCondition {
     /// a player (not a creature or planeswalker). The source creature must be on
     /// the battlefield when damage is dealt (NOT a look-back trigger).
     WheneverCreatureYouControlDealsCombatDamageToPlayer,
+    /// "Whenever you discard a card" (CR 701.9a).
+    ///
+    /// Fires when the controller of this permanent discards a card (moves from
+    /// hand to graveyard). Does NOT fire for opponent discards. Dispatched via
+    /// GameEvent::CardDiscarded → TriggerEvent::ControllerDiscards.
+    WheneverYouDiscard,
+    /// "Whenever an opponent discards a card" (CR 701.9a).
+    ///
+    /// Fires on permanents controlled by opponents of the discarding player.
+    /// Dispatched via GameEvent::CardDiscarded → TriggerEvent::OpponentDiscards.
+    WheneverOpponentDiscards,
+    /// "Whenever you sacrifice a permanent" (CR 701.21a).
+    ///
+    /// Optional filter restricts to specific permanent types (e.g., creature, Food, Treasure).
+    /// Dispatched via GameEvent::PermanentSacrificed → TriggerEvent::ControllerSacrifices.
+    WheneverYouSacrifice {
+        /// Optional filter restricts to permanents of specific types/subtypes.
+        /// None = any permanent.
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+        /// If Some(Any), fires for ANY player sacrificing (not just controller).
+        /// Used for "whenever a player sacrifices a permanent" patterns.
+        #[serde(default)]
+        player_filter: Option<TargetController>,
+    },
+    /// "Whenever you attack" -- fires once when controller declares one or more attackers.
+    ///
+    /// CR 508.1: fires at declare-attackers step, once per combat (not per creature).
+    /// Distinct from WheneverCreatureYouControlAttacks which fires per-creature.
+    WheneverYouAttack,
+    /// "When ~ leaves the battlefield" -- fires when this permanent leaves for any reason.
+    ///
+    /// CR 603.10a: looks back in time. Covers death, exile, bounce, and sacrifice.
+    /// Dispatched via CreatureDied/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand
+    /// → TriggerEvent::SelfLeavesBattlefield.
+    WhenLeavesBattlefield,
+    /// "When you cast this spell" -- fires when the spell is put on the stack (CR 603.2).
+    ///
+    /// Unlike WhenEntersBattlefield, this fires from the stack BEFORE resolution.
+    /// The triggered ability goes above the spell on the stack and resolves first.
+    WhenYouCastThisSpell,
 }
 // ── Conditions ────────────────────────────────────────────────────────────────
 /// A boolean condition checked at trigger time or in Conditional effects (CR 603.4).

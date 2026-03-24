@@ -18,8 +18,9 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Whenever you attack" trigger not in DSL (WheneverYouAttack missing).
-            // TODO: Type addition + granting triggered abilities to target not expressible.
+            // TODO: "Whenever you attack" effect (type change + grant trigger to target) not expressible in DSL.
+            // WheneverYouAttack trigger condition is now available but the effect requires
+            // type-addition + granting triggered abilities which aren't in the DSL.
         ],
         ..Default::default()
     }

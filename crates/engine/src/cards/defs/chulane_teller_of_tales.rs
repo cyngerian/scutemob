@@ -20,10 +20,22 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // TODO: "Whenever you cast a creature spell" — WheneverYouCastSpell lacks
-            // spell-type filter. Would need draw + optional land-from-hand-to-battlefield.
+            // Whenever you cast a creature spell, draw a card.
+            // TODO: "then you may put a land card from your hand onto the battlefield" — partial.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Creature]),
+                    noncreature_only: false,
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // TODO: "{3}, {T}: Return target creature you control to its owner's hand."
-            // Requires targeted activated ability with MoveZone to hand.
         ],
         ..Default::default()
     }

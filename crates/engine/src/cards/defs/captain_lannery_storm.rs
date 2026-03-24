@@ -25,7 +25,27 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "Whenever you sacrifice a Treasure" trigger not in DSL.
+            // Whenever you sacrifice a Treasure, get +1/+0 until end of turn.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Treasure".to_string())),
+                        ..Default::default()
+                    }),
+                    player_filter: None,
+                },
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(1),
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

@@ -20,9 +20,12 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             // TODO: +1/+0 per artifact CDA — see comment above
+            // Magecraft — instant/sorcery filter applied. "or copy" half is a known gap.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
+                    noncreature_only: false,
                 },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),

@@ -24,9 +24,12 @@ pub fn card() -> CardDefinition {
             //   There's no CantBeCountered keyword; this is a static ability of the spell.
             // TODO: "No maximum hand size" static not in DSL.
             // Whenever an opponent casts a noncreature spell, draw a card
-            // TODO: WheneverOpponentCastsSpell lacks spell-type filter (noncreature only).
+            // Noncreature filter applied.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverOpponentCastsSpell,
+                trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
+                    spell_type_filter: None,
+                    noncreature_only: true,
+                },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

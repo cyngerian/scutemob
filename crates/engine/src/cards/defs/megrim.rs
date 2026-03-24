@@ -13,7 +13,19 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever an opponent discards a card, this enchantment deals 2 damage to that player.".to_string(),
-        abilities: vec![],
+        abilities: vec![
+            // Whenever an opponent discards a card, deal 2 damage to that player.
+            // Using LoseLife as approximation (damage vs life-loss semantic difference minor).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverOpponentDiscards,
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::TriggeringPlayer,
+                    amount: EffectAmount::Fixed(2),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+        ],
         ..Default::default()
     }
 }

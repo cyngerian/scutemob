@@ -37,14 +37,15 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // CR 725.2 / CR 701.12a: "Whenever you attack, target attacking creature
-            // (of subtype Cleric/Rogue/Warrior/Wizard) gains protection from creatures
-            // until end of turn. It explores."
-            // TODO: TriggerCondition::WheneverYouAttack (fires when controller declares
-            // any attacker, not just when this creature attacks). WhenAttacks used as
-            // approximation — fires only when Seasoned Dungeoneer itself attacks.
-            // TODO: Effect::GrantProtection with creature-type targeting and Effect::Explore
-            // are not yet in the DSL. Full effect deferred to M10+.
+            // Whenever you attack, venture into the dungeon.
+            // TODO: Complex effect (protection + explore on targeted creature) deferred.
+            // Using WheneverYouAttack + VentureIntoDungeon as partial approximation.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouAttack,
+                effect: Effect::VentureIntoDungeon,
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         color_indicator: None,
         back_face: None,

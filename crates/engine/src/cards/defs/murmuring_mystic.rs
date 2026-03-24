@@ -13,8 +13,34 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(5),
         abilities: vec![
-            // TODO: WheneverYouCastSpell lacks spell-type filter (instant/sorcery only).
-            //   Overbroad trigger would create tokens on creature spells too — removed.
+            // Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird Illusion token with flying.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
+                    noncreature_only: false,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Bird Illusion".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Bird".to_string()), SubType("Illusion".to_string())].into_iter().collect(),
+                        colors: [Color::Blue].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: [KeywordAbility::Flying].into_iter().collect(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

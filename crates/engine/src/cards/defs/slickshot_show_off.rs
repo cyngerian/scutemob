@@ -21,10 +21,25 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: Triggered ability "Whenever you cast a noncreature spell, this creature
-            // gets +2/+0 until end of turn" requires a spell-type filter on
-            // WheneverYouCastSpell (or a dedicated TriggerCondition variant). Omitted
-            // until DSL supports noncreature-spell filtering.
+            // Whenever you cast a noncreature spell, gets +2/+0 until end of turn.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: None,
+                    noncreature_only: true,
+                },
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(2),
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Plot),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Plot,

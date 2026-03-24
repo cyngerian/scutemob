@@ -30,8 +30,19 @@ pub fn card() -> CardDefinition {
                     condition: Some(Condition::IsYourTurn),
                 },
             },
-            // TODO: "Whenever an opponent draws a card, this creature deals 1 damage to them."
-            // DSL gap: no WheneverOpponentDrawsCard TriggerCondition variant.
+            // Whenever an opponent draws a card, deal 1 damage to them.
+            // Using LoseLife as approximation for "deals 1 damage."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
+                    player_filter: Some(TargetController::Opponent),
+                },
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::TriggeringPlayer,
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

@@ -2,13 +2,7 @@
 // Partner with Pir, Imaginative Rascal (ETB trigger handled by PartnerWith keyword).
 // "Whenever you draw a card, put a +1/+1 counter on Toothy." — triggered ability.
 // "When Toothy leaves the battlefield, draw a card for each +1/+1 counter on it." — triggered.
-// TODO: Draw-triggered counter ability — TriggerCondition::WheneverYouDrawACard does not yet
-// exist in the DSL. Requires a new TriggerCondition variant and Effect::PutCountersOnSelf
-// (or targeting self). Until those variants exist, this ability is omitted.
-// TODO: Leaves-the-battlefield draw trigger — TriggerCondition::WhenLeavesBattlefield does
-// not yet exist in the DSL. Requires a new TriggerCondition variant and
-// Effect::DrawCards { count: EffectAmount::CounterCountOnSelf { kind: CounterKind::PlusOnePlusOne } }.
-// Until those variants exist, this ability is omitted.
+// Both WheneverYouDrawACard and WhenLeavesBattlefield are now implemented (PB-26).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,11 +25,31 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::PartnerWith(
                 "Pir, Imaginative Rascal".to_string(),
             )),
-            // TODO: Draw-triggered +1/+1 counter — requires TriggerCondition::WheneverYouDrawACard
-            // and Effect::PutCountersOnSelf (not yet in DSL).
-            // TODO: Leaves-the-battlefield draw trigger — requires
-            // TriggerCondition::WhenLeavesBattlefield and
-            // Effect::DrawCards with EffectAmount::CounterCountOnSelf (not yet in DSL).
+            // Whenever you draw a card, put a +1/+1 counter on Toothy.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouDrawACard,
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // When Toothy leaves the battlefield, draw a card for each +1/+1 counter on it.
+            // Note: LKI — source is in graveyard/exile but counter count is preserved by move_object_to_zone.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenLeavesBattlefield,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::CounterCount {
+                        target: EffectTarget::Source,
+                        counter: CounterType::PlusOnePlusOne,
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

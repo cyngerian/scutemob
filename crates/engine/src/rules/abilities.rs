@@ -19,7 +19,7 @@
 //! resolution time (ability has no effect if condition became false).
 use super::casting;
 use super::events::{CombatDamageTarget, GameEvent};
-use crate::cards::card_definition::AbilityDefinition;
+use crate::cards::card_definition::{AbilityDefinition, TargetController, TriggerCondition};
 use crate::state::error::GameStateError;
 use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
 use crate::state::player::{CardId, PlayerId};
@@ -243,6 +243,7 @@ pub fn handle_activate_ability(
                 last_effect_count: 0,
                 last_dice_roll: 0,
                 last_created_permanent: None,
+                triggering_player: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -540,6 +541,12 @@ pub fn handle_activate_ability(
                 new_grave_id: new_id,
             });
         }
+        // CR 701.21a: PermanentSacrificed alongside death/destroy for sacrifice cost.
+        events.push(GameEvent::PermanentSacrificed {
+            player: pre_death_controller,
+            object_id: source,
+            new_id,
+        });
     }
     // CR 602.2: Pay sacrifice-another-permanent cost (e.g., "Sacrifice a creature: ...").
     // The caller supplies the ObjectId of the permanent to sacrifice via `sacrifice_target`.
@@ -620,6 +627,12 @@ pub fn handle_activate_ability(
                 new_grave_id: new_id,
             });
         }
+        // CR 701.21a: PermanentSacrificed alongside death/destroy for sacrifice cost.
+        events.push(GameEvent::PermanentSacrificed {
+            player: pre_death_controller,
+            object_id: sac_id,
+            new_id,
+        });
     }
     // CR 701.61a: Pay forage cost — "Exile three cards from your graveyard or sacrifice a Food."
     // Deterministic fallback (M9.5): prefer Food sacrifice when both options are available.
@@ -3027,6 +3040,127 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     TriggerEvent::ControllerCastsSpell,
                     Some(*player),
                 );
+                // G-4: spell_type_filter post-processing for ControllerCastsSpell and
+                // OpponentCastsSpell triggers that have a WheneverYouCastSpell or
+                // WheneverOpponentCastsSpell CardDef with a spell_type_filter/noncreature_only.
+                // Get the cast spell's card types from the stack object.
+                {
+                    let spell_card_types: Vec<crate::state::types::CardType> = state
+                        .objects
+                        .get(source_object_id)
+                        .map(|obj| obj.characteristics.card_types.iter().cloned().collect())
+                        .unwrap_or_default();
+                    let spell_is_creature =
+                        spell_card_types.contains(&crate::state::types::CardType::Creature);
+                    // Retain only triggers whose spell_type_filter matches.
+                    triggers.retain(|t| {
+                        // Only post-filter ControllerCastsSpell and OpponentCastsSpell triggers.
+                        let te = t.triggering_event.as_ref();
+                        if te != Some(&TriggerEvent::ControllerCastsSpell)
+                            && te != Some(&TriggerEvent::OpponentCastsSpell)
+                        {
+                            return true;
+                        }
+                        // Look up the trigger source's CardDef triggered ability.
+                        let source_card_id =
+                            state.objects.get(&t.source).and_then(|o| o.card_id.clone());
+                        let def = source_card_id.and_then(|cid| state.card_registry.get(cid));
+                        let Some(def) = def else { return true };
+                        // Find the matching ability in the CardDef.
+                        let ability = def.abilities.get(t.ability_index);
+                        let Some(ability) = ability else { return true };
+                        match ability {
+                            AbilityDefinition::Triggered {
+                                trigger_condition:
+                                    TriggerCondition::WheneverYouCastSpell {
+                                        spell_type_filter,
+                                        noncreature_only,
+                                        ..
+                                    },
+                                ..
+                            } => {
+                                if *noncreature_only && spell_is_creature {
+                                    return false;
+                                }
+                                if let Some(filter) = spell_type_filter {
+                                    if !filter.iter().any(|ft: &crate::state::types::CardType| {
+                                        spell_card_types.contains(ft)
+                                    }) {
+                                        return false;
+                                    }
+                                }
+                                true
+                            }
+                            AbilityDefinition::Triggered {
+                                trigger_condition:
+                                    TriggerCondition::WheneverOpponentCastsSpell {
+                                        spell_type_filter,
+                                        noncreature_only,
+                                    },
+                                ..
+                            } => {
+                                if *noncreature_only && spell_is_creature {
+                                    return false;
+                                }
+                                if let Some(filter) = spell_type_filter {
+                                    if !filter.iter().any(|ft: &crate::state::types::CardType| {
+                                        spell_card_types.contains(ft)
+                                    }) {
+                                        return false;
+                                    }
+                                }
+                                true
+                            }
+                            _ => true,
+                        }
+                    });
+                }
+                // G-15: WhenYouCastThisSpell — fires when the spell itself is put on the stack.
+                // The trigger source is the stack object (source_object_id).
+                // Look up the spell's CardDef for WhenYouCastThisSpell triggered abilities.
+                if let Some(stack_obj) = state.objects.get(source_object_id) {
+                    let caster = stack_obj.controller;
+                    if let Some(card_id) = stack_obj.card_id.clone() {
+                        if let Some(def) = state.card_registry.get(card_id) {
+                            for (idx, ability) in def.abilities.iter().enumerate() {
+                                if let AbilityDefinition::Triggered {
+                                    trigger_condition: TriggerCondition::WhenYouCastThisSpell,
+                                    ..
+                                } = ability
+                                {
+                                    // Push the cast-trigger using the stack object as source.
+                                    // Condition check (if any) is deferred to resolution.
+                                    triggers.push(PendingTrigger {
+                                        source: *source_object_id,
+                                        ability_index: idx,
+                                        controller: caster,
+                                        kind: PendingTriggerKind::Normal,
+                                        triggering_event: None,
+                                        entering_object_id: None,
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        ingest_target_player: None,
+                                        flanking_blocker_id: None,
+                                        rampage_n: None,
+                                        renown_n: None,
+                                        poisonous_n: None,
+                                        poisonous_target_player: None,
+                                        enlist_enlisted_creature: None,
+                                        recover_cost: None,
+                                        recover_card: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
+                                        data: None,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
             }
             GameEvent::PermanentTapped { object_id, .. } => {
                 // SelfBecomesTapped: fires on the tapped permanent itself.
@@ -3375,6 +3509,30 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         t.exalted_attacker_id = Some(*lone_attacker_id);
                     }
                 }
+                // CR 508.1: WheneverYouAttack — fires once when controller declares one or
+                // more attackers. Fires per player (not per creature), so runs once outside
+                // the per-attacker loop above.
+                if !attackers.is_empty() {
+                    let controller_sources: Vec<ObjectId> = state
+                        .objects
+                        .values()
+                        .filter(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == *attacking_player
+                        })
+                        .map(|obj| obj.id)
+                        .collect();
+                    for obj_id in controller_sources {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::ControllerAttacks,
+                            Some(obj_id),
+                            None,
+                        );
+                    }
+                }
             }
             GameEvent::BlockersDeclared {
                 blockers,
@@ -3618,6 +3776,35 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_event: Some(TriggerEvent::SelfDies),
                             data,
                             ..PendingTrigger::blank(*new_grave_id, *death_controller, kind)
+                        });
+                    }
+                }
+                // CR 603.10a: SelfLeavesBattlefield — fires on the dead creature (LKI).
+                // Check graveyard object for WhenLeavesBattlefield triggers.
+                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                    let controller = *death_controller;
+                    for (idx, trigger_def) in dead_obj
+                        .characteristics
+                        .triggered_abilities
+                        .iter()
+                        .enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfLeavesBattlefield {
+                            continue;
+                        }
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, controller, None) {
+                                continue;
+                            }
+                        }
+                        triggers.push(PendingTrigger {
+                            ability_index: idx,
+                            triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            ..PendingTrigger::blank(
+                                *new_grave_id,
+                                controller,
+                                PendingTriggerKind::Normal,
+                            )
                         });
                     }
                 }
@@ -3866,7 +4053,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
                     {
-                        if trigger_def.trigger_on != TriggerEvent::SelfDies {
+                        // Fire both SelfDies and SelfLeavesBattlefield triggers.
+                        if trigger_def.trigger_on != TriggerEvent::SelfDies
+                            && trigger_def.trigger_on != TriggerEvent::SelfLeavesBattlefield
+                        {
                             continue;
                         }
                         // CR 603.4: Check intervening-if clause at trigger time.
@@ -3875,12 +4065,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 continue;
                             }
                         }
+                        let event = trigger_def.trigger_on.clone();
                         triggers.push(PendingTrigger {
                             source: *new_grave_id,
                             ability_index: idx,
                             controller,
                             kind: PendingTriggerKind::Normal,
-                            triggering_event: Some(TriggerEvent::SelfDies),
+                            triggering_event: Some(event),
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
@@ -4404,6 +4595,34 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
+                // CR 603.10a: SelfLeavesBattlefield LTB trigger (look-back via graveyard object).
+                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                    let controller = dead_obj.controller;
+                    for (idx, trigger_def) in dead_obj
+                        .characteristics
+                        .triggered_abilities
+                        .iter()
+                        .enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfLeavesBattlefield {
+                            continue;
+                        }
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, controller, None) {
+                                continue;
+                            }
+                        }
+                        triggers.push(PendingTrigger {
+                            ability_index: idx,
+                            triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            ..PendingTrigger::blank(
+                                *new_grave_id,
+                                controller,
+                                PendingTriggerKind::Normal,
+                            )
+                        });
+                    }
+                }
             }
             // CR 702.72a: Champion LTB trigger -- when the champion permanent is exiled,
             // check champion_exiled_card on the exile-zone object.
@@ -4423,6 +4642,34 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
+                // CR 603.10a: SelfLeavesBattlefield LTB trigger on exile (look-back via exile object).
+                if let Some(exiled_obj) = state.objects.get(new_exile_id) {
+                    let controller = exiled_obj.controller;
+                    for (idx, trigger_def) in exiled_obj
+                        .characteristics
+                        .triggered_abilities
+                        .iter()
+                        .enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfLeavesBattlefield {
+                            continue;
+                        }
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, controller, None) {
+                                continue;
+                            }
+                        }
+                        triggers.push(PendingTrigger {
+                            ability_index: idx,
+                            triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            ..PendingTrigger::blank(
+                                *new_exile_id,
+                                controller,
+                                PendingTriggerKind::Normal,
+                            )
+                        });
+                    }
+                }
             }
             // CR 702.72a: Champion LTB trigger -- when the champion permanent bounces to hand,
             // check champion_exiled_card on the hand object.
@@ -4438,6 +4685,34 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 *new_hand_id,
                                 champion_controller,
                                 PendingTriggerKind::ChampionLTB,
+                            )
+                        });
+                    }
+                }
+                // CR 603.10a: SelfLeavesBattlefield LTB trigger on bounce (look-back via hand object).
+                if let Some(hand_obj) = state.objects.get(new_hand_id) {
+                    let controller = hand_obj.controller;
+                    for (idx, trigger_def) in hand_obj
+                        .characteristics
+                        .triggered_abilities
+                        .iter()
+                        .enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfLeavesBattlefield {
+                            continue;
+                        }
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, controller, None) {
+                                continue;
+                            }
+                        }
+                        triggers.push(PendingTrigger {
+                            ability_index: idx,
+                            triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            ..PendingTrigger::blank(
+                                *new_hand_id,
+                                controller,
+                                PendingTriggerKind::Normal,
                             )
                         });
                     }
@@ -4586,6 +4861,298 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 data: None,
                             });
                         }
+                    }
+                }
+            }
+            // CR 603.2: "Whenever you draw a card" / "Whenever a player draws a card"
+            // dispatch. Fires ControllerDrawsCard, OpponentDrawsCard, AnyPlayerDrawsCard.
+            GameEvent::CardDrawn { player, .. } => {
+                // ControllerDrawsCard: fire on permanents controlled by the drawing player.
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerDrawsCard,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+                // OpponentDrawsCard: fire on permanents controlled by opponents.
+                let opponent_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller != *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                for obj_id in opponent_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::OpponentDrawsCard,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+                // AnyPlayerDrawsCard: fire on all permanents.
+                collect_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::AnyPlayerDrawsCard,
+                    None,
+                    None,
+                );
+            }
+            // CR 603.2 / CR 118.4: "Whenever you gain life" dispatch.
+            // Fires ControllerGainsLife on permanents controlled by the gaining player.
+            GameEvent::LifeGained { player, .. } => {
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerGainsLife,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+            }
+            // CR 701.9a: Discard trigger dispatch.
+            // Fires ControllerDiscards on controller's permanents and OpponentDiscards on opponents'.
+            GameEvent::CardDiscarded { player, .. } => {
+                // ControllerDiscards: fire on permanents controlled by the discarding player.
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerDiscards,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+                // OpponentDiscards: fire on permanents controlled by opponents.
+                let opponent_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller != *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                let pre_len = triggers.len();
+                for obj_id in opponent_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::OpponentDiscards,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+                // Tag with triggering player so effects can reference "that player".
+                for t in &mut triggers[pre_len..] {
+                    t.triggering_player = Some(*player);
+                }
+            }
+            // CR 701.21a: Sacrifice trigger dispatch.
+            // Fires ControllerSacrifices on permanents controlled by the sacrificing player.
+            GameEvent::PermanentSacrificed { player, new_id, .. } => {
+                // ControllerSacrifices: fire on permanents controlled by the sacrificing player.
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                let pre_len = triggers.len();
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerSacrifices,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+                // Also fire on ALL battlefield permanents for "any player sacrifices" pattern.
+                // This handles WheneverYouSacrifice { player_filter: Some(TargetController::Any) }.
+                let all_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller != *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                for obj_id in all_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerSacrifices,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+                // Tag all sacrifice triggers with triggering player.
+                for t in &mut triggers[pre_len..] {
+                    t.triggering_player = Some(*player);
+                }
+                // Post-filter: check WheneverYouSacrifice.filter and player_filter against
+                // the sacrificed object (looked up from its new zone via new_id).
+                {
+                    let sacrificed_card_id =
+                        state.objects.get(new_id).and_then(|o| o.card_id.clone());
+                    let sacrificed_types: Vec<crate::state::types::CardType> = state
+                        .objects
+                        .get(new_id)
+                        .map(|o| o.characteristics.card_types.iter().cloned().collect())
+                        .unwrap_or_default();
+                    let sacrificed_subtypes: im::OrdSet<crate::state::types::SubType> = state
+                        .objects
+                        .get(new_id)
+                        .map(|o| o.characteristics.subtypes.clone())
+                        .unwrap_or_default();
+                    let sacrificed_is_token = state.objects.get(new_id).is_some_and(|o| o.is_token);
+                    let _ = sacrificed_card_id;
+                    let _ = sacrificed_is_token;
+                    triggers.retain(|t| {
+                        // Only post-filter ControllerSacrifices triggers.
+                        if t.triggering_event.as_ref() != Some(&TriggerEvent::ControllerSacrifices)
+                            && t.triggering_player != Some(*player)
+                        {
+                            return true;
+                        }
+                        // Look up the trigger source's CardDef triggered ability.
+                        let source_card_id =
+                            state.objects.get(&t.source).and_then(|o| o.card_id.clone());
+                        let def = source_card_id.and_then(|cid| state.card_registry.get(cid));
+                        let Some(def) = def else { return true };
+                        let ability = def.abilities.get(t.ability_index);
+                        let Some(ability) = ability else { return true };
+                        match ability {
+                            AbilityDefinition::Triggered {
+                                trigger_condition:
+                                    TriggerCondition::WheneverYouSacrifice {
+                                        filter,
+                                        player_filter,
+                                    },
+                                ..
+                            } => {
+                                // player_filter check: if Some(You), only fire for controller.
+                                // If Some(Any), fire for any player (no filter).
+                                let trigger_source_controller = state
+                                    .objects
+                                    .get(&t.source)
+                                    .map(|o| o.controller)
+                                    .unwrap_or(*player);
+                                if let Some(pf) = player_filter {
+                                    match pf {
+                                        TargetController::You => {
+                                            // Must be the trigger source's controller who sacrificed.
+                                            if t.triggering_player
+                                                != Some(trigger_source_controller)
+                                            {
+                                                return false;
+                                            }
+                                        }
+                                        TargetController::Opponent => {
+                                            // Must be an opponent of the trigger source's controller.
+                                            if t.triggering_player
+                                                == Some(trigger_source_controller)
+                                            {
+                                                return false;
+                                            }
+                                        }
+                                        TargetController::Any => {} // No filter
+                                    }
+                                } else {
+                                    // Default: only fire when the controller sacrificed (you only).
+                                    if t.triggering_player != Some(trigger_source_controller) {
+                                        return false;
+                                    }
+                                }
+                                // filter check: sacrificed object must match type filter.
+                                if let Some(ref tf) = filter {
+                                    if let Some(required_type) = &tf.has_card_type {
+                                        if !sacrificed_types.contains(required_type) {
+                                            return false;
+                                        }
+                                    }
+                                    if let Some(required_subtype) = &tf.has_subtype {
+                                        if !sacrificed_subtypes.contains(required_subtype) {
+                                            return false;
+                                        }
+                                    }
+                                }
+                                true
+                            }
+                            _ => true,
+                        }
+                    });
+                }
+                // SelfLeavesBattlefield: fire on the sacrificed object (LKI in graveyard/exile).
+                // CR 603.10a: look-back trigger — check graveyard/exile object.
+                if let Some(gone_obj) = state.objects.get(new_id) {
+                    let controller = gone_obj.controller;
+                    for (idx, trigger_def) in gone_obj
+                        .characteristics
+                        .triggered_abilities
+                        .iter()
+                        .enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfLeavesBattlefield {
+                            continue;
+                        }
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, controller, None) {
+                                continue;
+                            }
+                        }
+                        triggers.push(PendingTrigger {
+                            ability_index: idx,
+                            triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            ..PendingTrigger::blank(*new_id, controller, PendingTriggerKind::Normal)
+                        });
                     }
                 }
             }

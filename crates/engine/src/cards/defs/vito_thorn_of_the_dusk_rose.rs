@@ -22,6 +22,17 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
+            // Whenever you gain life, target opponent loses 1 life.
+            // TODO: "that much life" — needs EffectAmount::TriggeringAmount. Using Fixed(1) as partial.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouGainLife,
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::EachOpponent,
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // "{3}{B}{B}: Creatures you control gain lifelink until end of turn."
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 3, black: 2, ..Default::default() }),

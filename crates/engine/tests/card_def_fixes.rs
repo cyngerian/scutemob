@@ -562,6 +562,7 @@ fn test_alela_opponent_turn_only() {
         trigger_condition:
             TriggerCondition::WheneverYouCastSpell {
                 during_opponent_turn,
+                ..
             },
         ..
     }) = cast_spell_trigger

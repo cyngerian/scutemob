@@ -27,6 +27,19 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
+            // Whenever an opponent draws a card, that player loses 1 life.
+            // TriggeringPlayer will be the drawing opponent.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
+                    player_filter: Some(TargetController::Opponent),
+                },
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::TriggeringPlayer,
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

@@ -13,11 +13,12 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: "Red creature spells cost {1} less" — color+type cost reduction not in DSL.
             // TODO: "may discard, if you do draw" — optional loot on cast trigger.
-            //   WheneverYouCastSpell lacks spell-type filter. Using unfiltered cast trigger
-            //   with draw only (no loot).
+            // Creature spell filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Creature]),
+                    noncreature_only: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

@@ -24,10 +24,16 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: WhenLeavesBattlefield trigger condition not yet implemented in DSL.
-            // The second half of "When this creature enters or leaves the battlefield,
-            // you gain 2 life" cannot be expressed until TriggerCondition::WhenLeavesBattlefield
-            // is added. Add a second Triggered ability here when that variant exists.
+            // When this creature leaves the battlefield, you gain 2 life. (CR 603.10a)
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenLeavesBattlefield,
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(2),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         color_indicator: None,
         back_face: None,

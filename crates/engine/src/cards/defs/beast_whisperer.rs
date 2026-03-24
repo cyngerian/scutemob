@@ -12,12 +12,12 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
-            // TODO: WheneverYouCastSpell has no spell-type filter field
-            //   (only has during_opponent_turn). Using unfiltered trigger as
-            //   approximation (fires on all spells, not just creature spells).
+            // Creature spell filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Creature]),
+                    noncreature_only: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

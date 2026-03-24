@@ -20,7 +20,23 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Sacrifice triggers not in DSL.
+            // TODO: "At the beginning of your upkeep, sacrifice a creature" — forced sacrifice not expressible.
+            // Whenever you sacrifice a creature, draw a card.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                    player_filter: None,
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

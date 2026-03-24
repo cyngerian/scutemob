@@ -1168,6 +1168,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                 });
                                             }
                                         }
+                                        // CR 701.21a: PermanentSacrificed for devour cost.
+                                        events.push(GameEvent::PermanentSacrificed {
+                                            player: entering_controller,
+                                            object_id: sac_id,
+                                            new_id: new_grave_id,
+                                        });
                                         sacrifice_count += 1;
                                     }
                                 }
@@ -1180,6 +1186,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             new_grave_id,
                                             controller: pre_death_controller,
                                             pre_death_counters,
+                                        });
+                                        // CR 701.21a: PermanentSacrificed for devour cost.
+                                        events.push(GameEvent::PermanentSacrificed {
+                                            player: entering_controller,
+                                            object_id: sac_id,
+                                            new_id: new_grave_id,
                                         });
                                         sacrifice_count += 1;
                                     }
@@ -1197,6 +1209,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             new_grave_id,
                                             controller: pre_death_controller,
                                             pre_death_counters,
+                                        });
+                                        // CR 701.21a: PermanentSacrificed for devour cost.
+                                        events.push(GameEvent::PermanentSacrificed {
+                                            player: entering_controller,
+                                            object_id: sac_id,
+                                            new_id: new_grave_id,
                                         });
                                         sacrifice_count += 1;
                                     }

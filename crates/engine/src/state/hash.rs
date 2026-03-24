@@ -1801,6 +1801,24 @@ impl HashInto for TriggerEvent {
             TriggerEvent::AnyCreatureYouControlAttacks => 29u8.hash_into(hasher),
             // CR 510.3a: fires on all battlefield permanents when any creature you control deals combat damage to a player — discriminant 30
             TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer => 30u8.hash_into(hasher),
+            // CR 701.9a: controller-discards trigger — discriminant 31
+            TriggerEvent::ControllerDiscards => 31u8.hash_into(hasher),
+            // CR 701.9a: opponent-discards trigger — discriminant 32
+            TriggerEvent::OpponentDiscards => 32u8.hash_into(hasher),
+            // CR 701.21a: controller-sacrifices trigger — discriminant 33
+            TriggerEvent::ControllerSacrifices => 33u8.hash_into(hasher),
+            // CR 508.1: controller-attacks trigger — discriminant 34
+            TriggerEvent::ControllerAttacks => 34u8.hash_into(hasher),
+            // CR 603.10a: self-leaves-battlefield trigger — discriminant 35
+            TriggerEvent::SelfLeavesBattlefield => 35u8.hash_into(hasher),
+            // CR 603.2: controller-draws-card trigger — discriminant 36
+            TriggerEvent::ControllerDrawsCard => 36u8.hash_into(hasher),
+            // CR 603.2: any-player-draws-card trigger — discriminant 37
+            TriggerEvent::AnyPlayerDrawsCard => 37u8.hash_into(hasher),
+            // CR 603.2: opponent-draws-card trigger — discriminant 38
+            TriggerEvent::OpponentDrawsCard => 38u8.hash_into(hasher),
+            // CR 603.2: controller-gains-life trigger — discriminant 39
+            TriggerEvent::ControllerGainsLife => 39u8.hash_into(hasher),
         }
     }
 }
@@ -3639,6 +3657,17 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 object_id.hash_into(hasher);
             }
+            // PermanentSacrificed -- CR 701.21a (discriminant 125)
+            GameEvent::PermanentSacrificed {
+                player,
+                object_id,
+                new_id,
+            } => {
+                125u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -3773,6 +3802,8 @@ impl HashInto for PlayerTarget {
                 5u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
+            // CR 603.2: TriggeringPlayer — the player who triggered this ability.
+            PlayerTarget::TriggeringPlayer => 6u8.hash_into(hasher),
         }
     }
 }
@@ -3898,8 +3929,18 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenAttacks => 2u8.hash_into(hasher),
             TriggerCondition::WhenBlocks => 3u8.hash_into(hasher),
             TriggerCondition::WhenDealsCombatDamageToPlayer => 4u8.hash_into(hasher),
-            TriggerCondition::WheneverOpponentCastsSpell => 5u8.hash_into(hasher),
-            TriggerCondition::WheneverPlayerDrawsCard => 6u8.hash_into(hasher),
+            TriggerCondition::WheneverOpponentCastsSpell {
+                spell_type_filter,
+                noncreature_only,
+            } => {
+                5u8.hash_into(hasher);
+                spell_type_filter.hash_into(hasher);
+                noncreature_only.hash_into(hasher);
+            }
+            TriggerCondition::WheneverPlayerDrawsCard { player_filter } => {
+                6u8.hash_into(hasher);
+                player_filter.hash_into(hasher);
+            }
             TriggerCondition::WheneverCreatureDies {
                 controller,
                 exclude_self,
@@ -3924,9 +3965,13 @@ impl HashInto for TriggerCondition {
             TriggerCondition::AtBeginningOfCombat => 13u8.hash_into(hasher),
             TriggerCondition::WheneverYouCastSpell {
                 during_opponent_turn,
+                spell_type_filter,
+                noncreature_only,
             } => {
                 14u8.hash_into(hasher);
                 during_opponent_turn.hash_into(hasher);
+                spell_type_filter.hash_into(hasher);
+                noncreature_only.hash_into(hasher);
             }
             TriggerCondition::WheneverYouGainLife => 15u8.hash_into(hasher),
             TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
@@ -3957,6 +4002,25 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer => {
                 29u8.hash_into(hasher)
             }
+            // CR 701.9a: "Whenever you discard a card" — discriminant 30
+            TriggerCondition::WheneverYouDiscard => 30u8.hash_into(hasher),
+            // CR 701.9a: "Whenever an opponent discards a card" — discriminant 31
+            TriggerCondition::WheneverOpponentDiscards => 31u8.hash_into(hasher),
+            // CR 701.21a: "Whenever you sacrifice a permanent" — discriminant 32
+            TriggerCondition::WheneverYouSacrifice {
+                filter,
+                player_filter,
+            } => {
+                32u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                player_filter.hash_into(hasher);
+            }
+            // CR 508.1: "Whenever you attack" — discriminant 33
+            TriggerCondition::WheneverYouAttack => 33u8.hash_into(hasher),
+            // CR 603.10a: "When ~ leaves the battlefield" — discriminant 34
+            TriggerCondition::WhenLeavesBattlefield => 34u8.hash_into(hasher),
+            // CR 603.2: "When you cast this spell" — discriminant 35
+            TriggerCondition::WhenYouCastThisSpell => 35u8.hash_into(hasher),
         }
     }
 }

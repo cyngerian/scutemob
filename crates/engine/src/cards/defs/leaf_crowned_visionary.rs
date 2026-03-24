@@ -23,8 +23,22 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: "Whenever you cast an Elf spell, may pay {G}" — WheneverYouCastSpell
-            //   lacks spell-type filter + optional payment. Removed to avoid wrong game state.
+            // Whenever you cast a creature spell, draw a card.
+            // TODO: "Elf spell" subtype filter and "may pay {G}" not in DSL.
+            // Using creature spell as approximation.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Creature]),
+                    noncreature_only: false,
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

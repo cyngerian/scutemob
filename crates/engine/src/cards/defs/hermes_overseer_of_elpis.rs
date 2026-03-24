@@ -22,7 +22,37 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever you cast a noncreature spell, create a 1/1 blue Bird creature token with flying and vigilance.\nWhenever you attack with one or more Birds, scry 2.".to_string(),
         power: Some(2),
         toughness: Some(4),
-        abilities: vec![],
+        abilities: vec![
+            // Whenever you cast a noncreature spell, create a 1/1 blue Bird token with flying and vigilance.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: None,
+                    noncreature_only: true,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Bird".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Bird".to_string())].into_iter().collect(),
+                        colors: [Color::Blue].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: [KeywordAbility::Flying, KeywordAbility::Vigilance].into_iter().collect(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "Whenever you attack with one or more Birds, scry 2" — no subtype filter on attackers.
+        ],
         ..Default::default()
     }
 }

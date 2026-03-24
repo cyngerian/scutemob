@@ -25,10 +25,16 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetPlayer],
             },
-            // TODO: "Whenever an opponent discards a card, that player loses 2 life."
-            // Requires TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL.
-            // The "that player" reference also needs discard trigger target passing.
-            // This ability omitted per W5 policy.
+            // Whenever an opponent discards a card, that player loses 2 life.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverOpponentDiscards,
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::TriggeringPlayer,
+                    amount: EffectAmount::Fixed(2),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

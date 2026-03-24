@@ -1,8 +1,7 @@
 // Sram, Senior Edificer — {1}{W}, Legendary Creature — Dwarf Advisor 2/2
 // Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.
 //
-// TODO: WheneverYouCastSpell lacks spell-type filter (Aura/Equipment/Vehicle).
-//   Using unfiltered cast trigger as approximation.
+// TODO: Aura/Equipment/Vehicle subtype filter on spells not in DSL. Using unfiltered trigger.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,9 +14,13 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
+            // TODO: Aura/Equipment/Vehicle subtype filter on spells not in DSL.
+            // Using unfiltered cast trigger as approximation.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: None,
+                    noncreature_only: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

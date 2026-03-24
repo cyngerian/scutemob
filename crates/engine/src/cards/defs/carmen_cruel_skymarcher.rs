@@ -20,8 +20,28 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — "Whenever a player sacrifices a permanent" trigger condition.
-            // TODO: DSL gap — attack trigger returning permanent from GY with dynamic MV filter.
+            // Whenever a player sacrifices a permanent, put +1/+1 counter and gain 1 life.
+            // player_filter: Any = fires for all players (the dispatch already sends for any player).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: None,
+                    player_filter: Some(TargetController::Any),
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::Source,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: Attack trigger returning GY permanent with power-based MV filter not expressible.
         ],
         ..Default::default()
     }

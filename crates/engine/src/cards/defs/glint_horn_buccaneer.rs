@@ -15,7 +15,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: "Whenever you discard a card" — no WheneverYouDiscard trigger in DSL.
+            // Whenever you discard a card, deal 1 damage to each opponent.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouDiscard,
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
             // Requires activation condition (is_attacking) + discard as cost.
         ],

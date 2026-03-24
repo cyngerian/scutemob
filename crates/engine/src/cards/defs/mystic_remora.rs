@@ -17,12 +17,13 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::CumulativeUpkeep {
                 cost: CumulativeUpkeepCost::Mana(ManaCost { generic: 1, ..Default::default() }),
             },
-            // TODO: WheneverOpponentCastsSpell does not filter for noncreature spells.
-            // A WheneverOpponentCastsNoncreatureSpell trigger condition is needed to express
-            // the full oracle text. Using WheneverOpponentCastsSpell as closest approximation;
-            // the trigger will fire for creature spells as well until the filter is added.
+            // Noncreature filter applied.
+            // TODO: "may draw unless that player pays {4}" — MayPayOrElse still a gap.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverOpponentCastsSpell,
+                trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
+                    spell_type_filter: None,
+                    noncreature_only: true,
+                },
                 effect: Effect::MayPayOrElse {
                     cost: Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
                     payer: PlayerTarget::DeclaredTarget { index: 0 },

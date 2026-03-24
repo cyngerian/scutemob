@@ -17,10 +17,12 @@ pub fn card() -> CardDefinition {
             // TODO: Cost reduction for instant/sorcery only — SelfCostReduction
             //   lacks spell-type filter. Using generic cost reduction.
             // Whenever you cast an instant or sorcery spell, draw a card.
-            // TODO: WheneverYouCastSpell lacks spell-type filter.
+            // Instant/sorcery spell filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
+                    noncreature_only: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

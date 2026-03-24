@@ -18,8 +18,18 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Whenever you attack with non-Gnomes" trigger not in DSL.
-            // TODO: Counter-based token count not in DSL.
+            // Whenever you attack, put a +1/+1 counter on Anim Pakal.
+            // TODO: "with non-Gnome creatures" condition and counter-based token count not in DSL.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouAttack,
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

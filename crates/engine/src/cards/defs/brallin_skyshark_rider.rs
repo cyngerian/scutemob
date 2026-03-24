@@ -21,8 +21,26 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::PartnerWith(
                 "Shabraz, the Skyshark".to_string(),
             )),
-            // TODO: "Whenever you discard a card" — no WheneverYouDiscard trigger in DSL.
-            // Would need: +1/+1 counter on self + deal 1 to each opponent.
+            // Whenever you discard a card, put a +1/+1 counter on Brallin and deal 1 to each opponent.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouDiscard,
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::Source,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                    Effect::ForEach {
+                        over: ForEachTarget::EachOpponent,
+                        effect: Box::new(Effect::DealDamage {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(1),
+                        }),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+            },
             // TODO: "{R}: Target Shark gains trample until end of turn."
             // Requires subtype-filtered targeting + grant keyword continuous effect.
         ],

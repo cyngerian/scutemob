@@ -17,10 +17,22 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: DSL gap — "Whenever you sacrifice a permanent" trigger condition
-            // (WheneverYouSacrifice) does not exist.
-            // TODO: DSL gap — "When Juri dies, deals damage equal to its power to any target."
-            // Needs WhenThisDies trigger + EffectAmount::SourcePower + target any.
+            // Whenever you sacrifice a permanent, put a +1/+1 counter on Juri.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: None,
+                    player_filter: None,
+                },
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "When Juri dies, deals damage equal to its power to any target."
+            // Needs EffectAmount::SourcePower.
         ],
         ..Default::default()
     }

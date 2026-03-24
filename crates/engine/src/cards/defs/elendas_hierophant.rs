@@ -16,7 +16,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever you gain life, put a +1/+1 counter" — lifegain trigger not in DSL
+            // Whenever you gain life, put a +1/+1 counter on this creature.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouGainLife,
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // TODO: "When dies, create X Vampires where X = power" — power-based token count
             // not in DSL
         ],

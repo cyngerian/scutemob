@@ -11,7 +11,17 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever you attack with two or more creatures, draw a card.\n{2}, Discard a card: Create a 2/2 white and blue Knight creature token with vigilance.".to_string(),
         abilities: vec![
-            // TODO: "Whenever you attack with 2+ creatures" trigger not in DSL.
+            // Whenever you attack, draw a card.
+            // TODO: "with two or more creatures" condition not in DSL.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouAttack,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // {2}, Discard: Create Knight token
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![

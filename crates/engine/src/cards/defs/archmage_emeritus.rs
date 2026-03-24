@@ -12,12 +12,12 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: WheneverYouCastSpell lacks spell-type filter (instant/sorcery only).
-            // TODO: "or copy" — copy-spell trigger not in DSL.
-            // Using unfiltered cast trigger as approximation.
+            // Magecraft — instant/sorcery filter applied. "or copy" half is a known gap.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
+                    noncreature_only: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

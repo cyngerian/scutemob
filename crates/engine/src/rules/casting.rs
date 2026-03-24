@@ -3356,6 +3356,12 @@ pub fn handle_cast_spell(
             object_id: sac_id,
             new_grave_id: new_sac_id,
         });
+        // CR 701.21a: PermanentSacrificed for bargain cost.
+        events.push(GameEvent::PermanentSacrificed {
+            player,
+            object_id: sac_id,
+            new_id: new_sac_id,
+        });
     }
     // CR 702.119a / CR 601.2f-h: Pay the emerge alternative cost -- sacrifice a creature.
     // The sacrifice is part of cost payment (CR 601.2h): the creature goes from the
@@ -3368,6 +3374,12 @@ pub fn handle_cast_spell(
             player,
             object_id: sac_id,
             new_grave_id: new_sac_id,
+        });
+        // CR 701.21a: PermanentSacrificed for emerge cost.
+        events.push(GameEvent::PermanentSacrificed {
+            player,
+            object_id: sac_id,
+            new_id: new_sac_id,
         });
     }
     // CR 702.153a / CR 601.2f-h: Pay the casualty additional cost -- sacrifice a creature
@@ -3382,6 +3394,12 @@ pub fn handle_cast_spell(
             player,
             object_id: sac_id,
             new_grave_id: new_sac_id,
+        });
+        // CR 701.21a: PermanentSacrificed for casualty cost.
+        events.push(GameEvent::PermanentSacrificed {
+            player,
+            object_id: sac_id,
+            new_id: new_sac_id,
         });
     }
     // CR 701.59a / CR 601.2f-h: Pay the collect evidence additional cost -- exile

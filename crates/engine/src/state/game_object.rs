@@ -398,6 +398,29 @@ pub enum TriggerEvent {
     /// time. The attacking creature's ObjectId is passed via the `entering_object`
     /// parameter.
     AnyCreatureYouControlDealsCombatDamageToPlayer,
+    /// CR 701.9a: Fires on permanents controlled by the discarding player.
+    /// Used for "whenever you discard a card" patterns.
+    ControllerDiscards,
+    /// CR 701.9a: Fires on permanents controlled by opponents of the discarding player.
+    /// Used for "whenever an opponent discards a card" patterns.
+    OpponentDiscards,
+    /// CR 701.21a: Fires on permanents controlled by the sacrificing player.
+    /// Used for "whenever you sacrifice a permanent" patterns.
+    ControllerSacrifices,
+    /// CR 508.1: Fires on permanents controlled by the attacking player when they
+    /// declare one or more attackers. Fires once per combat, not per creature.
+    ControllerAttacks,
+    /// CR 603.10a: Fires on the object that left the battlefield (look-back trigger).
+    /// Covers all zone transitions FROM battlefield: death, exile, bounce, sacrifice.
+    SelfLeavesBattlefield,
+    /// CR 603.2: Fires when the controller of this permanent draws a card.
+    ControllerDrawsCard,
+    /// CR 603.2: Fires when any player draws a card (used with player_filter).
+    AnyPlayerDrawsCard,
+    /// CR 603.2: Fires when an opponent of the controller draws a card.
+    OpponentDrawsCard,
+    /// CR 603.2: Fires when the controller of this permanent gains life.
+    ControllerGainsLife,
     // ── Step/phase-based triggers (primarily used by emblem triggered abilities) ──
     //
     // These are fired from the step-transition turn actions (upkeep_actions,

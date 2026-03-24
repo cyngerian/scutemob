@@ -12,6 +12,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: None,
+                    noncreature_only: false,
                 },
                 effect: Effect::Proliferate,
                 intervening_if: None,

@@ -373,6 +373,19 @@ pub enum GameEvent {
         /// New ObjectId in the graveyard (CR 400.7).
         new_id: ObjectId,
     },
+    /// A permanent was sacrificed by its controller (CR 701.21a).
+    ///
+    /// Emitted IN ADDITION TO CreatureDied/PermanentDestroyed when the zone move is
+    /// caused by a sacrifice action (not by destruction, SBA, or other means).
+    /// Sacrifice is NOT destruction -- this is the semantic marker for sacrifice triggers.
+    PermanentSacrificed {
+        /// The player who sacrificed.
+        player: PlayerId,
+        /// ObjectId on the battlefield (now retired).
+        object_id: ObjectId,
+        /// New ObjectId in graveyard (or exile if replaced).
+        new_id: ObjectId,
+    },
     /// A card was cycled from a player's hand (CR 702.29a).
     ///
     /// This event fires IN ADDITION TO `CardDiscarded` (CR 702.29d: "cycles or discards"

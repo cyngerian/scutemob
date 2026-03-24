@@ -39,8 +39,19 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "When this creature leaves the battlefield, exile all Serf tokens" —
-            //   WhenLeavesBattlefield trigger not in TriggerCondition DSL.
+            // When this creature leaves the battlefield, exile all Serf tokens.
+            // TODO: "exile all [named subtype] tokens" — ExileAll with subtype+token filter not in DSL.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenLeavesBattlefield,
+                effect: Effect::ExileAll {
+                    filter: TargetFilter {
+                        has_subtype: Some(SubType("Serf".to_string())),
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

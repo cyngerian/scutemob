@@ -2115,7 +2115,7 @@ pub fn enrich_spec_from_def(
     // not here -- this only wires the TriggerEvent.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverOpponentCastsSpell,
+            trigger_condition: TriggerCondition::WheneverOpponentCastsSpell { .. },
             effect,
             ..
         } = ability
@@ -2391,6 +2391,176 @@ pub fn enrich_spec_from_def(
             });
         }
     }
+    // CR 701.9a: Convert "Whenever you discard a card" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouDiscard,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerDiscards,
+                intervening_if: None,
+                description: "Whenever you discard a card (CR 701.9a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 701.9a: Convert "Whenever an opponent discards a card" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverOpponentDiscards,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::OpponentDiscards,
+                intervening_if: None,
+                description: "Whenever an opponent discards a card (CR 701.9a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 701.21a: Convert "Whenever you sacrifice a permanent" triggers.
+    // player_filter=None → ControllerSacrifices (fires only when controller sacrifices).
+    // player_filter=Some(Any) → ControllerSacrifices (any player; filtered at dispatch time).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouSacrifice { .. },
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerSacrifices,
+                intervening_if: None,
+                description: "Whenever you sacrifice a permanent (CR 701.21a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 508.1: Convert "Whenever you attack" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouAttack,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerAttacks,
+                intervening_if: None,
+                description: "Whenever you attack (CR 508.1)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 603.10a: Convert "When ~ leaves the battlefield" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenLeavesBattlefield,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::SelfLeavesBattlefield,
+                intervening_if: None,
+                description: "When ~ leaves the battlefield (CR 603.10a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 603.2: Convert "Whenever you draw a card" triggers (WheneverYouDrawACard).
+    // Maps to ControllerDrawsCard event — dispatched via CardDrawn.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouDrawACard,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerDrawsCard,
+                intervening_if: None,
+                description: "Whenever you draw a card (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 603.2: Convert "Whenever a player draws a card" triggers (WheneverPlayerDrawsCard).
+    // player_filter=None → AnyPlayerDrawsCard, Some(Opponent) → OpponentDrawsCard,
+    // Some(You) → ControllerDrawsCard.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverPlayerDrawsCard { player_filter },
+            effect,
+            ..
+        } = ability
+        {
+            let trigger_on = match player_filter {
+                Some(TargetController::Opponent) => TriggerEvent::OpponentDrawsCard,
+                Some(TargetController::You) => TriggerEvent::ControllerDrawsCard,
+                _ => TriggerEvent::AnyPlayerDrawsCard,
+            };
+            let desc = match player_filter {
+                Some(TargetController::Opponent) => "Whenever an opponent draws a card (CR 603.2)",
+                Some(TargetController::You) => "Whenever you draw a card (CR 603.2)",
+                _ => "Whenever a player draws a card (CR 603.2)",
+            };
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on,
+                intervening_if: None,
+                description: desc.to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 603.2 / CR 118.4: Convert "Whenever you gain life" triggers.
+    // Maps to ControllerGainsLife — dispatched via LifeGained.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouGainLife,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerGainsLife,
+                intervening_if: None,
+                description: "Whenever you gain life (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 603.2: WhenYouCastThisSpell is dispatched directly from the SpellCast arm
+    // in check_triggers using the CardDef ability_index. No TriggeredAbilityDef needed.
     spec
 }
 // ── Private helpers ───────────────────────────────────────────────────────────

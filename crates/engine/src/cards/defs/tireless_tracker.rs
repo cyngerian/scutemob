@@ -25,7 +25,23 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "Whenever you sacrifice a Clue" trigger not in DSL.
+            // Whenever you sacrifice a Clue, put a +1/+1 counter.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Clue".to_string())),
+                        ..Default::default()
+                    }),
+                    player_filter: None,
+                },
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

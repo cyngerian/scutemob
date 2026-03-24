@@ -17,7 +17,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Opponent-draw trigger not in DSL.
+            // Whenever an opponent draws a card, you may draw two cards.
+            // TODO: "you may" — optional draw. Using mandatory draw as approximation.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
+                    player_filter: Some(TargetController::Opponent),
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(2),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

@@ -13,11 +13,12 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Whenever you cast an instant or sorcery spell" — WheneverYouCastSpell
-            // lacks a spell-type filter (instant/sorcery only). Using unfiltered approximation.
+            // Instant/sorcery spell filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
+                    spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
+                    noncreature_only: false,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

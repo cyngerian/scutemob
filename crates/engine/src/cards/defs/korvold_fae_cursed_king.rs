@@ -22,7 +22,27 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Both sacrifice-related triggers not in DSL.
+            // TODO: "Sacrifice another permanent" on ETB/attack — forced sacrifice not expressible.
+            // Whenever you sacrifice a permanent, put +1/+1 counter on Korvold and draw a card.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: None,
+                    player_filter: None,
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::Source,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

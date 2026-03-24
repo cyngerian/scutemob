@@ -19,8 +19,32 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
-            // TODO: "Whenever you attack" trigger not in DSL.
-            // TODO: Reflexive trigger + modal choice (choose two) not expressible.
+            // Whenever you attack, create two 1/1 Soldier tokens tapped and attacking.
+            // TODO: "may sacrifice + choose two modal" — complex reflexive trigger not expressible.
+            // Partial: create Soldiers on attack as approximation of one modal option.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouAttack,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Soldier".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Soldier".to_string())].into_iter().collect(),
+                        colors: [Color::Red, Color::White].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: 2,
+                        supertypes: im::OrdSet::new(),
+                        keywords: [KeywordAbility::Haste].into_iter().collect(),
+                        tapped: true,
+                        enters_attacking: true,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

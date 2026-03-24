@@ -35,6 +35,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: true,
+                    spell_type_filter: None,
+                    noncreature_only: false,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

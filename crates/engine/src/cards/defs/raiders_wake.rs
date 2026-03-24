@@ -17,7 +17,19 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever an opponent discards a card, that player loses 2 life.\nRaid — At the beginning of your end step, if you attacked this turn, target opponent discards a card.".to_string(),
-        abilities: vec![],
+        abilities: vec![
+            // Whenever an opponent discards a card, that player loses 2 life.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverOpponentDiscards,
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::TriggeringPlayer,
+                    amount: EffectAmount::Fixed(2),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: Raid end-step discard — Condition::YouAttackedThisTurn not in DSL.
+        ],
         ..Default::default()
     }
 }

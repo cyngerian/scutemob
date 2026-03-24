@@ -19,8 +19,20 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever you draw a card" trigger — TriggerEvent::WheneverYouDrawCard
-            // not in DSL. Needs draw-event trigger.
+            // Whenever you draw a card, deal 1 damage to any target.
+            // TODO: "any target" means player or creature — using each opponent as approximation.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouDrawACard,
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // {T}: Draw a card.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

@@ -12,8 +12,24 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
-            // TODO: TriggerCondition::WheneverAPlayerSacrifices not in DSL.
-            // This requires a sacrifice-event trigger that fires for any player's sacrifice.
+            // Whenever a player sacrifices a permanent, deal 1 damage to any target.
+            // Using "any player" semantic via player_filter: Any.
+            // TODO: "any target" — using each opponent as approximation.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverYouSacrifice {
+                    filter: None,
+                    player_filter: Some(TargetController::Any),
+                },
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

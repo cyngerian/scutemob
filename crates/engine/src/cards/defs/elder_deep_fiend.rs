@@ -17,11 +17,17 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 5, blue: 2, ..Default::default() },
             },
             AbilityDefinition::Keyword(KeywordAbility::Flash),
-            // TODO: "When you cast this spell, tap up to four target permanents."
-            // Requires TriggerCondition::WhenCast (self-cast trigger) which does not
-            // exist in the current DSL. Also requires TargetRequirement::UpToNTargetPermanents
-            // or a multi-target tap effect. Add when TriggerCondition::WhenCast and
-            // multi-target tap support are implemented.
+            // When you cast this spell, tap up to four target permanents.
+            // TODO: "up to four target permanents" — multi-target tap not in DSL.
+            // Using WhenYouCastThisSpell trigger with TapTarget as partial.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenYouCastThisSpell,
+                effect: Effect::TapPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPermanent],
+            },
         ],
         color_indicator: None,
         back_face: None,

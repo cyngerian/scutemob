@@ -102,6 +102,10 @@ pub struct EffectContext {
     /// `Effect::CreateToken`, `Effect::Cloak`, `Effect::Manifest`. Read by
     /// `EffectTarget::LastCreatedPermanent` for "then attach this Equipment to it".
     pub last_created_permanent: Option<ObjectId>,
+    /// The player who triggered this ability (e.g., the discarding or drawing player).
+    /// Set from PendingTrigger::triggering_player when a triggered ability resolves.
+    /// Used by PlayerTarget::TriggeringPlayer for "that player" effects in discard/draw triggers.
+    pub triggering_player: Option<crate::state::PlayerId>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -122,6 +126,7 @@ impl EffectContext {
             last_effect_count: 0,
             last_dice_roll: 0,
             last_created_permanent: None,
+            triggering_player: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -147,6 +152,7 @@ impl EffectContext {
             last_effect_count: 0,
             last_dice_roll: 0,
             last_created_permanent: None,
+            triggering_player: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -2067,6 +2073,7 @@ fn execute_effect_inner(
                             last_effect_count: ctx.last_effect_count,
                             last_dice_roll: ctx.last_dice_roll,
                             last_created_permanent: ctx.last_created_permanent,
+                            triggering_player: ctx.triggering_player,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2094,6 +2101,7 @@ fn execute_effect_inner(
                             last_effect_count: ctx.last_effect_count,
                             last_dice_roll: ctx.last_dice_roll,
                             last_created_permanent: ctx.last_created_permanent,
+                            triggering_player: ctx.triggering_player,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2177,6 +2185,12 @@ fn execute_effect_inner(
                                             object_id: id,
                                             new_exile_id: new_id,
                                         });
+                                        // CR 701.21a: PermanentSacrificed alongside exile.
+                                        events.push(GameEvent::PermanentSacrificed {
+                                            player: pid,
+                                            object_id: id,
+                                            new_id,
+                                        });
                                     }
                                     ZoneId::Command(_) => {
                                         // Commander redirected to command zone — no sacrifice event.
@@ -2196,6 +2210,12 @@ fn execute_effect_inner(
                                                 new_grave_id: new_id,
                                             });
                                         }
+                                        // CR 701.21a: PermanentSacrificed alongside death/destroy.
+                                        events.push(GameEvent::PermanentSacrificed {
+                                            player: pid,
+                                            object_id: id,
+                                            new_id,
+                                        });
                                     }
                                 }
                             }
@@ -2238,6 +2258,12 @@ fn execute_effect_inner(
                                         new_grave_id: new_id,
                                     });
                                 }
+                                // CR 701.21a: PermanentSacrificed alongside death/destroy.
+                                events.push(GameEvent::PermanentSacrificed {
+                                    player: pid,
+                                    object_id: id,
+                                    new_id,
+                                });
                             }
                         }
                     }
@@ -2547,6 +2573,9 @@ fn execute_effect_inner(
                         .unwrap_or(ctx.controller)
                 }
                 PlayerTarget::ControllerOf(_) | PlayerTarget::OwnerOf(_) => ctx.controller,
+                PlayerTarget::TriggeringPlayer => {
+                    ctx.player_for_target(0).unwrap_or(ctx.controller)
+                }
             };
             let lib_id = ZoneId::Library(manifest_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -2593,6 +2622,9 @@ fn execute_effect_inner(
                     .copied()
                     .unwrap_or(ctx.controller),
                 PlayerTarget::ControllerOf(_) | PlayerTarget::OwnerOf(_) => ctx.controller,
+                PlayerTarget::TriggeringPlayer => {
+                    ctx.player_for_target(0).unwrap_or(ctx.controller)
+                }
             };
             let lib_id = ZoneId::Library(cloak_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -4147,6 +4179,34 @@ fn resolve_player_target_list(
                 })
                 .collect()
         }
+        PlayerTarget::TriggeringPlayer => {
+            // The player who triggered this ability (e.g., the discarding or drawing player).
+            // flush_pending_triggers sets trigger.triggering_player as Target::Player at index 0.
+            // Use ctx.player_for_target(0) as the primary resolution path.
+            if let Some(tp) = ctx.player_for_target(0) {
+                if state
+                    .players
+                    .get(&tp)
+                    .map(|ps| !ps.has_lost)
+                    .unwrap_or(false)
+                {
+                    return vec![tp];
+                }
+            }
+            // Fallback to the explicit triggering_player field if set.
+            if let Some(tp) = ctx.triggering_player {
+                if state
+                    .players
+                    .get(&tp)
+                    .map(|ps| !ps.has_lost)
+                    .unwrap_or(false)
+                {
+                    return vec![tp];
+                }
+            }
+            // Final fallback: controller.
+            vec![ctx.controller]
+        }
     }
 }
 // ── Mana restriction helpers ──────────────────────────────────────────────────
@@ -5399,6 +5459,7 @@ pub fn check_static_condition(
                 last_effect_count: 0,
                 last_dice_roll: 0,
                 last_created_permanent: None,
+                triggering_player: None,
             };
             check_condition(state, condition, &ctx)
         }
