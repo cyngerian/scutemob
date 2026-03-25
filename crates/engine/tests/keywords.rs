@@ -2027,6 +2027,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("ActivateAbility should succeed");

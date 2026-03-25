@@ -220,6 +220,7 @@ fn test_meld_basic_exile_and_enter() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("meld activation should succeed");
@@ -257,6 +258,7 @@ fn test_meld_characteristics_from_back_face() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -317,6 +319,7 @@ fn test_meld_fails_partner_not_present() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -365,6 +368,7 @@ fn test_meld_fails_different_controller() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -393,6 +397,7 @@ fn test_meld_zone_change_splitting() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -472,6 +477,7 @@ fn test_meld_component_tracking() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

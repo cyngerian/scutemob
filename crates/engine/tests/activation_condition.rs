@@ -32,6 +32,7 @@ fn activate(
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
 }

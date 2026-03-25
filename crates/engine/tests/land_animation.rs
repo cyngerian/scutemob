@@ -126,6 +126,7 @@ fn test_land_animation_adds_creature_type_and_pt() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

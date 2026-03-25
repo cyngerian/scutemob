@@ -120,6 +120,7 @@ fn test_activate_ability_tap_places_on_stack() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -190,6 +191,7 @@ fn test_activate_ability_tap_cost_taps_source() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -236,6 +238,7 @@ fn test_activate_ability_pays_mana_cost() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -289,6 +292,7 @@ fn test_activate_ability_not_priority_holder_fails() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(matches!(
@@ -333,6 +337,7 @@ fn test_activate_ability_wrong_controller_fails() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotController { .. })));
@@ -370,6 +375,7 @@ fn test_activate_ability_invalid_index_fails() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(matches!(
@@ -411,6 +417,7 @@ fn test_activate_ability_already_tapped_fails() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(matches!(
@@ -458,6 +465,7 @@ fn test_activate_ability_insufficient_mana_fails() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InsufficientMana)));
@@ -504,6 +512,7 @@ fn test_activated_ability_resolves_after_all_pass() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -1056,6 +1065,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -1183,6 +1193,7 @@ fn test_sacrifice_filter_creature_valid() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: Some(creature_id),
+            x_value: None,
         },
     )
     .unwrap();
@@ -1265,6 +1276,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: Some(artifact_id),
+            x_value: None,
         },
     );
 
@@ -1335,6 +1347,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: Some(opp_creature_id),
+            x_value: None,
         },
     );
 
@@ -1394,6 +1407,7 @@ fn test_sacrifice_filter_missing_target_errors() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None, // no target provided — should fail
+            x_value: None,
         },
     );
 
@@ -1740,6 +1754,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

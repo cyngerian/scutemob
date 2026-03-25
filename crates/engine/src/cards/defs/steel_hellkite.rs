@@ -39,11 +39,20 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {X}: Destroy each nonland permanent with mana value X whose controller was
-            // dealt combat damage by this creature this turn. Activate only once each turn.
-            // DSL gap: X-cost activated ability, mana-value filter on targets, per-turn
-            // activation tracking, and "controllers dealt combat damage by this creature"
-            // tracking are all unsupported.
+            // CR 107.3k: {X}: Destroy each nonland permanent with mana value X whose controller
+            // was dealt combat damage by this creature this turn. Activate only once each turn.
+            // Cost is now wired with x_count: 1. Effect remains Nothing pending:
+            // TODO: "mana value equals X" filter in DestroyAll — TargetFilter has no mana-value-equals-X
+            // predicate expressible from EffectAmount.
+            // TODO: "controllers dealt combat damage by this creature this turn" tracking.
+            // TODO: "only once each turn" per-turn activation throttle.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
+                effect: Effect::Nothing,
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

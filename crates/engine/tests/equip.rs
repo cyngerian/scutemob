@@ -128,6 +128,7 @@ fn test_equip_basic_attaches_to_creature() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -204,6 +205,7 @@ fn test_equip_sorcery_speed_only() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -259,6 +261,7 @@ fn test_equip_sorcery_speed_not_active_player() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -384,6 +387,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -446,6 +450,7 @@ fn test_equip_target_opponent_creature_rejected_at_activation() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -518,6 +523,7 @@ fn test_equip_reequip_detaches_from_previous() {
             targets: vec![Target::Object(creature_b_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -610,6 +616,7 @@ fn test_equip_cannot_equip_self() {
             targets: vec![Target::Object(equip_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -687,6 +694,7 @@ fn test_equip_already_attached_to_same_target_no_op() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -776,6 +784,7 @@ fn test_equip_pays_mana_cost() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -847,6 +856,7 @@ fn test_equip_insufficient_mana_rejected() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -906,6 +916,7 @@ fn test_equip_protection_blocks_targeting() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -963,6 +974,7 @@ fn test_equip_fizzles_if_target_not_on_battlefield() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -1035,6 +1047,7 @@ fn test_equip_zero_cost_succeeds() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -1151,6 +1164,7 @@ fn test_equip_grants_keywords_via_layer_system() {
             targets: vec![Target::Object(creature_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

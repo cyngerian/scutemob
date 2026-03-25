@@ -188,6 +188,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         targets: Vec::new(),
                         discard_card: None,
                         sacrifice_target: None,
+                        x_value: None,
                     };
                     app.execute_command(cmd)?;
                 } else {

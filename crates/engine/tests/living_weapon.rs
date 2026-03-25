@@ -614,6 +614,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap_or_else(|e| panic!("ActivateAbility (Equip) failed: {:?}", e));

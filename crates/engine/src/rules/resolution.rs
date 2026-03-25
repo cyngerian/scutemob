@@ -1743,6 +1743,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     source_object,
                     stack_obj.targets.clone(),
                 );
+                // CR 107.3k: Propagate x_value from the stack object so effects using
+                // EffectAmount::XValue (e.g., Treasure Vault's Repeat) resolve correctly.
+                ctx.x_value = stack_obj.x_value;
                 let effect_events = execute_effect(state, &effect, &mut ctx);
                 events.extend(effect_events);
             }
@@ -1763,6 +1766,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 source_object,
                 stack_obj.targets.clone(),
             );
+            // CR 107.3k / CR 606.4: Propagate x_value for -X loyalty abilities.
+            ctx.x_value = stack_obj.x_value;
             let effect_events = execute_effect(state, &effect, &mut ctx);
             events.extend(effect_events);
             events.push(GameEvent::AbilityResolved {
@@ -1927,6 +1932,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 stack_obj.targets.clone(),
                                 kicker_times_paid,
                             );
+                            // CR 107.3m: Propagate x_value from the permanent so ETB effects
+                            // using EffectAmount::XValue resolve correctly.
+                            ctx.x_value = state
+                                .objects
+                                .get(&source_object)
+                                .map(|o| o.x_value)
+                                .unwrap_or(0);
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }

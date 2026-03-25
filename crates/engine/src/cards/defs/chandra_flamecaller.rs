@@ -33,11 +33,16 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Nothing,
                 targets: vec![],
             },
-            // −X: Deal X damage to each creature
-            // TODO: LoyaltyCost::MinusX not in DSL.
+            // CR 606.4 / CR 107.3m: −X: Chandra deals X damage to each creature.
             AbilityDefinition::LoyaltyAbility {
-                cost: LoyaltyCost::Minus(1),
-                effect: Effect::Nothing,
+                cost: LoyaltyCost::MinusX,
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachCreature,
+                    effect: Box::new(Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::XValue,
+                    }),
+                },
                 targets: vec![],
             },
         ],

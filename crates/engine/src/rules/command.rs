@@ -124,6 +124,10 @@ pub enum Command {
         /// `None` for abilities that don't require sacrificing another permanent.
         #[serde(default)]
         sacrifice_target: Option<ObjectId>,
+        /// CR 107.3k: For activated abilities with {X} in the activation cost,
+        /// the chosen value of X. `None` for non-X abilities (defaults to 0).
+        #[serde(default)]
+        x_value: Option<u32>,
     },
     // ── M6: Combat commands ───────────────────────────────────────────────
     /// Declare attacking creatures and their targets (CR 508.1).

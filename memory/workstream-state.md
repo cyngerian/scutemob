@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-26: Trigger variants | ACTIVE | 2026-03-24 | PB-26: spell-type, discard, sacrifice, attack, LTB, draw, cast triggers (~72 cards) |
+| W6: Primitive + Card Authoring | PB-27: X-cost spells | ACTIVE | 2026-03-24 | PB-27 planned (~42 cards) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

@@ -524,6 +524,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             targets: vec![Target::Object(ward_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

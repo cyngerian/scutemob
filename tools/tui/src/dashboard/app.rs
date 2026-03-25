@@ -7,12 +7,7 @@ use super::data::DashboardData;
 use super::parser;
 
 pub const TAB_COUNT: usize = 4;
-pub const TAB_NAMES: [&str; TAB_COUNT] = [
-    "1:Dashboard",
-    "2:Pipeline",
-    "3:Cards",
-    "4:Milestones",
-];
+pub const TAB_NAMES: [&str; TAB_COUNT] = ["1:Dashboard", "2:Pipeline", "3:Cards", "4:Milestones"];
 
 pub enum LiveTestCount {
     Loading,

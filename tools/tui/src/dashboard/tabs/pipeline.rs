@@ -13,7 +13,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(4), // worker status + summary
-            Constraint::Min(0),   // batch table
+            Constraint::Min(0),    // batch table
         ])
         .split(area);
 
@@ -69,10 +69,7 @@ fn render_worker_status(f: &mut Frame, area: Rect, app: &App) {
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(
-                format!("[{}] ", ws.phase),
-                Style::default().fg(Color::Cyan),
-            ),
+            Span::styled(format!("[{}] ", ws.phase), Style::default().fg(Color::Cyan)),
             Span::styled(&ws.title, Style::default().fg(Color::White)),
             if !ws.started.is_empty() {
                 Span::styled(
@@ -86,8 +83,11 @@ fn render_worker_status(f: &mut Frame, area: Rect, app: &App) {
     }
 
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Pipeline Status ")),
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Pipeline Status "),
+        ),
         area,
     );
 }
@@ -196,7 +196,10 @@ fn render_batches(f: &mut Frame, area: Rect, app: &App) {
                 },
             ),
             Span::styled(format!("{:<40}", truncate(&batch.title, 39)), name_style),
-            Span::styled(format!("{:<8}", status_icon), Style::default().fg(status_color)),
+            Span::styled(
+                format!("{:<8}", status_icon),
+                Style::default().fg(status_color),
+            ),
             Span::styled(
                 format!("{:<7}", batch.cards_fixed),
                 if batch.status == "done" {
@@ -217,10 +220,7 @@ fn render_batches(f: &mut Frame, area: Rect, app: &App) {
         ]));
     }
 
-    let title = format!(
-        " Primitive Batches ({} total) — j/k scroll ",
-        batches.len()
-    );
+    let title = format!(" Primitive Batches ({} total) — j/k scroll ", batches.len());
     f.render_widget(
         Paragraph::new(Text::from(lines))
             .block(Block::default().borders(Borders::ALL).title(title)),

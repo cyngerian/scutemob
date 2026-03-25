@@ -34,17 +34,23 @@ pub fn card() -> CardDefinition {
                 },
                 targets: vec![TargetRequirement::TargetAny],
             },
-            // −X: Exile each permanent with mana value X or less that's one or more colors.
-            // TODO: Variable loyalty cost (Minus(X)) does not exist in LoyaltyCost enum.
-            // Also requires filtering permanents by mana value <= X and "one or more colors".
-            // Neither the variable cost nor the mana-value filter is expressible in the DSL.
-            // Omitted per W5 policy.
-
+            // CR 606.6 / CR 107.3k: −X: Exile each permanent with mana value X or less that's
+            // one or more colors. LoyaltyCost::MinusX is now wired and x_value passes through
+            // the activate_loyalty_ability harness action.
+            // TODO: "mana value X or less" filter — TargetFilter has no dynamic MV <= X predicate.
+            // TODO: "one or more colors" filter — TargetFilter has no is-colored predicate.
+            // Effect remains Nothing until these filters are added.
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::MinusX,
+                effect: Effect::Nothing,
+                targets: vec![],
+            },
             // −10: You gain 7 life, draw seven cards, then put up to seven permanent cards
             // from your hand onto the battlefield.
             // TODO: "Put up to seven permanent cards from your hand onto the battlefield"
             // requires interactive hand selection and zone-change effect for multiple cards.
-            // Not expressible in the DSL. Omitted per W5 policy (partial = wrong).
+            // Not expressible in the DSL. GainLife + DrawCards are implementable but the
+            // put-onto-battlefield portion is not. Omitted to avoid wrong game state.
         ],
         ..Default::default()
     }

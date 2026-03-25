@@ -171,6 +171,7 @@ pub(crate) fn action_to_command(
             targets: Vec::new(),
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
         LegalAction::DeclareAttackers { eligible, targets } => {
             // Pick random subset

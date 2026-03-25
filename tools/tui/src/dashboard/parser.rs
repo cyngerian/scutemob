@@ -18,8 +18,7 @@ pub fn parse_all(root: &Path) -> DashboardData {
     DashboardData {
         current_state: parse_claude_md(root).unwrap_or_default(),
         abilities: parse_ability_coverage(root).unwrap_or_default(),
-        milestones: parse_roadmap(root, &parse_reviews_for_review_status(root))
-            .unwrap_or_default(),
+        milestones: parse_roadmap(root, &parse_reviews_for_review_status(root)).unwrap_or_default(),
         corner_cases: parse_corner_case_audit(root).unwrap_or_default(),
         reviews,
         scripts: count_scripts(root).unwrap_or_default(),
@@ -82,8 +81,7 @@ fn parse_claude_md(root: &Path) -> anyhow::Result<CurrentState> {
                 state.active_milestone =
                     after.split_whitespace().next().unwrap_or(rest).to_string();
             } else {
-                state.active_milestone =
-                    rest.split_whitespace().next().unwrap_or(rest).to_string();
+                state.active_milestone = rest.split_whitespace().next().unwrap_or(rest).to_string();
             }
         } else if let Some(rest) = line.strip_prefix("- **Status**: ") {
             for part in rest.split(';') {
@@ -500,7 +498,10 @@ fn scan_card_health_live(root: &Path) -> CardHealth {
 /// Scan all card def files, return per-card entries + DSL source map.
 fn scan_live_cards(
     root: &Path,
-) -> (Vec<LiveCardEntry>, std::collections::HashMap<String, String>) {
+) -> (
+    Vec<LiveCardEntry>,
+    std::collections::HashMap<String, String>,
+) {
     let defs_dir = root.join("crates/engine/src/cards/defs");
     let entries = match fs::read_dir(&defs_dir) {
         Ok(e) => e,
@@ -537,8 +538,8 @@ fn scan_live_cards(
         };
 
         // Extract card name from file content
-        let card_name = extract_card_name_from_content(&content)
-            .unwrap_or_else(|| title_case(&file_stem));
+        let card_name =
+            extract_card_name_from_content(&content).unwrap_or_else(|| title_case(&file_stem));
 
         // Extract TODO lines
         let todo_lines: Vec<String> = content

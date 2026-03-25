@@ -161,6 +161,7 @@ fn test_adapt_basic_adds_counters() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -259,6 +260,7 @@ fn test_adapt_does_nothing_with_existing_counters() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -333,6 +335,7 @@ fn test_adapt_activation_always_legal() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -408,6 +411,7 @@ fn test_adapt_after_losing_counters() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -460,6 +464,7 @@ fn test_adapt_after_losing_counters() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -517,6 +522,7 @@ fn test_adapt_pays_mana_cost() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -578,6 +584,7 @@ fn test_adapt_counter_added_event_emitted() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

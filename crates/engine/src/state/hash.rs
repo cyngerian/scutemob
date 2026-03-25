@@ -4163,6 +4163,11 @@ impl HashInto for Condition {
                 }
                 threshold.hash_into(hasher);
             }
+            // CR 107.3m: XValueAtLeast (discriminant 37)
+            Condition::XValueAtLeast(n) => {
+                37u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -4687,6 +4692,12 @@ impl HashInto for Effect {
                 for se in static_effects {
                     se.hash_into(hasher);
                 }
+            }
+            // CR 107.3m: Repeat (discriminant 67) — execute N times, N from EffectAmount
+            Effect::Repeat { effect, count } => {
+                67u8.hash_into(hasher);
+                effect.hash_into(hasher);
+                count.hash_into(hasher);
             }
         }
     }

@@ -650,6 +650,7 @@ fn test_hideaway_play_exiled_card() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap_or_else(|e| panic!("ActivateAbility failed: {:?}", e));

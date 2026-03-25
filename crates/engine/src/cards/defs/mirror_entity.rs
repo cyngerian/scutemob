@@ -15,10 +15,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Changeling),
-            // TODO: DSL gap — {X} activated ability where X determines the base P/T buff
-            // for all creatures you control is not expressible. EffectAmount::XValue requires
-            // X to be set on CastSpell; for activated abilities X cost parsing is not supported.
-            // Additionally, "gain all creature types" as an effect is not in the DSL.
+            // CR 107.3k: {X}: Until EOT, creatures you control have base P/T X/X and gain all creature types.
+            // x_value is now passed through ActivateAbility command and into the EffectContext.
+            // TODO: Dynamic P/T setting (base X/X) requires LayerModification::SetBothDynamic(EffectAmount)
+            // which does not exist. LayerModification::SetBoth(power, toughness) takes fixed i32.
+            // Deferred until dynamic P/T layer modification is added.
+            // TODO: "gain all creature types" has no DSL representation (AddAllCreatureTypes variant missing).
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
+                effect: Effect::Nothing,
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

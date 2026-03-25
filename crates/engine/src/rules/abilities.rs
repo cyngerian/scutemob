@@ -125,6 +125,7 @@ fn check_activate_restrictions(
 /// abilities DO use the stack and must be responded to before resolving.
 ///
 /// After activation, the active player receives priority (CR 116.3b).
+#[allow(clippy::too_many_arguments)]
 pub fn handle_activate_ability(
     state: &mut GameState,
     player: PlayerId,
@@ -133,6 +134,7 @@ pub fn handle_activate_ability(
     targets: Vec<Target>,
     discard_card: Option<ObjectId>,
     sacrifice_target: Option<ObjectId>,
+    x_value: Option<u32>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 602.2: Activating requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -237,7 +239,7 @@ pub fn handle_activate_ability(
                 was_bargained: false,
                 was_cleaved: false,
                 evidence_collected: false,
-                x_value: 0,
+                x_value: x_value.unwrap_or(0),
                 gift_was_given: false,
                 gift_opponent: None,
                 last_effect_count: 0,
@@ -461,15 +463,25 @@ pub fn handle_activate_ability(
     }
     // Pay mana cost if required (CR 602.2a).
     if let Some(ref mana_cost) = ability_cost.mana_cost {
-        if mana_cost.mana_value() > 0 {
+        // CR 107.3k: For activated abilities with {X} in the activation cost, add x_count * x_value
+        // to generic before payment. Mirrors the casting.rs handling for spell X costs.
+        let mut resolved_cost = mana_cost.clone();
+        let xv = x_value.unwrap_or(0);
+        if resolved_cost.x_count > 0 {
+            resolved_cost.generic += resolved_cost.x_count * xv;
+            resolved_cost.x_count = 0;
+        } else if xv > 0 {
+            resolved_cost.generic += xv;
+        }
+        if resolved_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
-            if !player_state.mana_pool.can_spend(mana_cost, None) {
+            if !player_state.mana_pool.can_spend(&resolved_cost, None) {
                 return Err(GameStateError::InsufficientMana);
             }
-            player_state.mana_pool.spend(mana_cost, None);
+            player_state.mana_pool.spend(&resolved_cost, None);
             events.push(GameEvent::ManaCostPaid {
                 player,
-                cost: mana_cost.clone(),
+                cost: resolved_cost,
             });
         }
     }
@@ -796,6 +808,8 @@ pub fn handle_activate_ability(
         },
     );
     stack_obj.targets = spell_targets;
+    // CR 107.3k: Propagate x_value so effects using EffectAmount::XValue resolve correctly.
+    stack_obj.x_value = x_value.unwrap_or(0);
     state.stack_objects.push_back(stack_obj);
     // CR 602.2e: After activating, the active player receives priority.
     state.turn.players_passed = OrdSet::new();

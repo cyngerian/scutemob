@@ -160,6 +160,7 @@ fn test_outlast_basic_adds_counter() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -247,6 +248,7 @@ fn test_outlast_sorcery_speed_restriction() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -302,6 +304,7 @@ fn test_outlast_summoning_sickness_prevents_activation() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -338,6 +341,7 @@ fn test_outlast_requires_mana() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -379,6 +383,7 @@ fn test_outlast_already_tapped() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -420,6 +425,7 @@ fn test_outlast_stacks_counters() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -456,6 +462,7 @@ fn test_outlast_stacks_counters() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -508,6 +515,7 @@ fn test_outlast_not_a_cast() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

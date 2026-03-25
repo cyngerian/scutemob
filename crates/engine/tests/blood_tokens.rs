@@ -247,6 +247,7 @@ fn test_blood_token_activation_basic() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -340,6 +341,7 @@ fn test_blood_token_discard_is_cost() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -413,6 +415,7 @@ fn test_blood_token_uses_stack() {
             targets: vec![],
             discard_card: Some(discard_id),
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -458,6 +461,7 @@ fn test_blood_token_activation_no_mana() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -513,6 +517,7 @@ fn test_blood_token_activation_already_tapped() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -565,6 +570,7 @@ fn test_blood_token_activation_no_cards_in_hand() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -617,6 +623,7 @@ fn test_blood_token_sba_ceases_to_exist() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -712,6 +719,7 @@ fn test_blood_token_not_affected_by_summoning_sickness() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -763,6 +771,7 @@ fn test_blood_token_only_controller_can_activate() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -862,6 +871,7 @@ fn test_blood_token_activation_sacrifice_removes_from_battlefield() {
             targets: vec![],
             discard_card: Some(dummy_id),
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -913,6 +923,7 @@ fn test_blood_token_discard_must_be_from_hand() {
             targets: vec![],
             discard_card: Some(grave_card_id),
             sacrifice_target: None,
+            x_value: None,
         },
     );
 

@@ -14,8 +14,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3), // summary
-            Constraint::Min(0),   // table
-            Constraint::Min(8),   // detail
+            Constraint::Min(0),    // table
+            Constraint::Min(8),    // detail
         ])
         .split(area);
 
@@ -133,10 +133,7 @@ fn render_table(f: &mut Frame, area: Rect, app: &mut App) {
                     e.file_name.clone(),
                     Style::default().fg(Color::DarkGray),
                 )),
-                Cell::from(Span::styled(
-                    e.status.clone(),
-                    name_style,
-                )),
+                Cell::from(Span::styled(e.status.clone(), name_style)),
                 Cell::from(Span::styled(
                     todo_str,
                     if todo_count > 0 {
@@ -151,7 +148,7 @@ fn render_table(f: &mut Frame, area: Rect, app: &mut App) {
 
     let widths = [
         Constraint::Length(2),  // symbol
-        Constraint::Min(25),   // name
+        Constraint::Min(25),    // name
         Constraint::Length(25), // file
         Constraint::Length(10), // status
         Constraint::Length(5),  // TODOs
@@ -195,9 +192,7 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App) {
                 let line = if src_line.contains("TODO") {
                     Line::from(Span::styled(
                         src_line.to_string(),
-                        Style::default()
-                            .fg(Color::Red)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                     ))
                 } else if let Some(colon_pos) = src_line.find(':') {
                     let key_part = &src_line[..=colon_pos];

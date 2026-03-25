@@ -162,6 +162,7 @@ fn test_reconfigure_attach_removes_creature_type() {
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -258,6 +259,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -293,6 +295,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -378,6 +381,7 @@ fn test_reconfigure_sorcery_speed_only() {
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -431,6 +435,7 @@ fn test_reconfigure_cant_attach_to_self() {
             targets: vec![Target::Object(blades_id)], // targeting self,
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -507,6 +512,7 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -599,6 +605,7 @@ fn test_reconfigure_unattach_rejected_when_not_attached() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -657,6 +664,7 @@ fn test_reconfigure_cant_attach_to_opponents_creature() {
             targets: vec![Target::Object(opp_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -723,6 +731,7 @@ fn test_reconfigure_artifact_type_retained_while_attached() {
             targets: vec![Target::Object(bear_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

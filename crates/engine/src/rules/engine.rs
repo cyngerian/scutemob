@@ -126,6 +126,7 @@ pub fn process_command(
             targets,
             discard_card,
             sacrifice_target,
+            x_value,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: activating an ability is a meaningful player choice; reset loop detection.
@@ -138,6 +139,7 @@ pub fn process_command(
                 targets,
                 discard_card,
                 sacrifice_target,
+                x_value,
             )?;
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);

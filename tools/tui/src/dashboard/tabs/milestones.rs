@@ -83,20 +83,11 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
                         .add_modifier(Modifier::BOLD),
                 ))
             } else if m.is_future {
-                Cell::from(Span::styled(
-                    "UPCOMING",
-                    Style::default().fg(Color::Cyan),
-                ))
+                Cell::from(Span::styled("UPCOMING", Style::default().fg(Color::Cyan)))
             } else if is_done {
-                Cell::from(Span::styled(
-                    "v DONE",
-                    Style::default().fg(Color::DarkGray),
-                ))
+                Cell::from(Span::styled("v DONE", Style::default().fg(Color::DarkGray)))
             } else if pct > 0.0 {
-                Cell::from(Span::styled(
-                    "partial",
-                    Style::default().fg(Color::Yellow),
-                ))
+                Cell::from(Span::styled("partial", Style::default().fg(Color::Yellow)))
             } else {
                 Cell::from(Span::styled(
                     "\u{2014}",

@@ -536,6 +536,7 @@ pub fn translate_player_action(
                 targets: target_list,
                 discard_card: discard_card_id,
                 sacrifice_target: sacrifice_target_id,
+                x_value: if x_value > 0 { Some(x_value) } else { None },
             })
         }
         // CR 606: Activate a loyalty ability on a planeswalker.
@@ -547,7 +548,7 @@ pub fn translate_player_action(
                 source: source_id,
                 ability_index,
                 targets: target_list,
-                x_value: None, // TODO: add x_value field to PlayerAction for -X abilities
+                x_value: if x_value > 0 { Some(x_value) } else { None },
             })
         }
         "cycle_card" => {

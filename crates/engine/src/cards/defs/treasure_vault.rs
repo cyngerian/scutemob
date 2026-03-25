@@ -1,4 +1,4 @@
-// Treasure Vault — Artifact Land, {T}: Add {C}; {X}{X},{T},Sacrifice: Create X Treasures (TODO)
+// Treasure Vault — Artifact Land, {T}: Add {C}; {X}{X},{T},Sacrifice: Create X Treasures
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,18 +20,20 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // {X}{X}, {T}, Sacrifice: Create X Treasure tokens.
-            // TODO: X-scaled token creation (EffectAmount::XValue in token count) not yet wired.
-            // Cost is correct; effect approximated as creating 1 Treasure.
+            // CR 107.3k: {X}{X}, {T}, Sacrifice: Create X Treasure tokens.
+            // x_count: 2 means total cost = 2 * x_value generic mana.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { x_count: 2, ..Default::default() }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
-                // TODO: should create X Treasures (EffectAmount::XValue); approximated as 1.
-                effect: Effect::CreateToken {
-                    spec: treasure_token_spec(1),
+                // CR 107.3m: Create X Treasures using Repeat + XValue.
+                effect: Effect::Repeat {
+                    count: EffectAmount::XValue,
+                    effect: Box::new(Effect::CreateToken {
+                        spec: treasure_token_spec(1),
+                    }),
                 },
                 timing_restriction: None,
                 targets: vec![],

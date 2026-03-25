@@ -625,6 +625,7 @@ fn test_condition_has_citys_blessing() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("ActivateAbility should succeed");
@@ -657,6 +658,7 @@ fn test_condition_has_citys_blessing() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("ActivateAbility should succeed");

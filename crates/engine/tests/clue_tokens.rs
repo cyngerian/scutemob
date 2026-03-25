@@ -238,6 +238,7 @@ fn test_clue_activate_draw_card() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -316,6 +317,7 @@ fn test_clue_uses_stack_not_mana_ability() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -368,6 +370,7 @@ fn test_clue_sacrifice_is_cost_not_effect() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -426,6 +429,7 @@ fn test_clue_tapped_can_still_activate() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -487,6 +491,7 @@ fn test_clue_not_affected_by_summoning_sickness() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -534,6 +539,7 @@ fn test_clue_token_ceases_to_exist_after_sba() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -605,6 +611,7 @@ fn test_clue_opponent_cannot_activate() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -656,6 +663,7 @@ fn test_clue_insufficient_mana_cannot_activate() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 

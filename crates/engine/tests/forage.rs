@@ -171,6 +171,7 @@ fn test_forage_sacrifice_food() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("forage activate with Food available should succeed");
@@ -248,6 +249,7 @@ fn test_forage_exile_three_from_graveyard() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("forage activate with 3 graveyard cards should succeed (no Food needed)");
@@ -322,6 +324,7 @@ fn test_forage_insufficient_resources() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -362,6 +365,7 @@ fn test_forage_requires_mana_cost_too() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -409,6 +413,7 @@ fn test_forage_food_is_artifact_subtype_not_just_token() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("ruling 2024-11-08: non-token Food artifact should qualify for forage");
@@ -461,6 +466,7 @@ fn test_forage_non_food_artifact_rejected() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -505,6 +511,7 @@ fn test_forage_prefers_food_when_both_available() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .expect("forage with both options available should succeed");

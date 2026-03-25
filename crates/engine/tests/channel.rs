@@ -130,6 +130,7 @@ fn test_channel_activate_from_hand_basic() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();
@@ -233,6 +234,7 @@ fn test_channel_cannot_activate_from_battlefield() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -287,6 +289,7 @@ fn test_channel_only_owner_can_activate() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -341,6 +344,7 @@ fn test_channel_insufficient_mana_fails() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 
@@ -392,6 +396,7 @@ fn test_channel_ability_uses_stack() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     )
     .unwrap();

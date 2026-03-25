@@ -315,6 +315,7 @@ fn test_split_second_blocks_activated_abilities() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
 

@@ -1203,6 +1203,15 @@ pub enum Effect {
         if_true: Box<Effect>,
         if_false: Box<Effect>,
     },
+    /// Execute an effect N times, where N is resolved from the amount.
+    ///
+    /// Used for "create X tokens" patterns where the count is dynamic
+    /// (e.g., `EffectAmount::XValue`). CR 107.3m: N resolves to the X value
+    /// from the casting cost when `count` is `EffectAmount::XValue`.
+    Repeat {
+        effect: Box<Effect>,
+        count: EffectAmount,
+    },
     /// Apply effect once for each element in `over`.
     ForEach {
         over: ForEachTarget,
@@ -2128,6 +2137,11 @@ pub enum Condition {
     /// symbol matching any listed color counts once (hybrid symbols that match either
     /// color count once, not twice). True when calculated devotion < threshold.
     DevotionToColorsLessThan { colors: Vec<Color>, threshold: u32 },
+    /// CR 107.3m: "if X is N or more" — true when `ctx.x_value >= n`.
+    ///
+    /// Used for Martial Coup ("if X is 5 or more, destroy all other creatures"),
+    /// White Sun's Twilight, Finale of Devastation ("if X is 10 or more").
+    XValueAtLeast(u32),
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

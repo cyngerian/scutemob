@@ -2108,6 +2108,14 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 107.3m: Execute an effect N times, where N is resolved from the amount.
+        // Used for "create X tokens" where count is EffectAmount::XValue.
+        Effect::Repeat { effect, count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as u32;
+            for _ in 0..n {
+                execute_effect_inner(state, effect, ctx, events);
+            }
+        }
         Effect::Choose { choices, .. } => {
             // M9+: interactive modal choice. For M7, execute the first option.
             if let Some(first) = choices.first() {
@@ -5368,6 +5376,8 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         Condition::DevotionToColorsLessThan { .. } => {
             check_static_condition(state, condition, ctx.source, ctx.controller)
         }
+        // CR 107.3m: "if X is N or more" — true when ctx.x_value >= n.
+        Condition::XValueAtLeast(n) => ctx.x_value >= *n,
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).

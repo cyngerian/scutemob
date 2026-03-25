@@ -79,6 +79,7 @@ fn targeted_activated_ability_valid_creature_target() {
             targets: vec![Target::Object(target_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(
@@ -147,6 +148,7 @@ fn targeted_activated_ability_rejects_non_creature() {
             targets: vec![Target::Object(artifact_id)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(
@@ -207,6 +209,7 @@ fn targeted_activated_ability_target_player() {
             targets: vec![Target::Player(p2)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(
@@ -265,6 +268,7 @@ fn activated_ability_no_targets_backward_compatible() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(
@@ -445,6 +449,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
             targets: vec![Target::Player(p2)],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(
@@ -505,6 +510,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
             targets: vec![],
             discard_card: None,
             sacrifice_target: None,
+            x_value: None,
         },
     );
     assert!(

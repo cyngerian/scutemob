@@ -13,8 +13,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5),  // headline + PB progress
-            Constraint::Length(7),  // card health + summary lines
+            Constraint::Length(5), // headline + PB progress
+            Constraint::Length(7), // card health + summary lines
             Constraint::Min(0),    // path to alpha + workstreams
         ])
         .split(area);
@@ -297,18 +297,19 @@ fn render_summary_lines(f: &mut Frame, area: Rect, app: &App) {
             Span::raw("   "),
             Span::styled("Engine: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("{} src + {} test LOC", fmt_loc(r.engine_loc), fmt_loc(r.test_loc)),
+                format!(
+                    "{} src + {} test LOC",
+                    fmt_loc(r.engine_loc),
+                    fmt_loc(r.test_loc)
+                ),
                 Style::default().fg(Color::White),
             ),
         ]),
     ];
 
     f.render_widget(
-        Paragraph::new(Text::from(lines)).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Summary "),
-        ),
+        Paragraph::new(Text::from(lines))
+            .block(Block::default().borders(Borders::ALL).title(" Summary ")),
         area,
     );
 }
@@ -357,8 +358,11 @@ fn render_path_to_alpha(f: &mut Frame, area: Rect, app: &App) {
     }
 
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Path to Alpha ")),
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Path to Alpha "),
+        ),
         area,
     );
 }
@@ -391,16 +395,16 @@ fn render_workstreams(f: &mut Frame, area: Rect, app: &App) {
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(
-                truncate(&w.name, 20),
-                Style::default().fg(status_color),
-            ),
+            Span::styled(truncate(&w.name, 20), Style::default().fg(status_color)),
         ]));
     }
 
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Workstreams ")),
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Workstreams "),
+        ),
         area,
     );
 }
