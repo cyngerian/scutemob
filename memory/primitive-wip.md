@@ -4,7 +4,7 @@ batch: PB-29
 title: Cost reduction statics
 cards_affected: ~30
 started: 2026-03-25
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-29.md
 
 ## Gap Reference
