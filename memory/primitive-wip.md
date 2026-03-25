@@ -4,7 +4,7 @@ batch: PB-28
 title: CDA / count-based P/T
 cards_affected: ~32
 started: 2026-03-25
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-28.md
 
 ## Gap Reference

@@ -39,7 +39,7 @@
 | PB-25 | Continuous effect grants | done | 28 | ~70 | clean | 1 |
 | PB-26 | Trigger variants (all remaining) | done | 55 | ~17 | fixed | 1 |
 | PB-27 | X-cost spells | done | 15 | ~27 | fixed | 1 |
-| **PB-28** | **CDA / count-based P/T** | **planned** | — | ~32 | — | — |
+| PB-28 | CDA / count-based P/T | done | 9 | ~23 | fixed | 1 |
 | **PB-29** | **Cost reduction statics** | **planned** | — | ~30 | — | — |
 | **PB-30** | **Combat damage triggers** | **planned** | — | ~49 | — | — |
 | **PB-31** | **Cost primitives (RemoveCounter, SacCost)** | **planned** | — | ~23 | — | — |
@@ -112,7 +112,7 @@ As of 2026-03-23 (post A-28).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2344 |
+| Total tests | 2353 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

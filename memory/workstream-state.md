@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-28: CDA / count-based P/T | ACTIVE | 2026-03-25 | PB-28 next (~32 cards) |
+| W6: Primitive + Card Authoring | PB-28: CDA / count-based P/T | ACTIVE | 2026-03-25 | **PB-28 DONE**. PB-29 next. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,24 +24,28 @@
 ## Last Handoff
 
 **Date**: 2026-03-25
-**Workstream**: W6 (PB-27)
-**Task**: PB-27 X-cost spells
+**Workstream**: W6 (PB-28)
+**Task**: PB-28 CDA / count-based P/T
 
 **Completed**:
-- **PB-27 DONE**: G-5 X-cost spells. Engine: Condition::XValueAtLeast, Effect::Repeat, x_value on ActivateAbility, ETB x_value propagation (CR 107.3m), replay harness wiring. 15 card defs fixed (7 fully, 8 partially). 10 new tests. Review: 2M fixed. 2344 tests, 0 clippy.
-- Commits: 7972512 (implement), 04664ea (fixes).
+- **PB-28 DONE**: G-6 CDA / count-based P/T. Engine: AbilityDefinition::CdaPowerToughness, LayerModification::SetPtDynamic, EffectAmount::Sum, resolve_cda_amount() in layers.rs. 9 card defs fixed. 9 new tests. Review: 1M fixed (Abomination graveyard filter). 2353 tests, 0 clippy.
+- Commits: ee56134 (implement), 3882c1b (fixes).
 
 **Next**:
-1. Continue gap closure: PB-28 (CDA / count-based P/T, ~32 cards) is next
-2. ~27 remaining X-cost cards need other PB gaps (count-based patterns → PB-28, variable sacrifice → future)
-3. Backfill sweeps for PB-23/24/25/26/27 accumulating — consider dedicated backfill session
+1. Continue gap closure: PB-29 (cost reduction statics, ~30 cards) is next
+2. Deferred: nighthawk_scavenger needs DistinctCardTypesInGraveyards variant
+3. Backfill sweeps accumulating (PB-23 ~111, PB-24 ~188, PB-25 ~70, PB-26 ~17, PB-27 ~27, PB-28 ~23)
 
 **Hazards**:
-- Backfill sweeps accumulating (PB-23 ~111, PB-24 ~188, PB-25 ~70, PB-26 ~17, PB-27 ~27)
+- Backfill sweeps accumulating (~436 cards across PB-23–28)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-25 — W6: PB-28 CDA / count-based P/T
+- PB-28: G-6 CDA, 9 card defs fixed, 1M fixed. 2353 tests.
+- Commits: ee56134, 3882c1b.
 
 ### 2026-03-25 — W6: PB-27 X-cost spells
 - PB-27: G-5 X-cost spells, 15 card defs fixed, 2M fixed. 2344 tests.
