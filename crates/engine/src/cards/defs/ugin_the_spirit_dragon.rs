@@ -8,8 +8,7 @@
 // No such dynamic loyalty cost (Minus(X)) exists in the DSL. Omitted per W5 policy.
 // NOTE: −10 "put up to seven permanent cards from your hand onto the battlefield" requires
 // effect to iterate hand, present choices, and put multiple cards onto battlefield — not
-// expressible in the DSL. Partially: GainLife + DrawCards are implementable but the hand
-// put-onto-battlefield is not. Omitted per W5 (partial = wrong).
+// expressible in the DSL. GainLife + DrawCards are implemented; hand-to-battlefield is TODO.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -47,10 +46,26 @@ pub fn card() -> CardDefinition {
             },
             // −10: You gain 7 life, draw seven cards, then put up to seven permanent cards
             // from your hand onto the battlefield.
-            // TODO: "Put up to seven permanent cards from your hand onto the battlefield"
-            // requires interactive hand selection and zone-change effect for multiple cards.
-            // Not expressible in the DSL. GainLife + DrawCards are implementable but the
-            // put-onto-battlefield portion is not. Omitted to avoid wrong game state.
+            // PARTIAL: GainLife(7) + DrawCards(7) are implemented. The loyalty cost is tracked
+            // correctly. TODO: "put up to seven permanent cards from your hand onto the
+            // battlefield" requires interactive hand selection and zone-change effect for
+            // multiple cards — not expressible in the DSL. Deferred to a future DSL gap batch.
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::Minus(10),
+                effect: Effect::Sequence(vec![
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(7),
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(7),
+                    },
+                    // TODO: put up to seven permanent cards from hand onto battlefield —
+                    // requires interactive selection + multi-card zone change (DSL gap).
+                ]),
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

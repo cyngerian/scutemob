@@ -493,9 +493,11 @@ fn test_x_cost_conditional_xvalue_at_least_martial_coup_x5() {
     );
 
     // p2's creature should be destroyed (X >= 5 triggers DestroyAll).
-    // Note: the current DestroyAll implementation hits all creatures including the newly
-    // created Soldiers, so those may also be gone. The important assertion is that p2's
-    // creature was destroyed, verifying Condition::XValueAtLeast(5) fired correctly.
+    // KNOWN DEVIATION: DestroyAll hits all creatures including the Soldier tokens just created
+    // by the preceding Repeat effect. Oracle says "destroy all OTHER creatures" — own tokens
+    // should survive. This is wrong game state. Fix requires DestroyAllExcept or an
+    // exclude_created_this_effect flag on TargetFilter (deferred DSL gap). The assertion below
+    // only checks p2's creature is gone, verifying Condition::XValueAtLeast(5) fired correctly.
     let p2_creature_after = find_object_on_battlefield(&state, "Dummy Creature");
     assert!(
         p2_creature_after.is_none(),

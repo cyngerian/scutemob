@@ -33,7 +33,13 @@ pub fn card() -> CardDefinition {
                         },
                     }),
                 },
-                // CR 107.3m: "If X is 5 or more, destroy all other creatures."
+                // CR 107.3m: "If X is 5 or more, destroy all OTHER creatures."
+                // TODO: DestroyAll currently hits ALL creatures including the Soldier tokens
+                // created by the preceding Repeat effect. Oracle says "all other creatures" —
+                // the tokens created by this spell should survive the wipe. Correct fix requires
+                // a DestroyAllExcept variant or an exclude_created_this_effect flag on
+                // TargetFilter, neither of which exists in the DSL. This produces wrong game
+                // state when X >= 5 (own Soldiers die). Fix deferred to a future DSL gap batch.
                 Effect::Conditional {
                     condition: Condition::XValueAtLeast(5),
                     if_true: Box::new(Effect::DestroyAll {
