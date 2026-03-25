@@ -5082,6 +5082,15 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
     {
         return false;
     }
+    // Legendary supertype filter (CR 205.4a): must have the Legendary supertype.
+    // Used for "legendary creature" filters (e.g. channel land cost reduction).
+    if filter.legendary
+        && !chars
+            .supertypes
+            .contains(&crate::state::types::SuperType::Legendary)
+    {
+        return false;
+    }
     true
 }
 // ── Condition checking ────────────────────────────────────────────────────────

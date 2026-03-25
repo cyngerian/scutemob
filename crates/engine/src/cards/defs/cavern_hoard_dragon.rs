@@ -15,10 +15,16 @@ pub fn card() -> CardDefinition {
         oracle_text: "This spell costs {X} less to cast, where X is the greatest number of artifacts an opponent controls.\nFlying, trample, haste\nWhenever this creature deals combat damage to a player, you create a Treasure token for each artifact that player controls.".to_string(),
         power: Some(6),
         toughness: Some(6),
+        // CR 601.2f: Costs {X} less where X is the greatest number of artifacts an
+        // opponent controls (max over all opponents, not sum).
+        self_cost_reduction: Some(SelfCostReduction::MaxOpponentPermanents {
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Artifact),
+                ..Default::default()
+            },
+            per: 1,
+        }),
         abilities: vec![
-            // TODO: "This spell costs {X} less to cast, where X is the greatest number of
-            // artifacts an opponent controls." — dynamic cost reduction based on opponent
-            // artifact count not expressible in DSL (only static ReduceGenericCost(N) exists).
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Haste),

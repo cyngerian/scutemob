@@ -23,7 +23,6 @@ pub fn card() -> CardDefinition {
             // Channel — {3}{U}, Discard this card: Return target non-land permanent to
             // owner's hand. "artifact, creature, enchantment, or planeswalker" = any permanent
             // that is not a land. Using non_land filter to approximate (excludes lands).
-            // TODO: Cost reduction — {1} less per legendary creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 3, blue: 1, ..Default::default() }),
@@ -42,6 +41,19 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
         ],
+        // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.
+        activated_ability_cost_reductions: vec![(
+            0,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    legendary: true,
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
         ..Default::default()
     }
 }

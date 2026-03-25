@@ -66,5 +66,6 @@ Equipped creature gets +1/+1 and has double strike."
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
     }
 }

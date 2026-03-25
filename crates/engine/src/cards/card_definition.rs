@@ -86,6 +86,16 @@ pub struct CardDefinition {
     /// Example: Blasphemous Act — costs {1} less for each creature on the battlefield.
     #[serde(default)]
     pub self_cost_reduction: Option<SelfCostReduction>,
+    /// Self-cost-reductions for activated abilities on this card.
+    ///
+    /// CR 602.2b + 601.2f: Keyed by activated-ability index (0 = first activated ability
+    /// in `characteristics.activated_abilities`). This avoids adding a field to the
+    /// `AbilityDefinition::Activated` variant which would require updating 400+ match sites.
+    ///
+    /// Example: Boseiju, Who Endures — channel ability (index 0) costs {1} less per
+    /// legendary creature controller has.
+    #[serde(default)]
+    pub activated_ability_cost_reductions: Vec<(usize, SelfActivatedCostReduction)>,
     /// CR 306.5a: Printed loyalty number (planeswalkers only). None for non-planeswalkers.
     /// CR 306.5b: A planeswalker enters with this many loyalty counters.
     #[serde(default)]
@@ -128,6 +138,7 @@ impl Default for CardDefinition {
             adventure_face: None,
             spell_cost_modifiers: vec![],
             self_cost_reduction: None,
+            activated_ability_cost_reductions: vec![],
             starting_loyalty: None,
             meld_pair: None,
         }
@@ -1769,6 +1780,10 @@ pub struct TargetFilter {
     /// When both `has_card_type` and `has_card_types` are set, BOTH must be satisfied.
     #[serde(default)]
     pub has_card_types: Vec<CardType>,
+    /// Must have the Legendary supertype. Default: false (no restriction).
+    /// Used for "legendary creature" filters (channel lands cost reduction).
+    #[serde(default)]
+    pub legendary: bool,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2575,6 +2590,17 @@ pub enum SpellCostFilter {
     HasColor(Color),
     /// Instant or sorcery spells (Goblin Electromancer).
     InstantOrSorcery,
+    /// Creature spells of a specific color (Bontu's Monument: "Black creature spells").
+    /// Compound filter: must be BOTH a creature AND the specified color.
+    /// CR 601.2f: Applies only when the spell matches both the type and color.
+    ColorAndCreature(Color),
+    /// Creature spells of the chosen creature type (Urza's Incubator, Herald's Horn).
+    /// References `chosen_creature_type` on the source permanent at cast time.
+    /// CR 601.2f: The chosen type is set when the permanent enters the battlefield.
+    HasChosenCreatureSubtype,
+    /// All spells (no filter). Used for generic cost reduction/increase.
+    /// CR 601.2f: Applies to every spell cast by a matching player.
+    AllSpells,
 }
 /// Who is affected by a spell cost modifier.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -2612,4 +2638,31 @@ pub enum SelfCostReduction {
     LifeLostFromStarting,
     /// "costs {N} less if you control a creature with power >= threshold" (Bolt Bend).
     ConditionalPowerThreshold { threshold: i32, reduction: u32 },
+    /// "Costs {N} less if you control a creature with [keyword]" (Winged Words).
+    /// CR 601.2f: Condition evaluated at cast time against the base characteristics of
+    /// creatures the caster controls (same pattern as ConditionalPowerThreshold).
+    ConditionalKeyword {
+        keyword: KeywordAbility,
+        reduction: u32,
+    },
+    /// "Costs {X} less where X is the greatest number of [permanents matching filter] an
+    /// opponent controls" (Cavern-Hoard Dragon).
+    /// CR 601.2f: X is the maximum over all opponents, not the sum.
+    MaxOpponentPermanents { filter: TargetFilter, per: i32 },
+}
+/// Self-cost-reduction for an activated ability. Analogous to `SelfCostReduction` for spells.
+///
+/// CR 602.2b: The remainder of the process for activating an ability is identical to
+/// the process for casting a spell (CR 601.2b-i). An activated ability's activation cost
+/// follows the same reduction rules as a spell's mana cost (CR 601.2f).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SelfActivatedCostReduction {
+    /// "{N} less to activate for each <permanent matching filter> controller has"
+    /// (Channel lands: "{1} less for each legendary creature you control").
+    /// CR 602.2b + 601.2f: Evaluated at activation time.
+    PerPermanent {
+        per: i32,
+        filter: TargetFilter,
+        controller: PlayerTarget,
+    },
 }

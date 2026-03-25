@@ -14,8 +14,16 @@ pub fn card() -> CardDefinition {
             &[],
         ),
         oracle_text: "White creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, create a 1/1 white Warrior creature token with vigilance.".to_string(),
+        // CR 601.2f: White creature spells controller casts cost {1} less.
+        // Uses ColorAndCreature(White) — compound filter (must be both creature AND white).
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::ColorAndCreature(Color::White),
+            scope: CostModifierScope::Controller,
+            eminence: false,
+            exclude_self: false,
+        }],
         abilities: vec![
-            // TODO: "White creature spells cost {1} less" — color+type cost reduction not in DSL.
             // Whenever you cast a creature spell, create a 1/1 white Warrior token with vigilance.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {

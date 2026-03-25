@@ -1,9 +1,6 @@
 // Bontu's Monument — {3}, Legendary Artifact
 // Black creature spells you cast cost {1} less to cast.
 // Whenever you cast a creature spell, each opponent loses 1 life and you gain 1 life.
-//
-// TODO: "Black creature spells" — SpellCostFilter needs compound HasColor+HasCardType filter.
-//   HasColor(Black) alone reduces all black spells, not just creatures. Wrong game state.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,8 +10,16 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
         oracle_text: "Black creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, each opponent loses 1 life and you gain 1 life.".to_string(),
+        // CR 601.2f: Black creature spells controller casts cost {1} less.
+        // Uses ColorAndCreature(Black) — compound filter (must be both creature AND black).
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::ColorAndCreature(Color::Black),
+            scope: CostModifierScope::Controller,
+            eminence: false,
+            exclude_self: false,
+        }],
         abilities: vec![
-            // TODO: "Black creature spells cost {1} less" — color+type cost reduction not in DSL.
             // Whenever you cast a creature spell, each opponent loses 1 life and you gain 1 life.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {

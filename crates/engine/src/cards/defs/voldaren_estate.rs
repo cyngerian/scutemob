@@ -35,7 +35,6 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {5}, {T}: Create a Blood token. This ability costs {1} less for each Vampire you control.
-            // TODO: Cost reduction per Vampire not expressible (G-27). Using full {5} cost.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 5, ..Default::default() }),
@@ -49,6 +48,21 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
         ],
+        // CR 602.2b + 601.2f: Blood token ability (activated_ability index 1) costs {1} less
+        // per Vampire controller has. The {T}:Add{C} tap ability goes to mana_abilities
+        // (index excluded). The {T},pay 1 life ability is activated_ability index 0.
+        // The blood token {5}{T} ability is activated_ability index 1.
+        activated_ability_cost_reductions: vec![(
+            1,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    has_subtype: Some(SubType("Vampire".to_string())),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
         ..Default::default()
     }
 }

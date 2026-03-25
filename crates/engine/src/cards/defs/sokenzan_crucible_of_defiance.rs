@@ -29,7 +29,6 @@ pub fn card() -> CardDefinition {
             // keyword on the token. This matters if an opponent gains control of the token via
             // Insurrection — correct behavior would be haste expires at cleanup. DSL gap:
             // CreateToken does not support post-creation continuous effects. Acceptable approximation.
-            // TODO: Cost reduction — {1} less per legendary creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 3, red: 1, ..Default::default() }),
@@ -58,6 +57,19 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
         ],
+        // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.
+        activated_ability_cost_reductions: vec![(
+            0,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    legendary: true,
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
         ..Default::default()
     }
 }

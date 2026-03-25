@@ -392,6 +392,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
     };
 
     let registry = CardRegistry::new(vec![double_poison_def]);

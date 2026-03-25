@@ -10,9 +10,17 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
         oracle_text: "Red creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, you may discard a card. If you do, draw a card.".to_string(),
+        // CR 601.2f: Red creature spells controller casts cost {1} less.
+        // Uses ColorAndCreature(Red) — compound filter (must be both creature AND red).
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::ColorAndCreature(Color::Red),
+            scope: CostModifierScope::Controller,
+            eminence: false,
+            exclude_self: false,
+        }],
         abilities: vec![
-            // TODO: "Red creature spells cost {1} less" — color+type cost reduction not in DSL.
-            // TODO: "may discard, if you do draw" — optional loot on cast trigger.
+            // TODO: "may discard, if you do draw" — optional loot on cast trigger (DSL gap).
             // Creature spell filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {

@@ -381,6 +381,7 @@ fn test_702_25b_flanking_multiple_instances() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
     };
 
     let registry = CardRegistry::new(vec![double_flanking_def]);

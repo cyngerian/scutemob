@@ -3219,6 +3219,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
     };
 
     let registry = CardRegistry::new(vec![def]);
@@ -3331,6 +3332,7 @@ fn conditional_etb_land(
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
         ..Default::default()
     }
 }
@@ -3355,6 +3357,7 @@ fn basic_land_def(id: &str, name: &str, subtype: &str) -> CardDefinition {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
         ..Default::default()
     }
 }

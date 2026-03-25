@@ -81,6 +81,7 @@ pub fn card() -> CardDefinition {
         starting_loyalty: Some(4),
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
         ..Default::default()
     }
 }

@@ -10,9 +10,9 @@ pub use cards::{
     CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost,
     CostModifierScope, CraftMaterials, Effect, EffectAmount, EffectTarget as CardEffectTarget,
     ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair, ModeSelection, PlayerTarget,
-    SelfCostReduction, SoulbondGrant, SpellCostFilter, SpellCostModifier, TargetController,
-    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
-    ZoneTarget,
+    SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant, SpellCostFilter,
+    SpellCostModifier, TargetController, TargetFilter, TargetRequirement, TimingRestriction,
+    TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 // Convenience re-exports of primary types
 pub use rules::commander::{

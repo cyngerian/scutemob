@@ -129,6 +129,7 @@ fn plain_creature_def() -> CardDefinition {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
         ..Default::default()
     }
 }

@@ -486,6 +486,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        activated_ability_cost_reductions: vec![],
     };
 
     let registry = CardRegistry::new(vec![double_renown_def]);

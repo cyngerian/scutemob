@@ -12,10 +12,12 @@
 //! - Eminence: modifier applies from the command zone as well as battlefield.
 //! - Self-cost-reduction: spell is cheaper based on game state at cast time.
 
+use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
-    process_command, CardDefinition, CardId, CardRegistry, CardType, Command, CostModifierScope,
-    GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
-    SelfCostReduction, SpellCostFilter, SpellCostModifier, Step, SubType, TargetFilter, ZoneId,
+    process_command, CardDefinition, CardId, CardRegistry, CardType, Color, Command,
+    CostModifierScope, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec,
+    PlayerId, PlayerTarget, SelfActivatedCostReduction, SelfCostReduction, SpellCostFilter,
+    SpellCostModifier, Step, SubType, TargetFilter, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1190,4 +1192,855 @@ fn test_spell_cost_modifier_ur_dragon_exclude_self() {
         result2.is_err(),
         "CR 601.2f: Ur-Dragon hand copy should fail with only {{2}} generic (needs {{3}})"
     );
+}
+
+// ── PB-29: New SpellCostFilter variants ─────────────────────────────────────
+
+#[test]
+/// CR 601.2f — SpellCostFilter::ColorAndCreature reduces only creature spells of the
+/// specified color. A black creature spell costs {1} less with Bontu's Monument style modifier.
+fn test_spell_cost_filter_color_and_creature_reduces_matching() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Bontu's Monument style: black creature spells cost {1} less (controller only).
+    let monument_def = CardDefinition {
+        card_id: cid("bontu-test"),
+        name: "Bontu Test".to_string(),
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::ColorAndCreature(Color::Black),
+            scope: CostModifierScope::Controller,
+            eminence: false,
+            exclude_self: false,
+        }],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![monument_def]);
+
+    // Permanent on battlefield.
+    let monument = ObjectSpec::creature(p1, "Bontu Test", 0, 0).with_card_id(cid("bontu-test"));
+    // Black creature spell: generic=2, black=1 → costs {2}{B} → with reduction {1}{B}.
+    let black_creature = ObjectSpec::card(p1, "Vampire Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("vampire-test"))
+        .with_types(vec![CardType::Creature])
+        .with_colors(vec![Color::Black])
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        });
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(monument)
+        .object(black_creature)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Provide {1}{B} — exactly reduced cost.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Black, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Vampire Test");
+    let (state, _) = cast_spell(state, p1, spell_id).expect(
+        "CR 601.2f: black creature spell should cost {1}{B} with ColorAndCreature(Black) reduction",
+    );
+    assert!(
+        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        "mana should be fully spent"
+    );
+}
+
+#[test]
+/// CR 601.2f — SpellCostFilter::ColorAndCreature does NOT reduce non-creature black spells.
+/// A black instant spell should not be reduced by a black-creature-only modifier.
+fn test_spell_cost_filter_color_and_creature_no_match_noncreature() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let monument_def = CardDefinition {
+        card_id: cid("bontu-test2"),
+        name: "Bontu Test2".to_string(),
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::ColorAndCreature(Color::Black),
+            scope: CostModifierScope::Controller,
+            eminence: false,
+            exclude_self: false,
+        }],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![monument_def]);
+
+    let monument = ObjectSpec::creature(p1, "Bontu Test2", 0, 0).with_card_id(cid("bontu-test2"));
+    // Black instant (noncreature) — should NOT be reduced.
+    let black_instant = ObjectSpec::card(p1, "Dark Ritual Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("dark-ritual-test"))
+        .with_types(vec![CardType::Instant])
+        .with_colors(vec![Color::Black])
+        .with_mana_cost(ManaCost {
+            black: 1,
+            ..Default::default()
+        });
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(monument)
+        .object(black_instant)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Only provide {0} generic — fails because noncreature isn't reduced.
+    // Actually the instant costs {B} so we need {B}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Black, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Dark Ritual Test");
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: black instant costs full {B} (not reduced by ColorAndCreature)");
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+#[test]
+/// CR 601.2f — SpellCostFilter::HasChosenCreatureSubtype reduces creature spells whose
+/// subtype matches the source's chosen_creature_type. Goblin with chosen_type=Goblin costs less.
+fn test_spell_cost_filter_chosen_creature_subtype() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Urza's Incubator style: creature spells of chosen type cost {2} less (all players).
+    let incubator_def = CardDefinition {
+        card_id: cid("incubator-test"),
+        name: "Incubator Test".to_string(),
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -2,
+            filter: SpellCostFilter::HasChosenCreatureSubtype,
+            scope: CostModifierScope::AllPlayers,
+            eminence: false,
+            exclude_self: false,
+        }],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![incubator_def]);
+
+    // Incubator (without chosen_creature_type set yet — will set after build).
+    let incubator =
+        ObjectSpec::creature(p1, "Incubator Test", 0, 0).with_card_id(cid("incubator-test"));
+
+    // Goblin creature spell: {3}{R} → with {2} reduction = {1}{R}.
+    let goblin = ObjectSpec::card(p1, "Goblin Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("goblin-test"))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Goblin".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        });
+
+    // Non-goblin creature spell: {3}{R} — NOT reduced.
+    let elf = ObjectSpec::card(p1, "Elf Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("elf-test"))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Elf".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        });
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(incubator)
+        .object(goblin)
+        .object(elf)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Set chosen_creature_type = Goblin on the incubator object.
+    let incubator_id = find_object(&state, "Incubator Test");
+    state
+        .objects
+        .get_mut(&incubator_id)
+        .unwrap()
+        .chosen_creature_type = Some(SubType("Goblin".to_string()));
+
+    // Pay {1}{R} for Goblin (reduced from {3}{R}).
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let goblin_id = find_object(&state, "Goblin Test");
+    let (state, _) = cast_spell(state.clone(), p1, goblin_id)
+        .expect("CR 601.2f: Goblin spell should cost {{1}}{{R}} with incubator choosing Goblin");
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+// ── PB-29: New SelfCostReduction variants ────────────────────────────────────
+
+#[test]
+/// CR 601.2f — SelfCostReduction::ConditionalKeyword: Winged Words style spell costs {1} less
+/// when caster controls a creature with flying.
+fn test_self_cost_reduction_conditional_keyword_flying() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Winged Words style: costs {1} less if controller has a creature with flying.
+    let winged_def = CardDefinition {
+        card_id: cid("winged-test"),
+        name: "Winged Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::ConditionalKeyword {
+            keyword: KeywordAbility::Flying,
+            reduction: 1,
+        }),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![winged_def]);
+
+    let spell = ObjectSpec::card(p1, "Winged Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("winged-test"))
+        .with_types(vec![CardType::Sorcery])
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        });
+
+    // A creature with flying controlled by p1.
+    let flyer = ObjectSpec::creature(p1, "Flyer", 1, 1).with_keyword(KeywordAbility::Flying);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(flyer)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // With flying creature: {2}{U} - 1 = {1}{U}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Blue, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Winged Test");
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: should cost {1}{U} when controlling a flyer");
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+#[test]
+/// CR 601.2f — SelfCostReduction::ConditionalKeyword: no reduction when no creature with
+/// the keyword is present.
+fn test_self_cost_reduction_conditional_keyword_no_match() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let winged_def = CardDefinition {
+        card_id: cid("winged-test2"),
+        name: "Winged Test2".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::ConditionalKeyword {
+            keyword: KeywordAbility::Flying,
+            reduction: 1,
+        }),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![winged_def]);
+
+    let spell = ObjectSpec::card(p1, "Winged Test2")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("winged-test2"))
+        .with_types(vec![CardType::Sorcery])
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        });
+
+    // No creatures with flying — a ground creature only.
+    let walker = ObjectSpec::creature(p1, "Walker", 2, 2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(walker)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Attempt with only {1}{U} — should fail (needs {2}{U}).
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Blue, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Winged Test2");
+    let result = cast_spell(state, p1, spell_id);
+    assert!(
+        result.is_err(),
+        "CR 601.2f: should require full {{2}}{{U}} when no flyer is present"
+    );
+}
+
+#[test]
+/// CR 601.2f — SelfCostReduction::MaxOpponentPermanents: Cavern-Hoard Dragon style reduction
+/// using the maximum artifact count among all opponents in a 1v1 game.
+fn test_self_cost_reduction_max_opponent_permanents_1v1() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Cavern-Hoard Dragon style: costs {X} less where X is the max artifacts any opponent has.
+    let dragon_def = CardDefinition {
+        card_id: cid("dragon-test"),
+        name: "Dragon Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 7,
+            red: 2,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::MaxOpponentPermanents {
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Artifact),
+                ..Default::default()
+            },
+            per: 1,
+        }),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![dragon_def]);
+
+    let spell = ObjectSpec::card(p1, "Dragon Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("dragon-test"))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 7,
+            red: 2,
+            ..Default::default()
+        });
+
+    // Opponent has 3 artifacts on the battlefield.
+    let art1 = ObjectSpec::card(p2, "Artifact 1")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+    let art2 = ObjectSpec::card(p2, "Artifact 2")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+    let art3 = ObjectSpec::card(p2, "Artifact 3")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(art1)
+        .object(art2)
+        .object(art3)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // {7}{RR} - 3 artifacts = {4}{RR}. Give {4}{RR}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 4);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 2);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Dragon Test");
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: dragon should cost {4}{RR} with opponent having 3 artifacts");
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+#[test]
+/// CR 601.2f — SelfCostReduction::MaxOpponentPermanents in multiplayer: uses the MAXIMUM
+/// (not sum) of opponent artifact counts.
+fn test_self_cost_reduction_max_opponent_permanents_multiplayer() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+
+    let dragon_def = CardDefinition {
+        card_id: cid("dragon-multi-test"),
+        name: "Dragon Multi Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 7,
+            red: 2,
+            ..Default::default()
+        }),
+        self_cost_reduction: Some(SelfCostReduction::MaxOpponentPermanents {
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Artifact),
+                ..Default::default()
+            },
+            per: 1,
+        }),
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![dragon_def]);
+
+    let spell = ObjectSpec::card(p1, "Dragon Multi Test")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(cid("dragon-multi-test"))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 7,
+            red: 2,
+            ..Default::default()
+        });
+
+    // p2 has 1 artifact, p3 has 5 artifacts, p4 has 3 artifacts. Max = 5. All on battlefield.
+    let arts: Vec<_> = (0..5)
+        .map(|i| {
+            ObjectSpec::card(p3, &format!("Art {}", i))
+                .in_zone(ZoneId::Battlefield)
+                .with_types(vec![CardType::Artifact])
+        })
+        .collect();
+    let art_p2 = ObjectSpec::card(p2, "Art P2")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+    let art_p4_1 = ObjectSpec::card(p4, "Art P4-1")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+    let art_p4_2 = ObjectSpec::card(p4, "Art P4-2")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+    let art_p4_3 = ObjectSpec::card(p4, "Art P4-3")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Artifact]);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .object(spell)
+        .object(art_p2)
+        .object(art_p4_1)
+        .object(art_p4_2)
+        .object(art_p4_3);
+    for a in arts {
+        builder = builder.object(a);
+    }
+    let mut state = builder
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Max opponent artifacts = 5 (from p3). Cost: {7}{RR} - 5 = {2}{RR}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 2);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_object(&state, "Dragon Multi Test");
+    let (state, _) = cast_spell(state, p1, spell_id)
+        .expect("CR 601.2f: dragon should cost {2}{RR} with max opponent having 5 artifacts");
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+}
+
+// ── PB-29: SelfActivatedCostReduction tests ──────────────────────────────────
+
+/// Helper: build an activation cost from a mana cost.
+fn mana_activation_cost(generic: u32) -> ActivationCost {
+    ActivationCost {
+        mana_cost: Some(ManaCost {
+            generic,
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+#[test]
+/// CR 602.2b + 601.2f — SelfActivatedCostReduction::PerPermanent reduces the activation cost
+/// by {1} per legendary creature the controller has. 2 legendary creatures = {2} less.
+fn test_activated_ability_self_cost_reduction_per_legendary() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Channel land style: ability costs {4} generic normally, {1} less per legendary creature.
+    let channel_def = CardDefinition {
+        card_id: cid("channel-land-test"),
+        name: "Channel Land Test".to_string(),
+        activated_ability_cost_reductions: vec![(
+            0,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    legendary: true,
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![channel_def]);
+
+    // The land with the channel ability (generic=4 mana cost), on the battlefield.
+    let land = ObjectSpec::card(p1, "Channel Land Test")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(cid("channel-land-test"))
+        .with_activated_ability(ActivatedAbility {
+            cost: mana_activation_cost(4),
+            description: "Channel: deal damage".to_string(),
+            effect: None,
+            sorcery_speed: false,
+            targets: vec![],
+            activation_condition: None,
+        });
+
+    // 2 legendary creatures controlled by p1.
+    use mtg_engine::SuperType;
+    let leg1 =
+        ObjectSpec::creature(p1, "Legend One", 3, 3).with_supertypes(vec![SuperType::Legendary]);
+    let leg2 =
+        ObjectSpec::creature(p1, "Legend Two", 2, 2).with_supertypes(vec![SuperType::Legendary]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(land)
+        .object(leg1)
+        .object(leg2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Cost: {4} - 2 legendary = {2}.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state.turn.priority_holder = Some(p1);
+
+    let source_id = find_object(&state, "Channel Land Test");
+    let (state, _) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: source_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+        },
+    )
+    .expect("CR 602.2b: ability should cost 2 generic with 2 legendary creatures");
+    assert!(
+        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        "mana should be fully spent"
+    );
+}
+
+#[test]
+/// CR 601.2f — Reduction cannot bring generic cost below {0}. Even with 10 legendary creatures,
+/// a {3} generic activation should not become negative.
+fn test_activated_ability_self_cost_reduction_floor_zero() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let channel_def = CardDefinition {
+        card_id: cid("channel-floor-test"),
+        name: "Channel Floor Test".to_string(),
+        activated_ability_cost_reductions: vec![(
+            0,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    legendary: true,
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![channel_def]);
+
+    let land = ObjectSpec::card(p1, "Channel Floor Test")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(cid("channel-floor-test"))
+        .with_activated_ability(ActivatedAbility {
+            cost: mana_activation_cost(3),
+            description: "Channel: floor test".to_string(),
+            effect: None,
+            sorcery_speed: false,
+            targets: vec![],
+            activation_condition: None,
+        });
+
+    // 10 legendary creatures — would reduce by 10 but cost is only 3.
+    use mtg_engine::SuperType;
+    let legends: Vec<_> = (0..10)
+        .map(|i| {
+            ObjectSpec::creature(p1, &format!("Legend {}", i), 1, 1)
+                .with_supertypes(vec![SuperType::Legendary])
+        })
+        .collect();
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(land);
+    for l in legends {
+        builder = builder.object(l);
+    }
+    let mut state = builder
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Cost reduced to {0} (floor). Give {0} mana — should succeed.
+    state.turn.priority_holder = Some(p1);
+
+    let source_id = find_object(&state, "Channel Floor Test");
+    let (state, _) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: source_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+        },
+    )
+    .expect("CR 601.2f: cost should floor at {0}, not go negative");
+    assert!(
+        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        "no mana needed at {{0}} cost"
+    );
+}
+
+#[test]
+/// CR 602.2b + 601.2f — Voldaren Estate style: Blood token activation costs {1} less per
+/// Vampire the controller has. 3 Vampires reduces {5} to {2}.
+fn test_activated_ability_self_cost_reduction_vampires() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Voldaren Estate Blood token ability (index 1, since index 0 is the life-pay mana ability).
+    let estate_def = CardDefinition {
+        card_id: cid("estate-test"),
+        name: "Estate Test".to_string(),
+        activated_ability_cost_reductions: vec![(
+            1,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    has_subtype: Some(SubType("Vampire".to_string())),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
+        ..Default::default()
+    };
+
+    let registry = CardRegistry::new(vec![estate_def]);
+
+    // Dummy ability at index 0.
+    let dummy_ab = ActivatedAbility {
+        cost: ActivationCost {
+            mana_cost: None,
+            ..Default::default()
+        },
+        description: "Pay life: add mana".to_string(),
+        effect: None,
+        sorcery_speed: false,
+        targets: vec![],
+        activation_condition: None,
+    };
+    // Blood token ability at index 1 — costs {5} generic (tap as part of cost).
+    let blood_ab = ActivatedAbility {
+        cost: ActivationCost {
+            mana_cost: Some(ManaCost {
+                generic: 5,
+                ..Default::default()
+            }),
+            requires_tap: true,
+            ..Default::default()
+        },
+        description: "Blood token".to_string(),
+        effect: None,
+        sorcery_speed: false,
+        targets: vec![],
+        activation_condition: None,
+    };
+
+    let estate = ObjectSpec::card(p1, "Estate Test")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(cid("estate-test"))
+        .with_activated_ability(dummy_ab)
+        .with_activated_ability(blood_ab);
+
+    // 3 Vampires controlled by p1.
+    let v1 = ObjectSpec::creature(p1, "Vampire A", 2, 2)
+        .with_subtypes(vec![SubType("Vampire".to_string())]);
+    let v2 = ObjectSpec::creature(p1, "Vampire B", 2, 2)
+        .with_subtypes(vec![SubType("Vampire".to_string())]);
+    let v3 = ObjectSpec::creature(p1, "Vampire C", 1, 1)
+        .with_subtypes(vec![SubType("Vampire".to_string())]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(estate)
+        .object(v1)
+        .object(v2)
+        .object(v3)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Cost: {5} - 3 vampires = {2}. The tap is free (already untapped).
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state.turn.priority_holder = Some(p1);
+
+    let source_id = find_object(&state, "Estate Test");
+    let (state, _) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: source_id,
+            ability_index: 1,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+        },
+    )
+    .expect("CR 602.2b: Blood token ability should cost {2} with 3 Vampires");
+    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
 }

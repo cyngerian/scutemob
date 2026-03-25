@@ -473,6 +473,19 @@ pub fn handle_activate_ability(
         } else if xv > 0 {
             resolved_cost.generic += xv;
         }
+        // CR 602.2b + 601.2f: Apply self-activated-cost-reduction from CardDefinition.
+        // Uses index-keyed `activated_ability_cost_reductions` field (alternative design to
+        // avoid adding a field to AbilityDefinition::Activated which has 400+ match sites).
+        if let Some(card_id) = state.objects.get(&source).and_then(|o| o.card_id.clone()) {
+            if let Some(card_def) = state.card_registry.get(card_id) {
+                let amount = get_self_activated_reduction(card_def, ability_index)
+                    .map(|r| evaluate_self_activated_reduction(state, player, &r))
+                    .unwrap_or(0);
+                if amount > 0 {
+                    resolved_cost.generic = resolved_cost.generic.saturating_sub(amount);
+                }
+            }
+        }
         if resolved_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
             if !player_state.mana_pool.can_spend(&resolved_cost, None) {
@@ -7158,4 +7171,58 @@ fn get_scavenge_cost(
             })
         })
     })
+}
+// ── Self-activated-cost-reduction helpers ─────────────────────────────────────
+/// CR 602.2b + 601.2f: Look up the `SelfActivatedCostReduction` for an activated ability.
+///
+/// `ability_index` is the index into `characteristics.activated_abilities`, which corresponds
+/// to the same index in `CardDefinition.activated_ability_cost_reductions` (keyed by ability index).
+/// Channel lands: mana tap abilities go into `mana_abilities`, not `activated_abilities`,
+/// so the channel ability at activated_ability index 0 maps to the first (and only) entry
+/// with key 0 in `activated_ability_cost_reductions`.
+fn get_self_activated_reduction(
+    card_def: &crate::cards::card_definition::CardDefinition,
+    ability_index: usize,
+) -> Option<crate::cards::card_definition::SelfActivatedCostReduction> {
+    card_def
+        .activated_ability_cost_reductions
+        .iter()
+        .find(|(idx, _)| *idx == ability_index)
+        .map(|(_, r)| r.clone())
+}
+/// CR 602.2b + 601.2f: Evaluate a `SelfActivatedCostReduction` against the current game state.
+///
+/// Returns the number of generic mana to subtract. The caller uses `.saturating_sub()` to
+/// ensure the generic component cannot go below 0 (CR 601.2f: "can't be reduced to less than {0}").
+fn evaluate_self_activated_reduction(
+    state: &crate::state::GameState,
+    controller: crate::state::player::PlayerId,
+    reduction: &crate::cards::card_definition::SelfActivatedCostReduction,
+) -> u32 {
+    use crate::cards::card_definition::{PlayerTarget, SelfActivatedCostReduction};
+    match reduction {
+        SelfActivatedCostReduction::PerPermanent {
+            per,
+            filter,
+            controller: player_target,
+        } => {
+            // CR 602.2b: The relevant player for self-activated-cost-reduction is always
+            // the activating player (controller). Other PlayerTarget values fall back to
+            // controller since activated ability cost reduction is always self-referential.
+            let target_player = match player_target {
+                PlayerTarget::Controller => controller,
+                _ => controller,
+            };
+            let count = state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == crate::state::zone::ZoneId::Battlefield
+                        && obj.controller == target_player
+                        && crate::effects::matches_filter(&obj.characteristics, filter)
+                })
+                .count();
+            ((count as i32) * per).max(0) as u32
+        }
+    }
 }

@@ -5666,7 +5666,21 @@ fn apply_spell_cost_modifiers(
                 continue;
             }
             // Filter check: does the spell match?
-            if !spell_matches_cost_filter(spell_chars, &modifier.filter) {
+            // HasChosenCreatureSubtype needs the source object's chosen_creature_type,
+            // so it is handled here rather than in spell_matches_cost_filter().
+            let filter_matches = match &modifier.filter {
+                SpellCostFilter::HasChosenCreatureSubtype => {
+                    // CR 601.2f: Must be a creature spell with the source's chosen subtype.
+                    spell_chars.card_types.contains(&CardType::Creature)
+                        && obj
+                            .chosen_creature_type
+                            .as_ref()
+                            .map(|ct| spell_chars.subtypes.contains(ct))
+                            .unwrap_or(false)
+                }
+                other => spell_matches_cost_filter(spell_chars, other),
+            };
+            if !filter_matches {
                 continue;
             }
             total_change += modifier.change;
@@ -5704,6 +5718,18 @@ fn spell_matches_cost_filter(chars: &Characteristics, filter: &SpellCostFilter) 
             chars.card_types.contains(&CardType::Instant)
                 || chars.card_types.contains(&CardType::Sorcery)
         }
+        SpellCostFilter::ColorAndCreature(color) => {
+            // CR 601.2f: Compound filter — must be BOTH a creature AND the specified color.
+            // Example: Bontu's Monument "Black creature spells cost {1} less."
+            chars.card_types.contains(&CardType::Creature) && chars.colors.contains(color)
+        }
+        SpellCostFilter::HasChosenCreatureSubtype => {
+            // This variant requires the source object's chosen_creature_type, which is not
+            // available in this function. It is handled inline in apply_spell_cost_modifiers().
+            // This arm is unreachable in practice but required for exhaustiveness.
+            false
+        }
+        SpellCostFilter::AllSpells => true,
     }
 }
 /// CR 601.2f: Apply self-cost-reduction — the spell itself is cheaper based on game state.
@@ -5862,6 +5888,44 @@ fn evaluate_self_cost_reduction(
             } else {
                 0
             }
+        }
+        SelfCostReduction::ConditionalKeyword { keyword, reduction } => {
+            // CR 601.2f: Winged Words — "costs {N} less if you control a creature with [keyword]".
+            // Uses base characteristics (obj.characteristics.keywords) for consistency with
+            // ConditionalPowerThreshold. Layer-resolved keywords deferred (LOW priority).
+            let has_creature_with_keyword = state.objects.values().any(|obj| {
+                obj.zone == ZoneId::Battlefield
+                    && obj.controller == caster
+                    && obj.characteristics.card_types.contains(&CardType::Creature)
+                    && obj.characteristics.keywords.contains(keyword)
+            });
+            if has_creature_with_keyword {
+                *reduction
+            } else {
+                0
+            }
+        }
+        SelfCostReduction::MaxOpponentPermanents { filter, per } => {
+            // CR 601.2f: Cavern-Hoard Dragon — "costs {X} less where X is the greatest number of
+            // [filter] an opponent controls". X is the maximum over all opponents, not the sum.
+            let max_count = state
+                .players
+                .keys()
+                .filter(|&&pid| pid != caster)
+                .map(|&pid| {
+                    state
+                        .objects
+                        .values()
+                        .filter(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.controller == pid
+                                && crate::effects::matches_filter(&obj.characteristics, filter)
+                        })
+                        .count() as i32
+                })
+                .max()
+                .unwrap_or(0);
+            (max_count * per).max(0) as u32
         }
     }
 }

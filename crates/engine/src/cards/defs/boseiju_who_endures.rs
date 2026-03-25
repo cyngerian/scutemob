@@ -9,7 +9,6 @@
 // card type alternatives with a "nonbasic" land variant in a single filter).
 // TODO: Target filter should restrict to "artifact, enchantment, or nonbasic land" —
 //   needs has_card_types OR semantics combined with non_basic land filter. DSL gap.
-// TODO: Cost reduction — {1} less per legendary creature you control.
 use crate::cards::helpers::*;
 pub fn card() -> CardDefinition {
     CardDefinition {
@@ -32,7 +31,6 @@ pub fn card() -> CardDefinition {
             // Channel — {1}{G}, Discard: Destroy target + opponent searches.
             // Target filter restricts to opponent-controlled permanents (partial).
             // TODO: Target filter needs "artifact, enchantment, or nonbasic land" type restriction.
-            // TODO: Cost reduction per legendary creature.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -84,6 +82,21 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
         ],
+        // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature
+        // controller has. The mana tap ability goes to mana_abilities, so the channel ability
+        // is activated_ability index 0.
+        activated_ability_cost_reductions: vec![(
+            0,
+            SelfActivatedCostReduction::PerPermanent {
+                per: 1,
+                filter: TargetFilter {
+                    legendary: true,
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                },
+                controller: PlayerTarget::Controller,
+            },
+        )],
         ..Default::default()
     }
 }

@@ -12,10 +12,16 @@ pub fn card() -> CardDefinition {
         oracle_text: "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever you cast an instant or sorcery spell, draw a card.".to_string(),
         power: Some(3),
         toughness: Some(6),
+        // CR 601.2f: Instant and sorcery spells controller casts cost {1} less.
+        // Uses SpellCostFilter::InstantOrSorcery (already existed pre-PB-29).
+        spell_cost_modifiers: vec![SpellCostModifier {
+            change: -1,
+            filter: SpellCostFilter::InstantOrSorcery,
+            scope: CostModifierScope::Controller,
+            eminence: false,
+            exclude_self: false,
+        }],
         abilities: vec![
-            // Instant and sorcery spells cost {1} less.
-            // TODO: Cost reduction for instant/sorcery only — SelfCostReduction
-            //   lacks spell-type filter. Using generic cost reduction.
             // Whenever you cast an instant or sorcery spell, draw a card.
             // Instant/sorcery spell filter applied.
             AbilityDefinition::Triggered {
