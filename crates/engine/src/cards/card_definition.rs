@@ -809,6 +809,22 @@ pub enum AbilityDefinition {
     StaticRestriction {
         restriction: crate::state::stubs::GameRestriction,
     },
+    /// Characteristic-defining ability for power and/or toughness (CR 604.3, 613.4a).
+    ///
+    /// Registers a Layer 7a continuous effect with `is_cda: true` when the permanent
+    /// enters the battlefield. The `EffectAmount` values are evaluated dynamically
+    /// at layer-calculation time against the current game state.
+    ///
+    /// CR 604.3: CDAs function in all zones. The layer system processes all objects
+    /// regardless of zone, so on-battlefield evaluation is handled automatically.
+    ///
+    /// CR 604.3a(5): CDAs must not be conditional. No condition field here.
+    ///
+    /// Discriminant 70.
+    CdaPowerToughness {
+        power: EffectAmount,
+        toughness: EffectAmount,
+    },
 }
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
 ///
@@ -1662,6 +1678,9 @@ pub enum EffectAmount {
     /// The result of the most recent dice roll (stored in ctx.last_dice_roll).
     /// Used for "draw cards equal to the result" (Ancient Silver Dragon), etc.
     LastDiceRoll,
+    /// Sum of two amounts. Used for CDAs like "equal to X plus Y"
+    /// (e.g., Abomination of Llanowar: "number of Elves you control plus Elf cards in graveyard").
+    Sum(Box<EffectAmount>, Box<EffectAmount>),
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

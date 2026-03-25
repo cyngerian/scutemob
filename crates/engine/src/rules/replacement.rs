@@ -1752,6 +1752,32 @@ pub fn register_static_continuous_effects(
                         restriction: restriction.clone(),
                     });
             }
+            // PB-28: Register a CDA Layer 7a continuous effect for dynamic P/T evaluation.
+            // CR 604.3: CDAs function in all zones; the layer system evaluates for all objects.
+            // CR 613.4a: CDA P/T effects apply in Layer 7a.
+            AbilityDefinition::CdaPowerToughness { power, toughness } => {
+                let eff_id = state.next_object_id().0;
+                let ts = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                state
+                    .continuous_effects
+                    .push_back(crate::state::continuous_effect::ContinuousEffect {
+                    id: crate::state::continuous_effect::EffectId(eff_id),
+                    source: Some(new_id),
+                    timestamp: ts,
+                    layer: crate::state::continuous_effect::EffectLayer::PtCda,
+                    duration:
+                        crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield,
+                    filter: crate::state::continuous_effect::EffectFilter::SingleObject(new_id),
+                    modification:
+                        crate::state::continuous_effect::LayerModification::SetPtDynamic {
+                            power: Box::new(power.clone()),
+                            toughness: Box::new(toughness.clone()),
+                        },
+                    is_cda: true,
+                    condition: None, // CR 604.3a(5): CDAs are unconditional
+                });
+            }
             _ => {}
         }
     }

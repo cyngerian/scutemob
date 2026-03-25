@@ -1298,6 +1298,12 @@ impl HashInto for LayerModification {
                 21u8.hash_into(hasher);
                 types.hash_into(hasher);
             }
+            // SetPtDynamic (discriminant 22) -- PB-28: CDA with dynamic EffectAmount evaluation
+            LayerModification::SetPtDynamic { power, toughness } => {
+                22u8.hash_into(hasher);
+                power.hash_into(hasher);
+                toughness.hash_into(hasher);
+            }
         }
     }
 }
@@ -3888,6 +3894,13 @@ impl HashInto for EffectAmount {
             // LastEffectCount (discriminant 9) — reads ctx.last_effect_count set by DestroyAll/ExileAll
             EffectAmount::LastEffectCount => 9u8.hash_into(hasher),
             EffectAmount::LastDiceRoll => 10u8.hash_into(hasher),
+            // Sum (discriminant 11) — PB-28: sum of two amounts for CDA formulas like
+            // "number of Elves you control plus Elf cards in graveyard"
+            EffectAmount::Sum(a, b) => {
+                11u8.hash_into(hasher);
+                a.hash_into(hasher);
+                b.hash_into(hasher);
+            }
         }
     }
 }
@@ -5137,6 +5150,12 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::StaticRestriction { restriction } => {
                 69u8.hash_into(hasher);
                 restriction.hash_into(hasher);
+            }
+            // CdaPowerToughness (discriminant 70) -- PB-28: dynamic CDA P/T evaluation
+            AbilityDefinition::CdaPowerToughness { power, toughness } => {
+                70u8.hash_into(hasher);
+                power.hash_into(hasher);
+                toughness.hash_into(hasher);
             }
         }
     }

@@ -19,8 +19,19 @@ pub fn card() -> CardDefinition {
         power: None,
         toughness: None,
         abilities: vec![
-            // TODO: CDA "P/T equal to cards in hand" — needs CharacteristicDefiningAbility
-            //   with EffectAmount::CardCount for hand zone. Not in DSL.
+            // CR 604.3, 613.4a: CDA — P/T each equal to the number of cards in your hand.
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::CardCount {
+                    zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    player: PlayerTarget::Controller,
+                    filter: None,
+                },
+                toughness: EffectAmount::CardCount {
+                    zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    player: PlayerTarget::Controller,
+                    filter: None,
+                },
+            },
             // Whenever you draw a card, each opponent loses 1 life.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,

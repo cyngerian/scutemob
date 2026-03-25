@@ -5,7 +5,7 @@
 // When this creature enters, you may put a land card from your hand onto the
 // battlefield tapped. If you do, draw a card and repeat this process.
 //
-// TODO: CDA P/T = land count. ETB loop (put land, draw, repeat) too complex.
+// TODO: ETB land-play loop (put land, draw, repeat) — too complex for current DSL; deferred.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +19,17 @@ pub fn card() -> CardDefinition {
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: CDA + ETB land-play loop not expressible.
+            // CR 604.3, 613.4a: CDA — P/T each equal to the number of lands you control.
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+                toughness: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+            },
         ],
         ..Default::default()
     }

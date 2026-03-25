@@ -4655,6 +4655,8 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         EffectAmount::LastEffectCount => ctx.last_effect_count as i32,
         // CR 706.2: Result of the most recent dice roll (stored in ctx.last_dice_roll).
         EffectAmount::LastDiceRoll => ctx.last_dice_roll as i32,
+        // PB-28: Sum of two amounts (e.g. "Elves you control plus Elf cards in graveyard").
+        EffectAmount::Sum(a, b) => resolve_amount(state, a, ctx) + resolve_amount(state, b, ctx),
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────

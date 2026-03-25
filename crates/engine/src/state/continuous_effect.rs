@@ -6,6 +6,7 @@
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::types::{CardType, Color, KeywordAbility, SubType, SuperType};
+use crate::cards::card_definition::EffectAmount;
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
 /// Unique identifier for a continuous effect instance.
@@ -256,6 +257,22 @@ pub enum LayerModification {
     /// that evaluates to a specific value at calculation time (pre-computed by
     /// the caller before the effect is constructed).
     SetPtViaCda { power: i32, toughness: i32 },
+    /// Sets P/T via a CDA with dynamic evaluation at layer-calculation time (CR 613.4a).
+    ///
+    /// Unlike `SetPtViaCda` (which takes pre-computed fixed values), this variant
+    /// stores `EffectAmount` values that are evaluated at layer-calculation time
+    /// against the current game state. Used by `*/*` creatures whose P/T depends on
+    /// a count that changes as the game progresses.
+    ///
+    /// The `EffectAmount` variants used here MUST NOT require `EffectContext`
+    /// (no XValue, no LastEffectCount, no LastDiceRoll). Valid variants:
+    /// Fixed, PermanentCount, CardCount, DevotionTo, CounterCount, Sum.
+    ///
+    /// Boxed to avoid large_enum_variant clippy warning (EffectAmount can be large due to Sum).
+    SetPtDynamic {
+        power: Box<EffectAmount>,
+        toughness: Box<EffectAmount>,
+    },
     /// Sets P/T to the object's mana value (for both power and toughness).
     ///
     /// Used by Opalescence-style effects: "has base power and toughness each equal

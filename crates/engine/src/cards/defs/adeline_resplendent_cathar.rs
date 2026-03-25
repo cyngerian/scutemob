@@ -21,10 +21,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // TODO: CDA "power = number of creatures you control" not expressible in DSL.
-            // TODO: Attack trigger creates tokens per-opponent (ForEach EachOpponent creating
-            //   tokens entering attacking against that specific opponent) — DSL lacks
-            //   per-target token creation. W5 policy: no approximation implemented.
+            // CR 604.3, 613.4a: CDA — power equal to the number of creatures you control;
+            // toughness is fixed 4 (printed on card).
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Creature), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+                toughness: EffectAmount::Fixed(4),
+            },
+            // TODO: Attack trigger creates tokens per-opponent — DSL lacks per-target token
+            // creation for "each opponent" attack triggers. Deferred.
         ],
         ..Default::default()
     }

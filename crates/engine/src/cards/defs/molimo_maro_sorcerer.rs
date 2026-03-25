@@ -1,11 +1,6 @@
 // Molimo, Maro-Sorcerer — {4}{G}{G}{G}, Legendary Creature — Elemental Sorcerer */*
 // Trample
 // Molimo's power and toughness are each equal to the number of lands you control.
-//
-// Trample is implemented.
-// TODO: DSL gap — dynamic P/T equal to the number of lands you control requires a
-// Layer 7b continuous effect with a CountLands(controller) modifier. Not in DSL.
-// Power/toughness set to 0/0 as placeholder.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,11 +10,21 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 4, green: 3, ..Default::default() }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elemental", "Sorcerer"]),
         oracle_text: "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nMolimo's power and toughness are each equal to the number of lands you control.".to_string(),
-        power: None,   // */*  CDA — engine SBA skips None toughness
+        power: None,   // */* CDA — P/T set dynamically by Layer 7a
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: P/T = number of lands you control (dynamic Layer 7b, CountLands not in DSL)
+            // CR 604.3, 613.4a: CDA — P/T each equal to the number of lands you control.
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+                toughness: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+            },
         ],
         ..Default::default()
     }

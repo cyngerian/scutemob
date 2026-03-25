@@ -8,11 +8,13 @@
 //!
 //! The main entry point is `calculate_characteristics`, which returns the effective
 //! characteristics of any game object after applying all active continuous effects.
+use crate::cards::card_definition::{EffectAmount, EffectTarget, PlayerTarget, ZoneTarget};
 use crate::state::{
     continuous_effect::{
         ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
     },
     game_object::{Characteristics, Designations, ObjectId},
+    player::PlayerId,
     types::{CardType, CounterType, KeywordAbility, SubType, SuperType},
     zone::ZoneId,
     GameState,
@@ -352,7 +354,13 @@ pub fn calculate_characteristics(
             .map(|c| c.mana_value())
             .unwrap_or(0);
         for effect in ordered {
-            apply_layer_modification(state, &mut chars, &effect.modification, mana_value);
+            apply_layer_modification(
+                state,
+                &mut chars,
+                &effect.modification,
+                mana_value,
+                object_id,
+            );
         }
         // Layer 7c (PtModify): also apply counter P/T contributions (CR 613.4c).
         // Counters are not modeled as ContinuousEffects — they live on the GameObject.
@@ -871,6 +879,7 @@ fn apply_layer_modification(
     chars: &mut Characteristics,
     modification: &LayerModification,
     mana_value: u32,
+    object_id: ObjectId,
 ) {
     match modification {
         // Layer 1: Copy effects (CR 707.2).
@@ -978,6 +987,18 @@ fn apply_layer_modification(
         LayerModification::SetPtViaCda { power, toughness } => {
             chars.power = Some(*power);
             chars.toughness = Some(*toughness);
+        }
+        // Layer 7a: Dynamic CDAs evaluated at layer-calculation time (CR 613.4a).
+        LayerModification::SetPtDynamic { power, toughness } => {
+            let controller = state
+                .objects
+                .get(&object_id)
+                .map(|o| o.controller)
+                .unwrap_or(crate::state::player::PlayerId(0));
+            let p = resolve_cda_amount(state, power, object_id, controller);
+            let t = resolve_cda_amount(state, toughness, object_id, controller);
+            chars.power = Some(p);
+            chars.toughness = Some(t);
         }
         LayerModification::SetPtToManaValue => {
             let mv = mana_value as i32;
@@ -1170,5 +1191,164 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         for id in &expired_ids {
             state.prevention_counters.remove(id);
         }
+    }
+}
+
+// ── CDA evaluation helpers (PB-28) ───────────────────────────────────────────
+
+/// Evaluate an `EffectAmount` in CDA context (no `EffectContext` available).
+///
+/// CR 604.3: CDAs function in all zones. The evaluation uses the source object's
+/// controller as the reference player for "you control" semantics.
+///
+/// Only a subset of `EffectAmount` variants are valid for CDA evaluation:
+/// `Fixed`, `PermanentCount`, `CardCount`, `DevotionTo`, `CounterCount`, `Sum`.
+/// Variants requiring `EffectContext` (`XValue`, `LastEffectCount`, `LastDiceRoll`) will
+/// return 0 with a `debug_assert`.
+pub(crate) fn resolve_cda_amount(
+    state: &GameState,
+    amount: &EffectAmount,
+    object_id: ObjectId,
+    controller: PlayerId,
+) -> i32 {
+    match amount {
+        EffectAmount::Fixed(n) => *n,
+        EffectAmount::PermanentCount {
+            filter,
+            controller: player_target,
+        } => {
+            // Resolve PlayerTarget to concrete player IDs using the source controller.
+            let players = resolve_cda_player_target(state, player_target, controller);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && {
+                            // NOTE: We deliberately use base characteristics here (not
+                            // calculate_characteristics) to avoid recursive CDA evaluation.
+                            // CR 604.3: CDA filters typically check card types (Creature, Land)
+                            // or subtypes, which are set in Layers 4-6 (not by other CDAs).
+                            // This avoids an infinite recursion when the CDA creature itself
+                            // is included in the count (e.g., "*/* = creatures you control"
+                            // counts the creature with the CDA).
+                            crate::effects::matches_filter(&obj.characteristics, filter)
+                        }
+                })
+                .count() as i32
+        }
+        EffectAmount::CardCount {
+            zone,
+            player: _,
+            filter,
+        } => {
+            let zone_id = resolve_cda_zone_target(zone, state, controller);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == zone_id
+                        && filter
+                            .as_ref()
+                            .map(|f| crate::effects::matches_filter(&obj.characteristics, f))
+                            .unwrap_or(true)
+                })
+                .count() as i32
+        }
+        EffectAmount::DevotionTo(color) => {
+            // CR 700.5: Count mana symbols of that color in permanents controller controls.
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == controller
+                })
+                .map(|obj| {
+                    obj.characteristics
+                        .mana_cost
+                        .as_ref()
+                        .map(|mc| {
+                            use crate::state::types::Color;
+                            match color {
+                                Color::White => mc.white as i32,
+                                Color::Blue => mc.blue as i32,
+                                Color::Black => mc.black as i32,
+                                Color::Red => mc.red as i32,
+                                Color::Green => mc.green as i32,
+                            }
+                        })
+                        .unwrap_or(0)
+                })
+                .sum()
+        }
+        EffectAmount::CounterCount { target, counter } => {
+            // For CDA context, target should be EffectTarget::Source (the object itself).
+            if matches!(target, EffectTarget::Source) {
+                state
+                    .objects
+                    .get(&object_id)
+                    .and_then(|obj| obj.counters.get(counter).copied())
+                    .unwrap_or(0) as i32
+            } else {
+                debug_assert!(false, "CDA CounterCount with non-Source target");
+                0
+            }
+        }
+        // PB-28: Sum of two amounts (e.g. "Elves you control plus Elf cards in graveyard").
+        EffectAmount::Sum(a, b) => {
+            resolve_cda_amount(state, a, object_id, controller)
+                + resolve_cda_amount(state, b, object_id, controller)
+        }
+        _ => {
+            debug_assert!(
+                false,
+                "EffectAmount variant not valid in CDA context: {:?}",
+                amount
+            );
+            0
+        }
+    }
+}
+
+/// Resolve a `PlayerTarget` in CDA context (no `EffectContext`).
+fn resolve_cda_player_target(
+    state: &GameState,
+    target: &PlayerTarget,
+    controller: PlayerId,
+) -> Vec<PlayerId> {
+    match target {
+        PlayerTarget::Controller => vec![controller],
+        PlayerTarget::EachPlayer => state.turn.turn_order.iter().copied().collect(),
+        PlayerTarget::EachOpponent => state
+            .turn
+            .turn_order
+            .iter()
+            .copied()
+            .filter(|&p| p != controller)
+            .collect(),
+        // Fallback: treat other variants as controller for CDA purposes.
+        _ => vec![controller],
+    }
+}
+
+/// Resolve a `ZoneTarget` to a `ZoneId` in CDA context (no `EffectContext`).
+fn resolve_cda_zone_target(zone: &ZoneTarget, state: &GameState, controller: PlayerId) -> ZoneId {
+    let resolve_owner = |owner: &PlayerTarget| -> PlayerId {
+        resolve_cda_player_target(state, owner, controller)
+            .into_iter()
+            .next()
+            .unwrap_or(controller)
+    };
+    match zone {
+        ZoneTarget::Hand { owner } => ZoneId::Hand(resolve_owner(owner)),
+        ZoneTarget::Graveyard { owner } => ZoneId::Graveyard(resolve_owner(owner)),
+        ZoneTarget::Library { owner, .. } => ZoneId::Library(resolve_owner(owner)),
+        ZoneTarget::Battlefield { .. } => ZoneId::Battlefield,
+        ZoneTarget::Exile => ZoneId::Exile,
+        ZoneTarget::CommandZone => ZoneId::Command(controller),
     }
 }

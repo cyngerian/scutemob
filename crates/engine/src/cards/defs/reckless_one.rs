@@ -1,8 +1,6 @@
 // Reckless One — {3}{R}, Creature — Goblin Avatar */*
 // Haste
 // Reckless One's power and toughness are each equal to the number of Goblins on the battlefield.
-// TODO: CDA gap — */* requires SetPowerToughness with EffectAmount, not fixed i32.
-// PermanentCount({ Creature, Goblin }, EachPlayer) is now available for the count.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -12,12 +10,30 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
         types: creature_types(&["Goblin", "Avatar"]),
         oracle_text: "Haste\nReckless One's power and toughness are each equal to the number of Goblins on the battlefield.".to_string(),
-        power: None,   // */*  CDA — engine SBA skips None toughness
+        power: None,   // */* CDA — P/T set dynamically by Layer 7a
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: CDA — P/T = PermanentCount({ Creature + Goblin }, EachPlayer).
-            // Needs SetPowerToughness to accept EffectAmount.
+            // CR 604.3, 613.4a: CDA — P/T each equal to the number of Goblins on the battlefield
+            // (all players' Goblins, not just yours — "on the battlefield" means EachPlayer).
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        has_subtype: Some(SubType("Goblin".to_string())),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::EachPlayer,
+                },
+                toughness: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        has_subtype: Some(SubType("Goblin".to_string())),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::EachPlayer,
+                },
+            },
         ],
         ..Default::default()
     }

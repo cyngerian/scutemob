@@ -13,8 +13,17 @@ pub fn card() -> CardDefinition {
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — characteristic-defining ability (CDA) setting P/T equal to number
-            // of creatures you control requires a Layer 7b continuous effect; not expressible.
+            // CR 604.3, 613.4a: CDA — P/T each equal to the number of creatures you control.
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Creature), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+                toughness: EffectAmount::PermanentCount {
+                    filter: TargetFilter { has_card_type: Some(CardType::Creature), ..Default::default() },
+                    controller: PlayerTarget::Controller,
+                },
+            },
         ],
         ..Default::default()
     }
