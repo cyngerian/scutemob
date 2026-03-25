@@ -4,7 +4,7 @@ batch: PB-29
 title: Cost reduction statics
 cards_affected: ~30
 started: 2026-03-25
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-29.md
 
 ## Gap Reference
@@ -45,3 +45,14 @@ G-7 from `docs/dsl-gap-closure-plan.md`:
 - [x] 3. New card definitions — N/A (authoring paused)
 - [x] 4. Unit tests — 11 new tests added to spell_cost_modification.rs; all 22 tests pass; total: 2363 tests pass
 - [x] 5. Workspace build verification — `cargo build --workspace` clean, `cargo clippy -- -D warnings` clean, `cargo fmt` applied
+
+## Review
+findings: 3 (HIGH: 1, MEDIUM: 1, LOW: 1)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-29.md
+
+## Fix Phase
+- [x] HIGH-1: Added `self.legendary.hash_into(hasher);` to `TargetFilter::hash_into()` in `state/hash.rs` at line 3714 (after `has_card_types`)
+- [x] MEDIUM-3: Hazoret's Monument — TODO comment already present at line 23 of `hazorets_monument.rs`; no code change needed (pre-existing DSL gap)
+- [x] LOW-2: ConditionalKeyword base characteristics approximation — no fix, known documented approximation
+- Fix results: 2363 tests pass, 0 clippy warnings

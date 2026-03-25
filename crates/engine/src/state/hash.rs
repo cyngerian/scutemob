@@ -3712,6 +3712,7 @@ impl HashInto for TargetFilter {
         self.max_cmc.hash_into(hasher);
         self.min_cmc.hash_into(hasher);
         self.has_card_types.hash_into(hasher);
+        self.legendary.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
