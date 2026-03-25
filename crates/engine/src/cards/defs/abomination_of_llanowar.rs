@@ -33,7 +33,6 @@ pub fn card() -> CardDefinition {
                         zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
                         player: PlayerTarget::Controller,
                         filter: Some(TargetFilter {
-                            has_card_type: Some(CardType::Creature),
                             has_subtype: Some(SubType("Elf".to_string())),
                             ..Default::default()
                         }),
@@ -52,7 +51,6 @@ pub fn card() -> CardDefinition {
                         zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
                         player: PlayerTarget::Controller,
                         filter: Some(TargetFilter {
-                            has_card_type: Some(CardType::Creature),
                             has_subtype: Some(SubType("Elf".to_string())),
                             ..Default::default()
                         }),

@@ -4,7 +4,7 @@ batch: PB-28
 title: CDA / count-based P/T
 cards_affected: ~32
 started: 2026-03-25
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-28.md
 
 ## Gap Reference
@@ -41,3 +41,15 @@ G-6 from `docs/dsl-gap-closure-plan.md`:
 - [x] 3. New card definitions (if any) — none needed
 - [x] 4. Unit tests — 9 tests in crates/engine/tests/cda_tests.rs (all passing)
 - [x] 5. Workspace build verification — cargo build --workspace OK, clippy clean, fmt OK, 9/9 CDA tests pass
+
+## Review
+findings: 3 (HIGH: 0, MEDIUM: 2, LOW: 1)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-28.md
+
+## Fix Phase Results (2026-03-25)
+- MEDIUM-1 (PermanentCount base-chars): documented design tradeoff, no code fix needed
+- MEDIUM-2 (abomination_of_llanowar graveyard filter): FIXED — removed `has_card_type: Some(CardType::Creature)` from both graveyard CardCount filters (power + toughness). Graveyard filter now matches all Elf cards (any type) per oracle text.
+- LOW-1 (CR 604.3 non-battlefield CDA): deferred to post-alpha, no code fix needed
+- All tests pass; clippy clean
+- phase: DONE
