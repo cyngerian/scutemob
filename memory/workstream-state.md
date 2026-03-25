@@ -23,26 +23,29 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-24
-**Workstream**: W6 (PB-26)
-**Task**: PB-26 trigger variants
+**Date**: 2026-03-25
+**Workstream**: W6 (PB-27)
+**Task**: PB-27 X-cost spells
 
 **Completed**:
-- **PB-26 DONE**: 8 trigger gaps closed (G-4 through G-15), 6 new TriggerCondition variants, 3 extended, 9 new TriggerEvent variants, PermanentSacrificed GameEvent, PlayerTarget::TriggeringPlayer. ~55 card defs fixed, 19 new tests. Review: 1H 2M fixed. 2334 tests, 0 clippy.
-- Commits: b25abc3 (implement), 00a334d (fixes).
+- **PB-27 DONE**: G-5 X-cost spells. Engine: Condition::XValueAtLeast, Effect::Repeat, x_value on ActivateAbility, ETB x_value propagation (CR 107.3m), replay harness wiring. 15 card defs fixed (7 fully, 8 partially). 10 new tests. Review: 2M fixed. 2344 tests, 0 clippy.
+- Commits: 7972512 (implement), 04664ea (fixes).
 
 **Next**:
-1. Continue gap closure: PB-27 (X-cost spells, ~42 cards) is next
-2. ~17 cards remaining from PB-26 scope (need other PB gaps first)
-3. PB-24 backfill (~188 defs) still pending
-4. PB-25 remaining (~70 cards) still pending
+1. Continue gap closure: PB-28 (CDA / count-based P/T, ~32 cards) is next
+2. ~27 remaining X-cost cards need other PB gaps (count-based patterns → PB-28, variable sacrifice → future)
+3. Backfill sweeps for PB-23/24/25/26/27 accumulating — consider dedicated backfill session
 
 **Hazards**:
-- Backfill sweeps for PB-23/24/25/26 accumulating — consider dedicated backfill session
+- Backfill sweeps accumulating (PB-23 ~111, PB-24 ~188, PB-25 ~70, PB-26 ~17, PB-27 ~27)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-25 — W6: PB-27 X-cost spells
+- PB-27: G-5 X-cost spells, 15 card defs fixed, 2M fixed. 2344 tests.
+- Commits: 7972512, 04664ea.
 
 ### 2026-03-24 — W6: PB-26 trigger variants
 - PB-26: 8 trigger gaps (G-4 through G-15), ~55 card defs fixed, 1H 2M fixed. 2334 tests.

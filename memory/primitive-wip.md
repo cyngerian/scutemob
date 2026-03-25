@@ -4,7 +4,7 @@ batch: PB-27
 title: X-cost spells
 cards_affected: ~42
 started: 2026-03-24
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-27.md
 
 ## Gap Reference
