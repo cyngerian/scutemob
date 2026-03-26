@@ -3,6 +3,10 @@
 // {2}, Remove a +1/+1 counter from this creature: Put a +1/+1 counter on target creature.
 // {1}, Remove a +1/+1 counter from this creature: Prevent all combat damage that would
 // be dealt this turn.
+//
+// Note: Ability 2 (PreventAllCombatDamage) is blocked on G-19 (PB-32).
+// The cost structure is correct; the ability is omitted until PB-32 adds
+// Effect::PreventAllCombatDamage.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,10 +30,23 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: DSL gap — "{2}, Remove a +1/+1 counter: Put a +1/+1 counter on target
-            // creature." Cost::RemoveCounter does not exist in Cost enum.
-            // TODO: DSL gap — "{1}, Remove a +1/+1 counter: Prevent all combat damage."
-            // Both Cost::RemoveCounter and Effect::PreventAllCombatDamage are missing.
+            // CR 602.2: {2}, Remove a +1/+1 counter: Put a +1/+1 counter on target creature.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 1 },
+                ]),
+                effect: Effect::AddCounter {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
+            },
+            // TODO (G-19, PB-32): {1}, Remove a +1/+1 counter: Prevent all combat damage this turn.
+            // Effect::PreventAllCombatDamage not yet implemented. Deferred to PB-32.
         ],
         ..Default::default()
     }

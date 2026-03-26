@@ -16,8 +16,8 @@ pub use card_definition::{
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
     Condition, ContinuousEffectDef, Cost, CostModifierScope, CraftMaterials, EffectAmount,
     EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair, ModeSelection,
-    PlayerTarget, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant, SpellCostFilter,
-    SpellCostModifier, TargetController, TargetFilter, TargetRequirement, TimingRestriction,
-    TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    PlayerTarget, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant,
+    SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
+    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 pub use registry::CardRegistry;

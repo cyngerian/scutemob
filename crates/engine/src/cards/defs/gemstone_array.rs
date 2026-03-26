@@ -23,9 +23,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Remove a charge counter from this artifact: Add one mana of any color.
-            //   (Cost enum lacks RemoveCounter variant — only Effect::RemoveCounter exists)
-
+            // CR 602.2: Remove a charge counter: Add one mana of any color.
+            // Note: Technically a mana ability (CR 605.1) but implemented as regular
+            // activated ability for this batch. Mana-ability classification deferred to PB-37.
+            AbilityDefinition::Activated {
+                cost: Cost::RemoveCounter { counter: CounterType::Charge, count: 1 },
+                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

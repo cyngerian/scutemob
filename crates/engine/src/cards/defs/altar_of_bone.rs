@@ -1,12 +1,6 @@
 // Altar of Bone — {G}{W}, Sorcery
 // As an additional cost to cast this spell, sacrifice a creature.
 // Search your library for a creature card, reveal it, put it into your hand, then shuffle.
-//
-// NOTE: "As an additional cost to cast this spell, sacrifice a creature" is a spell
-// additional cost (CR 601.2b). The DSL has no required_additional_cost field on
-// CardDefinition for mandatory spell sacrifice costs — see goblin_grenade.rs.
-// The search effect is implemented; the additional-cost sacrifice is omitted per W5 policy.
-// TODO: Add AdditionalCost::SacrificeCreature to the Spell DSL to model this.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,10 +10,27 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { green: 1, white: 1, ..Default::default() }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "As an additional cost to cast this spell, sacrifice a creature.\nSearch your library for a creature card, reveal it, put it into your hand, then shuffle.".to_string(),
-        abilities: vec![
-            // TODO: Stripped per W5 policy — search without mandatory sacrifice cost is wrong
-            // game state (free tutor). Needs AdditionalCost::SacrificeCreature on spell DSL.
-        ],
+        // CR 118.8: Mandatory sacrifice of a creature as additional cost.
+        spell_additional_costs: vec![SpellAdditionalCost::SacrificeCreature],
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::Sequence(vec![
+                Effect::SearchLibrary {
+                    player: PlayerTarget::Controller,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
+                    reveal: true,
+                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    shuffle_before_placing: false,
+                    also_search_graveyard: false,
+                },
+                Effect::Shuffle { player: PlayerTarget::Controller },
+            ]),
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
         ..Default::default()
     }
 }

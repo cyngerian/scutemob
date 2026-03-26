@@ -533,6 +533,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     };
 

@@ -292,6 +292,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     };
 

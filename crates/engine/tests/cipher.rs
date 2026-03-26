@@ -130,6 +130,7 @@ fn cipher_instant_def() -> CardDefinition {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     }
 }
@@ -916,6 +917,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     };
     let card_id2 = def2.card_id.clone();

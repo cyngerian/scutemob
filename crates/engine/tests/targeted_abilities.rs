@@ -34,6 +34,7 @@ fn targeted_activated_ability_valid_creature_target() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "Target creature gets +1/+1 until EOT".to_string(),
             effect: Some(Effect::GainLife {
@@ -103,6 +104,7 @@ fn targeted_activated_ability_rejects_non_creature() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "Target creature gets +1/+1 until EOT".to_string(),
             effect: Some(Effect::GainLife {
@@ -174,6 +176,7 @@ fn targeted_activated_ability_target_player() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "Target player loses 1 life".to_string(),
             effect: Some(Effect::LoseLife {
@@ -233,6 +236,7 @@ fn activated_ability_no_targets_backward_compatible() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "Gain 1 life".to_string(),
             effect: Some(Effect::GainLife {
@@ -416,6 +420,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "Target creature gets +1/+1".to_string(),
             effect: Some(Effect::GainLife {
@@ -477,6 +482,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "Target creature gets +1/+1".to_string(),
             effect: Some(Effect::GainLife {

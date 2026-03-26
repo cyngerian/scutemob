@@ -20,8 +20,8 @@
 //! is cast. Spells with no mana cost (e.g., `mana_cost: None`) are cast for free.
 use super::events::GameEvent;
 use crate::cards::card_definition::{
-    AbilityDefinition, CostModifierScope, SelfCostReduction, SpellCostFilter, TargetController,
-    TargetRequirement,
+    AbilityDefinition, CostModifierScope, SelfCostReduction, SpellAdditionalCost, SpellCostFilter,
+    TargetController, TargetRequirement,
 };
 use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::calculate_characteristics;
@@ -2841,6 +2841,77 @@ pub fn handle_cast_spell(
     } else {
         None
     };
+    // CR 118.8 / CR 601.2b,h: Spell additional sacrifice costs declared on CardDefinition.
+    // "As an additional cost to cast this spell, sacrifice a [filter]."
+    // The caster must supply a matching AdditionalCost::Sacrifice in the CastSpell command.
+    // Validated here BEFORE mana payment (CR 601.2h). The sacrifice is mandatory.
+    let spell_sac_id: Option<ObjectId> = {
+        let required_costs: Vec<SpellAdditionalCost> = card_id
+            .clone()
+            .and_then(|cid| state.card_registry.get(cid))
+            .map(|def| def.spell_additional_costs.clone())
+            .unwrap_or_default();
+        if required_costs.is_empty() {
+            None
+        } else {
+            // For now, we support exactly one mandatory sacrifice cost.
+            // If there are multiple, we validate them in order.
+            let required = &required_costs[0];
+            let sac_id = sacrifice_from_additional_costs.ok_or_else(|| {
+                GameStateError::InvalidCommand(format!(
+                    "spell requires sacrificing a permanent as an additional cost (CR 118.8): {:?}",
+                    required
+                ))
+            })?;
+            // Validate the sacrifice target is on the battlefield and controlled by the caster.
+            {
+                let sac_obj = state.object(sac_id)?;
+                if sac_obj.zone != ZoneId::Battlefield {
+                    return Err(GameStateError::InvalidCommand(
+                        "spell additional cost: sacrifice target must be on the battlefield (CR 118.8)".into(),
+                    ));
+                }
+                if sac_obj.controller != player {
+                    return Err(GameStateError::InvalidCommand(
+                        "spell additional cost: you must control the sacrificed permanent (CR 118.8)".into(),
+                    ));
+                }
+                // Validate the permanent matches the required filter using layer-resolved chars.
+                let sac_chars = calculate_characteristics(state, sac_id)
+                    .or_else(|| {
+                        state
+                            .objects
+                            .get(&sac_id)
+                            .map(|o| o.characteristics.clone())
+                    })
+                    .unwrap_or_default();
+                let matches = match required {
+                    SpellAdditionalCost::SacrificeCreature => {
+                        sac_chars.card_types.contains(&CardType::Creature)
+                    }
+                    SpellAdditionalCost::SacrificeLand => {
+                        sac_chars.card_types.contains(&CardType::Land)
+                    }
+                    SpellAdditionalCost::SacrificeArtifactOrCreature => {
+                        sac_chars.card_types.contains(&CardType::Artifact)
+                            || sac_chars.card_types.contains(&CardType::Creature)
+                    }
+                    SpellAdditionalCost::SacrificeSubtype(sub) => sac_chars.subtypes.contains(sub),
+                    SpellAdditionalCost::SacrificeColorPermanent(color) => {
+                        // Use layer-resolved colors from Characteristics (CR 105.2).
+                        sac_chars.colors.contains(color)
+                    }
+                };
+                if !matches {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "spell additional cost: sacrificed permanent does not match required filter {:?} (CR 118.8)",
+                        required
+                    )));
+                }
+            }
+            Some(sac_id)
+        }
+    };
     // CR 701.59a / CR 601.2b,f: Collect Evidence -- validate the graveyard cards.
     // Collect Evidence is an additional cost: the player exiles cards from their graveyard
     // with total mana value >= N. Unlike Delve, the exiled cards do NOT reduce mana cost.
@@ -3342,6 +3413,44 @@ pub fn handle_cast_spell(
                 ..PendingTrigger::blank(new_discard_id, player, PendingTriggerKind::Madness)
             });
         }
+    }
+    // CR 118.8 / CR 601.2h: Pay the mandatory spell additional sacrifice cost.
+    // The sacrifice is a real sacrifice (CR 701.17): the permanent goes from
+    // battlefield to the owner's graveyard as part of cost payment.
+    // If the spell is later countered, the sacrifice still happened.
+    if let Some(sac_id) = spell_sac_id {
+        let (is_creature, sac_owner, pre_death_controller, pre_death_counters) = {
+            let sac_obj = state.object(sac_id)?;
+            (
+                sac_obj
+                    .characteristics
+                    .card_types
+                    .contains(&CardType::Creature),
+                sac_obj.owner,
+                sac_obj.controller,
+                sac_obj.counters.clone(),
+            )
+        };
+        let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
+        if is_creature {
+            events.push(GameEvent::CreatureDied {
+                object_id: sac_id,
+                new_grave_id: new_sac_id,
+                controller: pre_death_controller,
+                pre_death_counters,
+            });
+        } else {
+            events.push(GameEvent::PermanentDestroyed {
+                object_id: sac_id,
+                new_grave_id: new_sac_id,
+            });
+        }
+        // CR 701.21a: PermanentSacrificed for spell additional cost.
+        events.push(GameEvent::PermanentSacrificed {
+            player: pre_death_controller,
+            object_id: sac_id,
+            new_id: new_sac_id,
+        });
     }
     // CR 702.166a / CR 601.2f-h: Pay the bargain additional cost -- sacrifice
     // an artifact, enchantment, or token. The sacrifice is a real sacrifice

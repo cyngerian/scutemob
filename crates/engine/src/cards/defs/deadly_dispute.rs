@@ -1,7 +1,6 @@
-// Deadly Dispute — {1}{B} Instant; as an additional cost, sacrifice an artifact
-// or creature. Draw two cards. Create a Treasure token.
-// TODO: "Sacrifice an artifact or creature" as spell additional cost — not activated ability cost (PB-4)
-// Needs required_additional_cost field on CardDef or Spell. Draw + Treasure works.
+// Deadly Dispute — {1}{B} Instant
+// As an additional cost to cast this spell, sacrifice an artifact or creature.
+// Draw two cards. Create a Treasure token.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -11,9 +10,10 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
         types: types(&[CardType::Instant]),
         oracle_text: "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards. Create a Treasure token.".to_string(),
+        // CR 118.8: Mandatory sacrifice of an artifact or creature as additional cost.
+        spell_additional_costs: vec![SpellAdditionalCost::SacrificeArtifactOrCreature],
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
-                // TODO: sacrifice additional cost (spell cost, not PB-4 activated cost)
                 Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(2),

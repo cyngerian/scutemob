@@ -1,37 +1,94 @@
-# Primitive WIP: PB-30 -- Combat damage triggers
+# Primitive WIP: PB-31 -- Cost primitives (RemoveCounter, AdditionalSacrificeCost)
 
-batch: PB-30
-title: Combat damage triggers
-cards_affected: ~49
-started: 2026-03-25
-phase: close
-plan_file: memory/primitives/pb-plan-30.md
+batch: PB-31
+title: Cost primitives (RemoveCounter, AdditionalSacrificeCost)
+cards_affected: ~23
+started: 2026-03-26
+phase: implement
+plan_file: memory/primitives/pb-plan-31.md
 
 ## Gap Reference
-G-8 from `docs/dsl-gap-closure-plan.md`:
-- G-8: Combat damage triggers (per-creature) (~49 cards) — `WheneverCreatureYouControlDealsCombatDamageToPlayer` TriggerCondition; event wiring in combat.rs
+G-16 from `docs/dsl-gap-closure-plan.md`:
+- G-16: Cost::RemoveCounter (~16 cards) — New `Cost::RemoveCounter { counter: CounterType, count: u32 }` variant
+
+G-17 from `docs/dsl-gap-closure-plan.md`:
+- G-17: AdditionalCost::SacrificeCreature for spells (~7 cards) — Extend `AdditionalCost` vec on `CastSpell` — creature sacrifice at cast time
 
 ## Deferred from Prior PBs
-- PB-23 added controller-filtered creature triggers (WheneverCreatureDies, WheneverCreatureYouControlAttacks, WheneverCreatureYouControlDealsCombatDamageToPlayer)
-- PB-26 added trigger variants (discard, sacrifice, leaves-battlefield, draw-card, lifegain, cast triggers)
-- PB-30 extends this trigger infrastructure for combat damage specifically
+- PB-30 deferred: Heartstone, Training Grounds, Silver-Fur Master, Puresteel Paladin, Morophon (to PB-37)
+- PB-4 had sacrifice-as-activation-cost; PB-31 extends to sacrifice-as-casting-cost
 
 ## Step Checklist
-- [x] 1. Engine changes — 22 changes implemented: new TriggerCondition variants (WheneverCreatureYouControlDealsCombatDamageToPlayer struct form, WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer, WhenEquippedCreatureDealsCombatDamageToPlayer, WhenEnchantedCreatureDealsDamageToPlayer, WhenAnyCreatureDealsCombatDamageToOpponent), new TriggerEvent variants (AnyCreatureYouControlBatchCombatDamage, EquippedCreatureDealsCombatDamageToPlayer, EnchantedCreatureDealsDamageToPlayer, AnyCreatureDealsCombatDamageToOpponent), new EffectTarget::TriggeringCreature, PlayerTarget::DamagedPlayer, EffectAmount::CombatDamageDealt, TargetFilter.is_token, TriggeredAbilityDef.combat_damage_filter, PendingTrigger.damaged_player/combat_damage_amount, EffectContext.combat_damage_amount/damaged_player/triggering_creature_id, StackObject.damaged_player/combat_damage_amount/triggering_creature_id, event dispatch in abilities.rs (per-creature + batch + equipped + enchanted + opponent), propagation chain PendingTrigger→StackObject→EffectContext, hash.rs exhaustive updates, replay_harness.rs enrichment for all 5 new TriggerCondition variants
-- [x] 2. Card definition fixes — 26 cards fixed: old_gnawbone, the_indomitable, professional_face_breaker, contaminant_grafter, ingenious_infiltrator, prosperous_thief, rakish_heir, stensia_masquerade, alela_cunning_conqueror, curiosity, ophidian_eye, mask_of_memory, sword_of_fire_and_ice, sword_of_body_and_mind, sword_of_sinew_and_steel, sword_of_truth_and_justice, the_reaver_cleaver, lathril_blade_of_the_elves, balefire_dragon (TODO deferred), marisi_breaker_of_the_coil (TODO deferred), sword_of_feast_and_famine, sword_of_light_and_shadow, sword_of_war_and_peace, grim_hireling, natures_will (partial), sigil_of_sleep; 6 existing defs updated to struct form { filter: None }
-- [x] 3. New card definitions — none required
-- [x] 4. Unit tests — 8 tests in crates/engine/tests/combat_damage_triggers.rs: per_creature, per_creature_per_creature, subtype_filter, batch_fires_once, batch_per_damaged_player, equipped_trigger, equipped_unequipped_no_trigger, enchanted_trigger
-- [x] 5. Workspace build verification — 2371 tests pass, 0 clippy warnings, formatting clean
+- [x] 1. Engine changes (new types/variants/dispatch)
+  - Added `Cost::RemoveCounter { counter: CounterType, count: u32 }` to `card_definition.rs` (~line 918)
+  - Added `SpellAdditionalCost` enum to `card_definition.rs` (SacrificeCreature, SacrificeLand, SacrificeArtifactOrCreature, SacrificeSubtype(SubType), SacrificeColorPermanent(Color))
+  - Added `spell_additional_costs: Vec<SpellAdditionalCost>` to `CardDefinition` struct
+  - Added `remove_counter_cost: Option<(CounterType, u32)>` to `ActivationCost` in `game_object.rs`
+  - Updated `hash.rs`: `Cost::RemoveCounter` arm (discriminant 9), `ActivationCost::remove_counter_cost` field, `(A, B)` tuple `HashInto` impl
+  - Wired `Cost::RemoveCounter` in `flatten_cost_into()` in `replay_harness.rs`
+  - Wired `sacrifice_card_name` in `cast_spell` handler in `replay_harness.rs`
+  - Added counter-removal cost validation + payment in `handle_activate_ability()` in `abilities.rs`
+  - Added spell additional sacrifice cost validation in `casting.rs` (`spell_sac_id` block)
+  - Added spell sacrifice cost execution in `casting.rs` (before bargain execution block)
+  - Exported `SpellAdditionalCost` from `cards/mod.rs` and `lib.rs`
+  - Updated all explicit `ActivationCost {}` struct constructors (3 in card_definition.rs, 1 in replay_harness.rs, ~20+ in tests) to include `remove_counter_cost: None`
+  - Updated all explicit `CardDefinition {}` struct constructors in defs/ (~139 files) and tests/ (~16 files) to include `spell_additional_costs: vec![]`
 
-## Fix Phase Results (2026-03-25)
-All 5 HIGH and 4 MEDIUM findings resolved:
-- H1 (hash.rs): Added `self.combat_damage_filter.hash_into(hasher);` to TriggeredAbilityDef hash impl
-- H2 (hash.rs): Added `self.damaged_player.hash_into(hasher);` and `self.combat_damage_amount.hash_into(hasher);` to PendingTrigger hash impl
-- H3 (abilities.rs): Captured `pre_len` before `collect_triggers_for_event` for SelfDealsCombatDamageToPlayer, then populated `damaged_player`, `combat_damage_amount`, `entering_object_id` on triggers[pre_len..] — fixes Lathril token creation
-- H4 (abilities.rs): Added `combat_damage_filter` check in batch trigger dispatch — iterates assignments to verify at least one creature matches filter before emitting PendingTrigger — fixes Prosperous Thief and Alela false triggers
-- H5 (edric_spymaster_of_trest.rs): Added `WhenAnyCreatureDealsCombatDamageToOpponent` triggered ability with DrawCards effect; documented PlayerTarget::Controller approximation
-- M5 (abilities.rs): Added TODO(PB-37) comment on EnchantedCreatureDealsDamageToPlayer noncombat path
-- M6 (card_definition.rs): Added doc comment on is_token field explaining it's only checked in combat_damage_filter path
-- M8 (curiosity.rs, ophidian_eye.rs): Added TODO(PB-37) comments for opponent-vs-player approximation and noncombat gap
-- M9 (alela_cunning_conqueror.rs): Replaced DeclaredTarget { index: 0 } Goad with Effect::Sequence(vec![]) placeholder + TODO(PB-37)
-Post-fix: 2371 tests pass, 0 clippy warnings, workspace build clean
+- [x] 2. Card definition fixes (G-16: 8 cards; G-17: 9 cards)
+  - G-16 (Cost::RemoveCounter):
+    - dragons_hoard.rs — added {T}, Remove gold counter: Draw a card
+    - spawning_pit.rs — added Sacrifice creature: charge counter; {1}, Remove 2 charge: create Spawn token
+    - ominous_seas.rs — added Remove 8 foreshadow counters: Create 8/8 Kraken token
+    - gemstone_array.rs — added Remove charge counter: Add mana of any color
+    - golgari_grave_troll.rs — added {1}, Remove +1/+1 counter: Regenerate
+    - ghave_guru_of_spores.rs — added ETB 5 +1/+1 counters; {1}, Remove +1/+1: Create Saproling; {1}, Sacrifice creature: Add +1/+1 counter
+    - spike_weaver.rs — added {2}, Remove +1/+1 counter: Put +1/+1 counter on target (ability 2 deferred to PB-32)
+    - ramos_dragon_engine.rs — added Remove 5 +1/+1 counters: Add WWUUBBRRGG (once-per-turn deferred to PB-37)
+    - druids_repository.rs — added Remove charge counter: Add mana of any color
+    - umezawas_jitte.rs — added combat trigger (2 charge counters) + Remove charge counter: +2/+2 (modes 2/3 deferred to PB-37)
+  - G-17 (SpellAdditionalCost):
+    - village_rites.rs — SacrificeCreature
+    - deadly_dispute.rs — SacrificeArtifactOrCreature
+    - goblin_grenade.rs — SacrificeSubtype(Goblin)
+    - altar_of_bone.rs — SacrificeCreature (+ proper search effect)
+    - crop_rotation.rs — SacrificeLand
+    - corrupted_conviction.rs — SacrificeCreature
+    - lifes_legacy.rs — SacrificeCreature (power-based draw deferred to PB-37)
+    - abjure.rs — SacrificeColorPermanent(Blue) (+ counterspell effect)
+
+- [x] 3. New card definitions (if any) — None (all existing defs fixed)
+
+- [x] 4. Unit tests
+  - Created `crates/engine/tests/cost_primitives.rs` with 12 tests:
+    - test_remove_counter_cost_basic (CR 602.2)
+    - test_remove_counter_cost_insufficient (CR 118.3)
+    - test_remove_counter_cost_exact_zero (CR 118.3)
+    - test_remove_counter_cost_in_sequence (CR 601.2h)
+    - test_village_rites_has_sacrifice_creature_cost (CR 118.8)
+    - test_crop_rotation_has_sacrifice_land_cost (CR 118.8)
+    - test_deadly_dispute_has_sacrifice_artifact_or_creature_cost (CR 118.8)
+    - test_goblin_grenade_has_sacrifice_goblin_cost (CR 118.8)
+    - test_abjure_has_sacrifice_blue_permanent_cost (CR 118.8)
+    - test_spell_sacrifice_cost_creature (CR 118.8)
+    - test_spell_sacrifice_cost_missing (CR 118.8)
+    - test_spell_sacrifice_cost_wrong_type (CR 118.8)
+  - All 12 tests pass
+
+- [x] 5. Workspace build verification
+  - `cargo check` — clean
+  - `cargo build --workspace` — clean
+  - `cargo test --all` — all tests pass (0 failures)
+  - `cargo clippy -- -D warnings` — 0 warnings
+  - `cargo fmt --check` — clean
+
+## Deferred to PB-37
+- Ghave "remove counter from another creature you control" — needs target-based counter cost
+- Crucible of the Spirit Dragon "Remove X counters" — needs X-value integration in Cost
+- Tekuthal "remove counters from among others" — complex multi-source counter removal
+- Plumb the Forbidden "may sacrifice one or more" — variable-count sacrifice + copy-per
+- Flare of Fortitude sacrifice as alternative cost — needs AltCostKind extension
+- Ramos once-per-turn activation restriction — needs ActivatedAbility once_per_turn field
+- Mana ability classification for counter-removal abilities that produce mana
+- Life's Legacy EffectAmount::SacrificedCreaturePower
+- Spike Weaver ability 2 effect (PreventAllCombatDamage — G-19, PB-32)
+- Umezawa's Jitte modes 2 (-1/-1) and 3 (gain 2 life)

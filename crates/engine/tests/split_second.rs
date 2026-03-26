@@ -254,6 +254,7 @@ fn test_split_second_blocks_activated_abilities() {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "{T}: Does something".to_string(),
             effect: None,

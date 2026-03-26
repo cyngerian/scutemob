@@ -65,6 +65,7 @@ fn etb_draw_creature_def() -> CardDefinition {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     }
 }
@@ -97,6 +98,7 @@ fn torpor_orb_def() -> CardDefinition {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     }
 }
@@ -134,6 +136,7 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     }
 }

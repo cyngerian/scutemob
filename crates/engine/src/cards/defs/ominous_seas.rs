@@ -24,7 +24,34 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "Remove eight foreshadow counters" — Cost::RemoveCounters not in DSL.
+            // CR 602.2: Remove eight foreshadow counters: Create an 8/8 blue Kraken token.
+            AbilityDefinition::Activated {
+                cost: Cost::RemoveCounter {
+                    counter: CounterType::Custom("foreshadow".to_string()),
+                    count: 8,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Kraken".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Kraken".to_string())].into_iter().collect(),
+                        colors: [Color::Blue].into_iter().collect(),
+                        power: 8,
+                        toughness: 8,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: im::OrdSet::new(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
             // Cycling {2}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {

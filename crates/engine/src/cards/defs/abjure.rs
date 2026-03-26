@@ -10,10 +10,16 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
         types: types(&[CardType::Instant]),
         oracle_text: "As an additional cost to cast this spell, sacrifice a blue permanent.\nCounter target spell.".to_string(),
-        // TODO: "As an additional cost, sacrifice a blue permanent. Counter target spell."
-        // Without the sacrifice cost, this is a {U} unconditional counter (KI-2).
-        // Stripped per W6 policy until color-filtered sacrifice additional cost is in DSL.
-        abilities: vec![],
+        // CR 118.8: Mandatory sacrifice of a blue permanent as additional cost.
+        spell_additional_costs: vec![SpellAdditionalCost::SacrificeColorPermanent(Color::Blue)],
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::CounterSpell {
+                target: EffectTarget::DeclaredTarget { index: 0 },
+            },
+            targets: vec![TargetRequirement::TargetSpell],
+            modes: None,
+            cant_be_countered: false,
+        }],
         ..Default::default()
     }
 }

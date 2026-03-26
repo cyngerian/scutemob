@@ -330,10 +330,19 @@ pub fn translate_player_action(
                 // CR 107.3m: Propagate x_value from the script action to CastSpell.
                 x_value,
                 face_down_kind: None,
-                additional_costs: if let Some(pid) = gift_pid {
-                    vec![AdditionalCost::Gift { opponent: pid }]
-                } else {
-                    vec![]
+                additional_costs: {
+                    let mut costs = vec![];
+                    if let Some(pid) = gift_pid {
+                        costs.push(AdditionalCost::Gift { opponent: pid });
+                    }
+                    // CR 118.8: If the script specifies sacrifice_card for cast_spell,
+                    // resolve it to an ObjectId and add AdditionalCost::Sacrifice.
+                    if let Some(sac_name) = sacrifice_card_name {
+                        if let Some(sac_id) = find_on_battlefield(state, player, sac_name) {
+                            costs.push(AdditionalCost::Sacrifice(vec![sac_id]));
+                        }
+                    }
+                    costs
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
@@ -1983,6 +1992,7 @@ pub fn enrich_spec_from_def(
                     discard_self: false,
                     forage: false,
                     sacrifice_filter: None,
+                    remove_counter_cost: None,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -2961,6 +2971,9 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::DiscardSelf => ac.discard_self = true,
         Cost::Forage => ac.forage = true,
         Cost::PayLife(_) => {} // no ActivationCost representation yet
+        Cost::RemoveCounter { counter, count } => {
+            ac.remove_counter_cost = Some((counter.clone(), *count));
+        }
     }
 }
 fn parse_mana_color(s: &str) -> Option<ManaColor> {

@@ -730,6 +730,35 @@ pub fn handle_activate_ability(
             }
         }
     }
+    // CR 602.2 / CR 118.3: Pay remove-counter cost.
+    // The permanent must have at least `count` counters of the required type.
+    // Counters are removed BEFORE the ability goes on the stack.
+    if let Some((ref counter_type, count)) = ability_cost.remove_counter_cost {
+        let current = state
+            .objects
+            .get(&source)
+            .and_then(|obj| obj.counters.get(counter_type).copied())
+            .unwrap_or(0);
+        if current < count {
+            return Err(GameStateError::InvalidCommand(format!(
+                "remove-counter cost: need {} {:?} counter(s), have {} (CR 118.3)",
+                count, counter_type, current
+            )));
+        }
+        if let Some(obj) = state.objects.get_mut(&source) {
+            let new_count = current - count;
+            if new_count == 0 {
+                obj.counters.remove(counter_type);
+            } else {
+                obj.counters.insert(counter_type.clone(), new_count);
+            }
+        }
+        events.push(crate::rules::events::GameEvent::CounterRemoved {
+            object_id: source,
+            counter: counter_type.clone(),
+            count,
+        });
+    }
     // CR 602.2c: Validate targets for existence, hexproof, shroud, and protection.
     // Fetch source characteristics once for protection-from checks (CR 702.16b).
     let source_chars =

@@ -152,6 +152,12 @@ impl<T: HashInto> HashInto for Box<T> {
         (**self).hash_into(hasher);
     }
 }
+impl<A: HashInto, B: HashInto> HashInto for (A, B) {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.0.hash_into(hasher);
+        self.1.hash_into(hasher);
+    }
+}
 // --- Leaf type implementations (discriminant byte + payload) ---
 impl HashInto for PlayerId {
     fn hash_into(&self, hasher: &mut Hasher) {
@@ -1739,6 +1745,7 @@ impl HashInto for ActivationCost {
         self.discard_self.hash_into(hasher);
         self.forage.hash_into(hasher);
         self.sacrifice_filter.hash_into(hasher);
+        self.remove_counter_cost.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {
@@ -4261,6 +4268,11 @@ impl HashInto for Cost {
             Cost::Forage => 6u8.hash_into(hasher),
             Cost::SacrificeSelf => 7u8.hash_into(hasher),
             Cost::DiscardSelf => 8u8.hash_into(hasher),
+            Cost::RemoveCounter { counter, count } => {
+                9u8.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }

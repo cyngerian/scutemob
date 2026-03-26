@@ -233,6 +233,11 @@ pub struct ActivationCost {
     /// The caller must supply the ObjectId of the permanent to sacrifice in the command.
     #[serde(default)]
     pub sacrifice_filter: Option<SacrificeFilter>,
+    /// CR 602.2: Remove counters from the source permanent as part of the activation cost.
+    /// CR 118.3: The permanent must have at least `count` counters of the given type.
+    /// E.g., "Remove a charge counter: ..." = `Some((CounterType::Charge, 1))`.
+    #[serde(default)]
+    pub remove_counter_cost: Option<(crate::state::types::CounterType, u32)>,
 }
 /// A non-mana activated ability that uses the stack (CR 602).
 ///

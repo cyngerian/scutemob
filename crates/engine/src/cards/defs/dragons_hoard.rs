@@ -2,9 +2,6 @@
 // Whenever a Dragon you control enters, put a gold counter on Dragon's Hoard.
 // {T}, Remove a gold counter from Dragon's Hoard: Draw a card.
 // {T}: Add one mana of any color.
-//
-// TODO: "{T}, Remove a gold counter: Draw a card" — Cost::RemoveCounters not in DSL.
-//   Implementing the Dragon ETB trigger (gold counter) and mana ability.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,7 +29,23 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: {T}, Remove gold counter: Draw a card (Cost::RemoveCounters not in DSL)
+            // CR 602.2: {T}, Remove a gold counter from Dragon's Hoard: Draw a card.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Tap,
+                    Cost::RemoveCounter {
+                        counter: CounterType::Custom("gold".to_string()),
+                        count: 1,
+                    },
+                ]),
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
             // {T}: Add one mana of any color.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

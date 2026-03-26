@@ -1,12 +1,6 @@
 // Spawning Pit — {2}, Artifact
-// "Sacrifice a creature: Put a charge counter on this artifact."
-// "{1}, Remove two charge counters from this artifact: Create a 2/2 colorless Spawn artifact creature token."
-// TODO: DSL gap — two issues:
-// 1. "Put a charge counter on this artifact" requires Effect::AddCounters targeting Source,
-//    but CounterType::Charge may not exist and the trigger is an activated ability not a trigger.
-// 2. "Remove two charge counters" as a cost (Cost::RemoveCounters) does not exist in the DSL.
-// 3. Creating a typed creature token (2/2 colorless Spawn artifact creature) requires a
-//    token spec not currently available. Cannot faithfully express this card.
+// Sacrifice a creature: Put a charge counter on this artifact.
+// {1}, Remove two charge counters from this artifact: Create a 2/2 colorless Spawn artifact creature token.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,7 +10,51 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
         types: types(&[CardType::Artifact]),
         oracle_text: "Sacrifice a creature: Put a charge counter on this artifact.\n{1}, Remove two charge counters from this artifact: Create a 2/2 colorless Spawn artifact creature token.".to_string(),
-        abilities: vec![],
+        abilities: vec![
+            // CR 602.2: Sacrifice a creature: Put a charge counter on this artifact.
+            AbilityDefinition::Activated {
+                cost: Cost::Sacrifice(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                }),
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::Charge,
+                    count: 1,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+            // CR 602.2: {1}, Remove two charge counters: Create a 2/2 colorless Spawn token.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::RemoveCounter { counter: CounterType::Charge, count: 2 },
+                ]),
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Spawn".to_string(),
+                        card_types: [CardType::Artifact, CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Spawn".to_string())].into_iter().collect(),
+                        colors: im::OrdSet::new(),
+                        power: 2,
+                        toughness: 2,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: im::OrdSet::new(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
+        ],
         ..Default::default()
     }
 }

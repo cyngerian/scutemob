@@ -121,6 +121,14 @@ pub struct CardDefinition {
     /// (CR 712.8g) and its mana value is the sum of both front face mana values.
     #[serde(default)]
     pub meld_pair: Option<MeldPair>,
+    /// CR 118.8: Required additional costs to cast this spell.
+    ///
+    /// E.g., Village Rites: "As an additional cost to cast this spell, sacrifice a creature."
+    /// The caster must include a matching `AdditionalCost::Sacrifice` in the `CastSpell` command.
+    /// Validated in `casting.rs` before mana payment (CR 601.2h).
+    /// Empty for cards with no mandatory additional sacrifice cost.
+    #[serde(default)]
+    pub spell_additional_costs: Vec<SpellAdditionalCost>,
 }
 impl Default for CardDefinition {
     fn default() -> Self {
@@ -141,6 +149,7 @@ impl Default for CardDefinition {
             activated_ability_cost_reductions: vec![],
             starting_loyalty: None,
             meld_pair: None,
+            spell_additional_costs: vec![],
         }
     }
 }
@@ -915,6 +924,31 @@ pub enum Cost {
     Forage,
     /// Multiple costs, all paid simultaneously (CR 601.2g).
     Sequence(Vec<Cost>),
+    /// Remove N counters of the specified type from the source permanent as a cost (CR 602.2).
+    /// CR 118.3: The permanent must have at least `count` counters of that type before activation.
+    RemoveCounter { counter: CounterType, count: u32 },
+}
+/// Required additional cost on a spell card definition (CR 118.8).
+///
+/// Declares what the caster must sacrifice as an additional cost to cast the spell.
+/// The caster must include a matching `AdditionalCost::Sacrifice` in the `CastSpell`
+/// command. Validated in `casting.rs` against `additional_costs` on `CastSpell`.
+///
+/// CR 118.8: An additional cost is a cost listed in a spell's rules text that its
+/// controller must pay at the same time they pay the spell's mana cost.
+/// CR 601.2h: Costs are paid before the spell goes on the stack.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpellAdditionalCost {
+    /// "Sacrifice a creature" (Village Rites, Altar of Bone, Corrupted Conviction, etc.)
+    SacrificeCreature,
+    /// "Sacrifice a land" (Crop Rotation)
+    SacrificeLand,
+    /// "Sacrifice an artifact or creature" (Deadly Dispute)
+    SacrificeArtifactOrCreature,
+    /// "Sacrifice a [subtype]" (Goblin Grenade: "Sacrifice a Goblin")
+    SacrificeSubtype(SubType),
+    /// "Sacrifice a [color] permanent" (Abjure: "Sacrifice a blue permanent")
+    SacrificeColorPermanent(Color),
 }
 /// CR 606.4: The cost to activate a loyalty ability — add or remove loyalty counters.
 ///
@@ -2369,6 +2403,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -2413,6 +2448,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -2460,6 +2496,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 discard_self: false,
                 forage: false,
                 sacrifice_filter: None,
+                remove_counter_cost: None,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

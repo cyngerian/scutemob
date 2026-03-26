@@ -5,6 +5,9 @@
 // • Target creature gets -1/-1 until end of turn.
 // • You gain 2 life.
 // Equip {2}
+//
+// Note: "Choose one" modal activated ability — only the +2/+2 mode is implemented.
+// Full modal support (AddCounter on target, GainLife) deferred to PB-37.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,10 +23,35 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever equipped creature deals combat damage, put two charge counters on Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one —\n• Equipped creature gets +2/+2 until end of turn.\n• Target creature gets -1/-1 until end of turn.\n• You gain 2 life.\nEquip {2}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Equip),
-            // TODO: Equip {2} cost AbilityDefinition — Equip keyword marker handles attachment,
-            // but cost-bearing activated ability needs engine wiring.
-            // TODO: "Whenever equipped creature deals combat damage" — put 2 charge counters.
-            // TODO: "Remove a charge counter: Choose one" — modal activated with counter cost.
+            // CR 510.3a: Whenever equipped creature deals combat damage to a player,
+            // put two charge counters on Umezawa's Jitte.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::Charge,
+                    count: 2,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // CR 602.2: Remove a charge counter: Equipped creature gets +2/+2 until end of turn.
+            // Note: Full modal support deferred to PB-37. Implementing mode 1 (+2/+2) only.
+            AbilityDefinition::Activated {
+                cost: Cost::RemoveCounter { counter: CounterType::Charge, count: 1 },
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyBoth(2),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

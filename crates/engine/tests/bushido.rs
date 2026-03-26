@@ -341,6 +341,7 @@ fn test_702_45b_bushido_multiple_instances() {
         starting_loyalty: None,
         adventure_face: None,
         meld_pair: None,
+        spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
     };
 

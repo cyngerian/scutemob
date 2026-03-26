@@ -10,9 +10,9 @@ pub fn card() -> CardDefinition {
         mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
         types: types(&[CardType::Instant]),
         oracle_text: "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.".to_string(),
+        // CR 118.8: Mandatory sacrifice of a creature as additional cost.
+        spell_additional_costs: vec![SpellAdditionalCost::SacrificeCreature],
         abilities: vec![AbilityDefinition::Spell {
-            // TODO: "Sacrifice a creature" additional cost not in DSL.
-            // Implementing the draw effect only.
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,
                 count: EffectAmount::Fixed(2),
