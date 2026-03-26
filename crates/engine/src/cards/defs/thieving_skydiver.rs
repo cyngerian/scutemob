@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            AbilityDefinition::Keyword(KeywordAbility::Kicker),
             // CR 613.1b: ETB (if kicked): gain control of target artifact (indefinitely).
             // Approximation: "with mana value X or less" filter and Equipment attach omitted
             // (mana-value variable filter and Equipment-attach not in DSL).

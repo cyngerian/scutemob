@@ -47,7 +47,7 @@ pub fn card() -> CardDefinition {
                     },
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
-                            layer: EffectLayer::PtCda,
+                            layer: EffectLayer::PtSet,
                             modification: LayerModification::SetPtDynamic {
                                 power: Box::new(EffectAmount::PermanentCount {
                                     filter: TargetFilter {
