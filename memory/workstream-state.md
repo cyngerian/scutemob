@@ -23,25 +23,29 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-25
-**Workstream**: W6 (PB-30)
-**Task**: PB-30 Combat damage triggers
+**Date**: 2026-03-26
+**Workstream**: W6 (PB-31)
+**Task**: PB-31 Cost primitives (RemoveCounter, SpellAdditionalCost)
 
 **Completed**:
-- **PB-30 DONE**: G-8 Combat damage triggers. Engine: 5 new TriggerCondition variants (WhenOneOrMore..., WhenEquipped..., WhenEnchanted..., WhenAnyCreature...Opponent, struct filter on per-creature), 4 new TriggerEvent variants, PlayerTarget::DamagedPlayer, EffectAmount::CombatDamageDealt, EffectTarget::TriggeringCreature, TargetFilter.is_token, combat_damage_filter on TriggeredAbilityDef, PendingTrigger/StackObject/EffectContext propagation. 27 card defs fixed (Swords cycle, Curiosity, Old Gnawbone, Edric, etc.). 8 new tests. Review: 5H 4M fixed. 2371 tests, 0 clippy.
-- Commits: b5577c7 (implement), b8c8dc6 (fixes).
+- **PB-31 DONE**: G-16 Cost::RemoveCounter + G-17 SpellAdditionalCost. Engine: Cost::RemoveCounter variant, SpellAdditionalCost enum (5 variants), ActivationCost.remove_counter_cost field, casting.rs spell sacrifice validation+execution, abilities.rs counter removal payment, hash.rs updates. 18 card defs fixed (10 G-16 + 8 G-17). 12 new tests. Review: 2M fixed (Jitte trigger TODO, Life's Legacy placeholder). 2383 tests, 0 clippy.
+- Commits: b9f8efa (implement), aeb87d5 (fixes).
 
 **Next**:
-1. Continue gap closure: PB-31 (cost primitives — RemoveCounter, AdditionalSacrificeCost, ~23 cards) is next
-2. Deferred to PB-37: Heartstone, Training Grounds, Silver-Fur Master, Puresteel Paladin, Morophon, noncombat damage trigger path, PlayerTarget::ControllerOf(TriggeringCreature) for Edric
-3. Backfill sweeps accumulating (~480+ cards across PB-23–30)
+1. Continue gap closure: PB-32 (static/effect primitives — additional lands, prevention, control change, land animation, ~39 cards)
+2. Deferred to PB-37: Jitte unqualified combat damage trigger, Life's Legacy SacrificedCreaturePower, Ghave cross-creature counter removal, Ramos once-per-turn, Crucible X counters, Tekuthal multi-source, Plumb the Forbidden variable sacrifice, Flare of Fortitude alt cost
+3. Backfill sweeps accumulating (~480+ cards across PB-23–31)
 
 **Hazards**:
-- Backfill sweeps accumulating (~480+ cards across PB-23–30)
+- Backfill sweeps accumulating (~480+ cards across PB-23–31)
+- Planner agent created spurious docs (engine_explanation.md, scutemob-architecture-review.md) — included in impl commit, harmless but should be cleaned up
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-26 — W6: PB-31
+- PB-31: G-16 RemoveCounter + G-17 SpellAdditionalCost, 18 card defs fixed, 2M fixed. 2383 tests. Commits: b9f8efa, aeb87d5.
 
 ### 2026-03-25 — W6: PB-30
 - PB-30: G-8 Combat damage triggers, 27 card defs fixed, 5H 4M fixed. 2371 tests. Commits: b5577c7, b8c8dc6.

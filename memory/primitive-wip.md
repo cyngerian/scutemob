@@ -4,7 +4,7 @@ batch: PB-31
 title: Cost primitives (RemoveCounter, AdditionalSacrificeCost)
 cards_affected: ~23
 started: 2026-03-26
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-31.md
 
 ## Gap Reference
