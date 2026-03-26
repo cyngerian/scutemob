@@ -3,10 +3,8 @@
 // Enchanted permanent is a colorless land with "{T}: Add {C}" and loses all other
 //   card types and abilities.
 //
-// TODO: Complex layer interaction — enchanted permanent becomes colorless land,
-//   loses all types/abilities, gains "{T}: Add {C}". Requires Layer 4 (type change),
-//   Layer 5 (color change), Layer 6 (remove all abilities + grant mana ability).
-//   Not expressible as a simple static effect. Implementing only the Aura/Enchant keyword.
+// Layers 4/5/6: SetTypeLine(Land), SetColors(colorless), RemoveAllAbilities implemented.
+// Note: "{T}: Add {C}" grant omitted (no LayerModification for adding mana abilities via static).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +16,42 @@ pub fn card() -> CardDefinition {
         oracle_text: "Enchant creature, land, or planeswalker\nEnchanted permanent is a colorless land with \"{T}: Add {C}\" and loses all other card types and abilities.".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Permanent)),
-            // TODO: Layer 4/5/6 type+color+ability overwrite (complex layer interaction)
+            // CR 613.1b/d/f: Enchanted permanent is a colorless land with "{T}: Add {C}"
+            // and loses all other card types and abilities.
+            // Layer 4: SetTypeLine to Land only.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::SetTypeLine {
+                        supertypes: im::OrdSet::new(),
+                        card_types: [CardType::Land].into_iter().collect(),
+                        subtypes: im::OrdSet::new(),
+                    },
+                    filter: EffectFilter::AttachedPermanent,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // Layer 5: BecomeColorless.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::ColorChange,
+                    modification: LayerModification::SetColors(im::OrdSet::new()),
+                    filter: EffectFilter::AttachedPermanent,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // Layer 6: RemoveAllAbilities.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::RemoveAllAbilities,
+                    filter: EffectFilter::AttachedPermanent,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
         ],
         ..Default::default()
     }

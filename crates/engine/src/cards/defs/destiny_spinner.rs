@@ -16,9 +16,81 @@ pub fn card() -> CardDefinition {
         oracle_text: "Creature and enchantment spells you control can't be countered.\n{3}{G}: Target land you control becomes an X/X Elemental creature with trample and haste until end of turn, where X is the number of enchantments you control. It's still a land.".to_string(),
         power: Some(2),
         toughness: Some(3),
-        abilities: vec![],
+        abilities: vec![
+            // TODO: static "can't counter creature/enchantment spells you control"
+            // CR 613.1d/613.4b: {3}{G}: Target land becomes an X/X Elemental with trample
+            // and haste until end of turn, where X is the number of enchantments you control.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 3, green: 1, ..Default::default() }),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddCardTypes(
+                                [CardType::Creature].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddSubtypes(
+                                [SubType("Elemental".to_string())].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtCda,
+                            modification: LayerModification::SetPtDynamic {
+                                power: Box::new(EffectAmount::PermanentCount {
+                                    filter: TargetFilter {
+                                        has_card_type: Some(CardType::Enchantment),
+                                        controller: TargetController::You,
+                                        ..Default::default()
+                                    },
+                                    controller: PlayerTarget::Controller,
+                                }),
+                                toughness: Box::new(EffectAmount::PermanentCount {
+                                    filter: TargetFilter {
+                                        has_card_type: Some(CardType::Enchantment),
+                                        controller: TargetController::You,
+                                        ..Default::default()
+                                    },
+                                    controller: PlayerTarget::Controller,
+                                }),
+                            },
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [KeywordAbility::Trample, KeywordAbility::Haste]
+                                    .into_iter()
+                                    .collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetLand],
+                activation_condition: None,
+            },
+        ],
         // TODO: static "can't counter creature/enchantment spells you control"
-        // TODO: {3}{G} activated — land animation with enchantment-count X
         ..Default::default()
     }
 }

@@ -90,6 +90,11 @@ pub enum EffectFilter {
     /// field points to the target land. Used for Fortification static abilities such
     /// as Darksteel Garrison ("fortified land has indestructible").
     AttachedLand,
+    /// Applies to any permanent the source Aura/Equipment/Fortification is attached to.
+    ///
+    /// Like `AttachedCreature` and `AttachedLand` but without type restriction.
+    /// Used by Auras that enchant any permanent type (e.g., Imprisoned in the Moon).
+    AttachedPermanent,
     /// Placeholder filter for effects whose target is declared at resolution time.
     ///
     /// When `Effect::ApplyContinuousEffect` is executed, any `DeclaredTarget` filter

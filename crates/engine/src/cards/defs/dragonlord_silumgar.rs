@@ -3,11 +3,9 @@
 // When Dragonlord Silumgar enters, gain control of target creature or planeswalker
 // for as long as you control Dragonlord Silumgar.
 //
-// TODO: DSL gap — ETB control effect omitted.
-// "Gain control of target creature or planeswalker for as long as you control Dragonlord Silumgar."
-// Requires a conditional continuous control effect (EffectDuration::WhileYouControlSource)
-// targeting either a creature or planeswalker. No duration variant for "while you control [this]"
-// and no multi-type target filter (creature OR planeswalker) in the current DSL.
+// Note: "for as long as you control Dragonlord Silumgar" approximated as
+// WhileSourceOnBattlefield (correct when Silumgar itself isn't stolen; full
+// "while YOU control" semantics need a separate EffectDuration variant).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,6 +24,17 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
+            // CR 613.1b: ETB — gain control of target creature or planeswalker
+            // for as long as you control Dragonlord Silumgar (WhileSourceOnBattlefield approx).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::GainControl {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPermanent],
+            },
         ],
         ..Default::default()
     }

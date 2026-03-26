@@ -17,8 +17,8 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
-            // TODO: Static ability — you may play an additional land on each of your turns.
-            // DSL gap: no additional-land-drop static effect.
+            // CR 305.2: Static — you may play an additional land on each of your turns.
+            AbilityDefinition::AdditionalLandPlays { count: 1 },
             // TODO: Activated ability — {R}{G}, return a land you control to its owner's hand:
             // target creature gains trample until end of turn.
             // DSL gap: no return-land cost; no targeted grant-keyword until-end-of-turn effect on activated abilities.

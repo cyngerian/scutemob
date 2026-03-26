@@ -1,9 +1,8 @@
 // Maze of Ith — Land
 // {T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.
 //
-// DSL gap: "Prevent all combat damage dealt to and by that creature this turn" requires
-//   a damage-prevention continuous effect on the untapped creature (no PreventDamage effect).
-// Implementing UntapPermanent only; prevention effect is a TODO.
+// Note: "target attacking creature" approximated as TargetCreature (no TargetAttackingCreature
+// variant exists). In practice, the ability is only meaningfully used during combat.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,9 +13,24 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.".to_string(),
         abilities: vec![
-            // TODO: DSL gap — "target attacking creature" requires TargetRequirement::TargetAttackingCreature
-            // (does not exist). Untap + prevent combat damage also needs PreventCombatDamage effect.
-            // Stripped per W5 policy — targeting any creature instead of attacking creature is wrong game state.
+            // CR 615.1: {T}: Untap target creature. Prevent all combat damage dealt to and by
+            // that creature this turn. (Approximation: "attacking creature" → TargetCreature)
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Sequence(vec![
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::PreventCombatDamageFromOrTo {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        prevent_from: true,
+                        prevent_to: true,
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

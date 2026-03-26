@@ -845,6 +845,16 @@ pub enum AbilityDefinition {
         power: EffectAmount,
         toughness: EffectAmount,
     },
+    /// CR 305.2: Static "You may play an additional land on each of your turns."
+    ///
+    /// Registered in `register_static_continuous_effects`. When the source permanent
+    /// is on the battlefield, the controller's `land_plays_remaining` is incremented
+    /// by `count` at the start of each of their turns.
+    ///
+    /// Stacks with multiple sources (two Aesi = 3 total land plays per turn).
+    ///
+    /// Discriminant 71.
+    AdditionalLandPlays { count: u32 },
 }
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
 ///
@@ -1633,6 +1643,56 @@ pub enum Effect {
         triggered_abilities: Vec<crate::state::game_object::TriggeredAbilityDef>,
         /// Static continuous effects on the emblem (e.g., "Ninjas you control get +1/+1").
         static_effects: Vec<ContinuousEffectDef>,
+    },
+    /// CR 305.2: Grant the controller one additional land play this turn.
+    ///
+    /// Increments `land_plays_remaining` on the effect's controller by 1.
+    /// Used by Explore ("You may play an additional land this turn") and
+    /// similar one-shot effects from spells.
+    AdditionalLandPlay,
+    /// CR 615.1: Prevent all combat damage that would be dealt this turn.
+    ///
+    /// Sets `prevent_all_combat_damage` flag on GameState. Checked in
+    /// `apply_combat_damage` before processing any assignments.
+    ///
+    /// Used by Fog, Spike Weaver ability 2, etc.
+    PreventAllCombatDamage,
+    /// CR 615.1: Prevent all combat damage that would be dealt to and/or by
+    /// the target creature this turn.
+    ///
+    /// Used by Maze of Ith ("prevent all combat damage dealt to and by that
+    /// creature"), Kor Haven ("prevent all combat damage dealt by target
+    /// attacking creature").
+    PreventCombatDamageFromOrTo {
+        target: EffectTarget,
+        /// If true, prevent damage dealt BY the target.
+        prevent_from: bool,
+        /// If true, prevent damage dealt TO the target.
+        prevent_to: bool,
+    },
+    /// CR 613.1b: Gain control of a target permanent (Layer 2 control-changing effect).
+    ///
+    /// Creates a `ContinuousEffect` with `LayerModification::SetController` on the
+    /// target permanent for the specified duration.
+    ///
+    /// Used by Zealous Conscripts ("gain control ... until end of turn"),
+    /// Connive ("gain control ... indefinitely"), Dragonlord Silumgar
+    /// ("gain control ... for as long as you control [this]").
+    GainControl {
+        target: EffectTarget,
+        duration: EffectDuration,
+    },
+    /// CR 701.12b: Exchange control of two permanents.
+    ///
+    /// If the permanents are controlled by different players, each player
+    /// simultaneously gains control of the other's permanent. If controlled
+    /// by the same player, nothing happens (CR 701.12b).
+    ///
+    /// CR 701.12a: If the entire exchange can't be completed, no part occurs.
+    ExchangeControl {
+        target_a: EffectTarget,
+        target_b: EffectTarget,
+        duration: EffectDuration,
     },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────

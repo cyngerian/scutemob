@@ -2,11 +2,7 @@
 // Ascend. You may play an additional land on each of your turns.
 // Wayward Swordtooth can't attack or block unless you have the city's blessing.
 //
-// Ascend keyword fully modeled.
-//
-// TODO: "You may play an additional land on each of your turns" — requires an
-// AdditionalLandPlay static effect that increments the per-turn land play allowance.
-// DSL gap: no AbilityDefinition or LayerModification for extra land plays.
+// Ascend keyword and AdditionalLandPlays fully modeled.
 //
 // TODO: "can't attack or block unless you have the city's blessing" — requires either:
 // (a) Condition::Not(Box::new(Condition::HasCitysBlessing)) on an attack/block restriction
@@ -26,6 +22,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ascend),
+            // CR 305.2: Static — you may play an additional land on each of your turns.
+            AbilityDefinition::AdditionalLandPlays { count: 1 },
         ],
         color_indicator: None,
         back_face: None,

@@ -27,14 +27,63 @@ pub fn card() -> CardDefinition {
             // TODO: Granting arbitrary mana abilities to permanents is a complex DSL
             // pattern (AnyColor mana production from lands). Known DSL gap.
 
-            // +1: Up to one target land you control becomes a 3/3 Elemental creature with
-            // vigilance, hexproof, and haste until your next turn. It's still a land.
-            // TODO: Type-changing (add Elemental creature type) + P/T-setting continuous
-            // effect + keyword grants (vigilance, hexproof, haste) until next turn is a
-            // multi-layer continuous effect. Known DSL gap for loyalty ability effects.
+            // CR 613.1d/613.4b: +1: Target land becomes 3/3 Elemental with vigilance, hexproof,
+            // and haste until end of turn (approximation: "until your next turn" → UntilEndOfTurn).
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::Sequence(vec![]),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddCardTypes(
+                                [CardType::Creature].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddSubtypes(
+                                [SubType("Elemental".to_string())].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtSet,
+                            modification: LayerModification::SetPowerToughness {
+                                power: 3,
+                                toughness: 3,
+                            },
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [
+                                    KeywordAbility::Vigilance,
+                                    KeywordAbility::Hexproof,
+                                    KeywordAbility::Haste,
+                                ]
+                                .into_iter()
+                                .collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
                 targets: vec![TargetRequirement::TargetLand],
             },
             // −2: Mill three cards. You may put a permanent card from among the milled

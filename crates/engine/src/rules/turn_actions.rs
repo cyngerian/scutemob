@@ -1296,6 +1296,7 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     if let Some(p) = state.players.get_mut(&player) {
         p.land_plays_remaining = 1;
         p.has_drawn_for_turn = false;
+        // (additional land play sources applied below after base reset)
         // CR 702.40a: per-turn spell cast count resets at the start of each turn.
         // Used by storm to count copies.
         p.spells_cast_this_turn = 0;
@@ -1331,6 +1332,30 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // CR 702.57b: Forecast once-per-turn tracking resets at the start of each turn.
     // Each card's forecast ability may be activated once per turn.
     state.forecast_used_this_turn = im::OrdSet::new();
+    // CR 305.2: Clean up stale additional land play sources (source no longer on battlefield).
+    // Then apply remaining sources to the active player's land_plays_remaining.
+    state.additional_land_play_sources.retain(|s| {
+        state
+            .objects
+            .get(&s.source)
+            .map(|o| o.zone == crate::state::ZoneId::Battlefield)
+            .unwrap_or(false)
+    });
+    let additional_land_plays: u32 = state
+        .additional_land_play_sources
+        .iter()
+        .filter(|s| s.controller == player)
+        .map(|s| s.count)
+        .sum();
+    if additional_land_plays > 0 {
+        if let Some(p) = state.players.get_mut(&player) {
+            p.land_plays_remaining += additional_land_plays;
+        }
+    }
+    // CR 615.1: Reset per-turn combat damage prevention flags.
+    state.prevent_all_combat_damage = false;
+    state.combat_damage_prevented_from = im::OrdSet::new();
+    state.combat_damage_prevented_to = im::OrdSet::new();
     // CR 606.3: Reset loyalty ability activation tracking for all planeswalkers.
     // "No player has previously activated a loyalty ability of that permanent that turn."
     let loyalty_ids: Vec<crate::state::ObjectId> = state

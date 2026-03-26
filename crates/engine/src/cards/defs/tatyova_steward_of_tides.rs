@@ -23,9 +23,67 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: Continuous effect granting flying to land creatures requires a filter on
             // card types (Land + Creature) which is not expressible as an EffectFilter.
-            // TODO: Landfall trigger with count_threshold condition (7+ lands) that animates
-            // a targeted land as 3/3 Elemental with haste — requires targeted_trigger with
-            // intervening-if count check and animate-land effect, none of which is in DSL.
+            // CR 613.1d/f: Landfall — Whenever a land enters, if you control 7+ lands,
+            // target land becomes a 3/3 Elemental creature with haste until end of turn.
+            // (Approximation: "7+ lands" → ControlAtLeastNOtherLands(6) intervening-if)
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddCardTypes(
+                                [CardType::Creature].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddSubtypes(
+                                [SubType("Elemental".to_string())].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtSet,
+                            modification: LayerModification::SetPowerToughness {
+                                power: 3,
+                                toughness: 3,
+                            },
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [KeywordAbility::Haste].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                intervening_if: Some(Condition::ControlAtLeastNOtherLands(6)),
+                targets: vec![TargetRequirement::TargetLand],
+            },
         ],
         ..Default::default()
     }

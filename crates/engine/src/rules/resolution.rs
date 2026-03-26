@@ -6806,6 +6806,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             })
                             .flatten()
                             .collect();
+                        let controller = state
+                            .objects
+                            .get(&source_object)
+                            .map(|o| o.controller)
+                            .unwrap_or(stack_obj.controller);
                         for sub_ability in &level_abilities {
                             if let AbilityDefinition::Static { continuous_effect } = sub_ability {
                                 let eff_id = state.next_object_id().0;
@@ -6822,6 +6827,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         modification: continuous_effect.modification.clone(),
                                         is_cda: false,
                                         condition: None,
+                                    },
+                                );
+                            } else if let AbilityDefinition::AdditionalLandPlays { count } =
+                                sub_ability
+                            {
+                                // CR 305.2: Register additional land play source at level-up.
+                                state.additional_land_play_sources.push_back(
+                                    crate::state::stubs::AdditionalLandPlaySource {
+                                        source: source_object,
+                                        controller,
+                                        count: *count,
                                     },
                                 );
                             }

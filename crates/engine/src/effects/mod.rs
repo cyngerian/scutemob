@@ -3970,6 +3970,119 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 305.2: Grant the controller one additional land play this turn.
+        Effect::AdditionalLandPlay => {
+            let controller = ctx.controller;
+            if let Some(p) = state.players.get_mut(&controller) {
+                p.land_plays_remaining += 1;
+            }
+        }
+        // CR 615.1: Prevent all combat damage that would be dealt this turn.
+        Effect::PreventAllCombatDamage => {
+            state.prevent_all_combat_damage = true;
+        }
+        // CR 615: Prevent combat damage from or to a specific target this turn.
+        Effect::PreventCombatDamageFromOrTo {
+            target,
+            prevent_from,
+            prevent_to,
+        } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(obj_id) = resolved {
+                    if *prevent_from {
+                        state.combat_damage_prevented_from.insert(obj_id);
+                    }
+                    if *prevent_to {
+                        state.combat_damage_prevented_to.insert(obj_id);
+                    }
+                }
+            }
+        }
+        // CR 613.1b: Gain control of target permanent (Layer 2 control-changing effect).
+        Effect::GainControl { target, duration } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            let controller = ctx.controller;
+            for resolved in targets {
+                if let ResolvedTarget::Object(obj_id) = resolved {
+                    let id_inner = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    let eff = crate::state::continuous_effect::ContinuousEffect {
+                        id: crate::state::continuous_effect::EffectId(id_inner),
+                        source: Some(ctx.source),
+                        layer: crate::state::continuous_effect::EffectLayer::Control,
+                        modification:
+                            crate::state::continuous_effect::LayerModification::SetController(
+                                controller,
+                            ),
+                        filter: crate::state::continuous_effect::EffectFilter::SingleObject(obj_id),
+                        duration: *duration,
+                        is_cda: false,
+                        timestamp: ts,
+                        condition: None,
+                    };
+                    state.continuous_effects.push_back(eff);
+                    // Update the object's controller immediately.
+                    if let Some(obj) = state.objects.get_mut(&obj_id) {
+                        obj.controller = controller;
+                    }
+                }
+            }
+        }
+        // CR 701.12b: Exchange control of two permanents.
+        Effect::ExchangeControl {
+            target_a,
+            target_b,
+            duration,
+        } => {
+            let a_targets = resolve_effect_target_list(state, target_a, ctx);
+            let b_targets = resolve_effect_target_list(state, target_b, ctx);
+            let a_id = a_targets.iter().find_map(|r| {
+                if let ResolvedTarget::Object(id) = r {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+            let b_id = b_targets.iter().find_map(|r| {
+                if let ResolvedTarget::Object(id) = r {
+                    Some(*id)
+                } else {
+                    None
+                }
+            });
+            if let (Some(a_id), Some(b_id)) = (a_id, b_id) {
+                let a_ctrl = state.objects.get(&a_id).map(|o| o.controller);
+                let b_ctrl = state.objects.get(&b_id).map(|o| o.controller);
+                if let (Some(ac), Some(bc)) = (a_ctrl, b_ctrl) {
+                    // CR 701.12b: If same controller, do nothing.
+                    if ac != bc {
+                        for (obj_id, new_controller) in [(a_id, bc), (b_id, ac)] {
+                            let id_inner = state.next_object_id().0;
+                            let ts = state.timestamp_counter;
+                            state.timestamp_counter += 1;
+                            state.continuous_effects.push_back(
+                                crate::state::continuous_effect::ContinuousEffect {
+                                    id: crate::state::continuous_effect::EffectId(id_inner),
+                                    source: Some(ctx.source),
+                                    layer: crate::state::continuous_effect::EffectLayer::Control,
+                                    modification: crate::state::continuous_effect::LayerModification::SetController(new_controller),
+                                    filter: crate::state::continuous_effect::EffectFilter::SingleObject(obj_id),
+                                    duration: *duration,
+                                    is_cda: false,
+                                    timestamp: ts,
+                                    condition: None,
+                                },
+                            );
+                            if let Some(obj) = state.objects.get_mut(&obj_id) {
+                                obj.controller = new_controller;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────

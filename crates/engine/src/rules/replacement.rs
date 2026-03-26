@@ -1784,6 +1784,18 @@ pub fn register_static_continuous_effects(
                     condition: None, // CR 604.3a(5): CDAs are unconditional
                 });
             }
+            // CR 305.2: Register a static additional land play source.
+            // At the start of each of the controller's turns, land_plays_remaining is
+            // incremented by `count` in `reset_turn_state`.
+            AbilityDefinition::AdditionalLandPlays { count } => {
+                state.additional_land_play_sources.push_back(
+                    crate::state::stubs::AdditionalLandPlaySource {
+                        source: new_id,
+                        controller,
+                        count: *count,
+                    },
+                );
+            }
             _ => {}
         }
     }

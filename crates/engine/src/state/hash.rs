@@ -1218,6 +1218,7 @@ impl HashInto for EffectFilter {
                     st.hash_into(hasher);
                 }
             }
+            EffectFilter::AttachedPermanent => 28u8.hash_into(hasher),
         }
     }
 }
@@ -4768,6 +4769,42 @@ impl HashInto for Effect {
                 effect.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // CR 305.2: AdditionalLandPlay (discriminant 68) — one-shot additional land play
+            Effect::AdditionalLandPlay => {
+                68u8.hash_into(hasher);
+            }
+            // CR 615.1: PreventAllCombatDamage (discriminant 69) — blanket combat damage prevention
+            Effect::PreventAllCombatDamage => {
+                69u8.hash_into(hasher);
+            }
+            // CR 615: PreventCombatDamageFromOrTo (discriminant 70) — per-creature prevention
+            Effect::PreventCombatDamageFromOrTo {
+                target,
+                prevent_from,
+                prevent_to,
+            } => {
+                70u8.hash_into(hasher);
+                target.hash_into(hasher);
+                prevent_from.hash_into(hasher);
+                prevent_to.hash_into(hasher);
+            }
+            // CR 613.1b: GainControl (discriminant 71) — Layer 2 control-changing effect
+            Effect::GainControl { target, duration } => {
+                71u8.hash_into(hasher);
+                target.hash_into(hasher);
+                duration.hash_into(hasher);
+            }
+            // CR 701.12b: ExchangeControl (discriminant 72) — swap controllers of two permanents
+            Effect::ExchangeControl {
+                target_a,
+                target_b,
+                duration,
+            } => {
+                72u8.hash_into(hasher);
+                target_a.hash_into(hasher);
+                target_b.hash_into(hasher);
+                duration.hash_into(hasher);
+            }
         }
     }
 }
@@ -5213,6 +5250,11 @@ impl HashInto for AbilityDefinition {
                 power.hash_into(hasher);
                 toughness.hash_into(hasher);
             }
+            // AdditionalLandPlays (discriminant 71) -- PB-32: static additional land plays (CR 305.2)
+            AbilityDefinition::AdditionalLandPlays { count } => {
+                71u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }
@@ -5383,6 +5425,20 @@ impl GameState {
         }
         self.has_initiative.hash_into(&mut hasher);
         self.monarch.hash_into(&mut hasher);
+        // PB-32: Additional land play sources (CR 305.2)
+        for src in self.additional_land_play_sources.iter() {
+            src.source.hash_into(&mut hasher);
+            src.controller.hash_into(&mut hasher);
+            src.count.hash_into(&mut hasher);
+        }
+        // PB-32: Combat damage prevention flags (CR 615)
+        self.prevent_all_combat_damage.hash_into(&mut hasher);
+        for id in self.combat_damage_prevented_from.iter() {
+            id.hash_into(&mut hasher);
+        }
+        for id in self.combat_damage_prevented_to.iter() {
+            id.hash_into(&mut hasher);
+        }
         *hasher.finalize().as_bytes()
     }
     /// Computes a deterministic hash of a player's private (hidden) state.

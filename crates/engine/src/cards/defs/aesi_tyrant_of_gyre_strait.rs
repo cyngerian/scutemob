@@ -2,8 +2,7 @@
 // You may play an additional land on each of your turns.
 // Landfall — Whenever a land you control enters, you may draw a card.
 //
-// TODO: AdditionalLandPlays static effect not in DSL.
-// TODO: "may draw" — optional draw. Implementing as mandatory draw (approximation).
+// Note: "may draw" implemented as mandatory draw (approximation).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,7 +19,8 @@ pub fn card() -> CardDefinition {
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
-            // TODO: "You may play an additional land" — AdditionalLandPlays static not in DSL.
+            // CR 305.2: Static — you may play an additional land on each of your turns.
+            AbilityDefinition::AdditionalLandPlays { count: 1 },
             // Landfall — Whenever a land you control enters, draw a card.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {

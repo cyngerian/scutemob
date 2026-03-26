@@ -525,3 +525,18 @@ pub struct ActiveRestriction {
     /// The restriction being imposed.
     pub restriction: GameRestriction,
 }
+/// CR 305.2: A static "additional land play" source registered from a permanent
+/// on the battlefield with `AbilityDefinition::AdditionalLandPlays`.
+///
+/// At the start of each turn, all sources whose controller matches the active player
+/// contribute their `count` to `land_plays_remaining`. Cleaned up when the source
+/// permanent leaves the battlefield.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdditionalLandPlaySource {
+    /// ObjectId of the permanent generating the extra land plays.
+    pub source: ObjectId,
+    /// The player who controls the source permanent (beneficiary).
+    pub controller: PlayerId,
+    /// Number of extra land plays granted per turn.
+    pub count: u32,
+}

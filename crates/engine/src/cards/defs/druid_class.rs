@@ -4,7 +4,6 @@
 // Level 2 ({2}{G}): You may play an additional land on each of your turns.
 // Level 3 ({4}{G}): When this Class becomes level 3, target land becomes a creature.
 // TODO: Level 1 Landfall trigger needs LandEntersBattlefield trigger condition
-// TODO: Level 2 needs "additional land play" modifier (not in DSL)
 // TODO: Level 3 needs land-animation continuous effect + ETB trigger on level-up
 use crate::cards::helpers::*;
 
@@ -32,8 +31,8 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // Level 2 bar: {2}{G}: You may play an additional land.
-            // TODO: Needs "additional land play" effect (not in DSL)
+            // Level 2 bar: {2}{G}: You may play an additional land on each of your turns.
+            // CR 305.2: When level 2 is reached, register AdditionalLandPlays static.
             AbilityDefinition::ClassLevel {
                 level: 2,
                 cost: ManaCost {
@@ -41,7 +40,7 @@ pub fn card() -> CardDefinition {
                     green: 1,
                     ..Default::default()
                 },
-                abilities: vec![],
+                abilities: vec![AbilityDefinition::AdditionalLandPlays { count: 1 }],
             },
             // Level 3 bar: {4}{G}: Animate a land.
             // TODO: Needs land-animation continuous effect

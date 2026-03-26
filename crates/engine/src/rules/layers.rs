@@ -625,6 +625,22 @@ fn effect_applies_to(
                 false
             }
         }
+        // Applies to any permanent the source Aura/Equipment/Fortification is attached to.
+        EffectFilter::AttachedPermanent => {
+            if obj_zone != ZoneId::Battlefield {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                state
+                    .objects
+                    .get(&source_id)
+                    .and_then(|src| src.attached_to)
+                    .map(|attached| attached == object_id)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
         // CR 604.2: Static ability "Creatures you control have [keyword]."
         // Resolves the source's controller dynamically at layer-application time.
         EffectFilter::CreaturesYouControl => {

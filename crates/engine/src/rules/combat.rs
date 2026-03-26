@@ -1371,6 +1371,31 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     if assignments.is_empty() {
         return Vec::new();
     }
+    // CR 615.1: If all combat damage is prevented this turn, skip all assignments.
+    if state.prevent_all_combat_damage {
+        return Vec::new();
+    }
+    // CR 615: Remove assignments whose source or target has per-creature prevention this turn.
+    let assignments: Vec<CombatDamageAssignment> = assignments
+        .into_iter()
+        .filter(|a| {
+            if state.combat_damage_prevented_from.contains(&a.source) {
+                return false;
+            }
+            match &a.target {
+                CombatDamageTarget::Creature(id) | CombatDamageTarget::Planeswalker(id) => {
+                    if state.combat_damage_prevented_to.contains(id) {
+                        return false;
+                    }
+                }
+                CombatDamageTarget::Player(_) => {}
+            }
+            true
+        })
+        .collect();
+    if assignments.is_empty() {
+        return Vec::new();
+    }
     // --- Collect application info before mutating state ---
     // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_wither,
     // source_infect, source_toxic_total, source_controller, commander_info)

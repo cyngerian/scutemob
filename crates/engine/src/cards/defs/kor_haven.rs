@@ -1,4 +1,4 @@
-// Kor Haven — Legendary Land, {T}: Add {C}. {1}{W},{T}: Prevent combat damage from target attacker (TODO).
+// Kor Haven — Legendary Land
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +19,22 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {1}{W},{T}: Prevent all combat damage from target attacking creature — prevention effect not in DSL
+            // CR 615.1: {1}{W},{T}: Prevent all combat damage dealt BY target attacking creature.
+            // (Approximation: "attacking creature" → TargetCreature)
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, white: 1, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::PreventCombatDamageFromOrTo {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    prevent_from: true,
+                    prevent_to: false,
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

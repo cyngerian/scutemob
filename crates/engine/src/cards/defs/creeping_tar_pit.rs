@@ -38,8 +38,72 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: Activated — {1}{U}{B}: land animation (becomes 3/2 blue/black Elemental
-            // creature with "can't be blocked this turn"). DSL gap: land animation effect.
+            // CR 613.1d/613.4b: {1}{U}{B}: Until end of turn, this land becomes a 3/2 blue
+            // and black Elemental creature that can't be blocked. It's still a land.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 1, blue: 1, black: 1, ..Default::default() }),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddCardTypes(
+                                [CardType::Creature].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::Source,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddSubtypes(
+                                [SubType("Elemental".to_string())].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::Source,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtSet,
+                            modification: LayerModification::SetPowerToughness {
+                                power: 3,
+                                toughness: 2,
+                            },
+                            filter: EffectFilter::Source,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::ColorChange,
+                            modification: LayerModification::SetColors(
+                                [Color::Blue, Color::Black].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::Source,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [KeywordAbility::CantBeBlocked].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::Source,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

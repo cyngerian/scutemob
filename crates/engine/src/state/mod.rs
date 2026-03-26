@@ -45,8 +45,8 @@ use serde::{Deserialize, Serialize};
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use std::sync::Arc;
 pub use stubs::{
-    ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
-    PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
+    ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
+    GameRestriction, PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
 };
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
@@ -237,6 +237,30 @@ pub struct GameState {
     /// Inherent triggers (CR 724.2): EOT draw + combat damage steals.
     #[serde(default)]
     pub monarch: Option<PlayerId>,
+    /// CR 305.2: Static "additional land play" sources from permanents on the battlefield.
+    ///
+    /// Each entry records a permanent that grants its controller one or more extra land
+    /// plays per turn. Applied in `reset_turn_state` to increment `land_plays_remaining`.
+    /// Cleaned up when the source permanent leaves the battlefield.
+    #[serde(default)]
+    pub additional_land_play_sources: im::Vector<crate::state::stubs::AdditionalLandPlaySource>,
+    /// CR 615.1: When true, all combat damage is prevented for the rest of the turn.
+    ///
+    /// Set by Effect::PreventAllCombatDamage. Reset in `reset_turn_state` at turn start.
+    #[serde(default)]
+    pub prevent_all_combat_damage: bool,
+    /// CR 615: Objects whose combat damage OUTPUT is prevented this turn.
+    ///
+    /// Set by Effect::PreventCombatDamageFromOrTo with `prevent_from: true`.
+    /// Reset in `reset_turn_state` at turn start.
+    #[serde(default)]
+    pub combat_damage_prevented_from: im::OrdSet<ObjectId>,
+    /// CR 615: Objects whose combat damage INPUT is prevented this turn.
+    ///
+    /// Set by Effect::PreventCombatDamageFromOrTo with `prevent_to: true`.
+    /// Reset in `reset_turn_state` at turn start.
+    #[serde(default)]
+    pub combat_damage_prevented_to: im::OrdSet<ObjectId>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones

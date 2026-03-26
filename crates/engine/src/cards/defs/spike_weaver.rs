@@ -3,10 +3,6 @@
 // {2}, Remove a +1/+1 counter from this creature: Put a +1/+1 counter on target creature.
 // {1}, Remove a +1/+1 counter from this creature: Prevent all combat damage that would
 // be dealt this turn.
-//
-// Note: Ability 2 (PreventAllCombatDamage) is blocked on G-19 (PB-32).
-// The cost structure is correct; the ability is omitted until PB-32 adds
-// Effect::PreventAllCombatDamage.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -45,8 +41,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
             },
-            // TODO (G-19, PB-32): {1}, Remove a +1/+1 counter: Prevent all combat damage this turn.
-            // Effect::PreventAllCombatDamage not yet implemented. Deferred to PB-32.
+            // CR 615.1: {1}, Remove a +1/+1 counter: Prevent all combat damage this turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 1 },
+                ]),
+                effect: Effect::PreventAllCombatDamage,
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

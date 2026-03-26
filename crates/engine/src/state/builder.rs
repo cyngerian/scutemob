@@ -335,6 +335,12 @@ impl GameStateBuilder {
             has_initiative: None,
             // CR 724.1: No player is the monarch at game start.
             monarch: None,
+            // CR 305.2: No additional land play sources at game start.
+            additional_land_play_sources: im::Vector::new(),
+            // CR 615.1: No combat damage prevention at game start.
+            prevent_all_combat_damage: false,
+            combat_damage_prevented_from: im::OrdSet::new(),
+            combat_damage_prevented_to: im::OrdSet::new(),
             card_registry: self.card_registry,
         };
         // Add continuous effects

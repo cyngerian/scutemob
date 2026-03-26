@@ -6,10 +6,6 @@
 // CR 708.3: Split cards have two halves; each half may be cast separately from hand.
 // Neither half has Aftermath or Fuse — both are cast from hand as regular spells.
 //
-// TODO (Finding 5, Connive half): GainControl is not an Effect variant in the DSL. The
-//   Connive effect ("Gain control of target creature with power 2 or less") cannot be
-//   expressed. A GainControl { target, duration } Effect variant must be added to
-//   card_definition.rs and resolution.rs before this card is functional.
 //
 // The Fuse AbilityDefinition is used here to encode Concoct's data (name, cost, types)
 // even though this card is NOT a Fuse card — the KeywordAbility::Fuse marker is
@@ -33,10 +29,12 @@ pub fn card() -> CardDefinition {
         oracle_text: "Connive — Gain control of target creature with power 2 or less.\nConcoct — Surveil 3, then return a creature card from your graveyard to the battlefield.".to_string(),
         abilities: vec![
             // Connive (left half): Gain control of target creature with power 2 or less.
-            // CR 115.1: "target creature with power 2 or less" uses TargetCreatureWithFilter.
-            // DSL GAP: Effect::Nothing placeholder — replace with GainControl once DSL supports it.
+            // CR 613.1b: Indefinite control change (no duration — permanent).
             AbilityDefinition::Spell {
-                effect: Effect::Nothing,
+                effect: Effect::GainControl {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    duration: EffectDuration::Indefinite,
+                },
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     max_power: Some(2),
                     ..Default::default()

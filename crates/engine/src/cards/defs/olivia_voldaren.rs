@@ -23,8 +23,21 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "{1}{R}: deal 1 damage + add Vampire subtype + +1/+1 counter on self"
             // Needs: DealDamage to target + AddSubtype continuous effect + AddCounter on Source
             // in a single activated ability. AddSubtype LayerModification may not exist.
-            // TODO: DSL gap — "{3}{B}{B}: Gain control of target Vampire for as long as you
-            // control Olivia." Conditional SetController with duration tied to source control.
+            // CR 613.1b: {3}{B}{B}: Gain control of target Vampire for as long as you control
+            // Olivia Voldaren (WhileSourceOnBattlefield approximation).
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 3, black: 2, ..Default::default() }),
+                effect: Effect::GainControl {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    has_subtype: Some(SubType("Vampire".to_string())),
+                    ..Default::default()
+                })],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

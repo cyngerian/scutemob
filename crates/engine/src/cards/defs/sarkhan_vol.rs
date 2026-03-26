@@ -25,12 +25,31 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Nothing,
                 targets: vec![],
             },
-            // −2: Threaten
-            // TODO: Gain control + untap + haste until EOT not expressible.
+            // CR 613.1b: −2: Gain control of target creature until end of turn,
+            // untap it, it gains haste until end of turn.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
-                effect: Effect::Nothing,
-                targets: vec![],
+                effect: Effect::Sequence(vec![
+                    Effect::GainControl {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        duration: EffectDuration::UntilEndOfTurn,
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [KeywordAbility::Haste].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                targets: vec![TargetRequirement::TargetCreature],
             },
             // −6: Create 5 Dragon tokens
             AbilityDefinition::LoyaltyAbility {
