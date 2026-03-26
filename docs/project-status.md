@@ -43,7 +43,7 @@
 | PB-29 | Cost reduction statics | done | 13 | ~17 | fixed | 1 |
 | PB-30 | Combat damage triggers | done | 27 | ~22 | fixed | 1 |
 | PB-31 | Cost primitives (RemoveCounter, SacCost) | done | 18 | ~5 | fixed | 1 |
-| **PB-32** | **Static/effect (lands, prevention, ctrl, anim)** | **planned** | — | ~39 | — | — |
+| PB-32 | Static/effect (lands, prevention, ctrl, anim) | done | 22 | ~17 | fixed | 1 |
 | **PB-33** | **Copy/clone + exile/flicker timing** | **planned** | — | ~39 | — | — |
 | **PB-34** | **Mana production (filter, devotion, cond.)** | **planned** | — | ~40 | — | — |
 | **PB-35** | **Modal triggers + graveyard + PW** | **planned** | — | ~60 | — | — |
@@ -112,7 +112,7 @@ As of 2026-03-23 (post A-28).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2383 |
+| Total tests | 2396 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **PB-31 DONE**. PB-32 next. |
+| W6: Primitive + Card Authoring | PB-32: Static/effect primitives | ACTIVE | 2026-03-26 | PB-32: additional lands, prevention, control change, land animation (~39 cards) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,25 +24,27 @@
 ## Last Handoff
 
 **Date**: 2026-03-26
-**Workstream**: W6 (PB-31)
-**Task**: PB-31 Cost primitives (RemoveCounter, SpellAdditionalCost)
+**Workstream**: W6 (PB-32)
+**Task**: PB-32 Static/effect primitives (additional lands, prevention, control change, land animation)
 
 **Completed**:
-- **PB-31 DONE**: G-16 Cost::RemoveCounter + G-17 SpellAdditionalCost. Engine: Cost::RemoveCounter variant, SpellAdditionalCost enum (5 variants), ActivationCost.remove_counter_cost field, casting.rs spell sacrifice validation+execution, abilities.rs counter removal payment, hash.rs updates. 18 card defs fixed (10 G-16 + 8 G-17). 12 new tests. Review: 2M fixed (Jitte trigger TODO, Life's Legacy placeholder). 2383 tests, 0 clippy.
-- Commits: b9f8efa (implement), aeb87d5 (fixes).
+- **PB-32 DONE**: G-18 AdditionalLandPlay + AdditionalLandPlays static, G-19 PreventAllCombatDamage + PreventCombatDamageFromOrTo, G-20 GainControl + ExchangeControl (Layer 2), G-21 land animation via ApplyContinuousEffect pattern + EffectFilter::AttachedPermanent. 22 card defs fixed (6 G-18 + 3 G-19 + 6 G-20 + 7 G-21). 13 new tests. Review: 2M fixed (Destiny Spinner PtCda→PtSet, Thieving Skydiver missing Kicker keyword). 2396 tests, 0 clippy.
+- Commits: 8401dca (implement), 1502d1c (fixes).
 
 **Next**:
-1. Continue gap closure: PB-32 (static/effect primitives — additional lands, prevention, control change, land animation, ~39 cards)
-2. Deferred to PB-37: Jitte unqualified combat damage trigger, Life's Legacy SacrificedCreaturePower, Ghave cross-creature counter removal, Ramos once-per-turn, Crucible X counters, Tekuthal multi-source, Plumb the Forbidden variable sacrifice, Flare of Fortitude alt cost
-3. Backfill sweeps accumulating (~480+ cards across PB-23–31)
+1. Continue gap closure: PB-33 (copy/clone + exile/flicker timing, ~39 cards)
+2. Backfill sweeps accumulating (~500+ cards across PB-23–32)
 
 **Hazards**:
-- Backfill sweeps accumulating (~480+ cards across PB-23–31)
-- Planner agent created spurious docs (engine_explanation.md, scutemob-architecture-review.md) — included in impl commit, harmless but should be cleaned up
+- Backfill sweeps accumulating (~500+ cards across PB-23–32)
+- Planner agent created spurious docs (engine_explanation.md, scutemob-architecture-review.md) — included in PB-32 impl commit, harmless but should be cleaned up
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-26 — W6: PB-32
+- PB-32: G-18/G-19/G-20/G-21 static/effect primitives, 22 card defs fixed, 2M fixed. 2396 tests. Commits: 8401dca, 1502d1c.
 
 ### 2026-03-26 — W6: PB-31
 - PB-31: G-16 RemoveCounter + G-17 SpellAdditionalCost, 18 card defs fixed, 2M fixed. 2383 tests. Commits: b9f8efa, aeb87d5.

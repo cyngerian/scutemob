@@ -4,7 +4,7 @@ batch: PB-32
 title: Static/effect primitives (additional lands, prevention, control change, land animation)
 cards_affected: ~39
 started: 2026-03-26
-phase: implement
+phase: closed
 plan_file: memory/primitives/pb-plan-32.md
 
 ## Gap Reference
@@ -39,3 +39,8 @@ G-21: Land animation (~12 cards) — `Effect::AnimateLand { target, power, tough
 - [x] 3. New card definitions (if any) — none needed
 - [x] 4. Unit tests — 13 tests in crates/engine/tests/primitive_pb32.rs
 - [x] 5. Workspace build verification — 2396 tests, 0 failures, 0 clippy warnings, clean workspace build
+
+## Review
+findings: 9 (HIGH: 0, MEDIUM: 2, LOW: 7)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-32.md

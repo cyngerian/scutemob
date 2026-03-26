@@ -166,7 +166,7 @@ their TODOs removed.
 - [x] **PB-29**: Cost reduction statics (~30 cards) — 13 fixed, 1H fixed, 2363 tests
 - [x] **PB-30**: Combat damage triggers (~49 cards) — 27 fixed, 5H 4M fixed, 2371 tests
 - [x] **PB-31**: Cost primitives (RemoveCounter, AdditionalSacrificeCost) (~23 cards) — 18 fixed, 2M fixed, 2383 tests
-- [ ] **PB-32**: Static/effect primitives (additional lands, prevention, control change, land animation) (~39 cards)
+- [x] **PB-32**: Static/effect primitives (additional lands, prevention, control change, land animation) (~39 cards) — 22 fixed, 2M fixed, 2396 tests
 - [ ] **PB-33**: Copy/clone + exile/flicker timing (~39 cards)
 - [ ] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards)
 - [ ] **PB-35**: Modal triggers + graveyard conditions + planeswalker abilities (~60 cards)

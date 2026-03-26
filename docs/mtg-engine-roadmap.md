@@ -741,6 +741,10 @@ corrupt state from reaching clients. Must exist before the first playable game.
 **Crate**: `crates/server/` — standalone binary, depends on `crates/engine` as a library. No engine changes required.
 
 **Deliverables**:
+- [ ] **Engine correctness pass** (before networking — from architecture review):
+  - [ ] Cost modifiers through layer system: move `spell_cost_modifiers` from `CardDefinition` top-level field into `Static` abilities processed through `calculate_characteristics`. Fixes Humility/Dress Down incorrectly not suppressing Thalia-style cost taxes. Do first — more cards authored against broken assumption increases migration cost.
+  - [ ] Resolution suspension: `ChoiceRequest` / `PendingResolution` for mid-resolution player choices. Unblocks "target opponent chooses" effects, Fact or Fiction, Council's Judgment, etc.
+  - [ ] Formal LKI snapshot system (CR 608.2g/608.2h): snapshot layer-resolved characteristics on zone changes. Current fallback (`obj.characteristics.power` for non-battlefield objects) covers ~95% of cases but breaks on Oblivion Ring chains, flicker timing, and other Commander-common patterns. Edge case tests should be written during PB work *before* this fix lands.
 - [ ] WebSocket server (tokio + axum) accepting player connections
 - [ ] Room manager: create game (returns room code), join game by code, 2-6 player slots
 - [ ] One engine instance per active game room, running authoritatively on the server
@@ -806,6 +810,9 @@ corrupt state from reaching clients. Must exist before the first playable game.
 - [ ] Priority indicator: whose turn to act
 - [ ] Basic input: click to cast spell, click to pass priority, click to select targets
 - [ ] Life total display and commander damage tracker per opponent
+- [ ] **Engine feature additions** (from architecture review):
+  - [ ] Turn control override (Mindslaver, Emrakul the Promised End): `turn_controller_override: Option<(PlayerId, PlayerId)>` on `TurnState`; Command routing redirects controlled player's decisions to controller; hand revealed to controller
+  - [ ] Step skipping (Necropotence, Stasis): `skip_steps: HashSet<(PlayerId, Step)>` on `TurnState`; turn structure advances past skipped steps; effects register/remove skips
 - [ ] **Rewind UI**: show a timeline of recent safe checkpoints (turn/step labels); any player can propose a rewind by clicking a checkpoint; all players see a consent prompt; unanimous accept → state rolls back; any decline → proposal dismissed
 - [ ] **"Pause for rules discussion" button**: one click sends the Pause command to all peers; all players see "Game paused — discussing rules" overlay with a Resume button; game is frozen until all players resume
 - [ ] **Manual state adjustment mode** (active only while paused): players can collaboratively edit the current game state — adjust life totals, move permanents between zones, add/remove counters. Changes are applied locally and broadcast as a proposed new state hash. All peers must accept before the adjusted state becomes official and automation resumes.
@@ -987,6 +994,10 @@ These are not scheduled but represent the next directions after alpha:
 - Continue generating card definitions toward full Commander-legal coverage
 - Community contribution pipeline: players can submit and validate card definitions
 - Community-submitted game scripts for edge cases and new interactions
+
+**Engine extensibility** (from architecture review):
+- DSL escape hatch: `Effect::Custom(CardId)` dispatching to registered `fn(&mut GameState, &mut EffectContext) -> Vec<GameEvent>` for irreducibly complex cards (Panglacial Wurm, Chains of Mephistopheles, etc.). Estimated ~50-100 cards out of full pool. Design when specific cards are identified that the DSL cannot express.
+- Compositional trigger conditions: if trigger enum exceeds ~300 variants, decompose into event + filter primitives. Not needed at current ~2,000 card scale.
 
 **Gameplay features**:
 - Spectator mode
