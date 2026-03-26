@@ -1022,6 +1022,8 @@ pub fn fire_saga_chapter_triggers(
                     cipher_encoded_object_id: None,
                     haunt_source_object_id: None,
                     haunt_source_card_id: None,
+                    damaged_player: None,
+                    combat_damage_amount: 0,
                     data: None,
                 });
             }
@@ -1193,6 +1195,8 @@ pub fn queue_carddef_etb_triggers(
                     cipher_encoded_object_id: None,
                     haunt_source_object_id: None,
                     haunt_source_card_id: None,
+                    damaged_player: None,
+                    combat_damage_amount: 0,
                     data: None,
                 });
             }
@@ -1229,6 +1233,8 @@ pub fn queue_carddef_etb_triggers(
                         cipher_encoded_object_id: None,
                         haunt_source_object_id: None,
                         haunt_source_card_id: None,
+                        damaged_player: None,
+                        combat_damage_amount: 0,
                         data: None,
                     });
                 }

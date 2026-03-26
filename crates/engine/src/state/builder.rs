@@ -369,6 +369,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesTargetByOpponent,
                         intervening_if: None,
@@ -401,6 +402,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::ControllerCastsNoncreatureSpell,
                         intervening_if: None,
@@ -425,6 +427,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::ControllerCreatureAttacksAlone,
                         intervening_if: None,
@@ -449,6 +452,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -471,6 +475,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -503,6 +508,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacksPlayerWithMostLife,
                         intervening_if: None,
@@ -529,6 +535,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacksWithGreaterPowerAlly,
                         intervening_if: None,
@@ -554,6 +561,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -579,6 +587,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -605,6 +614,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
@@ -641,6 +651,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
@@ -676,6 +687,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: None,
@@ -714,6 +726,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::ControllerCastsSpell,
                         intervening_if: None,
@@ -735,6 +748,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfEntersBattlefield,
                         intervening_if: None,
@@ -778,6 +792,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: None,
@@ -802,6 +817,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -831,6 +847,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBlocks,
                         intervening_if: None,
@@ -844,6 +861,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
@@ -866,6 +884,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
@@ -888,6 +907,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
@@ -907,6 +927,7 @@ impl GameStateBuilder {
                     triggered_abilities.push(TriggeredAbilityDef {
                         etb_filter: None,
                         death_filter: None,
+                        combat_damage_filter: None,
                         targets: vec![],
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,

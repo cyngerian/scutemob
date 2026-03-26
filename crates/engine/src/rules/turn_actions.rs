@@ -129,6 +129,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -194,6 +196,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -265,6 +269,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -331,6 +337,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -412,6 +420,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -554,6 +564,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
+            damaged_player: None,
+            combat_damage_amount: 0,
             data: None,
         });
     }
@@ -623,6 +635,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
+            damaged_player: None,
+            combat_damage_amount: 0,
             data: None,
         });
     }
@@ -664,6 +678,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
+            damaged_player: None,
+            combat_damage_amount: 0,
             data: None,
         });
     }
@@ -717,6 +733,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
+            damaged_player: None,
+            combat_damage_amount: 0,
             data: None,
         });
     }
@@ -789,6 +807,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
