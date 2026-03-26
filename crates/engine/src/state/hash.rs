@@ -1711,6 +1711,9 @@ impl HashInto for PendingTrigger {
         self.cipher_encoded_object_id.hash_into(hasher);
         // Structured trigger data (TC-21 migration)
         self.data.hash_into(hasher);
+        // CR 510.3a: combat damage trigger data
+        self.damaged_player.hash_into(hasher);
+        self.combat_damage_amount.hash_into(hasher);
     }
 }
 impl HashInto for SacrificeFilter {
@@ -1913,6 +1916,8 @@ impl HashInto for TriggeredAbilityDef {
         self.etb_filter.hash_into(hasher);
         self.death_filter.hash_into(hasher);
         self.targets.hash_into(hasher);
+        // CR 510.3a: combat_damage_filter — subtype/token filter for combat damage triggers
+        self.combat_damage_filter.hash_into(hasher);
     }
 }
 impl HashInto for TriggerData {

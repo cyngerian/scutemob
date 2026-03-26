@@ -4258,6 +4258,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         continue; // CR 603.2g: damage was fully prevented
                     }
                     if matches!(assignment.target, CombatDamageTarget::Player(_)) {
+                        let pre_len = triggers.len();
                         collect_triggers_for_event(
                             state,
                             &mut triggers,
@@ -4265,6 +4266,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             Some(assignment.source),
                             None,
                         );
+                        // CR 510.3a: Populate combat data on SelfDealsCombatDamageToPlayer triggers
+                        // so EffectAmount::CombatDamageDealt and PlayerTarget::DamagedPlayer resolve
+                        // correctly (e.g., Lathril creating tokens equal to damage dealt).
+                        if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
+                            for t in &mut triggers[pre_len..] {
+                                t.damaged_player = Some(*damaged_pid);
+                                t.combat_damage_amount = assignment.amount;
+                                t.entering_object_id = Some(assignment.source);
+                            }
+                        }
                         // CR 702.115a: Ingest -- "Whenever this creature deals combat
                         // damage to a player, that player exiles the top card of
                         // their library."
@@ -4603,6 +4614,46 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         continue;
                                     }
                                 }
+                                // CR 603.2: combat_damage_filter — check if at least one
+                                // creature controlled by `controller` that dealt damage to
+                                // `damaged_pid` matches the filter (e.g., Ninja/Rogue for
+                                // Prosperous Thief, Faerie for Alela).
+                                if let Some(ref filter) = trigger_def.combat_damage_filter {
+                                    let any_matches = assignments.iter().any(|a| {
+                                        if a.amount == 0 {
+                                            return false;
+                                        }
+                                        let CombatDamageTarget::Player(pid) = &a.target else {
+                                            return false;
+                                        };
+                                        if pid != damaged_pid {
+                                            return false;
+                                        }
+                                        let Some(dealing_obj) = state.objects.get(&a.source) else {
+                                            return false;
+                                        };
+                                        if dealing_obj.controller != *controller {
+                                            return false;
+                                        }
+                                        if dealing_obj.zone != ZoneId::Battlefield
+                                            || !dealing_obj.is_phased_in()
+                                        {
+                                            return false;
+                                        }
+                                        if filter.is_token && !dealing_obj.is_token {
+                                            return false;
+                                        }
+                                        let dealing_chars =
+                                            crate::rules::layers::calculate_characteristics(
+                                                state, a.source,
+                                            )
+                                            .unwrap_or_else(|| dealing_obj.characteristics.clone());
+                                        crate::effects::matches_filter(&dealing_chars, filter)
+                                    });
+                                    if !any_matches {
+                                        continue;
+                                    }
+                                }
                                 triggers.push(PendingTrigger {
                                     source: obj_id,
                                     ability_index: idx,
@@ -4641,6 +4692,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 510.3a: EquippedCreatureDealsCombatDamageToPlayer and
                 // EnchantedCreatureDealsDamageToPlayer — fires on Equipment/Aura permanents
                 // when their attached creature deals combat damage to a player.
+                // TODO(PB-37): WhenEnchantedCreatureDealsDamageToPlayer { combat_only: false }
+                // should also fire on noncombat damage via GameEvent::DamageDealt. That path
+                // requires identifying which creature was the damage source in the DamageDealt
+                // handler and checking its Aura attachments. Deferred to PB-37 as a broader
+                // noncombat creature-to-player damage trigger infrastructure item.
+                // Affected cards: curiosity, ophidian_eye, sigil_of_sleep.
                 for assignment in assignments {
                     if assignment.amount == 0 {
                         continue; // CR 603.2g

@@ -4,7 +4,7 @@ batch: PB-30
 title: Combat damage triggers
 cards_affected: ~49
 started: 2026-03-25
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-30.md
 
 ## Gap Reference
@@ -22,3 +22,16 @@ G-8 from `docs/dsl-gap-closure-plan.md`:
 - [x] 3. New card definitions — none required
 - [x] 4. Unit tests — 8 tests in crates/engine/tests/combat_damage_triggers.rs: per_creature, per_creature_per_creature, subtype_filter, batch_fires_once, batch_per_damaged_player, equipped_trigger, equipped_unequipped_no_trigger, enchanted_trigger
 - [x] 5. Workspace build verification — 2371 tests pass, 0 clippy warnings, formatting clean
+
+## Fix Phase Results (2026-03-25)
+All 5 HIGH and 4 MEDIUM findings resolved:
+- H1 (hash.rs): Added `self.combat_damage_filter.hash_into(hasher);` to TriggeredAbilityDef hash impl
+- H2 (hash.rs): Added `self.damaged_player.hash_into(hasher);` and `self.combat_damage_amount.hash_into(hasher);` to PendingTrigger hash impl
+- H3 (abilities.rs): Captured `pre_len` before `collect_triggers_for_event` for SelfDealsCombatDamageToPlayer, then populated `damaged_player`, `combat_damage_amount`, `entering_object_id` on triggers[pre_len..] — fixes Lathril token creation
+- H4 (abilities.rs): Added `combat_damage_filter` check in batch trigger dispatch — iterates assignments to verify at least one creature matches filter before emitting PendingTrigger — fixes Prosperous Thief and Alela false triggers
+- H5 (edric_spymaster_of_trest.rs): Added `WhenAnyCreatureDealsCombatDamageToOpponent` triggered ability with DrawCards effect; documented PlayerTarget::Controller approximation
+- M5 (abilities.rs): Added TODO(PB-37) comment on EnchantedCreatureDealsDamageToPlayer noncombat path
+- M6 (card_definition.rs): Added doc comment on is_token field explaining it's only checked in combat_damage_filter path
+- M8 (curiosity.rs, ophidian_eye.rs): Added TODO(PB-37) comments for opponent-vs-player approximation and noncombat gap
+- M9 (alela_cunning_conqueror.rs): Replaced DeclaredTarget { index: 0 } Goad with Effect::Sequence(vec![]) placeholder + TODO(PB-37)
+Post-fix: 2371 tests pass, 0 clippy warnings, workspace build clean

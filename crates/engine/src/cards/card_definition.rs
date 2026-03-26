@@ -1803,6 +1803,12 @@ pub struct TargetFilter {
     pub legendary: bool,
     /// Must be a token. Default: false (no restriction).
     /// Used for "creature token you control" (Curiosity Crafter).
+    ///
+    /// NOTE: `is_token` is a `GameObject` field (not `Characteristics`), so it cannot be
+    /// checked inside `matches_filter(&Characteristics, &TargetFilter)`. It is checked
+    /// separately in the `combat_damage_filter` path in `abilities.rs`. If `is_token` is
+    /// ever used in other filter contexts (ETB, death, effect targets), it must be checked
+    /// explicitly at those call sites — it will be silently ignored by `matches_filter`.
     #[serde(default)]
     pub is_token: bool,
 }

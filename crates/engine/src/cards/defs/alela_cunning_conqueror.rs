@@ -57,7 +57,9 @@ pub fn card() -> CardDefinition {
             // CR 510.3a / CR 603.2c: "Whenever one or more Faeries you control deal combat
             // damage to a player, goad target creature that player controls." — batch trigger
             // with Faerie subtype filter.
-            // TODO: Goad "that player" resolution needs DamagedPlayer target support.
+            // TODO(PB-37): Goad effect needs DamagedPlayer ForEach support to resolve "that
+            // player controls" scoping. DeclaredTarget { index: 0 } with empty targets would
+            // panic at resolution, so the effect is a no-op placeholder until PB-37.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
                     filter: Some(TargetFilter {
@@ -65,9 +67,7 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     }),
                 },
-                effect: Effect::Goad {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                },
+                effect: Effect::Sequence(vec![]),
                 intervening_if: None,
                 targets: vec![],
             },
