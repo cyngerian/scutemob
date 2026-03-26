@@ -143,6 +143,7 @@ fn test_enrage_combat_damage_triggers() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -268,6 +269,7 @@ fn test_enrage_noncombat_damage_triggers() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -401,6 +403,7 @@ fn test_enrage_zero_damage_no_trigger() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -492,6 +495,7 @@ fn test_enrage_multiple_blockers_triggers_once() {
         TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,
@@ -611,6 +615,7 @@ fn test_enrage_lethal_damage_still_triggers() {
         TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfIsDealtDamage,
             intervening_if: None,

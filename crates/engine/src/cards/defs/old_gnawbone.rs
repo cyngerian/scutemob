@@ -19,8 +19,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(7),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever a creature you control deals combat damage" —
-            //   per-creature combat damage trigger not in DSL.
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // create that many Treasure tokens." — per-creature trigger with Repeat for variable count.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
+                effect: Effect::Repeat {
+                    effect: Box::new(Effect::CreateToken {
+                        spec: treasure_token_spec(1),
+                    }),
+                    count: EffectAmount::CombatDamageDealt,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

@@ -3,6 +3,8 @@
 // Whenever one or more creatures you control deal combat damage to a player, create a
 // Treasure token.
 // Sacrifice a Treasure: Exile the top card of your library. You may play that card this turn.
+//
+// TODO: "Sacrifice a Treasure: exile top card + impulse draw" not expressible.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,8 +18,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Menace),
-            // TODO: "Whenever creatures deal combat damage to a player" trigger not in DSL.
-            // TODO: "Sacrifice a Treasure: exile top card + impulse draw" not expressible.
+            // CR 510.3a / CR 603.2c: "Whenever one or more creatures you control deal combat
+            // damage to a player, create a Treasure token." — batch trigger (fires once).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
+            // TODO: "Sacrifice a Treasure: Exile the top card of your library. You may play that card this turn." — impulse draw not expressible.
         ],
         ..Default::default()
     }

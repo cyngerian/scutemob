@@ -235,6 +235,10 @@ pub fn copy_spell_on_stack(
             })
             .cloned()
             .collect(),
+        // Combat damage trigger data is not propagated to spell copies.
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     // Push the copy onto the stack (above the original).
     state.stack_objects.push_back(copy);
@@ -430,6 +434,9 @@ pub fn resolve_cascade(
                 evidence_collected: false,
                 is_cast_transformed: false,
                 additional_costs: vec![],
+                damaged_player: None,
+                combat_damage_amount: 0,
+                triggering_creature_id: None,
             };
             state.stack_objects.push_back(stack_obj);
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
@@ -646,6 +653,9 @@ pub fn resolve_discover(
                 evidence_collected: false,
                 is_cast_transformed: false,
                 additional_costs: vec![],
+                damaged_player: None,
+                combat_damage_amount: 0,
+                triggering_creature_id: None,
             };
             state.stack_objects.push_back(stack_obj);
             // Discover free-cast triggers "whenever you cast a spell".

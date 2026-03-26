@@ -2,6 +2,8 @@
 // Attacking creatures you control have first strike.
 // Whenever a Vampire you control deals combat damage to a player, put a +1/+1 counter on it.
 // Madness {2}{R}
+//
+// TODO: Madness {2}{R} — AltCostKind::Madness not in DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,10 +24,23 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: "Whenever a Vampire you control deals combat damage to a player, put a
-            // +1/+1 counter on it." Blocked on PB-26: subtype-filtered combat damage trigger
-            // not in DSL.
-            // TODO: Madness {2}{R} — AltCostKind::Madness not in DSL.
+            // CR 510.3a: "Whenever a Vampire you control deals combat damage to a player,
+            // put a +1/+1 counter on it." — per-creature trigger with Vampire filter.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Vampire".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::AddCounter {
+                    target: EffectTarget::TriggeringCreature,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

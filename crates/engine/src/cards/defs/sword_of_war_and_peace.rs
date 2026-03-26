@@ -41,7 +41,32 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — equipped creature combat damage trigger + hand-size damage + life gain.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // deals damage to that player equal to cards in their hand; gain 1 life per card in
+            // your hand." DamagedPlayer resolves from ctx.damaged_player at resolution.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::CardCount {
+                            zone: ZoneTarget::Hand { owner: PlayerTarget::DeclaredTarget { index: 0 } },
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            filter: None,
+                        },
+                    },
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::CardCount {
+                            zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                            player: PlayerTarget::Controller,
+                            filter: None,
+                        },
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPlayer],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

@@ -998,6 +998,9 @@ fn test_eternalize_split_second_blocks() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

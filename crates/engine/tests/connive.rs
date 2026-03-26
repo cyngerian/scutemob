@@ -701,6 +701,7 @@ fn test_connive_self_trigger_fires_on_connive() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SourceConnives,
             intervening_if: None,

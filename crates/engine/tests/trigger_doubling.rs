@@ -90,6 +90,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         effect: None,
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }

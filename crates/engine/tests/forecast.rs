@@ -708,6 +708,9 @@ fn test_forecast_blocked_by_split_second() {
         modes_chosen: vec![],
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     });
 
     state

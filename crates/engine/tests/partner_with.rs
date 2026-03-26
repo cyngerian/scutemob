@@ -136,6 +136,9 @@ fn make_partner_with_trigger_stack_obj(
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     }
 }
 

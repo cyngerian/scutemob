@@ -770,6 +770,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::ControllerProliferates,
             intervening_if: None,

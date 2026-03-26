@@ -40,8 +40,29 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — "Whenever equipped creature deals combat damage to a player"
-            // trigger + discard + untap all lands.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // that player discards a card and you untap all lands you control."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::DiscardCards {
+                        player: PlayerTarget::DamagedPlayer,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    Effect::ForEach {
+                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                            has_card_type: Some(CardType::Land),
+                            controller: TargetController::You,
+                            ..Default::default()
+                        }),
+                        effect: Box::new(Effect::UntapPermanent {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                        }),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

@@ -3,6 +3,9 @@
 // Whenever equipped creature deals combat damage to a player, you create a 2/2 green
 // Wolf creature token and that player mills ten cards.
 // Equip {2}
+//
+// TODO: Protection from green and blue on equipped creature — multi-color
+//   protection grant not in LayerModification.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,10 +25,38 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: Protection from green and blue on equipped creature — multi-color
-            //   protection grant not in LayerModification.
-            // TODO: "Equipped creature deals combat damage" trigger — per-creature
-            //   combat damage trigger not in DSL.
+            // TODO: Protection from green and blue on equipped creature.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // create a 2/2 green Wolf token and that player mills ten cards."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::CreateToken {
+                        spec: TokenSpec {
+                            name: "Wolf".to_string(),
+                            power: 2,
+                            toughness: 2,
+                            colors: [Color::Green].into_iter().collect(),
+                            supertypes: OrdSet::new(),
+                            card_types: [CardType::Creature].into_iter().collect(),
+                            subtypes: [SubType("Wolf".to_string())].into_iter().collect(),
+                            keywords: OrdSet::new(),
+                            count: 1,
+                            tapped: false,
+                            enters_attacking: false,
+                            mana_color: None,
+                            mana_abilities: vec![],
+                            activated_abilities: vec![],
+                        },
+                    },
+                    Effect::MillCards {
+                        player: PlayerTarget::DamagedPlayer,
+                        count: EffectAmount::Fixed(10),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

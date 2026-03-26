@@ -425,6 +425,21 @@ pub struct StackObject {
     /// Mirrors `CastSpell.additional_costs`. Populated during cast-to-stack transfer.
     #[serde(default)]
     pub additional_costs: Vec<AdditionalCost>,
+    /// CR 510.3a: The player dealt combat damage in the triggering event.
+    /// Set from PendingTrigger::damaged_player when a triggered ability is flushed to the stack.
+    /// Read by PlayerTarget::DamagedPlayer at resolution time.
+    #[serde(default)]
+    pub damaged_player: Option<PlayerId>,
+    /// CR 510.3a: The amount of combat damage dealt in the triggering event.
+    /// Set from PendingTrigger::combat_damage_amount when a triggered ability is flushed.
+    /// Read by EffectAmount::CombatDamageDealt at resolution time.
+    #[serde(default)]
+    pub combat_damage_amount: u32,
+    /// CR 510.3a: The ObjectId of the creature that triggered a per-creature combat damage trigger.
+    /// Set from PendingTrigger::entering_object_id for per-creature combat damage triggers.
+    /// Read by EffectTarget::TriggeringCreature at resolution time.
+    #[serde(default)]
+    pub triggering_creature_id: Option<super::game_object::ObjectId>,
 }
 impl StackObject {
     /// Build a triggered-ability StackObject with all cast-specific fields set to
@@ -484,6 +499,9 @@ impl StackObject {
             evidence_collected: false,
             is_cast_transformed: false,
             additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
         }
     }
 }

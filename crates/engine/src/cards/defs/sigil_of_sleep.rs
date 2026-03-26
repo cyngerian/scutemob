@@ -13,9 +13,23 @@ pub fn card() -> CardDefinition {
         oracle_text: "Enchant creature\nWhenever enchanted creature deals damage to a player, return target creature that player controls to its owner's hand.".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
-            // TODO: "Whenever enchanted creature deals damage to a player" — needs
-            // attached-creature damage trigger. "return target creature that player controls"
-            // — needs damaged-player-controlled targeting + MoveZone to hand.
+            // CR 510.3a: "Whenever enchanted creature deals damage to a player, return target
+            // creature that player controls to its owner's hand." — any damage, target must be
+            // controlled by the damaged player.
+            // Note: targeting a "creature that player controls" would need DamagedPlayer target
+            // filtering; approximated as any creature target for now.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
+                    combat_only: false,
+                },
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
+                    controller_override: None,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
         ],
         ..Default::default()
     }

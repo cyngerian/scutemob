@@ -2,9 +2,6 @@
 // Whenever equipped creature deals combat damage to a player, you may draw two cards.
 // If you do, discard a card.
 // Equip {1}
-//
-// TODO: "Whenever equipped creature deals combat damage" — equipped-creature trigger
-//   not in DSL. Needs WhenEquippedCreatureDealsCombatDamageToPlayer.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,7 +12,23 @@ pub fn card() -> CardDefinition {
         types: full_types(&[], &[CardType::Artifact], &["Equipment"]),
         oracle_text: "Whenever equipped creature deals combat damage to a player, you may draw two cards. If you do, discard a card.\nEquip {1}".to_string(),
         abilities: vec![
-            // TODO: Equipped-creature combat damage trigger not in DSL.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // draw two cards, then discard a card." (approximation — "may" draw 2 not in DSL)
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(2),
+                    },
+                    Effect::DiscardCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

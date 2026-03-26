@@ -3679,6 +3679,9 @@ pub fn handle_cast_spell(
         // This flag propagates to the permanent when it enters the battlefield.
         is_cast_transformed: cast_with_disturb,
         additional_costs,
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source

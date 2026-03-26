@@ -3,7 +3,6 @@
 // Whenever a creature you control deals combat damage to a player, draw a card.
 // Crew 3
 //
-// TODO: Per-creature combat damage trigger not in DSL.
 // TODO: "Cast from graveyard if 3+ tapped Pirates/Vehicles" not expressible.
 use crate::cards::helpers::*;
 
@@ -18,7 +17,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: Per-creature combat damage trigger not in DSL.
+            // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
+            // draw a card." — per-creature trigger.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Crew(3)),
         ],
         ..Default::default()

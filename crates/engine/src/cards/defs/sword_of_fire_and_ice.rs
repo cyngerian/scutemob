@@ -38,8 +38,23 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: "Whenever equipped creature deals combat damage to a player" trigger —
-            // WhenEquippedCreatureDealsCombatDamage not in DSL.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // deal 2 damage to any target and draw a card."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(2),
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetAny],
+            },
             // Equip {2}
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),

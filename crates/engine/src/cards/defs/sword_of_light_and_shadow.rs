@@ -40,8 +40,27 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — equipped creature combat damage trigger + gain 3 life +
-            // return creature from GY to hand.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // gain 3 life and return up to one target creature card from your graveyard to hand."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(3),
+                    },
+                    Effect::MoveZone {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        controller_override: None,
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                })],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

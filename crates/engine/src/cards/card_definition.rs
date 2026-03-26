@@ -1625,6 +1625,11 @@ pub enum EffectTarget {
     /// a prior effect in the same Sequence. Tracked via `EffectContext::last_created_permanent`.
     /// Used for "create a token, then attach this Equipment to it" patterns.
     LastCreatedPermanent,
+    /// The creature that triggered this ability (e.g., the creature that dealt combat damage).
+    ///
+    /// CR 510.3a: Resolved from PendingTrigger::entering_object_id at effect execution time.
+    /// Used by "put a +1/+1 counter on it" (Rakish Heir), "its controller may draw a card" (Edric).
+    TriggeringCreature,
 }
 /// How an effect identifies a player.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1647,6 +1652,12 @@ pub enum PlayerTarget {
     /// patterns for discard/draw triggers). Resolved from PendingTrigger::triggering_player at
     /// effect execution time.
     TriggeringPlayer,
+    /// The player who was dealt combat damage in the triggering event.
+    ///
+    /// CR 510.3a: Resolved from EffectContext::damaged_player at effect execution time.
+    /// Used by "that player discards a card" (Sword of Feast and Famine),
+    /// "goad each creature that player controls" (Marisi), etc.
+    DamagedPlayer,
 }
 /// How an effect produces a numeric value.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1692,6 +1703,12 @@ pub enum EffectAmount {
     /// Sum of two amounts. Used for CDAs like "equal to X plus Y"
     /// (e.g., Abomination of Llanowar: "number of Elves you control plus Elf cards in graveyard").
     Sum(Box<EffectAmount>, Box<EffectAmount>),
+    /// The amount of combat damage dealt in the triggering event.
+    ///
+    /// CR 510.3a: Resolved from EffectContext::combat_damage_amount at effect execution time.
+    /// Used by "deals that much damage" (Balefire Dragon), "create that many tokens"
+    /// (Lathril, Old Gnawbone).
+    CombatDamageDealt,
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).
@@ -1784,6 +1801,10 @@ pub struct TargetFilter {
     /// Used for "legendary creature" filters (channel lands cost reduction).
     #[serde(default)]
     pub legendary: bool,
+    /// Must be a token. Default: false (no restriction).
+    /// Used for "creature token you control" (Curiosity Crafter).
+    #[serde(default)]
+    pub is_token: bool,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1958,7 +1979,45 @@ pub enum TriggerCondition {
     /// creature controlled by the trigger source's controller that dealt damage to
     /// a player (not a creature or planeswalker). The source creature must be on
     /// the battlefield when damage is dealt (NOT a look-back trigger).
-    WheneverCreatureYouControlDealsCombatDamageToPlayer,
+    WheneverCreatureYouControlDealsCombatDamageToPlayer {
+        /// Optional filter on the damage-dealing creature (subtype, token, keyword, etc.).
+        /// None = any creature you control. Some(filter) = creature must match filter.
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+    },
+    /// "Whenever one or more creatures you control deal combat damage to a player."
+    ///
+    /// CR 510.3a / CR 603.2c: Unlike the per-creature variant, this fires ONCE per
+    /// damaged player per combat damage step, regardless of how many creatures dealt
+    /// damage to that player. The batch grouping is done in the event dispatch.
+    ///
+    /// Optional filter restricts which creatures count (e.g., "non-Human creatures").
+    WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+    },
+    /// "Whenever equipped creature deals combat damage to a player."
+    ///
+    /// CR 510.3a: Fires when the creature this Equipment is attached to deals > 0
+    /// combat damage to a player. The trigger source is the Equipment, not the creature.
+    /// The Equipment must be on the battlefield and attached to the dealing creature.
+    WhenEquippedCreatureDealsCombatDamageToPlayer,
+    /// "Whenever enchanted creature deals damage to a player" / "...deals combat damage..."
+    ///
+    /// CR 510.3a: Fires when the creature this Aura is attached to deals > 0 damage
+    /// to a player. Covers both "deals damage" (any, including noncombat) and
+    /// "deals combat damage" variants. Use `combat_only: bool` to distinguish.
+    WhenEnchantedCreatureDealsDamageToPlayer {
+        /// If true, only combat damage triggers this. If false, any damage.
+        #[serde(default)]
+        combat_only: bool,
+    },
+    /// "Whenever a creature deals combat damage to one of your opponents."
+    ///
+    /// CR 510.3a / CR 603.2: Fires on ALL battlefield permanents when ANY creature
+    /// (not just yours) deals combat damage to an opponent of the trigger source's
+    /// controller. Used by Edric, Spymaster of Trest.
+    WhenAnyCreatureDealsCombatDamageToOpponent,
     /// "Whenever you discard a card" (CR 701.9a).
     ///
     /// Fires when the controller of this permanent discards a card (moves from

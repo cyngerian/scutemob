@@ -3,14 +3,8 @@
 // Whenever this creature deals combat damage to a player, it deals that much damage to
 // each creature that player controls.
 //
-// Flying is implemented.
-//
-// TODO: DSL gap — "Whenever this creature deals combat damage to a player, it deals that
-// much damage to each creature that player controls" requires:
-// 1. TriggerCondition for combat damage dealt by this specific creature to a player.
-// 2. EffectAmount equal to the damage dealt (no "amount equal to combat damage dealt" variant).
-// 3. Effect targeting each creature the damaged player controls.
-// This ability is omitted.
+// TODO: "each creature that player controls" requires ForEach over DamagedPlayer's creatures,
+//   which needs TargetController::DamagedPlayer support in ForEach filters. Deferred to PB-37.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,6 +18,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            // TODO: "it deals that much damage to each creature that player controls" —
+            //   ForEach over DamagedPlayer's creatures not in DSL. Deferred to PB-37.
         ],
         ..Default::default()
     }

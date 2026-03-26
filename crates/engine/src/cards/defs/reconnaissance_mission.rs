@@ -14,7 +14,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
             // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

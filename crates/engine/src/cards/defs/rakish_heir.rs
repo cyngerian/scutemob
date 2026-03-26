@@ -12,8 +12,24 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: DSL gap — "Whenever a Vampire you control deals combat damage to a player"
-            // trigger. WhenDealsCombatDamageToPlayer is self-only, not "a Vampire you control."
+            // CR 510.3a: "Whenever a Vampire you control deals combat damage to a player,
+            // put a +1/+1 counter on it." — per-creature trigger with Vampire subtype filter.
+            // "it" = the dealing creature (TriggeringCreature).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Vampire".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::AddCounter {
+                    target: EffectTarget::TriggeringCreature,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

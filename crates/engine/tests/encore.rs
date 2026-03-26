@@ -590,6 +590,9 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     state.stack_objects.push_back(fake_stack_obj);
 

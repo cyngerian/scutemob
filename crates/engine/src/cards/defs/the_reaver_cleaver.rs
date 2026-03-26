@@ -34,7 +34,19 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: Grant "combat damage → Treasure" triggered ability not in DSL.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // create that many Treasure tokens." — equipment trigger with Repeat for amount.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Repeat {
+                    effect: Box::new(Effect::CreateToken {
+                        spec: treasure_token_spec(1),
+                    }),
+                    count: EffectAmount::CombatDamageDealt,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

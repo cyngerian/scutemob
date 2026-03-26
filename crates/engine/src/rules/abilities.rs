@@ -246,6 +246,9 @@ pub fn handle_activate_ability(
                 last_dice_roll: 0,
                 last_created_permanent: None,
                 triggering_player: None,
+                combat_damage_amount: 0,
+                damaged_player: None,
+                triggering_creature_id: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -2380,6 +2383,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
+                            damaged_player: None,
+                            combat_damage_amount: 0,
                             data: None,
                         };
                         triggers.push(evoke_trigger);
@@ -2441,6 +2446,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                         }
@@ -3181,6 +3188,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         cipher_encoded_object_id: None,
                                         haunt_source_object_id: None,
                                         haunt_source_card_id: None,
+                                        damaged_player: None,
+                                        combat_damage_amount: 0,
                                         data: None,
                                     });
                                 }
@@ -3482,6 +3491,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                         }
@@ -4063,6 +4074,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                         }
@@ -4117,6 +4130,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
+                            damaged_player: None,
+                            combat_damage_amount: 0,
                             data: None,
                         });
                     }
@@ -4225,6 +4240,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
+                            damaged_player: None,
+                            combat_damage_amount: 0,
                             data: None,
                         });
                     }
@@ -4498,13 +4515,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // inside collect_triggers_for_event via the entering_object check.
                 //
                 // Fires once per creature per damage event (CR 603.2c).
+                // Also populates damaged_player and combat_damage_amount on the new triggers.
                 for assignment in assignments {
                     if assignment.amount == 0 {
                         continue; // CR 603.2g: fully prevented damage does not trigger
                     }
-                    if !matches!(assignment.target, CombatDamageTarget::Player(_)) {
+                    let CombatDamageTarget::Player(damaged_pid) = &assignment.target else {
                         continue; // only triggers on damage to players (not creatures)
-                    }
+                    };
                     // Only trigger if the source creature is still on the battlefield
                     // (CR 603.10: NOT a look-back trigger for combat damage triggers).
                     if state
@@ -4514,6 +4532,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     {
                         continue;
                     }
+                    let pre_len = triggers.len();
                     collect_triggers_for_event(
                         state,
                         &mut triggers,
@@ -4521,6 +4540,199 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                         Some(assignment.source),
                     );
+                    // Populate damaged_player and combat_damage_amount on newly-added triggers.
+                    for t in &mut triggers[pre_len..] {
+                        t.damaged_player = Some(*damaged_pid);
+                        t.combat_damage_amount = assignment.amount;
+                    }
+                }
+                // CR 510.3a / CR 603.2c: AnyCreatureYouControlBatchCombatDamage —
+                // fires ONCE per (controller, damaged_player) pair per combat damage step.
+                // "Whenever one or more creatures you control deal combat damage to a player."
+                {
+                    use std::collections::HashMap;
+                    let mut damaged_by_ctrl: HashMap<
+                        (crate::state::PlayerId, crate::state::PlayerId),
+                        u32,
+                    > = HashMap::new();
+                    for assignment in assignments {
+                        if assignment.amount == 0 {
+                            continue;
+                        }
+                        let CombatDamageTarget::Player(damaged_pid) = &assignment.target else {
+                            continue;
+                        };
+                        if let Some(obj) = state.objects.get(&assignment.source) {
+                            if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
+                                *damaged_by_ctrl
+                                    .entry((obj.controller, *damaged_pid))
+                                    .or_default() += assignment.amount;
+                            }
+                        }
+                    }
+                    for ((controller, damaged_pid), total_amount) in &damaged_by_ctrl {
+                        let pre_len = triggers.len();
+                        // Collect batch triggers for all battlefield permanents.
+                        // We then retain only those controlled by the triggering controller.
+                        // Use a dummy entering_object=None — batch triggers don't carry a single creature.
+                        let all_bf: Vec<ObjectId> = state
+                            .objects
+                            .values()
+                            .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                            .map(|o| o.id)
+                            .collect();
+                        for obj_id in all_bf {
+                            let obj = match state.objects.get(&obj_id) {
+                                Some(o) if o.controller == *controller => o,
+                                _ => continue,
+                            };
+                            let resolved_chars =
+                                crate::rules::layers::calculate_characteristics(state, obj_id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            for (idx, trigger_def) in
+                                resolved_chars.triggered_abilities.iter().enumerate()
+                            {
+                                if trigger_def.trigger_on
+                                    != TriggerEvent::AnyCreatureYouControlBatchCombatDamage
+                                {
+                                    continue;
+                                }
+                                // Apply intervening-if condition.
+                                if let Some(ref cond) = trigger_def.intervening_if {
+                                    if !check_intervening_if(state, cond, obj.controller, None) {
+                                        continue;
+                                    }
+                                }
+                                triggers.push(PendingTrigger {
+                                    source: obj_id,
+                                    ability_index: idx,
+                                    controller: obj.controller,
+                                    kind: PendingTriggerKind::Normal,
+                                    triggering_event: Some(
+                                        TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
+                                    ),
+                                    entering_object_id: None,
+                                    targeting_stack_id: None,
+                                    triggering_player: None,
+                                    exalted_attacker_id: None,
+                                    defending_player_id: None,
+                                    ingest_target_player: None,
+                                    flanking_blocker_id: None,
+                                    rampage_n: None,
+                                    renown_n: None,
+                                    poisonous_n: None,
+                                    poisonous_target_player: None,
+                                    enlist_enlisted_creature: None,
+                                    recover_cost: None,
+                                    recover_card: None,
+                                    cipher_encoded_card_id: None,
+                                    cipher_encoded_object_id: None,
+                                    haunt_source_object_id: None,
+                                    haunt_source_card_id: None,
+                                    damaged_player: Some(*damaged_pid),
+                                    combat_damage_amount: *total_amount,
+                                    data: None,
+                                });
+                            }
+                        }
+                        let _ = pre_len; // used for debugging if needed
+                    }
+                }
+                // CR 510.3a: EquippedCreatureDealsCombatDamageToPlayer and
+                // EnchantedCreatureDealsDamageToPlayer — fires on Equipment/Aura permanents
+                // when their attached creature deals combat damage to a player.
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue; // CR 603.2g
+                    }
+                    let CombatDamageTarget::Player(damaged_pid) = &assignment.target else {
+                        continue;
+                    };
+                    let creature_on_bf = state
+                        .objects
+                        .get(&assignment.source)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false);
+                    if !creature_on_bf {
+                        continue;
+                    }
+                    // Collect attachment IDs (Equipment + Auras on this creature).
+                    let attachments: Vec<ObjectId> = state
+                        .objects
+                        .get(&assignment.source)
+                        .map(|o| o.attachments.iter().copied().collect())
+                        .unwrap_or_default();
+                    for attachment_id in attachments {
+                        // Equipment trigger
+                        let pre_len = triggers.len();
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
+                            Some(attachment_id),
+                            None,
+                        );
+                        for t in &mut triggers[pre_len..] {
+                            t.damaged_player = Some(*damaged_pid);
+                            t.combat_damage_amount = assignment.amount;
+                            t.entering_object_id = Some(assignment.source);
+                        }
+                        // Enchanted creature (Aura) trigger
+                        let pre_len2 = triggers.len();
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
+                            Some(attachment_id),
+                            None,
+                        );
+                        for t in &mut triggers[pre_len2..] {
+                            t.damaged_player = Some(*damaged_pid);
+                            t.combat_damage_amount = assignment.amount;
+                            t.entering_object_id = Some(assignment.source);
+                        }
+                    }
+                }
+                // CR 510.3a / CR 603.2: AnyCreatureDealsCombatDamageToOpponent —
+                // "Whenever a creature deals combat damage to one of your opponents."
+                // Fires globally for any creature dealing damage to an opponent of
+                // the trigger source's controller (Edric, Spymaster of Trest).
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue; // CR 603.2g
+                    }
+                    let CombatDamageTarget::Player(damaged_pid) = &assignment.target else {
+                        continue;
+                    };
+                    if state
+                        .objects
+                        .get(&assignment.source)
+                        .is_none_or(|o| o.zone != ZoneId::Battlefield)
+                    {
+                        continue;
+                    }
+                    let pre_len = triggers.len();
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
+                        None,
+                        Some(assignment.source),
+                    );
+                    // Filter: damaged player must be an OPPONENT of the trigger source's controller.
+                    // Then populate combat data.
+                    // Use drain/retain equivalent: collect new triggers, filter, set data.
+                    let new_triggers: Vec<PendingTrigger> = triggers
+                        .drain(pre_len..)
+                        .filter(|t| t.controller != *damaged_pid)
+                        .map(|mut t| {
+                            t.damaged_player = Some(*damaged_pid);
+                            t.combat_damage_amount = assignment.amount;
+                            t.entering_object_id = Some(assignment.source);
+                            t
+                        })
+                        .collect();
+                    triggers.extend(new_triggers);
                 }
                 // CR 701.54c (ring level >= 4): "Whenever your Ring-bearer deals combat
                 // damage to a player, each opponent loses 3 life."
@@ -4576,6 +4788,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cipher_encoded_object_id: None,
                             haunt_source_object_id: None,
                             haunt_source_card_id: None,
+                            damaged_player: None,
+                            combat_damage_amount: 0,
                             data: None,
                         });
                     }
@@ -4824,6 +5038,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     cipher_encoded_object_id: None,
                                     haunt_source_object_id: None,
                                     haunt_source_card_id: None,
+                                    damaged_player: None,
+                                    combat_damage_amount: 0,
                                     data: None,
                                 });
                             }
@@ -4885,6 +5101,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                         }
@@ -5262,6 +5480,22 @@ fn collect_triggers_for_event(
                         if attacking_obj.controller != obj.controller {
                             continue;
                         }
+                        // CR 510.3a: Apply combat_damage_filter — subtype, token, keyword checks.
+                        if let Some(ref filter) = trigger_def.combat_damage_filter {
+                            let dealing_chars = crate::rules::layers::calculate_characteristics(
+                                state,
+                                attacking_id,
+                            )
+                            .unwrap_or_else(|| attacking_obj.characteristics.clone());
+                            // is_token check: uses the object's is_token field directly.
+                            if filter.is_token && !attacking_obj.is_token {
+                                continue;
+                            }
+                            // Other filter fields (subtype, card type, etc.) checked via matches_filter.
+                            if !crate::effects::matches_filter(&dealing_chars, filter) {
+                                continue;
+                            }
+                        }
                     } else {
                         // Attacking creature not found — skip conservatively.
                         continue;
@@ -5340,6 +5574,8 @@ fn collect_triggers_for_event(
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -5412,6 +5648,8 @@ pub(crate) fn collect_emblem_triggers_for_event(
                 cipher_encoded_object_id: None,
                 haunt_source_object_id: None,
                 haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
                 data: None,
             });
         }
@@ -6408,6 +6646,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             // MR-TC-25: use trigger_default; override targets if non-empty.
             let mut stack_obj = StackObject::trigger_default(stack_id, trigger.controller, kind);
             stack_obj.targets = trigger_targets.clone();
+            // CR 510.3a: Propagate combat damage data from PendingTrigger to StackObject
+            // so resolution.rs can populate EffectContext correctly.
+            stack_obj.damaged_player = trigger.damaged_player;
+            stack_obj.combat_damage_amount = trigger.combat_damage_amount;
+            // The entering_object_id carries the dealing creature for per-creature triggers.
+            stack_obj.triggering_creature_id = trigger.entering_object_id;
             state.stack_objects.push_back(stack_obj);
             events.push(GameEvent::AbilityTriggered {
                 controller: trigger.controller,

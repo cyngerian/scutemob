@@ -43,9 +43,21 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — "Whenever equipped creature deals combat damage to a player"
-            // trigger condition does not exist. Also needs: put +1/+1 counter on a creature
-            // you control (choice) + proliferate.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // put a +1/+1 counter on a creature you control, then proliferate."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                    Effect::Proliferate,
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreature],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

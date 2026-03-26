@@ -673,6 +673,9 @@ fn test_plot_requires_main_phase_empty_stack() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     });
 
     let result = process_command(
@@ -1232,6 +1235,9 @@ fn test_plot_free_cast_requires_empty_stack() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     });
 
     let result = process_command(

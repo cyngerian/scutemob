@@ -67,6 +67,7 @@ fn etb_trigger(description: &str) -> TriggeredAbilityDef {
         effect: None,
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -80,6 +81,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         effect: None,
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -783,6 +785,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(50)),
@@ -852,6 +855,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(30)),
@@ -1430,6 +1434,7 @@ fn dies_trigger(description: &str) -> TriggeredAbilityDef {
         effect: None,
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -1447,6 +1452,7 @@ fn dies_draw_trigger() -> TriggeredAbilityDef {
         }),
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
     }
 }
 
@@ -2253,6 +2259,7 @@ fn attack_trigger(description: &str) -> TriggeredAbilityDef {
         effect: None,
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -2270,6 +2277,7 @@ fn attack_draw_trigger() -> TriggeredAbilityDef {
         }),
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
     }
 }
 

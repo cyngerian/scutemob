@@ -617,6 +617,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             crate::state::game_object::TriggeredAbilityDef {
                                 etb_filter: None,
                                 death_filter: None,
+                                combat_damage_filter: None,
                                 targets: vec![],
                                 trigger_on: crate::state::game_object::TriggerEvent::SelfDies,
                                 intervening_if: None,
@@ -1357,6 +1358,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                     }
@@ -1436,6 +1439,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                     }
@@ -1939,6 +1944,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .get(&source_object)
                                 .map(|o| o.x_value)
                                 .unwrap_or(0);
+                            // CR 510.3a: Propagate combat damage data from StackObject.
+                            ctx.damaged_player = stack_obj.damaged_player;
+                            ctx.combat_damage_amount = stack_obj.combat_damage_amount;
+                            ctx.triggering_creature_id = stack_obj.triggering_creature_id;
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
@@ -2003,6 +2012,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             source_object,
                             stack_obj.targets.clone(),
                         );
+                        // CR 510.3a: Propagate combat damage data from StackObject.
+                        ctx.damaged_player = stack_obj.damaged_player;
+                        ctx.combat_damage_amount = stack_obj.combat_damage_amount;
+                        ctx.triggering_creature_id = stack_obj.triggering_creature_id;
                         let effect_events = execute_effect(state, &effect, &mut ctx);
                         events.extend(effect_events);
                     }
@@ -2229,6 +2242,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cipher_encoded_object_id: None,
                                 haunt_source_object_id: None,
                                 haunt_source_card_id: None,
+                                damaged_player: None,
+                                combat_damage_amount: 0,
                                 data: None,
                             });
                     }

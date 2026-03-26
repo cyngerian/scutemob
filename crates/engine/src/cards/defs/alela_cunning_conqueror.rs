@@ -1,18 +1,11 @@
-// 55. Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4;
+// Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4
 // Flying. Whenever you cast your first spell during each opponent's turn,
 // create a 1/1 black Faerie Rogue creature token with flying. Whenever one or
 // more Faeries you control deal combat damage to a player, goad target creature
 // that player controls.
 //
-// M9.4 improvements from M8 simplifications:
-// - Trigger 1: WheneverYouCastSpell { during_opponent_turn: true } restricts
-// the token trigger to opponent turns only (CR 603.1).
 // "First spell per turn" tracking deferred (requires per-turn state counter).
-// - Trigger 2: Effect::Goad now implemented; target is the nearest creature
-// the damaged player controls. Faerie-filtered trigger remains approximated
-// as WhenDealsCombatDamageToPlayer (fires when Alela deals combat damage).
-// TODO: Add TriggerCondition::WheneverCreatureTypeYouControlDealsCombatDamage
-// with a creature-type filter (Session 1 item 6 plan note).
+// TODO: Goad effect needs DamagedPlayer resolution for "that player" targeting.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -61,11 +54,17 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // CR 701.38: Effect::Goad — goad target creature that the damaged player controls.
-            // Trigger approximated as WhenDealsCombatDamageToPlayer (fires when Alela
-            // itself deals combat damage); Faerie-filtered variant deferred.
+            // CR 510.3a / CR 603.2c: "Whenever one or more Faeries you control deal combat
+            // damage to a player, goad target creature that player controls." — batch trigger
+            // with Faerie subtype filter.
+            // TODO: Goad "that player" resolution needs DamagedPlayer target support.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Faerie".to_string())),
+                        ..Default::default()
+                    }),
+                },
                 effect: Effect::Goad {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },

@@ -1,10 +1,6 @@
 // Ingenious Infiltrator — {2}{U}{B}, Creature — Vedalken Ninja 2/3
 // Ninjutsu {U}{B}
 // Whenever a Ninja you control deals combat damage to a player, draw a card.
-//
-// TODO: "Whenever a Ninja you control deals combat damage to a player" —
-//   needs WheneverCreatureYouControlDealsCombatDamageToPlayer with subtype filter.
-//   Using WhenDealsCombatDamageToPlayer (self only) as approximation.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,9 +17,15 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Ninjutsu {
                 cost: ManaCost { blue: 1, black: 1, ..Default::default() },
             },
-            // Whenever a Ninja you control deals combat damage — approximation: self only.
+            // CR 510.3a: "Whenever a Ninja you control deals combat damage to a player,
+            // draw a card." — per-creature trigger with Ninja subtype filter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Ninja".to_string())),
+                        ..Default::default()
+                    }),
+                },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

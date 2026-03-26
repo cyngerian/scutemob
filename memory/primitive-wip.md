@@ -1,58 +1,24 @@
-# Primitive WIP: PB-29 -- Cost reduction statics
+# Primitive WIP: PB-30 -- Combat damage triggers
 
-batch: PB-29
-title: Cost reduction statics
-cards_affected: ~30
+batch: PB-30
+title: Combat damage triggers
+cards_affected: ~49
 started: 2026-03-25
-phase: closed
-plan_file: memory/primitives/pb-plan-29.md
+phase: implement
+plan_file: memory/primitives/pb-plan-30.md
 
 ## Gap Reference
-G-7 from `docs/dsl-gap-closure-plan.md`:
-- G-7: Cost reduction statics (~30 cards) — `ContinuousEffectDef` with `EffectLayer::CostModification` — "spells cost {N} less" as a static continuous effect
+G-8 from `docs/dsl-gap-closure-plan.md`:
+- G-8: Combat damage triggers (per-creature) (~49 cards) — `WheneverCreatureYouControlDealsCombatDamageToPlayer` TriggerCondition; event wiring in combat.rs
 
 ## Deferred from Prior PBs
-- PB-8 already implemented cost reduction statics for 10 cards (basic pattern exists)
-- PB-28 added CDA layer 7a support (may inform layer architecture)
+- PB-23 added controller-filtered creature triggers (WheneverCreatureDies, WheneverCreatureYouControlAttacks, WheneverCreatureYouControlDealsCombatDamageToPlayer)
+- PB-26 added trigger variants (discard, sacrifice, leaves-battlefield, draw-card, lifegain, cast triggers)
+- PB-30 extends this trigger infrastructure for combat damage specifically
 
 ## Step Checklist
-- [x] 1. Engine changes (new types/variants/dispatch)
-  - Added `legendary: bool` to `TargetFilter` + `matches_filter()` enforcement in effects/mod.rs
-  - Added `SpellCostFilter::ColorAndCreature(Color)`, `HasChosenCreatureSubtype`, `AllSpells` variants
-  - Added `SelfCostReduction::ConditionalKeyword{keyword,reduction}` and `MaxOpponentPermanents{filter,per}` variants
-  - Added `SelfActivatedCostReduction` enum with `PerPermanent{per,filter,controller}` variant
-  - Added `activated_ability_cost_reductions: Vec<(usize, SelfActivatedCostReduction)>` to `CardDefinition` (alternative design — avoids touching 400+ AbilityDefinition::Activated match sites)
-  - Updated `spell_matches_cost_filter()` for new variants; special-cased `HasChosenCreatureSubtype` inline in `apply_spell_cost_modifiers()`
-  - Updated `evaluate_self_cost_reduction()` for `ConditionalKeyword` and `MaxOpponentPermanents`
-  - Added `get_self_activated_reduction()` + `evaluate_self_activated_reduction()` helpers in abilities.rs
-  - Applied reduction in `handle_activate_ability()` after X-value resolution
-  - Exported `SelfActivatedCostReduction` from helpers.rs, cards/mod.rs, lib.rs
-  - Updated 139 card def files and 16 test files with `activated_ability_cost_reductions: vec![]` default
-- [x] 2. Card definition fixes (13 cards)
-  - archmage_of_runes: SpellCostFilter::InstantOrSorcery (already existed)
-  - bontus_monument: ColorAndCreature(Black)
-  - hazorets_monument: ColorAndCreature(Red)
-  - oketras_monument: ColorAndCreature(White)
-  - urzas_incubator: HasChosenCreatureSubtype, scope=AllPlayers
-  - winged_words: SelfCostReduction::ConditionalKeyword{Flying, 1}
-  - cavern_hoard_dragon: SelfCostReduction::MaxOpponentPermanents{Artifact, per=1}
-  - boseiju_who_endures: SelfActivatedCostReduction::PerPermanent{per=1, legendary creature, index=0}
-  - otawara_soaring_city: same as boseiju
-  - eiganjo_seat_of_the_empire: same as boseiju
-  - takenuma_abandoned_mire: same as boseiju
-  - sokenzan_crucible_of_defiance: same as boseiju
-  - voldaren_estate: SelfActivatedCostReduction::PerPermanent{per=1, Vampire, index=1}
-- [x] 3. New card definitions — N/A (authoring paused)
-- [x] 4. Unit tests — 11 new tests added to spell_cost_modification.rs; all 22 tests pass; total: 2363 tests pass
-- [x] 5. Workspace build verification — `cargo build --workspace` clean, `cargo clippy -- -D warnings` clean, `cargo fmt` applied
-
-## Review
-findings: 3 (HIGH: 1, MEDIUM: 1, LOW: 1)
-verdict: needs-fix
-review_file: memory/primitives/pb-review-29.md
-
-## Fix Phase
-- [x] HIGH-1: Added `self.legendary.hash_into(hasher);` to `TargetFilter::hash_into()` in `state/hash.rs` at line 3714 (after `has_card_types`)
-- [x] MEDIUM-3: Hazoret's Monument — TODO comment already present at line 23 of `hazorets_monument.rs`; no code change needed (pre-existing DSL gap)
-- [x] LOW-2: ConditionalKeyword base characteristics approximation — no fix, known documented approximation
-- Fix results: 2363 tests pass, 0 clippy warnings
+- [x] 1. Engine changes — 22 changes implemented: new TriggerCondition variants (WheneverCreatureYouControlDealsCombatDamageToPlayer struct form, WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer, WhenEquippedCreatureDealsCombatDamageToPlayer, WhenEnchantedCreatureDealsDamageToPlayer, WhenAnyCreatureDealsCombatDamageToOpponent), new TriggerEvent variants (AnyCreatureYouControlBatchCombatDamage, EquippedCreatureDealsCombatDamageToPlayer, EnchantedCreatureDealsDamageToPlayer, AnyCreatureDealsCombatDamageToOpponent), new EffectTarget::TriggeringCreature, PlayerTarget::DamagedPlayer, EffectAmount::CombatDamageDealt, TargetFilter.is_token, TriggeredAbilityDef.combat_damage_filter, PendingTrigger.damaged_player/combat_damage_amount, EffectContext.combat_damage_amount/damaged_player/triggering_creature_id, StackObject.damaged_player/combat_damage_amount/triggering_creature_id, event dispatch in abilities.rs (per-creature + batch + equipped + enchanted + opponent), propagation chain PendingTrigger→StackObject→EffectContext, hash.rs exhaustive updates, replay_harness.rs enrichment for all 5 new TriggerCondition variants
+- [x] 2. Card definition fixes — 26 cards fixed: old_gnawbone, the_indomitable, professional_face_breaker, contaminant_grafter, ingenious_infiltrator, prosperous_thief, rakish_heir, stensia_masquerade, alela_cunning_conqueror, curiosity, ophidian_eye, mask_of_memory, sword_of_fire_and_ice, sword_of_body_and_mind, sword_of_sinew_and_steel, sword_of_truth_and_justice, the_reaver_cleaver, lathril_blade_of_the_elves, balefire_dragon (TODO deferred), marisi_breaker_of_the_coil (TODO deferred), sword_of_feast_and_famine, sword_of_light_and_shadow, sword_of_war_and_peace, grim_hireling, natures_will (partial), sigil_of_sleep; 6 existing defs updated to struct form { filter: None }
+- [x] 3. New card definitions — none required
+- [x] 4. Unit tests — 8 tests in crates/engine/tests/combat_damage_triggers.rs: per_creature, per_creature_per_creature, subtype_filter, batch_fires_once, batch_per_damaged_player, equipped_trigger, equipped_unequipped_no_trigger, enchanted_trigger
+- [x] 5. Workspace build verification — 2371 tests pass, 0 clippy warnings, formatting clean

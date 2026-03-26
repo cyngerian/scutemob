@@ -394,6 +394,9 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     });
 
     let result = rules::process_command(

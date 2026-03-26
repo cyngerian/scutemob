@@ -333,6 +333,16 @@ pub struct PendingTrigger {
     /// `kind == PendingTriggerKind::HauntedCreatureDies`.
     #[serde(default)]
     pub haunt_source_card_id: Option<crate::state::player::CardId>,
+    /// CR 510.3a: The player dealt combat damage (for combat damage triggers).
+    /// Used at flush/resolution time to populate EffectContext::damaged_player.
+    /// None for all other trigger types.
+    #[serde(default)]
+    pub damaged_player: Option<crate::state::player::PlayerId>,
+    /// CR 510.3a: The amount of combat damage dealt (for damage-amount-dependent effects).
+    /// Used at resolution time to populate EffectContext::combat_damage_amount.
+    /// 0 for all other trigger types.
+    #[serde(default)]
+    pub combat_damage_amount: u32,
     /// Unified per-trigger payload. Replaces per-variant Option fields for
     /// trigger kinds that carry structured data. When `Some(TriggerData::X)`,
     /// `flush_pending_triggers` reads this field instead of the legacy per-field Options.
@@ -381,6 +391,8 @@ impl PendingTrigger {
             cipher_encoded_object_id: None,
             haunt_source_object_id: None,
             haunt_source_card_id: None,
+            damaged_player: None,
+            combat_damage_amount: 0,
             data: None,
         }
     }

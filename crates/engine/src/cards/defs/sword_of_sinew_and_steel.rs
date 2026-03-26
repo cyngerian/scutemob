@@ -40,8 +40,26 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — equipped creature combat damage trigger + destroy planeswalker
-            // + destroy artifact.
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
+            // destroy up to one target planeswalker and up to one target artifact."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                effect: Effect::Sequence(vec![
+                    Effect::DestroyPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        cant_be_regenerated: false,
+                    },
+                    Effect::DestroyPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 1 },
+                        cant_be_regenerated: false,
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![
+                    TargetRequirement::TargetPlaneswalker,
+                    TargetRequirement::TargetArtifact,
+                ],
+            },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
         ..Default::default()

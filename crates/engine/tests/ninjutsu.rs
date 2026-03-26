@@ -918,6 +918,9 @@ fn test_ninjutsu_split_second_blocks() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     state.stack_objects.push_back(stack_obj);
 

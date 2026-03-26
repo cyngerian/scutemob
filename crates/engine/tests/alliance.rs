@@ -73,6 +73,7 @@ fn alliance_gain_life_trigger() -> TriggeredAbilityDef {
             exclude_self: true,
         }),
         death_filter: None,
+        combat_damage_filter: None,
     }
 }
 

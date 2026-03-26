@@ -370,6 +370,7 @@ fn test_sacrifice_trigger_not_on_destruction() {
             trigger_on: TriggerEvent::ControllerSacrifices,
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             intervening_if: None,
             description: "Whenever you sacrifice a permanent, gain 1 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -458,6 +459,7 @@ fn test_whenever_you_attack_fires_once_per_combat() {
             trigger_on: TriggerEvent::ControllerAttacks,
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             intervening_if: None,
             description: "Whenever you attack, gain 1 life. (CR 508.1)".to_string(),
             effect: Some(Effect::GainLife {
@@ -570,6 +572,7 @@ fn test_when_leaves_battlefield_fires_on_death() {
             trigger_on: TriggerEvent::SelfLeavesBattlefield,
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             intervening_if: None,
             description: "When ~ leaves the battlefield, you gain 2 life. (CR 603.10a)".to_string(),
             effect: Some(Effect::GainLife {
@@ -625,6 +628,7 @@ fn test_when_leaves_battlefield_fires_on_destruction() {
             trigger_on: TriggerEvent::SelfLeavesBattlefield,
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             intervening_if: None,
             description: "When ~ leaves the battlefield, gain 1 life. (CR 603.10a)".to_string(),
             effect: Some(Effect::GainLife {
@@ -717,6 +721,7 @@ fn test_whenever_you_draw_card_trigger_fires() {
             trigger_on: TriggerEvent::ControllerDrawsCard,
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             intervening_if: None,
             description: "Whenever you draw a card, gain 1 life. (CR 603.2)".to_string(),
             effect: Some(Effect::GainLife {
@@ -811,6 +816,7 @@ fn test_whenever_you_gain_life_trigger_fires() {
             trigger_on: TriggerEvent::ControllerGainsLife,
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             intervening_if: None,
             description: "Whenever you gain life, each opponent loses 1 life.".to_string(),
             effect: Some(Effect::LoseLife {

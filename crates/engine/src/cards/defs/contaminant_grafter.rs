@@ -4,6 +4,8 @@
 // proliferate.
 // Corrupted — At the beginning of your end step, if an opponent has three or more poison
 // counters, draw a card, then you may put a land card from your hand onto the battlefield.
+//
+// TODO: "May put a land from hand onto battlefield" not in DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,8 +20,14 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Toxic(1)),
-            // TODO: "Whenever creatures you control deal combat damage to players" —
-            //   per-creature combat damage trigger not in DSL.
+            // CR 510.3a / CR 603.2c: "Whenever one or more creatures you control deal combat
+            // damage to one or more players, proliferate." — batch trigger.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
+                effect: Effect::Proliferate,
+                intervening_if: None,
+                targets: vec![],
+            },
             // Corrupted end step: draw if opponent has 3+ poison
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,

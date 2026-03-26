@@ -1825,6 +1825,14 @@ impl HashInto for TriggerEvent {
             TriggerEvent::OpponentDrawsCard => 38u8.hash_into(hasher),
             // CR 603.2: controller-gains-life trigger — discriminant 39
             TriggerEvent::ControllerGainsLife => 39u8.hash_into(hasher),
+            // CR 510.3a / CR 603.2c: batch combat damage trigger — discriminant 40
+            TriggerEvent::AnyCreatureYouControlBatchCombatDamage => 40u8.hash_into(hasher),
+            // CR 510.3a: equipped creature combat damage trigger — discriminant 41
+            TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer => 41u8.hash_into(hasher),
+            // CR 510.3a: enchanted creature damage trigger — discriminant 42
+            TriggerEvent::EnchantedCreatureDealsDamageToPlayer => 42u8.hash_into(hasher),
+            // CR 510.3a / CR 603.2: any creature deals combat damage to opponent — discriminant 43
+            TriggerEvent::AnyCreatureDealsCombatDamageToOpponent => 43u8.hash_into(hasher),
         }
     }
 }
@@ -2484,6 +2492,10 @@ impl HashInto for StackObject {
         for cost in &self.additional_costs {
             cost.hash_into(hasher);
         }
+        // CR 510.3a: Combat damage trigger data on the stack object
+        self.damaged_player.hash_into(hasher);
+        self.combat_damage_amount.hash_into(hasher);
+        self.triggering_creature_id.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3713,6 +3725,7 @@ impl HashInto for TargetFilter {
         self.min_cmc.hash_into(hasher);
         self.has_card_types.hash_into(hasher);
         self.legendary.hash_into(hasher);
+        self.is_token.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -3788,6 +3801,8 @@ impl HashInto for EffectTarget {
             }
             EffectTarget::Source => 7u8.hash_into(hasher),
             EffectTarget::LastCreatedPermanent => 8u8.hash_into(hasher),
+            // CR 510.3a: The triggering creature (dealt combat damage) — discriminant 9
+            EffectTarget::TriggeringCreature => 9u8.hash_into(hasher),
         }
     }
 }
@@ -3811,6 +3826,8 @@ impl HashInto for PlayerTarget {
             }
             // CR 603.2: TriggeringPlayer — the player who triggered this ability.
             PlayerTarget::TriggeringPlayer => 6u8.hash_into(hasher),
+            // CR 510.3a: DamagedPlayer — the player dealt combat damage — discriminant 7
+            PlayerTarget::DamagedPlayer => 7u8.hash_into(hasher),
         }
     }
 }
@@ -3902,6 +3919,8 @@ impl HashInto for EffectAmount {
                 a.hash_into(hasher);
                 b.hash_into(hasher);
             }
+            // CR 510.3a: CombatDamageDealt — amount of combat damage dealt — discriminant 12
+            EffectAmount::CombatDamageDealt => 12u8.hash_into(hasher),
         }
     }
 }
@@ -4013,8 +4032,9 @@ impl HashInto for TriggerCondition {
             // CR 508.1m / CR 603.2: "Whenever a creature you control attacks" — discriminant 28
             TriggerCondition::WheneverCreatureYouControlAttacks => 28u8.hash_into(hasher),
             // CR 510.3a / CR 603.2: "Whenever a creature you control deals combat damage to a player" — discriminant 29
-            TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer => {
-                29u8.hash_into(hasher)
+            TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter } => {
+                29u8.hash_into(hasher);
+                filter.hash_into(hasher);
             }
             // CR 701.9a: "Whenever you discard a card" — discriminant 30
             TriggerCondition::WheneverYouDiscard => 30u8.hash_into(hasher),
@@ -4035,6 +4055,24 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenLeavesBattlefield => 34u8.hash_into(hasher),
             // CR 603.2: "When you cast this spell" — discriminant 35
             TriggerCondition::WhenYouCastThisSpell => 35u8.hash_into(hasher),
+            // CR 510.3a / CR 603.2c: "Whenever one or more creatures you control deal combat damage to a player" — discriminant 36
+            TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                filter,
+            } => {
+                36u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            // CR 510.3a: "Whenever equipped creature deals combat damage to a player" — discriminant 37
+            TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer => {
+                37u8.hash_into(hasher)
+            }
+            // CR 510.3a: "Whenever enchanted creature deals damage to a player" — discriminant 38
+            TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { combat_only } => {
+                38u8.hash_into(hasher);
+                combat_only.hash_into(hasher);
+            }
+            // CR 510.3a / CR 603.2: "Whenever a creature deals combat damage to one of your opponents" — discriminant 39
+            TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent => 39u8.hash_into(hasher),
         }
     }
 }

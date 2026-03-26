@@ -2009,6 +2009,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
                 intervening_if: None,
                 targets: vec![],
@@ -2034,6 +2035,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
                 intervening_if: None,
                 targets: vec![],
@@ -2055,6 +2057,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
                 intervening_if: None,
                 targets: vec![],
@@ -2078,6 +2081,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
                 intervening_if: None,
                 targets: vec![],
@@ -2100,6 +2104,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfIsDealtDamage,
                 intervening_if: None,
                 targets: vec![],
@@ -2124,6 +2129,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2145,6 +2151,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
                 intervening_if: None,
                 targets: vec![],
@@ -2167,6 +2174,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
                 targets: vec![],
@@ -2188,6 +2196,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
                 intervening_if: None,
                 targets: vec![],
@@ -2211,6 +2220,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2256,6 +2266,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: Some(etb_filter),
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2273,6 +2284,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfMutates,
                 intervening_if: None,
                 targets: vec![],
@@ -2294,6 +2306,7 @@ pub fn enrich_spec_from_def(
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfBecomesTapped,
                 intervening_if: None,
                 targets: vec![],
@@ -2338,6 +2351,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: Some(death_filter),
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2362,6 +2376,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2374,7 +2389,8 @@ pub fn enrich_spec_from_def(
     // creature's controller matches the trigger source's controller.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer,
+            trigger_condition:
+                TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter },
             effect,
             ..
         } = ability
@@ -2388,6 +2404,97 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: filter.clone(),
+                targets: vec![],
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2c: Convert "Whenever one or more creatures you control deal combat
+    // damage to a player" batch trigger into runtime TriggeredAbilityDef entries.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter },
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
+                intervening_if: None,
+                description:
+                    "Whenever one or more creatures you control deal combat damage to a player (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: filter.clone(),
+                targets: vec![],
+            });
+        }
+    }
+    // CR 510.3a: Convert "Whenever equipped creature deals combat damage to a player" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
+                intervening_if: None,
+                description:
+                    "Whenever equipped creature deals combat damage to a player (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 510.3a: Convert "Whenever enchanted creature deals damage to a player" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { .. },
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
+                intervening_if: None,
+                description: "Whenever enchanted creature deals damage to a player (CR 510.3a)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2: Convert "Whenever a creature deals combat damage to one of your
+    // opponents" (Edric) triggers into runtime TriggeredAbilityDef entries.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
+                intervening_if: None,
+                description:
+                    "Whenever a creature deals combat damage to one of your opponents (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2407,6 +2514,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2426,6 +2534,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2447,6 +2556,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2466,6 +2576,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2485,6 +2596,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2505,6 +2617,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2536,6 +2649,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }
@@ -2556,6 +2670,7 @@ pub fn enrich_spec_from_def(
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,
+                combat_damage_filter: None,
                 targets: vec![],
             });
         }

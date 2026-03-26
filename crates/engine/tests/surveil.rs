@@ -664,6 +664,7 @@ fn test_whenever_you_surveil_trigger() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::ControllerSurveils,
             intervening_if: None,
@@ -776,6 +777,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
         .with_triggered_ability(TriggeredAbilityDef {
             etb_filter: None,
             death_filter: None,
+            combat_damage_filter: None,
             targets: vec![],
             trigger_on: TriggerEvent::ControllerSurveils,
             intervening_if: None,

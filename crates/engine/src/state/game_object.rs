@@ -398,6 +398,26 @@ pub enum TriggerEvent {
     /// time. The attacking creature's ObjectId is passed via the `entering_object`
     /// parameter.
     AnyCreatureYouControlDealsCombatDamageToPlayer,
+    /// CR 510.3a / CR 603.2c: Fires once per (controller, damaged player) pair per
+    /// combat damage step when one or more creatures you control deal combat damage.
+    ///
+    /// "Whenever one or more creatures you control deal combat damage to a player."
+    AnyCreatureYouControlBatchCombatDamage,
+    /// CR 510.3a: Fires on Equipment permanents when their attached creature deals
+    /// combat damage to a player.
+    ///
+    /// "Whenever equipped creature deals combat damage to a player."
+    EquippedCreatureDealsCombatDamageToPlayer,
+    /// CR 510.3a: Fires on Aura permanents when their attached creature deals damage
+    /// to a player (combat or non-combat, depending on combat_only filter).
+    ///
+    /// "Whenever enchanted creature deals damage to a player."
+    EnchantedCreatureDealsDamageToPlayer,
+    /// CR 510.3a / CR 603.2: Fires globally when any creature deals combat damage
+    /// to an opponent of the trigger source's controller.
+    ///
+    /// "Whenever a creature deals combat damage to one of your opponents."
+    AnyCreatureDealsCombatDamageToOpponent,
     /// CR 701.9a: Fires on permanents controlled by the discarding player.
     /// Used for "whenever you discard a card" patterns.
     ControllerDiscards,
@@ -528,6 +548,12 @@ pub struct TriggeredAbilityDef {
     /// matches all specified criteria. CR 603.10a / CR 603.2
     #[serde(default)]
     pub death_filter: Option<DeathTriggerFilter>,
+    /// Optional filter on the creature that dealt combat damage.
+    /// Used by "whenever a [Ninja/token/non-Human] creature you control deals combat damage".
+    /// When present, the trigger only fires if the dealing creature matches the filter.
+    /// CR 510.3a / CR 603.2
+    #[serde(default)]
+    pub combat_damage_filter: Option<crate::cards::card_definition::TargetFilter>,
     /// Target requirements for this triggered ability (CR 601.2c).
     /// Empty = no targets required.
     #[serde(default)]

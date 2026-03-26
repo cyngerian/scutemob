@@ -2,6 +2,10 @@
 // Your opponents can't cast spells during combat.
 // Whenever a creature you control deals combat damage to a player, goad each creature
 // that player controls.
+//
+// TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
+// TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
+//   not in DSL. Deferred to PB-37.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,13 +18,9 @@ pub fn card() -> CardDefinition {
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
-            // TODO: DSL gap — "Your opponents can't cast spells during combat" is a static
-            // ability creating a casting restriction (CantCast) scoped to the combat phase
-            // for opponent players. No such phase-scoped CantCast restriction exists in the DSL.
-            // TODO: DSL gap — "Whenever a creature you control deals combat damage to a player,
-            // goad each creature that player controls" requires a combat-damage trigger on any
-            // creature you control plus goading all creatures of the damaged player. No
-            // combat-damage trigger for creatures-you-control exists in the DSL.
+            // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
+            // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's
+            //   creatures requires TargetController::DamagedPlayer support. Deferred to PB-37.
         ],
         ..Default::default()
     }

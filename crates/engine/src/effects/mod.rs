@@ -106,6 +106,18 @@ pub struct EffectContext {
     /// Set from PendingTrigger::triggering_player when a triggered ability resolves.
     /// Used by PlayerTarget::TriggeringPlayer for "that player" effects in discard/draw triggers.
     pub triggering_player: Option<crate::state::PlayerId>,
+    /// Amount of combat damage dealt in the triggering event.
+    /// Set from PendingTrigger::combat_damage_amount for combat damage triggers.
+    /// Read by EffectAmount::CombatDamageDealt. 0 for non-combat-damage triggers.
+    pub combat_damage_amount: u32,
+    /// The player who was dealt combat damage in the triggering event.
+    /// Set from PendingTrigger::damaged_player for combat damage triggers.
+    /// Read by PlayerTarget::DamagedPlayer. None for non-combat-damage triggers.
+    pub damaged_player: Option<crate::state::PlayerId>,
+    /// The ObjectId of the creature that triggered a per-creature combat damage trigger.
+    /// Set from PendingTrigger::entering_object_id for per-creature combat damage triggers.
+    /// Read by EffectTarget::TriggeringCreature and PlayerTarget::ControllerOf(TriggeringCreature).
+    pub triggering_creature_id: Option<crate::state::game_object::ObjectId>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -127,6 +139,9 @@ impl EffectContext {
             last_dice_roll: 0,
             last_created_permanent: None,
             triggering_player: None,
+            combat_damage_amount: 0,
+            damaged_player: None,
+            triggering_creature_id: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -153,6 +168,9 @@ impl EffectContext {
             last_dice_roll: 0,
             last_created_permanent: None,
             triggering_player: None,
+            combat_damage_amount: 0,
+            damaged_player: None,
+            triggering_creature_id: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -2074,6 +2092,9 @@ fn execute_effect_inner(
                             last_dice_roll: ctx.last_dice_roll,
                             last_created_permanent: ctx.last_created_permanent,
                             triggering_player: ctx.triggering_player,
+                            combat_damage_amount: ctx.combat_damage_amount,
+                            damaged_player: ctx.damaged_player,
+                            triggering_creature_id: ctx.triggering_creature_id,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2102,6 +2123,9 @@ fn execute_effect_inner(
                             last_dice_roll: ctx.last_dice_roll,
                             last_created_permanent: ctx.last_created_permanent,
                             triggering_player: ctx.triggering_player,
+                            combat_damage_amount: ctx.combat_damage_amount,
+                            damaged_player: ctx.damaged_player,
+                            triggering_creature_id: ctx.triggering_creature_id,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2584,6 +2608,7 @@ fn execute_effect_inner(
                 PlayerTarget::TriggeringPlayer => {
                     ctx.player_for_target(0).unwrap_or(ctx.controller)
                 }
+                PlayerTarget::DamagedPlayer => ctx.damaged_player.unwrap_or(ctx.controller),
             };
             let lib_id = ZoneId::Library(manifest_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -2633,6 +2658,7 @@ fn execute_effect_inner(
                 PlayerTarget::TriggeringPlayer => {
                     ctx.player_for_target(0).unwrap_or(ctx.controller)
                 }
+                PlayerTarget::DamagedPlayer => ctx.damaged_player.unwrap_or(ctx.controller),
             };
             let lib_id = ZoneId::Library(cloak_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -4097,6 +4123,19 @@ fn resolve_effect_target_list_indexed(
                 vec![]
             }
         }
+        // CR 510.3a: The creature that triggered this ability (dealt combat damage).
+        // Resolved from ctx.triggering_creature_id (populated from PendingTrigger::entering_object_id).
+        EffectTarget::TriggeringCreature => {
+            if let Some(id) = ctx.triggering_creature_id {
+                if state.objects.contains_key(&id) {
+                    vec![(None, ResolvedTarget::Object(id))]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        }
     }
 }
 /// Resolve a `PlayerTarget` into a list of `PlayerId`s.
@@ -4213,6 +4252,22 @@ fn resolve_player_target_list(
                 }
             }
             // Final fallback: controller.
+            vec![ctx.controller]
+        }
+        PlayerTarget::DamagedPlayer => {
+            // CR 510.3a: The player who was dealt combat damage in the triggering event.
+            // Resolved from ctx.damaged_player (populated from PendingTrigger::damaged_player).
+            if let Some(dp) = ctx.damaged_player {
+                if state
+                    .players
+                    .get(&dp)
+                    .map(|ps| !ps.has_lost)
+                    .unwrap_or(false)
+                {
+                    return vec![dp];
+                }
+            }
+            // Fallback: no damaged player (non-combat-damage context) → controller.
             vec![ctx.controller]
         }
     }
@@ -4657,6 +4712,9 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         EffectAmount::LastDiceRoll => ctx.last_dice_roll as i32,
         // PB-28: Sum of two amounts (e.g. "Elves you control plus Elf cards in graveyard").
         EffectAmount::Sum(a, b) => resolve_amount(state, a, ctx) + resolve_amount(state, b, ctx),
+        // CR 510.3a: Amount of combat damage dealt in the triggering event.
+        // Resolved from ctx.combat_damage_amount (set from PendingTrigger::combat_damage_amount).
+        EffectAmount::CombatDamageDealt => ctx.combat_damage_amount as i32,
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────
@@ -5481,6 +5539,9 @@ pub fn check_static_condition(
                 last_dice_roll: 0,
                 last_created_permanent: None,
                 triggering_player: None,
+                combat_damage_amount: 0,
+                damaged_player: None,
+                triggering_creature_id: None,
             };
             check_condition(state, condition, &ctx)
         }

@@ -345,6 +345,9 @@ fn test_sba_704_5t_waits_for_room_ability() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     state.stack_objects.push_back(room_so);
 

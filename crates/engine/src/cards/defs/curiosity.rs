@@ -12,8 +12,20 @@ pub fn card() -> CardDefinition {
         oracle_text: "Enchant creature\nWhenever enchanted creature deals damage to an opponent, you may draw a card.".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
-            // TODO: "Whenever enchanted creature deals damage to an opponent" —
-            //   per-creature damage trigger not in DSL.
+            // CR 510.3a: "Whenever enchanted creature deals damage to an opponent, you may
+            // draw a card." — enchanted creature trigger (any damage, not combat-only).
+            // Note: combat_only: false covers both combat and noncombat damage.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
+                    combat_only: false,
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

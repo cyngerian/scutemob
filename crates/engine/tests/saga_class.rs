@@ -306,6 +306,9 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -531,6 +534,9 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
         evidence_collected: false,
         is_cast_transformed: false,
         additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
     };
     state.stack_objects.push_back(stack_obj);
 

@@ -18,8 +18,22 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Ninjutsu {
                 cost: ManaCost { generic: 1, blue: 1, ..Default::default() },
             },
-            // TODO: "Whenever Ninja/Rogue deals combat damage" — per-creature combat
-            //   damage trigger with subtype filter not in DSL.
+            // CR 510.3a / CR 603.2c: "Whenever one or more Ninja or Rogue creatures you control
+            // deal combat damage to a player, create a Treasure token." — batch trigger with
+            // Ninja OR Rogue subtype filter.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        has_subtypes: vec![SubType("Ninja".to_string()), SubType("Rogue".to_string())],
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

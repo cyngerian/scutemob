@@ -69,6 +69,7 @@ fn death_trigger_you_draw(
             exclude_self: false,
             nontoken_only: false,
         }),
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -85,6 +86,7 @@ fn death_trigger_any_draw() -> TriggeredAbilityDef {
         }),
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -102,6 +104,7 @@ fn attack_trigger_draw() -> TriggeredAbilityDef {
         }),
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
@@ -118,6 +121,7 @@ fn combat_damage_trigger_draw() -> TriggeredAbilityDef {
         }),
         etb_filter: None,
         death_filter: None,
+        combat_damage_filter: None,
         targets: vec![],
     }
 }
