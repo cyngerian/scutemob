@@ -23,8 +23,11 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever equipped creature deals combat damage, put two charge counters on Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one —\n• Equipped creature gets +2/+2 until end of turn.\n• Target creature gets -1/-1 until end of turn.\n• You gain 2 life.\nEquip {2}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Equip),
-            // CR 510.3a: Whenever equipped creature deals combat damage to a player,
-            // put two charge counters on Umezawa's Jitte.
+            // CR 510.3a: Whenever equipped creature deals combat damage, put two charge counters
+            // on Umezawa's Jitte.
+            // TODO(PB-37): Oracle says "deals combat damage" (any target), not just to players.
+            // Needs WhenEquippedCreatureDealsCombatDamage variant. Current trigger is the closest
+            // available approximation (misses damage dealt to creatures).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::AddCounter {

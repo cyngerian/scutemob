@@ -4,7 +4,7 @@ batch: PB-31
 title: Cost primitives (RemoveCounter, AdditionalSacrificeCost)
 cards_affected: ~23
 started: 2026-03-26
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-31.md
 
 ## Gap Reference
@@ -92,3 +92,20 @@ G-17 from `docs/dsl-gap-closure-plan.md`:
 - Life's Legacy EffectAmount::SacrificedCreaturePower
 - Spike Weaver ability 2 effect (PreventAllCombatDamage — G-19, PB-32)
 - Umezawa's Jitte modes 2 (-1/-1) and 3 (gain 2 life)
+
+## Review
+findings: 7 (HIGH: 0, MEDIUM: 2, LOW: 5)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-31.md
+
+## Fix Phase Results
+- M2 (umezawas_jitte.rs): Added TODO(PB-37) comment citing oracle text discrepancy —
+  trigger remains WhenEquippedCreatureDealsCombatDamageToPlayer (no unqualified variant exists);
+  updated comment from "to a player" to "deals combat damage" to match oracle header.
+- M3 (lifes_legacy.rs): Replaced empty abilities vec with placeholder AbilityDefinition::Spell
+  drawing 1 card (Fixed(1)); added TODO(PB-37) for EffectAmount::SacrificedCreaturePower.
+- L1-L5: Documented deferrals — no action taken.
+- cargo build --workspace: clean
+- cargo test --all: all pass (0 failures)
+- cargo clippy -- -D warnings: 0 warnings
+- phase: DONE
