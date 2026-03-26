@@ -41,7 +41,7 @@
 | PB-27 | X-cost spells | done | 15 | ~27 | fixed | 1 |
 | PB-28 | CDA / count-based P/T | done | 9 | ~23 | fixed | 1 |
 | PB-29 | Cost reduction statics | done | 13 | ~17 | fixed | 1 |
-| **PB-30** | **Combat damage triggers** | **planned** | — | ~49 | — | — |
+| PB-30 | Combat damage triggers | done | 27 | ~22 | fixed | 1 |
 | **PB-31** | **Cost primitives (RemoveCounter, SacCost)** | **planned** | — | ~23 | — | — |
 | **PB-32** | **Static/effect (lands, prevention, ctrl, anim)** | **planned** | — | ~39 | — | — |
 | **PB-33** | **Copy/clone + exile/flicker timing** | **planned** | — | ~39 | — | — |
@@ -112,7 +112,7 @@ As of 2026-03-23 (post A-28).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2363 |
+| Total tests | 2371 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

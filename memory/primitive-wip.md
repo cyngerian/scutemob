@@ -4,7 +4,7 @@ batch: PB-30
 title: Combat damage triggers
 cards_affected: ~49
 started: 2026-03-25
-phase: fix
+phase: close
 plan_file: memory/primitives/pb-plan-30.md
 
 ## Gap Reference

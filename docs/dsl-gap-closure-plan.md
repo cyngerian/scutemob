@@ -185,7 +185,7 @@ Full plan: `docs/dsl-gap-closure-plan.md`.
 - [ ] **PB-27**: X-cost spells (~42 cards)
 - [ ] **PB-28**: CDA / count-based P/T (~32 cards)
 - [ ] **PB-29**: Cost reduction statics (~30 cards)
-- [ ] **PB-30**: Combat damage triggers (~49 cards)
+- [x] **PB-30**: Combat damage triggers (~49 cards)
 - [ ] **PB-31**: Cost primitives (RemoveCounter, AdditionalSacrificeCost) (~23 cards)
 - [ ] **PB-32**: Static/effect primitives (additional lands, prevention, control change, land animation) (~39 cards)
 - [ ] **PB-33**: Copy/clone + exile/flicker timing (~39 cards)

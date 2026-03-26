@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **PB-29 DONE**. PB-30 next. |
+| W6: Primitive + Card Authoring | PB-30: Combat damage triggers | ACTIVE | 2026-03-25 | PB-30 next (~49 cards) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,25 +24,27 @@
 ## Last Handoff
 
 **Date**: 2026-03-25
-**Workstream**: W6 (PB-29)
-**Task**: PB-29 Cost reduction statics
+**Workstream**: W6 (PB-30)
+**Task**: PB-30 Combat damage triggers
 
 **Completed**:
-- **PB-29 DONE**: G-7 Cost reduction statics. Engine: SpellCostFilter::{ColorAndCreature,HasChosenCreatureSubtype,AllSpells}, SelfCostReduction::{ConditionalKeyword,MaxOpponentPermanents}, SelfActivatedCostReduction enum, activated_ability_cost_reductions on CardDefinition, legendary on TargetFilter. 13 card defs fixed. 11 new tests. Review: 1H fixed (hash). 2363 tests, 0 clippy.
-- Also completed PB-28 (CDA) same session: ee56134, 3882c1b.
-- Commits: e562ec0 (implement), bf6e992 (fixes).
+- **PB-30 DONE**: G-8 Combat damage triggers. Engine: 5 new TriggerCondition variants (WhenOneOrMore..., WhenEquipped..., WhenEnchanted..., WhenAnyCreature...Opponent, struct filter on per-creature), 4 new TriggerEvent variants, PlayerTarget::DamagedPlayer, EffectAmount::CombatDamageDealt, EffectTarget::TriggeringCreature, TargetFilter.is_token, combat_damage_filter on TriggeredAbilityDef, PendingTrigger/StackObject/EffectContext propagation. 27 card defs fixed (Swords cycle, Curiosity, Old Gnawbone, Edric, etc.). 8 new tests. Review: 5H 4M fixed. 2371 tests, 0 clippy.
+- Commits: b5577c7 (implement), b8c8dc6 (fixes).
 
 **Next**:
-1. Continue gap closure: PB-30 (combat damage triggers, ~49 cards) is next
-2. Deferred to PB-37: Heartstone, Training Grounds, Silver-Fur Master, Puresteel Paladin, Morophon
-3. Backfill sweeps accumulating (~453 cards across PB-23–29)
+1. Continue gap closure: PB-31 (cost primitives — RemoveCounter, AdditionalSacrificeCost, ~23 cards) is next
+2. Deferred to PB-37: Heartstone, Training Grounds, Silver-Fur Master, Puresteel Paladin, Morophon, noncombat damage trigger path, PlayerTarget::ControllerOf(TriggeringCreature) for Edric
+3. Backfill sweeps accumulating (~480+ cards across PB-23–30)
 
 **Hazards**:
-- Backfill sweeps accumulating (~453 cards across PB-23–29)
+- Backfill sweeps accumulating (~480+ cards across PB-23–30)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-25 — W6: PB-30
+- PB-30: G-8 Combat damage triggers, 27 card defs fixed, 5H 4M fixed. 2371 tests. Commits: b5577c7, b8c8dc6.
 
 ### 2026-03-25 — W6: PB-28 + PB-29
 - PB-28: G-6 CDA, 9 card defs fixed, 1M fixed. 2353 tests. Commits: ee56134, 3882c1b.
