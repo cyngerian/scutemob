@@ -101,6 +101,7 @@ fn goblin_token_spec() -> crate::cards::card_definition::TokenSpec {
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 fn treasure_token_spec_1() -> crate::cards::card_definition::TokenSpec {
@@ -119,6 +120,7 @@ fn treasure_token_spec_1() -> crate::cards::card_definition::TokenSpec {
         mana_color: None,
         mana_abilities: vec![ManaAbility::treasure()],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 fn skeleton_11_token_spec() -> crate::cards::card_definition::TokenSpec {
@@ -137,6 +139,7 @@ fn skeleton_11_token_spec() -> crate::cards::card_definition::TokenSpec {
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
@@ -155,6 +158,7 @@ fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 fn atropal_token_spec() -> crate::cards::card_definition::TokenSpec {
@@ -176,6 +180,7 @@ fn atropal_token_spec() -> crate::cards::card_definition::TokenSpec {
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 // ── Static dungeon definitions ────────────────────────────────────────────────

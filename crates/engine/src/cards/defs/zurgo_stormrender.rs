@@ -38,12 +38,13 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        sacrifice_at_end_step: true, // Mobilize: sacrifice at next end step
+                        ..Default::default()
                     },
                 },
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "Sacrifice at beginning of next end step" delayed trigger not in DSL.
             // TODO: "Whenever a creature token you control leaves" trigger not in DSL.
         ],
         ..Default::default()

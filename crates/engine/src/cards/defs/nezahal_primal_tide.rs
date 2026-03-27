@@ -37,7 +37,26 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![],
             },
-            // TODO: "Discard 3: exile + delayed return" not expressible.
+            // Discard three cards: Exile Nezahal. Return it to the battlefield tapped
+            // under its owner's control at the beginning of the next end step.
+            AbilityDefinition::Activated {
+                // Discard three cards as a cost — DSL has no DiscardCards(N) for N > 1.
+                // Using three DiscardCard costs in a Sequence to approximate.
+                cost: Cost::Sequence(vec![
+                    Cost::DiscardCard,
+                    Cost::DiscardCard,
+                    Cost::DiscardCard,
+                ]),
+                effect: Effect::ExileWithDelayedReturn {
+                    target: EffectTarget::Source,
+                    return_timing: crate::state::stubs::DelayedTriggerTiming::AtNextEndStep,
+                    return_tapped: true,
+                    return_to: crate::cards::card_definition::DelayedReturnDestination::Battlefield,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

@@ -36,6 +36,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateTokenCopy {
                     source: EffectTarget::DeclaredTarget { index: 0 },
                     enters_tapped_and_attacking: true,
+                    except_not_legendary: false,
+                    gains_haste: false,
+                    delayed_action: None,
                 },
                 // TODO: TargetFilter lacks is_attacking and exclude_source constraints.
                 // Oracle says "another target attacking creature" but filter allows

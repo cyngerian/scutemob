@@ -489,6 +489,9 @@ fn test_effect_create_token_copy() {
     let effect = Effect::CreateTokenCopy {
         source: EffectTarget::DeclaredTarget { index: 0 },
         enters_tapped_and_attacking: false,
+        except_not_legendary: false,
+        gains_haste: false,
+        delayed_action: None,
     };
 
     let target = SpellTarget {
@@ -566,6 +569,9 @@ fn test_effect_create_token_copy_tapped_attacking() {
     let effect = Effect::CreateTokenCopy {
         source: EffectTarget::DeclaredTarget { index: 0 },
         enters_tapped_and_attacking: true,
+        except_not_legendary: false,
+        gains_haste: false,
+        delayed_action: None,
     };
 
     let target = SpellTarget {

@@ -1532,8 +1532,34 @@ pub enum Effect {
         target: EffectTarget,
         return_tapped: bool,
     },
+    /// CR 610.3 / CR 603.7: Exile a permanent and create a delayed triggered ability
+    /// that returns it later (either at an end step or when the source leaves).
+    ///
+    /// Unlike `Flicker` (immediate return), this exiles the target and registers a
+    /// `DelayedTrigger` that will return the object at a later time. The delayed
+    /// trigger goes on the stack and can be responded to (CR 603.7).
+    ///
+    /// Used by: The Eternal Wanderer +1 (AtOwnersNextEndStep),
+    ///          Brutal Cathar ETB (WhenSourceLeavesBattlefield),
+    ///          Nezahal activated (AtNextEndStep, tapped).
+    ExileWithDelayedReturn {
+        target: EffectTarget,
+        /// When the exiled object returns.
+        return_timing: crate::state::stubs::DelayedTriggerTiming,
+        /// Whether the returned object enters tapped.
+        return_tapped: bool,
+        /// Where the object returns to (battlefield or hand).
+        return_to: DelayedReturnDestination,
+    },
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
+    /// CR 603.7 / PB-33: Set `return_to_hand_at_end_step = true` on the source object
+    /// (typically in the graveyard after a death trigger fires).
+    ///
+    /// Used by "when this dies, return it to its owner's hand at the beginning of the
+    /// next end step" patterns (The Locust God). The source of the triggered ability
+    /// is the graveyard object; this effect sets the flag so `end_step_actions` returns it.
+    SetReturnToHandAtEndStep,
     /// CR 701.49: Venture into the dungeon.
     ///
     /// The player ventures into the dungeon (CR 701.49a-c). Uses the standard
@@ -1622,13 +1648,30 @@ pub enum Effect {
     /// CopyOf continuous effect so the token gains the copiable values of
     /// the source permanent. Optionally enters tapped and attacking (CR 508.4).
     ///
-    /// Used by: Thousand-Faced Shadow, Myriad (future migration), etc.
+    /// Used by: Thousand-Faced Shadow, Myriad (future migration), Kiki-Jiki,
+    ///          Helm of the Host, Miirym, etc.
     CreateTokenCopy {
         /// The permanent to copy.
         source: EffectTarget,
         /// If true, the token enters tapped and attacking (inherits attack
         /// target from the effect controller's current attack, per CR 508.4).
         enters_tapped_and_attacking: bool,
+        /// CR 707.9b: If true, the token copy is not legendary (remove SuperType::Legendary).
+        /// Used by Helm of the Host, Miirym.
+        #[serde(default)]
+        except_not_legendary: bool,
+        /// CR 707.9a: If true, the token gains Haste in addition to copying.
+        /// Used by Kiki-Jiki, Helm of the Host.
+        #[serde(default)]
+        gains_haste: bool,
+        /// Optional delayed action on the created token (CR 603.7).
+        /// Used by Kiki-Jiki ("sacrifice at beginning of next end step"),
+        /// Mirage Phalanx ("exile at end of combat").
+        #[serde(default)]
+        delayed_action: Option<(
+            crate::state::stubs::DelayedTriggerTiming,
+            crate::state::stubs::DelayedTriggerAction,
+        )>,
     },
     /// CR 114.1-114.4: Create an emblem in the command zone with the specified abilities.
     ///
@@ -1696,6 +1739,15 @@ pub enum Effect {
     },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
+/// Where a delayed trigger returns an exiled object to (CR 610.3).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DelayedReturnDestination {
+    /// Return to the battlefield under the owner's control (CR 610.3c).
+    Battlefield,
+    /// Return to the owner's hand.
+    Hand,
+}
+
 /// How an effect identifies its primary target.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectTarget {
@@ -1724,6 +1776,11 @@ pub enum EffectTarget {
     /// CR 510.3a: Resolved from PendingTrigger::entering_object_id at effect execution time.
     /// Used by "put a +1/+1 counter on it" (Rakish Heir), "its controller may draw a card" (Edric).
     TriggeringCreature,
+    /// The creature this Equipment is currently attached to (`attached_to` field).
+    ///
+    /// Used by Helm of the Host ("create a token that's a copy of equipped creature").
+    /// If the source is not an Equipment or is not attached to anything, resolves to empty.
+    EquippedCreature,
 }
 /// How an effect identifies a player.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -2392,6 +2449,16 @@ pub struct TokenSpec {
     /// Shard tokens (CR 111.10e), etc.
     #[serde(default)]
     pub activated_abilities: Vec<ActivatedAbility>,
+    /// If true, each created token will have `sacrifice_at_end_step = true` set,
+    /// causing it to be sacrificed at the beginning of the next end step.
+    /// Used by Mobilize (Voice of Victory, Zurgo Stormrender).
+    #[serde(default)]
+    pub sacrifice_at_end_step: bool,
+    /// If true, each created token will have `exile_at_end_step = true` set,
+    /// causing it to be exiled at the beginning of the next end step.
+    /// Used by Chandra Flamecaller's +1.
+    #[serde(default)]
+    pub exile_at_end_step: bool,
 }
 impl Default for TokenSpec {
     fn default() -> Self {
@@ -2410,6 +2477,8 @@ impl Default for TokenSpec {
             mana_color: None,
             mana_abilities: Vec::new(),
             activated_abilities: Vec::new(),
+            sacrifice_at_end_step: false,
+            exile_at_end_step: false,
         }
     }
 }
@@ -2433,6 +2502,7 @@ pub fn treasure_token_spec(count: u32) -> TokenSpec {
         tapped: false,
         enters_attacking: false,
         mana_color: None,
+        ..Default::default()
     }
 }
 /// CR 111.10b: Predefined Food token specification.
@@ -2477,6 +2547,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
         tapped: false,
         enters_attacking: false,
         mana_color: None,
+        ..Default::default()
     }
 }
 /// CR 111.10f: Predefined Clue token specification.
@@ -2522,6 +2593,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
         tapped: false,
         enters_attacking: false,
         mana_color: None,
+        ..Default::default()
     }
 }
 /// CR 111.10g: Predefined Blood token specification.
@@ -2570,6 +2642,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
         tapped: false,
         enters_attacking: false,
         mana_color: None,
+        ..Default::default()
     }
 }
 /// CR 701.47a: Token spec for an Army creature token.
@@ -2595,6 +2668,7 @@ pub fn army_token_spec(subtype: &str) -> TokenSpec {
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 /// CR 702.147a: Predefined Zombie Decayed token specification.
@@ -2618,6 +2692,7 @@ pub fn zombie_decayed_token_spec(count: u32) -> TokenSpec {
         mana_color: None,
         mana_abilities: vec![],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 // ── Zone Target ───────────────────────────────────────────────────────────────

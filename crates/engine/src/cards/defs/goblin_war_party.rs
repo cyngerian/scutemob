@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                                 mana_color: None,
                                 mana_abilities: vec![],
                                 activated_abilities: vec![],
+                                ..Default::default()
                             },
                         },
                         // Mode 1: CR 613.4c / CR 613.1f: "Creatures you control get +1/+1

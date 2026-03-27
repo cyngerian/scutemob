@@ -17,8 +17,11 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — ETB reanimate from opponent's GY + haste grant + delayed
-            // exile trigger at next end step. Multiple DSL gaps.
+            // PARTIAL TODO: ETB reanimate from opponent's GY — DSL gap (no MoveFrom graveyard
+            // to battlefield under your control with haste grant). The delayed exile part
+            // (at beginning of your next end step) is now expressible via ExileWithDelayedReturn
+            // with AtOwnersNextEndStep, but the reanimate source targeting an opponent's GY
+            // is not yet in the DSL.
             AbilityDefinition::Keyword(KeywordAbility::Persist),
         ],
         ..Default::default()

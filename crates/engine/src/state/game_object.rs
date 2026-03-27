@@ -783,6 +783,25 @@ pub struct GameObject {
     /// zone changes (CR 400.7).
     #[serde(default)]
     pub encore_activated_by: Option<crate::state::player::PlayerId>,
+    /// CR 603.7 / PB-33: If true, this permanent (usually a token) should be
+    /// sacrificed at the beginning of the next end step.
+    /// Mirrors `encore_sacrifice_at_end_step` but for generic "sacrifice at next end step"
+    /// patterns (Mobilize tokens from Voice of Victory / Zurgo Stormrender).
+    /// Checked in `end_step_actions()` in `turn_actions.rs`.
+    #[serde(default)]
+    pub sacrifice_at_end_step: bool,
+    /// CR 603.7 / PB-33: If true, this permanent (usually a token) should be
+    /// exiled at the beginning of the next end step.
+    /// Used by Chandra Flamecaller's +1 (create Elemental tokens, exile at next end step).
+    /// Checked in `end_step_actions()` in `turn_actions.rs`.
+    #[serde(default)]
+    pub exile_at_end_step: bool,
+    /// CR 603.7 / PB-33: If true, this object (in graveyard) should be returned to
+    /// its owner's hand at the beginning of the next end step.
+    /// Used by The Locust God's death trigger.
+    /// Checked in `end_step_actions()` in `turn_actions.rs`.
+    #[serde(default)]
+    pub return_to_hand_at_end_step: bool,
     /// CR 702.170a: If true, this card was plotted -- exiled face-up via the plot
     /// special action. The card can be cast from exile without paying its mana cost
     /// on any later turn (CR 702.170d).

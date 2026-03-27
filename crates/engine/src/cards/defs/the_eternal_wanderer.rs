@@ -6,8 +6,6 @@
 //
 // TODO: Static "no more than one creature can attack The Eternal Wanderer" —
 //   attack restriction keyed on a specific planeswalker not in DSL.
-// TODO: +1 exile + return at owner's next end step — Flicker only returns at controller's
-//   EOT; "that player's next end step" (owner) not expressible in DSL.
 // TODO: −4 mass sacrifice per-player choice — choose one creature per player then
 //   sacrifice the rest; no DSL support for per-player selection and conditional sacrifice.
 use crate::cards::helpers::*;
@@ -22,10 +20,16 @@ pub fn card() -> CardDefinition {
         starting_loyalty: Some(5),
         abilities: vec![
             // TODO: static attack restriction (no more than one creature can attack this PW)
-            // +1: exile + return at owner's next end step (return timing not expressible)
+            // +1: Exile up to one target artifact or creature. Return it at beginning of
+            // that player's next end step.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::Nothing,
+                effect: Effect::ExileWithDelayedReturn {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    return_timing: crate::state::stubs::DelayedTriggerTiming::AtOwnersNextEndStep,
+                    return_tapped: false,
+                    return_to: crate::cards::card_definition::DelayedReturnDestination::Battlefield,
+                },
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     has_card_types: vec![CardType::Artifact, CardType::Creature],
                     ..Default::default()
@@ -50,6 +54,7 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        ..Default::default()
                     },
                 },
                 targets: vec![],

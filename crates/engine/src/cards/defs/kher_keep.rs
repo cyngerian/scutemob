@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        ..Default::default()
                     },
                 },
                 timing_restriction: None,

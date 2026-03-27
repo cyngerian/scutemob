@@ -33,13 +33,14 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        sacrifice_at_end_step: true, // Mobilize: sacrifice at next end step
+                        ..Default::default()
                     },
                 },
                 intervening_if: None,
                 targets: vec![],
             },
             // TODO: "Opponents can't cast during your turn" stax restriction not in DSL.
-            // TODO: "Sacrifice at next end step" delayed trigger not in DSL.
         ],
         ..Default::default()
     }

@@ -1252,6 +1252,18 @@ impl HashInto for LayerModification {
                 subtypes.hash_into(hasher);
             }
             LayerModification::LoseAllSubtypes => 5u8.hash_into(hasher),
+            // CR 707.9b: RemoveSuperType (discriminant 26)
+            LayerModification::RemoveSuperType(st) => {
+                26u8.hash_into(hasher);
+                // Hash by ordinal of the SuperType
+                match st {
+                    crate::state::types::SuperType::Legendary => 0u8.hash_into(hasher),
+                    crate::state::types::SuperType::Basic => 1u8.hash_into(hasher),
+                    crate::state::types::SuperType::Snow => 2u8.hash_into(hasher),
+                    crate::state::types::SuperType::World => 3u8.hash_into(hasher),
+                    crate::state::types::SuperType::Ongoing => 4u8.hash_into(hasher),
+                }
+            }
             LayerModification::SetColors(colors) => {
                 6u8.hash_into(hasher);
                 colors.hash_into(hasher);
@@ -1347,6 +1359,43 @@ impl HashInto for TriggerDoubler {
 impl HashInto for DelayedTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.target_object.hash_into(hasher);
+        self.fired.hash_into(hasher);
+        // Hash action discriminant
+        match &self.action {
+            crate::state::stubs::DelayedTriggerAction::ReturnFromExileToBattlefield { tapped } => {
+                0u8.hash_into(hasher);
+                tapped.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerAction::ReturnFromExileToHand => {
+                1u8.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToHand => {
+                2u8.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerAction::SacrificeObject => {
+                3u8.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerAction::ExileObject => {
+                4u8.hash_into(hasher);
+            }
+        }
+        // Hash timing discriminant
+        match &self.timing {
+            crate::state::stubs::DelayedTriggerTiming::AtNextEndStep => {
+                0u8.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerTiming::AtOwnersNextEndStep => {
+                1u8.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield => {
+                2u8.hash_into(hasher);
+            }
+            crate::state::stubs::DelayedTriggerTiming::AtEndOfCombat => {
+                3u8.hash_into(hasher);
+            }
+        }
     }
 }
 impl HashInto for ETBSuppressFilter {
@@ -1675,6 +1724,8 @@ impl HashInto for crate::state::stubs::PendingTriggerKind {
             PendingTriggerKind::RingLoot => 47u8.hash_into(hasher),
             PendingTriggerKind::RingBlockSacrifice => 48u8.hash_into(hasher),
             PendingTriggerKind::RingCombatDamage => 49u8.hash_into(hasher),
+            // CR 603.7: DelayedAction (discriminant 50)
+            PendingTriggerKind::DelayedAction => 50u8.hash_into(hasher),
         }
     }
 }
@@ -2117,6 +2168,32 @@ impl HashInto for TriggerData {
                 36u8.hash_into(hasher);
                 card.hash_into(hasher);
             }
+            // CR 603.7: DelayedAction (discriminant 37)
+            TriggerData::DelayedAction { action, target } => {
+                37u8.hash_into(hasher);
+                target.hash_into(hasher);
+                // Hash action discriminant only (no Hash bound needed, use match)
+                match action {
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromExileToBattlefield {
+                        tapped,
+                    } => {
+                        0u8.hash_into(hasher);
+                        tapped.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromExileToHand => {
+                        1u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToHand => {
+                        2u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::SacrificeObject => {
+                        3u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ExileObject => {
+                        4u8.hash_into(hasher);
+                    }
+                }
+            }
         }
     }
 }
@@ -2400,6 +2477,37 @@ impl HashInto for StackObjectKind {
                 68u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 target_level.hash_into(hasher);
+            }
+            // DelayedActionTrigger (discriminant 69) -- CR 603.7 delayed trigger
+            StackObjectKind::DelayedActionTrigger {
+                source_object,
+                target,
+                action,
+            } => {
+                69u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                target.hash_into(hasher);
+                // Hash action discriminant
+                match action {
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromExileToBattlefield {
+                        tapped,
+                    } => {
+                        0u8.hash_into(hasher);
+                        tapped.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromExileToHand => {
+                        1u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToHand => {
+                        2u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::SacrificeObject => {
+                        3u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ExileObject => {
+                        4u8.hash_into(hasher);
+                    }
+                }
             }
         }
     }
@@ -3794,6 +3902,8 @@ impl HashInto for TokenSpec {
         self.mana_color.hash_into(hasher);
         self.mana_abilities.hash_into(hasher);
         self.activated_abilities.hash_into(hasher);
+        self.sacrifice_at_end_step.hash_into(hasher);
+        self.exile_at_end_step.hash_into(hasher);
     }
 }
 impl HashInto for EffectTarget {
@@ -3816,6 +3926,8 @@ impl HashInto for EffectTarget {
             EffectTarget::LastCreatedPermanent => 8u8.hash_into(hasher),
             // CR 510.3a: The triggering creature (dealt combat damage) — discriminant 9
             EffectTarget::TriggeringCreature => 9u8.hash_into(hasher),
+            // PB-33: The creature the source Equipment is attached to — discriminant 10
+            EffectTarget::EquippedCreature => 10u8.hash_into(hasher),
         }
     }
 }
@@ -4507,6 +4619,8 @@ impl HashInto for Effect {
                 or_else.hash_into(hasher);
             }
             Effect::Nothing => 26u8.hash_into(hasher),
+            // CR 603.7 / PB-33: SetReturnToHandAtEndStep (discriminant 71)
+            Effect::SetReturnToHandAtEndStep => 71u8.hash_into(hasher),
             Effect::PutOnLibrary {
                 player,
                 count,
@@ -4728,6 +4842,41 @@ impl HashInto for Effect {
                 target.hash_into(hasher);
                 return_tapped.hash_into(hasher);
             }
+            // CR 610.3 / CR 603.7: ExileWithDelayedReturn (discriminant 70)
+            Effect::ExileWithDelayedReturn {
+                target,
+                return_timing,
+                return_tapped,
+                return_to,
+            } => {
+                70u8.hash_into(hasher);
+                target.hash_into(hasher);
+                return_tapped.hash_into(hasher);
+                // Hash return_timing discriminant
+                match return_timing {
+                    crate::state::stubs::DelayedTriggerTiming::AtNextEndStep => {
+                        0u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerTiming::AtOwnersNextEndStep => {
+                        1u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield => {
+                        2u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerTiming::AtEndOfCombat => {
+                        3u8.hash_into(hasher);
+                    }
+                }
+                // Hash return_to discriminant
+                match return_to {
+                    crate::cards::card_definition::DelayedReturnDestination::Battlefield => {
+                        0u8.hash_into(hasher);
+                    }
+                    crate::cards::card_definition::DelayedReturnDestination::Hand => {
+                        1u8.hash_into(hasher);
+                    }
+                }
+            }
             // CR 707.2: BecomeCopyOf (discriminant 64)
             Effect::BecomeCopyOf {
                 copier,
@@ -4743,10 +4892,16 @@ impl HashInto for Effect {
             Effect::CreateTokenCopy {
                 source,
                 enters_tapped_and_attacking,
+                except_not_legendary,
+                gains_haste,
+                delayed_action,
             } => {
                 65u8.hash_into(hasher);
                 source.hash_into(hasher);
                 enters_tapped_and_attacking.hash_into(hasher);
+                except_not_legendary.hash_into(hasher);
+                gains_haste.hash_into(hasher);
+                delayed_action.is_some().hash_into(hasher);
             }
             // CR 114.1-114.4: CreateEmblem (discriminant 66)
             Effect::CreateEmblem {

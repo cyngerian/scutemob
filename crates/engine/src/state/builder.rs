@@ -718,6 +718,7 @@ impl GameStateBuilder {
                                 mana_color: None,
                                 mana_abilities: vec![],
                                 activated_abilities: vec![],
+                                ..Default::default()
                             },
                         }),
                     });
@@ -783,6 +784,7 @@ impl GameStateBuilder {
                                 mana_color: None,
                                 mana_abilities: vec![],
                                 activated_abilities: vec![],
+                                ..Default::default()
                             },
                         }),
                     });
@@ -1008,6 +1010,9 @@ impl GameStateBuilder {
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,
+                sacrifice_at_end_step: false,
+                exile_at_end_step: false,
+                return_to_hand_at_end_step: false,
                 is_plotted: false,
                 plotted_turn: 0,
                 is_prototyped: false,

@@ -958,6 +958,10 @@ fn apply_layer_modification(
         LayerModification::LoseAllSubtypes => {
             chars.subtypes = OrdSet::new();
         }
+        // CR 707.9b: Remove a single supertype (e.g., "except it isn't legendary").
+        LayerModification::RemoveSuperType(st) => {
+            chars.supertypes.remove(st);
+        }
         // CR 702.73a, CR 205.3m: Adds every creature type (used by Changeling CDA and
         // Maskwood Nexus-style "is every creature type" continuous effects).
         LayerModification::AddAllCreatureTypes => {

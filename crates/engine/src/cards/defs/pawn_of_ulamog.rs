@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                         mana_color: Some(ManaColor::Colorless),
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        ..Default::default()
                     },
                 },
                 intervening_if: None,

@@ -232,6 +232,11 @@ pub enum LayerModification {
     AddSubtypes(OrdSet<SubType>),
     /// Removes all subtypes from the object.
     LoseAllSubtypes,
+    /// Removes a single supertype from the object (Layer 4).
+    ///
+    /// Used by CR 707.9b copy-with-modification effects: "except it isn't legendary."
+    /// Removes only the specified supertype, preserving all others.
+    RemoveSuperType(SuperType),
     /// Adds every creature type from CR 205.3m to the object's subtypes.
     ///
     /// Used by Changeling CDA (CR 702.73a) and effects like Maskwood Nexus

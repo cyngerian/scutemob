@@ -2734,6 +2734,13 @@ fn execute_effect_inner(
             }
         }
         Effect::Nothing => {}
+        // CR 603.7 / PB-33: Set the return_to_hand_at_end_step flag on the source object.
+        // Used by The Locust God's WhenDies trigger.
+        Effect::SetReturnToHandAtEndStep => {
+            if let Some(obj) = state.objects.get_mut(&ctx.source) {
+                obj.return_to_hand_at_end_step = true;
+            }
+        }
         // CR 701.49: Venture into the dungeon.
         //
         // Invokes the three-case venture logic (no dungeon, mid-dungeon, bottommost room).
@@ -2875,6 +2882,9 @@ fn execute_effect_inner(
                             encore_sacrifice_at_end_step: false,
                             encore_must_attack: None,
                             encore_activated_by: None,
+                            sacrifice_at_end_step: false,
+                            exile_at_end_step: false,
+                            return_to_hand_at_end_step: false,
                             is_plotted: false,
                             plotted_turn: 0,
                             is_prototyped: false,
@@ -3667,6 +3677,9 @@ fn execute_effect_inner(
         Effect::CreateTokenCopy {
             source,
             enters_tapped_and_attacking,
+            except_not_legendary,
+            gains_haste,
+            delayed_action,
         } => {
             let source_targets = resolve_effect_target_list(state, source, ctx);
             let source_id = source_targets.iter().find_map(|t| {
@@ -3737,6 +3750,9 @@ fn execute_effect_inner(
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    sacrifice_at_end_step: false,
+                    exile_at_end_step: false,
+                    return_to_hand_at_end_step: false,
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
@@ -3776,11 +3792,63 @@ fn execute_effect_inner(
                 let copy_effect =
                     crate::rules::copy::create_copy_effect(state, token_id, s_id, ctx.controller);
                 state.continuous_effects.push_back(copy_effect);
+                // CR 707.9b: If except_not_legendary, add a Layer 4 type-removing effect
+                // that removes SuperType::Legendary from the token.
+                if *except_not_legendary {
+                    use crate::state::continuous_effect::{
+                        ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
+                        LayerModification,
+                    };
+                    use crate::state::types::SuperType;
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(ContinuousEffect {
+                        id: EffectId(state.timestamp_counter),
+                        source: Some(token_id), // tied to this specific token
+                        filter: EffectFilter::SingleObject(token_id),
+                        layer: EffectLayer::TypeChange,
+                        modification: LayerModification::RemoveSuperType(SuperType::Legendary),
+                        duration: EffectDuration::Indefinite,
+                        timestamp: state.timestamp_counter,
+                        is_cda: false,
+                        condition: None,
+                    });
+                }
+                // CR 707.9a: If gains_haste, add a Layer 6 keyword-granting effect on the token.
+                if *gains_haste {
+                    use crate::state::continuous_effect::{
+                        ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
+                        LayerModification,
+                    };
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(ContinuousEffect {
+                        id: EffectId(state.timestamp_counter),
+                        source: Some(token_id), // tied to this specific token
+                        filter: EffectFilter::SingleObject(token_id),
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                        duration: EffectDuration::Indefinite,
+                        timestamp: state.timestamp_counter,
+                        is_cda: false,
+                        condition: None,
+                    });
+                }
                 // CR 508.4: Register as attacking if enters_tapped_and_attacking.
                 if let Some(ref atk_target) = attack_target {
                     if let Some(combat) = state.combat.as_mut() {
                         combat.attackers.insert(token_id, atk_target.clone());
                     }
+                }
+                // CR 603.7: Register a delayed trigger if delayed_action is Some.
+                if let Some((timing, action)) = delayed_action {
+                    use crate::state::stubs::DelayedTrigger;
+                    state.delayed_triggers.push_back(DelayedTrigger {
+                        source: ctx.source,
+                        controller: ctx.controller,
+                        target_object: token_id,
+                        action: action.clone(),
+                        timing: timing.clone(),
+                        fired: false,
+                    });
                 }
                 events.push(GameEvent::TokenCreated {
                     player: ctx.controller,
@@ -3843,6 +3911,9 @@ fn execute_effect_inner(
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,
+                sacrifice_at_end_step: false,
+                exile_at_end_step: false,
+                return_to_hand_at_end_step: false,
                 is_plotted: false,
                 plotted_turn: 0,
                 is_prototyped: false,
@@ -3966,6 +4037,62 @@ fn execute_effect_inner(
                                 object_id: new_bf_id,
                             });
                         }
+                    }
+                }
+            }
+        }
+        // CR 610.3 / CR 603.7: Exile a permanent and register a delayed trigger to return it.
+        //
+        // Unlike Flicker (immediate return), this creates a DelayedTrigger that fires at
+        // the appropriate time. The trigger can be countered (CR 603.7 — uses the stack).
+        Effect::ExileWithDelayedReturn {
+            target,
+            return_timing,
+            return_tapped,
+            return_to,
+        } => {
+            use crate::cards::card_definition::DelayedReturnDestination;
+            use crate::state::stubs::{DelayedTrigger, DelayedTriggerAction};
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    // Verify the target is on the battlefield.
+                    let owner = state
+                        .objects
+                        .get(&id)
+                        .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                        .map(|o| o.owner);
+                    let Some(_owner) = owner else {
+                        continue;
+                    };
+                    // Step 1: Exile the permanent.
+                    if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
+                        events.push(GameEvent::ObjectExiled {
+                            player: ctx.controller,
+                            object_id: id,
+                            new_exile_id: exile_id,
+                        });
+                        // Step 2: Register a DelayedTrigger to return it later.
+                        let action = match return_to {
+                            DelayedReturnDestination::Battlefield => {
+                                DelayedTriggerAction::ReturnFromExileToBattlefield {
+                                    tapped: *return_tapped,
+                                }
+                            }
+                            DelayedReturnDestination::Hand => {
+                                DelayedTriggerAction::ReturnFromExileToHand
+                            }
+                        };
+                        // For WhenSourceLeavesBattlefield, use the current source ID.
+                        // The owner we captured above is used for AtOwnersNextEndStep.
+                        state.delayed_triggers.push_back(DelayedTrigger {
+                            source: ctx.source,
+                            controller: ctx.controller,
+                            target_object: exile_id,
+                            action,
+                            timing: return_timing.clone(),
+                            fired: false,
+                        });
                     }
                 }
             }
@@ -4242,6 +4369,19 @@ fn resolve_effect_target_list_indexed(
             if let Some(id) = ctx.triggering_creature_id {
                 if state.objects.contains_key(&id) {
                     vec![(None, ResolvedTarget::Object(id))]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        }
+        // PB-33: The creature the source Equipment is attached to.
+        // Used by Helm of the Host ("create a token that's a copy of equipped creature").
+        EffectTarget::EquippedCreature => {
+            if let Some(attached_id) = state.objects.get(&ctx.source).and_then(|o| o.attached_to) {
+                if state.objects.contains_key(&attached_id) {
+                    vec![(None, ResolvedTarget::Object(attached_id))]
                 } else {
                     vec![]
                 }
@@ -4979,6 +5119,10 @@ pub fn make_token(
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
+        // CR 603.7 / PB-33: Use TokenSpec flags to set delayed end-step actions.
+        sacrifice_at_end_step: spec.sacrifice_at_end_step,
+        exile_at_end_step: spec.exile_at_end_step,
+        return_to_hand_at_end_step: false,
         is_plotted: false,
         plotted_turn: 0,
         is_prototyped: false,

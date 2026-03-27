@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![ManaAbility::tap_for(ManaColor::Green)],
                         activated_abilities: vec![],
+                        ..Default::default()
                     },
                 },
                 targets: vec![],

@@ -27,7 +27,31 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: Copy token creation + delayed sacrifice not in DSL.
+            // {4}{R}{R}, {T}: Create a token that's a copy of target creature you control.
+            // Sacrifice it at the beginning of the next end step.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 4, red: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::CreateTokenCopy {
+                    source: EffectTarget::DeclaredTarget { index: 0 },
+                    enters_tapped_and_attacking: false,
+                    except_not_legendary: false,
+                    gains_haste: false,
+                    delayed_action: Some((
+                        crate::state::stubs::DelayedTriggerTiming::AtNextEndStep,
+                        crate::state::stubs::DelayedTriggerAction::SacrificeObject,
+                    )),
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+            },
         ],
         spell_cost_modifiers: vec![SpellCostModifier {
             change: -1,

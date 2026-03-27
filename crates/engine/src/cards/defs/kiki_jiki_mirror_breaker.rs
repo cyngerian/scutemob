@@ -19,8 +19,29 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: "Copy of target creature" token creation + delayed sacrifice not in DSL.
-            //   Copy-token creation requires CreateCopyToken effect variant.
+            // {T}: Create a token that's a copy of target nonlegendary creature you control,
+            // except it has haste. Sacrifice it at the beginning of the next end step.
+            // TODO: target filter lacks "nonlegendary" restriction (TargetFilter has no nonlegendary bool).
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::CreateTokenCopy {
+                    source: EffectTarget::DeclaredTarget { index: 0 },
+                    enters_tapped_and_attacking: false,
+                    except_not_legendary: false,
+                    gains_haste: true,
+                    delayed_action: Some((
+                        crate::state::stubs::DelayedTriggerTiming::AtNextEndStep,
+                        crate::state::stubs::DelayedTriggerAction::SacrificeObject,
+                    )),
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

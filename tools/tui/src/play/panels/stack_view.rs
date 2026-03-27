@@ -161,6 +161,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                     format!("Level Up (→{}): ", target_level),
                     Some(*source_object),
                 ),
+                // CR 603.7: Delayed trigger fires — return/sacrifice/exile action.
+                StackObjectKind::DelayedActionTrigger { source_object, .. } => {
+                    ("Delayed trigger: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

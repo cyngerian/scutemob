@@ -549,6 +549,10 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::ClassLevelAbility { source_object, .. } => {
             ("class_level_ability", Some(*source_object))
         }
+        // CR 603.7: Delayed triggered ability fires (return/sacrifice/exile action).
+        StackObjectKind::DelayedActionTrigger { source_object, .. } => {
+            ("delayed_action_trigger", Some(*source_object))
+        }
     }
 }
 

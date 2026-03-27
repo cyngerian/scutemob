@@ -679,6 +679,7 @@ fn test_alliance_fires_on_create_token_effect() {
                     mana_color: None,
                     mana_abilities: vec![],
                     activated_abilities: vec![],
+                    ..Default::default()
                 },
             },
             intervening_if: None,

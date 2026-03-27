@@ -2,9 +2,6 @@
 // Front: {2}{W} Human Soldier Werewolf 2/2, Daybound,
 //        when ETB exile target creature opponent controls until this leaves battlefield
 // Back:  Moonrage Brute, Werewolf 3/3, Nightbound, first strike, ward {pay 3 life}
-//
-// DSL gap: ETB exile-until-leaves (ExileUntilLeaves effect not yet in DSL).
-// Daybound/Nightbound keywords and back_face are faithfully represented.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +15,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Daybound),
-            // DSL gap: ETB exile-until-leaves requires ExileUntilLeaves effect
+            // When this creature enters, exile target creature an opponent controls until
+            // this creature leaves the battlefield (CR 610.3).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::ExileWithDelayedReturn {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    return_timing: crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield,
+                    return_tapped: false,
+                    return_to: crate::cards::card_definition::DelayedReturnDestination::Battlefield,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    controller: TargetController::Opponent,
+                    ..Default::default()
+                })],
+            },
         ],
         color_indicator: None,
         back_face: Some(CardFace {

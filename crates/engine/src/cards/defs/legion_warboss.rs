@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        ..Default::default()
                     },
                 },
                 // TODO: "Attacks this combat if able" forced-attack not in DSL.

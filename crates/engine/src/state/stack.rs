@@ -136,6 +136,13 @@ pub enum TriggerData {
     /// Suspend counter removal or cast trigger.
     /// `card` is the exiled suspended card (== source in practice).
     Suspend { card: ObjectId },
+    /// CR 603.7: Delayed trigger action — fires when a delayed trigger's timing
+    /// condition is met (e.g., "at next end step", "when source leaves").
+    /// `action` is what to do; `target` is the object to act on.
+    DelayedAction {
+        action: super::stubs::DelayedTriggerAction,
+        target: ObjectId,
+    },
 }
 /// Cost payload for upkeep-cost triggers.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -925,5 +932,19 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         /// The level the Class is leveling up to.
         target_level: u32,
+    },
+    /// CR 603.7: A delayed triggered ability fires.
+    ///
+    /// Created when a delayed trigger's timing condition is met (e.g., "at next end step",
+    /// "when source leaves"). On resolution, executes the stored `action` on `target`.
+    ///
+    /// Discriminant 69.
+    DelayedActionTrigger {
+        /// The source that originally created this delayed trigger.
+        source_object: ObjectId,
+        /// The object to act on.
+        target: ObjectId,
+        /// What to do when this resolves.
+        action: super::stubs::DelayedTriggerAction,
     },
 }

@@ -12,8 +12,20 @@ pub fn card() -> CardDefinition {
         types: full_types(&[SuperType::Legendary], &[CardType::Artifact], &["Equipment"]),
         oracle_text: "At the beginning of combat on your turn, create a token that's a copy of equipped creature, except the token isn't legendary. That token gains haste.\nEquip {5}".to_string(),
         abilities: vec![
-            // TODO: AtBeginningOfCombat trigger creates a copy of equipped creature (not legendary +
-            // haste). DSL gap: no EffectTarget::EquippedCreature for CreateTokenCopy source.
+            // At the beginning of combat on your turn, create a token that's a copy of
+            // equipped creature, except the token isn't legendary. That token gains haste.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::AtBeginningOfCombat,
+                effect: Effect::CreateTokenCopy {
+                    source: EffectTarget::EquippedCreature,
+                    enters_tapped_and_attacking: false,
+                    except_not_legendary: true,
+                    gains_haste: true,
+                    delayed_action: None,
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
             // Equip {5}: attach this Equipment to target creature you control.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 5, ..Default::default() }),

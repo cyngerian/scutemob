@@ -421,6 +421,10 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
+            // CR 400.7: delayed end-step sacrifice/exile flags not preserved across zone changes.
+            sacrifice_at_end_step: false,
+            exile_at_end_step: false,
+            return_to_hand_at_end_step: false,
             // CR 400.7: plot status is not preserved across zone changes.
             is_plotted: false,
             plotted_turn: 0,
@@ -579,6 +583,9 @@ impl GameState {
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    sacrifice_at_end_step: false,
+                    exile_at_end_step: false,
+                    return_to_hand_at_end_step: false,
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
@@ -686,6 +693,9 @@ impl GameState {
                         encore_sacrifice_at_end_step: false,
                         encore_must_attack: None,
                         encore_activated_by: None,
+                        sacrifice_at_end_step: false,
+                        exile_at_end_step: false,
+                        return_to_hand_at_end_step: false,
                         is_plotted: false,
                         plotted_turn: 0,
                         is_prototyped: false,
@@ -844,6 +854,10 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
+            // CR 400.7: delayed end-step sacrifice/exile flags not preserved across zone changes.
+            sacrifice_at_end_step: false,
+            exile_at_end_step: false,
+            return_to_hand_at_end_step: false,
             // CR 400.7: plot status is not preserved across zone changes.
             is_plotted: false,
             plotted_turn: 0,

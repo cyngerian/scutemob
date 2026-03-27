@@ -5496,6 +5496,62 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             _ => {}
         }
     }
+    // CR 610.3: For delayed triggers with WhenSourceLeavesBattlefield timing,
+    // check if the source left the battlefield in this event batch. If so,
+    // queue a DelayedAction trigger to return/release the exiled object.
+    //
+    // We scan all events for any permanent leaving the battlefield (CreatureDied,
+    // PermanentSacrificed, or ObjectExiled). If the source of a WhenSourceLeavesBattlefield
+    // delayed trigger matches, queue the delayed action.
+    {
+        use crate::state::stubs::DelayedTriggerTiming;
+        // Collect source IDs of permanents that left the battlefield in this event batch.
+        let mut left_battlefield: std::collections::HashSet<ObjectId> =
+            std::collections::HashSet::new();
+        for event in events {
+            match event {
+                GameEvent::CreatureDied {
+                    object_id: pre_death_id,
+                    ..
+                }
+                | GameEvent::PermanentSacrificed {
+                    object_id: pre_death_id,
+                    ..
+                } => {
+                    left_battlefield.insert(*pre_death_id);
+                }
+                GameEvent::ObjectExiled { object_id, .. } => {
+                    left_battlefield.insert(*object_id);
+                }
+                _ => {}
+            }
+        }
+        if !left_battlefield.is_empty() {
+            for dt in state.delayed_triggers.iter() {
+                if dt.fired {
+                    continue;
+                }
+                if dt.timing != DelayedTriggerTiming::WhenSourceLeavesBattlefield {
+                    continue;
+                }
+                if !left_battlefield.contains(&dt.source) {
+                    continue;
+                }
+                // The source left the battlefield — queue the return trigger.
+                triggers.push(PendingTrigger {
+                    data: Some(TriggerData::DelayedAction {
+                        action: dt.action.clone(),
+                        target: dt.target_object,
+                    }),
+                    ..PendingTrigger::blank(
+                        dt.source,
+                        dt.controller,
+                        PendingTriggerKind::DelayedAction,
+                    )
+                });
+            }
+        }
+    }
     triggers
 }
 /// Collect triggered abilities of type `event_type` from battlefield permanents.
@@ -6705,6 +6761,18 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             amount: EffectAmount::Fixed(3),
                         }),
                         controller: trigger.controller,
+                    }
+                }
+                // CR 603.7: Delayed trigger fires — execute the stored action on the target.
+                PendingTriggerKind::DelayedAction => {
+                    let (action, target) = match trigger.data.clone() {
+                        Some(TriggerData::DelayedAction { action, target }) => (action, target),
+                        _ => continue, // malformed trigger, skip
+                    };
+                    StackObjectKind::DelayedActionTrigger {
+                        source_object: trigger.source,
+                        target,
+                        action,
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

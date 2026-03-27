@@ -836,6 +836,162 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             state.pending_triggers.push_back(trigger);
         }
     }
+    // CR 603.7b: Process AtNextEndStep and AtOwnersNextEndStep delayed triggers.
+    // Collect triggers that fire this end step, then queue them as PendingTrigger::DelayedAction.
+    {
+        use crate::state::stack::TriggerData;
+        use crate::state::stubs::{DelayedTriggerTiming, PendingTriggerKind};
+        let active = state.turn.active_player;
+        let owner_map: std::collections::HashMap<_, _> = state
+            .delayed_triggers
+            .iter()
+            .filter(|dt| !dt.fired)
+            .filter_map(|dt| {
+                let fires = match &dt.timing {
+                    DelayedTriggerTiming::AtNextEndStep => true,
+                    DelayedTriggerTiming::AtOwnersNextEndStep => {
+                        // Fire if the target object's owner matches the active player.
+                        state
+                            .objects
+                            .get(&dt.target_object)
+                            .map(|o| o.owner == active)
+                            .unwrap_or(false)
+                    }
+                    _ => false,
+                };
+                fires.then_some((
+                    dt.target_object,
+                    (dt.action.clone(), dt.controller, dt.source),
+                ))
+            })
+            .collect();
+        // Mark matching triggers as fired and queue PendingTriggers.
+        for dt in state.delayed_triggers.iter_mut() {
+            if dt.fired {
+                continue;
+            }
+            let fires = match &dt.timing {
+                DelayedTriggerTiming::AtNextEndStep => true,
+                DelayedTriggerTiming::AtOwnersNextEndStep => state
+                    .objects
+                    .get(&dt.target_object)
+                    .map(|o| o.owner == active)
+                    .unwrap_or(false),
+                _ => false,
+            };
+            if fires {
+                dt.fired = true;
+            }
+        }
+        for (target, (action, controller, source)) in owner_map {
+            state
+                .pending_triggers
+                .push_back(crate::state::stubs::PendingTrigger {
+                    data: Some(TriggerData::DelayedAction {
+                        action: action.clone(),
+                        target,
+                    }),
+                    ..crate::state::stubs::PendingTrigger::blank(
+                        source,
+                        controller,
+                        PendingTriggerKind::DelayedAction,
+                    )
+                });
+        }
+        // Remove fired triggers.
+        state.delayed_triggers.retain(|dt| !dt.fired);
+    }
+    // CR 603.7 / PB-33: Process sacrifice_at_end_step flag on permanents.
+    // Used by Voice of Victory / Zurgo Stormrender Mobilize tokens.
+    {
+        use crate::state::stack::TriggerData;
+        use crate::state::stubs::DelayedTriggerAction;
+        use crate::state::stubs::PendingTriggerKind;
+        let sacrifice_tokens: Vec<(ObjectId, PlayerId)> = state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == ZoneId::Battlefield && obj.sacrifice_at_end_step)
+            .map(|obj| (obj.id, obj.controller))
+            .collect();
+        for (token_id, controller) in sacrifice_tokens {
+            state
+                .pending_triggers
+                .push_back(crate::state::stubs::PendingTrigger {
+                    data: Some(TriggerData::DelayedAction {
+                        action: DelayedTriggerAction::SacrificeObject,
+                        target: token_id,
+                    }),
+                    ..crate::state::stubs::PendingTrigger::blank(
+                        token_id,
+                        controller,
+                        PendingTriggerKind::DelayedAction,
+                    )
+                });
+        }
+    }
+    // CR 603.7 / PB-33: Process exile_at_end_step flag on permanents.
+    // Used by Chandra Flamecaller Elemental tokens.
+    {
+        use crate::state::stack::TriggerData;
+        use crate::state::stubs::DelayedTriggerAction;
+        use crate::state::stubs::PendingTriggerKind;
+        let exile_tokens: Vec<(ObjectId, PlayerId)> = state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == ZoneId::Battlefield && obj.exile_at_end_step)
+            .map(|obj| (obj.id, obj.controller))
+            .collect();
+        for (token_id, controller) in exile_tokens {
+            state
+                .pending_triggers
+                .push_back(crate::state::stubs::PendingTrigger {
+                    data: Some(TriggerData::DelayedAction {
+                        action: DelayedTriggerAction::ExileObject,
+                        target: token_id,
+                    }),
+                    ..crate::state::stubs::PendingTrigger::blank(
+                        token_id,
+                        controller,
+                        PendingTriggerKind::DelayedAction,
+                    )
+                });
+        }
+    }
+    // CR 603.7 / PB-33: Process return_to_hand_at_end_step flag on objects in graveyard.
+    // Used by The Locust God's death trigger.
+    {
+        use crate::state::stack::TriggerData;
+        use crate::state::stubs::DelayedTriggerAction;
+        use crate::state::stubs::PendingTriggerKind;
+        let return_objects: Vec<(ObjectId, PlayerId)> = state
+            .objects
+            .values()
+            .filter(|obj| {
+                matches!(obj.zone, crate::state::zone::ZoneId::Graveyard(_))
+                    && obj.return_to_hand_at_end_step
+            })
+            .map(|obj| (obj.id, obj.owner))
+            .collect();
+        for (obj_id, owner) in return_objects {
+            // Clear the flag (zone change clears it too, but be explicit).
+            if let Some(obj) = state.objects.get_mut(&obj_id) {
+                obj.return_to_hand_at_end_step = false;
+            }
+            state
+                .pending_triggers
+                .push_back(crate::state::stubs::PendingTrigger {
+                    data: Some(TriggerData::DelayedAction {
+                        action: DelayedTriggerAction::ReturnFromGraveyardToHand,
+                        target: obj_id,
+                    }),
+                    ..crate::state::stubs::PendingTrigger::blank(
+                        obj_id,
+                        owner,
+                        PendingTriggerKind::DelayedAction,
+                    )
+                });
+        }
+    }
     direct_events
 }
 /// CR 502.2: "Second, the active player's phased-out permanents phase in and
@@ -1875,6 +2031,68 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         pre_death_counters,
                     });
                 }
+            }
+        }
+    }
+    // CR 603.7 / PB-33: Process AtEndOfCombat delayed triggers.
+    // These are registered when CreateTokenCopy or ExileWithDelayedReturn creates
+    // a token with a delayed exile at end of combat.
+    {
+        use crate::state::stack::TriggerData;
+        use crate::state::stubs::{DelayedTriggerAction, DelayedTriggerTiming, PendingTriggerKind};
+        let eoc_triggers: Vec<_> = state
+            .delayed_triggers
+            .iter()
+            .filter(|dt| !dt.fired && dt.timing == DelayedTriggerTiming::AtEndOfCombat)
+            .map(|dt| {
+                (
+                    dt.target_object,
+                    dt.action.clone(),
+                    dt.controller,
+                    dt.source,
+                )
+            })
+            .collect();
+        for dt in state.delayed_triggers.iter_mut() {
+            if !dt.fired && dt.timing == DelayedTriggerTiming::AtEndOfCombat {
+                dt.fired = true;
+            }
+        }
+        state.delayed_triggers.retain(|dt| !dt.fired);
+        for (target, action, controller, source) in eoc_triggers {
+            // For AtEndOfCombat ExileObject, exile inline (like myriad) rather than via stack
+            // to avoid complexity. Can be upgraded to stack-based later.
+            if action == DelayedTriggerAction::ExileObject {
+                let on_bf = state
+                    .objects
+                    .get(&target)
+                    .map(|o| o.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+                if on_bf {
+                    if let Ok((new_exile_id, _)) = state.move_object_to_zone(target, ZoneId::Exile)
+                    {
+                        events.push(GameEvent::ObjectExiled {
+                            player: controller,
+                            object_id: target,
+                            new_exile_id,
+                        });
+                    }
+                }
+            } else {
+                // Queue as a pending trigger for stack-based resolution.
+                state
+                    .pending_triggers
+                    .push_back(crate::state::stubs::PendingTrigger {
+                        data: Some(TriggerData::DelayedAction {
+                            action: action.clone(),
+                            target,
+                        }),
+                        ..crate::state::stubs::PendingTrigger::blank(
+                            source,
+                            controller,
+                            PendingTriggerKind::DelayedAction,
+                        )
+                    });
             }
         }
     }

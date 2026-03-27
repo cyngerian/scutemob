@@ -7,11 +7,56 @@ use super::player::PlayerId;
 use super::stack::TriggerData;
 use serde::{Deserialize, Serialize};
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
-/// A delayed trigger waiting for a condition (CR 603.7). Implemented in M3.
+/// A delayed trigger waiting for a condition (CR 603.7).
+///
+/// Created when an effect like "exile until end of turn" or "exile until this
+/// leaves the battlefield" resolves. The trigger fires at the appropriate time
+/// and executes the stored action on the target object.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DelayedTrigger {
+    /// The source that created this delayed trigger (for tracking).
     pub source: ObjectId,
+    /// The controller of the delayed trigger (CR 603.7d/e).
+    pub controller: PlayerId,
+    /// The object this delayed trigger acts upon (usually in exile or on battlefield).
+    pub target_object: ObjectId,
+    /// What this delayed trigger does when it fires.
+    pub action: DelayedTriggerAction,
+    /// When this delayed trigger fires.
+    pub timing: DelayedTriggerTiming,
+    /// Whether this trigger has already fired (CR 603.7b: fires only once).
+    pub fired: bool,
 }
+
+/// What a delayed trigger does when it fires.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DelayedTriggerAction {
+    /// Return the target object from exile to the battlefield under its owner's control.
+    /// CR 610.3c: returns under owner's control unless otherwise specified.
+    ReturnFromExileToBattlefield { tapped: bool },
+    /// Return the target object from exile to its owner's hand.
+    ReturnFromExileToHand,
+    /// Return the target object from the graveyard to its owner's hand.
+    ReturnFromGraveyardToHand,
+    /// Sacrifice the target object (must still be on the battlefield).
+    SacrificeObject,
+    /// Exile the target object (must still be on the battlefield).
+    ExileObject,
+}
+
+/// When a delayed trigger fires.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DelayedTriggerTiming {
+    /// At the beginning of the next end step (any player's).
+    AtNextEndStep,
+    /// At the beginning of the target object's owner's next end step.
+    AtOwnersNextEndStep,
+    /// When the source permanent leaves the battlefield (CR 610.3).
+    WhenSourceLeavesBattlefield,
+    /// At the beginning of the next end of combat step.
+    AtEndOfCombat,
+}
+
 // ReplacementEffect has moved to `state/replacement_effect.rs` (M8).
 /// Discriminant for PendingTrigger — replaces per-trigger boolean fields.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -182,6 +227,11 @@ pub enum PendingTriggerKind {
     /// player and ring_level >= 4. At flush time, creates a RingAbility SOK with a
     /// LoseLife(EachOpponent, 3) effect.
     RingCombatDamage,
+    /// CR 603.7: A delayed triggered ability fires, executing a stored action
+    /// on a target object (return from exile, sacrifice, exile, etc.).
+    /// The action and target are carried in `PendingTrigger.data` as
+    /// `TriggerData::DelayedAction { action, target }`.
+    DelayedAction,
     // Add new trigger kinds here as abilities are implemented
 }
 /// A triggered ability queued to go on the stack (CR 603.3).

@@ -37,6 +37,7 @@ fn everywhere_token_spec() -> TokenSpec {
             ManaAbility::tap_for(ManaColor::Green),
         ],
         activated_abilities: vec![],
+        ..Default::default()
     }
 }
 

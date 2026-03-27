@@ -4218,6 +4218,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         encore_sacrifice_at_end_step: false,
                         encore_must_attack: None,
                         encore_activated_by: None,
+                        sacrifice_at_end_step: false,
+                        exile_at_end_step: false,
+                        return_to_hand_at_end_step: false,
                         is_plotted: false,
                         plotted_turn: 0,
                         is_prototyped: false,
@@ -4411,6 +4414,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,
+                sacrifice_at_end_step: false,
+                exile_at_end_step: false,
+                return_to_hand_at_end_step: false,
                 is_plotted: false,
                 plotted_turn: 0,
                 is_prototyped: false,
@@ -5118,6 +5124,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    sacrifice_at_end_step: false,
+                    exile_at_end_step: false,
+                    return_to_hand_at_end_step: false,
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
@@ -5769,6 +5778,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    sacrifice_at_end_step: false,
+                    exile_at_end_step: false,
+                    return_to_hand_at_end_step: false,
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
@@ -5973,6 +5985,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    sacrifice_at_end_step: false,
+                    exile_at_end_step: false,
+                    return_to_hand_at_end_step: false,
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
@@ -6194,6 +6209,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Ruling 2020-11-10: track the original activator so the end-step
                         // sacrifice trigger can verify control hasn't changed.
                         encore_activated_by: Some(controller),
+                        sacrifice_at_end_step: false,
+                        exile_at_end_step: false,
+                        return_to_hand_at_end_step: false,
                         is_plotted: false,
                         plotted_turn: 0,
                         is_prototyped: false,
@@ -6884,6 +6902,171 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 keyword, data
             );
         }
+        // CR 603.7: Delayed triggered ability fires. Execute the stored action on the target.
+        StackObjectKind::DelayedActionTrigger {
+            source_object: _,
+            target,
+            action,
+        } => {
+            use crate::state::stubs::DelayedTriggerAction;
+            match action {
+                DelayedTriggerAction::ReturnFromExileToBattlefield { tapped } => {
+                    // CR 610.3c: Return from exile to battlefield under owner's control.
+                    // CR 400.7: The object in exile may no longer exist (processed elsewhere).
+                    let owner_opt = state.objects.get(&target).map(|o| o.owner);
+                    if let Some(_owner) = owner_opt {
+                        if state
+                            .objects
+                            .get(&target)
+                            .map(|o| o.zone == ZoneId::Exile)
+                            .unwrap_or(false)
+                        {
+                            if let Ok((new_bf_id, _)) =
+                                state.move_object_to_zone(target, ZoneId::Battlefield)
+                            {
+                                if let Some(obj) = state.objects.get_mut(&new_bf_id) {
+                                    obj.controller = obj.owner;
+                                    if tapped {
+                                        obj.status.tapped = true;
+                                    }
+                                }
+                                let card_id_opt = state
+                                    .objects
+                                    .get(&new_bf_id)
+                                    .and_then(|o| o.card_id.clone());
+                                let registry = std::sync::Arc::clone(&state.card_registry);
+                                crate::rules::replacement::register_static_continuous_effects(
+                                    state,
+                                    new_bf_id,
+                                    card_id_opt.as_ref(),
+                                    &registry,
+                                );
+                                let controller = state
+                                    .objects
+                                    .get(&new_bf_id)
+                                    .map(|o| o.controller)
+                                    .unwrap_or(stack_obj.controller);
+                                let etb_events =
+                                    crate::rules::replacement::queue_carddef_etb_triggers(
+                                        state,
+                                        new_bf_id,
+                                        controller,
+                                        card_id_opt.as_ref(),
+                                        &registry,
+                                    );
+                                events.extend(etb_events);
+                                events.push(GameEvent::PermanentEnteredBattlefield {
+                                    player: stack_obj.controller,
+                                    object_id: new_bf_id,
+                                });
+                            }
+                        }
+                    }
+                }
+                DelayedTriggerAction::ReturnFromExileToHand => {
+                    // Return from exile to owner's hand.
+                    let exile_info = state
+                        .objects
+                        .get(&target)
+                        .filter(|o| o.zone == ZoneId::Exile)
+                        .map(|o| o.owner);
+                    if let Some(owner) = exile_info {
+                        if let Ok((new_id, _)) =
+                            state.move_object_to_zone(target, ZoneId::Hand(owner))
+                        {
+                            events.push(GameEvent::ObjectReturnedToHand {
+                                player: stack_obj.controller,
+                                object_id: target,
+                                new_hand_id: new_id,
+                            });
+                        }
+                    }
+                }
+                DelayedTriggerAction::ReturnFromGraveyardToHand => {
+                    // Return from graveyard to owner's hand (e.g., The Locust God).
+                    let gy_info = state
+                        .objects
+                        .get(&target)
+                        .filter(|o| matches!(o.zone, ZoneId::Graveyard(_)))
+                        .map(|o| o.owner);
+                    if let Some(owner) = gy_info {
+                        if let Ok((new_id, _)) =
+                            state.move_object_to_zone(target, ZoneId::Hand(owner))
+                        {
+                            events.push(GameEvent::ObjectReturnedToHand {
+                                player: stack_obj.controller,
+                                object_id: target,
+                                new_hand_id: new_id,
+                            });
+                        }
+                    }
+                }
+                DelayedTriggerAction::SacrificeObject => {
+                    // Sacrifice the target (must still be on the battlefield).
+                    // Capture pre-death info before zone move.
+                    let pre_death_info = state
+                        .objects
+                        .get(&target)
+                        .filter(|o| o.zone == ZoneId::Battlefield)
+                        .map(|o| (o.owner, o.controller, o.counters.clone()));
+                    if let Some((owner, pre_death_controller, pre_death_counters)) = pre_death_info
+                    {
+                        let is_creature = {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, target)
+                                    .or_else(|| {
+                                        state
+                                            .objects
+                                            .get(&target)
+                                            .map(|o| o.characteristics.clone())
+                                    });
+                            chars
+                                .map(|c| {
+                                    c.card_types
+                                        .contains(&crate::state::types::CardType::Creature)
+                                })
+                                .unwrap_or(false)
+                        };
+                        if let Ok((new_id, _)) =
+                            state.move_object_to_zone(target, ZoneId::Graveyard(owner))
+                        {
+                            events.push(GameEvent::PermanentSacrificed {
+                                player: stack_obj.controller,
+                                object_id: target,
+                                new_id,
+                            });
+                            if is_creature {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: target,
+                                    new_grave_id: new_id,
+                                    controller: pre_death_controller,
+                                    pre_death_counters,
+                                });
+                            }
+                        }
+                    }
+                }
+                DelayedTriggerAction::ExileObject => {
+                    // Exile the target (must still be on the battlefield).
+                    let on_bf = state
+                        .objects
+                        .get(&target)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false);
+                    if on_bf {
+                        if let Ok((new_exile_id, _)) =
+                            state.move_object_to_zone(target, ZoneId::Exile)
+                        {
+                            events.push(GameEvent::ObjectExiled {
+                                player: stack_obj.controller,
+                                object_id: target,
+                                new_exile_id,
+                            });
+                        }
+                    }
+                }
+            }
+        }
     }
     // Check for triggered abilities arising from this resolution.
     let new_triggers = abilities::check_triggers(state, &events);
@@ -7067,7 +7250,10 @@ pub fn counter_stack_object(
         // CR 606: Loyalty ability countered — cost already paid, no effect.
         | StackObjectKind::LoyaltyAbility { .. }
         // CR 716.2a: ClassLevelAbility countered — mana cost already paid, level stays unchanged.
-        | StackObjectKind::ClassLevelAbility { .. } => {
+        | StackObjectKind::ClassLevelAbility { .. }
+        // CR 603.7: DelayedActionTrigger countered (e.g. by Stifle) — the delayed action
+        // does not fire; the exiled or targeted permanent is unaffected.
+        | StackObjectKind::DelayedActionTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.

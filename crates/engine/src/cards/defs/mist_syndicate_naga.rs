@@ -25,6 +25,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateTokenCopy {
                     source: EffectTarget::Source,
                     enters_tapped_and_attacking: false,
+                    except_not_legendary: false,
+                    gains_haste: false,
+                    delayed_action: None,
                 },
                 intervening_if: None,
                 targets: vec![],

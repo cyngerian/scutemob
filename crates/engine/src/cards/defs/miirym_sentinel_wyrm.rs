@@ -20,7 +20,28 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Ward(2)),
-            // TODO: "Copy token of entering Dragon" — CreateCopyToken not in DSL.
+            // Whenever another nontoken Dragon you control enters, create a token that's
+            // a copy of it, except the token isn't legendary.
+            // TODO: TargetFilter lacks "nontoken" restriction; currently fires on token Dragons too.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Dragon".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::CreateTokenCopy {
+                    source: EffectTarget::TriggeringCreature,
+                    enters_tapped_and_attacking: false,
+                    except_not_legendary: true,
+                    gains_haste: false,
+                    delayed_action: None,
+                },
+                // TODO: Condition should exclude self (another creature), but no SourceIsNotSelf condition exists.
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

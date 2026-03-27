@@ -20,9 +20,27 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Soulbond),
-            // TODO: soulbond grant — copy token with haste at beginning of combat,
-            //   exile at end of combat. No DSL support for copy-token creation or
-            //   delayed conditional exile.
+            // At the beginning of combat on your turn, create a token that's a copy of
+            // this creature, except it has haste (and loses soulbond — not expressible).
+            // Exile it at end of combat.
+            // TODO: The soulbond grant aspect (each of those creatures has this trigger
+            //   while paired) is not expressible in the DSL; only the direct ability is.
+            // TODO: "loses soulbond" on copy token not expressible.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::AtBeginningOfCombat,
+                effect: Effect::CreateTokenCopy {
+                    source: EffectTarget::Source,
+                    enters_tapped_and_attacking: false,
+                    except_not_legendary: false,
+                    gains_haste: true,
+                    delayed_action: Some((
+                        crate::state::stubs::DelayedTriggerTiming::AtEndOfCombat,
+                        crate::state::stubs::DelayedTriggerAction::ExileObject,
+                    )),
+                },
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

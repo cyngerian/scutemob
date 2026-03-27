@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        ..Default::default()
                     },
                 },
                 intervening_if: None,
@@ -58,7 +59,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: "When dies, return to hand at next end step" — delayed trigger.
+            // When The Locust God dies, return it to its owner's hand at the beginning
+            // of the next end step. Sets return_to_hand_at_end_step flag on graveyard object.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::SetReturnToHandAtEndStep,
+                intervening_if: None,
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }

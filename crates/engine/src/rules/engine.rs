@@ -33,6 +33,29 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
+    // CR 610.3 cleanup: Remove WhenSourceLeavesBattlefield delayed triggers whose
+    // source is no longer on the battlefield. This prevents re-firing on subsequent
+    // event batches. Also remove triggers that have already fired.
+    {
+        use crate::state::stubs::DelayedTriggerTiming;
+        use crate::state::zone::ZoneId;
+        // Collect IDs of sources that are still on the battlefield.
+        let sources_on_bf: std::collections::HashSet<crate::state::game_object::ObjectId> = state
+            .objects
+            .values()
+            .filter(|o| o.zone == ZoneId::Battlefield)
+            .map(|o| o.id)
+            .collect();
+        state.delayed_triggers.retain(|dt| {
+            if dt.fired {
+                return false;
+            }
+            if dt.timing == DelayedTriggerTiming::WhenSourceLeavesBattlefield {
+                return sources_on_bf.contains(&dt.source);
+            }
+            true
+        });
+    }
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
 }

@@ -1309,6 +1309,7 @@ pub fn queue_carddef_etb_triggers(
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        ..Default::default()
                     };
                     let mut ctx = EffectContext::new(controller, new_id, vec![]);
                     evts.extend(execute_effect(
