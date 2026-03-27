@@ -23,25 +23,28 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-26
-**Workstream**: W6 (PB-32)
-**Task**: PB-32 Static/effect primitives (additional lands, prevention, control change, land animation)
+**Date**: 2026-03-27
+**Workstream**: W6 (PB-33)
+**Task**: PB-33 Copy/clone + exile/flicker timing
 
 **Completed**:
-- **PB-32 DONE**: G-18 AdditionalLandPlay + AdditionalLandPlays static, G-19 PreventAllCombatDamage + PreventCombatDamageFromOrTo, G-20 GainControl + ExchangeControl (Layer 2), G-21 land animation via ApplyContinuousEffect pattern + EffectFilter::AttachedPermanent. 22 card defs fixed (6 G-18 + 3 G-19 + 6 G-20 + 7 G-21). 13 new tests. Review: 2M fixed (Destiny Spinner PtCda→PtSet, Thieving Skydiver missing Kicker keyword). 2396 tests, 0 clippy.
-- Commits: 8401dca (implement), 1502d1c (fixes).
+- **PB-33 DONE**: G-22 Copy/clone DSL wiring (CreateTokenCopy extended: gains_haste/except_not_legendary/delayed_action, EquippedCreature target, RemoveSuperType layer mod). G-28 Exile/flicker timing (DelayedTrigger expanded system with DelayedTriggerAction/DelayedTriggerTiming enums, ExileWithDelayedReturn effect, TokenSpec sacrifice/exile_at_end_step flags, SetReturnToHandAtEndStep). 15 card defs fixed. 7 new tests. Review: 2H 1M fixed (hash completeness + flag clearing CR 603.7b). 2403 tests, 0 clippy.
+- Commits: 3bf6d25 (implement), f08c0fc (fixes).
 
 **Next**:
-1. Continue gap closure: PB-33 (copy/clone + exile/flicker timing, ~39 cards)
-2. Backfill sweeps accumulating (~500+ cards across PB-23–32)
+1. Continue gap closure: PB-34 (mana production — filter lands, devotion, conditional, ~40 cards)
+2. Backfill sweeps accumulating (~500+ cards across PB-23–33)
 
 **Hazards**:
-- Backfill sweeps accumulating (~500+ cards across PB-23–32)
-- Planner agent created spurious docs (engine_explanation.md, scutemob-architecture-review.md) — included in PB-32 impl commit, harmless but should be cleaned up
+- Backfill sweeps accumulating (~500+ cards across PB-23–33)
+- Spurious docs from PB-32 planner still in tree (harmless)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-27 — W6: PB-33
+- PB-33: G-22/G-28 copy/clone + exile/flicker timing. 15 card defs fixed, 2H 1M fixed. 2403 tests. Commits: 3bf6d25, f08c0fc.
 
 ### 2026-03-26 — W6: PB-32
 - PB-32: G-18/G-19/G-20/G-21 static/effect primitives, 22 card defs fixed, 2M fixed. 2396 tests. Commits: 8401dca, 1502d1c.

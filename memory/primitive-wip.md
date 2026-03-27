@@ -4,7 +4,7 @@ batch: PB-33
 title: Copy/clone + exile/flicker timing
 cards_affected: ~39
 started: 2026-03-27
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-33.md
 
 ## Gap Reference
