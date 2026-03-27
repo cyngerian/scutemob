@@ -4,7 +4,7 @@ batch: PB-33
 title: Copy/clone + exile/flicker timing
 cards_affected: ~39
 started: 2026-03-27
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-33.md
 
 ## Gap Reference
@@ -68,3 +68,17 @@ G-28: Exile/flicker timing (~27 cards) — Delayed return triggers — "exile un
   - cargo test --all: 2403 passing, 0 failed
   - cargo clippy -- -D warnings: clean
   - cargo fmt --check: clean
+
+## Review
+findings: 5 (HIGH: 2, MEDIUM: 1, LOW: 2)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-33.md
+
+## Fix Phase (2026-03-27)
+- [x] HIGH-1: Added hash for sacrifice_at_end_step, exile_at_end_step, return_to_hand_at_end_step in state/hash.rs (after meld_component)
+- [x] HIGH-2: Replaced delayed_action.is_some() with full (timing, action) tuple hash in state/hash.rs:~4904
+- [x] MEDIUM-3: Added flag-clearing (sacrifice_at_end_step=false, exile_at_end_step=false) before queuing triggers in turn_actions.rs (CR 603.7b)
+- cargo build --workspace: clean
+- cargo test --all: 2403 passing, 0 failed
+- cargo clippy -- -D warnings: clean
+- LOW-4, LOW-5: pre-existing DSL gaps, not fixed (per instructions)

@@ -1019,6 +1019,10 @@ impl HashInto for GameObject {
         self.adventure_exiled_by.hash_into(hasher);
         // CR 712.4a: Meld component tracking
         self.meld_component.hash_into(hasher);
+        // PB-33: delayed end-step action flags (CR 603.7b)
+        self.sacrifice_at_end_step.hash_into(hasher);
+        self.exile_at_end_step.hash_into(hasher);
+        self.return_to_hand_at_end_step.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::game_object::MergedComponent {
@@ -4901,7 +4905,46 @@ impl HashInto for Effect {
                 enters_tapped_and_attacking.hash_into(hasher);
                 except_not_legendary.hash_into(hasher);
                 gains_haste.hash_into(hasher);
-                delayed_action.is_some().hash_into(hasher);
+                match delayed_action {
+                    None => 0u8.hash_into(hasher),
+                    Some((timing, action)) => {
+                        1u8.hash_into(hasher);
+                        match timing {
+                            crate::state::stubs::DelayedTriggerTiming::AtNextEndStep => {
+                                0u8.hash_into(hasher)
+                            }
+                            crate::state::stubs::DelayedTriggerTiming::AtOwnersNextEndStep => {
+                                1u8.hash_into(hasher)
+                            }
+                            crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield => {
+                                2u8.hash_into(hasher)
+                            }
+                            crate::state::stubs::DelayedTriggerTiming::AtEndOfCombat => {
+                                3u8.hash_into(hasher)
+                            }
+                        }
+                        match action {
+                            crate::state::stubs::DelayedTriggerAction::ReturnFromExileToBattlefield {
+                                tapped,
+                            } => {
+                                0u8.hash_into(hasher);
+                                tapped.hash_into(hasher);
+                            }
+                            crate::state::stubs::DelayedTriggerAction::ReturnFromExileToHand => {
+                                1u8.hash_into(hasher)
+                            }
+                            crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToHand => {
+                                2u8.hash_into(hasher)
+                            }
+                            crate::state::stubs::DelayedTriggerAction::SacrificeObject => {
+                                3u8.hash_into(hasher)
+                            }
+                            crate::state::stubs::DelayedTriggerAction::ExileObject => {
+                                4u8.hash_into(hasher)
+                            }
+                        }
+                    }
+                }
             }
             // CR 114.1-114.4: CreateEmblem (discriminant 66)
             Effect::CreateEmblem {

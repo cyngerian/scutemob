@@ -914,6 +914,10 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             .map(|obj| (obj.id, obj.controller))
             .collect();
         for (token_id, controller) in sacrifice_tokens {
+            // CR 603.7b: clear flag so trigger fires only once, even if countered.
+            if let Some(obj) = state.objects.get_mut(&token_id) {
+                obj.sacrifice_at_end_step = false;
+            }
             state
                 .pending_triggers
                 .push_back(crate::state::stubs::PendingTrigger {
@@ -942,6 +946,10 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             .map(|obj| (obj.id, obj.controller))
             .collect();
         for (token_id, controller) in exile_tokens {
+            // CR 603.7b: clear flag so trigger fires only once, even if countered.
+            if let Some(obj) = state.objects.get_mut(&token_id) {
+                obj.exile_at_end_step = false;
+            }
             state
                 .pending_triggers
                 .push_back(crate::state::stubs::PendingTrigger {
