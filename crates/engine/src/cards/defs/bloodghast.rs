@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     }),
                 },
+                // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
                     to: ZoneTarget::Battlefield { tapped: false },

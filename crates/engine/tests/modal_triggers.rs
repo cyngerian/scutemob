@@ -120,18 +120,19 @@ fn test_modal_death_trigger_structure() {
     );
 }
 
-/// CR 700.2b: Modal ETB trigger (Shambling Ghast) with "choose one" structure.
-/// Mode 0: create Treasure token. Mode 1: put -1/-1 counter on target creature.
+/// CR 700.2b: Modal WhenDies trigger (Shambling Ghast) with "choose one" structure.
+/// Oracle: "When this creature dies, choose one —"
+/// Mode 0: create Treasure token. Mode 1: put -1/-1 counter on target creature an opponent controls.
 #[test]
-fn test_modal_etb_trigger_structure() {
+fn test_modal_death_trigger_structure_shambling_ghast() {
     let cards = all_cards();
     let defs: HashMap<String, CardDefinition> =
         cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
 
     let ghast_def = defs.get("Shambling Ghast").unwrap();
-    let modal_etb = ghast_def.abilities.iter().find_map(|a| {
+    let modal_dies = ghast_def.abilities.iter().find_map(|a| {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            trigger_condition: TriggerCondition::WhenDies,
             modes: Some(modes),
             ..
         } = a
@@ -143,11 +144,11 @@ fn test_modal_etb_trigger_structure() {
     });
 
     assert!(
-        modal_etb.is_some(),
-        "CR 700.2b: Shambling Ghast should have a modal ETB triggered ability"
+        modal_dies.is_some(),
+        "CR 700.2b: Shambling Ghast should have a modal WhenDies triggered ability (not ETB)"
     );
 
-    let modes = modal_etb.unwrap();
+    let modes = modal_dies.unwrap();
     assert_eq!(
         modes.modes.len(),
         2,

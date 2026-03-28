@@ -4,7 +4,7 @@ batch: PB-35
 title: Modal triggers + graveyard conditions + planeswalker abilities
 cards_affected: ~60
 started: 2026-03-28
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-35.md
 
 ## Gap Groups
@@ -48,3 +48,16 @@ plan_file: memory/primitives/pb-plan-35.md
   - graveyard_abilities.rs: 5 tests (Reassembling Skeleton structure/activation, zone check, Bloodghast structure, Earthquake Dragon sacrifice cost)
   - Total new tests: 11 (2419 total, 0 failures)
 - [x] 5. Workspace build verification — clean (0 errors, 0 warnings, 0 clippy, fmt OK)
+
+## Review
+findings: 9 (HIGH: 1, MEDIUM: 3, LOW: 5)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-35.md
+
+## Fix Phase (2026-03-28)
+- [x] HIGH-1: shambling_ghast.rs — WhenEntersBattlefield → WhenDies; header comment updated
+- [x] MEDIUM-2: shambling_ghast.rs — TargetCreature → TargetCreatureWithFilter(controller: Opponent)
+- [x] MEDIUM-3: bloodghast.rs — Added TODO comment about "you may return" being non-optional
+- [x] MEDIUM-4: umezawas_jitte.rs — TODO(PB-37): prefix already present; no change needed
+- [x] Test fix: modal_triggers.rs — test_modal_etb_trigger_structure renamed to test_modal_death_trigger_structure_shambling_ghast, checks WhenDies
+- [x] All tests pass (0 failed); 0 clippy warnings

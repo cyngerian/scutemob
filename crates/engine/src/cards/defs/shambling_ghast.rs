@@ -1,8 +1,8 @@
 // Shambling Ghast — {B}, Creature — Zombie 1/1; Decayed.
-// When Shambling Ghast enters, create a Treasure token or put a -1/-1 counter
-// on target creature. Choose one.
+// When Shambling Ghast dies, create a Treasure token or put a -1/-1 counter
+// on target creature an opponent controls. Choose one.
 //
-// CR 700.2b / PB-35: Modal ETB triggered ability. Bot fallback: mode 0 (Treasure token).
+// CR 700.2b / PB-35: Modal WhenDies triggered ability. Bot fallback: mode 0 (Treasure token).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,16 +18,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Decayed),
-            // CR 700.2b / PB-35: Modal ETB trigger.
+            // CR 700.2b / PB-35: Modal WhenDies trigger.
             // Mode 0: Create a Treasure token.
-            // Mode 1: Put a -1/-1 counter on target creature.
+            // Mode 1: Put a -1/-1 counter on target creature an opponent controls.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::Nothing,
                 intervening_if: None,
                 targets: vec![
-                    // Mode 1 target: any creature.
-                    TargetRequirement::TargetCreature,
+                    // Mode 1 target: opponent's creature.
+                    TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::Opponent,
+                        ..Default::default()
+                    }),
                 ],
                 modes: Some(ModeSelection {
                     min_modes: 1,
