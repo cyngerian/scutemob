@@ -23,26 +23,29 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-27
-**Workstream**: W6 (PB-34)
-**Task**: PB-34 Mana production (filter lands, devotion, conditional)
+**Date**: 2026-03-28
+**Workstream**: W6 (PB-35)
+**Task**: PB-35 Modal triggers + graveyard conditions + planeswalker abilities
 
 **Completed**:
-- **PB-34 DONE**: G-23 Filter lands — new Effect::AddManaFilterChoice variant, 7 filter land card defs fixed (fetid_heath, rugged_prairie, twilight_mire, flooded_grove, cascade_bluffs, sunken_ruins, graven_cairns). AddManaScaled orphan bug fixed (~6 cards now register as mana abilities). 5 new tests. Review: clean (2 LOW pre-existing). 2408 tests, 0 clippy.
-- G-24 (Nykthos, Three Tree City) deferred — requires Command::ChooseColor (M10).
-- G-25 partial (Springleaf Drum, Cryptolith Rite, Faeburrow Elder, Arena of Glory) deferred to PB-37.
-- Commit: 71ad3ce (implement).
+- **PB-35 DONE**: G-27 Modal triggers + G-29 Graveyard abilities. Engine: ActivationZone/TriggerZone enums, modes on Triggered abilities, graveyard activation/trigger dispatch, modal trigger resolution. 14 card defs fixed (4 graveyard + 10 modal). 11 new tests. Review: 1H 3M fixed (Shambling Ghast wrong trigger + target, Bloodghast may, Jitte scope). 2419 tests, 0 clippy.
+- G-30 Planeswalker: deferred to PB-37 (most PW TODOs are general DSL gaps, not PW-framework).
+- Commits: 727a0f5 (implement), ed895e7 (fixes).
 
 **Next**:
-1. Continue gap closure: PB-35 (modal triggers + graveyard conditions + planeswalker abilities, ~60 cards)
-2. Backfill sweeps accumulating (~500+ cards across PB-23–34)
+1. Continue gap closure: PB-36 (evasion/protection extensions, ~21 cards)
+2. PB-37 (residual complex activated) after PB-36
+3. Backfill sweeps accumulating (~500+ cards across PB-23–35)
 
 **Hazards**:
-- Backfill sweeps accumulating (~500+ cards across PB-23–34)
+- Backfill sweeps accumulating (~500+ cards across PB-23–35)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-28 — W6: PB-35
+- PB-35: G-27/G-29/G-30 modal triggers + graveyard abilities. 14 card defs fixed, 1H 3M fixed. 2419 tests. Commits: 727a0f5, ed895e7.
 
 ### 2026-03-27 — W6: PB-34
 - PB-34: G-23/G-24/G-25 mana production. 7 filter lands fixed, AddManaScaled orphan fix. Review clean (2L). 2408 tests. Commit: 71ad3ce.

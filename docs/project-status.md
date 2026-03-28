@@ -46,7 +46,7 @@
 | PB-32 | Static/effect (lands, prevention, ctrl, anim) | done | 22 | ~17 | fixed | 1 |
 | PB-33 | Copy/clone + exile/flicker timing | done | 15 | ~24 | fixed | 1 |
 | PB-34 | Mana production (filter, devotion, cond.) | done | 7 | ~33 | clean | 1 |
-| **PB-35** | **Modal triggers + graveyard + PW** | **planned** | — | ~60 | — | — |
+| PB-35 | Modal triggers + graveyard + PW | done | 14 | ~46 | fixed | 1 |
 | **PB-36** | **Evasion/protection extensions** | **planned** | — | ~21 | — | — |
 | **PB-37** | **Complex activated (residual)** | **planned** | — | TBD | — | — |
 
@@ -112,7 +112,7 @@ As of 2026-03-23 (post A-28).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2403 |
+| Total tests | 2419 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

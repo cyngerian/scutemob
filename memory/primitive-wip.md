@@ -4,7 +4,7 @@ batch: PB-35
 title: Modal triggers + graveyard conditions + planeswalker abilities
 cards_affected: ~60
 started: 2026-03-28
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-35.md
 
 ## Gap Groups
