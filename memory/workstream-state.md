@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-34: next batch | available | — | PB-33 DONE |
+| W6: Primitive + Card Authoring | PB-34: Mana production | ACTIVE | 2026-03-27 | PB-33 DONE, starting PB-34 |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,24 +24,29 @@
 ## Last Handoff
 
 **Date**: 2026-03-27
-**Workstream**: W6 (PB-33)
-**Task**: PB-33 Copy/clone + exile/flicker timing
+**Workstream**: W6 (PB-34)
+**Task**: PB-34 Mana production (filter lands, devotion, conditional)
 
 **Completed**:
-- **PB-33 DONE**: G-22 Copy/clone DSL wiring (CreateTokenCopy extended: gains_haste/except_not_legendary/delayed_action, EquippedCreature target, RemoveSuperType layer mod). G-28 Exile/flicker timing (DelayedTrigger expanded system with DelayedTriggerAction/DelayedTriggerTiming enums, ExileWithDelayedReturn effect, TokenSpec sacrifice/exile_at_end_step flags, SetReturnToHandAtEndStep). 15 card defs fixed. 7 new tests. Review: 2H 1M fixed (hash completeness + flag clearing CR 603.7b). 2403 tests, 0 clippy.
-- Commits: 3bf6d25 (implement), f08c0fc (fixes).
+- **PB-34 DONE**: G-23 Filter lands — new Effect::AddManaFilterChoice variant, 7 filter land card defs fixed (fetid_heath, rugged_prairie, twilight_mire, flooded_grove, cascade_bluffs, sunken_ruins, graven_cairns). AddManaScaled orphan bug fixed (~6 cards now register as mana abilities). 5 new tests. Review: clean (2 LOW pre-existing). 2408 tests, 0 clippy.
+- G-24 (Nykthos, Three Tree City) deferred — requires Command::ChooseColor (M10).
+- G-25 partial (Springleaf Drum, Cryptolith Rite, Faeburrow Elder, Arena of Glory) deferred to PB-37.
+- Commit: 71ad3ce (implement).
 
 **Next**:
-1. Continue gap closure: PB-34 (mana production — filter lands, devotion, conditional, ~40 cards)
-2. Backfill sweeps accumulating (~500+ cards across PB-23–33)
+1. Continue gap closure: PB-35 (modal triggers + graveyard conditions + planeswalker abilities, ~60 cards)
+2. Backfill sweeps accumulating (~500+ cards across PB-23–34)
 
 **Hazards**:
-- Backfill sweeps accumulating (~500+ cards across PB-23–33)
-- Spurious docs from PB-32 planner still in tree (harmless)
+- Backfill sweeps accumulating (~500+ cards across PB-23–34)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-27 — W6: PB-34
+- PB-34: G-23/G-24/G-25 mana production. 7 filter lands fixed, AddManaScaled orphan fix. Review clean (2L). 2408 tests. Commit: 71ad3ce.
+
 
 ### 2026-03-27 — W6: PB-33
 - PB-33: G-22/G-28 copy/clone + exile/flicker timing. 15 card defs fixed, 2H 1M fixed. 2403 tests. Commits: 3bf6d25, f08c0fc.

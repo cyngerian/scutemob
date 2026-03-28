@@ -189,7 +189,7 @@ Full plan: `docs/dsl-gap-closure-plan.md`.
 - [x] **PB-31**: Cost primitives (RemoveCounter, AdditionalSacrificeCost) (~23 cards)
 - [x] **PB-32**: Static/effect primitives (additional lands, prevention, control change, land animation) (~39 cards)
 - [x] **PB-33**: Copy/clone + exile/flicker timing (~39 cards)
-- [ ] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards)
+- [x] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards)
 - [ ] **PB-35**: Modal triggers + graveyard conditions + planeswalker abilities (~60 cards)
 - [ ] **PB-36**: Evasion/protection extensions (~21 cards)
 - [ ] **PB-37**: Complex activated abilities — residual after PB-23 to PB-36 (TBD)

@@ -45,7 +45,7 @@
 | PB-31 | Cost primitives (RemoveCounter, SacCost) | done | 18 | ~5 | fixed | 1 |
 | PB-32 | Static/effect (lands, prevention, ctrl, anim) | done | 22 | ~17 | fixed | 1 |
 | PB-33 | Copy/clone + exile/flicker timing | done | 15 | ~24 | fixed | 1 |
-| **PB-34** | **Mana production (filter, devotion, cond.)** | **planned** | — | ~40 | — | — |
+| PB-34 | Mana production (filter, devotion, cond.) | done | 7 | ~33 | clean | 1 |
 | **PB-35** | **Modal triggers + graveyard + PW** | **planned** | — | ~60 | — | — |
 | **PB-36** | **Evasion/protection extensions** | **planned** | — | ~21 | — | — |
 | **PB-37** | **Complex activated (residual)** | **planned** | — | TBD | — | — |

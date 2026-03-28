@@ -168,7 +168,7 @@ their TODOs removed.
 - [x] **PB-31**: Cost primitives (RemoveCounter, AdditionalSacrificeCost) (~23 cards) — 18 fixed, 2M fixed, 2383 tests
 - [x] **PB-32**: Static/effect primitives (additional lands, prevention, control change, land animation) (~39 cards) — 22 fixed, 2M fixed, 2396 tests
 - [x] **PB-33**: Copy/clone + exile/flicker timing (~39 cards) — 15 fixed, 2H 1M fixed, 2403 tests
-- [ ] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards)
+- [x] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards) — 7 fixed, clean review, 2408 tests
 - [ ] **PB-35**: Modal triggers + graveyard conditions + planeswalker abilities (~60 cards)
 - [ ] **PB-36**: Evasion/protection extensions (~21 cards)
 - [ ] **PB-37**: Complex activated abilities — residual after PB-23 to PB-36 (TBD)
