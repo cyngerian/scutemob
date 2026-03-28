@@ -1,8 +1,7 @@
 // Fetid Heath — Land (filterland)
 // {T}: Add {C}. {W/B},{T}: Add {W}{W}, {W}{B}, or {B}{B}.
-// The hybrid mana cost and triple-choice output are partially expressible;
-// implementing the three color-mana outputs as a Choose (ignoring the
-// {W/B} cost requirement — TODO).
+// CR 605.1a: mana ability. AddManaFilterChoice produces 1{W}+1{B} (middle option).
+// Interactive full-choice (2{W} or 2{B}) deferred to M10.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,7 +23,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}
-            // TODO: Triple-choice mana output not expressible; defaulting to {W}{B}.
+            // CR 605.1a: filter land mana ability. Simplified to 1{W}+1{B} (middle option).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -33,9 +32,10 @@ pub fn card() -> CardDefinition {
                     }),
                     Cost::Tap,
                 ]),
-                effect: Effect::AddMana {
+                effect: Effect::AddManaFilterChoice {
                     player: PlayerTarget::Controller,
-                    mana: mana_pool(1, 0, 1, 0, 0, 0),
+                    color_a: ManaColor::White,
+                    color_b: ManaColor::Black,
                 },
                 timing_restriction: None,
                 targets: vec![],

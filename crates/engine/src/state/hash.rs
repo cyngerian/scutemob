@@ -4502,6 +4502,17 @@ impl HashInto for Effect {
                 player.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // CR 605.1a: AddManaFilterChoice (discriminant 73) — filter land mana
+            Effect::AddManaFilterChoice {
+                player,
+                color_a,
+                color_b,
+            } => {
+                73u8.hash_into(hasher);
+                player.hash_into(hasher);
+                color_a.hash_into(hasher);
+                color_b.hash_into(hasher);
+            }
             Effect::AddManaScaled {
                 player,
                 color,

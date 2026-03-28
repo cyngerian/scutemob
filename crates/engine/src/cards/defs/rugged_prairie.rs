@@ -1,4 +1,5 @@
-// Rugged Prairie — filter land, {T}: Add {C}. {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W} (TODO).
+// Rugged Prairie — filter land, {T}: Add {C}. {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}.
+// CR 605.1a: AddManaFilterChoice produces 1{R}+1{W} (middle option). M10 for full choice.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,7 +21,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}
-            // TODO: Triple-choice mana output not expressible; defaulting to {R}{W}.
+            // CR 605.1a: filter land mana ability. Simplified to 1{R}+1{W} (middle option).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -29,9 +30,10 @@ pub fn card() -> CardDefinition {
                     }),
                     Cost::Tap,
                 ]),
-                effect: Effect::AddMana {
+                effect: Effect::AddManaFilterChoice {
                     player: PlayerTarget::Controller,
-                    mana: mana_pool(1, 0, 0, 1, 0, 0),
+                    color_a: ManaColor::Red,
+                    color_b: ManaColor::White,
                 },
                 timing_restriction: None,
                 targets: vec![],

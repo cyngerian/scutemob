@@ -1104,6 +1104,15 @@ pub enum Effect {
         player: PlayerTarget,
         count: EffectAmount,
     },
+    /// Add 2 mana where each is independently chosen from two constrained colors.
+    /// Used by filter lands: "{W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}."
+    /// Simplified: produces 1 of each color (the middle option).
+    /// Interactive full-choice deferred to M10. CR 605.1a.
+    AddManaFilterChoice {
+        player: PlayerTarget,
+        color_a: ManaColor,
+        color_b: ManaColor,
+    },
     /// Add N mana of a specific color, where N is dynamic.
     /// Used for "Add {G} for each creature you control" (Gaea's Cradle),
     /// "Add {B} for each Swamp you control" (Cabal Coffers), etc.

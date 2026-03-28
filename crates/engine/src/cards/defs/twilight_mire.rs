@@ -1,4 +1,5 @@
-// Twilight Mire — filter land, {T}: Add {C}. {B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G} (TODO).
+// Twilight Mire — filter land, {T}: Add {C}. {B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G}.
+// CR 605.1a: AddManaFilterChoice produces 1{B}+1{G} (middle option). M10 for full choice.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,8 +21,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G}.
-            // TODO: Multi-option mana output (choose one of 3 color combos) not expressible.
-            // Hybrid activation cost is correct; defaulting output to {B}{G} as approximation.
+            // CR 605.1a: filter land mana ability. Simplified to 1{B}+1{G} (middle option).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -30,9 +30,10 @@ pub fn card() -> CardDefinition {
                     }),
                     Cost::Tap,
                 ]),
-                effect: Effect::AddMana {
+                effect: Effect::AddManaFilterChoice {
                     player: PlayerTarget::Controller,
-                    mana: mana_pool(0, 0, 1, 0, 1, 0),
+                    color_a: ManaColor::Black,
+                    color_b: ManaColor::Green,
                 },
                 timing_restriction: None,
                 targets: vec![],

@@ -1,4 +1,5 @@
-// Sunken Ruins — Filter land, {T}: Add {C}. {U/B},{T}: Add {U}{U}, {U}{B}, or {B}{B} (TODO: filter).
+// Sunken Ruins — Filter land, {T}: Add {C}. {U/B},{T}: Add {U}{U}, {U}{B}, or {B}{B}.
+// CR 605.1a: AddManaFilterChoice produces 1{U}+1{B} (middle option). M10 for full choice.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +20,25 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
             },
-            // TODO: {U/B},{T}: Add {U}{U}, {U}{B}, or {B}{B} — hybrid cost and triple-choice filter ability not in DSL
+            // {U/B}, {T}: Add {U}{U}, {U}{B}, or {B}{B}
+            // CR 605.1a: filter land mana ability. Simplified to 1{U}+1{B} (middle option).
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        hybrid: vec![HybridMana::ColorColor(ManaColor::Blue, ManaColor::Black)],
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::AddManaFilterChoice {
+                    player: PlayerTarget::Controller,
+                    color_a: ManaColor::Blue,
+                    color_b: ManaColor::Black,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+            },
         ],
         ..Default::default()
     }

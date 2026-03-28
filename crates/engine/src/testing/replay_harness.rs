@@ -1884,6 +1884,7 @@ pub fn enrich_spec_from_def(
                     Effect::AddMana { .. }
                         | Effect::AddManaAnyColor { .. }
                         | Effect::AddManaScaled { .. }
+                        | Effect::AddManaFilterChoice { .. }
                 ) || try_as_tap_mana_ability(effect).is_some());
             if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);
@@ -2879,6 +2880,36 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
             requires_tap: true,
             sacrifice_self: false,
             any_color: true,
+            damage_to_controller: 0,
+        });
+    }
+    // Filter land pattern: {Hybrid},{T}: AddManaFilterChoice { color_a, color_b }
+    // Produces 1 of color_a + 1 of color_b (middle option of 3 choices).
+    if let Effect::AddManaFilterChoice {
+        color_a, color_b, ..
+    } = effect
+    {
+        let mut produces = im::OrdMap::new();
+        produces.insert(*color_a, 1u32);
+        *produces.entry(*color_b).or_insert(0) += 1;
+        return Some(ManaAbility {
+            produces,
+            requires_tap: true,
+            sacrifice_self: false,
+            any_color: false,
+            damage_to_controller: 0,
+        });
+    }
+    // Scaled mana: {T}: AddManaScaled { color, count }
+    // Registers with produces={color: 1} as a marker; actual production is dynamic.
+    if let Effect::AddManaScaled { color, .. } = effect {
+        let mut p = im::OrdMap::new();
+        p.insert(*color, 1u32);
+        return Some(ManaAbility {
+            produces: p,
+            requires_tap: true,
+            sacrifice_self: false,
+            any_color: false,
             damage_to_controller: 0,
         });
     }

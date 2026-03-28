@@ -1,7 +1,5 @@
 // Flooded Grove — Land; {T}: Add {C}; {G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}.
-// TODO: the filter ability ({G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}) requires
-// hybrid mana costs and a 3-way choice — not expressible in current DSL.
-// Implementing colorless tap only.
+// CR 605.1a: AddManaFilterChoice produces 1{G}+1{U} (middle option). M10 for full choice.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,7 +21,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
             },
             // {G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}
-            // TODO: Triple-choice mana output not expressible; defaulting to {G}{U}.
+            // CR 605.1a: filter land mana ability. Simplified to 1{G}+1{U} (middle option).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -32,9 +30,10 @@ pub fn card() -> CardDefinition {
                     }),
                     Cost::Tap,
                 ]),
-                effect: Effect::AddMana {
+                effect: Effect::AddManaFilterChoice {
                     player: PlayerTarget::Controller,
-                    mana: mana_pool(0, 1, 0, 0, 1, 0),
+                    color_a: ManaColor::Green,
+                    color_b: ManaColor::Blue,
                 },
                 timing_restriction: None,
                 targets: vec![],

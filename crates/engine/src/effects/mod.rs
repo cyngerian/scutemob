@@ -1358,6 +1358,31 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 605.1a: Filter land mana ability — produce 1 of each constrained color.
+        // Simplified from the 3-way choice (AA, AB, BB); interactive choice deferred to M10.
+        Effect::AddManaFilterChoice {
+            player,
+            color_a,
+            color_b,
+        } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    ps.mana_pool.add(*color_a, 1);
+                    events.push(GameEvent::ManaAdded {
+                        player: p,
+                        color: *color_a,
+                        amount: 1,
+                    });
+                    ps.mana_pool.add(*color_b, 1);
+                    events.push(GameEvent::ManaAdded {
+                        player: p,
+                        color: *color_b,
+                        amount: 1,
+                    });
+                }
+            }
+        }
         Effect::AddManaScaled {
             player,
             color,
