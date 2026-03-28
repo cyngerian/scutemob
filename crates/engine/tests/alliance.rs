@@ -308,6 +308,9 @@ fn test_alliance_does_not_fire_on_self_etb() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(2),
         toughness: Some(2),
@@ -684,6 +687,9 @@ fn test_alliance_fires_on_create_token_effect() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(2),
         toughness: Some(2),

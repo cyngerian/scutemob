@@ -26,6 +26,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Whenever an opponent draws a card, that player loses 1 life.
             // TriggeringPlayer will be the drawing opponent.
@@ -39,6 +42,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

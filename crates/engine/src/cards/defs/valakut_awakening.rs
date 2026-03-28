@@ -1,4 +1,4 @@
-// Valakut Awakening // Valakut Stoneforge — Put any number of cards from your hand on the bottom of your library, 
+// Valakut Awakening // Valakut Stoneforge — Put any number of cards from your hand on the bottom of your library,
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

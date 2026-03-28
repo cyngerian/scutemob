@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {1}{W}, {T}: Put target enchantment card from your GY on top of library.
             AbilityDefinition::Activated {
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

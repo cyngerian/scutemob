@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: Pack tactics — "Whenever this creature attacks, if you attacked with
             // creatures with total power 6 or greater this combat, create a 1/1 red Goblin

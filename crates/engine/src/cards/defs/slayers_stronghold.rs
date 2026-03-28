@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {R}{W}, {T}: Target creature gets +2/+0 and gains vigilance and haste until EOT.
             AbilityDefinition::Activated {
@@ -52,6 +53,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

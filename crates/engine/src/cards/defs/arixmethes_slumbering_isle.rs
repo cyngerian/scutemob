@@ -76,6 +76,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: ETB — five slumber counters (ETB-with-counters replacement not in DSL).
             // TODO: "Whenever you cast a spell, you may remove a slumber counter from Arixmethes."

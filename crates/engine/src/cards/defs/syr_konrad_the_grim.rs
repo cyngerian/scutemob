@@ -35,6 +35,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{1}{B}: Each player mills a card." — needs Effect::Mill with ForEach::EachPlayer.
         ],

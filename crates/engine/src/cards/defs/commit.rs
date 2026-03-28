@@ -1,4 +1,4 @@
-// Commit // Memory — Put target spell or nonland permanent into its owner's library second 
+// Commit // Memory — Put target spell or nonland permanent into its owner's library second
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

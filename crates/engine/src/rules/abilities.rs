@@ -153,15 +153,16 @@ pub fn handle_activate_ability(
     }
     // PB-18: Check active restrictions that prevent ability activation.
     check_activate_restrictions(state, player, source)?;
-    // Source must be on the battlefield (or in hand for Channel/DiscardSelf abilities).
+    // Source must be on the battlefield (or in hand for Channel/DiscardSelf abilities,
+    // or in graveyard for graveyard-activated abilities like Reassembling Skeleton).
     {
         let obj = state.object(source)?;
-        let is_channel = obj
+        let (is_channel, activation_zone) = obj
             .characteristics
             .activated_abilities
             .get(ability_index)
-            .map(|ab| ab.cost.discard_self)
-            .unwrap_or(false);
+            .map(|ab| (ab.cost.discard_self, ab.activation_zone.clone()))
+            .unwrap_or((false, None));
         if is_channel {
             // CR 702.34: Channel abilities are activated from hand.
             if obj.zone != ZoneId::Hand(player) {
@@ -172,6 +173,20 @@ pub fn handle_activate_ability(
             if obj.owner != player {
                 return Err(GameStateError::InvalidCommand(
                     "you can only activate channel abilities on cards you own".into(),
+                ));
+            }
+        } else if let Some(crate::cards::card_definition::ActivationZone::Graveyard) =
+            activation_zone
+        {
+            // CR 602.2: Graveyard-activated ability — source must be in owner's graveyard.
+            if obj.zone != ZoneId::Graveyard(player) {
+                return Err(GameStateError::InvalidCommand(
+                    "graveyard-activated ability can only be activated from the graveyard".into(),
+                ));
+            }
+            if obj.owner != player {
+                return Err(GameStateError::InvalidCommand(
+                    "you can only activate graveyard abilities on cards you own".into(),
                 ));
             }
         } else {
@@ -2381,6 +2396,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,             // Check all battlefield permanents
                     Some(*object_id), // entering_object_id: the permanent that entered
                 );
+                // PB-35 / CR 603.3 / TriggerZone::Graveyard: Also scan graveyard objects
+                // for CardDef triggered abilities that monitor AnyPermanentEntersBattlefield
+                // while in the graveyard (e.g. Bloodghast's Landfall trigger).
+                collect_graveyard_carddef_triggers(state, &mut triggers, event, Some(*object_id));
                 // CR 702.74a: If the permanent was evoked, generate the evoke sacrifice trigger.
                 // "When this permanent enters, if its evoke cost was paid, its controller
                 // sacrifices it." This goes on the stack as a separate triggered ability,
@@ -5798,6 +5817,131 @@ pub(crate) fn collect_emblem_triggers_for_event(
     }
 }
 // ---------------------------------------------------------------------------
+// Graveyard trigger dispatch (PB-35, CR 603.3 / TriggerZone::Graveyard)
+// ---------------------------------------------------------------------------
+/// Scan all objects in graveyard zones for CardDef triggered abilities with
+/// `trigger_zone: Some(TriggerZone::Graveyard)` that match the given event.
+///
+/// CR 603.3: Triggers fire whenever the trigger event occurs, regardless of zone.
+/// `trigger_zone: Some(TriggerZone::Graveyard)` marks abilities that monitor events
+/// while their source is in the graveyard (e.g. Bloodghast's Landfall).
+///
+/// The returned triggers use `PendingTriggerKind::CardDefETB` so that
+/// `flush_pending_triggers` and `resolution.rs` look up the effect from the
+/// card registry by ability_index (which is an index into CardDef::abilities).
+fn collect_graveyard_carddef_triggers(
+    state: &GameState,
+    triggers: &mut Vec<PendingTrigger>,
+    event: &GameEvent,
+    entering_object: Option<ObjectId>,
+) {
+    use crate::cards::card_definition::{AbilityDefinition, TriggerCondition, TriggerZone};
+    // Collect all graveyard object IDs first to avoid borrow issues.
+    let gy_objects: Vec<(ObjectId, PlayerId, Option<crate::state::player::CardId>)> = state
+        .objects
+        .values()
+        .filter_map(|obj| match obj.zone {
+            ZoneId::Graveyard(owner) => Some((obj.id, owner, obj.card_id.clone())),
+            _ => None,
+        })
+        .collect();
+    for (obj_id, owner, card_id_opt) in gy_objects {
+        let Some(card_id) = card_id_opt else {
+            continue;
+        };
+        let Some(def) = state.card_registry.get(card_id) else {
+            continue;
+        };
+        for (idx, ability) in def.abilities.iter().enumerate() {
+            let AbilityDefinition::Triggered {
+                trigger_condition,
+                intervening_if,
+                trigger_zone: Some(TriggerZone::Graveyard),
+                ..
+            } = ability
+            else {
+                continue;
+            };
+            // Check whether this event matches the trigger condition.
+            let fires = match event {
+                GameEvent::PermanentEnteredBattlefield {
+                    object_id: entering_id,
+                    ..
+                } => match trigger_condition {
+                    TriggerCondition::WheneverPermanentEntersBattlefield { filter } => {
+                        // Landfall: check if the entering permanent matches the filter
+                        // (typically land type).
+                        if let Some(entering_obj) = state.objects.get(entering_id) {
+                            let entering_chars = crate::rules::layers::calculate_characteristics(
+                                state,
+                                *entering_id,
+                            )
+                            .unwrap_or_else(|| entering_obj.characteristics.clone());
+                            if let Some(f) = filter {
+                                crate::effects::matches_filter(&entering_chars, f)
+                                    // "you control" filter: the entering land's controller
+                                    // must be the graveyard card's owner.
+                                    && match f.controller {
+                                        crate::cards::card_definition::TargetController::You => {
+                                            entering_obj.controller == owner
+                                        }
+                                        _ => true,
+                                    }
+                            } else {
+                                true
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
+            if !fires {
+                continue;
+            }
+            // CR 603.4: Check intervening-if at trigger time.
+            if let Some(cond) = intervening_if {
+                let ctx = crate::effects::EffectContext::new(owner, obj_id, vec![]);
+                if !crate::effects::check_condition(state, cond, &ctx) {
+                    continue;
+                }
+            }
+            triggers.push(PendingTrigger {
+                source: obj_id,
+                ability_index: idx,
+                controller: owner,
+                kind: crate::state::stubs::PendingTriggerKind::CardDefETB,
+                triggering_event: Some(
+                    crate::state::game_object::TriggerEvent::AnyPermanentEntersBattlefield,
+                ),
+                entering_object_id: entering_object,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                recover_cost: None,
+                recover_card: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
+                data: None,
+            });
+        }
+    }
+}
+// ---------------------------------------------------------------------------
 // Trigger flushing
 // ---------------------------------------------------------------------------
 /// Place all pending triggered abilities onto the stack in APNAP order (CR 603.3).
@@ -6806,6 +6950,48 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             stack_obj.combat_damage_amount = trigger.combat_damage_amount;
             // The entering_object_id carries the dealing creature for per-creature triggers.
             stack_obj.triggering_creature_id = trigger.entering_object_id;
+            // CR 700.2b: For modal triggered abilities, choose modes when the trigger is
+            // put on the stack. Bot fallback: auto-select mode 0.
+            // For "choose up to one" (min_modes: 0), if mode 0 is valid, select it;
+            // otherwise select no modes (empty modes_chosen means no effect).
+            if let StackObjectKind::TriggeredAbility {
+                source_object,
+                ability_index,
+                ..
+            } = &stack_obj.kind
+            {
+                let modal_modes = state
+                    .objects
+                    .get(source_object)
+                    .and_then(|obj| obj.card_id.as_ref())
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .and_then(|def| def.abilities.get(*ability_index))
+                    .and_then(|abil| {
+                        if let crate::cards::card_definition::AbilityDefinition::Triggered {
+                            modes,
+                            ..
+                        } = abil
+                        {
+                            modes.as_ref()
+                        } else {
+                            None
+                        }
+                    })
+                    .map(|m| (m.min_modes, m.max_modes, m.modes.len()));
+                if let Some((min_modes, _max_modes, mode_count)) = modal_modes {
+                    if mode_count > 0 {
+                        if min_modes == 0 {
+                            // "Choose up to one" — bot selects mode 0 if any modes exist.
+                            // An empty modes_chosen here means "chose 0 modes" (no effect).
+                            stack_obj.modes_chosen = vec![0];
+                        } else {
+                            // Must choose at least one — auto-select mode 0 (bot fallback).
+                            stack_obj.modes_chosen = vec![0];
+                        }
+                    }
+                    // If no modes available, leave modes_chosen empty (trigger has no effect).
+                }
+            }
             state.stack_objects.push_back(stack_obj);
             events.push(GameEvent::AbilityTriggered {
                 controller: trigger.controller,

@@ -36,6 +36,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::TakeTheInitiative,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Whenever you attack, venture into the dungeon.
             // TODO: Complex effect (protection + explore on targeted creature) deferred.
@@ -45,6 +48,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

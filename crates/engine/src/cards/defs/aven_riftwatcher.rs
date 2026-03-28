@@ -23,6 +23,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // When this creature leaves the battlefield, you gain 2 life. (CR 603.10a)
             AbilityDefinition::Triggered {
@@ -33,6 +36,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

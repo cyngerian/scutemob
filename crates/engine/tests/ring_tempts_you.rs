@@ -860,6 +860,9 @@ fn test_whenever_ring_tempts_you_trigger() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };

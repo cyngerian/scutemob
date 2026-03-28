@@ -46,6 +46,9 @@ pub fn card() -> CardDefinition {
                     ],
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 613.4c: "{B}{R}: Dragon creatures get +1/+1 until end of turn."
             // AllCreaturesWithSubtype — no controller restriction, affects all players' Dragons.
@@ -65,6 +68,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

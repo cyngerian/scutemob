@@ -131,6 +131,9 @@ fn tribute_2_def() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()
@@ -164,6 +167,9 @@ fn tribute_3_def() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

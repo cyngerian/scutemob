@@ -2,9 +2,9 @@
 // This spell costs {X} less to cast, where X is the total mana value of Dragons you control.
 // Flying, trample
 // {2}{G}, Sacrifice a land: Return this card from your graveyard to your hand.
-// TODO: "{2}{G}, Sacrifice a land: Return this card from your graveyard to your hand." —
-//    activated graveyard ability requiring Cost::SacrificePermanent(land filter) combined with
-//    Cost::PayMana, plus a return-from-graveyard effect. DSL gap: compound costs + graveyard return.
+//
+// CR 602.2 / PB-35: Graveyard-activated ability. Sacrifice a land (Cost::Sacrifice with
+// land filter) + mana cost, activated from the graveyard zone.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,7 +19,26 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: {2}{G}, Sacrifice a land: Return from graveyard to hand
+            // CR 602.2 / PB-35: "{2}{G}, Sacrifice a land: Return this card from your
+            // graveyard to your hand." — activated from the graveyard zone.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, green: 1, ..Default::default() }),
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::Source,
+                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    controller_override: None,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: Some(ActivationZone::Graveyard),
+            },
         ],
         self_cost_reduction: Some(SelfCostReduction::TotalManaValue {
             filter: TargetFilter {

@@ -36,6 +36,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Upkeep: remove counter → draw.
             // DEVIATION: Oracle says "you MAY remove a +1/+1 counter." This ability is
@@ -59,6 +62,9 @@ pub fn card() -> CardDefinition {
                     min: 1,
                 }),
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

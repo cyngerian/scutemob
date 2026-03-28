@@ -88,6 +88,8 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![],
+
+            activation_zone: None,
         })
 }
 

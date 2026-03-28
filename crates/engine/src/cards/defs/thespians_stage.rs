@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {2}, {T}: This land becomes a copy of target land.
             // CR 707.2: Indefinite copy effect (no duration).
@@ -48,6 +49,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

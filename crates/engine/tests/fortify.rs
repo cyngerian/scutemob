@@ -79,6 +79,7 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
         }),
         sorcery_speed: true,
         activation_condition: None,
+        activation_zone: None,
     }
 }
 

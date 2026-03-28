@@ -57,6 +57,8 @@ fn conditioned_artifact() -> ObjectSpec {
                 has_card_type: Some(CardType::Creature),
                 ..Default::default()
             })),
+
+            activation_zone: None,
         })
 }
 
@@ -151,6 +153,8 @@ fn test_activation_condition_changes_dynamically() {
                 has_card_type: Some(CardType::Creature),
                 ..Default::default()
             })),
+
+            activation_zone: None,
         });
 
     let state = GameStateBuilder::new()
@@ -196,6 +200,8 @@ fn test_activation_condition_changes_dynamically() {
                         has_card_type: Some(CardType::Creature),
                         ..Default::default()
                     })),
+
+                    activation_zone: None,
                 }),
         )
         .object(ObjectSpec::creature(p(1), "New Bear", 2, 2).in_zone(ZoneId::Battlefield))

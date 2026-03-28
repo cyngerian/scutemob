@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {B}, {T}: Exile target instant or sorcery card from a graveyard.
             // Each opponent loses 2 life.
@@ -60,6 +61,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {G}, {T}: Exile target creature card from a graveyard. You gain 2 life.
             AbilityDefinition::Activated {
@@ -82,6 +84,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

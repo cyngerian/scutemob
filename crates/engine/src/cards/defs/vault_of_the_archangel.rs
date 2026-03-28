@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.
             AbilityDefinition::Activated {
@@ -53,6 +54,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

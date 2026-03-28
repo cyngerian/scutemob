@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Channel — {3}{B}, Discard this card: Mill 3, then return creature/planeswalker
             // from graveyard to hand. Deterministic fallback picks highest-ObjectId matching card.
@@ -46,6 +47,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.

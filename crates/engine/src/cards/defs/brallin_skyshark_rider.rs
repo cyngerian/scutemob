@@ -40,6 +40,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{R}: Target Shark gains trample until end of turn."
             // Requires subtype-filtered targeting + grant keyword continuous effect.

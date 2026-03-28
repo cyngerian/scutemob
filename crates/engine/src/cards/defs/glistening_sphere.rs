@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Proliferate,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {T}: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -32,6 +35,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Corrupted — {T}: Add three mana of any one color. Activate only if an opponent has 3+ poison counters.
             AbilityDefinition::Activated {
@@ -40,6 +44,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
+                activation_zone: None,
             },
         ],
         ..Default::default()

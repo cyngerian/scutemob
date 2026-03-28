@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {B/R}, {T}: Add {B}{B}, {B}{R}, or {R}{R}
             // CR 605.1a: filter land mana ability. Simplified to 1{B}+1{R} (middle option).
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

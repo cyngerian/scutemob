@@ -89,6 +89,9 @@ fn enrage_creature_def(card_id: &str, name: &str, power: i32, toughness: i32) ->
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     }

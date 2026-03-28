@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 406.2: {2}, {T}, Sacrifice a Desert: Exile all cards from all graveyards.
             AbilityDefinition::Activated {
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

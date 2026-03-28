@@ -1888,6 +1888,50 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     (None, None)
                 }
             };
+            // CR 700.2b: For modal triggered abilities, replace the main effect with the
+            // chosen mode effects at resolution time. modes_chosen was set in
+            // flush_pending_triggers (bot fallback: mode 0).
+            let triggered_effect_opt: Option<crate::cards::card_definition::Effect> = {
+                // Look up the CardDef ability to get modes field.
+                let modes_opt = state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|obj| obj.card_id.as_ref())
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .and_then(|def| def.abilities.get(ability_index))
+                    .and_then(|abil| {
+                        if let crate::cards::card_definition::AbilityDefinition::Triggered {
+                            modes,
+                            ..
+                        } = abil
+                        {
+                            modes.as_ref()
+                        } else {
+                            None
+                        }
+                    })
+                    .cloned();
+                if let (Some(modes), true) = (&modes_opt, !stack_obj.modes_chosen.is_empty()) {
+                    // CR 700.2a: Execute the chosen modes in order. Invalid indices are skipped.
+                    let chosen_effects: Vec<crate::cards::card_definition::Effect> = stack_obj
+                        .modes_chosen
+                        .iter()
+                        .filter_map(|&idx| modes.modes.get(idx).cloned())
+                        .collect();
+                    if chosen_effects.is_empty() {
+                        // No valid modes chosen — trigger resolves with no effect.
+                        triggered_effect_opt
+                    } else if chosen_effects.len() == 1 {
+                        Some(chosen_effects.into_iter().next().unwrap())
+                    } else {
+                        Some(crate::cards::card_definition::Effect::Sequence(
+                            chosen_effects,
+                        ))
+                    }
+                } else {
+                    triggered_effect_opt
+                }
+            };
             // If we got a CardDef-registry effect, execute it directly.
             // CR 603.4: intervening-if conditions must be checked both when the trigger fires
             // AND when it resolves. If the condition no longer holds at resolution, the

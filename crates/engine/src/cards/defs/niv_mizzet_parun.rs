@@ -34,6 +34,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetAny],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever a player casts an instant or sorcery spell, you draw a card" —
             // requires TriggerCondition::WheneverAnyPlayerCastsInstantOrSorcery which does not

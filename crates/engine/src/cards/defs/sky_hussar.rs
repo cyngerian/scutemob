@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Forecast),
             // Forecast — {W}{U}: Untap all creatures you control.

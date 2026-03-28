@@ -1,4 +1,4 @@
-// Foreboding Ruins — As this land enters, you may reveal a Swamp or Mountain card from your hand. If 
+// Foreboding Ruins — As this land enters, you may reveal a Swamp or Mountain card from your hand. If
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

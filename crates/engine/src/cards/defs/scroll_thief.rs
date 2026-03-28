@@ -20,6 +20,9 @@ pub fn card() -> CardDefinition {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         color_indicator: None,
         back_face: None,

@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Raid end-step discard — Condition::YouAttackedThisTurn not in DSL.
         ],

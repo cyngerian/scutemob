@@ -20,6 +20,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever you cast a spell with mana value 5 or greater" — WheneverYouCastSpell
             //   lacks mana value filter. Overbroad trigger removed to avoid wrong game state.

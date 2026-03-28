@@ -25,6 +25,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),

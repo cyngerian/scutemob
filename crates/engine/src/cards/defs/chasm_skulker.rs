@@ -23,6 +23,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Death trigger with variable token count (based on +1/+1 counters)
             //   not expressible — TokenSpec.count is fixed u32.

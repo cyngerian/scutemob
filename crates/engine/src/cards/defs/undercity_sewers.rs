@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Mana production handled by basic land subtypes Island/Swamp (CR 305.6).
         ],

@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: Triggered — Whenever a Mountain you control enters, if you control at
             // least five other Mountains, deal 3 damage to any target.

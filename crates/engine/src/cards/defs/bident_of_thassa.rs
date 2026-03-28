@@ -31,6 +31,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{1}{U}, {T}: Creatures your opponents control attack this turn if able."
             // Forced attack effect not expressible in current DSL.

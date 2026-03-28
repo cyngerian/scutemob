@@ -26,6 +26,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Sequence(vec![]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {T}: Add {U}.
             AbilityDefinition::Activated {
@@ -34,6 +37,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

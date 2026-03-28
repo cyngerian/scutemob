@@ -28,6 +28,8 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     },
                 }),
+
+                activation_zone: None,
             },
         ],
         ..Default::default()

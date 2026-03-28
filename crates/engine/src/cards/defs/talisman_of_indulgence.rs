@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add {B}. This artifact deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -35,6 +36,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add {R}. This artifact deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -52,6 +54,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

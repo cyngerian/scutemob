@@ -354,6 +354,9 @@ fn test_class_def() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Level 2 bar
             AbilityDefinition::ClassLevel {

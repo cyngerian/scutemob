@@ -34,6 +34,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{3}, {T}: Return target creature you control to its owner's hand."
         ],

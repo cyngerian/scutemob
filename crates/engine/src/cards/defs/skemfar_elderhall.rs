@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control
             // gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens.
@@ -73,6 +74,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

@@ -32,6 +32,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 701.49a-c: Attack trigger — venture into the dungeon when Nadaar attacks.
             AbilityDefinition::Triggered {
@@ -39,6 +42,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 309.7 / CR 613.1c (Layer 7c): "Other creatures you control get +1/+1 as long
             // as you've completed a dungeon." Conditional static using OtherCreaturesYouControl.

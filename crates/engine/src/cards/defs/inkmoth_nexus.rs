@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {1}: Animate — becomes 1/1 Phyrexian Blinkmoth artifact creature with flying + infect
             AbilityDefinition::Activated {
@@ -74,6 +75,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

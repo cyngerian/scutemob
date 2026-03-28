@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: mana-spend Dragon trigger (haste grant) — DSL gap
         ],

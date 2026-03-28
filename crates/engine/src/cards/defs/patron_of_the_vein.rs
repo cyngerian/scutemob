@@ -29,6 +29,9 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::Opponent,
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever a creature an opponent controls dies, exile it and put a +1/+1
             // counter on each Vampire you control."

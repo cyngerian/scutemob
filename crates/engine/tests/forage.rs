@@ -100,6 +100,8 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
         }),
         sorcery_speed: false,
         activation_condition: None,
+
+        activation_zone: None,
     })
 }
 
@@ -125,6 +127,8 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         },
     )
 }

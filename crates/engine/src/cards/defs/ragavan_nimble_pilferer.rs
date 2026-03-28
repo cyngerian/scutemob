@@ -25,6 +25,9 @@ pub fn card() -> CardDefinition {
                 // TODO: Exile top card + impulse draw not expressible.
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Dash),
             AbilityDefinition::AltCastAbility {

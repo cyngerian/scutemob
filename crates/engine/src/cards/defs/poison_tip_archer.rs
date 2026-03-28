@@ -29,6 +29,9 @@ Whenever another creature dies, each opponent loses 1 life.".to_string(),
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

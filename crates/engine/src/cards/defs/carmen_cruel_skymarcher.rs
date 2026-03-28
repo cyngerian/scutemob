@@ -40,6 +40,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Attack trigger returning GY permanent with power-based MV filter not expressible.
         ],

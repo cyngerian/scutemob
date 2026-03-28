@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetPlayer],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Whenever an opponent discards a card, that player loses 2 life.
             AbilityDefinition::Triggered {
@@ -34,6 +37,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

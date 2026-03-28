@@ -53,6 +53,9 @@ pub fn card() -> CardDefinition {
                     // target 1: any target (creature, planeswalker, or player) for damage
                     TargetRequirement::TargetAny,
                 ],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

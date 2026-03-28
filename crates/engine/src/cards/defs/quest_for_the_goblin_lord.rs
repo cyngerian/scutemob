@@ -31,6 +31,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 604.2 / CR 613.1c (Layer 7c): "As long as this has five or more quest
             // counters on it, creatures you control get +2/+0."

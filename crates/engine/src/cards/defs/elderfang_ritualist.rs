@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                     has_subtype: Some(SubType("Elf".to_string())),
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

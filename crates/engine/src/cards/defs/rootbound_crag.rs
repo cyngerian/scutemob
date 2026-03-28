@@ -1,4 +1,4 @@
-// Rootbound Crag — This land enters tapped unless you control a Mountain or a Forest. {T}: Add {R} 
+// Rootbound Crag — This land enters tapped unless you control a Mountain or a Forest. {T}: Add {R}
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

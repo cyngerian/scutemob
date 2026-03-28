@@ -44,6 +44,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever a creature token you control leaves" trigger not in DSL.
         ],

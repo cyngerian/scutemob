@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         spell_cost_modifiers: vec![SpellCostModifier {

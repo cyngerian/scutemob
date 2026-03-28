@@ -54,6 +54,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 510.3a / CR 603.2c: "Whenever one or more Faeries you control deal combat
             // damage to a player, goad target creature that player controls." — batch trigger
@@ -71,6 +74,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Sequence(vec![]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

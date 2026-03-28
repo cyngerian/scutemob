@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Channel — {1}{G}, Discard: Destroy target + opponent searches.
             // Target filter restricts to opponent-controlled permanents (partial).
@@ -80,6 +81,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature

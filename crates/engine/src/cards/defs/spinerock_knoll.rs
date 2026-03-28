@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: Keyword — Hideaway 4
             // TODO: Activated — {R}, {T}: Play exiled card without paying its mana cost

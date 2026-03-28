@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Channel — {2}{W}, Discard this card: 4 damage to target creature.
             // TODO: Target filter should restrict to "attacking or blocking creature" —
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.

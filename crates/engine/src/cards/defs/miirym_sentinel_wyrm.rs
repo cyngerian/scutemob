@@ -41,6 +41,9 @@ pub fn card() -> CardDefinition {
                 // TODO: Condition should exclude self (another creature), but no SourceIsNotSelf condition exists.
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

@@ -36,6 +36,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever another Elf enters, gain life equal to toughness" —
             //   EffectAmount lacks toughness-of-entering-creature variant.

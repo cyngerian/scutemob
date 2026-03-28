@@ -51,6 +51,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever you attack with one or more Birds, scry 2" — no subtype filter on attackers.
         ],

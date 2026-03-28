@@ -59,6 +59,9 @@ pub fn card() -> CardDefinition {
                     TargetRequirement::TargetPlaneswalker,
                     TargetRequirement::TargetArtifact,
                 ],
+
+                modes: None,
+                trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],

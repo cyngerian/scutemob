@@ -16,6 +16,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Suspect { target: EffectTarget::Source },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever one or more other creatures you control enter, if this creature
             // is suspected, you may suspect one of the other creatures. If you do, this

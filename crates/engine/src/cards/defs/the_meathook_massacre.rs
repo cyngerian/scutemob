@@ -29,6 +29,9 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 603.10a: "Whenever a creature an opponent controls dies, you gain 1 life."
             // PB-23: controller_opponent filter applied via DeathTriggerFilter.
@@ -44,6 +47,9 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

@@ -39,10 +39,10 @@ use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
 use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
-    AbilityDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget,
-    ForEachTarget, LibraryPosition, LoyaltyCost, ModeSelection, PlayerTarget, SoulbondGrant,
-    TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
-    TriggerCondition, TypeLine, ZoneTarget,
+    AbilityDefinition, ActivationZone, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
+    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ModeSelection, PlayerTarget,
+    SoulbondGrant, TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
+    TriggerCondition, TriggerZone, TypeLine, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
@@ -1814,6 +1814,8 @@ impl HashInto for ActivatedAbility {
         self.targets.hash_into(hasher);
         // CR 602.5b: activation condition
         self.activation_condition.hash_into(hasher);
+        // CR 602.2: activation zone (graveyard-activated abilities)
+        self.activation_zone.hash_into(hasher);
     }
 }
 impl HashInto for TriggerEvent {
@@ -4083,6 +4085,20 @@ impl HashInto for TimingRestriction {
         }
     }
 }
+impl HashInto for ActivationZone {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ActivationZone::Graveyard => 0u8.hash_into(hasher),
+        }
+    }
+}
+impl HashInto for TriggerZone {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TriggerZone::Graveyard => 0u8.hash_into(hasher),
+        }
+    }
+}
 impl HashInto for TriggerCondition {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -5026,6 +5042,7 @@ impl HashInto for AbilityDefinition {
                 timing_restriction,
                 targets,
                 activation_condition,
+                activation_zone,
             } => {
                 0u8.hash_into(hasher);
                 cost.hash_into(hasher);
@@ -5033,18 +5050,23 @@ impl HashInto for AbilityDefinition {
                 timing_restriction.hash_into(hasher);
                 targets.hash_into(hasher);
                 activation_condition.hash_into(hasher);
+                activation_zone.hash_into(hasher);
             }
             AbilityDefinition::Triggered {
                 trigger_condition,
                 effect,
                 intervening_if,
                 targets,
+                modes,
+                trigger_zone,
             } => {
                 1u8.hash_into(hasher);
                 trigger_condition.hash_into(hasher);
                 effect.hash_into(hasher);
                 intervening_if.hash_into(hasher);
                 targets.hash_into(hasher);
+                modes.hash_into(hasher);
+                trigger_zone.hash_into(hasher);
             }
             AbilityDefinition::Static { continuous_effect } => {
                 2u8.hash_into(hasher);

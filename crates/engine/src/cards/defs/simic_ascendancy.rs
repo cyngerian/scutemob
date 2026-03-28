@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: DSL gap — "Whenever +1/+1 counters are put on a creature you control"
             // trigger condition does not exist.

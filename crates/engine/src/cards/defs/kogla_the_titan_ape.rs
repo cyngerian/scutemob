@@ -33,6 +33,9 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::Opponent,
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 603.1: Attack trigger — destroy target artifact or enchantment defending player controls.
             // "defending player controls" is approximated as opponent; full defender-tracking
@@ -49,6 +52,9 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::Opponent,
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {1}{G}: Return target Human you control to its owner's hand.
             //         Kogla gains indestructible until end of turn.
@@ -81,6 +87,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

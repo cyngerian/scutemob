@@ -20,6 +20,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: DSL gap — "{G}, Sacrifice: Exile target noncreature artifact or
             // noncreature enchantment." Cost::Sequence([Mana, SacrificeSelf]) + target

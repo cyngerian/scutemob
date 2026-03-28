@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetAny],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: DSL gap — "Whenever a creature enters, you may untap this artifact."
             // Requires Effect::Untap { target: EffectTarget::Source } which does not exist.

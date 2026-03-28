@@ -33,6 +33,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Whenever another Vampire you control enters, target creature gets +1/+1 until EOT.
             AbilityDefinition::Triggered {
@@ -54,6 +57,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCreature],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

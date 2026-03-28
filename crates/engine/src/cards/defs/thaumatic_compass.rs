@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Transform),
             // TODO: at beginning of your end step, if you control seven or more lands, transform
@@ -58,6 +59,7 @@ pub fn card() -> CardDefinition {
                     timing_restriction: None,
                     targets: vec![],
                     activation_condition: None,
+                    activation_zone: None,
                 },
                 AbilityDefinition::Activated {
                     cost: Cost::Tap,
@@ -70,6 +72,7 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     })],
                     activation_condition: None,
+                    activation_zone: None,
                 },
             ],
             color_indicator: None,

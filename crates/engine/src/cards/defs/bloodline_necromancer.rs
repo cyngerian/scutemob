@@ -29,6 +29,9 @@ pub fn card() -> CardDefinition {
                     has_subtypes: vec![SubType("Vampire".to_string()), SubType("Wizard".to_string())],
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

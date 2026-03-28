@@ -32,6 +32,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 614.1a: Replacement — any card going to any graveyard → exile instead.
             // is_self: false — global effect, not tied to Rest in Peace itself.

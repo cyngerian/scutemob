@@ -48,6 +48,9 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 intervening_if: None,
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         power: Some(1),

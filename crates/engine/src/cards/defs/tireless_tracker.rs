@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Whenever you sacrifice a Clue, put a +1/+1 counter.
             AbilityDefinition::Triggered {
@@ -41,6 +44,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

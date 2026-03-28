@@ -35,6 +35,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Sacrifice another creature: Scry 1
             AbilityDefinition::Activated {
@@ -49,6 +52,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Escape keyword marker
             AbilityDefinition::Keyword(KeywordAbility::Escape),

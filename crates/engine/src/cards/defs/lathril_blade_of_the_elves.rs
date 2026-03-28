@@ -47,6 +47,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{T}, Tap ten untapped Elves you control" — cost requiring tap of N other
             //   specific-type permanents not expressible in DSL.

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetAny],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

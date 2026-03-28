@@ -32,6 +32,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: {2}{W}{U}{B}{R}{G}: Exile top 3 cards, you may play them this turn without paying mana costs
             //   (no Effect::ExileTopCards + free-play-until-end-of-turn combination in DSL)

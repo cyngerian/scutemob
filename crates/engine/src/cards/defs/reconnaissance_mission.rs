@@ -21,6 +21,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Cycling {2}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),

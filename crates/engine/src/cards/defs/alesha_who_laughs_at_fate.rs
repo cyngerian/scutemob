@@ -31,6 +31,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: DSL gap — Raid: end step trigger with "if you attacked this turn"
             // intervening-if (Condition::YouAttackedThisTurn) + return creature from GY

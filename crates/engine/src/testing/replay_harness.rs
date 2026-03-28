@@ -1873,6 +1873,8 @@ pub fn enrich_spec_from_def(
             timing_restriction,
             targets: ab_targets,
             activation_condition,
+            activation_zone,
+            ..
         } = ability
         {
             // Skip ALL tap-for-mana abilities (fixed-mana, any-color, and pain-land
@@ -1901,6 +1903,8 @@ pub fn enrich_spec_from_def(
                     targets: ab_targets.clone(),
                     // CR 602.5b: Propagate activation condition ("activate only if ...").
                     activation_condition: activation_condition.clone(),
+                    // CR 602.2: Propagate activation zone for graveyard-activated abilities.
+                    activation_zone: activation_zone.clone(),
                 };
                 spec = spec.with_activated_ability(ab);
             }
@@ -1960,6 +1964,7 @@ pub fn enrich_spec_from_def(
                 }),
                 sorcery_speed: true,
                 activation_condition: None,
+                activation_zone: None,
             };
             spec = spec.with_activated_ability(attach_ab);
             // Ability 2: Unattach from the equipped creature (sorcery speed).
@@ -1974,6 +1979,7 @@ pub fn enrich_spec_from_def(
                 }),
                 sorcery_speed: true,
                 activation_condition: None,
+                activation_zone: None,
             };
             spec = spec.with_activated_ability(detach_ab);
         }
@@ -2003,6 +2009,7 @@ pub fn enrich_spec_from_def(
                 }),
                 sorcery_speed: true,
                 activation_condition: None,
+                activation_zone: None,
             };
             spec = spec.with_activated_ability(ab);
         }
@@ -2010,22 +2017,31 @@ pub fn enrich_spec_from_def(
     // CR 603.6c / CR 700.4: Convert "When ~ dies" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
     // This covers self-referential dies triggers (e.g. Solemn Simulacrum).
+    // CR 700.2b: For modal WhenDies triggers, use mode 0 as the bot fallback effect.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenDies,
             effect,
+            modes,
+            targets,
             ..
         } = ability
         {
+            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
+            let resolved_effect = if let Some(m) = modes {
+                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
+            } else {
+                effect.clone()
+            };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "When ~ dies (CR 700.4)".to_string(),
-                effect: Some(effect.clone()),
+                effect: Some(resolved_effect),
             });
         }
     }
@@ -2040,9 +2056,16 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenAttacks,
             effect,
+            modes,
             ..
         } = ability
         {
+            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
+            let resolved_effect = if let Some(m) = modes {
+                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
+            } else {
+                effect.clone()
+            };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
@@ -2051,7 +2074,7 @@ pub fn enrich_spec_from_def(
                 intervening_if: None,
                 targets: vec![],
                 description: "Whenever ~ attacks (CR 508.3a)".to_string(),
-                effect: Some(effect.clone()),
+                effect: Some(resolved_effect),
             });
         }
     }
@@ -2086,18 +2109,26 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
             effect,
+            modes,
+            targets,
             ..
         } = ability
         {
+            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
+            let resolved_effect = if let Some(m) = modes {
+                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
+            } else {
+                effect.clone()
+            };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
-                effect: Some(effect.clone()),
+                effect: Some(resolved_effect),
             });
         }
     }

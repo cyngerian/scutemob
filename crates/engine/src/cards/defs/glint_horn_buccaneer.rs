@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
             // Requires activation condition (is_attacking) + discard as cost.

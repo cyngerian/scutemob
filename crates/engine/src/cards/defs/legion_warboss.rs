@@ -39,6 +39,9 @@ pub fn card() -> CardDefinition {
                 // TODO: "Attacks this combat if able" forced-attack not in DSL.
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

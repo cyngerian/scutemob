@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever one or more creatures your opponents control die, create a
             // Treasure token. This ability triggers only once each turn." — The

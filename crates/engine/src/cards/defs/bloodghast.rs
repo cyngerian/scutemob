@@ -9,9 +9,9 @@
 // The "can't block" restriction must be enforced via Decayed keyword or a future CantBlock
 // keyword. Left as TODO; this is a DSL gap (PB-25 scope).
 //
-// TODO: Landfall — whenever a land you control enters, you may return this card from your
-// graveyard to the battlefield. Triggered ability from the graveyard zone is not yet
-// supported in the DSL.
+// CR 602.2 / PB-35 (TriggerZone::Graveyard): Landfall trigger from graveyard zone.
+// When a land you control enters the battlefield while Bloodghast is in your graveyard,
+// it returns to the battlefield.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -37,7 +37,27 @@ pub fn card() -> CardDefinition {
                 },
             },
             // TODO: "This creature can't block." — KeywordAbility::CantBlock does not exist.
-            // TODO: Landfall trigger from graveyard zone not in DSL.
+            // PB-35 / CR 603.3 (TriggerZone::Graveyard): Landfall trigger from graveyard.
+            // Whenever a land you control enters the battlefield while this is in your
+            // graveyard, return it to the battlefield.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::MoveZone {
+                    target: EffectTarget::Source,
+                    to: ZoneTarget::Battlefield { tapped: false },
+                    controller_override: None,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: Some(TriggerZone::Graveyard),
+            },
         ],
         ..Default::default()
     }

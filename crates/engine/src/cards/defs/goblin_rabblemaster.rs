@@ -38,6 +38,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "+1/+0 per attacking Goblin" — count-based pump not in DSL.
         ],

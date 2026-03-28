@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: Activated — {T}: Put a +1/+1 counter on each green creature that entered this turn.
         ],

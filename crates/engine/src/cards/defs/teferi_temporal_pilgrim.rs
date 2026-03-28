@@ -31,6 +31,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // 0: Draw a card.
             AbilityDefinition::LoyaltyAbility {

@@ -100,6 +100,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
         }),
         sorcery_speed: false,
         activation_condition: None,
+        activation_zone: None,
     }
 }
 

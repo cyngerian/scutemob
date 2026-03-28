@@ -57,6 +57,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCreature],
+
+                modes: None,
+                trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],

@@ -1801,6 +1801,8 @@ fn test_activated_ability_self_cost_reduction_per_legendary() {
             sorcery_speed: false,
             targets: vec![],
             activation_condition: None,
+
+            activation_zone: None,
         });
 
     // 2 legendary creatures controlled by p1.
@@ -1888,6 +1890,8 @@ fn test_activated_ability_self_cost_reduction_floor_zero() {
             sorcery_speed: false,
             targets: vec![],
             activation_condition: None,
+
+            activation_zone: None,
         });
 
     // 10 legendary creatures — would reduce by 10 but cost is only 3.
@@ -1974,6 +1978,8 @@ fn test_activated_ability_self_cost_reduction_vampires() {
         sorcery_speed: false,
         targets: vec![],
         activation_condition: None,
+
+        activation_zone: None,
     };
     // Blood token ability at index 1 — costs {5} generic (tap as part of cost).
     let blood_ab = ActivatedAbility {
@@ -1990,6 +1996,8 @@ fn test_activated_ability_self_cost_reduction_vampires() {
         sorcery_speed: false,
         targets: vec![],
         activation_condition: None,
+
+        activation_zone: None,
     };
 
     let estate = ObjectSpec::card(p1, "Estate Test")

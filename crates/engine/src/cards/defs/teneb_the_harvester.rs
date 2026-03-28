@@ -38,6 +38,9 @@ pub fn card() -> CardDefinition {
                     has_card_type: Some(CardType::Creature),
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

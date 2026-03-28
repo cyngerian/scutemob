@@ -54,6 +54,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetAny],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Equip {2}
             AbilityDefinition::Activated {
@@ -65,6 +68,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

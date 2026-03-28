@@ -1,4 +1,4 @@
-// Clifftop Retreat — This land enters tapped unless you control a Mountain or a Plains. {T}: Add {R} 
+// Clifftop Retreat — This land enters tapped unless you control a Mountain or a Plains. {T}: Add {R}
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

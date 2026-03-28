@@ -1,4 +1,11 @@
 // Cult Conscript
+// {1}{B}: Return this card from your graveyard to the battlefield.
+// Activate only if a non-Skeleton creature died under your control this turn.
+//
+// CR 602.2 / PB-35: Graveyard-activated ability. The "activate only if a non-Skeleton
+// creature died under your control this turn" condition is a DSL gap (no Condition variant
+// for creature-died-this-turn checks). Implementing without the activation condition as
+// a known approximation. The core graveyard activation works correctly.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,9 +25,24 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // TODO: Activated — {1}{B}: Return this card from your graveyard to the battlefield.
-            // Activate only if a non-Skeleton creature died under your control this turn.
-            // DSL gap: graveyard-zone activated ability with death_trigger_filter condition.
+            // CR 602.2 / PB-35: "{1}{B}: Return this card from your graveyard to the
+            // battlefield." — activated from the graveyard zone.
+            // TODO: "Activate only if a non-Skeleton creature died under your control
+            // this turn" condition requires a Condition::NonSkeletonCreatureDiedThisTurn
+            // variant not yet in the DSL. The ability fires unconditionally as an
+            // approximation. This is a known DSL gap deferred to PB-37.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::Source,
+                    to: ZoneTarget::Battlefield { tapped: false },
+                    controller_override: None,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: Some(ActivationZone::Graveyard),
+            },
         ],
         power: Some(2),
         toughness: Some(1),

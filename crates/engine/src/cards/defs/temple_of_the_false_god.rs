@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::ControlAtLeastNOtherLands(4)),
+                activation_zone: None,
             },
         ],
         ..Default::default()

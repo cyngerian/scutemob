@@ -27,12 +27,25 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
-            // Whenever Glissa Sunslayer deals combat damage to a player, choose one —
+            // CR 700.2b / PB-35: Modal combat damage trigger.
+            // Mode 0: You draw a card and lose 1 life.
+            // Mode 1: Destroy target enchantment.
+            // Mode 2: Remove up to three counters from target permanent.
+            //         DSL gap: no any-type counter removal. Nothing placeholder.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
-                effect: Effect::Choose {
-                    prompt: "Choose one — draw a card and lose 1 life; or destroy target enchantment; or remove up to three counters from target permanent".to_string(),
-                    choices: vec![
+                effect: Effect::Nothing,
+                intervening_if: None,
+                targets: vec![
+                    // Mode 1 target: target enchantment (index 0)
+                    // Mode 2 target: target permanent for counter removal (index 1)
+                    TargetRequirement::TargetEnchantment,
+                    TargetRequirement::TargetPermanent,
+                ],
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 1,
+                    modes: vec![
                         // Mode 0: You draw a card and lose 1 life.
                         Effect::Sequence(vec![
                             Effect::DrawCards {
@@ -47,22 +60,16 @@ pub fn card() -> CardDefinition {
                         // Mode 1: Destroy target enchantment.
                         Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                            cant_be_regenerated: false,
                         },
                         // Mode 2: Remove up to three counters from target permanent.
-                        // TODO: DSL gap — RemoveCounter requires a specific CounterType; this
-                        // ability removes "any type" of counter (up to 3) which cannot be expressed.
-                        // No-op placeholder; choosing this mode does nothing.
-                        Effect::Sequence(vec![]),
+                        // TODO: DSL gap — no any-type counter removal. Nothing placeholder.
+                        Effect::Nothing,
                     ],
-                },
-                intervening_if: None,
-                targets: vec![
-                    // index 0: target enchantment (mode 1)
-                    // index 1: target permanent for counter removal (mode 2)
-                    TargetRequirement::TargetEnchantment,
-                    TargetRequirement::TargetPermanent,
-                ],
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                }),
+                trigger_zone: None,
             },
         ],
         ..Default::default()

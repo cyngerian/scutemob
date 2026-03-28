@@ -20,6 +20,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

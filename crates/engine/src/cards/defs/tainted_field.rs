@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add {W} or {B}. Activate only if you control a Swamp.
             // Modeled as producing {W} (first option); engine lacks mana choice.
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_zone: None,
             },
             // Second color option: {B}
             AbilityDefinition::Activated {
@@ -42,6 +44,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_zone: None,
             },
         ],
         ..Default::default()

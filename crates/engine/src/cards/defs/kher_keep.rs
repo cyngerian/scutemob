@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.
             AbilityDefinition::Activated {
@@ -47,6 +48,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

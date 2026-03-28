@@ -37,23 +37,54 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
-            // CR 602.2: Remove a charge counter: Equipped creature gets +2/+2 until end of turn.
-            // Note: Full modal support deferred to PB-37. Implementing mode 1 (+2/+2) only.
+            // CR 602.2 / PB-35: Remove a charge counter: Choose one —
+            // Mode 0: Equipped creature gets +2/+2 until end of turn.
+            // Mode 1: Target creature gets -1/-1 until end of turn.
+            // Mode 2: You gain 2 life.
+            // Bot fallback: mode 0 (+2/+2 to equipped creature).
             AbilityDefinition::Activated {
                 cost: Cost::RemoveCounter { counter: CounterType::Charge, count: 1 },
-                effect: Effect::ApplyContinuousEffect {
-                    effect_def: Box::new(ContinuousEffectDef {
-                        layer: EffectLayer::PtModify,
-                        modification: LayerModification::ModifyBoth(2),
-                        filter: EffectFilter::AttachedCreature,
-                        duration: EffectDuration::UntilEndOfTurn,
-                        condition: None,
-                    }),
+                effect: Effect::Choose {
+                    prompt: "Choose one — equipped creature gets +2/+2; or target creature gets -1/-1; or you gain 2 life".to_string(),
+                    choices: vec![
+                        // Mode 0: Equipped creature gets +2/+2 until end of turn.
+                        Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::PtModify,
+                                modification: LayerModification::ModifyBoth(2),
+                                filter: EffectFilter::AttachedCreature,
+                                duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
+                            }),
+                        },
+                        // Mode 1: Target creature gets -1/-1 until end of turn.
+                        Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::PtModify,
+                                modification: LayerModification::ModifyBoth(-1),
+                                filter: EffectFilter::DeclaredTarget { index: 0 },
+                                duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
+                            }),
+                        },
+                        // Mode 2: You gain 2 life.
+                        Effect::GainLife {
+                            player: PlayerTarget::Controller,
+                            amount: EffectAmount::Fixed(2),
+                        },
+                    ],
                 },
                 timing_restriction: None,
-                targets: vec![],
+                targets: vec![
+                    // Mode 1 target: any creature
+                    TargetRequirement::TargetCreature,
+                ],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

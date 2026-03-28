@@ -29,6 +29,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Landfall with resolution-count tracking (1st/2nd/3rd time this turn).
             // Requires per-object ability resolution counter per turn — not in DSL.

@@ -36,6 +36,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         effect: None,
         sorcery_speed: false,
         activation_condition: None,
+        activation_zone: None,
     }
 }
 
@@ -57,6 +58,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         effect: None,
         sorcery_speed: false,
         activation_condition: None,
+        activation_zone: None,
     }
 }
 
@@ -1039,6 +1041,8 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             effect: Some(draw_effect),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1166,6 +1170,8 @@ fn test_sacrifice_filter_creature_valid() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1250,6 +1256,8 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1321,6 +1329,8 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1392,6 +1402,8 @@ fn test_sacrifice_filter_missing_target_errors() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1739,6 +1751,8 @@ fn test_dies_trigger_fires_on_sacrifice() {
             effect: None,
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .with_triggered_ability(dies_trigger("When ~ dies (CR 700.4)"))
         .in_zone(ZoneId::Battlefield);
@@ -2390,6 +2404,9 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(2),
         toughness: Some(2),

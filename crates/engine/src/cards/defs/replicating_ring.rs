@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: upkeep night counter trigger + 8-counter token creation
         ],

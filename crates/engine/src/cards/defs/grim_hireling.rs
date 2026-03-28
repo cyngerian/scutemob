@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "{B}, Sacrifice X Treasures: Target creature gets -X/-X" — X-cost
             //   activated ability with variable sacrifice count not expressible in DSL.

@@ -44,6 +44,8 @@ fn targeted_activated_ability_valid_creature_target() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -114,6 +116,8 @@ fn targeted_activated_ability_rejects_non_creature() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -186,6 +190,8 @@ fn targeted_activated_ability_target_player() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![TargetRequirement::TargetPlayer],
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -246,6 +252,8 @@ fn activated_ability_no_targets_backward_compatible() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![], // No target requirements
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -430,6 +438,8 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -492,6 +502,8 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![TargetRequirement::TargetCreature],
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 

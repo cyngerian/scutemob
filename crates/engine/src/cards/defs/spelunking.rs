@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                 // TODO: "Then put a land from hand" not expressible.
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Lands enter untapped" replacement effect not expressible.
         ],

@@ -40,6 +40,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Landfall: +1/+1 counter on each Plant
             // TODO: "Each Plant you control" counter distribution not in DSL.

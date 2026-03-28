@@ -26,6 +26,9 @@ pub fn card() -> CardDefinition {
                     has_card_types: vec![CardType::Artifact, CardType::Enchantment],
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

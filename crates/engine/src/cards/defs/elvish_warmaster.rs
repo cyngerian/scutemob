@@ -45,6 +45,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 613.4c / CR 613.1f: "{5}{G}{G}: Elves you control get +2/+2 and gain
             // deathtouch until end of turn."
@@ -77,6 +80,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Sacrifice a Treasure: Exile the top card of your library. You may play that card this turn." — impulse draw not expressible.
         ],

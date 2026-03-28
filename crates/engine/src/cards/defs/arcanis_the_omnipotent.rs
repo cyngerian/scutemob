@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {2}{U}{U}: Return Arcanis to its owner's hand.
             // NOTE: Uses PlayerTarget::Controller as proxy for "owner" — no PlayerTarget::Owner
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

@@ -33,6 +33,9 @@ pub fn card() -> CardDefinition {
                     ],
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

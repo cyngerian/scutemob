@@ -35,6 +35,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // When Toothy leaves the battlefield, draw a card for each +1/+1 counter on it.
             // Note: LKI — source is in graveyard/exile but counter count is preserved by move_object_to_zone.
@@ -49,6 +52,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

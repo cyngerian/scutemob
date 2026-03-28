@@ -195,6 +195,13 @@ pub enum AbilityDefinition {
         /// Checked at activation time (not resolution time).
         #[serde(default)]
         activation_condition: Option<Condition>,
+        /// CR 602.2: If Some, this ability can only be activated from the specified zone
+        /// instead of the battlefield (default `None` = battlefield only).
+        ///
+        /// Used for abilities like Reassembling Skeleton's "{1}{B}: Return this card
+        /// from your graveyard to the battlefield tapped."
+        #[serde(default)]
+        activation_zone: Option<ActivationZone>,
     },
     /// Triggered ability: "When/Whenever/At [event], [Effect]" (CR 603).
     Triggered {
@@ -206,6 +213,19 @@ pub enum AbilityDefinition {
         /// Empty = no targets required.
         #[serde(default)]
         targets: Vec<TargetRequirement>,
+        /// CR 700.2b: Modal triggered ability. When `Some`, the controller chooses modes
+        /// when the trigger is put on the stack. The chosen modes' effects replace the
+        /// main `effect` field at resolution.
+        ///
+        /// Bot fallback: auto-select mode 0. "Choose up to one" = `min_modes: 0`.
+        #[serde(default)]
+        modes: Option<ModeSelection>,
+        /// Zone where this triggered ability monitors for events.
+        /// Default `None` = battlefield. `Some(TriggerZone::Graveyard)` = graveyard zone.
+        ///
+        /// Used for abilities like Bloodghast's landfall trigger from the graveyard.
+        #[serde(default)]
+        trigger_zone: Option<TriggerZone>,
     },
     /// Static ability that generates a continuous effect while the source is on the battlefield
     /// (CR 604). Handled via the layer system (see `rules/layers.rs`).
@@ -2551,6 +2571,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
             }),
             sorcery_speed: false,
             activation_condition: None,
+            activation_zone: None,
         }],
         count,
         tapped: false,
@@ -2597,6 +2618,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
             }),
             sorcery_speed: false,
             activation_condition: None,
+            activation_zone: None,
         }],
         count,
         tapped: false,
@@ -2646,6 +2668,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
             }),
             sorcery_speed: false,
             activation_condition: None,
+            activation_zone: None,
         }],
         count,
         tapped: false,
@@ -2777,6 +2800,34 @@ pub enum TimingRestriction {
     SorcerySpeed,
     /// Any time you have priority (default for activated abilities).
     AnyTime,
+}
+// ── Activation Zone ────────────────────────────────────────────────────────────
+/// Zone from which an activated ability can be activated.
+///
+/// Default (None on `AbilityDefinition::Activated`) = battlefield only (CR 602.2).
+/// When `Some(ActivationZone::Graveyard)`, the ability can only be activated while
+/// the source card is in its owner's graveyard.
+///
+/// CR 602.2: "Only an object on the battlefield" can normally activate abilities.
+/// This enum provides opt-in exceptions for graveyard-activated abilities.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ActivationZone {
+    /// Ability can only be activated while the source is in its owner's graveyard.
+    Graveyard,
+}
+// ── Trigger Zone ──────────────────────────────────────────────────────────────
+/// Zone where a triggered ability monitors for events.
+///
+/// Default (None on `AbilityDefinition::Triggered`) = battlefield.
+/// `Some(TriggerZone::Graveyard)` = the trigger fires while the source is in
+/// its owner's graveyard.
+///
+/// Used for cards like Bloodghast ("Whenever a land you control enters [while in
+/// your graveyard]...").
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerZone {
+    /// Trigger monitors events while the source is in its owner's graveyard.
+    Graveyard,
 }
 // ── Continuous Effect Definition ──────────────────────────────────────────────
 /// Defines a continuous effect for use in `AbilityDefinition::Static` and `Effect::ApplyContinuousEffect`.

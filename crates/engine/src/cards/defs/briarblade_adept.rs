@@ -26,6 +26,9 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::Opponent,
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Encore),
             AbilityDefinition::AltCastAbility {

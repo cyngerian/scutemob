@@ -47,6 +47,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Nothing,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

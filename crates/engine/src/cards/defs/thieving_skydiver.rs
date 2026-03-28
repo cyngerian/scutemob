@@ -30,6 +30,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: Some(Condition::WasKicked),
                 targets: vec![TargetRequirement::TargetArtifact],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

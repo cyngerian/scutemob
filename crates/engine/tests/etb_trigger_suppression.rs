@@ -55,6 +55,9 @@ fn etb_draw_creature_def() -> CardDefinition {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(2),
         toughness: Some(2),
@@ -126,6 +129,9 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: None,
         toughness: None,

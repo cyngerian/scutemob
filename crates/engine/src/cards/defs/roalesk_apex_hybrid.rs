@@ -33,6 +33,9 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::You,
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: DSL gap — "When Roalesk dies, proliferate, then proliferate again."
             // WhenThisDies trigger + Effect::Proliferate (twice).

@@ -32,6 +32,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: DSL gap — "If that land is a Forest, put two counters instead."
             // Conditional based on entering permanent's subtype not in DSL.

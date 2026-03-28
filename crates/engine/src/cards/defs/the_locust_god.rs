@@ -46,6 +46,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {2}{U}{R}: Draw a card, then discard a card.
             // TODO: "then discard" — forced discard after draw not expressible.
@@ -58,6 +61,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // When The Locust God dies, return it to its owner's hand at the beginning
             // of the next end step. Sets return_to_hand_at_end_step flag on graveyard object.
@@ -66,6 +70,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::SetReturnToHandAtEndStep,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

@@ -1,4 +1,4 @@
-// Disciple of Freyalise // Garden of Freyalise — When this creature enters, you may sacrifice another creature. If you 
+// Disciple of Freyalise // Garden of Freyalise — When this creature enters, you may sacrifice another creature. If you
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

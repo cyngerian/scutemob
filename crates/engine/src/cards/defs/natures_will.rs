@@ -30,6 +30,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "tap all lands that player controls" — DamagedPlayer ForEach not in DSL.
         ],

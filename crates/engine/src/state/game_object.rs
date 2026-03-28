@@ -265,6 +265,14 @@ pub struct ActivatedAbility {
     /// None = no condition (always activatable if costs can be paid).
     #[serde(default)]
     pub activation_condition: Option<crate::cards::card_definition::Condition>,
+    /// CR 602.2: If Some, this ability can only be activated from the specified zone
+    /// instead of the battlefield (default `None` = battlefield only).
+    ///
+    /// Set to `Some(ActivationZone::Graveyard)` for graveyard-activated abilities
+    /// like Reassembling Skeleton's "{1}{B}: Return this card from your graveyard
+    /// to the battlefield tapped."
+    #[serde(default)]
+    pub activation_zone: Option<crate::cards::card_definition::ActivationZone>,
 }
 /// Trigger event patterns for triggered abilities (CR 603).
 ///

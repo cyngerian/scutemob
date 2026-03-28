@@ -26,6 +26,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "When dies, create X Vampires where X = power" — power-based token count
             // not in DSL

@@ -43,6 +43,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetPermanent],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

@@ -28,6 +28,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Glimmer death return mechanic (becomes non-creature enchantment) not in DSL.
         ],

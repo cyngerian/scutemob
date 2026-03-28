@@ -22,6 +22,9 @@ pub fn card() -> CardDefinition {
                 // TODO: d20 roll for variable count — using fixed 10 as average approximation.
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

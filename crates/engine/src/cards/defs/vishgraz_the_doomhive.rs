@@ -41,6 +41,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Vishgraz gets +1/+1 for each poison counter your opponents have."
             // CDA based on opponents' poison counters — no EffectAmount::CountOpponentPoisonCounters

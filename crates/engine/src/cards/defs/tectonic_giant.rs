@@ -15,21 +15,36 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
-            // TODO: Dual trigger condition (attacks OR becomes target of opponent's spell).
-            // TODO: Modal triggered ability — choose one of two modes at resolution.
-            // Mode 1: deal 3 to each opponent. Mode 2: impulse draw (exile top 2, play 1).
-            // Partial: implement the attack trigger with damage mode only.
+            // TODO: Dual trigger condition (attacks OR becomes target of opponent's spell)
+            // not in DSL. Only WhenAttacks fires currently.
+            // CR 700.2b / PB-35: Modal triggered ability.
+            // Mode 0: Deal 3 damage to each opponent.
+            // Mode 1: Impulse draw (exile top 2, play 1) — DSL gap, Nothing placeholder.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenAttacks,
-                effect: Effect::ForEach {
-                    over: ForEachTarget::EachOpponent,
-                    effect: Box::new(Effect::DealDamage {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
-                        amount: EffectAmount::Fixed(3),
-                    }),
-                },
+                effect: Effect::Nothing,
                 intervening_if: None,
                 targets: vec![],
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 1,
+                    modes: vec![
+                        // Mode 0: This creature deals 3 damage to each opponent.
+                        Effect::ForEach {
+                            over: ForEachTarget::EachOpponent,
+                            effect: Box::new(Effect::DealDamage {
+                                target: EffectTarget::DeclaredTarget { index: 0 },
+                                amount: EffectAmount::Fixed(3),
+                            }),
+                        },
+                        // Mode 1: Impulse draw (exile top 2, play 1 until end of next turn).
+                        // DSL gap: no "exile top N, play one" effect. Nothing placeholder.
+                        Effect::Nothing,
+                    ],
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                }),
+                trigger_zone: None,
             },
         ],
         ..Default::default()

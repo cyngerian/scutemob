@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever a creature an opponent controls dies, that player loses 2 life."
             // Blocked on PB-26: WheneverCreatureDies needs opponent controller filter.

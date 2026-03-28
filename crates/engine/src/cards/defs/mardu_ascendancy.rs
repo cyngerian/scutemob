@@ -35,6 +35,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Sacrifice activated ability with +0/+3 buff to all creatures you control —
             // DSL ModifyBoth(3) would be +3/+3, not +0/+3.

@@ -36,6 +36,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Discard three cards: Exile Nezahal. Return it to the battlefield tapped
             // under its owner's control at the beginning of the next end step.
@@ -56,6 +59,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

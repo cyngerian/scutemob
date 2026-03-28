@@ -39,6 +39,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // When this creature leaves the battlefield, exile all Serf tokens.
             // TODO: "exile all [named subtype] tokens" — ExileAll with subtype+token filter not in DSL.
@@ -52,6 +55,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

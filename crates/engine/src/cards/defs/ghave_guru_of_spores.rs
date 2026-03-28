@@ -28,6 +28,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 602.2: {1}, Remove a +1/+1 counter from this creature: Create a 1/1 green Saproling.
             // Note: Oracle says "from a creature you control" but Cost::RemoveCounter removes from
@@ -59,6 +62,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 602.2: {1}, Sacrifice a creature: Put a +1/+1 counter on target creature.
             AbilityDefinition::Activated {
@@ -77,6 +81,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

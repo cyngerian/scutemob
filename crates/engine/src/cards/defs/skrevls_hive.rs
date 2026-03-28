@@ -50,6 +50,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Corrupted — "As long as an opponent has three or more poison counters,
             // creatures you control with toxic have lifelink."

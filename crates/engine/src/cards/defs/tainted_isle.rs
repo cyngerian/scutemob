@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add {U} or {B}. Activate only if you control a Swamp.
             AbilityDefinition::Activated {
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_zone: None,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -40,6 +42,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_zone: None,
             },
         ],
         ..Default::default()

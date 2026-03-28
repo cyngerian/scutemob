@@ -53,6 +53,7 @@ pub fn card() -> CardDefinition {
                     TargetRequirement::TargetEnchantment,
                 ],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

@@ -24,6 +24,9 @@ pub fn card() -> CardDefinition {
                     player: PlayerTarget::Controller,
                     n: 3,
                 },
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

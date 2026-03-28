@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
             AbilityDefinition::Activated {
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {2}, {T}, Sacrifice: Return target Dragon creature card from graveyard to hand.
             // TODO: Also targets "Ugin planeswalker card" (name + type union not expressible)
@@ -63,6 +65,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

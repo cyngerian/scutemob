@@ -40,6 +40,9 @@ pub fn card() -> CardDefinition {
                     Effect::AdditionalCombatPhase { followed_by_main: false },
                 ]),
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

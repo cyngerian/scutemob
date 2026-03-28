@@ -35,6 +35,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "no maximum hand size for the rest of the game" — needs permanent player designation
         ],

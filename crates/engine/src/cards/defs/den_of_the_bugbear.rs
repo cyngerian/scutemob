@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 613.1d/613.4b: {3}{R}: Until end of turn, this land becomes a 3/2 red Goblin creature.
             // Note: "Whenever this creature attacks, create a 1/1 red Goblin token" omitted —
@@ -83,6 +84,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

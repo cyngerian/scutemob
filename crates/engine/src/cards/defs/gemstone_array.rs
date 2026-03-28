@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 602.2: Remove a charge counter: Add one mana of any color.
             // Note: Technically a mana ability (CR 605.1) but implemented as regular
@@ -32,6 +33,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

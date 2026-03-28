@@ -37,6 +37,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {1}{R}, Sacrifice a Goblin: This creature deals 2 damage to any target.
             AbilityDefinition::Activated {
@@ -55,6 +58,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetAny],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

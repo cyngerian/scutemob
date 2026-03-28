@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell
             // or an Omen spell.
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {4}, {T}, Sacrifice: Search for a Dragon card, put into hand, shuffle.
             // CR 701.23
@@ -69,6 +71,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

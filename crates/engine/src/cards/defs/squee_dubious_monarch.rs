@@ -40,6 +40,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "You may cast this card from your graveyard by paying {3}{R} and exiling
             // four other cards from your graveyard" — AltCostKind lacks a variant for paying

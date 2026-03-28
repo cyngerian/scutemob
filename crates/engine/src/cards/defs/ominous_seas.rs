@@ -23,6 +23,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 602.2: Remove eight foreshadow counters: Create an 8/8 blue Kraken token.
             AbilityDefinition::Activated {
@@ -52,6 +55,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Cycling {2}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),

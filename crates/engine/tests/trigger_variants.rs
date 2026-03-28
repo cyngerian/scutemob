@@ -99,6 +99,9 @@ fn test_whenever_you_cast_creature_spell_filter_stored() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -143,6 +146,9 @@ fn test_whenever_you_cast_noncreature_spell_filter_stored() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -184,6 +190,9 @@ fn test_whenever_opponent_casts_noncreature_filter_stored() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -224,6 +233,9 @@ fn test_whenever_you_discard_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };
@@ -257,6 +269,9 @@ fn test_whenever_opponent_discards_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };
@@ -296,6 +311,9 @@ fn test_whenever_you_sacrifice_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -335,6 +353,9 @@ fn test_whenever_you_sacrifice_with_filter() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -434,6 +455,9 @@ fn test_whenever_you_attack_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };
@@ -545,6 +569,9 @@ fn test_when_leaves_battlefield_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -695,6 +722,9 @@ fn test_whenever_you_draw_card_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };
@@ -786,6 +816,9 @@ fn test_whenever_opponent_draws_card_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };
@@ -853,6 +886,9 @@ fn test_whenever_you_gain_life_trigger_fires() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };
@@ -931,6 +967,9 @@ fn test_when_you_cast_this_spell_trigger_variant() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         power: Some(1),
         toughness: Some(1),
@@ -975,6 +1014,9 @@ fn test_when_you_cast_this_spell_fires_from_stack() {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     };

@@ -113,6 +113,9 @@ fn connive_etb_creature_def(card_id_str: &str, name: &str) -> CardDefinition {
             },
             intervening_if: None,
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     }

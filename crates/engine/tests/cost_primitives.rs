@@ -58,6 +58,8 @@ fn test_remove_counter_cost_basic() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -127,6 +129,8 @@ fn test_remove_counter_cost_insufficient() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -171,6 +175,8 @@ fn test_remove_counter_cost_exact_zero() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -230,6 +236,8 @@ fn test_remove_counter_cost_in_sequence() {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)

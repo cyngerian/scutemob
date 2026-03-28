@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 107.3k: {X}{X}, {T}, Sacrifice: Create X Treasure tokens.
             // x_count: 2 means total cost = 2 * x_value generic mana.
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

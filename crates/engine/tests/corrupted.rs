@@ -84,6 +84,9 @@ fn corrupted_etb_def(card_id: &str, name: &str) -> CardDefinition {
             },
             intervening_if: Some(Condition::OpponentHasPoisonCounters(3)),
             targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
         }],
         ..Default::default()
     }

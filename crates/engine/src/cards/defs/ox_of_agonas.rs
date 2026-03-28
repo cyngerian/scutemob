@@ -38,6 +38,9 @@ pub fn card() -> CardDefinition {
                         count: EffectAmount::Fixed(3),
                     },
                 ]),
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

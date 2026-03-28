@@ -34,6 +34,9 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::You,
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {T}: Add {R}{G}.
             AbilityDefinition::Activated {
@@ -42,6 +45,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

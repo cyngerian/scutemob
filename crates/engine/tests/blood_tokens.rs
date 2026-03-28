@@ -82,6 +82,8 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
             }),
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .token()
 }

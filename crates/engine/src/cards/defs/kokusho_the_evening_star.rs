@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(5) },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

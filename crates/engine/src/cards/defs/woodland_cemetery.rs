@@ -1,4 +1,4 @@
-// Woodland Cemetery — This land enters tapped unless you control a Swamp or a Forest. {T}: Add {B} or 
+// Woodland Cemetery — This land enters tapped unless you control a Swamp or a Forest. {T}: Add {B} or
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

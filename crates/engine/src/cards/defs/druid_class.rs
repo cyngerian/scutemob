@@ -30,6 +30,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Level 2 bar: {2}{G}: You may play an additional land on each of your turns.
             // CR 305.2: When level 2 is reached, register AdditionalLandPlays static.

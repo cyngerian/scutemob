@@ -28,6 +28,9 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 603.10a: "Whenever another creature you control dies, each opponent loses 1 life."
             // PB-23: controller_you + exclude_self filters via DeathTriggerFilter.
@@ -46,6 +49,9 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

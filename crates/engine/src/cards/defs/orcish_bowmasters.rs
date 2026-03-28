@@ -31,6 +31,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetAny],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "whenever an opponent draws a card except the first one they draw in
             // each of their draw steps" — no draw-tracking trigger in DSL.

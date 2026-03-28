@@ -27,6 +27,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Proliferate,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // Corrupted end step: draw if opponent has 3+ poison
             AbilityDefinition::Triggered {
@@ -37,6 +40,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: Some(Condition::OpponentHasPoisonCounters(3)),
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "May put a land from hand onto battlefield" not in DSL.
         ],

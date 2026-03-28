@@ -601,6 +601,8 @@ fn test_condition_has_citys_blessing() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![],
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 

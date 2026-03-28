@@ -30,6 +30,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "When Juri dies, deals damage equal to its power to any target."
             // Needs EffectAmount::SourcePower.

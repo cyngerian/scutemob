@@ -29,6 +29,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Sacrifice five Treasures: Gain control of target creature for as long as
             // you control Kellogg." — see comment above.

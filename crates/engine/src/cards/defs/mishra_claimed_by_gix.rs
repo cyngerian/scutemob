@@ -29,6 +29,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Meld trigger (Phyrexian Dragon Engine + Mishra meld) — Meld not yet in DSL.
         ],

@@ -34,6 +34,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 603.10a: "Whenever a creature you control dies, each opponent loses 1 life and you gain 1 life."
             // PB-23: controller_you filter applied via DeathTriggerFilter.
@@ -54,6 +57,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

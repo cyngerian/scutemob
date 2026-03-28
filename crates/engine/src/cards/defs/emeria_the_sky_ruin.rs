@@ -40,6 +40,9 @@ pub fn card() -> CardDefinition {
                     has_card_type: Some(CardType::Creature),
                     ..Default::default()
                 })],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {T}: Add {W}.
             AbilityDefinition::Activated {
@@ -51,6 +54,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

@@ -260,6 +260,8 @@ fn test_split_second_blocks_activated_abilities() {
             effect: None,
             sorcery_speed: false,
             activation_condition: None,
+
+            activation_zone: None,
         })
         .in_zone(ZoneId::Battlefield);
 

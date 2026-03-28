@@ -24,6 +24,9 @@ creature dies, each opponent loses 2 life and you gain 2 life."
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 702.55c: haunted creature dies trigger (same effect)
             AbilityDefinition::Triggered {
@@ -31,6 +34,9 @@ creature dies, each opponent loses 2 life and you gain 2 life."
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

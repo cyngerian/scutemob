@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {R}, {T}: Target creature gains haste until end of turn.
             AbilityDefinition::Activated {
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {3}{R}{R}, {T}: Meld with Hanweir Garrison (CR 701.42a / CR 712.4a)
             AbilityDefinition::Activated {
@@ -55,6 +57,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         meld_pair: Some(MeldPair {

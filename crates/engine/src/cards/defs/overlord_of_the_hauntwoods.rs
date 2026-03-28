@@ -74,6 +74,9 @@ Everywhere that is every basic land type."
                 effect: Effect::CreateToken { spec: everywhere_token_spec() },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // "Whenever this permanent attacks" — attack trigger.
             AbilityDefinition::Triggered {
@@ -81,6 +84,9 @@ Everywhere that is every basic land type."
                 effect: Effect::CreateToken { spec: everywhere_token_spec() },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         power: Some(6),

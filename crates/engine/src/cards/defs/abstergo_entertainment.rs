@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {1}, {T}: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -32,6 +33,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
             // from your graveyard to your hand, then exile all graveyards.

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.
             // Note: "Phyrexian" is a creature type in MTG. Using CreatureWithSubtype to enforce
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
             // Activate only if an opponent has three or more poison counters.
@@ -66,6 +68,7 @@ pub fn card() -> CardDefinition {
                 // TODO: Target should be "1/1 creature" — TargetFilter lacks exact P/T constraint.
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
+                activation_zone: None,
             },
         ],
         ..Default::default()

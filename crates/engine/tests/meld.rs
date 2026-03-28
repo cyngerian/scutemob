@@ -116,6 +116,7 @@ fn battlements_def() -> CardDefinition {
             timing_restriction: None,
             targets: vec![],
             activation_condition: None,
+            activation_zone: None,
         }],
         power: None,
         toughness: None,

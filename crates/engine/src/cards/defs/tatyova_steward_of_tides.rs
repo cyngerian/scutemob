@@ -83,6 +83,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: Some(Condition::ControlAtLeastNOtherLands(6)),
                 targets: vec![TargetRequirement::TargetLand],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

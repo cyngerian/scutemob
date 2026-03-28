@@ -36,6 +36,9 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
                 ]),
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: Static grant — equipped creature gets +1/+0 and can't be blocked.
             // No EquippedCreatureGrant continuous effect primitive. Deferred.
@@ -53,6 +56,7 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

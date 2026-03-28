@@ -62,6 +62,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
 
             // CR 701.61a: "{2}, Forage: Put a +1/+1 counter on each other Squirrel you control."
@@ -85,6 +88,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         power: Some(3),

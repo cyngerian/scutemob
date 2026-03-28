@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 })],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}, Pay 2 life: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -43,6 +44,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}, Pay 3 life: Proliferate.
             AbilityDefinition::Activated {
@@ -54,6 +56,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}, Pay 4 life: Draw a card.
             AbilityDefinition::Activated {
@@ -68,6 +71,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
             // {5}: Untap Staff of Compleation.
             AbilityDefinition::Activated {
@@ -76,6 +80,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

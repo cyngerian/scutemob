@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {T}: Add {B}. Activate only if you control an Island or a Swamp.
             AbilityDefinition::Activated {
@@ -34,6 +35,8 @@ pub fn card() -> CardDefinition {
                     SubType("Island".to_string()),
                     SubType("Swamp".to_string()),
                 ])),
+
+                activation_zone: None,
             },
         ],
         ..Default::default()

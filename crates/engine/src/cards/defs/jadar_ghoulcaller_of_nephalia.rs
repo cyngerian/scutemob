@@ -35,6 +35,9 @@ When it attacks, sacrifice it at end of combat.)"
                 effect: Effect::CreateToken { spec: zombie_decayed_token_spec(1) },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         color_indicator: None,

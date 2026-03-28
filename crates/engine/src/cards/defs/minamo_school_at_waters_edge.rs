@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
             // {U}, {T}: Untap target legendary permanent.
             AbilityDefinition::Activated {
@@ -35,6 +36,7 @@ pub fn card() -> CardDefinition {
                 })],
                 // TODO: Target should be "legendary permanent" — TargetFilter lacks supertype constraint.
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

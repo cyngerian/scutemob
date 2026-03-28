@@ -32,6 +32,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // {T}: Draw a card.
             AbilityDefinition::Activated {
@@ -43,6 +46,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 timing_restriction: None,
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

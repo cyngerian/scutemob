@@ -25,6 +25,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // CR 602.2: {2}, Remove a +1/+1 counter: Put a +1/+1 counter on target creature.
             AbilityDefinition::Activated {
@@ -40,6 +43,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 615.1: {1}, Remove a +1/+1 counter: Prevent all combat damage this turn.
             AbilityDefinition::Activated {
@@ -51,6 +55,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

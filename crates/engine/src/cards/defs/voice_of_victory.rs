@@ -39,6 +39,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Opponents can't cast during your turn" stax restriction not in DSL.
         ],

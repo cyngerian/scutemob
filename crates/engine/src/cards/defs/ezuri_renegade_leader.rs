@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 })],
                 activation_condition: None,
+                activation_zone: None,
             },
             // CR 613.4c / CR 613.1f: "{2}{G}{G}{G}: Elf creatures you control get +3/+3
             // and gain trample until end of turn." Uses CreaturesYouControlWithSubtype
@@ -64,6 +65,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
+                activation_zone: None,
             },
         ],
         ..Default::default()

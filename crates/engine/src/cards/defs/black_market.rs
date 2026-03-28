@@ -22,6 +22,9 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: DSL gap — "At the beginning of your first main phase, add {B} for each
             // charge counter." Needs main phase trigger + counter-scaled mana production.

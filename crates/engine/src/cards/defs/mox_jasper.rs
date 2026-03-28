@@ -20,6 +20,8 @@ pub fn card() -> CardDefinition {
                     has_subtype: Some(SubType("Dragon".to_string())),
                     ..Default::default()
                 })),
+
+                activation_zone: None,
             },
         ],
         ..Default::default()

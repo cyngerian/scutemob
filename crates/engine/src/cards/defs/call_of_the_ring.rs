@@ -18,6 +18,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::TheRingTemptsYou,
                 intervening_if: None,
                 targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
             },
             // TODO: "Whenever you choose a creature as your Ring-bearer, you may pay 2 life.
             // If you do, draw a card." — requires TriggerCondition::WhenRingBearerChosen

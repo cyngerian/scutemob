@@ -1,28 +1,50 @@
-# Primitive WIP: PB-34 -- Mana production (filter lands, devotion, conditional)
+# Primitive WIP: PB-35 -- Modal triggers + graveyard conditions + planeswalker abilities
 
-batch: PB-34
-title: Mana production (filter lands, devotion, conditional)
-cards_affected: ~40
-started: 2026-03-27
-phase: closed
-plan_file: memory/primitives/pb-plan-34.md
+batch: PB-35
+title: Modal triggers + graveyard conditions + planeswalker abilities
+cards_affected: ~60
+started: 2026-03-28
+phase: implement
+plan_file: memory/primitives/pb-plan-35.md
 
-## Gap Reference
-G-23: Filter lands (~20 cards) — Activated ability: pay hybrid mana, produce two mana from a choice set. Pattern: `AddManaChoice` with constrained color pairs
-G-24: Devotion-based mana (~5 cards) — `AddManaScaled` with `EffectAmount::DevotionTo` — exists but verify wiring
-G-25: Conditional mana abilities (~15 cards) — Activated abilities with conditions (e.g., "sacrifice: add {B}{B}") — many are just `Cost::Sequence` + `AddMana` wiring
+## Gap Groups
+- G-27: Modal triggered abilities (~26 cards) — modal choice on trigger resolution, extend B11 modal support to triggered abilities
+- G-29: Graveyard recursion conditions (~23 cards) — MoveZone + conditions, some need ActivationCondition extensions
+- G-30: Planeswalker remaining (~11 cards) — individual PW loyalty abilities, framework exists (PB-14)
 
 ## Deferred from Prior PBs
-- None directly applicable to mana production
+- G-25 partial (Springleaf Drum, Cryptolith Rite, Faeburrow Elder, Arena of Glory) deferred to PB-37
+- G-24 (Nykthos, Three Tree City) deferred — requires Command::ChooseColor (M10)
 
 ## Step Checklist
-- [x] 1. Engine changes (new types/variants/dispatch) — Effect::AddManaFilterChoice added to card_definition.rs, effects/mod.rs, state/hash.rs (disc 73); try_as_tap_mana_ability extended for AddManaFilterChoice + AddManaScaled in replay_harness.rs; is_tap_mana_ability skip list updated
-- [x] 2. Card definition fixes — 7 filter lands fixed: fetid_heath, rugged_prairie, twilight_mire, flooded_grove, cascade_bluffs (new ability added), sunken_ruins (new ability added), graven_cairns (new ability added). All TODO comments removed. AddManaScaled orphan bug fixed via try_as_tap_mana_ability extension.
-- [ ] 3. New card definitions (if any)
-- [x] 4. Unit tests — 5 tests in crates/engine/tests/mana_filter.rs: test_filter_land_produces_two_mana_fetid_heath, test_filter_land_tap_required, test_all_filter_lands_produce_correct_colors, test_add_mana_scaled_registered_as_mana_ability, test_add_mana_scaled_orphan_fix_all_cards — all pass
-- [x] 5. Workspace build verification — cargo test --all (2408 passing, 0 failed), cargo clippy 0 warnings, cargo build --workspace clean, cargo fmt --check clean
-
-## Review
-findings: 2 (HIGH: 0, MEDIUM: 0, LOW: 2)
-verdict: clean
-review_file: memory/primitives/pb-review-34.md
+- [x] 1. Engine changes (new types/variants/dispatch)
+  - ActivationZone enum + activation_zone on AbilityDefinition::Activated + ActivatedAbility
+  - TriggerZone enum + trigger_zone + modes on AbilityDefinition::Triggered
+  - hash.rs updated (ActivationZone, TriggerZone, ActivatedAbility.activation_zone, Triggered modes/trigger_zone)
+  - handle_activate_ability extended for graveyard activation
+  - collect_graveyard_carddef_triggers() added + called from check_triggers for PermanentEnteredBattlefield
+  - flush_pending_triggers: modes_chosen = [0] set for modal triggered abilities (CR 700.2b)
+  - resolution.rs: modal dispatch uses modes_chosen to select chosen mode effects
+  - replay_harness.rs: WhenDies/WhenAttacks/WhenDealsCombatDamageToPlayer conversions updated for modal (mode 0 fallback)
+  - helpers.rs: exports ActivationZone, TriggerZone
+- [x] 2. Card definition fixes
+  - G-29: reassembling_skeleton.rs — ActivationZone::Graveyard, return to BF tapped
+  - G-29: bloodghast.rs — TriggerZone::Graveyard landfall trigger, return to BF
+  - G-29: earthquake_dragon.rs — ActivationZone::Graveyard, sacrifice land cost
+  - G-29: cult_conscript.rs — ActivationZone::Graveyard (without condition, deferred)
+  - G-27: retreat_to_kazandu.rs — modal landfall trigger (modes: counter or gainlife)
+  - G-27: retreat_to_coralhelm.rs — modal landfall trigger (modes: untap or scry)
+  - G-27: felidar_retreat.rs — modal landfall trigger (modes: token or mass counter+vigilance)
+  - G-27: junji_the_midnight_sky.rs — modal WhenDies trigger (modes: discard+life or reanimate)
+  - G-27: shambling_ghast.rs — modal ETB trigger (modes: treasure or -1/-1 counter)
+  - G-27: tectonic_giant.rs — modal WhenAttacks trigger (modes: damage or Nothing)
+  - G-27: hullbreaker_horror.rs — modal WheneverYouCastSpell trigger (min_modes: 0)
+  - G-27: glissa_sunslayer.rs — modal combat damage trigger (3 modes)
+  - G-27: goblin_cratermaker.rs — modal activated ability using Effect::Choose
+  - G-27: umezawas_jitte.rs — full modal activated ability using Effect::Choose
+- [x] 3. New card definitions (if any) — none needed
+- [x] 4. Unit tests
+  - modal_triggers.rs: 6 tests (structure checks for Retreat to Kazandu, Felidar Retreat, Junji, Shambling Ghast, Glissa Sunslayer, Hullbreaker Horror)
+  - graveyard_abilities.rs: 5 tests (Reassembling Skeleton structure/activation, zone check, Bloodghast structure, Earthquake Dragon sacrifice cost)
+  - Total new tests: 11 (2419 total, 0 failures)
+- [x] 5. Workspace build verification — clean (0 errors, 0 warnings, 0 clippy, fmt OK)

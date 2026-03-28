@@ -35,6 +35,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetPlayer],
+
+                modes: None,
+                trigger_zone: None,
             },
         ],
         ..Default::default()

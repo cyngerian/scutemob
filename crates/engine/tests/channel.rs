@@ -61,6 +61,8 @@ fn channel_card(owner: PlayerId, name: &str, mana: ManaCost, effect: Effect) -> 
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![],
+
+            activation_zone: None,
         })
 }
 
@@ -210,6 +212,8 @@ fn test_channel_cannot_activate_from_battlefield() {
             sorcery_speed: false,
             activation_condition: None,
             targets: vec![],
+
+            activation_zone: None,
         });
 
     let state = GameStateBuilder::new()
