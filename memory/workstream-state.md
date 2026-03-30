@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | BF-1: Post-gap-closure re-triage | ACTIVE | 2026-03-30 | **ALL PBs COMPLETE (PB-0–37)**; BF-1 re-triage in progress |
+| W6: Primitive + Card Authoring | — | available | — | **ALL PBs COMPLETE (PB-0–37)**; BF-1+BF-2 done; next: BF-S1 backfill fix sprint |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,22 +24,22 @@
 ## Last Handoff
 
 **Date**: 2026-03-30
-**Workstream**: W6 (PB-37)
-**Task**: PB-37 Residual complex activated abilities (G-26)
+**Workstream**: W6 (BF-1 + BF-2)
+**Task**: Post-gap-closure re-triage and gap closure commit
 
 **Completed**:
-- **PB-37 DONE** (full pipeline: plan → implement → review → fix → close). G-26 residual. 4 new engine primitives: Condition::WasCast (CR 603.4), EffectDuration::UntilYourNextTurn(PlayerId) (CR 611.2b), once_per_turn on Activated/ActivatedAbility (CR 602.5b), was_cast+abilities_activated_this_turn on GameObject, temporary_protection_qualities on PlayerState, expire_until_next_turn_effects() sweep. 7 card defs fixed. 9 new tests. Review: 1H 2M 4L all fixed (PlayerId(0) resolution in ApplyContinuousEffect, concede cleanup, CR citation corrections). 2437 tests, 0 clippy. Commits: 6507d41 (impl), 825cb0c (fixes), 4f03112 (close).
-- **ALL PRIMITIVE BATCHES COMPLETE (PB-0 through PB-37).**
+- **BF-1 DONE**: Scanned 1,451 card defs. 773 clean (53%), 678 with TODOs (1,070 lines). ~100 fixable now across 131 candidate files (~30% false positive rate on regex match). 547 still blocked. Report: `memory/card-authoring/bf1-retriage-report.md`.
+- **BF-2 DONE**: Gap closure commit (05c4c18). Operations plan updated with 9 backfill fix sessions (BF-S1 through BF-S9).
 
 **Next**:
-1. **BF-1**: Post-gap-closure re-triage — scan all TODO cards, re-classify against expanded DSL
-2. **BF-2**: Commit gap closure complete
-3. Resume card authoring (A-29+)
+1. **BF-S1 through BF-S9**: Backfill fix sprint — fix ~100 TODOs across 131 files. Per card: verify DSL construct exists, look up oracle text, replace TODO with real DSL code. Use `card-fix-applicator` agent. Start with BF-S1 (15 fully-fixable files).
+2. After backfill: resume A-29+ card authoring.
 
 **Hazards**:
-- ~500+ backfill sweep cards accumulated across PB-23–37 (BF-1 will quantify)
+- ~30-40% false positive rate — each card needs manual verification before fixing
+- Partially-fixable files (BF-S6–S9) will retain some TODOs after fix
 
-**Commit prefix used**: `W6-prim:`
+**Commit prefix**: `W6-cards:`
 
 ## Handoff History
 

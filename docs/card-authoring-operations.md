@@ -173,19 +173,38 @@ their TODOs removed.
 - [x] **PB-36**: Evasion/protection extensions (~21 cards) — 16 fixed, 3M fixed, 2428 tests
 - [x] **PB-37**: Complex activated abilities — residual G-26 (~8 cards) — 7 fixed, 1H 2M fixed, 2437 tests
 - [x] **BF-1**: Post-gap-closure re-triage — 678/1451 files have TODOs (1070 lines). ~100 fixable now (131 candidate files, ~30% false positive rate). 547 still blocked. Report: `memory/card-authoring/bf1-retriage-report.md`
-- [ ] **BF-2**: Commit: `W6-prim: gap closure complete — PB-23 through PB-37`
+- [x] **BF-2**: Commit: `W6-cards: BF-1 re-triage + BF-2 gap closure complete` (05c4c18)
+
+### Backfill Fix Sprint: Wave 1
+
+Requires: BF-2 complete. Fix existing card defs whose TODOs are now expressible.
+
+131 candidate files, ~100 genuinely fixable TODOs (after false positive filtering).
+9 sessions of ~15 files each. Per card: verify DSL construct exists, look up oracle
+text, replace TODO with real DSL code. Use `card-fix-applicator` agent.
+
+Report: `memory/card-authoring/bf1-retriage-report.md` (session file lists + category breakdown).
+
+- [ ] **BF-S1**: 15 fully-fixable files (abstergo → citanul_hierophants)
+- [ ] **BF-S2**: 15 fully-fixable files (clavileno → hallowed_spiritkeeper)
+- [ ] **BF-S3**: 15 fully-fixable files (hazorets_monument → meren_of_clan_nel_toth)
+- [ ] **BF-S4**: 15 fully-fixable files (moria_marauder → sundering_eruption)
+- [ ] **BF-S5**: 15 files (11 full + 4 partial)
+- [ ] **BF-S6**: 15 partially-fixable files
+- [ ] **BF-S7**: 15 partially-fixable files
+- [ ] **BF-S8**: 15 partially-fixable files
+- [ ] **BF-S9**: 11 partially-fixable files
 
 ### Phase 2 (continued): Author Remaining Cards
 
-Requires: BF-2 complete.
+Requires: Backfill sprint complete (or in parallel).
 
 After gap closure + backfill, many cards from the original Tier 3 groups will already
 be implemented via backfill. Re-triage (BF-1) will shrink these groups. Only genuinely
 new cards (not yet authored at all) remain.
 
 **Note**: A-24 through A-28 were authored with TODOs — their TODOs will be resolved by
-PB-23 (triggers), PB-26 (discard triggers), PB-30 (combat damage), PB-31 (counter/sacrifice
-costs) during the backfill step.
+the backfill sprint above.
 
 **Tier 3: Complex patterns** (re-triage sizes after BF-1)
 
