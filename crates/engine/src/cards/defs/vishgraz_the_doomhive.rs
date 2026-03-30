@@ -28,9 +28,10 @@ pub fn card() -> CardDefinition {
                         power: 1,
                         toughness: 1,
                         count: 3,
-                        // Note: "This token can't block" is a static restriction.
-                        // KeywordAbility::CantBlock does not exist in DSL — omitted.
-                        keywords: [KeywordAbility::Toxic(1)].into_iter().collect(),
+                        // CR 509.1b: "This token can't block."
+                        keywords: [KeywordAbility::Toxic(1), KeywordAbility::CantBlock]
+                            .into_iter()
+                            .collect(),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,

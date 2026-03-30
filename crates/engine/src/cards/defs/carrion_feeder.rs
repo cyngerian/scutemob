@@ -13,8 +13,8 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: DSL gap — "Carrion Feeder can't block." KeywordAbility::CantBlock
-            // (defensive restriction) does not exist — only CantBeBlocked (evasion).
+            // CR 509.1b: "Carrion Feeder can't block."
+            AbilityDefinition::Keyword(KeywordAbility::CantBlock),
             AbilityDefinition::Activated {
                 cost: Cost::Sacrifice(TargetFilter {
                     has_card_type: Some(CardType::Creature),

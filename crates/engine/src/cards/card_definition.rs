@@ -12,7 +12,7 @@ use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigg
 use crate::state::types::AltCostKind;
 use crate::state::{
     CardId, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost, KeywordAbility,
-    ManaColor, ManaCost, ManaPool, SubType, SuperType,
+    ManaColor, ManaCost, ManaPool, ProtectionQuality, SubType, SuperType,
 };
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
@@ -1765,6 +1765,22 @@ pub enum Effect {
         target_a: EffectTarget,
         target_b: EffectTarget,
         duration: EffectDuration,
+    },
+    /// CR 702.16b/e/j: Grant protection qualities to a player.
+    ///
+    /// Populates `PlayerState.protection_qualities` with the given qualities.
+    /// The targeting check in `casting.rs` and damage prevention in `replacement.rs`
+    /// already use this field — this Effect simply populates it.
+    ///
+    /// Used by Teferi's Protection ("you gain protection from everything") and
+    /// The One Ring ("if you cast it, you gain protection from everything until
+    /// your next turn").
+    ///
+    /// Note: Duration cleanup ("until your next turn") is deferred. Protection
+    /// is granted permanently until expiration infrastructure is added (TODO).
+    GrantPlayerProtection {
+        player: PlayerTarget,
+        qualities: Vec<ProtectionQuality>,
     },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────

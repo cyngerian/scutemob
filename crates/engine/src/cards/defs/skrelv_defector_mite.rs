@@ -30,7 +30,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Toxic(1)),
-            // TODO: DSL gap — no CantBlock keyword variant; Skrelv can't block
+            // CR 509.1b: "Skrelv can't block."
+            AbilityDefinition::Keyword(KeywordAbility::CantBlock),
         ],
         ..Default::default()
     }

@@ -25,7 +25,30 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: Protection from green and blue on equipped creature.
+            // CR 702.16a: "protection from green" on equipped creature.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(
+                        ProtectionQuality::FromColor(Color::Green),
+                    )),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // CR 702.16a: "protection from blue" on equipped creature.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(
+                        ProtectionQuality::FromColor(Color::Blue),
+                    )),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // create a 2/2 green Wolf token and that player mills ten cards."
             AbilityDefinition::Triggered {

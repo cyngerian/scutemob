@@ -51,9 +51,10 @@ pub use stubs::{
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    AdditionalCost, AffinityTarget, AltCostKind, CardType, ChampionFilter, Color, CounterType,
-    CumulativeUpkeepCost, DayNight, EnchantTarget, FaceDownKind, KeywordAbility, LandwalkType,
-    ManaColor, ProtectionQuality, SubType, SuperType, TurnFaceUpMethod,
+    AdditionalCost, AffinityTarget, AltCostKind, BlockingExceptionFilter, CardType, ChampionFilter,
+    Color, CounterType, CumulativeUpkeepCost, DayNight, EnchantTarget, FaceDownKind,
+    KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
+    TurnFaceUpMethod,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 /// The complete state of an MTG game at a point in time.

@@ -15,7 +15,9 @@ use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stubs::GameRestriction;
 use crate::state::turn::Step;
-use crate::state::types::{CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType};
+use crate::state::types::{
+    BlockingExceptionFilter, CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType,
+};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 use im::{OrdMap, OrdSet};
@@ -616,6 +618,13 @@ pub fn handle_declare_blockers(
                 blocker_id
             )));
         }
+        // CR 509.1b: A creature with CantBlock can't block.
+        if blocker_chars.keywords.contains(&KeywordAbility::CantBlock) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} has CantBlock and cannot block (CR 509.1b)",
+                blocker_id
+            )));
+        }
         // CR 701.60c: A suspected permanent has "This creature can't block."
         // Checked on the raw GameObject (like Decayed) so the restriction persists
         // even under ability-removal effects (Humility strips the Menace grant but
@@ -697,6 +706,27 @@ pub fn handle_declare_blockers(
                 "Object {:?} cannot be blocked (CantBeBlocked keyword)",
                 attacker_id
             )));
+        }
+        // CR 509.1b: CantBeBlockedExceptBy — the attacker can only be blocked by creatures
+        // matching the exception filter. Each filter arm specifies what qualifies.
+        for kw in attacker_chars.keywords.iter() {
+            if let KeywordAbility::CantBeBlockedExceptBy(filter) = kw {
+                let blocker_matches = match filter {
+                    BlockingExceptionFilter::HasKeyword(required_kw) => {
+                        blocker_chars.keywords.contains(required_kw.as_ref())
+                    }
+                    BlockingExceptionFilter::HasAnyKeyword(required_kws) => required_kws
+                        .iter()
+                        .any(|k| blocker_chars.keywords.contains(k)),
+                };
+                if !blocker_matches {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "Object {:?} cannot block {:?} (attacker has CantBeBlockedExceptBy; \
+                         blocker does not match filter {:?})",
+                        blocker_id, attacker_id, filter
+                    )));
+                }
+            }
         }
         // CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures
         // and/or creatures that share a color with it.
@@ -917,6 +947,10 @@ pub fn handle_declare_blockers(
             }
             // CR 702.147a: Decayed creatures can't block.
             if provoked_chars.keywords.contains(&KeywordAbility::Decayed) {
+                continue; // Requirement impossible -- skip
+            }
+            // CR 509.1b: CantBlock creatures can't block.
+            if provoked_chars.keywords.contains(&KeywordAbility::CantBlock) {
                 continue; // Requirement impossible -- skip
             }
             // CR 701.60c: Suspected creatures can't block.

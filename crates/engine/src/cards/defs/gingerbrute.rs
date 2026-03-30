@@ -14,7 +14,30 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: {1}: Can't be blocked except by creatures with haste — filtered evasion DSL gap
+            // CR 509.1b: "{1}: This creature can't be blocked this turn except by creatures
+            // with haste." Applies CantBeBlockedExceptBy(HasKeyword(Haste)) until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(
+                            KeywordAbility::CantBeBlockedExceptBy(
+                                BlockingExceptionFilter::HasKeyword(Box::new(
+                                    KeywordAbility::Haste,
+                                )),
+                            ),
+                        ),
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+            },
             // {2}, {T}, Sacrifice: gain 3 life (Food ability)
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![

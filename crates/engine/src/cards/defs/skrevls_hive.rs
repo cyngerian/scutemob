@@ -14,9 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Upkeep trigger: lose 1 life and create a 1/1 colorless Phyrexian Mite artifact
             // creature token with toxic 1 and "can't block".
-            // NOTE: TokenSpec does not support the "can't block" restriction or toxic 1 keyword
-            // directly. Toxic keyword exists in KeywordAbility but token CantBlock is a DSL gap.
-            // Implementing token creation without the "can't block" restriction.
+            // Toxic 1 keyword and CantBlock restriction both applied to tokens.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Sequence(vec![
@@ -38,7 +36,10 @@ pub fn card() -> CardDefinition {
                             power: 1,
                             toughness: 1,
                             count: 1,
-                            keywords: [KeywordAbility::Toxic(1)].into_iter().collect(),
+                            // CR 509.1b: "This token can't block."
+                            keywords: [KeywordAbility::Toxic(1), KeywordAbility::CantBlock]
+                                .into_iter()
+                                .collect(),
                             tapped: false,
                             enters_attacking: false,
                             mana_color: None,

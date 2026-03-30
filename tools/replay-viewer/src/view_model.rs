@@ -873,5 +873,9 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Cloak => "Cloak".to_string(),
         KeywordAbility::MustAttackEachCombat => "Must Attack".to_string(),
         KeywordAbility::HexproofPlayer => "Hexproof (Player)".to_string(),
+        // PB-36: CantBlock (discriminant 160) -- CR 509.1b
+        KeywordAbility::CantBlock => "Can't Block".to_string(),
+        // PB-36: CantBeBlockedExceptBy (discriminant 161) -- CR 509.1b
+        KeywordAbility::CantBeBlockedExceptBy(_) => "Evasion (filtered)".to_string(),
     }
 }

@@ -21,7 +21,21 @@ pub fn card() -> CardDefinition {
         oracle_text: "Indestructible\nWhen The One Ring enters, if you cast it, you gain protection from everything until your next turn.\nAt the beginning of your upkeep, you lose 1 life for each burden counter on The One Ring.\n{T}: Put a burden counter on The One Ring, then draw a card for each burden counter on The One Ring.".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
-            // TODO: ETB "if you cast it" protection from everything until next turn.
+            // CR 702.16j: "When The One Ring enters, if you cast it, you gain protection
+            // from everything until your next turn."
+            // Note: Condition::WasCast does not exist yet — trigger fires unconditionally
+            // (including on reanimation/flicker). Duration cleanup deferred. TODO.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::GrantPlayerProtection {
+                    player: PlayerTarget::Controller,
+                    qualities: vec![ProtectionQuality::FromAll],
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             // {T}: Put a burden counter, then draw cards equal to burden counters.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

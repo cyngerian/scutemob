@@ -18,8 +18,16 @@ pub fn card() -> CardDefinition {
         power: None,
         toughness: None,
         abilities: vec![
-            // TODO: "Protection from planeswalkers and from Wizards" — multi-quality protection
-            // not expressible in current DSL; deferred.
+            // CR 702.16a: "Protection from planeswalkers" — blocks targeting/damage from
+            // Planeswalker-type sources.
+            AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
+                ProtectionQuality::FromCardType(CardType::Planeswalker),
+            )),
+            // CR 702.16a: "Protection from Wizards" — blocks targeting/damage/blocking
+            // from sources with the Wizard subtype.
+            AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
+                ProtectionQuality::FromSubType(SubType("Wizard".to_string())),
+            )),
             // CR 604.3, 613.4a: CDA — P/T each equal to the number of lands you control.
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::PermanentCount {

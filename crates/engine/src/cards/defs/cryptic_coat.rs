@@ -40,9 +40,26 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: Static grant — equipped creature gets +1/+0 and can't be blocked.
-            // No EquippedCreatureGrant continuous effect primitive. Deferred.
-
+            // CR 611.3a / Layer 7c: "Equipped creature gets +1/+0."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyPower(1),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // CR 509.1 / Layer 6: "Equipped creature can't be blocked."
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::CantBeBlocked),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
             // {1}{U}: Return this Equipment to its owner's hand.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 1, blue: 1, ..Default::default() }),

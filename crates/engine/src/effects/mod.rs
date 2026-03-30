@@ -4235,6 +4235,21 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 702.16b/e/j: Grant protection qualities to a player.
+        // Pushes ProtectionQuality entries into PlayerState.protection_qualities.
+        // The targeting and damage-prevention infrastructure already checks this field.
+        Effect::GrantPlayerProtection { player, qualities } => {
+            let player_ids = resolve_player_target_list(state, player, ctx);
+            for pid in player_ids {
+                if let Some(ps) = state.players.get_mut(&pid) {
+                    for q in qualities {
+                        if !ps.protection_qualities.contains(q) {
+                            ps.protection_qualities.push(q.clone());
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────

@@ -14,7 +14,13 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::BattleCry),
-            // TODO: blocking restriction ("can't be blocked except by flying/reach") deferred
+            // CR 509.1b: "This creature can't be blocked except by creatures with flying or reach."
+            AbilityDefinition::Keyword(KeywordAbility::CantBeBlockedExceptBy(
+                BlockingExceptionFilter::HasAnyKeyword(vec![
+                    KeywordAbility::Flying,
+                    KeywordAbility::Reach,
+                ]),
+            )),
         ],
         color_indicator: None,
         back_face: None,

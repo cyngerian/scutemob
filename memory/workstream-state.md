@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-35 DONE |
+| W6: Primitive + Card Authoring | PB-37: Residual complex activated | available | — | PB-36 complete |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,26 +23,28 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-28
-**Workstream**: W6 (PB-35)
-**Task**: PB-35 Modal triggers + graveyard conditions + planeswalker abilities
+**Date**: 2026-03-29
+**Workstream**: W6 (PB-36)
+**Task**: PB-36 Evasion/protection extensions (G-31)
 
 **Completed**:
-- **PB-35 DONE**: G-27 Modal triggers + G-29 Graveyard abilities. Engine: ActivationZone/TriggerZone enums, modes on Triggered abilities, graveyard activation/trigger dispatch, modal trigger resolution. 14 card defs fixed (4 graveyard + 10 modal). 11 new tests. Review: 1H 3M fixed (Shambling Ghast wrong trigger + target, Bloodghast may, Jitte scope). 2419 tests, 0 clippy.
-- G-30 Planeswalker: deferred to PB-37 (most PW TODOs are general DSL gaps, not PW-framework).
-- Commits: 727a0f5 (implement), ed895e7 (fixes).
+- **PB-36 DONE**: G-31 Evasion/protection extensions. Engine: BlockingExceptionFilter enum (HasKeyword(Box<KW>)/HasAnyKeyword), CantBlock(160)/CantBeBlockedExceptBy(161) in KeywordAbility, Effect::GrantPlayerProtection(73), combat.rs per-blocker CantBlock check + per-attacker CantBeBlockedExceptBy check, provoke impossibility for CantBlock. All exhaustive matches updated (hash.rs, view_model.rs, lib.rs, mod.rs, helpers.rs). 16 card defs fixed: bloodghast(cantblock), carrion_feeder, phoenix_chick, skrelv, vishgraz, skrevls_hive, white_suns_twilight (Group A); signal_pest, gingerbrute (Group B); emrakul, greensleeves, sword_of_body_and_mind, cryptic_coat, untimely_malfunction (Group C); teferis_protection, the_one_ring (Group D). 9 new tests in evasion_protection.rs. 2428 tests, 0 clippy.
+- Condition::WasCast deferred (The One Ring fires unconditionally, documented TODO).
+- Duration cleanup ("until your next turn" for GrantPlayerProtection) deferred to PB-37/future.
 
 **Next**:
-1. Continue gap closure: PB-36 (evasion/protection extensions, ~21 cards)
-2. PB-37 (residual complex activated) after PB-36
-3. Backfill sweeps accumulating (~500+ cards across PB-23–35)
+1. PB-37: Residual complex activated (G-30 PW abilities + remaining complex effects)
+2. Backfill sweeps accumulating (~500+ cards across PB-23–36)
 
 **Hazards**:
-- Backfill sweeps accumulating (~500+ cards across PB-23–35)
+- Backfill sweeps accumulating (~500+ cards across PB-23–36)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-29 — W6: PB-36
+- PB-36: G-31 evasion/protection extensions. BlockingExceptionFilter, CantBlock/CantBeBlockedExceptBy KWs, GrantPlayerProtection effect, combat enforcement. 16 card defs fixed. 9 new tests. 2428 tests, 0 clippy.
 
 ### 2026-03-28 — W6: PB-35
 - PB-35: G-27/G-29/G-30 modal triggers + graveyard abilities. 14 card defs fixed, 1H 3M fixed. 2419 tests. Commits: 727a0f5, ed895e7.

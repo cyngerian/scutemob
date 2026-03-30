@@ -5,10 +5,7 @@
 // this card from your graveyard to the battlefield tapped and attacking with a +1/+1 counter
 // on it."
 //
-// Flying and Haste are implemented.
-//
-// TODO: DSL gap — "This creature can't block" requires a CantBlock keyword or static
-// continuous effect. No such KeywordAbility variant exists in the current DSL.
+// Flying, Haste, and CantBlock are implemented.
 //
 // TODO: DSL gap — the triggered ability requires:
 // 1. A trigger that fires when you attack with three or more creatures.
@@ -29,6 +26,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
+            // CR 509.1b: "This creature can't block."
+            AbilityDefinition::Keyword(KeywordAbility::CantBlock),
         ],
         ..Default::default()
     }

@@ -27,8 +27,12 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: Protection from instants — Protection(filter) for instant card type not in DSL.
-            // TODO: Cast trigger granting control of opponent for a turn + extra turn.
+            // CR 702.16a: "Protection from instants" — blocks targeting by instants (DEBT).
+            AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
+                ProtectionQuality::FromCardType(CardType::Instant),
+            )),
+            // TODO: Cast trigger granting control of opponent for a turn + extra turn —
+            //       player-control and extra-turn effects not in DSL.
         ],
         self_cost_reduction: Some(SelfCostReduction::CardTypesInGraveyard),
         ..Default::default()

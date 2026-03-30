@@ -31,8 +31,8 @@ use super::stubs::{
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    AdditionalCost, AffinityTarget, CardType, ChampionFilter, Color, CounterType,
-    CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
+    AdditionalCost, AffinityTarget, BlockingExceptionFilter, CardType, ChampionFilter, Color,
+    CounterType, CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
     ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
@@ -691,6 +691,29 @@ impl HashInto for KeywordAbility {
             KeywordAbility::MustAttackEachCombat => 158u8.hash_into(hasher),
             // HexproofPlayer (discriminant 159) -- CR 702.11d
             KeywordAbility::HexproofPlayer => 159u8.hash_into(hasher),
+            // CantBlock (discriminant 160) -- CR 509.1b
+            KeywordAbility::CantBlock => 160u8.hash_into(hasher),
+            // CantBeBlockedExceptBy (discriminant 161) -- CR 509.1b
+            KeywordAbility::CantBeBlockedExceptBy(filter) => {
+                161u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for BlockingExceptionFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            BlockingExceptionFilter::HasKeyword(kw) => {
+                0u8.hash_into(hasher);
+                kw.hash_into(hasher);
+            }
+            BlockingExceptionFilter::HasAnyKeyword(kws) => {
+                1u8.hash_into(hasher);
+                for kw in kws {
+                    kw.hash_into(hasher);
+                }
+            }
         }
     }
 }
@@ -5029,6 +5052,14 @@ impl HashInto for Effect {
                 target_a.hash_into(hasher);
                 target_b.hash_into(hasher);
                 duration.hash_into(hasher);
+            }
+            // CR 702.16b/e/j: GrantPlayerProtection (discriminant 73)
+            Effect::GrantPlayerProtection { player, qualities } => {
+                73u8.hash_into(hasher);
+                player.hash_into(hasher);
+                for q in qualities {
+                    q.hash_into(hasher);
+                }
             }
         }
     }

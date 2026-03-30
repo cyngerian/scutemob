@@ -2,6 +2,8 @@
 // 0: Destroy target artifact.
 // 1: Change the target of target spell or ability with a single target.
 // 2: One or two target creatures can't block this turn.
+//
+// Mode 2 implemented: grants CantBlock keyword to target creature(s) until end of turn.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -39,10 +41,16 @@ pub fn card() -> CardDefinition {
                     // When it is added, implement this mode with the appropriate target selector.
                     Effect::Sequence(vec![]),
                     // Mode 2: One or two target creatures can't block this turn.
-                    // TODO: CantBlock-until-EOT effect does not exist in the DSL.
-                    // When it is added, implement this mode with EffectFilter::DeclaredTarget
-                    // and UntilEndOfTurn duration.
-                    Effect::Sequence(vec![]),
+                    // CR 509.1b: Grant CantBlock to target creature(s) until end of turn.
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::CantBlock),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
                 ],
             }),
             cant_be_countered: false,

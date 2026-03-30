@@ -69,6 +69,22 @@ pub enum LandwalkType {
     /// the `Basic` supertype (e.g., Dryad Sophisticate).
     Nonbasic,
 }
+/// Filter describing which creatures are permitted to block a creature with
+/// `CantBeBlockedExceptBy`. Used for cards like Signal Pest and Gingerbrute.
+///
+/// CR 509.1b: Blocking restrictions are evaluated per-blocker. If a would-be blocker
+/// does not match this filter, the block declaration is illegal.
+///
+/// Note: `KeywordAbility` fields are `Box`ed to break the recursive-type cycle
+/// (`KeywordAbility` contains `CantBeBlockedExceptBy(BlockingExceptionFilter)` which
+/// would contain `KeywordAbility` without indirection -- Rust requires Box to break it).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum BlockingExceptionFilter {
+    /// "except by creatures with [keyword]" -- e.g., creatures with haste (Gingerbrute).
+    HasKeyword(Box<KeywordAbility>),
+    /// "except by creatures with [keyword] or [keyword]" -- e.g., flying or reach (Signal Pest).
+    HasAnyKeyword(Vec<KeywordAbility>),
+}
 /// Protection quality: what a permanent is protected from (CR 702.16a).
 ///
 /// Used in `KeywordAbility::ProtectionFrom(ProtectionQuality)` to specify
@@ -1550,6 +1566,23 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 159.
     HexproofPlayer,
+    /// CR 509.1b: "This creature can't block." Static blocking restriction enforced
+    /// in combat.rs blocker declaration. Unlike Decayed (which also prevents blocking),
+    /// this is a standalone keyword for cards like Bloodghast, Carrion Feeder, Phoenix Chick.
+    /// Unlike Suspected (designation-based), this is a keyword that can be removed by
+    /// ability-removal effects (e.g., Humility).
+    ///
+    /// Discriminant 160.
+    CantBlock,
+    /// CR 509.1b: "This creature can't be blocked except by creatures with [quality]."
+    /// Parameterized evasion -- the `BlockingExceptionFilter` specifies which blockers
+    /// are permitted. Enforced in combat.rs per-blocker validation.
+    ///
+    /// Example: Signal Pest has `CantBeBlockedExceptBy(HasAnyKeyword(vec![Flying, Reach]))`
+    /// Example: Gingerbrute (when activated) has `CantBeBlockedExceptBy(HasKeyword(Haste))`
+    ///
+    /// Discriminant 161.
+    CantBeBlockedExceptBy(BlockingExceptionFilter),
 }
 /// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.
 ///

@@ -18,8 +18,7 @@ pub fn card() -> CardDefinition {
                     amount: EffectAmount::XValue,
                 },
                 // CR 107.3m: Create X Phyrexian Mite tokens.
-                // Note: "This token can't block" is a static restriction; KeywordAbility::CantBlock
-                // does not exist in DSL — omitted per existing practice.
+                // CR 509.1b: "This token can't block."
                 Effect::Repeat {
                     count: EffectAmount::XValue,
                     effect: Box::new(Effect::CreateToken {
@@ -32,7 +31,10 @@ pub fn card() -> CardDefinition {
                             power: 1,
                             toughness: 1,
                             count: 1,
-                            keywords: [KeywordAbility::Toxic(1)].into_iter().collect(),
+                            // CR 509.1b: "This token can't block."
+                            keywords: [KeywordAbility::Toxic(1), KeywordAbility::CantBlock]
+                                .into_iter()
+                                .collect(),
                             tapped: false,
                             enters_attacking: false,
                             mana_color: None,
