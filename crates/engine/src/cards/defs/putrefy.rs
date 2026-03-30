@@ -1,7 +1,5 @@
-// Putrefy — {1}{B}{G} Instant; destroy target artifact or creature.
-// It can't be regenerated.
-// TODO: DSL gap — "can't be regenerated" clause not modeled (regeneration
-// prevention is a no-op since regeneration itself is rarely used).
+// Putrefy — {1}{B}{G}, Instant
+// Destroy target artifact or creature. It can't be regenerated.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,8 +14,10 @@ pub fn card() -> CardDefinition {
                 target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: true,
             },
-            // TODO: no TargetArtifactOrCreature — using TargetPermanent as broader fallback
-            targets: vec![TargetRequirement::TargetPermanent],
+            targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                has_card_types: vec![CardType::Artifact, CardType::Creature],
+                ..Default::default()
+            })],
             modes: None,
             cant_be_countered: false,
         }],
