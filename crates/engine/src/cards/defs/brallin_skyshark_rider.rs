@@ -44,8 +44,27 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "{R}: Target Shark gains trample until end of turn."
-            // Requires subtype-filtered targeting + grant keyword continuous effect.
+            // CR 602.2: "{R}: Target Shark gains trample until end of turn."
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Trample),
+                        filter: EffectFilter::DeclaredTarget { index: 0 },
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    has_subtype: Some(SubType("Shark".to_string())),
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

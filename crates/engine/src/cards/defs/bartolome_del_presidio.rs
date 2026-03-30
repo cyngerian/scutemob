@@ -16,9 +16,24 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
-            // TODO: DSL gap — "Sacrifice another creature or artifact" cost.
-            // Cost::Sacrifice takes a TargetFilter but no "creature OR artifact" union filter,
-            // and no "another" (exclude self) on Cost::Sacrifice.
+            // CR 602.2: "Sacrifice another creature or artifact: Put a +1/+1 counter
+            // on Bartolomé del Presidio."
+            AbilityDefinition::Activated {
+                cost: Cost::Sacrifice(TargetFilter {
+                    has_card_types: vec![CardType::Creature, CardType::Artifact],
+                    ..Default::default()
+                }),
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

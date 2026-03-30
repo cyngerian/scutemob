@@ -36,10 +36,40 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: "Whenever a nontoken creature you control dies, create a 1/1 Pest token."
-            // Blocked: nontoken filter on WheneverCreatureDies not in DSL.
-            // Also blocked: token's nested triggered ability ("When this token dies, you gain 1 life")
-            // not expressible as a TokenSpec ability.
+            // CR 603.10a: "Whenever a nontoken creature you control dies, create a 1/1
+            // black and green Pest creature token with 'When this creature dies, you gain 1 life.'"
+            // Note: TokenSpec cannot carry nested triggered abilities; the death-trigger
+            // lifegain on the Pest token is a known DSL gap (token_triggered_abilities).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: true,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Pest".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Pest".to_string())].into_iter().collect(),
+                        colors: [Color::Black, Color::Green].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: 1,
+                        supertypes: im::OrdSet::new(),
+                        keywords: im::OrdSet::new(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

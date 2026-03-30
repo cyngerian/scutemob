@@ -14,27 +14,44 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
-            // TODO: "black creature you control enters" — color filter on ETB trigger.
-            //   Using unfiltered creature ETB as approximation.
+            // CR 603.2: "Whenever Ayara or another black creature you control enters,
+            // each opponent loses 1 life and you gain 1 life."
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
+                        colors: Some(im::ordset![Color::Black]),
                         ..Default::default()
                     }),
                 },
-                effect: Effect::Sequence(vec![
-                    Effect::DrainLife {
-                        amount: EffectAmount::Fixed(1),
-                    },
-                ]),
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(1),
+                },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Sacrifice another black creature" cost not expressible.
+            // CR 602.2: "{T}, Sacrifice another black creature: Draw a card."
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Tap,
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        colors: Some(im::ordset![Color::Black]),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

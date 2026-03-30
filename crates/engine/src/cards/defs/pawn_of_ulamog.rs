@@ -32,7 +32,13 @@ pub fn card() -> CardDefinition {
                         tapped: false,
                         enters_attacking: false,
                         mana_color: Some(ManaColor::Colorless),
-                        mana_abilities: vec![],
+                        mana_abilities: vec![ManaAbility {
+                            sacrifice_self: true,
+                            any_color: false,
+                            requires_tap: false,
+                            produces: im::ordmap! { ManaColor::Colorless => 1 },
+                            damage_to_controller: 0,
+                        }],
                         activated_abilities: vec![],
                         ..Default::default()
                     },

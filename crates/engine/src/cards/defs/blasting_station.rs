@@ -32,9 +32,20 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
             once_per_turn: false,
             },
-            // TODO: DSL gap — "Whenever a creature enters, you may untap this artifact."
-            // Requires Effect::Untap { target: EffectTarget::Source } which does not exist.
-            // The untap-on-creature-ETB loop is a key mechanic of this card.
+            // CR 603.2: "Whenever a creature enters, you may untap Blasting Station."
+            // Note: "you may" optional not in DSL — always untaps (bot always opts in).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: None,
+                },
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::Source,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

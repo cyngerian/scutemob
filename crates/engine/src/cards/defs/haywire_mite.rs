@@ -24,9 +24,26 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: DSL gap — "{G}, Sacrifice: Exile target noncreature artifact or
-            // noncreature enchantment." Cost::Sequence([Mana, SacrificeSelf]) + target
-            // filter for "noncreature artifact or noncreature enchantment" not in DSL.
+            // CR 602.2: "{G}, Sacrifice Haywire Mite: Exile target noncreature artifact
+            // or noncreature enchantment."
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { green: 1, ..Default::default() }),
+                    Cost::SacrificeSelf,
+                ]),
+                effect: Effect::ExileObject {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_types: vec![CardType::Artifact, CardType::Enchantment],
+                    non_creature: true,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

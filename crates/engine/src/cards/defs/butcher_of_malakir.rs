@@ -15,8 +15,28 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — "this creature or another creature you control dies" trigger
-            // with controller filter + ForEach EachOpponent sacrifice.
+            // CR 603.10a: "Whenever Butcher of Malakir or another creature you control dies,
+            // each opponent sacrifices a creature."
+            // Note: SacrificePermanents has no creature-only filter; engine picks lowest-ID
+            // permanent. Creature-only sacrifice filter is a known DSL gap.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                },
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::SacrificePermanents {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        count: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

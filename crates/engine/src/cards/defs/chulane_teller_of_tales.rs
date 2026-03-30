@@ -38,7 +38,26 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "{3}, {T}: Return target creature you control to its owner's hand."
+            // CR 602.2: "{3}, {T}: Return target creature you control to its owner's hand."
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
+                    controller_override: None,
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

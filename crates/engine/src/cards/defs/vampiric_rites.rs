@@ -10,8 +10,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "{1}{B}, Sacrifice a creature: You gain 1 life and draw a card.".to_string(),
         abilities: vec![
-            // TODO: "Sacrifice a creature" cost — Cost::Sacrifice with creature filter
-            //   exists (PB-4). Using it.
+            // CR 602.2: "{1}{B}, Sacrifice a creature: You gain 1 life and draw a card."
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
