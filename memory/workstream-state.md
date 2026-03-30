@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | BF-S3: backfill fixes | ACTIVE | 2026-03-30 | **ALL PBs COMPLETE (PB-0–37)**; BF-S1+S2 done (25 fixes total) |
+| W6: Primitive + Card Authoring | — | available | — | **ALL PBs COMPLETE (PB-0–37)**; BF complete (32 fixes); A-29 S1 done (21 cards) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,30 +24,30 @@
 ## Last Handoff
 
 **Date**: 2026-03-30
-**Workstream**: W6 (BF-S2)
-**Task**: Backfill fix sprint session 2
+**Workstream**: W6 (BF-S3/S4 + A-29 S1)
+**Task**: Backfill fix completion + A-29 card authoring session 1
 
 **Completed**:
-- **BF-S2 DONE**: 8 card def fixes in 1 commit (55c43be)
-  - 4 target tightening: fell_the_profane, kabira_takedown, torch_the_tower, dragonlord_silumgar — TargetCreature/TargetPermanent → TargetPermanentWithFilter{creature, planeswalker}
-  - 1 colorless filter: forerunner_of_slaughter — TargetCreatureWithFilter{exclude_colors: all 5}
-  - 1 stale TODO: cryptic_coat — statics already implemented
-  - 2 new abilities: goblin_sharpshooter (death trigger + untap), crown_of_skemfar (graveyard return)
-- Lower yield than BF-S1 (8 vs 17) — confirms alphabetical ranges don't map to fixable patterns
-- BF-S2 range (clavileno→hallowed_spiritkeeper) has ~158 TODO files but most are genuine DSL gaps
+- **BF-S3**: 6 card def fixes (93b95de) — artifact-or-enchantment targeting (krosan_grip, gemrazer, freyalise), +0/+3 sac ability (mardu_ascendancy), 2 stale TODOs removed (hermes, untimely_malfunction)
+- **BF-S4**: 1 fix (7a7b6a6) — putrefy targeting tightened. Cross-range pattern sweep confirmed no more fixable TODOs.
+- **BF-S5–S9 marked exhausted** — all remaining ~670 TODO files are genuine DSL gaps. 32 total BF fixes across S1-S4.
+- **A-29 Session 130 (S1)**: 21 card defs authored (1c63f89). 10 complete (unblockable creatures, Dovin's Veto, Elvish Champion), 11 with TODOs (stax restrictions, cant-be-countered on creatures, choose-type, power-conditional evasion).
 
 **Next**:
-1. **BF-S3 through BF-S9**: Continue backfill. Strongly recommend pattern-based approach across ALL defs rather than alphabetical ranges. Key fixable patterns remaining: creature-or-PW targeting (a few more outside BF-S2 range), graveyard activated abilities, simple death triggers.
-2. Consider collapsing BF-S3–S9 into fewer pattern-based sessions since per-range yield is low.
-3. After backfill: resume A-29+ card authoring.
+1. **A-29 Session 131**: 8 cards (Autumn's Veil, Slither Blade, Triton Shorestalker, Mist-Cloaked Herald, Blighted Agent, Tormented Soul, Soulless Jailer, Delney). Note: Slither Blade through Tormented Soul already authored in S1 — session 131 may only need Autumn's Veil (already authored with TODO), Soulless Jailer (authored with TODO), Delney (authored with TODO). Re-check authoring plan to confirm which remain.
+2. Then sessions 132-133 to complete A-29.
+3. After A-29: proceed to A-30 (untap-phase, 12 cards).
 
 **Hazards**:
-- `activated_ability_cost_reductions` index on channel lands (eiganjo, boseiju etc.) may be off-by-one — index 0 targets mana tap, not channel ability. Needs investigation.
-- Most remaining TODOs are genuine DSL gaps: count-based token creation, player choice (M10), replacement effects, ability granting.
+- `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward from prior handoff).
+- Most A-29 TODOs require new GameRestriction variants or cant-be-countered on creature spells — these are genuine DSL gaps that need engine work.
 
 **Commit prefix**: `W6-cards:`
 
 ## Handoff History
+
+### 2026-03-30 — W6: BF-S2
+- BF-S2: 8 card def fixes (55c43be). Target tightening, stale TODOs, new abilities. Lower yield confirms alphabetical ranges don't map to fixable patterns.
 
 ### 2026-03-30 — W6: BF-S1
 - BF-S1: 17 card def fixes (e2f07e1, 88f0580). ~30-40% false positive rate confirmed. Key patterns: death triggers, Cost::Sacrifice, UntapPermanent, simple activated, bounce.
@@ -56,10 +56,7 @@
 - BF-1 re-triage: 1451 defs, 773 clean (53%), 678 with TODOs. BF-2 gap closure committed. 9 backfill sessions planned.
 
 ### 2026-03-29 — W6: PB-37
-- PB-37: G-26 residual complex activated. Condition::WasCast, EffectDuration::UntilYourNextTurn(PlayerId), once_per_turn, was_cast+abilities_activated_this_turn, temporary_protection_qualities, expire_until_next_turn_effects(). 7 card defs fixed. 9 new tests. 2437 tests.
+- PB-37: G-26 residual complex activated. 7 card defs fixed. 9 new tests. 2437 tests.
 
 ### 2026-03-29 — W6: PB-36
-- PB-36: G-31 evasion/protection extensions. BlockingExceptionFilter, CantBlock/CantBeBlockedExceptBy, GrantPlayerProtection, combat enforcement. 16 card defs fixed. 2428 tests.
-
-### 2026-03-28 — W6: PB-35
-- PB-35: G-27/G-29/G-30 modal triggers + graveyard abilities. 14 card defs fixed. 2419 tests.
+- PB-36: G-31 evasion/protection extensions. 16 card defs fixed. 2428 tests.
