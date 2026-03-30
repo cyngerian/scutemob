@@ -28,7 +28,7 @@
 **Task**: PB-36 Evasion/protection extensions (G-31)
 
 **Completed**:
-- **PB-36 DONE**: G-31 Evasion/protection extensions. Engine: BlockingExceptionFilter enum (HasKeyword(Box<KW>)/HasAnyKeyword), CantBlock(160)/CantBeBlockedExceptBy(161) in KeywordAbility, Effect::GrantPlayerProtection(73), combat.rs per-blocker CantBlock check + per-attacker CantBeBlockedExceptBy check, provoke impossibility for CantBlock. All exhaustive matches updated (hash.rs, view_model.rs, lib.rs, mod.rs, helpers.rs). 16 card defs fixed: bloodghast(cantblock), carrion_feeder, phoenix_chick, skrelv, vishgraz, skrevls_hive, white_suns_twilight (Group A); signal_pest, gingerbrute (Group B); emrakul, greensleeves, sword_of_body_and_mind, cryptic_coat, untimely_malfunction (Group C); teferis_protection, the_one_ring (Group D). 9 new tests in evasion_protection.rs. 2428 tests, 0 clippy.
+- **PB-36 DONE**: G-31 Evasion/protection extensions. Engine: BlockingExceptionFilter enum (HasKeyword(Box<KW>)/HasAnyKeyword), CantBlock(160)/CantBeBlockedExceptBy(161) in KeywordAbility, Effect::GrantPlayerProtection(73), combat.rs per-blocker CantBlock check + per-attacker CantBeBlockedExceptBy check + provoke impossibility for CantBlock+CantBeBlockedExceptBy. All exhaustive matches updated (hash.rs, view_model.rs, lib.rs, mod.rs, helpers.rs). 16 card defs fixed. 9 new tests. Review: 3M fixed (hash vec length prefixes, provoke+evasion guard). 6L documented. 2428 tests, 0 clippy. Commits: 2eeccd5 (implement), 02499fa (fixes), 186ee22 (close).
 - Condition::WasCast deferred (The One Ring fires unconditionally, documented TODO).
 - Duration cleanup ("until your next turn" for GrantPlayerProtection) deferred to PB-37/future.
 
@@ -44,7 +44,7 @@
 ## Handoff History
 
 ### 2026-03-29 — W6: PB-36
-- PB-36: G-31 evasion/protection extensions. BlockingExceptionFilter, CantBlock/CantBeBlockedExceptBy KWs, GrantPlayerProtection effect, combat enforcement. 16 card defs fixed. 9 new tests. 2428 tests, 0 clippy.
+- PB-36: G-31 evasion/protection extensions. BlockingExceptionFilter, CantBlock(160)/CantBeBlockedExceptBy(161), GrantPlayerProtection(73), combat enforcement. 16 card defs fixed. 9 new tests. Review: 3M fixed, 6L documented. 2428 tests. Commits: 2eeccd5, 02499fa, 186ee22.
 
 ### 2026-03-28 — W6: PB-35
 - PB-35: G-27/G-29/G-30 modal triggers + graveyard abilities. 14 card defs fixed, 1H 3M fixed. 2419 tests. Commits: 727a0f5, ed895e7.
