@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: Activated — {U}, {T}: The next spell you cast this turn can't be countered.
         ],

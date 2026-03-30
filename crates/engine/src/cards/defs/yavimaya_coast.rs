@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {T}: Add {G}. This land deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {T}: Add {U}. This land deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -56,6 +58,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

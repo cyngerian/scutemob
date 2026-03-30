@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {1}, {T}: Untap target land.
             AbilityDefinition::Activated {
@@ -33,6 +34,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetLand],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

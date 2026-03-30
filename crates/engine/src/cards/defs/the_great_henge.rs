@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // Whenever a creature you control enters, +1/+1 counter + draw
             // TODO: should be nontoken only (TargetFilter lacks non_token)

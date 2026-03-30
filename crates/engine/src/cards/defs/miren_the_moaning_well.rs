@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: {3}, {T}, Sacrifice a creature: Gain life = sacrificed creature's toughness.
             // Requires EffectAmount::SacrificedCreatureToughness which does not exist in the DSL.

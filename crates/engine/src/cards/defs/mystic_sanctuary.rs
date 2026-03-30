@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: Triggered — When this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.
         ],

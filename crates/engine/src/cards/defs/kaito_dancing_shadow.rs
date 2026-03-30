@@ -22,12 +22,25 @@ pub fn card() -> CardDefinition {
         starting_loyalty: Some(3),
         abilities: vec![
             // TODO: Combat damage trigger + bounce + double loyalty activation not expressible.
-            // +1: Freeze a creature
-            // TODO: "Can't attack or block until your next turn" not expressible.
+            // +1: Up to one target creature can't attack or block until your next turn.
+            // CR 611.2b: UntilYourNextTurn duration on the can't-block restriction.
+            // Note: "can't attack" is a TODO — no CantAttack keyword restriction exists yet.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::Nothing,
-                targets: vec![],
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: crate::state::EffectLayer::Ability,
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::CantBlock,
+                        ),
+                        filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                        duration: crate::state::EffectDuration::UntilYourNextTurn(
+                            crate::state::player::PlayerId(0),
+                        ),
+                        condition: None,
+                    }),
+                },
+                targets: vec![TargetRequirement::TargetCreature],
             },
             // 0: Draw a card
             AbilityDefinition::LoyaltyAbility {

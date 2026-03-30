@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: Static — As long as you control six or more lands, lands you control have
             // "{T}: Add one mana of any color." DSL gap: count_threshold + grant-ability-to-permanents.

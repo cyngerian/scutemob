@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: Activated — {1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.
         ],

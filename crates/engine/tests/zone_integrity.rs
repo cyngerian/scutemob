@@ -224,6 +224,8 @@ fn test_add_object_to_state() {
         is_transformed: false,
         last_transform_timestamp: 0,
         was_cast_disturbed: false,
+        was_cast: false,
+        abilities_activated_this_turn: 0,
         craft_exiled_cards: im::Vector::new(),
         chosen_creature_type: None,
         face_down_as: None,

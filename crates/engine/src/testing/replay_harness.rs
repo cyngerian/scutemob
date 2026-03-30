@@ -1874,6 +1874,7 @@ pub fn enrich_spec_from_def(
             targets: ab_targets,
             activation_condition,
             activation_zone,
+            once_per_turn,
             ..
         } = ability
         {
@@ -1905,6 +1906,8 @@ pub fn enrich_spec_from_def(
                     activation_condition: activation_condition.clone(),
                     // CR 602.2: Propagate activation zone for graveyard-activated abilities.
                     activation_zone: activation_zone.clone(),
+                    // CR 602.5g: Propagate once-per-turn restriction.
+                    once_per_turn: *once_per_turn,
                 };
                 spec = spec.with_activated_ability(ab);
             }
@@ -1965,6 +1968,7 @@ pub fn enrich_spec_from_def(
                 sorcery_speed: true,
                 activation_condition: None,
                 activation_zone: None,
+                once_per_turn: false,
             };
             spec = spec.with_activated_ability(attach_ab);
             // Ability 2: Unattach from the equipped creature (sorcery speed).
@@ -1980,6 +1984,7 @@ pub fn enrich_spec_from_def(
                 sorcery_speed: true,
                 activation_condition: None,
                 activation_zone: None,
+                once_per_turn: false,
             };
             spec = spec.with_activated_ability(detach_ab);
         }
@@ -2010,6 +2015,7 @@ pub fn enrich_spec_from_def(
                 sorcery_speed: true,
                 activation_condition: None,
                 activation_zone: None,
+                once_per_turn: false,
             };
             spec = spec.with_activated_ability(ab);
         }

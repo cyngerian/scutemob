@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {2}, {T}: You gain 1 life.
             AbilityDefinition::Activated {
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {3}, {T}: Untap target creature.
             AbilityDefinition::Activated {
@@ -49,6 +51,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {4}, {T}: Tap target creature.
             AbilityDefinition::Activated {
@@ -61,6 +64,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {5}, {T}: Draw a card.
             AbilityDefinition::Activated {
@@ -76,6 +80,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

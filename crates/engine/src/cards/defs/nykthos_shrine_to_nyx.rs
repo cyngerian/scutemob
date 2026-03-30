@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: {2},{T}: Choose a color, add mana equal to devotion to that color.
             // DevotionTo(color) is implemented but "choose a color" interactive selection

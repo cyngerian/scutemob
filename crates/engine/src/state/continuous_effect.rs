@@ -54,6 +54,13 @@ pub enum EffectDuration {
     /// (CR 702.95a "for as long as both remain creatures on the battlefield under your control").
     /// Used for soulbond "as long as paired" grants registered at SoulbondTrigger resolution.
     WhilePaired(ObjectId, ObjectId),
+    /// Expires at the beginning of the specified player's next turn (CR 611.2b).
+    ///
+    /// Used for "until your next turn" effects (Teferi's Protection, Elspeth, etc.).
+    /// The `PlayerId` identifies whose next turn causes expiry.
+    /// Effects with this duration are removed by `expire_until_next_turn_effects` in layers.rs
+    /// which is called at the start of the untap step.
+    UntilYourNextTurn(PlayerId),
 }
 /// Which objects a continuous effect applies to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

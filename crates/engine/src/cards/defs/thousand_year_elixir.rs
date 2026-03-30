@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         // TODO: static ability — "activate creature abilities as though they had haste"

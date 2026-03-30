@@ -46,6 +46,7 @@ fn targeted_activated_ability_valid_creature_target() {
             targets: vec![TargetRequirement::TargetCreature],
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -118,6 +119,7 @@ fn targeted_activated_ability_rejects_non_creature() {
             targets: vec![TargetRequirement::TargetCreature],
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -192,6 +194,7 @@ fn targeted_activated_ability_target_player() {
             targets: vec![TargetRequirement::TargetPlayer],
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -254,6 +257,7 @@ fn activated_ability_no_targets_backward_compatible() {
             targets: vec![], // No target requirements
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -440,6 +444,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
             targets: vec![TargetRequirement::TargetCreature],
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -504,6 +509,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
             targets: vec![TargetRequirement::TargetCreature],
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 

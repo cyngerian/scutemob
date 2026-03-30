@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // CR 702.29: Cycling {U} — pay {U} and discard this card to draw a card.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),

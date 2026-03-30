@@ -90,6 +90,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
             targets: vec![],
 
             activation_zone: None,
+            once_per_turn: false,
         })
 }
 

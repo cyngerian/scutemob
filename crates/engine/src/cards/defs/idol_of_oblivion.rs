@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None, // TODO: YouCreatedATokenThisTurn
 
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {8}, {T}, Sacrifice: Create 10/10 Eldrazi token.
             AbilityDefinition::Activated {
@@ -55,6 +56,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

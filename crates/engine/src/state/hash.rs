@@ -1013,6 +1013,10 @@ impl HashInto for GameObject {
         self.last_transform_timestamp.hash_into(hasher);
         // Disturb (CR 702.146 ruling) — permanent was cast via disturb (exile if would die)
         self.was_cast_disturbed.hash_into(hasher);
+        // CR 603.4: permanent entered via casting (for WasCast intervening-if condition)
+        self.was_cast.hash_into(hasher);
+        // CR 602.5g: activated abilities fired this turn (for once-per-turn enforcement)
+        self.abilities_activated_this_turn.hash_into(hasher);
         // Craft (CR 702.167c) — ObjectIds of cards exiled as craft materials
         (self.craft_exiled_cards.len() as u64).hash_into(hasher);
         for id in self.craft_exiled_cards.iter() {
@@ -1084,6 +1088,10 @@ impl HashInto for PlayerState {
         self.damage_received_this_turn.hash_into(hasher);
         // CR 702.16b/e: player protection qualities.
         for q in &self.protection_qualities {
+            q.hash_into(hasher);
+        }
+        // CR 611.2b: temporary protection qualities (until-your-next-turn duration).
+        for q in &self.temporary_protection_qualities {
             q.hash_into(hasher);
         }
         // CR 309.7: dungeons completed by this player.
@@ -1170,6 +1178,11 @@ impl HashInto for EffectDuration {
                 3u8.hash_into(hasher);
                 a.hash_into(hasher);
                 b.hash_into(hasher);
+            }
+            // CR 611.2b: UntilYourNextTurn — hash discriminant + player id.
+            EffectDuration::UntilYourNextTurn(pid) => {
+                4u8.hash_into(hasher);
+                pid.hash_into(hasher);
             }
         }
     }
@@ -4389,6 +4402,8 @@ impl HashInto for Condition {
                 37u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // CR 603.4: WasCast (discriminant 38) — "if you cast it" intervening-if.
+            Condition::WasCast => 38u8.hash_into(hasher),
         }
     }
 }
@@ -5055,13 +5070,18 @@ impl HashInto for Effect {
                 duration.hash_into(hasher);
             }
             // CR 702.16b/e/j: GrantPlayerProtection (discriminant 73)
-            Effect::GrantPlayerProtection { player, qualities } => {
+            Effect::GrantPlayerProtection {
+                player,
+                qualities,
+                duration,
+            } => {
                 73u8.hash_into(hasher);
                 player.hash_into(hasher);
                 (qualities.len() as u64).hash_into(hasher);
                 for q in qualities {
                     q.hash_into(hasher);
                 }
+                duration.hash_into(hasher);
             }
         }
     }
@@ -5076,6 +5096,7 @@ impl HashInto for AbilityDefinition {
                 targets,
                 activation_condition,
                 activation_zone,
+                once_per_turn,
             } => {
                 0u8.hash_into(hasher);
                 cost.hash_into(hasher);
@@ -5084,6 +5105,7 @@ impl HashInto for AbilityDefinition {
                 targets.hash_into(hasher);
                 activation_condition.hash_into(hasher);
                 activation_zone.hash_into(hasher);
+                once_per_turn.hash_into(hasher);
             }
             AbilityDefinition::Triggered {
                 trigger_condition,

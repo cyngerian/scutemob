@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {T}: Add {R}. Activate only if you control a Swamp or a Mountain.
             AbilityDefinition::Activated {
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
                 ])),
 
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

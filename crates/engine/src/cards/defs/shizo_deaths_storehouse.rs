@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {B}, {T}: Target legendary creature gains fear until end of turn (CR 702.36).
             // Note: TargetFilter lacks has_supertype field — using TargetCreature (over-permissive,
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

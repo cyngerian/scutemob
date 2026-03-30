@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {5}, {T}: Draw a card. Activate only if you have the city's blessing.
             // Note: Oracle says "activate only if" (activation restriction). Modeled as
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

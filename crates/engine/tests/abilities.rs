@@ -37,6 +37,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         sorcery_speed: false,
         activation_condition: None,
         activation_zone: None,
+        once_per_turn: false,
     }
 }
 
@@ -59,6 +60,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         sorcery_speed: false,
         activation_condition: None,
         activation_zone: None,
+        once_per_turn: false,
     }
 }
 
@@ -1043,6 +1045,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1172,6 +1175,7 @@ fn test_sacrifice_filter_creature_valid() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1258,6 +1262,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1331,6 +1336,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1404,6 +1410,7 @@ fn test_sacrifice_filter_missing_target_errors() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1753,6 +1760,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .with_triggered_ability(dies_trigger("When ~ dies (CR 700.4)"))
         .in_zone(ZoneId::Battlefield);

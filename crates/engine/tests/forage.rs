@@ -102,6 +102,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
         activation_condition: None,
 
         activation_zone: None,
+        once_per_turn: false,
     })
 }
 
@@ -129,6 +130,7 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         },
     )
 }

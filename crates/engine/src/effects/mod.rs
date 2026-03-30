@@ -2932,6 +2932,8 @@ fn execute_effect_inner(
                             is_transformed: false,
                             last_transform_timestamp: 0,
                             was_cast_disturbed: false,
+                            was_cast: false,
+                            abilities_activated_this_turn: 0,
                             craft_exiled_cards: im::Vector::new(),
                             chosen_creature_type: None,
                             face_down_as: None,
@@ -3800,6 +3802,8 @@ fn execute_effect_inner(
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
+                    was_cast: false,
+                    abilities_activated_this_turn: 0,
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
@@ -3961,6 +3965,8 @@ fn execute_effect_inner(
                 is_transformed: false,
                 last_transform_timestamp: 0,
                 was_cast_disturbed: false,
+                was_cast: false,
+                abilities_activated_this_turn: 0,
                 craft_exiled_cards: im::Vector::new(),
                 chosen_creature_type: None,
                 face_down_as: None,
@@ -4236,15 +4242,34 @@ fn execute_effect_inner(
             }
         }
         // CR 702.16b/e/j: Grant protection qualities to a player.
-        // Pushes ProtectionQuality entries into PlayerState.protection_qualities.
-        // The targeting and damage-prevention infrastructure already checks this field.
-        Effect::GrantPlayerProtection { player, qualities } => {
+        // When `duration` is None, pushes to `protection_qualities` (permanent).
+        // When `duration` is Some(UntilYourNextTurn(pid))`, pushes to
+        // `temporary_protection_qualities` which expires at the start of that player's
+        // next turn (cleared by `expire_until_next_turn_effects` in layers.rs).
+        Effect::GrantPlayerProtection {
+            player,
+            qualities,
+            duration,
+        } => {
             let player_ids = resolve_player_target_list(state, player, ctx);
             for pid in player_ids {
                 if let Some(ps) = state.players.get_mut(&pid) {
-                    for q in qualities {
-                        if !ps.protection_qualities.contains(q) {
-                            ps.protection_qualities.push(q.clone());
+                    match duration {
+                        Some(_) => {
+                            // Temporary protection — store in the timed field.
+                            for q in qualities {
+                                if !ps.temporary_protection_qualities.contains(q) {
+                                    ps.temporary_protection_qualities.push(q.clone());
+                                }
+                            }
+                        }
+                        None => {
+                            // Permanent protection.
+                            for q in qualities {
+                                if !ps.protection_qualities.contains(q) {
+                                    ps.protection_qualities.push(q.clone());
+                                }
+                            }
                         }
                     }
                 }
@@ -5193,6 +5218,8 @@ pub fn make_token(
         is_transformed: false,
         last_transform_timestamp: 0,
         was_cast_disturbed: false,
+        was_cast: false,
+        abilities_activated_this_turn: 0,
         craft_exiled_cards: im::Vector::new(),
         chosen_creature_type: None,
         face_down_as: None,
@@ -5744,6 +5771,14 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         }
         // CR 107.3m: "if X is N or more" — true when ctx.x_value >= n.
         Condition::XValueAtLeast(n) => ctx.x_value >= *n,
+        // CR 603.4: "if you cast it" — true when the source permanent has was_cast == true.
+        // Checked at ETB trigger time and at resolution. Objects entering via flicker,
+        // reanimate, or other non-cast means have was_cast == false.
+        Condition::WasCast => state
+            .objects
+            .get(&ctx.source)
+            .map(|obj| obj.was_cast)
+            .unwrap_or(false),
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).

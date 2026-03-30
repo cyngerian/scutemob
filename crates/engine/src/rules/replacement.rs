@@ -212,6 +212,8 @@ fn is_effect_active(
         }
         EffectDuration::UntilEndOfTurn => true,
         EffectDuration::Indefinite => true,
+        // CR 611.2b: Active until the specified player's next turn begins.
+        EffectDuration::UntilYourNextTurn(_) => true,
         // CR 702.95a: Active as long as both creatures are on the battlefield and paired.
         EffectDuration::WhilePaired(a, b) => {
             let a_ok = state
@@ -1838,11 +1840,17 @@ pub fn apply_damage_prevention(
         }
         CombatDamageTarget::Player(player_id) => {
             // CR 702.16e: damage from a source with the stated quality to a player
-            // with protection from that quality is prevented.
+            // with protection from that quality is prevented. Check both permanent and
+            // temporary protection qualities (CR 611.2b).
             let source_chars = crate::rules::protection::source_characteristics(state, source);
             if let Some(sc) = &source_chars {
                 if let Some(player) = state.players.get(player_id) {
-                    let qualities = player.protection_qualities.clone();
+                    let qualities: Vec<_> = player
+                        .protection_qualities
+                        .iter()
+                        .chain(player.temporary_protection_qualities.iter())
+                        .cloned()
+                        .collect();
                     for quality in &qualities {
                         if crate::rules::protection::has_protection_from_source_quality(quality, sc)
                         {

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
             // DSL gap: EffectTarget has no AttackingCreatureWithSubtype variant.

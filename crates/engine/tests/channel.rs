@@ -63,6 +63,7 @@ fn channel_card(owner: PlayerId, name: &str, mana: ManaCost, effect: Effect) -> 
             targets: vec![],
 
             activation_zone: None,
+            once_per_turn: false,
         })
 }
 
@@ -214,6 +215,7 @@ fn test_channel_cannot_activate_from_battlefield() {
             targets: vec![],
 
             activation_zone: None,
+            once_per_turn: false,
         });
 
     let state = GameStateBuilder::new()

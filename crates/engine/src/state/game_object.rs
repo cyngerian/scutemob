@@ -273,6 +273,13 @@ pub struct ActivatedAbility {
     /// to the battlefield tapped."
     #[serde(default)]
     pub activation_zone: Option<crate::cards::card_definition::ActivationZone>,
+    /// CR 602.5g: "Activate only once each turn" restriction.
+    ///
+    /// When `true`, the ability can only be activated if the source object's
+    /// `abilities_activated_this_turn` counter is 0. Propagated from
+    /// `AbilityDefinition::Activated::once_per_turn` in `enrich_spec_from_def`.
+    #[serde(default)]
+    pub once_per_turn: bool,
 }
 /// Trigger event patterns for triggered abilities (CR 603).
 ///
@@ -1010,6 +1017,22 @@ pub struct GameObject {
     /// (A disturbed permanent that goes to exile then re-enters the battlefield starts fresh.)
     #[serde(default)]
     pub was_cast_disturbed: bool,
+    /// CR 603.4: True when this permanent entered the battlefield via casting from the stack.
+    ///
+    /// Set to `true` in `resolution.rs` when a spell resolves and creates a permanent.
+    /// `false` by default for objects entering via non-cast means (flicker, reanimate, ETB effects).
+    /// Reset to `false` on zone changes (CR 400.7: new object identity).
+    #[serde(default)]
+    pub was_cast: bool,
+    /// CR 602.5g: Number of activated abilities activated from this permanent this turn.
+    ///
+    /// Incremented when an activated ability with `once_per_turn == true` resolves.
+    /// Reset to 0 at the start of each untap step.
+    ///
+    /// Simplified tracking: counts all activated ability activations from this object.
+    /// Sufficient for cards with a single once-per-turn ability (Ramos, Steel Hellkite).
+    #[serde(default)]
+    pub abilities_activated_this_turn: u32,
     /// CR 702.167c: ObjectIds of cards exiled as craft materials.
     ///
     /// When a Craft ability resolves, the source permanent and material permanents/cards

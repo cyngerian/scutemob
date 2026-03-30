@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: Some(Condition::ControlAtLeastNOtherLands(4)),
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

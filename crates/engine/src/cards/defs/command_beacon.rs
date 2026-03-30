@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: {T}, Sacrifice: Put your commander into your hand from the command zone
             // — Cost::Sequence([Cost::Tap, Cost::SacrificeThis]) is expressible;

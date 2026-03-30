@@ -1012,6 +1012,10 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
 pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     let mut events = Vec::new();
+    // CR 611.2b: Expire "until your next turn" continuous effects and temporary player
+    // protections for the active player. Also resets abilities_activated_this_turn (CR 602.5g).
+    // Called before phasing and untapping so effects are gone when those happen.
+    super::layers::expire_until_next_turn_effects(state, active);
     // CR 730.2: As the second part of the untap step, check if the day/night designation
     // should change based on the previous turn's active player's spell count.
     // CR 730.2c: If it's neither day nor night, this check doesn't happen.

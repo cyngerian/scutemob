@@ -4858,9 +4858,14 @@ pub(crate) fn validate_targets(
                     )));
                 }
                 // CR 702.16b: a player with protection from a quality cannot be targeted
-                // by sources that match that quality.
+                // by sources that match that quality. Check both permanent and temporary
+                // protection qualities (CR 611.2b: temporary protections are still active).
                 if let Some(sc) = source_chars {
-                    for quality in &player.protection_qualities {
+                    let all_qualities = player
+                        .protection_qualities
+                        .iter()
+                        .chain(player.temporary_protection_qualities.iter());
+                    for quality in all_qualities {
                         if crate::rules::protection::has_protection_from_source_quality(quality, sc)
                         {
                             return Err(GameStateError::InvalidTarget(format!(

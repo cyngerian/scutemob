@@ -262,6 +262,7 @@ fn test_split_second_blocks_activated_abilities() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 

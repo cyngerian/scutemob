@@ -84,6 +84,7 @@ fn food_spec(owner: PlayerId, name: &str) -> ObjectSpec {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .token()
 }

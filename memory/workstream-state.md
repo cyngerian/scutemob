@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-37: Residual complex activated | available | — | PB-36 complete |
+| W6: Primitive + Card Authoring | — | available | — | PB-37 DONE; next: backfill sweeps or PB-38 |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -24,24 +24,25 @@
 ## Last Handoff
 
 **Date**: 2026-03-29
-**Workstream**: W6 (PB-36)
-**Task**: PB-36 Evasion/protection extensions (G-31)
+**Workstream**: W6 (PB-37)
+**Task**: PB-37 Residual complex activated abilities (G-26)
 
 **Completed**:
-- **PB-36 DONE**: G-31 Evasion/protection extensions. Engine: BlockingExceptionFilter enum (HasKeyword(Box<KW>)/HasAnyKeyword), CantBlock(160)/CantBeBlockedExceptBy(161) in KeywordAbility, Effect::GrantPlayerProtection(73), combat.rs per-blocker CantBlock check + per-attacker CantBeBlockedExceptBy check + provoke impossibility for CantBlock+CantBeBlockedExceptBy. All exhaustive matches updated (hash.rs, view_model.rs, lib.rs, mod.rs, helpers.rs). 16 card defs fixed. 9 new tests. Review: 3M fixed (hash vec length prefixes, provoke+evasion guard). 6L documented. 2428 tests, 0 clippy. Commits: 2eeccd5 (implement), 02499fa (fixes), 186ee22 (close).
-- Condition::WasCast deferred (The One Ring fires unconditionally, documented TODO).
-- Duration cleanup ("until your next turn" for GrantPlayerProtection) deferred to PB-37/future.
+- **PB-37 DONE**: G-26 residual complex activated. Engine: Condition::WasCast (CR 603.4) + EffectDuration::UntilYourNextTurn(PlayerId) (CR 611.2b) + once_per_turn:bool on AbilityDefinition::Activated + ActivatedAbility (CR 602.5g) + was_cast:bool + abilities_activated_this_turn:u32 on GameObject + temporary_protection_qualities:Vec<ProtectionQuality> on PlayerState + expire_until_next_turn_effects() in layers.rs called from untap step + once_per_turn enforcement in abilities.rs + GrantPlayerProtection duration branching. All exhaustive matches + hash.rs + replacement.rs + casting.rs updated. 7 card defs fixed: the_one_ring (full rewrite), geological_appraiser, teferis_protection, elspeth_storm_slayer, kaito_dancing_shadow, ramos_dragon_engine, steel_hellkite. 9 new tests in primitive_pb37.rs. 2437 tests, 0 clippy.
 
 **Next**:
-1. PB-37: Residual complex activated (G-30 PW abilities + remaining complex effects)
-2. Backfill sweeps accumulating (~500+ cards across PB-23–36)
+1. Backfill sweeps accumulating (~500+ cards across PB-23–37)
+2. Or start next DSL gap batch if planned
 
 **Hazards**:
-- Backfill sweeps accumulating (~500+ cards across PB-23–36)
+- Backfill sweeps accumulating (~500+ cards across PB-23–37)
 
 **Commit prefix used**: `W6-prim:`
 
 ## Handoff History
+
+### 2026-03-29 — W6: PB-37
+- PB-37: G-26 residual complex activated. Condition::WasCast, EffectDuration::UntilYourNextTurn(PlayerId), once_per_turn on Activated/ActivatedAbility, was_cast+abilities_activated_this_turn on GameObject, temporary_protection_qualities on PlayerState, expire_until_next_turn_effects(). 7 card defs fixed. 9 new tests. 2437 tests, 0 clippy.
 
 ### 2026-03-29 — W6: PB-36
 - PB-36: G-31 evasion/protection extensions. BlockingExceptionFilter, CantBlock(160)/CantBeBlockedExceptBy(161), GrantPlayerProtection(73), combat enforcement. 16 card defs fixed. 9 new tests. Review: 3M fixed, 6L documented. 2428 tests. Commits: 2eeccd5, 02499fa, 186ee22.

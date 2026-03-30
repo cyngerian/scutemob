@@ -271,11 +271,24 @@ pub fn handle_activate_ability(
                 ));
             }
         }
+        // CR 602.5g: "Activate only once each turn" — check once-per-turn restriction.
+        if ab.once_per_turn {
+            let activations = state
+                .objects
+                .get(&source)
+                .map(|o| o.abilities_activated_this_turn)
+                .unwrap_or(0);
+            if activations > 0 {
+                return Err(GameStateError::InvalidCommand(
+                    "ability can only be activated once per turn".into(),
+                ));
+            }
+        }
     }
     // Clone the cost, effect, and target requirements before mutating state.
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
     // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
-    let (ability_cost, embedded_effect, target_requirements) = {
+    let (ability_cost, embedded_effect, target_requirements, is_once_per_turn) = {
         let obj = state.object(source)?;
         let resolved = crate::rules::layers::calculate_characteristics(state, source)
             .unwrap_or_else(|| obj.characteristics.clone());
@@ -288,7 +301,12 @@ pub fn handle_activate_ability(
                     ability_index
                 ))
             })?;
-        (ab.cost.clone(), ab.effect.clone(), ab.targets.clone())
+        (
+            ab.cost.clone(),
+            ab.effect.clone(),
+            ab.targets.clone(),
+            ab.once_per_turn,
+        )
     };
     // CR 601.2c: General target validation for activated abilities.
     // If the ability declares TargetRequirements, validate each target against them
@@ -871,6 +889,12 @@ pub fn handle_activate_ability(
     // CR 107.3k: Propagate x_value so effects using EffectAmount::XValue resolve correctly.
     stack_obj.x_value = x_value.unwrap_or(0);
     state.stack_objects.push_back(stack_obj);
+    // CR 602.5g: Track once-per-turn activation for abilities with the restriction.
+    if is_once_per_turn {
+        if let Some(obj) = state.objects.get_mut(&source) {
+            obj.abilities_activated_this_turn = obj.abilities_activated_this_turn.saturating_add(1);
+        }
+    }
     // CR 602.2e: After activating, the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;

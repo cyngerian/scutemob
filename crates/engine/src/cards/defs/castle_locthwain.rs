@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand.
             AbilityDefinition::Activated {
@@ -53,6 +54,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

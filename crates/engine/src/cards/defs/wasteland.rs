@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {T}, Sacrifice this land: Destroy target nonbasic land.
             AbilityDefinition::Activated {
@@ -34,6 +35,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetLand],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

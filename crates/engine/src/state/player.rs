@@ -365,6 +365,14 @@ pub struct PlayerState {
     /// Populated by continuous effects; empty by default.
     #[serde(default)]
     pub protection_qualities: Vec<ProtectionQuality>,
+    /// CR 611.2b: Temporary protection qualities that expire at the start of this player's
+    /// next turn (via `EffectDuration::UntilYourNextTurn`).
+    ///
+    /// Used by "until your next turn" protection effects (e.g., Teferi's Protection,
+    /// The One Ring ETB trigger). Cleared by `expire_until_next_turn_effects` in layers.rs.
+    /// Protection enforcement checks both this and `protection_qualities`.
+    #[serde(default)]
+    pub temporary_protection_qualities: Vec<ProtectionQuality>,
     /// CR 309.7: Count of dungeons this player has completed.
     ///
     /// Incremented each time a player's dungeon is removed from the game after reaching

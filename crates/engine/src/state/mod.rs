@@ -472,6 +472,8 @@ impl GameState {
             last_transform_timestamp: 0,
             // CR 702.145 / CR 400.7: disturb cast status is reset on zone change.
             was_cast_disturbed: false,
+            was_cast: false,
+            abilities_activated_this_turn: 0,
             // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
             craft_exiled_cards: im::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
@@ -611,6 +613,8 @@ impl GameState {
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
+                    was_cast: false,
+                    abilities_activated_this_turn: 0,
                     craft_exiled_cards: im::Vector::new(),
                     // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
                     chosen_creature_type: None,
@@ -719,6 +723,8 @@ impl GameState {
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
+                        was_cast: false,
+                        abilities_activated_this_turn: 0,
                         craft_exiled_cards: im::Vector::new(),
                         chosen_creature_type: None,
                         face_down_as: None,
@@ -905,6 +911,8 @@ impl GameState {
             last_transform_timestamp: 0,
             // CR 702.145 / CR 400.7: disturb cast status is reset on zone change.
             was_cast_disturbed: false,
+            was_cast: false,
+            abilities_activated_this_turn: 0,
             // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
             craft_exiled_cards: im::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.

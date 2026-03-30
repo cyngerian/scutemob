@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: Some(ActivationZone::Graveyard),
+            once_per_turn: false,
             },
         ],
         self_cost_reduction: Some(SelfCostReduction::TotalManaValue {

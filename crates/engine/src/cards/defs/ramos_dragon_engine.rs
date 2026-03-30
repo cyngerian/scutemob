@@ -4,8 +4,9 @@
 // Remove five +1/+1 counters from Ramos: Add {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}. Activate
 // only once each turn.
 //
-// Note: "Whenever you cast a spell" trigger with SpellColorCount is deferred to PB-37.
-// "Activate only once each turn" restriction is deferred to PB-37 (TimingRestriction::OncePerTurn).
+// CR 602.5g: "Activate only once each turn" restriction implemented via once_per_turn: true.
+// TODO: "Whenever you cast a spell" trigger — needs WheneverYouCastASpell trigger
+//        + EffectAmount::SpellColorCount to count a spell's colors. Deferred.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,12 +24,10 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO (PB-37): "Whenever you cast a spell" trigger — needs WheneverYouCastASpell
-            // trigger + EffectAmount::SpellColorCount to count a spell's colors.
             // CR 602.2: Remove five +1/+1 counters from Ramos: Add {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}.
+            // CR 602.5g: "Activate only once each turn" restriction.
             // Note: Technically a mana ability (CR 605.1). Implemented as regular activated
-            // ability for this batch. Mana-ability classification deferred to PB-37.
-            // Once-per-turn restriction deferred to PB-37.
+            // ability. Mana-ability classification deferred to BF-1.
             AbilityDefinition::Activated {
                 cost: Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 5 },
                 effect: Effect::AddMana {
@@ -46,6 +45,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+                once_per_turn: true,
             },
         ],
         ..Default::default()

@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // CR 602.2: {1}, Remove two charge counters: Create a 2/2 colorless Spawn token.
             AbilityDefinition::Activated {
@@ -56,6 +57,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

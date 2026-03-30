@@ -15,16 +15,13 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                // TODO: intervening_if should be Condition::WasCast ("if you cast it"),
-                // but no such Condition variant exists yet. Until it is added, this trigger
-                // fires unconditionally (including when the creature enters without being cast).
-                intervening_if: None,
+                // CR 603.4: WasCast intervening-if — only fires when cast, not on flicker/reanimate.
+                intervening_if: Some(Condition::WasCast),
                 targets: vec![],
                 effect: Effect::Discover {
                     player: PlayerTarget::Controller,
                     n: 3,
                 },
-
                 modes: None,
                 trigger_zone: None,
             },

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: mana-spend Dragon trigger (counter + hexproof) — DSL gap
         ],

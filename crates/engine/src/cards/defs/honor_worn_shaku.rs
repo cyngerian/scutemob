@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: Tap an untapped legendary permanent you control: Untap this artifact.
             //   (Cost enum lacks TapAnotherPermanentWithSupertype(SuperType::Legendary) variant)

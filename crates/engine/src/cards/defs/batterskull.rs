@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // Equip {5}: attach this Equipment to target creature you control.
             // CR 702.6b/d: Equip is a sorcery-speed activated ability.
@@ -72,6 +73,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

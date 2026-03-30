@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // CR 613.1d/613.4b: {1}{U}{B}: Until end of turn, this land becomes a 3/2 blue
             // and black Elemental creature that can't be blocked. It's still a land.
@@ -105,6 +106,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

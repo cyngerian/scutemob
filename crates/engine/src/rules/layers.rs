@@ -450,6 +450,9 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
         // Active until explicitly removed during cleanup (CR 514.2).
         EffectDuration::UntilEndOfTurn => true,
         EffectDuration::Indefinite => true,
+        // CR 611.2b: Active until the specified player's next turn begins.
+        // Removal is handled by expire_until_next_turn_effects at the untap step.
+        EffectDuration::UntilYourNextTurn(_) => true,
         // CR 702.95a: Active as long as both creatures are on the battlefield,
         // phased in, and still have their paired_with pointing at each other.
         EffectDuration::WhilePaired(a, b) => {
@@ -1210,6 +1213,45 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         // Also remove any prevention shield counters for the expired effects.
         for id in &expired_ids {
             state.prevention_counters.remove(id);
+        }
+    }
+}
+
+/// Expire continuous effects and temporary player protections with
+/// `EffectDuration::UntilYourNextTurn(active_player)` at the start of the
+/// specified player's turn (CR 611.2b).
+///
+/// Called from `turn_actions::untap_active_player_permanents` at the start of the
+/// untap step, before untapping and phasing. Also resets `abilities_activated_this_turn`
+/// on all objects controlled by the active player (CR 602.5g once-per-turn enforcement).
+pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: PlayerId) {
+    // Expire UntilYourNextTurn continuous effects for this player.
+    let keep: im::Vector<ContinuousEffect> = state
+        .continuous_effects
+        .iter()
+        .filter(|e| e.duration != EffectDuration::UntilYourNextTurn(active_player))
+        .cloned()
+        .collect();
+    state.continuous_effects = keep;
+    // Clear temporary protection for the active player.
+    if let Some(ps) = state.players.get_mut(&active_player) {
+        if !ps.temporary_protection_qualities.is_empty() {
+            ps.temporary_protection_qualities.clear();
+        }
+    }
+    // Reset abilities_activated_this_turn on all battlefield objects.
+    // CR 602.5g: "Activate only once each turn" resets at the start of each player's turn.
+    let ids: Vec<crate::state::game_object::ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| {
+            obj.zone == crate::state::ZoneId::Battlefield && obj.abilities_activated_this_turn > 0
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    for id in ids {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.abilities_activated_this_turn = 0;
         }
     }
 }

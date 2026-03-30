@@ -57,17 +57,33 @@ pub fn card() -> CardDefinition {
             },
             // 0: Put a +1/+1 counter on each creature you control.
             //    Those creatures gain flying until your next turn.
-            // TODO: "gain flying until your next turn" duration not expressible
+            // CR 611.2b: UntilYourNextTurn duration on the flying grant.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(0),
-                effect: Effect::ForEach {
-                    over: ForEachTarget::EachCreatureYouControl,
-                    effect: Box::new(Effect::AddCounter {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
-                        counter: CounterType::PlusOnePlusOne,
-                        count: 1,
-                    }),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::ForEach {
+                        over: ForEachTarget::EachCreatureYouControl,
+                        effect: Box::new(Effect::AddCounter {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            counter: CounterType::PlusOnePlusOne,
+                            count: 1,
+                        }),
+                    },
+                    // Grant flying until your next turn via a continuous effect.
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::Ability,
+                            modification: crate::state::LayerModification::AddKeyword(
+                                KeywordAbility::Flying,
+                            ),
+                            filter: crate::state::EffectFilter::CreaturesYouControl,
+                            duration: crate::state::EffectDuration::UntilYourNextTurn(
+                                crate::state::player::PlayerId(0),
+                            ),
+                            condition: None,
+                        }),
+                    },
+                ]),
                 targets: vec![],
             },
             // −3: Destroy target creature an opponent controls with MV 3 or greater.

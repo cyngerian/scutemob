@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // CR 615.1: {1}{W},{T}: Prevent all combat damage dealt BY target attacking creature.
             // (Approximation: "attacking creature" → TargetCreature)
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

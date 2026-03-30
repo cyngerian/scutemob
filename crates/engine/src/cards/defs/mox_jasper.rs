@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 })),
 
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

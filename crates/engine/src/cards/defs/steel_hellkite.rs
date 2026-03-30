@@ -3,9 +3,10 @@
 // {2}: This creature gets +1/+0 until end of turn.
 // {X}: Destroy each nonland permanent with mana value X whose controller was dealt combat
 // damage by this creature this turn. Activate only once each turn.
-// TODO: DSL gap — {X}: destroy nonland permanents with mana value X among damaged controllers
-// requires X-cost activated ability + "mana value equals X" filter + tracking which players were
-// dealt combat damage by this creature this turn. None of these are expressible in the current DSL.
+//
+// CR 602.5g: "Activate only once each turn" restriction on second ability via once_per_turn: true.
+// TODO: {X} ability main effect — needs "mana value equals X" filter in DestroyAll and
+//       "controllers dealt combat damage by this creature this turn" tracking. Deferred.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -39,14 +40,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+                once_per_turn: false,
             },
             // CR 107.3k: {X}: Destroy each nonland permanent with mana value X whose controller
             // was dealt combat damage by this creature this turn. Activate only once each turn.
-            // Cost is now wired with x_count: 1. Effect remains Nothing pending:
-            // TODO: "mana value equals X" filter in DestroyAll — TargetFilter has no mana-value-equals-X
-            // predicate expressible from EffectAmount.
-            // TODO: "controllers dealt combat damage by this creature this turn" tracking.
-            // TODO: "only once each turn" per-turn activation throttle.
+            // CR 602.5g: once_per_turn: true.
+            // TODO: "mana value equals X" filter in DestroyAll — TargetFilter has no
+            //        mana-value-equals-X predicate. Deferred.
+            // TODO: "controllers dealt combat damage by this creature this turn" tracking. Deferred.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
                 effect: Effect::Nothing,
@@ -54,6 +55,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+                once_per_turn: true,
             },
         ],
         ..Default::default()

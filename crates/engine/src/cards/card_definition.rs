@@ -202,6 +202,13 @@ pub enum AbilityDefinition {
         /// from your graveyard to the battlefield tapped."
         #[serde(default)]
         activation_zone: Option<ActivationZone>,
+        /// CR 602.5g: "Activate only once each turn" restriction.
+        ///
+        /// When `true`, the ability can only be activated if the source object's
+        /// `abilities_activated_this_turn` counter is 0. The counter is incremented
+        /// when the ability resolves and reset to 0 at the start of each untap step.
+        #[serde(default)]
+        once_per_turn: bool,
     },
     /// Triggered ability: "When/Whenever/At [event], [Effect]" (CR 603).
     Triggered {
@@ -1781,6 +1788,14 @@ pub enum Effect {
     GrantPlayerProtection {
         player: PlayerTarget,
         qualities: Vec<ProtectionQuality>,
+        /// CR 611.2b: Optional duration for the protection grant.
+        ///
+        /// If `None`, the protection is permanent (until removed by another effect).
+        /// If `Some(EffectDuration::UntilYourNextTurn(pid))`, the protection is stored in
+        /// `PlayerState::temporary_protection_qualities` and cleared at the start of
+        /// the specified player's next turn.
+        #[serde(default)]
+        duration: Option<crate::state::continuous_effect::EffectDuration>,
     },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
@@ -2437,6 +2452,12 @@ pub enum Condition {
     /// Used for Martial Coup ("if X is 5 or more, destroy all other creatures"),
     /// White Sun's Twilight, Finale of Devastation ("if X is 10 or more").
     XValueAtLeast(u32),
+    /// CR 603.4: "if you cast it" — true when the permanent entered the battlefield
+    /// via casting from the stack (not via flicker, reanimate, Aether Vial, etc.).
+    ///
+    /// Checked at ETB trigger time and again at resolution via `GameObject::was_cast`.
+    /// Set to `true` in `resolution.rs` when a resolving spell creates a permanent.
+    WasCast,
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).
@@ -2588,6 +2609,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
             sorcery_speed: false,
             activation_condition: None,
             activation_zone: None,
+            once_per_turn: false,
         }],
         count,
         tapped: false,
@@ -2635,6 +2657,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
             sorcery_speed: false,
             activation_condition: None,
             activation_zone: None,
+            once_per_turn: false,
         }],
         count,
         tapped: false,
@@ -2685,6 +2708,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
             sorcery_speed: false,
             activation_condition: None,
             activation_zone: None,
+            once_per_turn: false,
         }],
         count,
         tapped: false,

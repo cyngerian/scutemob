@@ -265,6 +265,7 @@ impl GameStateBuilder {
                 dungeons_completed_set: im::OrdSet::new(),
                 ring_level: 0,
                 ring_bearer_id: None,
+                temporary_protection_qualities: vec![],
             };
             players.insert(config.id, player_state);
         }
@@ -1047,6 +1048,8 @@ impl GameStateBuilder {
                 last_transform_timestamp: 0,
                 // CR 702.146 ruling: test-placed objects were not cast via disturb.
                 was_cast_disturbed: false,
+                was_cast: false,
+                abilities_activated_this_turn: 0,
                 // CR 702.167c: test-placed objects have no craft materials.
                 craft_exiled_cards: im::Vector::new(),
                 // CR 708.2: test-placed objects are not morph/manifest/cloak face-down.

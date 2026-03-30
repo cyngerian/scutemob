@@ -60,6 +60,7 @@ fn test_remove_counter_cost_basic() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -131,6 +132,7 @@ fn test_remove_counter_cost_insufficient() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -177,6 +179,7 @@ fn test_remove_counter_cost_exact_zero() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -238,6 +241,7 @@ fn test_remove_counter_cost_in_sequence() {
             activation_condition: None,
 
             activation_zone: None,
+            once_per_turn: false,
         });
     let state = GameStateBuilder::four_player()
         .active_player(p1)

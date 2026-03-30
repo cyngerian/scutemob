@@ -603,6 +603,7 @@ fn test_condition_has_citys_blessing() {
             targets: vec![],
 
             activation_zone: None,
+            once_per_turn: false,
         })
         .in_zone(ZoneId::Battlefield);
 

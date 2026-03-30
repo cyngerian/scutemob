@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {2}{U}{U}: Return Arcanis to its owner's hand.
             // NOTE: Uses PlayerTarget::Controller as proxy for "owner" — no PlayerTarget::Owner
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

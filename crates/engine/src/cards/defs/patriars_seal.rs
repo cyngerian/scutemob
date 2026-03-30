@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: {1}, {T}: Untap target legendary creature (TargetFilter lacks has_supertype)
         ],

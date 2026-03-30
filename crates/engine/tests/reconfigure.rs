@@ -79,6 +79,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
         sorcery_speed: true,
         activation_condition: None,
         activation_zone: None,
+        once_per_turn: false,
     }
 }
 
@@ -110,6 +111,7 @@ fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
         sorcery_speed: true,
         activation_condition: None,
         activation_zone: None,
+        once_per_turn: false,
     }
 }
 

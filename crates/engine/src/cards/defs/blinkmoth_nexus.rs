@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {1}: Animate — becomes 1/1 Blinkmoth artifact creature with flying until EOT
             AbilityDefinition::Activated {
@@ -73,6 +74,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {1}, {T}: Target Blinkmoth creature gets +1/+1 until end of turn.
             // CR 115.1: Target must be a creature with the Blinkmoth subtype.
@@ -97,6 +99,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

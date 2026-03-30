@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {W}, {T}: Play the exiled card without paying its mana cost.
             // Condition::Always — the real attack-count condition is deferred.
@@ -48,6 +49,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

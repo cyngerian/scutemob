@@ -74,6 +74,7 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

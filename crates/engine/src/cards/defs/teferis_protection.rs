@@ -4,12 +4,12 @@
 // Exile Teferi's Protection.
 //
 // CR 702.16j: "you gain protection from everything" — implemented via GrantPlayerProtection.
-// Note: Duration cleanup ("until your next turn") is deferred — protection is granted
-// permanently until expiration infrastructure is added (TODO).
+// CR 611.2b: UntilYourNextTurn duration applied to the protection grant.
 //
 // TODO: "your life total can't change" — needs a continuous prevention effect until next turn.
 // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
 // TODO: "Exile Teferi's Protection" — self-exile on resolution.
+// Note: PlayerId(0) is a placeholder; replaced with the actual controller at resolution.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,10 +22,13 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Spell {
                 // CR 702.16j: "you gain protection from everything until your next turn."
-                // Duration cleanup deferred — protection granted permanently for now.
+                // CR 611.2b: UntilYourNextTurn duration — expires at start of your next turn.
                 effect: Effect::GrantPlayerProtection {
                     player: PlayerTarget::Controller,
                     qualities: vec![ProtectionQuality::FromAll],
+                    duration: Some(crate::state::EffectDuration::UntilYourNextTurn(
+                        crate::state::player::PlayerId(0),
+                    )),
                 },
                 targets: vec![],
                 modes: None,

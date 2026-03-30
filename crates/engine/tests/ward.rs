@@ -500,6 +500,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
         activation_condition: None,
 
         activation_zone: None,
+        once_per_turn: false,
     };
     let ability_creature =
         ObjectSpec::creature(p2, "Assassin", 1, 1).with_activated_ability(ability);

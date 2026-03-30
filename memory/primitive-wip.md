@@ -1,32 +1,42 @@
-# Primitive WIP: PB-36 -- Evasion/protection extensions
+# Primitive WIP: PB-37 -- Complex activated abilities (residual)
 
-batch: PB-36
-title: Evasion/protection extensions
-cards_affected: ~21
+batch: PB-37
+title: Complex activated abilities (residual G-26)
+cards_affected: ~8
 started: 2026-03-29
-phase: closed
-plan_file: memory/primitives/pb-plan-36.md
+phase: implement
+plan_file: memory/primitives/pb-plan-37.md
 
 ## Gap Groups
-- G-31: Evasion/protection statics (~21 cards) — "can't be blocked except by N+ creatures" (Menace variant), player protection, extend CantBeBlocked filter
+- G-26: Activated abilities (general complex) — residual after PB-23–36. 4 new primitives needed.
+
+## New Primitives
+1. Condition::WasCast (CR 603.4 intervening-if "if you cast it")
+2. EffectDuration::UntilYourNextTurn(PlayerId) (CR 611.2b)
+3. once_per_turn: bool on Activated abilities (CR 602.5g)
+4. was_cast: bool + abilities_activated_this_turn: u32 on GameObject
+
+## Card Fixes
+- The One Ring (WasCast + UntilYourNextTurn + CounterCount draw)
+- Geological Appraiser (WasCast)
+- Teferi's Protection (UntilYourNextTurn)
+- Elspeth Storm Slayer (UntilYourNextTurn)
+- Kaito Dancing Shadow (UntilYourNextTurn)
+- Ramos Dragon Engine (once_per_turn)
+- Steel Hellkite (once_per_turn)
 
 ## Deferred from Prior PBs
-- none specific to evasion/protection
+- Clone/copy ETB choice -- from PB-13j (blocked on M10)
+- Tiamat multi-card search -- blocked on M10 player choice
+- Scion of the Ur-Dragon copy-self -- EffectTarget::LastSearchResult
+- Urza's Saga exact mana cost filter -- TargetFilter gap
+- GrantActivatedAbility (~8 cards) -- post-alpha
+- Effect::ChangeTarget (~3 cards) -- blocked on M10
+- Color choice (~15 cards) -- blocked on M10
 
 ## Step Checklist
-- [x] 1. Engine changes (new types/variants/dispatch) — BlockingExceptionFilter enum + CantBlock(160)/CantBeBlockedExceptBy(161) in KeywordAbility; GrantPlayerProtection effect(73); combat.rs enforcement; hash.rs; view_model.rs; mod.rs+helpers.rs re-exports
-- [x] 2. Card definition fixes — bloodghast/carrion_feeder/phoenix_chick/skrelv/vishgraz/skrevls_hive/white_suns_twilight (CantBlock); signal_pest/gingerbrute (CantBeBlockedExceptBy); emrakul/greensleeves/sword_of_body_and_mind/cryptic_coat/untimely_malfunction (protection wiring); teferis_protection/the_one_ring (GrantPlayerProtection)
-- [x] 3. New card definitions (if any) — N/A, no new card defs needed
-- [x] 4. Unit tests — 9 tests in crates/engine/tests/evasion_protection.rs; all pass
-- [x] 5. Workspace build verification — cargo build --workspace clean; clippy clean; fmt clean; 2428 tests pass
-
-## Review
-findings: 9 (HIGH: 0, MEDIUM: 3, LOW: 6)
-verdict: needs-fix → fixed
-review_file: memory/primitives/pb-review-36.md
-
-## Fix Phase (2026-03-29)
-- [x] MEDIUM 1: hash.rs GrantPlayerProtection — added `(qualities.len() as u64).hash_into(hasher)` before quality loop
-- [x] MEDIUM 2: hash.rs BlockingExceptionFilter::HasAnyKeyword — added `(kws.len() as u64).hash_into(hasher)` before kw loop
-- [x] MEDIUM 3: combat.rs Provoke section — added CantBeBlockedExceptBy impossibility check after CantBeBlocked check
-- 2428 tests pass; 0 clippy warnings
+- [x] 1. Engine changes: Condition::WasCast (effects/mod.rs check_condition), was_cast+abilities_activated_this_turn on GameObject (game_object.rs), EffectDuration::UntilYourNextTurn(PlayerId) (continuous_effect.rs), once_per_turn: bool on AbilityDefinition::Activated+ActivatedAbility, expire_until_next_turn_effects() in layers.rs called from turn_actions.rs untap step, once_per_turn enforcement in abilities.rs, temporary_protection_qualities on PlayerState, GrantPlayerProtection duration branching in effects/mod.rs, hash.rs/replacement.rs/casting.rs updated, all exhaustive matches updated including replay_harness.rs
+- [x] 2. Card definition fixes: the_one_ring.rs (WasCast+UntilYourNextTurn+CounterCount), geological_appraiser.rs (WasCast intervening_if), teferis_protection.rs (UntilYourNextTurn duration), elspeth_storm_slayer.rs (Sequence+ForEach+ApplyContinuousEffect flying+UntilYourNextTurn), kaito_dancing_shadow.rs (CantBlock+UntilYourNextTurn), ramos_dragon_engine.rs (once_per_turn:true), steel_hellkite.rs (once_per_turn:true)
+- [x] 3. New card definitions — N/A
+- [x] 4. Unit tests: 9 tests in crates/engine/tests/primitive_pb37.rs (WasCast true/false, UntilYourNextTurn persists/expires, player protection expiry, once-per-turn counter starts 0/resets, One Ring was_cast default/burden counters)
+- [x] 5. Workspace build verification: cargo test --all (all pass), cargo clippy -- -D warnings (0 warnings), cargo fmt --check (clean), cargo build --workspace (Finished)

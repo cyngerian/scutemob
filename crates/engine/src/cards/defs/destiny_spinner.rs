@@ -89,6 +89,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetLand],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         // TODO: static "can't counter creature/enchantment spells you control"

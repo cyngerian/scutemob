@@ -59,6 +59,7 @@ fn conditioned_artifact() -> ObjectSpec {
             })),
 
             activation_zone: None,
+            once_per_turn: false,
         })
 }
 
@@ -155,6 +156,7 @@ fn test_activation_condition_changes_dynamically() {
             })),
 
             activation_zone: None,
+            once_per_turn: false,
         });
 
     let state = GameStateBuilder::new()
@@ -202,6 +204,7 @@ fn test_activation_condition_changes_dynamically() {
                     })),
 
                     activation_zone: None,
+                    once_per_turn: false,
                 }),
         )
         .object(ObjectSpec::creature(p(1), "New Bear", 2, 2).in_zone(ZoneId::Battlefield))

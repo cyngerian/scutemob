@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // {1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.
             AbilityDefinition::Activated {
@@ -48,6 +49,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

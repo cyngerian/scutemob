@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: combat damage triggers (remove/add point counters, 10+ = lose game)
         ],

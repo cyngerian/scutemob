@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // Delirium — {2}{G}{G}: Become a copy of target permanent card in your graveyard
             // until end of turn. Activation condition: 4+ card types in graveyard.
@@ -59,6 +60,7 @@ pub fn card() -> CardDefinition {
                 )],
                 activation_condition: Some(Condition::CardTypesInGraveyardAtLeast(4)),
                 activation_zone: None,
+            once_per_turn: false,
             },
         ],
         ..Default::default()

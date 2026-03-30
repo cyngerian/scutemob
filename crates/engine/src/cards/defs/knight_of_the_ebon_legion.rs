@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
+            once_per_turn: false,
             },
             // TODO: DSL gap — end step trigger with "if a player lost 4+ life this turn"
             // intervening-if condition.

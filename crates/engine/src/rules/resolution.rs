@@ -601,6 +601,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .unwrap_or(false);
                         obj.was_cast_disturbed = has_disturb_abil;
                     }
+                    // CR 603.4: Mark this permanent as having entered via casting.
+                    // Used by Condition::WasCast ("if you cast it") intervening-if checks.
+                    // Objects entering via non-cast means (flicker, reanimate) have was_cast == false.
+                    obj.was_cast = true;
                     if stack_obj.was_dashed {
                         // CR 702.109a: "it has haste" -- grant haste keyword.
                         obj.characteristics.keywords.insert(KeywordAbility::Haste);
@@ -4295,6 +4299,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
+                        was_cast: false,
+                        abilities_activated_this_turn: 0,
                         craft_exiled_cards: im::Vector::new(),
                         chosen_creature_type: None,
                         face_down_as: None,
@@ -4491,6 +4497,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 is_transformed: false,
                 last_transform_timestamp: 0,
                 was_cast_disturbed: false,
+                was_cast: false,
+                abilities_activated_this_turn: 0,
                 craft_exiled_cards: im::Vector::new(),
                 chosen_creature_type: None,
                 face_down_as: None,
@@ -5201,6 +5209,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
+                    was_cast: false,
+                    abilities_activated_this_turn: 0,
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
@@ -5855,6 +5865,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
+                    was_cast: false,
+                    abilities_activated_this_turn: 0,
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
@@ -6062,6 +6074,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
+                    was_cast: false,
+                    abilities_activated_this_turn: 0,
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
                     face_down_as: None,
@@ -6285,6 +6299,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
+                        was_cast: false,
+                        abilities_activated_this_turn: 0,
                         craft_exiled_cards: im::Vector::new(),
                         chosen_creature_type: None,
                         face_down_as: None,
