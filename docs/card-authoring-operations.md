@@ -186,7 +186,7 @@ text, replace TODO with real DSL code. Use `card-fix-applicator` agent.
 Report: `memory/card-authoring/bf1-retriage-report.md` (session file lists + category breakdown).
 
 - [x] **BF-S1**: 13 files fixed (ayara, blight_mound, butcher, dictate, grave_pact, blasting_station, awakening_zone, brallin, bartolome, chulane, haywire_mite, pawn_of_ulamog, vampiric_rites); ~30-40% false positive rate confirmed
-- [ ] **BF-S2**: 15 fully-fixable files (clavileno → hallowed_spiritkeeper)
+- [x] **BF-S2**: 8 fixes (fell_the_profane, kabira_takedown, torch_the_tower, dragonlord_silumgar, forerunner_of_slaughter, cryptic_coat, goblin_sharpshooter, crown_of_skemfar); lower yield — most TODOs in range are genuine gaps
 - [ ] **BF-S3**: 15 fully-fixable files (hazorets_monument → meren_of_clan_nel_toth)
 - [ ] **BF-S4**: 15 fully-fixable files (moria_marauder → sundering_eruption)
 - [ ] **BF-S5**: 15 files (11 full + 4 partial)
