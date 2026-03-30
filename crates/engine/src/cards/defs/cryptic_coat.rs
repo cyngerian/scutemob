@@ -6,9 +6,8 @@
 // Equipped creature gets +1/+0 and can't be blocked.
 // {1}{U}: Return this Equipment to its owner's hand.
 //
-// DSL gaps remaining:
-// - Static grant (+1/+0, can't be blocked) — no EquippedCreatureGrant continuous effect. TODO.
-// Core Cloak mechanic (ETB Cloak) + auto-attach + bounce-self are fully represented.
+// All abilities fully represented: ETB Cloak + auto-attach, static grants (+1/+0,
+// can't be blocked) via AttachedCreature filter, and bounce-self activated ability.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

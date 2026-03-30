@@ -13,7 +13,6 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
             // {1}: Target colorless creature gains haste until end of turn.
-            // TODO: TargetFilter lacks is_colorless — using TargetCreature (over-permissive).
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
                 effect: Effect::ApplyContinuousEffect {
@@ -28,7 +27,14 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    exclude_colors: Some(
+                        [Color::White, Color::Blue, Color::Black, Color::Red, Color::Green]
+                            .into_iter()
+                            .collect(),
+                    ),
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,

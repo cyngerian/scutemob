@@ -33,7 +33,10 @@ pub fn card() -> CardDefinition {
                     duration: EffectDuration::WhileSourceOnBattlefield,
                 },
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                    ..Default::default()
+                })],
 
                 modes: None,
                 trigger_zone: None,

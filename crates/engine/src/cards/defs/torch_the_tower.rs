@@ -30,7 +30,10 @@ pub fn card() -> CardDefinition {
                         amount: EffectAmount::Fixed(2),
                     }),
                 },
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                    ..Default::default()
+                })],
                 modes: None,
                 cant_be_countered: false,
             },

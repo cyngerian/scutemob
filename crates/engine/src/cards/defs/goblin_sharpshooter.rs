@@ -15,8 +15,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // TODO: "doesn't untap during your untap step" — static restriction not in DSL.
-            // TODO: "Whenever a creature dies, untap this creature" — WheneverACreatureDies
-            // trigger + UntapPermanent { target: Source } — trigger event not in DSL.
+            // CR 603.10a: "Whenever a creature dies, untap Goblin Sharpshooter."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: false,
+                    nontoken_only: false,
+                },
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::Source,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             // {T}: deal 1 damage to any target.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,

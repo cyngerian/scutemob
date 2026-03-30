@@ -1,6 +1,5 @@
 // Fell the Profane // Fell Mire — {2}{B}{B} Instant // Land (MDFC)
 // Oracle: "Destroy target creature or planeswalker."
-// Note: TargetCreature approximation — no TargetCreatureOrPlaneswalker variant.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,8 +14,10 @@ pub fn card() -> CardDefinition {
                 target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: false,
             },
-            // TODO: Should be TargetCreatureOrPlaneswalker — no such variant; using TargetCreature.
-            targets: vec![TargetRequirement::TargetCreature],
+            targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                ..Default::default()
+            })],
             modes: None,
             cant_be_countered: false,
         }],

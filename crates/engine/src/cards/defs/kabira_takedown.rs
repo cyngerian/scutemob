@@ -1,7 +1,6 @@
 // Kabira Takedown // Kabira Plateau — {1}{W} Instant // Land (MDFC)
 // Oracle: "Kabira Takedown deals damage equal to the number of creatures you control
 // to target creature or planeswalker."
-// Note: TargetCreature approximation — no TargetCreatureOrPlaneswalker variant.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,8 +22,10 @@ pub fn card() -> CardDefinition {
                     controller: PlayerTarget::Controller,
                 },
             },
-            // TODO: Should be TargetCreatureOrPlaneswalker — no such variant; using TargetCreature.
-            targets: vec![TargetRequirement::TargetCreature],
+            targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                ..Default::default()
+            })],
             modes: None,
             cant_be_countered: false,
         }],

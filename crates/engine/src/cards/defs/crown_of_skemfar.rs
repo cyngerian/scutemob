@@ -2,12 +2,9 @@
 // Enchant creature; enchanted creature gets +1/+1 for each Elf you control and has reach.
 // {2}{G}: Return this card from your graveyard to your hand.
 //
-// TODO: DSL gaps — two abilities omitted:
-// 1. Static "+1/+1 for each Elf you control" — count-based continuous effect on the enchanted
-//    creature. No EffectAmount variant for counting permanents of a subtype you control.
-// 2. "{2}{G}: Return this card from your graveyard to your hand." — activated graveyard ability
-//    (return_from_graveyard pattern). DSL gap: no Cost::PayMana activated ability that returns
-//    the card itself from graveyard to hand.
+// TODO: DSL gap — static "+1/+1 for each Elf you control" count-based continuous effect
+//   on the enchanted creature. No EffectAmount variant for counting permanents of a subtype.
+// Graveyard return ability ({2}{G}: return to hand) is fully implemented.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,8 +28,22 @@ pub fn card() -> CardDefinition {
             },
             // TODO: DSL gap — "+1/+1 for each Elf you control" count-based P/T modifier
             // (no EffectAmount variant for subtype count).
-            // TODO: DSL gap — "{2}{G}: Return this card from graveyard to hand" activated
-            // graveyard ability (return_from_graveyard pattern not supported).
+            // CR 602.2 / PB-35: "{2}{G}: Return this card from your graveyard to your hand."
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost { generic: 2, green: 1, ..Default::default() }),
+                effect: Effect::MoveZone {
+                    target: EffectTarget::Source,
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                    controller_override: None,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: Some(ActivationZone::Graveyard),
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }
