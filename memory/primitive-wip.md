@@ -4,7 +4,7 @@ batch: PB-36
 title: Evasion/protection extensions
 cards_affected: ~21
 started: 2026-03-29
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-36.md
 
 ## Gap Groups

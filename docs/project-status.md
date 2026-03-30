@@ -47,7 +47,7 @@
 | PB-33 | Copy/clone + exile/flicker timing | done | 15 | ~24 | fixed | 1 |
 | PB-34 | Mana production (filter, devotion, cond.) | done | 7 | ~33 | clean | 1 |
 | PB-35 | Modal triggers + graveyard + PW | done | 14 | ~46 | fixed | 1 |
-| **PB-36** | **Evasion/protection extensions** | **planned** | — | ~21 | — | — |
+| PB-36 | Evasion/protection extensions | done | 16 | ~5 | fixed | 1 |
 | **PB-37** | **Complex activated (residual)** | **planned** | — | TBD | — | — |
 
 **Status values**: `done`, `active`, `planned`

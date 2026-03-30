@@ -170,7 +170,7 @@ their TODOs removed.
 - [x] **PB-33**: Copy/clone + exile/flicker timing (~39 cards) — 15 fixed, 2H 1M fixed, 2403 tests
 - [x] **PB-34**: Mana production (filter lands, devotion, conditional) (~40 cards) — 7 fixed, clean review, 2408 tests
 - [x] **PB-35**: Modal triggers + graveyard conditions + planeswalker abilities (~60 cards) — 14 fixed, 1H 3M fixed, 2419 tests
-- [ ] **PB-36**: Evasion/protection extensions (~21 cards)
+- [x] **PB-36**: Evasion/protection extensions (~21 cards) — 16 fixed, 3M fixed, 2428 tests
 - [ ] **PB-37**: Complex activated abilities — residual after PB-23 to PB-36 (TBD)
 - [ ] **BF-1**: Post-gap-closure re-triage — scan all TODO cards, re-classify against new DSL
 - [ ] **BF-2**: Commit: `W6-prim: gap closure complete — PB-23 through PB-37`
