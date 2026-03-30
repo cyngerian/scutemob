@@ -556,6 +556,14 @@ pub enum GameRestriction {
     /// (Collector Ouphe, Stony Silence)
     /// Mana abilities of artifacts are also restricted (CR 605.3b).
     ArtifactAbilitiesCantBeActivated,
+    /// "Each player can't cast more than one noncreature spell each turn."
+    /// (Deafening Silence)
+    /// CR 101.2: restriction overrides permission. Only restricts noncreature spells.
+    MaxNoncreatureSpellsPerTurn { max: u32 },
+    /// "Each player who has cast a nonartifact spell this turn can't cast additional
+    /// nonartifact spells." (Ethersworn Canonist)
+    /// CR 101.2: effectively max 1 nonartifact spell per turn per player.
+    MaxNonartifactSpellsPerTurn { max: u32 },
 }
 /// An active restriction in the game, registered from a static ability of a
 /// permanent on the battlefield.

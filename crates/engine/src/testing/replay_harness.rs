@@ -2302,6 +2302,18 @@ pub fn enrich_spec_from_def(
                     .as_ref()
                     .is_some_and(|f| matches!(f.controller, TargetController::You)),
                 exclude_self: true,
+                // Propagate color filter from TargetFilter to ETBTriggerFilter.
+                // e.g., Shadow Alley Denizen: "another black creature you control enters"
+                color_filter: filter
+                    .as_ref()
+                    .and_then(|f| f.colors.as_ref())
+                    .and_then(|colors| {
+                        if colors.len() == 1 {
+                            colors.iter().next().copied()
+                        } else {
+                            None
+                        }
+                    }),
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,

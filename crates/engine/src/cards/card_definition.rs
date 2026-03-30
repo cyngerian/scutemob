@@ -129,6 +129,15 @@ pub struct CardDefinition {
     /// Empty for cards with no mandatory additional sacrifice cost.
     #[serde(default)]
     pub spell_additional_costs: Vec<SpellAdditionalCost>,
+    /// CR 101.6: If true, this spell can't be countered by spells or abilities.
+    ///
+    /// For non-spell cards (creatures, artifacts, etc.) that have "This spell can't be
+    /// countered" as a characteristic rather than a spell effect. For instant/sorcery spells,
+    /// use the `cant_be_countered` field on `AbilityDefinition::Spell` instead.
+    ///
+    /// Examples: Hullbreaker Horror, Vexing Shusher, Carnage Tyrant.
+    #[serde(default)]
+    pub cant_be_countered: bool,
 }
 impl Default for CardDefinition {
     fn default() -> Self {
@@ -150,6 +159,7 @@ impl Default for CardDefinition {
             starting_loyalty: None,
             meld_pair: None,
             spell_additional_costs: vec![],
+            cant_be_countered: false,
         }
     }
 }

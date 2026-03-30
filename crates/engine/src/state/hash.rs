@@ -1081,6 +1081,8 @@ impl HashInto for PlayerState {
         self.cards_drawn_this_turn.hash_into(hasher);
         // M9.4: spells_cast_this_turn (CR 702.40a)
         self.spells_cast_this_turn.hash_into(hasher);
+        self.noncreature_spells_cast_this_turn.hash_into(hasher);
+        self.nonartifact_spells_cast_this_turn.hash_into(hasher);
         self.has_citys_blessing.hash_into(hasher);
         // CR 702.137a: per-turn life-loss counter for Spectacle eligibility.
         self.life_lost_this_turn.hash_into(hasher);
@@ -1470,6 +1472,14 @@ impl HashInto for GameRestriction {
                 cost_per_creature.hash_into(hasher);
             }
             ArtifactAbilitiesCantBeActivated => 5u8.hash_into(hasher),
+            MaxNoncreatureSpellsPerTurn { max } => {
+                6u8.hash_into(hasher);
+                max.hash_into(hasher);
+            }
+            MaxNonartifactSpellsPerTurn { max } => {
+                7u8.hash_into(hasher);
+                max.hash_into(hasher);
+            }
         }
     }
 }
@@ -1999,6 +2009,7 @@ impl HashInto for ETBTriggerFilter {
         self.creature_only.hash_into(hasher);
         self.controller_you.hash_into(hasher);
         self.exclude_self.hash_into(hasher);
+        self.color_filter.hash_into(hasher);
     }
 }
 impl HashInto for DeathTriggerFilter {

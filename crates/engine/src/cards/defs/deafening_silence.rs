@@ -10,8 +10,9 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Each player can't cast more than one noncreature spell each turn.".to_string(),
         abilities: vec![
-            // TODO: Needs GameRestriction::MaxNoncreatureSpellsPerTurn { max: 1 }.
-            // MaxSpellsPerTurn restricts ALL spells; this only restricts noncreature spells.
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::MaxNoncreatureSpellsPerTurn { max: 1 },
+            },
         ],
         ..Default::default()
     }

@@ -257,6 +257,8 @@ impl GameStateBuilder {
                 no_max_hand_size: false,
                 cards_drawn_this_turn: 0,
                 spells_cast_this_turn: 0,
+                noncreature_spells_cast_this_turn: 0,
+                nonartifact_spells_cast_this_turn: 0,
                 has_citys_blessing: false,
                 life_lost_this_turn: 0,
                 damage_received_this_turn: 0,

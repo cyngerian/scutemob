@@ -5717,6 +5717,13 @@ fn collect_triggers_for_event(
                         if etb_filter.controller_you && entering_obj.controller != obj.controller {
                             continue;
                         }
+                        // color_filter: entering permanent must have this color
+                        // (layer-resolved via entering_chars from calculate_characteristics).
+                        if let Some(ref color) = etb_filter.color_filter {
+                            if !entering_chars.colors.contains(color) {
+                                continue;
+                            }
+                        }
                     } else {
                         // Entering object not found -- skip conservatively.
                         continue;

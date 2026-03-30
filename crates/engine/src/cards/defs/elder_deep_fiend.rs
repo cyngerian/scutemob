@@ -41,5 +41,6 @@ pub fn card() -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     }
 }

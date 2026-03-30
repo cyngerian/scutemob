@@ -5,10 +5,7 @@
 //
 // Flying and Lifelink keywords are implemented.
 //
-// TODO: DSL gap — "This spell can't be countered" is a property of the spell on the stack.
-// CardDefinition has no cant_be_countered field; that flag only exists on AbilityDefinition::Spell
-// which is used for instants/sorceries. Creature spells that can't be countered cannot be
-// expressed in the current DSL. This property is omitted.
+// CR 101.6: "This spell can't be countered" — CardDefinition.cant_be_countered = true.
 //
 // PB-18: "Your opponents can't cast spells during your turn" — now implemented
 // via AbilityDefinition::StaticRestriction { GameRestriction::OpponentsCantCastDuringYourTurn }.
@@ -16,6 +13,7 @@ use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
     CardDefinition {
+        cant_be_countered: true,
         card_id: cid("dragonlord-dromoka"),
         name: "Dragonlord Dromoka".to_string(),
         mana_cost: Some(ManaCost { generic: 4, green: 1, white: 1, ..Default::default() }),

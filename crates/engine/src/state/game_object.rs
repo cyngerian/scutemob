@@ -537,6 +537,10 @@ pub struct ETBTriggerFilter {
     pub controller_you: bool,
     /// If true, the entering permanent must NOT be the trigger source itself ("another").
     pub exclude_self: bool,
+    /// If set, the entering permanent must have this color (layer-resolved).
+    /// Used by Shadow Alley Denizen ("Whenever another black creature enters").
+    #[serde(default)]
+    pub color_filter: Option<crate::state::Color>,
 }
 /// A triggered ability definition on a game object (CR 603).
 ///

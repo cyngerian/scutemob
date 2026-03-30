@@ -70,6 +70,7 @@ fn etb_draw_creature_def() -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     }
 }
 
@@ -103,6 +104,7 @@ fn torpor_orb_def() -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     }
 }
 
@@ -144,6 +146,7 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     }
 }
 

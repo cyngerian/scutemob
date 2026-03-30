@@ -71,6 +71,7 @@ fn alliance_gain_life_trigger() -> TriggeredAbilityDef {
             creature_only: true,
             controller_you: true,
             exclude_self: true,
+            color_filter: None,
         }),
         death_filter: None,
         combat_damage_filter: None,

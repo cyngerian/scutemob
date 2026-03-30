@@ -3221,6 +3221,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     };
 
     let registry = CardRegistry::new(vec![def]);
@@ -3335,6 +3336,7 @@ fn conditional_etb_land(
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
         ..Default::default()
     }
 }
@@ -3361,6 +3363,7 @@ fn basic_land_def(id: &str, name: &str, subtype: &str) -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
         ..Default::default()
     }
 }

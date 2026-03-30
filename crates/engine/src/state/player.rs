@@ -333,6 +333,14 @@ pub struct PlayerState {
     /// the storm spell this turn, i.e., `spells_cast_this_turn - 1` at trigger time).
     #[serde(default)]
     pub spells_cast_this_turn: u32,
+    /// Number of noncreature spells cast by this player this turn.
+    /// Used by Deafening Silence restriction. Reset in `reset_turn_state`.
+    #[serde(default)]
+    pub noncreature_spells_cast_this_turn: u32,
+    /// Number of nonartifact spells cast by this player this turn.
+    /// Used by Ethersworn Canonist restriction. Reset in `reset_turn_state`.
+    #[serde(default)]
+    pub nonartifact_spells_cast_this_turn: u32,
     /// CR 702.131c: The city's blessing is a designation that has no rules meaning
     /// other than to act as a marker. Once a player gets the city's blessing, they
     /// keep it for the rest of the game (never removed). Set by Ascend checks.

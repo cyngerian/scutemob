@@ -132,6 +132,7 @@ fn cipher_instant_def() -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     }
 }
 
@@ -919,6 +920,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     };
     let card_id2 = def2.card_id.clone();
     let registry = CardRegistry::new(vec![def, def2]);

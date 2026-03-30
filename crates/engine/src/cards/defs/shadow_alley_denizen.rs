@@ -13,11 +13,32 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: "Whenever another black creature you control enters" — needs
-            // ETB trigger with color filter (ETBTriggerFilter has creature_only,
-            // controller_you, exclude_self but no color filter).
-            // The effect (grant Intimidate until EOT) is expressible with
-            // ApplyContinuousEffect + AddKeyword(Intimidate) + UntilEndOfTurn.
+            // "Whenever another black creature you control enters, target creature gains
+            // intimidate until end of turn."
+            // WheneverCreatureEntersBattlefield with color filter (black) + controller_you.
+            // ETBTriggerFilter is built from this in replay_harness enrichment.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        controller: TargetController::You,
+                        colors: Some([Color::Black].iter().copied().collect()),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Intimidate),
+                        filter: EffectFilter::DeclaredTarget { index: 0 },
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

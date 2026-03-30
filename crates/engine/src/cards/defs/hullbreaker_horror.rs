@@ -7,8 +7,7 @@
 //
 // CR 700.2b / PB-35: Modal triggered ability with "choose up to one" (min_modes: 0).
 // Bot fallback: mode 0 (bounce opponent's spell) when target exists, else 0 modes.
-// TODO: "This spell can't be countered" on the creature card — needs cant_be_countered
-// support on non-Spell abilities. Currently only supported on AbilityDefinition::Spell.
+// CR 101.6: "This spell can't be countered" — CardDefinition.cant_be_countered = true.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,10 +19,9 @@ pub fn card() -> CardDefinition {
         oracle_text: "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one —\n• Return target spell you don't control to its owner's hand.\n• Return target nonland permanent to its owner's hand.".to_string(),
         power: Some(7),
         toughness: Some(8),
+        cant_be_countered: true,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
-            // TODO: "This spell can't be countered" — needs cant_be_countered on the creature spell.
-            // Currently only supported on AbilityDefinition::Spell, not on creature cards.
             // CR 700.2b / PB-35: "Whenever you cast a spell, choose up to one" modal trigger.
             // min_modes: 0 = "up to one" (may choose zero modes).
             // Bot: auto-selects mode 0 (bounce opponent's spell). If no legal target, 0 modes.

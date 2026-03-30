@@ -12,8 +12,9 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: Needs GameRestriction::MaxNonartifactSpellsPerTurn { max: 1 } or
-            // a conditional restriction that tracks nonartifact spell casts per player.
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::MaxNonartifactSpellsPerTurn { max: 1 },
+            },
         ],
         ..Default::default()
     }

@@ -48,5 +48,6 @@ creature dies, each opponent loses 2 life and you gain 2 life."
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     }
 }

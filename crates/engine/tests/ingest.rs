@@ -535,6 +535,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     };
 
     let registry = CardRegistry::new(vec![double_ingest_def]);

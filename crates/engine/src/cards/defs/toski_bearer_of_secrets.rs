@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "This spell can't be countered.\nIndestructible\nToski attacks each combat if able.\nWhenever a creature you control deals combat damage to a player, draw a card.".to_string(),
         power: Some(1),
         toughness: Some(1),
+        cant_be_countered: true,
         abilities: vec![
             // Indestructible — correct standalone.
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),

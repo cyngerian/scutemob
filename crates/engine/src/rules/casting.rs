@@ -3045,7 +3045,10 @@ pub fn handle_cast_spell(
                         }
                     })
                 } else {
-                    def.abilities.iter().find_map(|a| {
+                    // CR 101.6: Check AbilityDefinition::Spell first, then fall back to
+                    // CardDefinition.cant_be_countered for creature/artifact spells that
+                    // have "This spell can't be countered" as a characteristic.
+                    let from_spell = def.abilities.iter().find_map(|a| {
                         if let AbilityDefinition::Spell {
                             targets,
                             cant_be_countered,
@@ -3056,7 +3059,8 @@ pub fn handle_cast_spell(
                         } else {
                             None
                         }
-                    })
+                    });
+                    Some(from_spell.unwrap_or_else(|| (vec![], def.cant_be_countered)))
                 }
             })
             .unwrap_or_default()
@@ -3909,6 +3913,13 @@ pub fn handle_cast_spell(
     // count would be wrong.
     if let Some(ps) = state.players.get_mut(&player) {
         ps.spells_cast_this_turn += 1;
+        // Track type-filtered spell counts for Deafening Silence / Ethersworn Canonist.
+        if !chars.card_types.contains(&CardType::Creature) {
+            ps.noncreature_spells_cast_this_turn += 1;
+        }
+        if !chars.card_types.contains(&CardType::Artifact) {
+            ps.nonartifact_spells_cast_this_turn += 1;
+        }
     }
     // CR 702.40a: Storm — "When you cast this spell, copy it for each other spell
     // cast before it this turn." Storm is a triggered ability (CR 702.40a). It goes
@@ -5299,6 +5310,54 @@ fn check_cast_restrictions(
                                 "restriction: opponents can't cast spells from anywhere other than their hands (CR 101.2)".into(),
                             ));
                         }
+                    }
+                }
+            }
+            // Deafening Silence: "Each player can't cast more than one noncreature spell each turn."
+            GameRestriction::MaxNoncreatureSpellsPerTurn { max } => {
+                // Only restricts noncreature spells — creature spells are always allowed.
+                let card_types = state
+                    .object(card)
+                    .map(|o| &o.characteristics.card_types)
+                    .ok();
+                let is_creature = card_types
+                    .map(|types| types.contains(&CardType::Creature))
+                    .unwrap_or(false);
+                if !is_creature {
+                    let noncreature_cast = state
+                        .players
+                        .get(&player)
+                        .map(|ps| ps.noncreature_spells_cast_this_turn)
+                        .unwrap_or(0);
+                    if noncreature_cast >= *max {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "restriction: can't cast more than {} noncreature spell(s) per turn (CR 101.2)",
+                            max
+                        )));
+                    }
+                }
+            }
+            // Ethersworn Canonist: "Each player who has cast a nonartifact spell this turn
+            // can't cast additional nonartifact spells."
+            GameRestriction::MaxNonartifactSpellsPerTurn { max } => {
+                let card_types = state
+                    .object(card)
+                    .map(|o| &o.characteristics.card_types)
+                    .ok();
+                let is_artifact = card_types
+                    .map(|types| types.contains(&CardType::Artifact))
+                    .unwrap_or(false);
+                if !is_artifact {
+                    let nonartifact_cast = state
+                        .players
+                        .get(&player)
+                        .map(|ps| ps.nonartifact_spells_cast_this_turn)
+                        .unwrap_or(0);
+                    if nonartifact_cast >= *max {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "restriction: can't cast more than {} nonartifact spell(s) per turn (CR 101.2)",
+                            max
+                        )));
                     }
                 }
             }

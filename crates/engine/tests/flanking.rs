@@ -383,6 +383,7 @@ fn test_702_25b_flanking_multiple_instances() {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
     };
 
     let registry = CardRegistry::new(vec![double_flanking_def]);

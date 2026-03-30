@@ -43,11 +43,8 @@ pub fn card() -> CardDefinition {
             // exist in the DSL. WheneverYouCastSpell only covers the controller's own casts.
             // Omitted per W5 policy.
         ],
-        // "This spell can't be countered" is a property of the spell on the stack.
-        // The cant_be_countered field is on AbilityDefinition::Spell, not on CardDefinition.
-        // This card is a permanent, not a spell ability — no Spell ability to mark. Per W5,
-        // cant_be_countered for permanents is a known DSL gap (no field on CardDefinition).
-        // TODO: Add cant_be_countered: bool field to CardDefinition to handle permanents.
+        // CR 101.6: "This spell can't be countered" — CardDefinition.cant_be_countered = true.
+        cant_be_countered: true,
         ..Default::default()
     }
 }
