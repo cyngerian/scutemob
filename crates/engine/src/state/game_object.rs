@@ -273,7 +273,7 @@ pub struct ActivatedAbility {
     /// to the battlefield tapped."
     #[serde(default)]
     pub activation_zone: Option<crate::cards::card_definition::ActivationZone>,
-    /// CR 602.5g: "Activate only once each turn" restriction.
+    /// CR 602.5b: "Activate only once each turn" restriction.
     ///
     /// When `true`, the ability can only be activated if the source object's
     /// `abilities_activated_this_turn` counter is 0. Propagated from
@@ -1024,9 +1024,9 @@ pub struct GameObject {
     /// Reset to `false` on zone changes (CR 400.7: new object identity).
     #[serde(default)]
     pub was_cast: bool,
-    /// CR 602.5g: Number of activated abilities activated from this permanent this turn.
+    /// CR 602.5b: Number of activated abilities activated from this permanent this turn.
     ///
-    /// Incremented when an activated ability with `once_per_turn == true` resolves.
+    /// Incremented when an activated ability with `once_per_turn == true` is activated (placed on the stack).
     /// Reset to 0 at the start of each untap step.
     ///
     /// Simplified tracking: counts all activated ability activations from this object.

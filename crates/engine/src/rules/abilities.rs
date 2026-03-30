@@ -271,7 +271,7 @@ pub fn handle_activate_ability(
                 ));
             }
         }
-        // CR 602.5g: "Activate only once each turn" — check once-per-turn restriction.
+        // CR 602.5b: "Activate only once each turn" — check once-per-turn restriction.
         if ab.once_per_turn {
             let activations = state
                 .objects
@@ -889,7 +889,7 @@ pub fn handle_activate_ability(
     // CR 107.3k: Propagate x_value so effects using EffectAmount::XValue resolve correctly.
     stack_obj.x_value = x_value.unwrap_or(0);
     state.stack_objects.push_back(stack_obj);
-    // CR 602.5g: Track once-per-turn activation for abilities with the restriction.
+    // CR 602.5b: Track once-per-turn activation for abilities with the restriction.
     if is_once_per_turn {
         if let Some(obj) = state.objects.get_mut(&source) {
             obj.abilities_activated_this_turn = obj.abilities_activated_this_turn.saturating_add(1);

@@ -1701,6 +1701,22 @@ fn handle_concede(
         return Err(GameStateError::PlayerNotFound(player));
     }
     events.push(GameEvent::PlayerConceded { player });
+    // CR 611.2b: Expire any UntilYourNextTurn continuous effects belonging to the
+    // conceding player. If the player's turn never arrives, these effects would
+    // otherwise persist forever.
+    {
+        use crate::state::continuous_effect::EffectDuration;
+        let keep: im::Vector<_> = state
+            .continuous_effects
+            .iter()
+            .filter(|e| e.duration != EffectDuration::UntilYourNextTurn(player))
+            .cloned()
+            .collect();
+        state.continuous_effects = keep;
+        if let Some(ps) = state.players.get_mut(&player) {
+            ps.temporary_protection_qualities.clear();
+        }
+    }
     // CR 725.4: If the conceding player had the initiative, transfer it to the
     // next active player in turn order.
     let initiative_events = sba::transfer_initiative_on_player_leave(state, player);

@@ -4,7 +4,7 @@
 // {X}: Destroy each nonland permanent with mana value X whose controller was dealt combat
 // damage by this creature this turn. Activate only once each turn.
 //
-// CR 602.5g: "Activate only once each turn" restriction on second ability via once_per_turn: true.
+// CR 602.5b: "Activate only once each turn" restriction on second ability via once_per_turn: true.
 // TODO: {X} ability main effect — needs "mana value equals X" filter in DestroyAll and
 //       "controllers dealt combat damage by this creature this turn" tracking. Deferred.
 use crate::cards::helpers::*;
@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 107.3k: {X}: Destroy each nonland permanent with mana value X whose controller
             // was dealt combat damage by this creature this turn. Activate only once each turn.
-            // CR 602.5g: once_per_turn: true.
+            // CR 602.5b: once_per_turn: true.
             // TODO: "mana value equals X" filter in DestroyAll — TargetFilter has no
             //        mana-value-equals-X predicate. Deferred.
             // TODO: "controllers dealt combat damage by this creature this turn" tracking. Deferred.

@@ -4,7 +4,7 @@
 // Remove five +1/+1 counters from Ramos: Add {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}. Activate
 // only once each turn.
 //
-// CR 602.5g: "Activate only once each turn" restriction implemented via once_per_turn: true.
+// CR 602.5b: "Activate only once each turn" restriction implemented via once_per_turn: true.
 // TODO: "Whenever you cast a spell" trigger — needs WheneverYouCastASpell trigger
 //        + EffectAmount::SpellColorCount to count a spell's colors. Deferred.
 use crate::cards::helpers::*;
@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 602.2: Remove five +1/+1 counters from Ramos: Add {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}.
-            // CR 602.5g: "Activate only once each turn" restriction.
+            // CR 602.5b: "Activate only once each turn" restriction.
             // Note: Technically a mana ability (CR 605.1). Implemented as regular activated
             // ability. Mana-ability classification deferred to BF-1.
             AbilityDefinition::Activated {

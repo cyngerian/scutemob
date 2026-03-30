@@ -2055,13 +2055,24 @@ fn execute_effect_inner(
             let id_inner = state.next_object_id().0;
             let ts = state.timestamp_counter;
             let source = ctx.source;
+            // CR 611.2a: Resolve UntilYourNextTurn placeholder to the actual controller.
+            // Card defs use PlayerId(0) as a placeholder; replace with ctx.controller so
+            // the effect expires at the correct player's next turn.
+            let resolved_duration = match effect_def.duration {
+                crate::state::continuous_effect::EffectDuration::UntilYourNextTurn(_) => {
+                    crate::state::continuous_effect::EffectDuration::UntilYourNextTurn(
+                        ctx.controller,
+                    )
+                }
+                other => other,
+            };
             let eff = crate::state::continuous_effect::ContinuousEffect {
                 id: crate::state::continuous_effect::EffectId(id_inner),
                 source: Some(source),
                 layer: effect_def.layer,
                 modification: effect_def.modification.clone(),
                 filter: resolved_filter,
-                duration: effect_def.duration,
+                duration: resolved_duration,
                 is_cda: false,
                 timestamp: ts,
                 condition: effect_def.condition.clone(),

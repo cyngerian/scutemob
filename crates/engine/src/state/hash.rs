@@ -1015,7 +1015,7 @@ impl HashInto for GameObject {
         self.was_cast_disturbed.hash_into(hasher);
         // CR 603.4: permanent entered via casting (for WasCast intervening-if condition)
         self.was_cast.hash_into(hasher);
-        // CR 602.5g: activated abilities fired this turn (for once-per-turn enforcement)
+        // CR 602.5b: activated abilities fired this turn (for once-per-turn enforcement)
         self.abilities_activated_this_turn.hash_into(hasher);
         // Craft (CR 702.167c) — ObjectIds of cards exiled as craft materials
         (self.craft_exiled_cards.len() as u64).hash_into(hasher);

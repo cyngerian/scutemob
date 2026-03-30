@@ -1223,7 +1223,7 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
 ///
 /// Called from `turn_actions::untap_active_player_permanents` at the start of the
 /// untap step, before untapping and phasing. Also resets `abilities_activated_this_turn`
-/// on all objects controlled by the active player (CR 602.5g once-per-turn enforcement).
+/// on all objects controlled by the active player (CR 602.5b once-per-turn enforcement).
 pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: PlayerId) {
     // Expire UntilYourNextTurn continuous effects for this player.
     let keep: im::Vector<ContinuousEffect> = state
@@ -1240,7 +1240,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         }
     }
     // Reset abilities_activated_this_turn on all battlefield objects.
-    // CR 602.5g: "Activate only once each turn" resets at the start of each player's turn.
+    // CR 602.5b: "Activate only once each turn" resets at the start of each player's turn.
     let ids: Vec<crate::state::game_object::ObjectId> = state
         .objects
         .iter()

@@ -25,8 +25,11 @@ pub fn card() -> CardDefinition {
             // from everything until your next turn."
             // CR 603.4: WasCast intervening-if — only triggers when cast, not on flicker/reanimate.
             // CR 611.2b: UntilYourNextTurn duration — protection expires at start of your next turn.
-            // Note: PlayerId(0) is a placeholder; the engine binds the actual controller
-            // when the trigger fires (per the effect's PlayerTarget::Controller resolution).
+            // Note: PlayerId(0) is a placeholder in the duration field, but it is NOT
+            // used for GrantPlayerProtection expiry. Expiry is keyed on the target player
+            // (who owns `temporary_protection_qualities`), not on the PlayerId embedded in
+            // the duration. The PlayerId in UntilYourNextTurn is only meaningful for
+            // ApplyContinuousEffect (which resolves it to ctx.controller at execution time).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GrantPlayerProtection {

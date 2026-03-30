@@ -4,7 +4,7 @@ batch: PB-37
 title: Complex activated abilities (residual G-26)
 cards_affected: ~8
 started: 2026-03-29
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-37.md
 
 ## Gap Groups
@@ -40,3 +40,18 @@ plan_file: memory/primitives/pb-plan-37.md
 - [x] 3. New card definitions — N/A
 - [x] 4. Unit tests: 9 tests in crates/engine/tests/primitive_pb37.rs (WasCast true/false, UntilYourNextTurn persists/expires, player protection expiry, once-per-turn counter starts 0/resets, One Ring was_cast default/burden counters)
 - [x] 5. Workspace build verification: cargo test --all (all pass), cargo clippy -- -D warnings (0 warnings), cargo fmt --check (clean), cargo build --workspace (Finished)
+
+## Review
+findings: 8 (HIGH: 1, MEDIUM: 2, LOW: 4) — note: findings 5+6 are symptoms of finding 1
+verdict: needs-fix
+review_file: memory/primitives/pb-review-37.md
+
+## Fix Phase (2026-03-29)
+- [x] F1 (HIGH): effects/mod.rs ApplyContinuousEffect — resolve UntilYourNextTurn placeholder to ctx.controller
+- [x] F2 (MEDIUM): engine.rs handle_concede — sweep UntilYourNextTurn effects for conceding player + clear temporary_protection_qualities
+- [x] F3 (LOW): global replace 602.5g → 602.5b in 10 source files
+- [x] F4 (LOW): game_object.rs:1029 doc comment "resolves" → "is activated (placed on the stack)"
+- [x] F5+F6 (HIGH symptoms): fixed by F1 — elspeth_storm_slayer + kaito_dancing_shadow now get correct PlayerId in duration
+- [x] F7 (MEDIUM): card_definition.rs GrantPlayerProtection doc comment updated to describe current behavior
+- [x] F8 (LOW): the_one_ring.rs comment clarified — PlayerId(0) in duration not used for GrantPlayerProtection expiry
+verdict: DONE — 2428 tests pass, 0 clippy, workspace build clean

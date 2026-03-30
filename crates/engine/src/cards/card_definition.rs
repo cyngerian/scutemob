@@ -202,7 +202,7 @@ pub enum AbilityDefinition {
         /// from your graveyard to the battlefield tapped."
         #[serde(default)]
         activation_zone: Option<ActivationZone>,
-        /// CR 602.5g: "Activate only once each turn" restriction.
+        /// CR 602.5b: "Activate only once each turn" restriction.
         ///
         /// When `true`, the ability can only be activated if the source object's
         /// `abilities_activated_this_turn` counter is 0. The counter is incremented
@@ -1780,11 +1780,18 @@ pub enum Effect {
     /// already use this field — this Effect simply populates it.
     ///
     /// Used by Teferi's Protection ("you gain protection from everything") and
-    /// The One Ring ("if you cast it, you gain protection from everything until
-    /// your next turn").
+    /// Grant protection qualities to a player, optionally until their next turn.
     ///
-    /// Note: Duration cleanup ("until your next turn") is deferred. Protection
-    /// is granted permanently until expiration infrastructure is added (TODO).
+    /// Used by The One Ring ("if you cast it, you gain protection from everything
+    /// until your next turn") and Teferi's Protection.
+    ///
+    /// When `duration` is `Some(EffectDuration::UntilYourNextTurn(_))`, the
+    /// protection is stored in `PlayerState::temporary_protection_qualities` and
+    /// cleared at the start of that player's next untap step via
+    /// `expire_until_next_turn_effects`. The PlayerId in the duration field is
+    /// not used for GrantPlayerProtection expiry; expiry is keyed on the target
+    /// player (who owns the `temporary_protection_qualities`).
+    /// When `duration` is `None`, the protection is permanent until removed.
     GrantPlayerProtection {
         player: PlayerTarget,
         qualities: Vec<ProtectionQuality>,

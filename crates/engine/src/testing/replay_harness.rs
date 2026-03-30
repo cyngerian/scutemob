@@ -1906,7 +1906,7 @@ pub fn enrich_spec_from_def(
                     activation_condition: activation_condition.clone(),
                     // CR 602.2: Propagate activation zone for graveyard-activated abilities.
                     activation_zone: activation_zone.clone(),
-                    // CR 602.5g: Propagate once-per-turn restriction.
+                    // CR 602.5b: Propagate once-per-turn restriction.
                     once_per_turn: *once_per_turn,
                 };
                 spec = spec.with_activated_ability(ab);

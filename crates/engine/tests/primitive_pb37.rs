@@ -3,7 +3,7 @@
 //! Covers:
 //! - Condition::WasCast (CR 603.4 intervening-if "if you cast it")
 //! - EffectDuration::UntilYourNextTurn (CR 611.2b)
-//! - once_per_turn activation restriction (CR 602.5g)
+//! - once_per_turn activation restriction (CR 602.5b)
 //! - was_cast / abilities_activated_this_turn fields on GameObject
 //!
 //! Card integrations: The One Ring (WasCast + UntilYourNextTurn),
@@ -276,7 +276,7 @@ fn test_until_your_next_turn_player_protection_expires() {
 
 // ── once_per_turn tracking ────────────────────────────────────────────────────
 
-/// CR 602.5g — abilities_activated_this_turn starts at 0 and increments on activation.
+/// CR 602.5b — abilities_activated_this_turn starts at 0 and increments on activation.
 #[test]
 fn test_once_per_turn_counter_starts_zero() {
     let p1 = p(1);
@@ -302,11 +302,11 @@ fn test_once_per_turn_counter_starts_zero() {
             .unwrap()
             .abilities_activated_this_turn,
         0,
-        "CR 602.5g: abilities_activated_this_turn should start at 0"
+        "CR 602.5b: abilities_activated_this_turn should start at 0"
     );
 }
 
-/// CR 602.5g — The once-per-turn counter resets to 0 at the start of each untap step.
+/// CR 602.5b — The once-per-turn counter resets to 0 at the start of each untap step.
 #[test]
 fn test_once_per_turn_resets_at_untap_step() {
     let p1 = p(1);
@@ -350,7 +350,7 @@ fn test_once_per_turn_resets_at_untap_step() {
             .unwrap()
             .abilities_activated_this_turn,
         0,
-        "CR 602.5g: abilities_activated_this_turn should reset to 0 at start of untap step"
+        "CR 602.5b: abilities_activated_this_turn should reset to 0 at start of untap step"
     );
 }
 
