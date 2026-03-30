@@ -48,7 +48,7 @@
 | PB-34 | Mana production (filter, devotion, cond.) | done | 7 | ~33 | clean | 1 |
 | PB-35 | Modal triggers + graveyard + PW | done | 14 | ~46 | fixed | 1 |
 | PB-36 | Evasion/protection extensions | done | 16 | ~5 | fixed | 1 |
-| **PB-37** | **Complex activated (residual)** | **planned** | — | TBD | — | — |
+| PB-37 | Complex activated (residual) | done | 7 | ~TBD | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -82,7 +82,7 @@ As of 2026-03-23 (post A-28).
 | W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S2 DONE**. S3 next: fix MEDIUM sites |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-03-23 | **Phase 2.5: DSL gap closure (PB-23+)**. 814/1452 cards have TODOs. Close gaps before authoring more. |
+| W6 | Primitive + Card Authoring | active | 2026-03-29 | **Phase 2.5: DSL gap closure COMPLETE (PB-23–37)**. Next: BF-1 re-triage, then resume authoring. |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
@@ -112,7 +112,7 @@ As of 2026-03-23 (post A-28).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2419 |
+| Total tests | 2437 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

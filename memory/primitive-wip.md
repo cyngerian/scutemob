@@ -4,7 +4,7 @@ batch: PB-37
 title: Complex activated abilities (residual G-26)
 cards_affected: ~8
 started: 2026-03-29
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-37.md
 
 ## Gap Groups
