@@ -964,6 +964,27 @@ pub fn handle_declare_blockers(
             {
                 continue; // Requirement impossible -- skip
             }
+            // CR 509.1b: CantBeBlockedExceptBy -- provoked creature must match filter.
+            let mut cant_block_due_to_filter = false;
+            for kw in attacker_chars.keywords.iter() {
+                if let KeywordAbility::CantBeBlockedExceptBy(filter) = kw {
+                    let matches = match filter {
+                        BlockingExceptionFilter::HasKeyword(req) => {
+                            provoked_chars.keywords.contains(req.as_ref())
+                        }
+                        BlockingExceptionFilter::HasAnyKeyword(reqs) => {
+                            reqs.iter().any(|k| provoked_chars.keywords.contains(k))
+                        }
+                    };
+                    if !matches {
+                        cant_block_due_to_filter = true;
+                        break;
+                    }
+                }
+            }
+            if cant_block_due_to_filter {
+                continue; // Requirement impossible -- skip
+            }
             // CR 702.13b: Intimidate -- can only be blocked by artifact creatures
             // and/or creatures sharing a color.
             if attacker_chars

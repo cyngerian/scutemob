@@ -710,6 +710,7 @@ impl HashInto for BlockingExceptionFilter {
             }
             BlockingExceptionFilter::HasAnyKeyword(kws) => {
                 1u8.hash_into(hasher);
+                (kws.len() as u64).hash_into(hasher);
                 for kw in kws {
                     kw.hash_into(hasher);
                 }
@@ -5057,6 +5058,7 @@ impl HashInto for Effect {
             Effect::GrantPlayerProtection { player, qualities } => {
                 73u8.hash_into(hasher);
                 player.hash_into(hasher);
+                (qualities.len() as u64).hash_into(hasher);
                 for q in qualities {
                     q.hash_into(hasher);
                 }
