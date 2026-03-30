@@ -206,22 +206,55 @@ new cards (not yet authored at all) remain.
 **Note**: A-24 through A-28 were authored with TODOs — their TODOs will be resolved by
 the backfill sprint above.
 
-**Tier 3: Complex patterns** (re-triage sizes after BF-1)
+#### Authoring Order and Engine Risk Assessment
 
-- [ ] **A-29**: cant-restriction (3 sessions, 24 cards)
-- [ ] **A-30**: untap-phase (2 sessions, 12 cards)
+Post-gap-closure analysis (2026-03-30) classified each remaining group by how much
+engine work it requires. **Author safe groups first**, then triage the mixed groups,
+then tackle blocked groups last.
+
+**Wave A: Safe to author now** (minimal/no engine changes, ~97 cards)
+
+Author these in order. Any minor engine additions (new enum variants, filter fields)
+are leaf-level and low-risk.
+
+- [ ] **A-29**: cant-restriction (3 sessions, 24 cards) — MINOR ENGINE: few new `GameRestriction` variants
+- [ ] **A-32**: land-fetch (4 sessions, 27 cards) — MINOR ENGINE: Landfall trigger, land-count condition
+- [ ] **A-33**: graveyard-recursion (2 sessions, 9 cards) — MINOR ENGINE: delayed trigger, ForEach-over-GY filter
+- [ ] **A-34**: opponent-punish (2 sessions, 9 cards) — MINOR ENGINE: tapped-creature count, ascend condition
+- [ ] **A-35**: etb-trigger (1 session, 5 cards) — PURE AUTHORING: all patterns exist
+- [ ] **A-39**: tutor (2 sessions, 11 cards) — PURE AUTHORING: SearchLibrary mature
+
+**Engine review checkpoint**: After Wave A completes, batch-review all engine changes
+from A-29 through A-39. Use `git diff` on `crates/engine/src/` against the pre-Wave-A
+commit. Fix any issues before proceeding. This is a single review pass, not per-session.
+
+**Wave B: Re-triage before authoring** (~227 cards, ~60% authorable)
+
+These groups are too heterogeneous to author blindly. Before starting each group:
+1. Scan every card in the group against current DSL capabilities
+2. Split into "authorable now" and "blocked on engine work"
+3. Author the safe cards; flag blocked cards for Wave C or X-2
+
+- [ ] **A-38**: modal-choice (13 sessions, 100 cards) — MIXED: ~60% pure authoring, ~15% significant engine (Rings of Brighthearth, Opposition Agent, Underworld Breach, As Foretold)
+- [ ] **A-42**: other (16 sessions, 127 cards) — MIXED: ~35% pure authoring, ~30% significant engine (Ashaya, Food Chain, Coat of Arms, Living Death, triple-damage replacements)
+
+**Engine review checkpoint**: After Wave B completes, batch-review all engine changes.
+Same process as Wave A checkpoint.
+
+**Wave C: Blocked on engine work** (~24 cards)
+
+These need new engine systems (not just enum variants). Treat as a PB-38-style batch:
+plan → implement → review → fix, then author the cards.
+
+- [ ] **A-30**: untap-phase (2 sessions, 12 cards) — SIGNIFICANT: `Effect::UntapAll`, opponent-untap-step trigger
+- [ ] **A-36**: static-enchantment (1 session, 6 cards) — SIGNIFICANT: trigger-doubling by subtype, dynamic count-based P/T, zone-count CDA
+- [ ] **A-40**: x-spell (1 session, 1 card) — SIGNIFICANT: `SetBothDynamic`, gain-all-creature-types (Mirror Entity)
+- [ ] **A-41**: exile-play (1 session, 1 card) — SIGNIFICANT: name-choice search + conditional exile (Demonic Consultation); likely M10-blocked
+
+**Previously completed:**
+
 - [x] **A-31**: land-etb-tapped (8 sessions, 122 cards) — all exist from Phase 1
-- [ ] **A-32**: land-fetch (4 sessions, 27 cards)
-- [ ] **A-33**: graveyard-recursion (2 sessions, 9 cards)
-- [ ] **A-34**: opponent-punish (2 sessions, 9 cards)
-- [ ] **A-35**: etb-trigger (1 session, 5 cards)
-- [ ] **A-36**: static-enchantment (1 session, 6 cards)
 - [x] **A-37**: combat-keyword (11 sessions, 163 cards) — all exist from prior work
-- [ ] **A-38**: modal-choice (13 sessions, 100 cards)
-- [ ] **A-39**: tutor (2 sessions, 11 cards)
-- [ ] **A-40**: x-spell (1 session, 1 card)
-- [ ] **A-41**: exile-play (1 session, 1 card)
-- [ ] **A-42**: other (16 sessions, 127 cards)
 
 ### Phase 3: Audit and Certification
 

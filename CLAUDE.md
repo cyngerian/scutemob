@@ -104,6 +104,25 @@ Use `/review-subsystem <name>` to load the right file and see open issues in one
 
 ---
 
+## Card Authoring Wave Process
+
+The remaining A-29+ groups are ordered into three waves by engine risk level.
+**Follow this order** — see `docs/card-authoring-operations.md` "Authoring Order and
+Engine Risk Assessment" for the full breakdown.
+
+1. **Wave A** (A-29, A-32, A-33, A-34, A-35, A-39): Safe to author now. Minor/no engine changes.
+2. **Wave B** (A-38, A-42): Re-triage each group first — split authorable cards from blocked ones.
+3. **Wave C** (A-30, A-36, A-40, A-41): Blocked on significant engine work. Treat as PB-style batch.
+
+**Engine review checkpoints**: After each wave completes, batch-review all engine
+changes before starting the next wave. Run `git diff <pre-wave-commit>..HEAD -- crates/engine/src/`
+and review the accumulated engine additions. Fix any issues found. This is a single
+review pass per wave, not per-session — but it is **mandatory** before advancing to
+the next wave. The PB pipeline had plan → implement → review → fix; the authoring
+pipeline adds engine code inline without review, so these checkpoints catch that gap.
+
+---
+
 ## Architecture Invariants
 
 These are non-negotiable. If a change would violate any of these, stop and reconsider.
