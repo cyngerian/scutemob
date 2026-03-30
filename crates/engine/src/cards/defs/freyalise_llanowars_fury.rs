@@ -39,7 +39,6 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // −2: Destroy target artifact or enchantment.
-            // TODO: target "artifact or enchantment" — using Artifact filter only (no OR filter in DSL)
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
                 effect: Effect::DestroyPermanent {
@@ -47,13 +46,11 @@ pub fn card() -> CardDefinition {
                     cant_be_regenerated: false,
                 },
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                    has_card_type: Some(CardType::Artifact),
+                    has_card_types: vec![CardType::Artifact, CardType::Enchantment],
                     ..Default::default()
                 })],
             },
             // −6: Draw a card for each green creature you control.
-            // TODO: "green creature" color filter on PermanentCount (TargetFilter.colors is Vec
-            //   but PermanentCount may not filter by color — partial)
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(6),
                 effect: Effect::DrawCards {
@@ -61,6 +58,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::PermanentCount {
                         filter: TargetFilter {
                             has_card_type: Some(CardType::Creature),
+                            colors: Some(im::ordset![Color::Green]),
                             ..Default::default()
                         },
                         controller: PlayerTarget::Controller,

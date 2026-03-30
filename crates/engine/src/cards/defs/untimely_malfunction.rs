@@ -19,11 +19,10 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            // Mode 0: target artifact. Modes 1 and 2 targets declared for completeness.
+            // Mode 0: target artifact. Mode 1/2 targets declared per mode.
             targets: vec![
                 TargetRequirement::TargetArtifact, // mode 0
                 // TODO: mode 1 requires TargetSpellOrAbility (not in DSL)
-                // TODO: mode 2 requires CantBlock effect (not in DSL)
             ],
             modes: Some(ModeSelection {
                 min_modes: 1,

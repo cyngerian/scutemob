@@ -39,8 +39,24 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: Sacrifice activated ability with +0/+3 buff to all creatures you control —
-            // DSL ModifyBoth(3) would be +3/+3, not +0/+3.
+            // Sacrifice Mardu Ascendancy: Creatures you control get +0/+3 until end of turn.
+            AbilityDefinition::Activated {
+                cost: Cost::SacrificeSelf,
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyToughness(3),
+                        filter: EffectFilter::CreaturesYouControl,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

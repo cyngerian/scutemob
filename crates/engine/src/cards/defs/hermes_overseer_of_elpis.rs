@@ -3,8 +3,6 @@
 //   with flying and vigilance.
 // Whenever you attack with one or more Birds, scry 2.
 //
-// TODO: "Whenever you cast a noncreature spell" — WheneverYouCastSpell lacks a spell type
-//   filter (noncreature). Cannot express without overbroad trigger (wrong game state).
 // TODO: "Whenever you attack with one or more Birds" — no trigger condition for
 //   attacking with creatures of a subtype.
 use crate::cards::helpers::*;

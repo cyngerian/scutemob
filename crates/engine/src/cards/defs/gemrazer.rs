@@ -5,8 +5,7 @@
 //
 // CR 702.140a: Mutate is an alternative cost targeting a non-Human creature you own.
 // CR 702.140d: "Whenever this creature mutates" fires after a successful merge.
-// TODO: TargetArtifactOrEnchantment variant does not exist in TargetRequirement;
-//       TargetPermanent is used as the closest approximation (same gap as Krosan Grip).
+// CR 702.140d: "Whenever this creature mutates" fires after a successful merge.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,8 +28,8 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Reach),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // CR 702.140d: "Whenever this creature mutates, destroy target artifact or enchantment."
-            // TODO: TargetPermanent is used instead of TargetArtifactOrEnchantment (DSL gap).
+            // CR 702.140d: "Whenever this creature mutates, destroy target artifact or enchantment
+            // an opponent controls."
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenMutates,
                 effect: Effect::DestroyPermanent {
@@ -38,7 +37,11 @@ pub fn card() -> CardDefinition {
                     cant_be_regenerated: false,
                 },
                 intervening_if: None,
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_types: vec![CardType::Artifact, CardType::Enchantment],
+                    controller: TargetController::Opponent,
+                    ..Default::default()
+                })],
 
                 modes: None,
                 trigger_zone: None,
