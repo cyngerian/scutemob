@@ -60,16 +60,16 @@
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| Complete (no TODOs, has abilities) | 583 | 40% |
-| Vanilla (no TODO, intentionally empty) | 55 | 4% |
-| Partial (some abilities, some TODOs) | 670 | 46% |
-| Stripped (empty abilities + TODO comments) | 144 | 10% |
+| Clean (no TODOs) | 773 | 53% |
+| With TODOs (fixable now) | ~100 | 7% |
+| With TODOs (still blocked) | ~578 | 40% |
 | Not Yet Authored | ~291 | — |
 | **Total Universe** | **1743** | — |
-| **Total Authored** | **1452** | **83%** |
+| **Total Authored** | **1451** | **83%** |
 
-**Gap closure needed**: 814 cards have TODOs. See `docs/dsl-gap-closure-plan.md`.
-As of 2026-03-23 (post A-28).
+**Post-BF-1**: 678 files have TODOs (1,070 lines). ~100 fixable now, ~578 blocked.
+Re-triage report: `memory/card-authoring/bf1-retriage-report.md`.
+As of 2026-03-30 (post PB-37, BF-1 complete).
 
 ---
 

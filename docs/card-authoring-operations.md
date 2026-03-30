@@ -172,7 +172,7 @@ their TODOs removed.
 - [x] **PB-35**: Modal triggers + graveyard conditions + planeswalker abilities (~60 cards) — 14 fixed, 1H 3M fixed, 2419 tests
 - [x] **PB-36**: Evasion/protection extensions (~21 cards) — 16 fixed, 3M fixed, 2428 tests
 - [x] **PB-37**: Complex activated abilities — residual G-26 (~8 cards) — 7 fixed, 1H 2M fixed, 2437 tests
-- [ ] **BF-1**: Post-gap-closure re-triage — scan all TODO cards, re-classify against new DSL
+- [x] **BF-1**: Post-gap-closure re-triage — 678/1451 files have TODOs (1070 lines). ~100 fixable now (131 candidate files, ~30% false positive rate). 547 still blocked. Report: `memory/card-authoring/bf1-retriage-report.md`
 - [ ] **BF-2**: Commit: `W6-prim: gap closure complete — PB-23 through PB-37`
 
 ### Phase 2 (continued): Author Remaining Cards
