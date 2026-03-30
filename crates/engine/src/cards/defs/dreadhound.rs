@@ -14,8 +14,40 @@ pub fn card() -> CardDefinition {
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
-            // TODO: DSL gap — ETB mill 3 + death/mill trigger. WheneverCreatureDies exists
-            // but "creature card put into GY from library" trigger does not.
+            // CR 603.1: "When Dreadhound enters, mill three cards."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MillCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(3),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
+            // CR 603.2: "Whenever a creature dies or a creature card is put into a graveyard
+            // from a library, each opponent loses 1 life."
+            // Partial: only creature deaths fire (WheneverCreatureDies). "Creature card put
+            // into GY from library" (mill trigger) is a known DSL gap.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: false,
+                    nontoken_only: false,
+                },
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachOpponent,
+                    effect: Box::new(Effect::LoseLife {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

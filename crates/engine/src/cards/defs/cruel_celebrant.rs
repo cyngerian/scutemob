@@ -13,10 +13,24 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
-            // TODO: DSL gap — "Whenever this creature or another creature or planeswalker
-            // you control dies" needs WheneverCreatureDies with controller filter (You).
-            // WheneverCreatureDies triggers on ANY creature dying — using it would fire
-            // on opponents' creatures dying too (wrong game state per W5).
+            // CR 603.10a: "Whenever Cruel Celebrant or another creature or planeswalker
+            // you control dies, each opponent loses 1 life and you gain 1 life."
+            // Note: "or planeswalker" portion not covered — WheneverCreatureDies only
+            // fires on creature deaths, not planeswalker deaths. Known DSL gap.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

@@ -60,8 +60,8 @@
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| Clean (no TODOs) | 773 | 53% |
-| With TODOs (fixable now) | ~100 | 7% |
+| Clean (no TODOs) | ~785 | 54% |
+| With TODOs (fixable now) | ~88 | 6% |
 | With TODOs (still blocked) | ~578 | 40% |
 | Not Yet Authored | ~291 | — |
 | **Total Universe** | **1743** | — |

@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
-            // TODO: WheneverCreatureDies is overbroad (all creatures, not "another").
+            // CR 603.10a: "Whenever another creature dies, put a +1/+1 counter on Elenda."
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false },
                 effect: Effect::AddCounter {

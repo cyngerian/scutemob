@@ -2,8 +2,7 @@
 // Flying
 // Whenever an opponent draws a card, you may draw two cards.
 //
-// TODO: "Whenever an opponent draws a card" — opponent-draw trigger not in DSL.
-//   WheneverYouDrawACard only fires for controller.
+// The "you may" optional is approximated as mandatory (bot always draws).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +17,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // Whenever an opponent draws a card, you may draw two cards.
-            // TODO: "you may" — optional draw. Using mandatory draw as approximation.
+            // CR 603.2: "Whenever an opponent draws a card, you may draw two cards."
+            // Note: "you may" optional not in DSL — always draws (bot always opts in).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                     player_filter: Some(TargetController::Opponent),
