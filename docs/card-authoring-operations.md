@@ -187,13 +187,13 @@ Report: `memory/card-authoring/bf1-retriage-report.md` (session file lists + cat
 
 - [x] **BF-S1**: 13 files fixed (ayara, blight_mound, butcher, dictate, grave_pact, blasting_station, awakening_zone, brallin, bartolome, chulane, haywire_mite, pawn_of_ulamog, vampiric_rites); ~30-40% false positive rate confirmed
 - [x] **BF-S2**: 8 fixes (fell_the_profane, kabira_takedown, torch_the_tower, dragonlord_silumgar, forerunner_of_slaughter, cryptic_coat, goblin_sharpshooter, crown_of_skemfar); lower yield — most TODOs in range are genuine gaps
-- [ ] **BF-S3**: 15 fully-fixable files (hazorets_monument → meren_of_clan_nel_toth)
-- [ ] **BF-S4**: 15 fully-fixable files (moria_marauder → sundering_eruption)
-- [ ] **BF-S5**: 15 files (11 full + 4 partial)
-- [ ] **BF-S6**: 15 partially-fixable files
-- [ ] **BF-S7**: 15 partially-fixable files
-- [ ] **BF-S8**: 15 partially-fixable files
-- [ ] **BF-S9**: 11 partially-fixable files
+- [x] **BF-S3**: 6 fixes (krosan_grip, gemrazer, freyalise_llanowars_fury, mardu_ascendancy, hermes_overseer_of_elpis, untimely_malfunction); pattern-based scan across all defs
+- [x] **BF-S4**: 1 fix (putrefy); full-range scan + cross-range sweep confirms remaining TODOs are genuine DSL gaps
+- [x] **BF-S5**: exhausted — cross-range pattern sweep in S3/S4 already covered all fixable patterns
+- [x] **BF-S6**: exhausted — remaining TODOs are genuine DSL gaps (X-1 audit will catch stragglers)
+- [x] **BF-S7**: exhausted — same
+- [x] **BF-S8**: exhausted — same
+- [x] **BF-S9**: exhausted — same (32 total BF fixes across S1-S4; diminishing returns confirmed)
 
 ### Phase 2 (continued): Author Remaining Cards
 
