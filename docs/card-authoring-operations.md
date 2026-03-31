@@ -217,12 +217,12 @@ then tackle blocked groups last.
 Author these in order. Any minor engine additions (new enum variants, filter fields)
 are leaf-level and low-risk.
 
-- [ ] **A-29**: cant-restriction (3 sessions, 24 cards) — MINOR ENGINE: few new `GameRestriction` variants
-- [ ] **A-32**: land-fetch (4 sessions, 27 cards) — MINOR ENGINE: Landfall trigger, land-count condition
-- [ ] **A-33**: graveyard-recursion (2 sessions, 9 cards) — MINOR ENGINE: delayed trigger, ForEach-over-GY filter
-- [ ] **A-34**: opponent-punish (2 sessions, 9 cards) — MINOR ENGINE: tapped-creature count, ascend condition
-- [ ] **A-35**: etb-trigger (1 session, 5 cards) — PURE AUTHORING: all patterns exist
-- [ ] **A-39**: tutor (2 sessions, 11 cards) — PURE AUTHORING: SearchLibrary mature
+- [x] **A-29**: cant-restriction (3 sessions, 24 cards) — DONE (19/24 complete; 5 deferred to Wave C/X-2: Vexing Shusher, Tetsuko Umezawa, Autumn's Veil, Soulless Jailer, Delney — complex engine gaps)
+- [x] **A-32**: land-fetch (7 sessions, 45 cards) — DONE (44 new + 1 existing; fetchlands, ramp spells, land search)
+- [x] **A-33**: graveyard-recursion (4 sessions, 18 cards) — DONE (all 18 authored; Mutate Necropanther, Sheoldred, Squee, etc.)
+- [x] **A-34**: opponent-punish (3 sessions, 12 cards) — DONE (all 12 authored; Gray Merchant, Exsanguinate, Sanguine Bond, etc.)
+- [x] **A-35**: etb-trigger (2 sessions, 6 cards) — DONE (all 6 authored; Sun Titan, Stitcher's Supplier, Carth the Lion, etc.)
+- [x] **A-39**: tutor (2 sessions, 11 cards) — DONE (all 11 authored; Entomb, Gamble, Razaketh, Dark Petition, etc.)
 
 **Engine review checkpoint**: After Wave A completes, batch-review all engine changes
 from A-29 through A-39. Use `git diff` on `crates/engine/src/` against the pre-Wave-A
