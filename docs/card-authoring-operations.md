@@ -235,15 +235,52 @@ These groups are too heterogeneous to author blindly. Before starting each group
 2. Split into "authorable now" and "blocked on engine work"
 3. Author the safe cards; flag blocked cards for Wave C or X-2
 
-- [ ] **A-38**: modal-choice (13 sessions, 100 cards) — MIXED: ~60% pure authoring, ~15% significant engine (Rings of Brighthearth, Opposition Agent, Underworld Breach, As Foretold)
-- [ ] **A-42**: other (16 sessions, 127 cards) — MIXED: ~35% pure authoring, ~30% significant engine (Ashaya, Food Chain, Coat of Arms, Living Death, triple-damage replacements)
+- [x] **A-38**: modal-choice — 53/105 authored (48 BLOCKED on play-from-top, pitch-alt-cost, copy-target-spell, grant-flash, mana-doubling, extra-turn, gain-control)
+- [ ] **A-42**: other — 77/131 authored (~54 BLOCKED). Continue authoring safe cards first.
 
-**Engine review checkpoint**: After Wave B completes, batch-review all engine changes.
-Same process as Wave A checkpoint.
+**Engine review checkpoint**: DONE 2026-04-01 — CLEAN (zero engine changes, all 130 files
+were pure card defs).
 
-**Wave C: Blocked on engine work** (~24 cards)
+**Wave B.5: Unblock remaining A-38/A-42 cards** (~101 blocked cards across 14 categories)
 
-These need new engine systems (not just enum variants). Treat as a PB-38-style batch:
+Work through in order. Author everything possible without engine work first, then do
+engine batches from LOW → MEDIUM → HIGH complexity. After each engine batch: author all
+newly unblocked cards before moving to the next batch.
+
+**Step 1: Author PB-N misc cards (no engine work needed)**
+
+- [ ] **PB-N**: Author 20 misc cards authorable with existing DSL (9 clean + 11 partial with TODOs). Pure card authoring, no engine changes.
+
+**Step 2: LOW complexity engine batches**
+
+- [ ] **PB-G**: Bounce-all — `Effect::BounceAll` with filter (4 cards unblocked, LOW)
+- [ ] **PB-K**: Additional land drops — land-play counter per turn (3 cards unblocked, LOW)
+
+**Step 3: MEDIUM complexity engine batches**
+
+- [ ] **PB-D**: Chosen creature type — `ChosenCreatureType` on GameObject + layer filtering (12 cards unblocked, MEDIUM — highest unblock count)
+- [ ] **PB-C**: Extra turns — `Effect::ExtraTurn` + turn queue (4 cards unblocked, MEDIUM)
+- [ ] **PB-F**: Damage multiplier — replacement effect in damage pipeline (3 cards unblocked, MEDIUM)
+- [ ] **PB-I**: Grant flash — cast-timing modification in casting.rs (4 cards unblocked, MEDIUM)
+- [ ] **PB-H**: Mass reanimate — multi-step zone changes, Living Death (5 cards unblocked, MEDIUM)
+- [ ] **PB-L**: Reveal/X effects — domain count, reveal-to-BF, free-cast (7 cards unblocked, MEDIUM)
+
+**Step 4: HIGH complexity engine batches**
+
+These touch deep engine architecture. Do last.
+
+- [ ] **PB-A**: Play from top of library — continuous cast permission system (6 cards unblocked, HIGH)
+- [ ] **PB-B**: Play from GY/exile — same permission system, different zones (5 cards unblocked, HIGH)
+- [ ] **PB-E**: Mana doubling — mana trigger interception (9 cards unblocked, HIGH)
+- [ ] **PB-J**: Copy/redirect spells — spell copy + target changing on stack (4 cards unblocked, HIGH)
+- [ ] **PB-M**: Panharmonicon — trigger doubling architecture (1 card unblocked, HIGH)
+
+Each engine batch uses `/implement-primitive` pipeline (plan → implement → review → fix).
+Commit prefix: `W6-prim:` for engine work, `W6-cards:` for card defs authored after.
+
+**Wave C: Blocked on engine work** (~20 cards)
+
+These need new engine systems (not just enum variants). Treat as a PB-style batch:
 plan → implement → review → fix, then author the cards.
 
 - [ ] **A-30**: untap-phase (2 sessions, 12 cards) — SIGNIFICANT: `Effect::UntapAll`, opponent-untap-step trigger
