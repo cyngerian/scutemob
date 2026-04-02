@@ -30,11 +30,11 @@ pub fn card() -> CardDefinition {
                     // Overloaded: bounce each nonland permanent opponents control to owner's hand
                     // (CR 702.96b, CR 108.3: "owner's hand" uses OwnerOf, not ControllerOf).
                     if_true: Box::new(Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             non_land: true,
                             controller: TargetController::Opponent,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::MoveZone {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             to: ZoneTarget::Hand {

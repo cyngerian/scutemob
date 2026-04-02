@@ -28,11 +28,10 @@ pub fn card() -> CardDefinition {
                         cant_be_regenerated: false,
                     },
                     // Mode 1: Destroy all non-Dragon creatures.
-                    // TODO: TargetFilter lacks exclude_subtype — this destroys ALL creatures.
-                    // When exclude_subtype is added, use it to exclude Dragons.
                     Effect::DestroyAll {
                         filter: TargetFilter {
                             has_card_type: Some(CardType::Creature),
+                            exclude_subtypes: vec![SubType("Dragon".to_string())],
                             ..Default::default()
                         },
                         cant_be_regenerated: false,

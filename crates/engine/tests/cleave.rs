@@ -108,10 +108,10 @@ fn mock_path_of_peril_def() -> CardDefinition {
                 effect: Effect::Conditional {
                     condition: Condition::WasCleaved,
                     if_true: Box::new(Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Creature),
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
                             cant_be_regenerated: false,

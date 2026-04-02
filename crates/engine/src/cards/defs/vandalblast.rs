@@ -27,11 +27,11 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Conditional {
                     condition: Condition::WasOverloaded,
                     if_true: Box::new(Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Artifact),
                             controller: TargetController::Opponent,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: false,

@@ -29,11 +29,11 @@ pub fn card() -> CardDefinition {
                     },
                     // Deal 1 damage to each creature opponents control.
                     Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Creature),
                             controller: TargetController::Opponent,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::DealDamage {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             amount: EffectAmount::Fixed(1),
@@ -41,11 +41,11 @@ pub fn card() -> CardDefinition {
                     },
                     // Deal 1 damage to each planeswalker opponents control.
                     Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Planeswalker),
                             controller: TargetController::Opponent,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::DealDamage {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             amount: EffectAmount::Fixed(1),

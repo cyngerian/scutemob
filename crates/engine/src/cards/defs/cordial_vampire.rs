@@ -17,12 +17,12 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false },
                 effect: Effect::ForEach {
-                    over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                    over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                         has_card_type: Some(CardType::Creature),
                         has_subtype: Some(SubType("Vampire".to_string())),
                         controller: TargetController::You,
                         ..Default::default()
-                    }),
+                    })),
                     effect: Box::new(Effect::AddCounter {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         counter: CounterType::PlusOnePlusOne,

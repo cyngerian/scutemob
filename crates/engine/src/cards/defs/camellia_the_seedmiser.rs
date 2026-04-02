@@ -76,12 +76,12 @@ pub fn card() -> CardDefinition {
                     Cost::Forage,
                 ]),
                 effect: Effect::AddCounter {
-                    target: EffectTarget::AllPermanentsMatching(TargetFilter {
+                    target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
                         has_card_type: Some(CardType::Creature),
                         has_subtype: Some(SubType("Squirrel".to_string())),
                         controller: TargetController::You,
                         ..Default::default()
-                    }),
+                    })),
                     counter: CounterType::PlusOnePlusOne,
                     count: 1,
                 },

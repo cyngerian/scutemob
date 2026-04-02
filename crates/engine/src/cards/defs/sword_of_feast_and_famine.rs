@@ -50,11 +50,11 @@ pub fn card() -> CardDefinition {
                         count: EffectAmount::Fixed(1),
                     },
                     Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Land),
                             controller: TargetController::You,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::UntapPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                         }),

@@ -15,12 +15,10 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                // TODO: TargetFilter lacks max_toughness — searching for creature card
-                // with toughness 2 or less. Using has_card_type creature filter only.
-                // When max_toughness is added, set max_toughness: Some(2).
                 effect: Effect::SearchLibrary {
                     filter: TargetFilter {
                         has_card_type: Some(CardType::Creature),
+                        max_toughness: Some(2),
                         ..Default::default()
                     },
                     destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },

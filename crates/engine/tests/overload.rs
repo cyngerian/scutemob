@@ -105,12 +105,12 @@ fn mock_vandalblast_def() -> CardDefinition {
                 effect: Effect::Conditional {
                     condition: Condition::WasOverloaded,
                     if_true: Box::new(Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Artifact),
                             // CR 702.96a: "each artifact you don't control" — opponents only.
                             controller: TargetController::Opponent,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
                             cant_be_regenerated: false,
@@ -900,11 +900,11 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
                 effect: Effect::Conditional {
                     condition: Condition::WasOverloaded,
                     if_true: Box::new(Effect::ForEach {
-                        over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                             has_card_type: Some(CardType::Artifact),
                             controller: TargetController::Opponent,
                             ..Default::default()
-                        }),
+                        })),
                         effect: Box::new(Effect::DestroyPermanent {
                             target: CardEffectTarget::DeclaredTarget { index: 0 },
                             cant_be_regenerated: false,

@@ -3901,6 +3901,9 @@ impl HashInto for TargetFilter {
         self.has_card_types.hash_into(hasher);
         self.legendary.hash_into(hasher);
         self.is_token.hash_into(hasher);
+        self.max_toughness.hash_into(hasher);
+        self.exclude_subtypes.hash_into(hasher);
+        self.is_attacking.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -4853,6 +4856,15 @@ impl HashInto for Effect {
             Effect::ExileAll { filter } => {
                 55u8.hash_into(hasher);
                 filter.hash_into(hasher);
+            }
+            // BounceAll (discriminant 74) — mass return to hand
+            Effect::BounceAll {
+                filter,
+                max_toughness_amount,
+            } => {
+                74u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                max_toughness_amount.hash_into(hasher);
             }
             // CR 122: AddCounterAmount (discriminant 56) — dynamic count via EffectAmount
             Effect::AddCounterAmount {

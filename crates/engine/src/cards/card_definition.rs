@@ -1120,6 +1120,15 @@ pub enum Effect {
     /// CR 406.2: Exile all permanents on the battlefield matching the filter.
     /// Stores the count of actually-exiled permanents in ctx.last_effect_count.
     ExileAll { filter: TargetFilter },
+    /// Return all permanents on the battlefield matching the filter to their owners' hands.
+    /// Stores the count of actually-bounced permanents in ctx.last_effect_count.
+    /// `max_toughness_amount`: optional dynamic toughness threshold resolved at execution time
+    /// (used by Scourge of Fleets). When None, uses `filter.max_toughness` (static).
+    BounceAll {
+        filter: TargetFilter,
+        #[serde(default)]
+        max_toughness_amount: Option<EffectAmount>,
+    },
     /// CR 701.5: Put an object into exile.
     ExileObject { target: EffectTarget },
     /// CR 701.5: Counter a spell or ability on the stack.
@@ -1841,7 +1850,7 @@ pub enum EffectTarget {
     /// Every permanent on the battlefield.
     AllPermanents,
     /// Every permanent matching a filter on the battlefield.
-    AllPermanentsMatching(TargetFilter),
+    AllPermanentsMatching(Box<TargetFilter>),
     /// The spell/ability's source object.
     Source,
     /// CR 508.4 / CR 701.58a: The most recently created token or permanent from
@@ -2039,6 +2048,21 @@ pub struct TargetFilter {
     /// explicitly at those call sites — it will be silently ignored by `matches_filter`.
     #[serde(default)]
     pub is_token: bool,
+    /// Max toughness (inclusive). None = no restriction.
+    /// Used for "creature with toughness N or less" (Scourge of Fleets, Recruiter of the Guard).
+    #[serde(default)]
+    pub max_toughness: Option<i32>,
+    /// Subtype exclusion (AND semantics — must NOT have any of these subtypes).
+    /// Used for "except for Krakens, Leviathans, Octopuses, and Serpents" (Whelming Wave),
+    /// "destroy all non-Dragon creatures" (Crux of Fate).
+    #[serde(default)]
+    pub exclude_subtypes: Vec<SubType>,
+    /// Must be currently attacking (CR 508.1k).
+    /// NOTE: Like `is_token`, this is a runtime property of the `GameObject` (checked via
+    /// `CombatState.attackers`), NOT a `Characteristics` field. It is NOT checked inside
+    /// `matches_filter()`. It MUST be checked explicitly at each call site that uses it.
+    #[serde(default)]
+    pub is_attacking: bool,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2827,7 +2851,7 @@ pub enum ForEachTarget {
     /// Every creature opponents control.
     EachOpponentsCreature,
     /// Every permanent matching a filter.
-    EachPermanentMatching(TargetFilter),
+    EachPermanentMatching(Box<TargetFilter>),
     /// Every card in every graveyard (all players).
     ///
     /// Used by Rest in Peace ETB: "exile all cards from all graveyards" (CR 614.1).

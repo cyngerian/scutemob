@@ -1107,6 +1107,121 @@ fn execute_effect_inner(
             }
             ctx.last_effect_count = exiled_count;
         }
+        Effect::BounceAll {
+            filter,
+            max_toughness_amount,
+        } => {
+            // Resolve optional dynamic toughness threshold (Scourge of Fleets).
+            let mut effective_filter = filter.clone();
+            if let Some(amt) = max_toughness_amount {
+                let resolved = resolve_amount(state, amt, ctx);
+                effective_filter.max_toughness = Some(resolved);
+            }
+            // Snapshot matching objects before any zone changes.
+            // CR 613.1d: Use layer-resolved characteristics for filter matching.
+            let ids_to_bounce: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(id, obj)| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, **id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            matches_filter(&chars, &effective_filter)
+                        }
+                        && match effective_filter.controller {
+                            TargetController::Any => true,
+                            TargetController::You => obj.controller == ctx.controller,
+                            TargetController::Opponent => obj.controller != ctx.controller,
+                        }
+                        // is_attacking: runtime check against CombatState (not in matches_filter)
+                        && (!effective_filter.is_attacking
+                            || state
+                                .combat
+                                .as_ref()
+                                .is_some_and(|c| c.attackers.contains_key(id)))
+                        // is_token: runtime check (not in matches_filter)
+                        && (!effective_filter.is_token || obj.is_token)
+                })
+                .map(|(&id, _)| id)
+                .collect();
+            let mut bounced_count: u32 = 0;
+            for id in ids_to_bounce {
+                let owner = state
+                    .objects
+                    .get(&id)
+                    .map(|o| o.owner)
+                    .unwrap_or(ctx.controller);
+                // CR 614: Check replacement effects before bouncing.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    id,
+                    ZoneType::Battlefield,
+                    ZoneType::Hand,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) =
+                            state.move_object_to_zone(id, dest)
+                        {
+                            match dest {
+                                ZoneId::Command(_) => {
+                                    // Commander redirected to command zone.
+                                }
+                                _ => {
+                                    events.push(GameEvent::ObjectReturnedToHand {
+                                        player: owner,
+                                        object_id: id,
+                                        new_hand_id: new_id,
+                                    });
+                                    bounced_count += 1;
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        use crate::state::replacement_effect::PendingZoneChange;
+                        state.pending_zone_changes.push_back(PendingZoneChange {
+                            object_id: id,
+                            original_from: ZoneType::Battlefield,
+                            original_destination: ZoneType::Hand,
+                            affected_player: player,
+                            already_applied: Vec::new(),
+                        });
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        let dest = ZoneId::Hand(owner);
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                            events.push(GameEvent::ObjectReturnedToHand {
+                                player: owner,
+                                object_id: id,
+                                new_hand_id: new_id,
+                            });
+                            bounced_count += 1;
+                        }
+                    }
+                }
+            }
+            ctx.last_effect_count = bounced_count;
+        }
         Effect::ExileObject { target } => {
             let targets = resolve_effect_target_list_indexed(state, target, ctx);
             for (idx_opt, resolved) in targets {
@@ -5481,6 +5596,21 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
         && !chars
             .supertypes
             .contains(&crate::state::types::SuperType::Legendary)
+    {
+        return false;
+    }
+    // Max toughness filter (mirrors max_power pattern).
+    if let Some(max_t) = filter.max_toughness {
+        if chars.toughness.map(|t| t > max_t).unwrap_or(true) {
+            return false;
+        }
+    }
+    // Subtype exclusion: reject if object has ANY of the excluded subtypes.
+    if !filter.exclude_subtypes.is_empty()
+        && filter
+            .exclude_subtypes
+            .iter()
+            .any(|st| chars.subtypes.contains(st))
     {
         return false;
     }

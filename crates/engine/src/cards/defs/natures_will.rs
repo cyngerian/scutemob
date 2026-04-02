@@ -19,11 +19,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
                 effect: Effect::ForEach {
-                    over: ForEachTarget::EachPermanentMatching(TargetFilter {
+                    over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                         has_card_type: Some(CardType::Land),
                         controller: TargetController::You,
                         ..Default::default()
-                    }),
+                    })),
                     effect: Box::new(Effect::UntapPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                     }),
