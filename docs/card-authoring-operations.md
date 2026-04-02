@@ -249,11 +249,11 @@ newly unblocked cards before moving to the next batch.
 
 **Step 1: Author PB-N misc cards (no engine work needed)**
 
-- [ ] **PB-N**: Author 20 misc cards authorable with existing DSL (9 clean + 11 partial with TODOs). Pure card authoring, no engine changes.
+- [x] **PB-N**: 19 misc cards authored (Steelshaper's Gift already existed). 9 clean + 10 partial with TODOs. Commit 189465c.
 
 **Step 2: LOW complexity engine batches**
 
-- [ ] **PB-G**: Bounce-all — `Effect::BounceAll` with filter (4 cards unblocked, LOW)
+- [x] **PB-G**: BounceAll + TargetFilter extensions (4 cards: Aetherize, Whelming Wave, Scourge of Fleets, Filter Out). Also fixed Crux of Fate + Recruiter of the Guard. Commit c0e32b7.
 - [ ] **PB-K**: Additional land drops — land-play counter per turn (3 cards unblocked, LOW)
 
 **Step 3: MEDIUM complexity engine batches**

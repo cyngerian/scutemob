@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | Wave B review + next steps | ACTIVE | 2026-04-01 | **ALL PBs COMPLETE (PB-0–37)**; BF complete; **Wave A+B COMPLETE** (91+130 = 221 new card defs); Wave A engine review CLEAN |
+| W6: Primitive + Card Authoring | — | available | — | **ALL PBs COMPLETE (PB-0–37+G)**; BF complete; **Wave A+B COMPLETE** + 23 new defs; Wave B engine review CLEAN |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,32 +23,39 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-01
+**Date**: 2026-04-02
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: A-42 authoring batch 2 (Wave B continuation)
+**Task**: Wave B.5 — PB-N re-triage + PB-G engine batch
 
 **Completed**:
-- A-42 full triage: 131 cards → 109 need authoring, 18 already exist, 4 blocked (S69)
-- A-42 classification: ~50 SAFE, ~12 PARTIAL, ~47 BLOCKED
-- A-42 batch 2 authoring: 60 new card defs authored (38 SAFE + 22 PARTIAL with TODOs)
-- Key cards: Blood Moon, Magus of the Moon, Urborg, Yavimaya, Ashaya, Lotus Cobra, Evolution Sage, Angrath's Marauders, Dig Through Time, Food Chain, Warstorm Surge, Natural Order
-- Total A-42: 77/131 authored (17 prior + 60 this session)
-- 2437 tests, 0 clippy warnings, 1693 total card defs
+- Wave B engine review checkpoint: CLEAN (zero engine changes in Wave B, all 130 files were card defs)
+- Categorized 101 blocked A-38/A-42 cards into 14 primitive batch categories (PB-A through PB-N)
+- PB-N re-triage: pulled 20 authorable cards from 34-card misc bucket (9 clean, 11 partial)
+- PB-N authoring: 19 new card defs (Steelshaper's Gift already existed). Commit `189465c`
+- PB-G engine batch: `Effect::BounceAll { filter, max_toughness_amount }` + 3 new TargetFilter fields (`max_toughness`, `exclude_subtypes`, `is_attacking`). 4 new cards (Aetherize, Whelming Wave, Scourge of Fleets, Filter Out). Fixed Crux of Fate + Recruiter of the Guard. Box<TargetFilter> for clippy large_enum_variant. 8 new tests. Commit `c0e32b7`
+- Updated ops plan with Wave B.5 engine batch priority order
+- 2445 tests, 0 clippy warnings, ~1716 total card defs
 
-**Next**:
-1. **A-42 remaining ~54 cards are mostly BLOCKED** on engine primitives — minimal additional authoring possible without new PBs
-2. **Wave B engine review checkpoint** — pure card authoring this session, should be quick
-3. **Wave C**: A-30, A-36, A-40, A-41 — blocked on significant engine work
-4. **Consider new PBs** for highest-impact gaps: BounceAll/MoveZoneAll (4 cards), chosen-type (6+ cards), mana-doubling (3 cards), ExcludeSubtype filter (3 cards), extra-turn (3 cards)
+**Next** (agreed priority order):
+1. **PB-K** (Additional lands, 3 cards, LOW) — Burgeoning, Dryad of the Ilysian Grove, Case of the Locked Hothouse
+2. **PB-D** (Chosen creature type, 12 cards, MEDIUM — highest unblock count)
+3. **PB-C** (Extra turns, 4 cards, MEDIUM)
+4. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
+5. **PB-I** (Grant flash, 4 cards, MEDIUM)
+6. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
+7. HIGH batches last (PB-A/B/E/J/M)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
-- A-38 BLOCKED cards (48): need play-from-top, pitch-alt-cost, copy-target-spell, grant-flash, mana-doubling, extra-turn, gain-control
-- A-42 BLOCKED cards (~54): need extra-turn, mana-doubling, chosen-type-anthem, mass-reanimate, BounceAll, damage-tripling, wheel, domain-count, etc.
+- A-38 remaining BLOCKED (~48): play-from-top, pitch-alt-cost, copy-target-spell, grant-flash, mana-doubling, extra-turn
+- A-42 remaining BLOCKED (~35 after PB-N+PB-G): extra-turn, mana-doubling, chosen-type-anthem, mass-reanimate, damage-tripling, wheel, domain-count
 
-**Commit prefix**: `W6-cards:`
+**Commit prefix**: `W6-prim:` (engine), `W6-cards:` (card defs)
 
 ## Handoff History
+
+### 2026-04-01 — W6: A-42 batch 2
+- A-42 batch 2: 60 new card defs. Total A-42: 77/131. 1693 total defs. 2437 tests.
 
 ### 2026-03-31 — W6: Wave B A-38+A-42 partial
 - Wave A engine review CLEAN. A-38: 53 new defs. A-42 batch 1: 17 new defs. 70 total.
@@ -61,9 +68,3 @@
 
 ### 2026-03-30 — W6: BF-S3/S4 + A-29 S1
 - BF-S3/S4: 7 card def fixes. A-29 S1: 21 card defs authored.
-
-### 2026-03-30 — W6: BF-1 + BF-2
-- BF-1 re-triage: 1451 defs, 773 clean (53%), 678 with TODOs. BF-2 gap closure.
-
-### 2026-03-29 — W6: PB-37
-- PB-37: G-26 residual complex activated. 7 card defs fixed. 9 new tests.
