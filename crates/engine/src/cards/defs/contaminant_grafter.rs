@@ -4,8 +4,6 @@
 // proliferate.
 // Corrupted — At the beginning of your end step, if an opponent has three or more poison
 // counters, draw a card, then you may put a land card from your hand onto the battlefield.
-//
-// TODO: "May put a land from hand onto battlefield" not in DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,20 +29,22 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // Corrupted end step: draw if opponent has 3+ poison
+            // Corrupted — at the beginning of your end step, if an opponent has 3+ poison counters,
+            // draw a card, then you may put a land card from your hand onto the battlefield.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    Effect::PutLandFromHandOntoBattlefield { tapped: false },
+                ]),
                 intervening_if: Some(Condition::OpponentHasPoisonCounters(3)),
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "May put a land from hand onto battlefield" not in DSL.
         ],
         ..Default::default()
     }

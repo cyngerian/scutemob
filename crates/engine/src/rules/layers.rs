@@ -886,6 +886,23 @@ fn effect_applies_to(
                 false
             }
         }
+        // CR 305.7: "Lands you control are every basic land type in addition to their other types."
+        // Matches all land permanents controlled by the same player as the effect's source.
+        EffectFilter::LandsYouControl => {
+            if obj_zone != ZoneId::Battlefield {
+                return false;
+            }
+            if !chars.card_types.contains(&CardType::Land) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
+                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+                source_controller.is_some() && source_controller == obj_controller
+            } else {
+                false
+            }
+        }
     }
 }
 /// Apply a single layer modification to the given characteristics.

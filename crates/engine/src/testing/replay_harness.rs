@@ -2599,6 +2599,26 @@ pub fn enrich_spec_from_def(
             });
         }
     }
+    // CR 305.1: Convert "Whenever an opponent plays a land" triggers.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverOpponentPlaysLand,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::OpponentPlaysLand,
+                intervening_if: None,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                targets: vec![],
+                description: "Whenever an opponent plays a land (CR 305.1)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
     // CR 701.21a: Convert "Whenever you sacrifice a permanent" triggers.
     // player_filter=None → ControllerSacrifices (fires only when controller sacrifices).
     // player_filter=Some(Any) → ControllerSacrifices (any player; filtered at dispatch time).

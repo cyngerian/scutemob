@@ -1262,6 +1262,8 @@ impl HashInto for EffectFilter {
                 }
             }
             EffectFilter::AttachedPermanent => 28u8.hash_into(hasher),
+            // CR 305.7: "Lands you control" — discriminant 29
+            EffectFilter::LandsYouControl => 29u8.hash_into(hasher),
         }
     }
 }
@@ -1948,6 +1950,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::EnchantedCreatureDealsDamageToPlayer => 42u8.hash_into(hasher),
             // CR 510.3a / CR 603.2: any creature deals combat damage to opponent — discriminant 43
             TriggerEvent::AnyCreatureDealsCombatDamageToOpponent => 43u8.hash_into(hasher),
+            // CR 305.1: "Whenever an opponent plays a land" — discriminant 44
+            TriggerEvent::OpponentPlaysLand => 44u8.hash_into(hasher),
         }
     }
 }
@@ -4269,6 +4273,8 @@ impl HashInto for TriggerCondition {
             }
             // CR 510.3a / CR 603.2: "Whenever a creature deals combat damage to one of your opponents" — discriminant 39
             TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent => 39u8.hash_into(hasher),
+            // CR 305.1: "Whenever an opponent plays a land" — discriminant 40
+            TriggerCondition::WheneverOpponentPlaysLand => 40u8.hash_into(hasher),
         }
     }
 }
@@ -4418,6 +4424,14 @@ impl HashInto for Condition {
             }
             // CR 603.4: WasCast (discriminant 38) — "if you cast it" intervening-if.
             Condition::WasCast => 38u8.hash_into(hasher),
+            // CR 719.3b: "is this Case solved?" — discriminant 39
+            Condition::SourceIsSolved => 39u8.hash_into(hasher),
+            // Logical conjunction (discriminant 40)
+            Condition::And(a, b) => {
+                40u8.hash_into(hasher);
+                a.hash_into(hasher);
+                b.hash_into(hasher);
+            }
         }
     }
 }
@@ -5105,6 +5119,15 @@ impl HashInto for Effect {
                     q.hash_into(hasher);
                 }
                 duration.hash_into(hasher);
+            }
+            // CR 305.4: PutLandFromHandOntoBattlefield (discriminant 74)
+            Effect::PutLandFromHandOntoBattlefield { tapped } => {
+                74u8.hash_into(hasher);
+                tapped.hash_into(hasher);
+            }
+            // CR 719.3a: SolveCase (discriminant 75) -- set SOLVED designation
+            Effect::SolveCase => {
+                75u8.hash_into(hasher);
             }
         }
     }

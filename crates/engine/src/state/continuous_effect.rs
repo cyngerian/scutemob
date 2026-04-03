@@ -199,6 +199,12 @@ pub enum EffectFilter {
     /// Used for "Other Ninja and Rogue creatures you control get +1/+1" (Silver-Fur Master)
     /// where multiple subtypes are a disjunction (Ninja OR Rogue).
     OtherCreaturesYouControlWithSubtypes(Vec<SubType>),
+    /// Applies to all land permanents controlled by the source's controller.
+    ///
+    /// Resolved dynamically at layer-application time using `effect.source` to determine
+    /// the controller. Used for Dryad of the Ilysian Grove ("Lands you control are every
+    /// basic land type in addition to their other types.").
+    LandsYouControl,
 }
 /// What a continuous effect does when applied.
 ///

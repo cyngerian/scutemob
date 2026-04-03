@@ -14,14 +14,14 @@ pub fn card() -> CardDefinition {
                 .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 701.8: Destroy target artifact or enchantment.
-            // TODO: The second effect ("you may put a land card from your hand onto the
-            // battlefield") requires a PutCardFromHandOntoBattlefield effect with a Land filter.
-            // No such primitive exists yet. When it is added, wrap in Effect::Sequence with
-            // DestroyPermanent and the new land-play effect.
-            effect: Effect::DestroyPermanent {
-                target: EffectTarget::DeclaredTarget { index: 0 },
+            // CR 305.4: Then you may put a land card from your hand onto the battlefield.
+            effect: Effect::Sequence(vec![
+                Effect::DestroyPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: false,
-            },
+                },
+                Effect::PutLandFromHandOntoBattlefield { tapped: false },
+            ]),
             targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                 has_card_types: vec![CardType::Artifact, CardType::Enchantment],
                 ..Default::default()

@@ -1170,9 +1170,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) =
-                            state.move_object_to_zone(id, dest)
-                        {
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected to command zone.
@@ -4401,6 +4399,97 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 305.4: Put a land card from the controller's hand onto the battlefield.
+        // This is NOT "playing a land" — it does not count against the land-play limit,
+        // does not emit LandPlayed, and does not decrement land_plays_remaining.
+        // The land does, however, enter the battlefield normally (ETB triggers fire,
+        // landfall triggers fire, static effects register).
+        Effect::PutLandFromHandOntoBattlefield { tapped } => {
+            let controller = ctx.controller;
+            let hand_zone = ZoneId::Hand(controller);
+            // Deterministic land selection: pick the land card with the lowest ObjectId.
+            // In a real game with human players, this would require a choice command.
+            let land_id_opt: Option<ObjectId> = {
+                let mut land_ids: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == hand_zone
+                            && obj.characteristics.card_types.contains(&CardType::Land)
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                land_ids.sort();
+                land_ids.into_iter().next()
+            };
+            if let Some(land_id) = land_id_opt {
+                if let Ok((new_land_id, _)) =
+                    state.move_object_to_zone(land_id, ZoneId::Battlefield)
+                {
+                    // CR 305.4: entering tapped if requested.
+                    if *tapped {
+                        if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                            obj.status.tapped = true;
+                        }
+                    }
+                    // Apply self-ETB replacements from the card definition.
+                    let card_id = state
+                        .objects
+                        .get(&new_land_id)
+                        .and_then(|obj| obj.card_id.clone());
+                    let registry = std::sync::Arc::clone(&state.card_registry);
+                    events.extend(crate::rules::replacement::apply_self_etb_from_definition(
+                        state,
+                        new_land_id,
+                        controller,
+                        card_id.as_ref(),
+                        &registry,
+                    ));
+                    // Apply global ETB replacements (e.g. Torpor Orb, enter-tapped effects).
+                    events.extend(crate::rules::replacement::apply_etb_replacements(
+                        state,
+                        new_land_id,
+                        controller,
+                    ));
+                    // Register permanent replacement abilities from the land's definition.
+                    crate::rules::replacement::register_permanent_replacement_abilities(
+                        state,
+                        new_land_id,
+                        controller,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    // Register static continuous effects from the land's definition.
+                    crate::rules::replacement::register_static_continuous_effects(
+                        state,
+                        new_land_id,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    // CR 305.4: Do NOT emit LandPlayed — this is not "playing a land."
+                    // Emit PermanentEnteredBattlefield for landfall and other ETB triggers.
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: new_land_id,
+                    });
+                    // Queue CardDef ETB triggered abilities (CR 603.3).
+                    events.extend(crate::rules::replacement::queue_carddef_etb_triggers(
+                        state,
+                        new_land_id,
+                        controller,
+                        card_id.as_ref(),
+                        &registry,
+                    ));
+                }
+            }
+            // If no land card is in hand, the effect does nothing (CR 608.2c).
+        }
+        // CR 719.3a: Set the SOLVED designation on the source permanent.
+        Effect::SolveCase => {
+            if let Some(obj) = state.objects.get_mut(&ctx.source) {
+                obj.designations.insert(Designations::SOLVED);
+            }
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────
@@ -5920,6 +6009,14 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .get(&ctx.source)
             .map(|obj| obj.was_cast)
             .unwrap_or(false),
+        // CR 719.3b: "as long as this Case is solved" — checks SOLVED designation.
+        Condition::SourceIsSolved => state
+            .objects
+            .get(&ctx.source)
+            .map(|obj| obj.designations.contains(Designations::SOLVED))
+            .unwrap_or(false),
+        // Logical conjunction: true only when both arms are true.
+        Condition::And(a, b) => check_condition(state, a, ctx) && check_condition(state, b, ctx),
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).

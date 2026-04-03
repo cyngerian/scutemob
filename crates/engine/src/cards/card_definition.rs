@@ -1823,6 +1823,24 @@ pub enum Effect {
         #[serde(default)]
         duration: Option<crate::state::continuous_effect::EffectDuration>,
     },
+    /// CR 305.4: Put a land card from the controller's hand onto the battlefield.
+    ///
+    /// This is NOT "playing a land" -- it does not count against the per-turn limit.
+    /// Does not use the stack. The land enters as a new object (CR 400.7).
+    /// If no land card is in hand, the effect does nothing.
+    ///
+    /// `tapped`: if true, the land enters tapped.
+    PutLandFromHandOntoBattlefield {
+        /// If true, the land enters the battlefield tapped.
+        #[serde(default)]
+        tapped: bool,
+    },
+    /// CR 719.3a: Set the SOLVED designation on the source permanent.
+    ///
+    /// Used as the effect of "to solve" triggered abilities on Case cards.
+    /// The intervening-if on the trigger ensures the solve condition is met
+    /// at both trigger and resolution time (CR 603.4).
+    SolveCase,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).
@@ -2276,6 +2294,12 @@ pub enum TriggerCondition {
     /// (not just yours) deals combat damage to an opponent of the trigger source's
     /// controller. Used by Edric, Spymaster of Trest.
     WhenAnyCreatureDealsCombatDamageToOpponent,
+    /// "Whenever an opponent plays a land" (CR 305.1).
+    ///
+    /// Fires when any opponent of the trigger source's controller plays a land
+    /// via the special action (CR 305.1). Does NOT fire when lands are "put onto
+    /// the battlefield" by effects (CR 305.4). Dispatched via `GameEvent::LandPlayed`.
+    WheneverOpponentPlaysLand,
     /// "Whenever you discard a card" (CR 701.9a).
     ///
     /// Fires when the controller of this permanent discards a card (moves from
@@ -2499,6 +2523,13 @@ pub enum Condition {
     /// Checked at ETB trigger time and again at resolution via `GameObject::was_cast`.
     /// Set to `true` in `resolution.rs` when a resolving spell creates a permanent.
     WasCast,
+    /// CR 719.3b: "as long as this Case is solved" / "if this Case is solved."
+    ///
+    /// True when the source permanent has the SOLVED designation.
+    /// Used for "Solved -- [ability]" on Case cards (CR 702.169b).
+    SourceIsSolved,
+    /// Logical conjunction of two conditions. True if both are true.
+    And(Box<Condition>, Box<Condition>),
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

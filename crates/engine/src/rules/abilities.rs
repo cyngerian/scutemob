@@ -5536,6 +5536,35 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
+            // CR 305.1: "Whenever an opponent plays a land" trigger dispatch.
+            // Fires OpponentPlaysLand on all battlefield permanents controlled by opponents
+            // of the player who played the land.
+            GameEvent::LandPlayed { player, .. } => {
+                let pre_len = triggers.len();
+                let opponent_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller != *player
+                    })
+                    .map(|obj| obj.id)
+                    .collect();
+                for source_id in opponent_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::OpponentPlaysLand,
+                        Some(source_id),
+                        None,
+                    );
+                }
+                // Tag with triggering player for PlayerTarget resolution.
+                for t in &mut triggers[pre_len..] {
+                    t.triggering_player = Some(*player);
+                }
+            }
             _ => {}
         }
     }

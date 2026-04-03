@@ -20,21 +20,23 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // Whenever you cast a creature spell, draw a card.
-            // TODO: "then you may put a land card from your hand onto the battlefield" — partial.
+            // Whenever you cast a creature spell, draw a card, then you may put a land card
+            // from your hand onto the battlefield.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                 },
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    Effect::PutLandFromHandOntoBattlefield { tapped: false },
+                ]),
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },

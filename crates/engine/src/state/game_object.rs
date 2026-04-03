@@ -39,6 +39,10 @@ bitflags! {
         /// (CR 701.54a). Grants the Legendary supertype via the layer system (ring level >= 1)
         /// and enables ring-bearer blocking restriction (ring level >= 1).
         const RING_BEARER    = 1 << 8;
+        /// CR 719.3b: Solved designation for Case enchantments.
+        /// Once a Case becomes solved, it stays solved until it leaves the battlefield.
+        /// The solved designation is neither an ability nor part of the permanent's copiable values.
+        const SOLVED         = 1 << 9;
     }
 }
 /// Identifies a game object instance. Per CR 400.7, when an object changes
@@ -438,6 +442,10 @@ pub enum TriggerEvent {
     ///
     /// "Whenever a creature deals combat damage to one of your opponents."
     AnyCreatureDealsCombatDamageToOpponent,
+    /// CR 305.1: Fires on permanents controlled by opponents of the land-playing player.
+    /// "Whenever an opponent plays a land" patterns use this event type.
+    /// The land-playing player is passed as the triggering_player parameter.
+    OpponentPlaysLand,
     /// CR 701.9a: Fires on permanents controlled by the discarding player.
     /// Used for "whenever you discard a card" patterns.
     ControllerDiscards,
