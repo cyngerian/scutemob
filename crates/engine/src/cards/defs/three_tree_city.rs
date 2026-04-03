@@ -33,12 +33,28 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
-            // TODO: {2}, {T}: Choose a color. Add mana of that color equal to the number
-            // of creatures you control of the chosen type.
-            // DSL gap: count-based mana scaling filtered by chosen_creature_type + color choice.
-            // Would need EffectAmount::CreaturesOfChosenType + AddManaScaled with color choice.
+            // {2}, {T}: Add N mana of any color (deterministic: colorless), where N = count of
+            // creatures you control of the chosen type.
+            // Interactive color choice deferred to M10.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::AddManaOfAnyColorAmount {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::ChosenTypeCreatureCount {
+                        controller: PlayerTarget::Controller,
+                    },
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

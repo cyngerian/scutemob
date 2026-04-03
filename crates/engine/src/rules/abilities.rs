@@ -264,6 +264,7 @@ pub fn handle_activate_ability(
                 combat_damage_amount: 0,
                 damaged_player: None,
                 triggering_creature_id: None,
+                chosen_creature_type: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -653,6 +654,23 @@ pub fn handle_activate_ability(
                 }
                 crate::state::game_object::SacrificeFilter::Subtype(sub) => {
                     chars.subtypes.contains(sub)
+                }
+                crate::state::game_object::SacrificeFilter::CreatureOfChosenType => {
+                    // Must be a creature AND have the activating source's chosen_creature_type.
+                    if !chars
+                        .card_types
+                        .contains(&crate::state::types::CardType::Creature)
+                    {
+                        false
+                    } else {
+                        let chosen = state
+                            .objects
+                            .get(&source)
+                            .and_then(|o| o.chosen_creature_type.as_ref());
+                        chosen
+                            .map(|ct| chars.subtypes.contains(ct))
+                            .unwrap_or(false)
+                    }
                 }
             };
             if !matches_filter {
@@ -3156,6 +3174,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .get(source_object_id)
                         .map(|obj| obj.characteristics.card_types.iter().cloned().collect())
                         .unwrap_or_default();
+                    let spell_subtypes: Vec<crate::state::types::SubType> = state
+                        .objects
+                        .get(source_object_id)
+                        .map(|obj| obj.characteristics.subtypes.iter().cloned().collect())
+                        .unwrap_or_default();
                     let spell_is_creature =
                         spell_card_types.contains(&crate::state::types::CardType::Creature);
                     // Retain only triggers whose spell_type_filter matches.
@@ -3181,6 +3204,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     TriggerCondition::WheneverYouCastSpell {
                                         spell_type_filter,
                                         noncreature_only,
+                                        chosen_subtype_filter,
                                         ..
                                     },
                                 ..
@@ -3192,6 +3216,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     if !filter.iter().any(|ft: &crate::state::types::CardType| {
                                         spell_card_types.contains(ft)
                                     }) {
+                                        return false;
+                                    }
+                                }
+                                // CR 603.1: chosen_subtype_filter — only fire for spells whose
+                                // subtype matches the trigger source's chosen_creature_type.
+                                if *chosen_subtype_filter {
+                                    let source_chosen = state
+                                        .objects
+                                        .get(&t.source)
+                                        .and_then(|o| o.chosen_creature_type.as_ref());
+                                    let spell_has_chosen = source_chosen
+                                        .map(|ct| spell_subtypes.contains(ct))
+                                        .unwrap_or(false);
+                                    if !spell_has_chosen {
                                         return false;
                                     }
                                 }

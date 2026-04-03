@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

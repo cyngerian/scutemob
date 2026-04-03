@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             eminence: true,
             // Oracle: "other Dragon spells" — skip the modifier when casting The Ur-Dragon itself.
             exclude_self: true,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     }

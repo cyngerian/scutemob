@@ -1264,6 +1264,10 @@ impl HashInto for EffectFilter {
             EffectFilter::AttachedPermanent => 28u8.hash_into(hasher),
             // CR 305.7: "Lands you control" — discriminant 29
             EffectFilter::LandsYouControl => 29u8.hash_into(hasher),
+            // CR 205.3m: "Creatures you control of the chosen type" — discriminant 30
+            EffectFilter::CreaturesYouControlOfChosenType => 30u8.hash_into(hasher),
+            // CR 205.3m: "Other creatures you control of the chosen type" — discriminant 31
+            EffectFilter::OtherCreaturesYouControlOfChosenType => 31u8.hash_into(hasher),
         }
     }
 }
@@ -1838,6 +1842,8 @@ impl HashInto for SacrificeFilter {
                 4u8.hash_into(hasher);
                 sub.hash_into(hasher);
             }
+            // Creature of the chosen type (discriminant 5)
+            SacrificeFilter::CreatureOfChosenType => 5u8.hash_into(hasher),
         }
     }
 }
@@ -3908,6 +3914,8 @@ impl HashInto for TargetFilter {
         self.max_toughness.hash_into(hasher);
         self.exclude_subtypes.hash_into(hasher);
         self.is_attacking.hash_into(hasher);
+        self.has_chosen_subtype.hash_into(hasher);
+        self.exclude_chosen_subtype.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -4107,6 +4115,11 @@ impl HashInto for EffectAmount {
             }
             // CR 510.3a: CombatDamageDealt — amount of combat damage dealt — discriminant 12
             EffectAmount::CombatDamageDealt => 12u8.hash_into(hasher),
+            // CR 205.3m: ChosenTypeCreatureCount — count creatures of chosen type — discriminant 13
+            EffectAmount::ChosenTypeCreatureCount { controller } => {
+                13u8.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
         }
     }
 }
@@ -4200,11 +4213,13 @@ impl HashInto for TriggerCondition {
                 during_opponent_turn,
                 spell_type_filter,
                 noncreature_only,
+                chosen_subtype_filter,
             } => {
                 14u8.hash_into(hasher);
                 during_opponent_turn.hash_into(hasher);
                 spell_type_filter.hash_into(hasher);
                 noncreature_only.hash_into(hasher);
+                chosen_subtype_filter.hash_into(hasher);
             }
             TriggerCondition::WheneverYouGainLife => 15u8.hash_into(hasher),
             TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
@@ -4432,6 +4447,8 @@ impl HashInto for Condition {
                 a.hash_into(hasher);
                 b.hash_into(hasher);
             }
+            // CR 614.1c: Herald's Horn top-card check (discriminant 41)
+            Condition::TopCardIsCreatureOfChosenType => 41u8.hash_into(hasher),
         }
     }
 }
@@ -4627,6 +4644,12 @@ impl HashInto for Effect {
             Effect::ChooseCreatureType { default } => {
                 59u8.hash_into(hasher);
                 default.0.hash_into(hasher);
+            }
+            // "Add N mana of any one color" scaled variant — discriminant 60
+            Effect::AddManaOfAnyColorAmount { player, amount } => {
+                60u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
             }
             Effect::AddCounter {
                 target,

@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     spell_type_filter: None,
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                     during_opponent_turn: false,
                 },
                 effect: Effect::Nothing,

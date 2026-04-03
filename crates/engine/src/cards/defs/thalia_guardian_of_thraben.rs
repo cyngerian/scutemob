@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             scope: CostModifierScope::AllPlayers,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     }

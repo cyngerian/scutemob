@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             scope: CostModifierScope::AllPlayers,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         abilities: vec![
             // "As this enters, choose a creature type" — self-replacement (CR 614.1c)

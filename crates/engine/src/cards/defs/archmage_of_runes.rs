@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         abilities: vec![
             // Whenever you cast an instant or sorcery spell, draw a card.
@@ -29,6 +30,7 @@ pub fn card() -> CardDefinition {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

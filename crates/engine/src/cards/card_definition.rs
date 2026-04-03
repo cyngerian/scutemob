@@ -1181,6 +1181,16 @@ pub enum Effect {
         player: PlayerTarget,
         restriction: ManaRestriction,
     },
+    /// Add an amount of mana of any one color, where the amount is dynamic.
+    ///
+    /// Deterministic color choice: adds colorless mana equal to the resolved amount.
+    /// (Interactive color choice deferred to M10.) Used by Three Tree City's second
+    /// activated ability: "{2},{T}: Add mana of that color equal to the number of creatures
+    /// you control of the chosen type."
+    AddManaOfAnyColorAmount {
+        player: PlayerTarget,
+        amount: EffectAmount,
+    },
     // ── Counters ─────────────────────────────────────────────────────────────
     /// CR 122: Put one or more counters on a permanent or player.
     AddCounter {
@@ -1964,6 +1974,12 @@ pub enum EffectAmount {
     /// Used by "deals that much damage" (Balefire Dragon), "create that many tokens"
     /// (Lathril, Old Gnawbone).
     CombatDamageDealt,
+    /// Count of creatures controlled by the target player that have the source
+    /// permanent's or EffectContext's chosen_creature_type.
+    ///
+    /// Used for Three Tree City mana, Pact of the Serpent draw/life loss.
+    /// CR 205.3m: Type check uses layer-resolved characteristics.
+    ChosenTypeCreatureCount { controller: PlayerTarget },
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).
@@ -2081,6 +2097,20 @@ pub struct TargetFilter {
     /// `matches_filter()`. It MUST be checked explicitly at each call site that uses it.
     #[serde(default)]
     pub is_attacking: bool,
+    /// Must have the chosen creature type from the source permanent or EffectContext.
+    /// Resolved dynamically: reads `ctx.chosen_creature_type` (spell-level) or source
+    /// permanent's `chosen_creature_type` (permanent ability). Used by Etchings of the Chosen
+    /// sacrifice cost, Pact of the Serpent PermanentCount, Three Tree City count.
+    /// NOTE: Like `is_token`, this is NOT checked inside `matches_filter()`. Use
+    /// `check_chosen_subtype_filter()` at each effect call site that supports it.
+    #[serde(default)]
+    pub has_chosen_subtype: bool,
+    /// Must NOT have the chosen creature type from the source permanent or EffectContext.
+    /// Used for Kindred Dominance "destroy all creatures that aren't of the chosen type."
+    /// NOTE: Like `is_token`, this is NOT checked inside `matches_filter()`. Use
+    /// `check_chosen_subtype_filter()` at each effect call site that supports it.
+    #[serde(default)]
+    pub exclude_chosen_subtype: bool,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2167,6 +2197,11 @@ pub enum TriggerCondition {
         /// If true, only fires on noncreature spells.
         #[serde(default)]
         noncreature_only: bool,
+        /// If true, only fires for creature spells whose subtype matches the trigger
+        /// source's `chosen_creature_type`. Used by Vanquisher's Banner.
+        /// CR 603.1: Condition checked at trigger time using the source permanent's current type.
+        #[serde(default)]
+        chosen_subtype_filter: bool,
     },
     /// "Whenever you gain life."
     WheneverYouGainLife,
@@ -2530,6 +2565,13 @@ pub enum Condition {
     SourceIsSolved,
     /// Logical conjunction of two conditions. True if both are true.
     And(Box<Condition>, Box<Condition>),
+    /// True if the top card of the controller's library is a creature card whose subtype
+    /// matches the source permanent's `chosen_creature_type`.
+    ///
+    /// Used by Herald's Horn upkeep trigger: "If it's a creature card of the chosen type,
+    /// you may reveal it and put it into your hand."
+    /// CR 614.1c: The check is a peek (hidden information); deterministic engine sees all.
+    TopCardIsCreatureOfChosenType,
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).
@@ -2981,6 +3023,13 @@ pub struct SpellCostModifier {
     /// source. Encodes "other" semantics (e.g. The Ur-Dragon: "other Dragon spells").
     #[serde(default)]
     pub exclude_self: bool,
+    /// Per-color mana reduction (Morophon: "{W}{U}{B}{R}{G} less to cast").
+    /// Each color field specifies how much of that color to subtract from the spell's cost.
+    /// Applied after the generic `change` reduction. Each colored component is floored at 0.
+    /// CR 601.2f: Morophon ruling (2019-06-14): reduces the total colored mana cost by up to
+    /// one mana of each color.
+    #[serde(default)]
+    pub colored_mana_reduction: Option<ManaCost>,
 }
 /// Filter for which spells a cost modifier applies to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

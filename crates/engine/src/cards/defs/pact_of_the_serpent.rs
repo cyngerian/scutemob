@@ -2,8 +2,8 @@
 // Choose a creature type. Target player draws X cards and loses X life, where X is
 // the number of creatures they control of the chosen type.
 //
-// TODO: "Choose a creature type" — interactive type choice deferred to M10.
-// Approximated as DrawCards(PermanentCount of all creatures) + LoseLife(same).
+// Per ruling (2021-02-05): "You choose the target player as you cast, but you don't
+// choose the creature type until the spell resolves."
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,11 +14,26 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Choose a creature type. Target player draws X cards and loses X life, where X is the number of creatures they control of the chosen type.".to_string(),
         abilities: vec![
-            // TODO: Chosen creature type — approximated as all creatures target player controls.
-            // Needs interactive type choice + PermanentCount filtered by chosen subtype.
             AbilityDefinition::Spell {
-                effect: Effect::Nothing,
-                targets: vec![],
+                effect: Effect::Sequence(vec![
+                    // At resolution: choose creature type (sets ctx.chosen_creature_type).
+                    Effect::ChooseCreatureType { default: SubType("Human".to_string()) },
+                    // Draw X cards, where X = creatures of chosen type controlled by target player.
+                    Effect::DrawCards {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        count: EffectAmount::ChosenTypeCreatureCount {
+                            controller: PlayerTarget::DeclaredTarget { index: 0 },
+                        },
+                    },
+                    // Lose X life (same X).
+                    Effect::LoseLife {
+                        player: PlayerTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::ChosenTypeCreatureCount {
+                            controller: PlayerTarget::DeclaredTarget { index: 0 },
+                        },
+                    },
+                ]),
+                targets: vec![TargetRequirement::TargetPlayer],
                 modes: None,
                 cant_be_countered: false,
             },

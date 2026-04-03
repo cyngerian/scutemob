@@ -3046,8 +3046,13 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::Mana(m) => ac.mana_cost = Some(m.clone()),
         Cost::SacrificeSelf => ac.sacrifice_self = true,
         Cost::Sacrifice(filter) => {
-            // Convert TargetFilter to SacrificeFilter
-            let sac_filter = if let Some(ref subtype) = filter.has_subtype {
+            // Convert TargetFilter to SacrificeFilter.
+            // has_chosen_subtype: dynamic check against the activating permanent's chosen_creature_type.
+            // Recorded as SacrificeFilter::Creature with chosen_subtype_required flag (validated later).
+            let sac_filter = if filter.has_chosen_subtype {
+                // Creature of the chosen type — validated dynamically in validate_sacrifice_cost.
+                SacrificeFilter::CreatureOfChosenType
+            } else if let Some(ref subtype) = filter.has_subtype {
                 SacrificeFilter::Subtype(subtype.clone())
             } else {
                 match filter.has_card_type {

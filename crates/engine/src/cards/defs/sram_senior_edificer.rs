@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                     during_opponent_turn: false,
                     spell_type_filter: None,
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

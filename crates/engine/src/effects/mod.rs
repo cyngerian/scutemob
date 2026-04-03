@@ -118,6 +118,11 @@ pub struct EffectContext {
     /// Set from PendingTrigger::entering_object_id for per-creature combat damage triggers.
     /// Read by EffectTarget::TriggeringCreature and PlayerTarget::ControllerOf(TriggeringCreature).
     pub triggering_creature_id: Option<crate::state::game_object::ObjectId>,
+    /// Chosen creature type for spell-level type choice (Kindred Dominance, Pact of the Serpent).
+    /// Set by Effect::ChooseCreatureType when the source is a resolving spell.
+    /// Read by TargetFilter's `exclude_chosen_subtype` / `has_chosen_subtype` flags, and by
+    /// `EffectAmount::ChosenTypeCreatureCount`.
+    pub chosen_creature_type: Option<crate::state::types::SubType>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -142,6 +147,7 @@ impl EffectContext {
             combat_damage_amount: 0,
             damaged_player: None,
             triggering_creature_id: None,
+            chosen_creature_type: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -171,6 +177,7 @@ impl EffectContext {
             combat_damage_amount: 0,
             damaged_player: None,
             triggering_creature_id: None,
+            chosen_creature_type: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -847,6 +854,7 @@ fn execute_effect_inner(
                                 crate::rules::layers::calculate_characteristics(state, **id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
+                                && check_chosen_subtype_filter(state, ctx, filter, &chars)
                         }
                         && match filter.controller {
                             TargetController::Any => true,
@@ -1564,6 +1572,24 @@ fn execute_effect_inner(
                 }
             }
         }
+        // "Add N mana of any one color" — deterministic: adds N colorless.
+        // Interactive color choice deferred to M10. CR 601.2f.
+        Effect::AddManaOfAnyColorAmount { player, amount } => {
+            let n = resolve_amount(state, amount, ctx).max(0) as u32;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    ps.mana_pool.add(ManaColor::Colorless, n);
+                    if n > 0 {
+                        events.push(GameEvent::ManaAdded {
+                            player: p,
+                            color: ManaColor::Colorless,
+                            amount: n,
+                        });
+                    }
+                }
+            }
+        }
         // ── Counters ──────────────────────────────────────────────────────
         Effect::AddCounter {
             target,
@@ -2244,6 +2270,7 @@ fn execute_effect_inner(
                             combat_damage_amount: ctx.combat_damage_amount,
                             damaged_player: ctx.damaged_player,
                             triggering_creature_id: ctx.triggering_creature_id,
+                            chosen_creature_type: ctx.chosen_creature_type.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2275,6 +2302,7 @@ fn execute_effect_inner(
                             combat_damage_amount: ctx.combat_damage_amount,
                             damaged_player: ctx.damaged_player,
                             triggering_creature_id: ctx.triggering_creature_id,
+                            chosen_creature_type: ctx.chosen_creature_type.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2549,9 +2577,13 @@ fn execute_effect_inner(
                     .map(|(st, _)| st)
                     .unwrap_or_else(|| default.clone())
             };
+            // Set on the source permanent if it's on the battlefield (ETB replacement path).
             if let Some(obj) = state.objects.get_mut(&ctx.source) {
-                obj.chosen_creature_type = Some(chosen);
+                obj.chosen_creature_type = Some(chosen.clone());
             }
+            // Also set on ctx for spell-level Sequence use (Kindred Dominance, Pact of the Serpent).
+            // Subsequent effects in the same Sequence can read ctx.chosen_creature_type.
+            ctx.chosen_creature_type = Some(chosen);
         }
         // CR 701.19a: Regenerate -- create a one-shot regeneration shield on the
         // target permanent. The shield is a UntilEndOfTurn replacement effect that
@@ -5120,6 +5152,7 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                                 crate::rules::layers::calculate_characteristics(state, obj.id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
+                                && check_chosen_subtype_filter(state, ctx, filter, &chars)
                         }
                 })
                 .count() as i32
@@ -5248,6 +5281,37 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         // CR 510.3a: Amount of combat damage dealt in the triggering event.
         // Resolved from ctx.combat_damage_amount (set from PendingTrigger::combat_damage_amount).
         EffectAmount::CombatDamageDealt => ctx.combat_damage_amount as i32,
+        // CR 205.3m: Count creatures of the chosen type controlled by target player.
+        // Reads ctx.chosen_creature_type (spell-level) or source permanent's chosen_creature_type.
+        EffectAmount::ChosenTypeCreatureCount { controller } => {
+            let chosen = ctx.chosen_creature_type.as_ref().or_else(|| {
+                state
+                    .objects
+                    .get(&ctx.source)
+                    .and_then(|o| o.chosen_creature_type.as_ref())
+            });
+            let Some(ct) = chosen else {
+                return 0;
+            };
+            let ct = ct.clone();
+            let players = resolve_player_target_list(state, controller, ctx);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            chars.card_types.contains(&CardType::Creature)
+                                && chars.subtypes.contains(&ct)
+                        }
+                })
+                .count() as i32
+        }
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────
@@ -5581,6 +5645,41 @@ fn mill_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut Ve
                 events.push(GameEvent::CardMilled { player, new_id });
             }
         }
+    }
+}
+// ── Chosen subtype filter ─────────────────────────────────────────────────────
+/// Check the `has_chosen_subtype` / `exclude_chosen_subtype` fields on a `TargetFilter`.
+///
+/// Uses `ctx.chosen_creature_type` (spell-level choice in Sequence) as the primary source,
+/// falling back to the source permanent's `chosen_creature_type` (ETB replacement path).
+/// If neither is set and `has_chosen_subtype` is true, returns false (no chosen type = no match).
+/// If neither is set and `exclude_chosen_subtype` is true, returns true (no chosen type = pass).
+fn check_chosen_subtype_filter(
+    state: &GameState,
+    ctx: &EffectContext,
+    filter: &TargetFilter,
+    chars: &Characteristics,
+) -> bool {
+    if !filter.has_chosen_subtype && !filter.exclude_chosen_subtype {
+        return true;
+    }
+    let chosen = ctx.chosen_creature_type.as_ref().or_else(|| {
+        state
+            .objects
+            .get(&ctx.source)
+            .and_then(|o| o.chosen_creature_type.as_ref())
+    });
+    if let Some(ct) = chosen {
+        if filter.has_chosen_subtype && !chars.subtypes.contains(ct) {
+            return false;
+        }
+        if filter.exclude_chosen_subtype && chars.subtypes.contains(ct) {
+            return false;
+        }
+        true
+    } else {
+        // No chosen type set: has_chosen_subtype fails, exclude_chosen_subtype passes.
+        !filter.has_chosen_subtype
     }
 }
 // ── Filter matching ───────────────────────────────────────────────────────────
@@ -6017,6 +6116,32 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .unwrap_or(false),
         // Logical conjunction: true only when both arms are true.
         Condition::And(a, b) => check_condition(state, a, ctx) && check_condition(state, b, ctx),
+        // CR 614.1c: Herald's Horn upkeep trigger — check if top of library is a creature
+        // of the source permanent's chosen type. Hidden-info peek; deterministic engine sees all.
+        Condition::TopCardIsCreatureOfChosenType => {
+            let chosen = state
+                .objects
+                .get(&ctx.source)
+                .and_then(|o| o.chosen_creature_type.as_ref())
+                .cloned();
+            let lib_zone = ZoneId::Library(ctx.controller);
+            // Use zone.top() to get the top card of the library.
+            let top_id = state.zones.get(&lib_zone).and_then(|z| z.top());
+            match (chosen, top_id) {
+                (Some(ct), Some(id)) => {
+                    let top_card = state.objects.get(&id);
+                    top_card
+                        .map(|card| {
+                            card.characteristics
+                                .card_types
+                                .contains(&CardType::Creature)
+                                && card.characteristics.subtypes.contains(&ct)
+                        })
+                        .unwrap_or(false)
+                }
+                _ => false,
+            }
+        }
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).
@@ -6112,6 +6237,7 @@ pub fn check_static_condition(
                 combat_damage_amount: 0,
                 damaged_player: None,
                 triggering_creature_id: None,
+                chosen_creature_type: None,
             };
             check_condition(state, condition, &ctx)
         }

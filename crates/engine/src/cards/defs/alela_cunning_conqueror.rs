@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                     during_opponent_turn: true,
                     spell_type_filter: None,
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

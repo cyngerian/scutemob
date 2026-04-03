@@ -205,6 +205,17 @@ pub enum EffectFilter {
     /// the controller. Used for Dryad of the Ilysian Grove ("Lands you control are every
     /// basic land type in addition to their other types.").
     LandsYouControl,
+    /// Applies to all creature permanents controlled by the source's controller
+    /// that have the source permanent's `chosen_creature_type` (INCLUDING the source).
+    ///
+    /// Used for "Creatures you control of the chosen type get +1/+1" (Vanquisher's Banner,
+    /// Patchwork Banner, Etchings of the Chosen). Reads `chosen_creature_type` from the
+    /// source object at layer-application time.
+    CreaturesYouControlOfChosenType,
+    /// Same as `CreaturesYouControlOfChosenType` but excludes the source object itself.
+    ///
+    /// Used for "Other creatures you control of the chosen type get +1/+1" (Morophon).
+    OtherCreaturesYouControlOfChosenType,
 }
 /// What a continuous effect does when applied.
 ///

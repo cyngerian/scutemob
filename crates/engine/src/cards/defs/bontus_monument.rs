@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         abilities: vec![
             // Whenever you cast a creature spell, each opponent loses 1 life and you gain 1 life.
@@ -26,6 +27,7 @@ pub fn card() -> CardDefinition {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                 },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {

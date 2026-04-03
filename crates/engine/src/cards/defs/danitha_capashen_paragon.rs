@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     }

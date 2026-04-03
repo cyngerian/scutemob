@@ -60,6 +60,7 @@ fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectC
         combat_damage_amount: 0,
         damaged_player: None,
         triggering_creature_id: None,
+        chosen_creature_type: None,
     }
 }
 

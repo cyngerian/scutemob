@@ -5807,6 +5807,7 @@ fn apply_spell_cost_modifiers(
     cost: Option<ManaCost>,
 ) -> Option<ManaCost> {
     let mut total_change: i32 = 0;
+    let mut colored_reduction = ManaCost::default();
     // Scan all objects for spell_cost_modifiers.
     for obj in state.objects.values() {
         let on_battlefield = obj.zone == ZoneId::Battlefield;
@@ -5860,14 +5861,37 @@ fn apply_spell_cost_modifiers(
                 continue;
             }
             total_change += modifier.change;
+            // Colored mana reduction (Morophon: "{W}{U}{B}{R}{G} less").
+            if let Some(ref cr) = modifier.colored_mana_reduction {
+                colored_reduction.white += cr.white;
+                colored_reduction.blue += cr.blue;
+                colored_reduction.black += cr.black;
+                colored_reduction.red += cr.red;
+                colored_reduction.green += cr.green;
+            }
         }
     }
-    if total_change == 0 {
+    let has_colored_reduction = colored_reduction.white > 0
+        || colored_reduction.blue > 0
+        || colored_reduction.black > 0
+        || colored_reduction.red > 0
+        || colored_reduction.green > 0;
+    if total_change == 0 && !has_colored_reduction {
         return cost;
     }
     let mut reduced = cost?;
-    // Apply: positive = increase, negative = reduction. Generic cannot go below 0.
-    reduced.generic = (reduced.generic as i32 + total_change).max(0) as u32;
+    // Apply generic change: positive = increase, negative = reduction. Generic cannot go below 0.
+    if total_change != 0 {
+        reduced.generic = (reduced.generic as i32 + total_change).max(0) as u32;
+    }
+    // Apply colored reductions (CR 601.2f, Morophon ruling 2019-06-14).
+    if has_colored_reduction {
+        reduced.white = reduced.white.saturating_sub(colored_reduction.white);
+        reduced.blue = reduced.blue.saturating_sub(colored_reduction.blue);
+        reduced.black = reduced.black.saturating_sub(colored_reduction.black);
+        reduced.red = reduced.red.saturating_sub(colored_reduction.red);
+        reduced.green = reduced.green.saturating_sub(colored_reduction.green);
+    }
     Some(reduced)
 }
 /// Check if a spell's characteristics match a `SpellCostFilter`.

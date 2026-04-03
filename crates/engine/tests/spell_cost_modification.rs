@@ -111,6 +111,7 @@ fn test_spell_cost_modifier_noncreature_increase() {
             scope: CostModifierScope::AllPlayers,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -181,6 +182,7 @@ fn test_spell_cost_modifier_tribal_reduction_controller_only() {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -247,6 +249,7 @@ fn test_spell_cost_modifiers_stack_additively() {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -316,6 +319,7 @@ fn test_spell_cost_modifier_generic_cannot_go_below_zero() {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -377,6 +381,7 @@ fn test_spell_cost_modifier_eminence_from_command_zone() {
             scope: CostModifierScope::Controller,
             eminence: true,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -615,6 +620,7 @@ fn test_spell_cost_modifier_historic_filter() {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -979,6 +985,7 @@ fn test_spell_cost_modifier_ur_dragon_exclude_self() {
             scope: CostModifierScope::Controller,
             eminence: true,
             exclude_self: true,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -1132,6 +1139,7 @@ fn test_spell_cost_modifier_ur_dragon_exclude_self() {
             scope: CostModifierScope::Controller,
             eminence: true,
             exclude_self: true,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     }]);
@@ -1213,6 +1221,7 @@ fn test_spell_cost_filter_color_and_creature_reduces_matching() {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -1285,6 +1294,7 @@ fn test_spell_cost_filter_color_and_creature_no_match_noncreature() {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };
@@ -1347,6 +1357,7 @@ fn test_spell_cost_filter_chosen_creature_subtype() {
             scope: CostModifierScope::AllPlayers,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         ..Default::default()
     };

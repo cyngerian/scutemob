@@ -204,6 +204,9 @@ pub enum SacrificeFilter {
     ArtifactOrCreature,
     /// "Sacrifice a [subtype]" — e.g., "Sacrifice a Desert", "Sacrifice a Food".
     Subtype(super::types::SubType),
+    /// "Sacrifice a creature of the chosen type" — the sacrificed creature must have the
+    /// activating permanent's `chosen_creature_type`. Used by Etchings of the Chosen.
+    CreatureOfChosenType,
 }
 /// Cost to activate an activated ability (CR 602.2).
 ///

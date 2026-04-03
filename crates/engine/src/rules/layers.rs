@@ -903,6 +903,49 @@ fn effect_applies_to(
                 false
             }
         }
+        // CR 205.3m: Creatures you control of the chosen type (INCLUDING source).
+        // Reads chosen_creature_type from source permanent dynamically at layer time.
+        EffectFilter::CreaturesYouControlOfChosenType => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source = state.objects.get(&source_id);
+                let source_controller = source.map(|s| s.controller);
+                let chosen_type = source.and_then(|s| s.chosen_creature_type.as_ref());
+                let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
+                source_controller.is_some()
+                    && source_controller == obj_controller
+                    && chosen_type
+                        .map(|ct| chars.subtypes.contains(ct))
+                        .unwrap_or(false)
+            } else {
+                false
+            }
+        }
+        // CR 205.3m: Other creatures you control of the chosen type (EXCLUDING source).
+        // Used for Morophon's "+1/+1 to other creatures of the chosen type".
+        EffectFilter::OtherCreaturesYouControlOfChosenType => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                if source_id == object_id {
+                    return false;
+                }
+                let source = state.objects.get(&source_id);
+                let source_controller = source.map(|s| s.controller);
+                let chosen_type = source.and_then(|s| s.chosen_creature_type.as_ref());
+                let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
+                source_controller.is_some()
+                    && source_controller == obj_controller
+                    && chosen_type
+                        .map(|ct| chars.subtypes.contains(ct))
+                        .unwrap_or(false)
+            } else {
+                false
+            }
+        }
     }
 }
 /// Apply a single layer modification to the given characteristics.

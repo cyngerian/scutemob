@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,
+            colored_mana_reduction: None,
         }],
         abilities: vec![
             // Whenever you cast a creature spell, create a 1/1 white Warrior token with vigilance.
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
+                    chosen_subtype_filter: false,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
