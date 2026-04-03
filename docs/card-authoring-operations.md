@@ -258,7 +258,7 @@ newly unblocked cards before moving to the next batch.
 
 **Step 3: MEDIUM complexity engine batches**
 
-- [ ] **PB-D**: Chosen creature type — `ChosenCreatureType` on GameObject + layer filtering (12 cards unblocked, MEDIUM — highest unblock count)
+- [x] **PB-D**: Chosen creature type — EffectFilter::CreaturesYouControlOfChosenType + OtherCreaturesYouControlOfChosenType, chosen_subtype_filter, has_chosen_subtype/exclude_chosen_subtype, colored_mana_reduction, ChosenTypeCreatureCount, AddManaOfAnyColorAmount, TopCardIsCreatureOfChosenType, SacrificeFilter::CreatureOfChosenType, HasChosenSubtype. 8 card fixes (Morophon, Vanquisher's Banner, Patchwork Banner, Herald's Horn, Kindred Dominance, Three Tree City, Etchings of the Chosen, Pact of the Serpent). 1M 2L fixed. Cavern "can't be countered" deferred. 12 tests. Commit 90c79f5.
 - [ ] **PB-C**: Extra turns — `Effect::ExtraTurn` + turn queue (4 cards unblocked, MEDIUM)
 - [ ] **PB-F**: Damage multiplier — replacement effect in damage pipeline (3 cards unblocked, MEDIUM)
 - [ ] **PB-I**: Grant flash — cast-timing modification in casting.rs (4 cards unblocked, MEDIUM)

@@ -25,18 +25,15 @@
 
 **Date**: 2026-04-02
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Wave B.5 — PB-K additional land drops + Case mechanic
+**Task**: Wave B.5 — PB-K + PB-D engine batches
 
 **Completed**:
-- PB-K engine batch: WheneverOpponentPlaysLand trigger, PutLandFromHandOntoBattlefield effect, LandsYouControl filter, Case solve mechanic (Designations::SOLVED, Condition::SourceIsSolved, Effect::SolveCase, Condition::And)
-- 3 new card defs: Burgeoning, Dryad of the Ilysian Grove, Case of the Locked Hothouse
-- 5 existing card def fixes: Growth Spiral, Broken Bond, Spelunking, Contaminant Grafter, Chulane
-- Review: 1H fixed (Dryad mana cost {2}{G}{G} → {2}{G}), 2 LOW (convention)
-- 17 new tests, 2462 total tests, 0 clippy warnings, ~1719 total card defs
+- PB-K: WheneverOpponentPlaysLand, PutLandFromHandOntoBattlefield, LandsYouControl, Case solve mechanic. 3 new + 5 fixes. 1H fixed. 17 tests.
+- PB-D: CreaturesYouControlOfChosenType, chosen_subtype_filter, has_chosen_subtype/exclude_chosen_subtype, colored_mana_reduction, ChosenTypeCreatureCount, AddManaOfAnyColorAmount, TopCardIsCreatureOfChosenType, SacrificeFilter::CreatureOfChosenType, HasChosenSubtype. 8 card fixes. 1M 2L fixed. 12 tests.
+- 2474 tests, 0 clippy warnings, ~1727 total card defs
 
 **Next** (agreed priority order):
-1. **PB-D** (Chosen creature type, 12 cards, MEDIUM — highest unblock count)
-2. **PB-C** (Extra turns, 4 cards, MEDIUM)
+1. **PB-C** (Extra turns, 4 cards, MEDIUM)
 3. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
 4. **PB-I** (Grant flash, 4 cards, MEDIUM)
 5. **PB-H** (Mass reanimate, 5 cards, MEDIUM)

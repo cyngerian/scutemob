@@ -5,7 +5,7 @@ title: Chosen creature type
 cards_affected: 12
 started: 2026-04-02
 completed: 2026-04-02
-phase: review
+phase: closed
 
 ## Cards (from ops plan + grep)
 Cards with TODOs referencing chosen creature type:
