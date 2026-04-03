@@ -4,7 +4,7 @@ batch: PB-K
 title: Additional land drops
 cards_affected: 3
 started: 2026-04-02
-phase: close
+phase: closed
 plan_file: memory/primitives/pb-plan-K.md
 
 ## Cards

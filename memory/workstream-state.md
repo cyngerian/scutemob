@@ -25,30 +25,28 @@
 
 **Date**: 2026-04-02
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Wave B.5 — PB-N re-triage + PB-G engine batch
+**Task**: Wave B.5 — PB-K additional land drops + Case mechanic
 
 **Completed**:
-- Wave B engine review checkpoint: CLEAN (zero engine changes in Wave B, all 130 files were card defs)
-- Categorized 101 blocked A-38/A-42 cards into 14 primitive batch categories (PB-A through PB-N)
-- PB-N re-triage: pulled 20 authorable cards from 34-card misc bucket (9 clean, 11 partial)
-- PB-N authoring: 19 new card defs (Steelshaper's Gift already existed). Commit `189465c`
-- PB-G engine batch: `Effect::BounceAll { filter, max_toughness_amount }` + 3 new TargetFilter fields (`max_toughness`, `exclude_subtypes`, `is_attacking`). 4 new cards (Aetherize, Whelming Wave, Scourge of Fleets, Filter Out). Fixed Crux of Fate + Recruiter of the Guard. Box<TargetFilter> for clippy large_enum_variant. 8 new tests. Commit `c0e32b7`
-- Updated ops plan with Wave B.5 engine batch priority order
-- 2445 tests, 0 clippy warnings, ~1716 total card defs
+- PB-K engine batch: WheneverOpponentPlaysLand trigger, PutLandFromHandOntoBattlefield effect, LandsYouControl filter, Case solve mechanic (Designations::SOLVED, Condition::SourceIsSolved, Effect::SolveCase, Condition::And)
+- 3 new card defs: Burgeoning, Dryad of the Ilysian Grove, Case of the Locked Hothouse
+- 5 existing card def fixes: Growth Spiral, Broken Bond, Spelunking, Contaminant Grafter, Chulane
+- Review: 1H fixed (Dryad mana cost {2}{G}{G} → {2}{G}), 2 LOW (convention)
+- 17 new tests, 2462 total tests, 0 clippy warnings, ~1719 total card defs
 
 **Next** (agreed priority order):
-1. **PB-K** (Additional lands, 3 cards, LOW) — Burgeoning, Dryad of the Ilysian Grove, Case of the Locked Hothouse
-2. **PB-D** (Chosen creature type, 12 cards, MEDIUM — highest unblock count)
-3. **PB-C** (Extra turns, 4 cards, MEDIUM)
-4. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
-5. **PB-I** (Grant flash, 4 cards, MEDIUM)
-6. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
+1. **PB-D** (Chosen creature type, 12 cards, MEDIUM — highest unblock count)
+2. **PB-C** (Extra turns, 4 cards, MEDIUM)
+3. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
+4. **PB-I** (Grant flash, 4 cards, MEDIUM)
+5. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
+6. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
 7. HIGH batches last (PB-A/B/E/J/M)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
 - A-38 remaining BLOCKED (~48): play-from-top, pitch-alt-cost, copy-target-spell, grant-flash, mana-doubling, extra-turn
-- A-42 remaining BLOCKED (~35 after PB-N+PB-G): extra-turn, mana-doubling, chosen-type-anthem, mass-reanimate, damage-tripling, wheel, domain-count
+- A-42 remaining BLOCKED (~32 after PB-N+PB-G+PB-K): extra-turn, mana-doubling, chosen-type-anthem, mass-reanimate, damage-tripling, wheel, domain-count
 
 **Commit prefix**: `W6-prim:` (engine), `W6-cards:` (card defs)
 

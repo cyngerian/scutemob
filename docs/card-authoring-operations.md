@@ -254,7 +254,7 @@ newly unblocked cards before moving to the next batch.
 **Step 2: LOW complexity engine batches**
 
 - [x] **PB-G**: BounceAll + TargetFilter extensions (4 cards: Aetherize, Whelming Wave, Scourge of Fleets, Filter Out). Also fixed Crux of Fate + Recruiter of the Guard. Commit c0e32b7.
-- [ ] **PB-K**: Additional land drops — land-play counter per turn (3 cards unblocked, LOW)
+- [x] **PB-K**: Additional land drops + Case mechanic (3 new cards: Burgeoning, Dryad of the Ilysian Grove, Case of the Locked Hothouse; 5 card fixes: Growth Spiral, Broken Bond, Spelunking, Contaminant Grafter, Chulane). Engine: WheneverOpponentPlaysLand trigger, PutLandFromHandOntoBattlefield effect, LandsYouControl filter, Case solve mechanic (Designations::SOLVED, Condition::SourceIsSolved, Effect::SolveCase, Condition::And). 1H fixed (Dryad mana cost). Commit 0024494.
 
 **Step 3: MEDIUM complexity engine batches**
 
