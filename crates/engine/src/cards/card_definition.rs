@@ -3056,6 +3056,10 @@ pub enum SpellCostFilter {
     /// References `chosen_creature_type` on the source permanent at cast time.
     /// CR 601.2f: The chosen type is set when the permanent enters the battlefield.
     HasChosenCreatureSubtype,
+    /// Any spell with the chosen creature subtype (Morophon: "Spells of the chosen type").
+    /// Unlike `HasChosenCreatureSubtype`, does NOT require `CardType::Creature` — also
+    /// matches Kindred/tribal spells per CR 205.3m.
+    HasChosenSubtype,
     /// All spells (no filter). Used for generic cost reduction/increase.
     /// CR 601.2f: Applies to every spell cast by a matching player.
     AllSpells,

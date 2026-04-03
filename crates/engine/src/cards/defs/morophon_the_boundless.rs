@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
         // Reduces each of the five colors by 1 (CR 601.2f; Morophon ruling 2019-06-14).
         spell_cost_modifiers: vec![SpellCostModifier {
             change: 0,
-            filter: SpellCostFilter::HasChosenCreatureSubtype,
+            filter: SpellCostFilter::HasChosenSubtype,
             scope: CostModifierScope::Controller,
             eminence: false,
             exclude_self: false,

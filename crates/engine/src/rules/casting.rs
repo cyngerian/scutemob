@@ -5855,6 +5855,14 @@ fn apply_spell_cost_modifiers(
                             .map(|ct| spell_chars.subtypes.contains(ct))
                             .unwrap_or(false)
                 }
+                SpellCostFilter::HasChosenSubtype => {
+                    // CR 205.3m: Any spell (creature or Kindred) with the chosen subtype.
+                    // Morophon: "Spells of the chosen type you cast cost {W}{U}{B}{R}{G} less."
+                    obj.chosen_creature_type
+                        .as_ref()
+                        .map(|ct| spell_chars.subtypes.contains(ct))
+                        .unwrap_or(false)
+                }
                 other => spell_matches_cost_filter(spell_chars, other),
             };
             if !filter_matches {
@@ -5923,9 +5931,9 @@ fn spell_matches_cost_filter(chars: &Characteristics, filter: &SpellCostFilter) 
             // Example: Bontu's Monument "Black creature spells cost {1} less."
             chars.card_types.contains(&CardType::Creature) && chars.colors.contains(color)
         }
-        SpellCostFilter::HasChosenCreatureSubtype => {
-            // This variant requires the source object's chosen_creature_type, which is not
-            // available in this function. It is handled inline in apply_spell_cost_modifiers().
+        SpellCostFilter::HasChosenCreatureSubtype | SpellCostFilter::HasChosenSubtype => {
+            // These variants require the source object's chosen_creature_type, which is not
+            // available in this function. They are handled inline in apply_spell_cost_modifiers().
             // This arm is unreachable in practice but required for exhaustiveness.
             false
         }

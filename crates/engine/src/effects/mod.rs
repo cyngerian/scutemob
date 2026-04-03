@@ -1034,6 +1034,7 @@ fn execute_effect_inner(
                                 crate::rules::layers::calculate_characteristics(state, **id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
+                                && check_chosen_subtype_filter(state, ctx, filter, &chars)
                         }
                         && match filter.controller {
                             TargetController::Any => true,
@@ -1138,6 +1139,7 @@ fn execute_effect_inner(
                                 crate::rules::layers::calculate_characteristics(state, **id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, &effective_filter)
+                                && check_chosen_subtype_filter(state, ctx, &effective_filter, &chars)
                         }
                         && match effective_filter.controller {
                             TargetController::Any => true,
@@ -6130,6 +6132,8 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             match (chosen, top_id) {
                 (Some(ct), Some(id)) => {
                     let top_card = state.objects.get(&id);
+                    // CR 400.2: Library cards have printed characteristics;
+                    // no layer calculation needed.
                     top_card
                         .map(|card| {
                             card.characteristics
