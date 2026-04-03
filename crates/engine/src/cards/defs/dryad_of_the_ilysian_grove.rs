@@ -1,4 +1,4 @@
-// Dryad of the Ilysian Grove — {2}{G}{G}, Enchantment Creature — Nymph Dryad 2/4
+// Dryad of the Ilysian Grove — {2}{G}, Enchantment Creature — Nymph Dryad 2/4
 // You may play an additional land on each of your turns.
 // Lands you control are every basic land type in addition to their other types.
 use crate::cards::helpers::*;
@@ -7,7 +7,7 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dryad-of-the-ilysian-grove"),
         name: "Dryad of the Ilysian Grove".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
         types: full_types(
             &[],
             &[CardType::Enchantment, CardType::Creature],
