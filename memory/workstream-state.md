@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | Wave B.5: PB-K (additional land drops) | ACTIVE | 2026-04-02 | **ALL PBs COMPLETE (PB-0–37+G)**; BF complete; **Wave A+B COMPLETE** + 23 new defs; Wave B engine review CLEAN |
+| W6: Primitive + Card Authoring | — | available | — | **ALL PBs COMPLETE (PB-0–37+G+K+D)**; BF complete; **Wave A+B COMPLETE**; Wave B engine review CLEAN |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,31 +23,34 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-02
+**Date**: 2026-04-04
 **Workstream**: W6: Primitive + Card Authoring
 **Task**: Wave B.5 — PB-K + PB-D engine batches
 
 **Completed**:
-- PB-K: WheneverOpponentPlaysLand, PutLandFromHandOntoBattlefield, LandsYouControl, Case solve mechanic. 3 new + 5 fixes. 1H fixed. 17 tests.
-- PB-D: CreaturesYouControlOfChosenType, chosen_subtype_filter, has_chosen_subtype/exclude_chosen_subtype, colored_mana_reduction, ChosenTypeCreatureCount, AddManaOfAnyColorAmount, TopCardIsCreatureOfChosenType, SacrificeFilter::CreatureOfChosenType, HasChosenSubtype. 8 card fixes. 1M 2L fixed. 12 tests.
+- PB-K: WheneverOpponentPlaysLand, PutLandFromHandOntoBattlefield, LandsYouControl, Case solve mechanic (Designations::SOLVED, SourceIsSolved, SolveCase, Condition::And). 3 new cards + 5 fixes. 1H fixed (Dryad mana cost). 17 tests.
+- PB-D: CreaturesYouControlOfChosenType, OtherCreaturesYouControlOfChosenType, chosen_subtype_filter, has_chosen_subtype/exclude_chosen_subtype, colored_mana_reduction, ChosenTypeCreatureCount, AddManaOfAnyColorAmount, TopCardIsCreatureOfChosenType, SacrificeFilter::CreatureOfChosenType, HasChosenSubtype. 8 card fixes. 1M 2L fixed. 12 tests.
 - 2474 tests, 0 clippy warnings, ~1727 total card defs
 
 **Next** (agreed priority order):
 1. **PB-C** (Extra turns, 4 cards, MEDIUM)
-3. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
-4. **PB-I** (Grant flash, 4 cards, MEDIUM)
-5. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
-6. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
-7. HIGH batches last (PB-A/B/E/J/M)
+2. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
+3. **PB-I** (Grant flash, 4 cards, MEDIUM)
+4. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
+5. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
+6. HIGH batches last (PB-A/B/E/J/M)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
-- A-38 remaining BLOCKED (~48): play-from-top, pitch-alt-cost, copy-target-spell, grant-flash, mana-doubling, extra-turn
-- A-42 remaining BLOCKED (~32 after PB-N+PB-G+PB-K): extra-turn, mana-doubling, chosen-type-anthem, mass-reanimate, damage-tripling, wheel, domain-count
+- Cavern of Souls "can't be countered" deferred (needs CounterRestriction primitive)
+- A-42 BLOCKED chosen-type-anthem category now resolved (PB-D); remaining: extra-turn, mana-doubling, mass-reanimate, damage-tripling, wheel, domain-count
 
 **Commit prefix**: `W6-prim:` (engine), `W6-cards:` (card defs)
 
 ## Handoff History
+
+### 2026-04-02 — W6: PB-N + PB-G
+- PB-N: 19 misc card defs. PB-G: BounceAll + TargetFilter extensions + 4 cards. 2445 tests.
 
 ### 2026-04-01 — W6: A-42 batch 2
 - A-42 batch 2: 60 new card defs. Total A-42: 77/131. 1693 total defs. 2437 tests.
@@ -57,9 +60,6 @@
 
 ### 2026-03-31 — W6: Wave A complete
 - Wave A: 91 new card defs (A-29, A-32–A-35, A-39). 2437 tests.
-
-### 2026-03-30 — W6: A-29 S131
-- 3 engine primitives + 10 card defs fixed.
 
 ### 2026-03-30 — W6: BF-S3/S4 + A-29 S1
 - BF-S3/S4: 7 card def fixes. A-29 S1: 21 card defs authored.
