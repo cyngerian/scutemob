@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-C: Extra turns | ACTIVE | 2026-04-05 | **ALL PBs COMPLETE (PB-0–37+G+K+D)**; BF complete; **Wave A+B COMPLETE**; Wave B engine review CLEAN |
+| W6: Primitive + Card Authoring | PB-F: Damage multiplier | ACTIVE | 2026-04-05 | **ALL PBs COMPLETE (PB-0–37+G+K+D+C+F)**; BF complete; **Wave A+B COMPLETE**; Wave B engine review CLEAN |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -25,18 +25,18 @@
 
 **Date**: 2026-04-05
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Wave B.5 — PB-C extra turns
+**Task**: Wave B.5 — PB-C + PB-F engine batches
 
 **Completed**:
-- PB-C: Effect::ExtraTurn { player, count } + self_exile/self_shuffle_on_resolution flags + GiftType::ExtraTurn wiring. 3 new cards (Nexus of Fate, Temporal Trespass, Temporal Mastery) + 1 fix (Teferi -10 loyalty). 1M 2L fixed. 7 tests.
-- 2481 tests, 0 clippy warnings, ~1730 total card defs
+- PB-C: Effect::ExtraTurn { player, count } + self_exile/self_shuffle_on_resolution flags + GiftType::ExtraTurn wiring. 3 new cards + 1 fix. 1M 2L fixed. 7 tests.
+- PB-F: ReplacementModification::TripleDamage, DamageTargetFilter extensions, entered_turn tracking, Effect::RegisterReplacementEffect. 1 new card + 2 fixes. Clean review. 10 tests.
+- 2491 tests, 0 clippy warnings, ~1731 total card defs
 
 **Next** (agreed priority order):
-1. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
-2. **PB-I** (Grant flash, 4 cards, MEDIUM)
-3. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
-4. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
-5. HIGH batches last (PB-A/B/E/J/M)
+1. **PB-I** (Grant flash, 4 cards, MEDIUM)
+2. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
+3. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
+4. HIGH batches last (PB-A/B/E/J/M)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
