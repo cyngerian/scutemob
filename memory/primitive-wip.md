@@ -4,7 +4,7 @@ batch: PB-C
 title: Extra turns
 cards_affected: 4
 started: 2026-04-05
-phase: done
+phase: closed
 
 ## Review
 findings: 3 (HIGH: 0, MEDIUM: 1, LOW: 2)

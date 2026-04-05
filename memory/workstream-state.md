@@ -23,27 +23,26 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-04
+**Date**: 2026-04-05
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Wave B.5 — PB-K + PB-D engine batches
+**Task**: Wave B.5 — PB-C extra turns
 
 **Completed**:
-- PB-K: WheneverOpponentPlaysLand, PutLandFromHandOntoBattlefield, LandsYouControl, Case solve mechanic (Designations::SOLVED, SourceIsSolved, SolveCase, Condition::And). 3 new cards + 5 fixes. 1H fixed (Dryad mana cost). 17 tests.
-- PB-D: CreaturesYouControlOfChosenType, OtherCreaturesYouControlOfChosenType, chosen_subtype_filter, has_chosen_subtype/exclude_chosen_subtype, colored_mana_reduction, ChosenTypeCreatureCount, AddManaOfAnyColorAmount, TopCardIsCreatureOfChosenType, SacrificeFilter::CreatureOfChosenType, HasChosenSubtype. 8 card fixes. 1M 2L fixed. 12 tests.
-- 2474 tests, 0 clippy warnings, ~1727 total card defs
+- PB-C: Effect::ExtraTurn { player, count } + self_exile/self_shuffle_on_resolution flags + GiftType::ExtraTurn wiring. 3 new cards (Nexus of Fate, Temporal Trespass, Temporal Mastery) + 1 fix (Teferi -10 loyalty). 1M 2L fixed. 7 tests.
+- 2481 tests, 0 clippy warnings, ~1730 total card defs
 
 **Next** (agreed priority order):
-1. **PB-C** (Extra turns, 4 cards, MEDIUM)
-2. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
-3. **PB-I** (Grant flash, 4 cards, MEDIUM)
-4. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
-5. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
-6. HIGH batches last (PB-A/B/E/J/M)
+1. **PB-F** (Damage multiplier, 3 cards, MEDIUM)
+2. **PB-I** (Grant flash, 4 cards, MEDIUM)
+3. **PB-H** (Mass reanimate, 5 cards, MEDIUM)
+4. **PB-L** (Reveal/X effects, 7 cards, MEDIUM)
+5. HIGH batches last (PB-A/B/E/J/M)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
 - Cavern of Souls "can't be countered" deferred (needs CounterRestriction primitive)
-- A-42 BLOCKED chosen-type-anthem category now resolved (PB-D); remaining: extra-turn, mana-doubling, mass-reanimate, damage-tripling, wheel, domain-count
+- Nexus of Fate "from anywhere" graveyard replacement only covers resolution case (needs full non-permanent replacement infrastructure)
+- A-42 BLOCKED categories remaining: mana-doubling, mass-reanimate, damage-tripling, wheel, domain-count
 
 **Commit prefix**: `W6-prim:` (engine), `W6-cards:` (card defs)
 

@@ -259,7 +259,7 @@ newly unblocked cards before moving to the next batch.
 **Step 3: MEDIUM complexity engine batches**
 
 - [x] **PB-D**: Chosen creature type — EffectFilter::CreaturesYouControlOfChosenType + OtherCreaturesYouControlOfChosenType, chosen_subtype_filter, has_chosen_subtype/exclude_chosen_subtype, colored_mana_reduction, ChosenTypeCreatureCount, AddManaOfAnyColorAmount, TopCardIsCreatureOfChosenType, SacrificeFilter::CreatureOfChosenType, HasChosenSubtype. 8 card fixes (Morophon, Vanquisher's Banner, Patchwork Banner, Herald's Horn, Kindred Dominance, Three Tree City, Etchings of the Chosen, Pact of the Serpent). 1M 2L fixed. Cavern "can't be countered" deferred. 12 tests. Commit 90c79f5.
-- [ ] **PB-C**: Extra turns — `Effect::ExtraTurn` + turn queue (4 cards unblocked, MEDIUM)
+- [x] **PB-C**: Extra turns — `Effect::ExtraTurn { player, count }` + self_exile/self_shuffle_on_resolution flags, GiftType::ExtraTurn wiring. 3 new cards (Nexus of Fate, Temporal Trespass, Temporal Mastery) + 1 fix (Teferi -10 loyalty). 1M 2L fixed. 7 tests. Commit edbcccc.
 - [ ] **PB-F**: Damage multiplier — replacement effect in damage pipeline (3 cards unblocked, MEDIUM)
 - [ ] **PB-I**: Grant flash — cast-timing modification in casting.rs (4 cards unblocked, MEDIUM)
 - [ ] **PB-H**: Mass reanimate — multi-step zone changes, Living Death (5 cards unblocked, MEDIUM)
