@@ -4386,6 +4386,71 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 t.entering_object_id = Some(assignment.source);
                             }
                         }
+                        // CR 510.3a / CR 603.2: CardDef-level "WhenDealsCombatDamageToPlayer"
+                        // triggers from AbilityDefinition::Triggered. These are not converted
+                        // to runtime TriggeredAbilityDef (that only happens in enrich_spec_from_def
+                        // for tests), so we collect them here from the card registry.
+                        // The PendingTriggerKind::Normal path looks them up at resolution via
+                        // the card registry fallback (resolution.rs line ~1862).
+                        if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
+                            if let Some(src_obj) = state.objects.get(&assignment.source) {
+                                if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
+                                    let controller = src_obj.controller;
+                                    let source_id = src_obj.id;
+                                    if let Some(def) = src_obj
+                                        .card_id
+                                        .as_ref()
+                                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                                    {
+                                        let carddef_indices: Vec<usize> = def
+                                            .abilities
+                                            .iter()
+                                            .enumerate()
+                                            .filter_map(|(idx, a)| match a {
+                                                AbilityDefinition::Triggered {
+                                                    trigger_condition:
+                                                        TriggerCondition::WhenDealsCombatDamageToPlayer,
+                                                    ..
+                                                } => Some(idx),
+                                                _ => None,
+                                            })
+                                            .collect();
+                                        for ability_idx in carddef_indices {
+                                            triggers.push(PendingTrigger {
+                                                source: source_id,
+                                                ability_index: ability_idx,
+                                                controller,
+                                                kind: PendingTriggerKind::Normal,
+                                                triggering_event: Some(
+                                                    TriggerEvent::SelfDealsCombatDamageToPlayer,
+                                                ),
+                                                entering_object_id: Some(source_id),
+                                                targeting_stack_id: None,
+                                                triggering_player: None,
+                                                exalted_attacker_id: None,
+                                                defending_player_id: None,
+                                                ingest_target_player: None,
+                                                flanking_blocker_id: None,
+                                                rampage_n: None,
+                                                renown_n: None,
+                                                poisonous_n: None,
+                                                poisonous_target_player: None,
+                                                enlist_enlisted_creature: None,
+                                                recover_cost: None,
+                                                recover_card: None,
+                                                cipher_encoded_card_id: None,
+                                                cipher_encoded_object_id: None,
+                                                haunt_source_object_id: None,
+                                                haunt_source_card_id: None,
+                                                damaged_player: Some(*damaged_pid),
+                                                combat_damage_amount: assignment.amount,
+                                                data: None,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         // CR 702.115a: Ingest -- "Whenever this creature deals combat
                         // damage to a player, that player exiles the top card of
                         // their library."

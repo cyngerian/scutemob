@@ -3,15 +3,6 @@
 // Stagger — Whenever Lightning deals combat damage to a player, until your next turn,
 // if a source would deal damage to that player or a permanent that player controls,
 // it deals double that damage instead.
-//
-// First strike, trample, and lifelink are implemented.
-//
-// TODO: DSL gap — Stagger triggered ability "until your next turn, if a source would
-// deal damage to that player or a permanent that player controls, it deals double that
-// damage instead" requires a replacement effect with a duration of "until your next turn"
-// and a scope of "all damage to a specific player or their permanents". Neither the
-// duration variant nor the damage-doubling replacement effect are expressible in the DSL.
-// Omitted.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,6 +22,26 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
+            // CR 614.1 / CR 510.3a: Stagger — triggered ability fires on combat damage.
+            // "Until your next turn, if a source would deal damage to that player or a
+            // permanent that player controls, it deals double that damage instead."
+            // PlayerId(0) in ToPlayerOrTheirPermanents is resolved to ctx.damaged_player
+            // at execution time; PlayerId(0) in UntilYourNextTurn is resolved to
+            // ctx.controller (Lightning's controller).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::RegisterReplacementEffect {
+                    trigger: ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter: DamageTargetFilter::ToPlayerOrTheirPermanents(PlayerId(0)),
+                    },
+                    modification: ReplacementModification::DoubleDamage,
+                    duration: EffectDuration::UntilYourNextTurn(PlayerId(0)),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

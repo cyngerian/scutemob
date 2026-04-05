@@ -684,6 +684,16 @@ pub struct GameObject {
     /// A creature with summoning sickness cannot attack or have its activated
     /// abilities with {T} in the cost used, unless it has Haste (CR 702.10).
     pub has_summoning_sickness: bool,
+    /// The turn number on which this permanent entered the battlefield.
+    ///
+    /// Used by Neriv, Heart of the Storm to check "a creature you control that entered
+    /// this turn" (compare with state.turn.turn_number). Set at ETB in
+    /// state/mod.rs (move_object_to_zone). None for objects not on the battlefield or
+    /// objects that entered before turn tracking was enabled.
+    ///
+    /// CR 614.1: replacement effects that condition on "entered this turn" use this field.
+    #[serde(default)]
+    pub entered_turn: Option<u32>,
     /// CR 701.15a: Players who have goaded this creature.
     ///
     /// Non-empty when a Goad effect has been applied to this permanent.

@@ -175,6 +175,7 @@ fn make_test_creature(
         designations: mtg_engine::state::game_object::Designations::default(),
         adventure_exiled_by: None,
         meld_component: None,
+        entered_turn: None,
     }
 }
 

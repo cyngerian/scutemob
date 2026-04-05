@@ -331,6 +331,12 @@ impl GameState {
         object.id = id;
         object.zone = zone_id;
         object.timestamp = self.timestamp_counter;
+        // For tokens (is_token=true) entering the battlefield, set entered_turn.
+        // Tokens always enter this turn — unlike permanents placed via builder.rs
+        // (which use None to represent "pre-existing before current turn").
+        if zone_id == ZoneId::Battlefield && object.is_token {
+            object.entered_turn = Some(self.turn.turn_number);
+        }
         // Add to zone — MR-M1-01/MR-M1-04: single access, no redundant guard.
         let zone = self
             .zones
@@ -398,6 +404,14 @@ impl GameState {
             // CR 302.6: a permanent entering the battlefield has summoning sickness
             // until the beginning of its controller's next untap step.
             has_summoning_sickness: to == ZoneId::Battlefield,
+            // Track which turn this permanent entered the battlefield.
+            // Used by Neriv's "entered this turn" filter. None for non-battlefield zones
+            // (field is cleared on zone change per CR 400.7).
+            entered_turn: if to == ZoneId::Battlefield {
+                Some(self.turn.turn_number)
+            } else {
+                None
+            },
             // CR 400.7: goad state is not preserved across zone changes.
             goaded_by: im::Vector::new(),
             // CR 400.7: kicked status is not preserved across zone changes
@@ -574,6 +588,11 @@ impl GameState {
                     is_emblem: false,
                     timestamp: self.timestamp_counter,
                     has_summoning_sickness: to == ZoneId::Battlefield,
+                    entered_turn: if to == ZoneId::Battlefield {
+                        Some(self.turn.turn_number)
+                    } else {
+                        None
+                    },
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
@@ -686,6 +705,11 @@ impl GameState {
                         is_emblem: false,
                         timestamp: self.timestamp_counter,
                         has_summoning_sickness: to == ZoneId::Battlefield,
+                        entered_turn: if to == ZoneId::Battlefield {
+                            Some(self.turn.turn_number)
+                        } else {
+                            None
+                        },
                         goaded_by: im::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
@@ -839,6 +863,11 @@ impl GameState {
             is_emblem: old_object.is_emblem,
             timestamp: self.timestamp_counter,
             has_summoning_sickness: to == ZoneId::Battlefield,
+            entered_turn: if to == ZoneId::Battlefield {
+                Some(self.turn.turn_number)
+            } else {
+                None
+            },
             goaded_by: im::Vector::new(),
             // CR 400.7: kicked status is not preserved across zone changes.
             kicker_times_paid: 0,

@@ -1001,6 +1001,11 @@ impl GameStateBuilder {
                 // test-placed permanents on the battlefield are treated as having
                 // been there since the beginning of their controller's turn.
                 has_summoning_sickness: false,
+                // Test-placed permanents use None for entered_turn — they are
+                // treated as having been on the battlefield before the current turn.
+                // add_object will set this to Some(turn_number) for battlefield objects,
+                // but build tests can override if needed.
+                entered_turn: None,
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,

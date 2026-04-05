@@ -1646,6 +1646,16 @@ pub fn register_permanent_replacement_abilities(
                     } => ReplacementTrigger::DamageWouldBeDealt {
                         target_filter: DamageTargetFilter::ToOpponentOrTheirPermanent(controller),
                     },
+                    // Bind the "entered this turn" source filter to the controller.
+                    // Used by Neriv: "a creature you control that entered this turn".
+                    ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter:
+                            DamageTargetFilter::FromControllerCreaturesEnteredThisTurn(PlayerId(0)),
+                    } => ReplacementTrigger::DamageWouldBeDealt {
+                        target_filter: DamageTargetFilter::FromControllerCreaturesEnteredThisTurn(
+                            controller,
+                        ),
+                    },
                     ReplacementTrigger::WouldProliferate { player_filter } => {
                         ReplacementTrigger::WouldProliferate {
                             player_filter: bind_player_filter(player_filter, controller),
@@ -1937,6 +1947,15 @@ pub fn apply_damage_prevention(
                 events.push(GameEvent::ReplacementEffectApplied {
                     effect_id: id,
                     description: format!("doubled damage to {}", remaining),
+                });
+            }
+            Some(ReplacementModification::TripleDamage) => {
+                // CR 614.1 / CR 701.10g: Triple the damage instead of doubling.
+                // Used by Fiery Emancipation.
+                remaining *= 3;
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: format!("tripled damage to {}", remaining),
                 });
             }
             _ => {
@@ -2485,14 +2504,14 @@ pub fn apply_search_library_replacement(
 }
 /// CR 614.1: Apply damage-doubling replacement effects.
 ///
-/// Checks for registered DamageWouldBeDealt replacements with DoubleDamage
+/// Checks for registered DamageWouldBeDealt replacements with DoubleDamage or TripleDamage
 /// modification where the source is controlled by the matching player and
 /// (optionally) the target matches the effect's target filter.
 /// Called before `apply_damage_prevention` in the damage path.
 ///
 /// `damage_target`: the target of the damage event, used to match
-/// `DamageTargetFilter::ToOpponentOrTheirPermanent`. Pass `None` to skip
-/// target-side filtering (applies doubling regardless of target).
+/// `DamageTargetFilter::ToOpponentOrTheirPermanent` and `ToPlayerOrTheirPermanents`.
+/// Pass `None` to skip target-side filtering (applies multiplier regardless of target).
 ///
 /// Returns `(modified_amount, events)`.
 pub fn apply_damage_doubling(
@@ -2501,6 +2520,8 @@ pub fn apply_damage_doubling(
     amount: u32,
     damage_target: Option<&CombatDamageTarget>,
 ) -> (u32, Vec<GameEvent>) {
+    use crate::rules::layers::calculate_characteristics;
+    use crate::state::types::CardType;
     let mut events = Vec::new();
     if amount == 0 {
         return (0, events);
@@ -2508,43 +2529,79 @@ pub fn apply_damage_doubling(
     let source_controller = state.objects.get(&source).map(|o| o.controller);
     let mut modified = amount;
     for effect in state.replacement_effects.iter() {
-        if let ReplacementModification::DoubleDamage = &effect.modification {
-            if let ReplacementTrigger::DamageWouldBeDealt { target_filter } = &effect.trigger {
-                let applies = match target_filter {
-                    DamageTargetFilter::FromControllerSources(pid) => {
-                        // Source-side only: doubles damage from controller's sources to any target.
-                        source_controller == Some(*pid)
-                    }
-                    DamageTargetFilter::ToOpponentOrTheirPermanent(controller_pid) => {
-                        // CR 614.1 / Twinflame Tyrant: "If a source you control would deal
-                        // damage to an opponent or a permanent an opponent controls."
-                        // Checks BOTH: source is controlled by controller_pid, AND target is
-                        // an opponent of controller_pid or a permanent they control.
-                        if source_controller != Some(*controller_pid) {
-                            false
-                        } else {
-                            match damage_target {
-                                Some(dt) => damage_target_is_opponent_or_their_permanent(
-                                    state,
-                                    dt,
-                                    *controller_pid,
-                                ),
-                                None => true, // No target info — apply conservatively.
-                            }
+        let multiplier = match &effect.modification {
+            ReplacementModification::DoubleDamage => 2u32,
+            ReplacementModification::TripleDamage => 3u32,
+            _ => continue,
+        };
+        if let ReplacementTrigger::DamageWouldBeDealt { target_filter } = &effect.trigger {
+            let applies = match target_filter {
+                DamageTargetFilter::FromControllerSources(pid) => {
+                    // Source-side only: multiplies damage from controller's sources to any target.
+                    source_controller == Some(*pid)
+                }
+                DamageTargetFilter::ToOpponentOrTheirPermanent(controller_pid) => {
+                    // CR 614.1 / Twinflame Tyrant: "If a source you control would deal
+                    // damage to an opponent or a permanent an opponent controls."
+                    // Checks BOTH: source is controlled by controller_pid, AND target is
+                    // an opponent of controller_pid or a permanent they control.
+                    if source_controller != Some(*controller_pid) {
+                        false
+                    } else {
+                        match damage_target {
+                            Some(dt) => damage_target_is_opponent_or_their_permanent(
+                                state,
+                                dt,
+                                *controller_pid,
+                            ),
+                            None => true, // No target info — apply conservatively.
                         }
                     }
-                    DamageTargetFilter::Any => true,
-                    _ => false,
-                };
-                if !applies {
-                    continue;
                 }
-                modified *= 2;
-                events.push(GameEvent::ReplacementEffectApplied {
-                    effect_id: effect.id,
-                    description: format!("doubled damage: {} → {}", amount, modified),
-                });
+                DamageTargetFilter::ToPlayerOrTheirPermanents(pid) => {
+                    // CR 614.1 / Lightning Stagger: "damage to that player or a permanent
+                    // that player controls". Targets a specific player by ID.
+                    match damage_target {
+                        Some(CombatDamageTarget::Player(p)) => p == pid,
+                        Some(CombatDamageTarget::Creature(id))
+                        | Some(CombatDamageTarget::Planeswalker(id)) => state
+                            .objects
+                            .get(id)
+                            .map(|o| o.controller == *pid)
+                            .unwrap_or(false),
+                        None => true, // No target info — apply conservatively.
+                    }
+                }
+                DamageTargetFilter::FromControllerCreaturesEnteredThisTurn(pid) => {
+                    // CR 614.1 / Neriv: "a creature you control that entered this turn".
+                    // Source must be: controlled by pid, a creature, entered this turn.
+                    if source_controller != Some(*pid) {
+                        false
+                    } else {
+                        state
+                            .objects
+                            .get(&source)
+                            .map(|o| {
+                                o.entered_turn == Some(state.turn.turn_number)
+                                    && calculate_characteristics(state, source)
+                                        .map(|c| c.card_types.contains(&CardType::Creature))
+                                        .unwrap_or(false)
+                            })
+                            .unwrap_or(false)
+                    }
+                }
+                DamageTargetFilter::Any => true,
+                _ => false,
+            };
+            if !applies {
+                continue;
             }
+            let before = modified;
+            modified *= multiplier;
+            events.push(GameEvent::ReplacementEffectApplied {
+                effect_id: effect.id,
+                description: format!("{}x damage: {} → {}", multiplier, before, modified),
+            });
         }
     }
     (modified, events)

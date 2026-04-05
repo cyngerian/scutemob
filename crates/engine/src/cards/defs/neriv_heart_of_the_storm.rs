@@ -1,8 +1,7 @@
 // Neriv, Heart of the Storm — {1}{R}{W}{B}, Legendary Creature — Spirit Dragon 4/5
 // Flying
-// If a creature you control that entered this turn would deal damage, it deals twice that much damage instead.
-// TODO: DSL gap — replacement effect on damage amount conditioned on whether the source
-// creature entered this turn; no ReplacementTrigger::WouldDealDamage with entering-this-turn filter.
+// If a creature you control that entered this turn would deal damage, it deals
+// twice that much damage instead.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,7 +19,22 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: replacement effect — creatures you control that entered this turn deal double damage
+            // CR 614.1: "If a creature you control that entered this turn would deal damage,
+            // it deals twice that much damage instead."
+            // Static replacement effect registered when Neriv enters the battlefield.
+            // PlayerId(0) is bound to the controller at registration time.
+            // The filter checks: source is a creature controlled by PlayerId, AND
+            // source.entered_turn == current turn number.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::DamageWouldBeDealt {
+                    target_filter: DamageTargetFilter::FromControllerCreaturesEnteredThisTurn(
+                        PlayerId(0),
+                    ),
+                },
+                modification: ReplacementModification::DoubleDamage,
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         ..Default::default()
     }

@@ -4278,6 +4278,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_emblem: false,
                         timestamp: 0, // replaced by add_object
                         has_summoning_sickness: true,
+                        entered_turn: Some(state.turn.turn_number),
                         goaded_by: im::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
@@ -4476,6 +4477,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 is_emblem: false,
                 timestamp: 0, // replaced by add_object
                 has_summoning_sickness: true,
+                entered_turn: Some(state.turn.turn_number),
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
@@ -5185,6 +5187,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 302.6: Tokens have summoning sickness; they are already attacking
                     // so sickness does not prevent combat participation this turn.
                     has_summoning_sickness: true,
+                    entered_turn: Some(state.turn.turn_number),
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
@@ -5843,6 +5846,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     timestamp: 0, // replaced by add_object
                     // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
                     has_summoning_sickness: true,
+                    entered_turn: Some(state.turn.turn_number),
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
@@ -6052,6 +6056,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     timestamp: 0, // replaced by add_object
                     // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
                     has_summoning_sickness: true,
+                    entered_turn: Some(state.turn.turn_number),
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
@@ -6276,6 +6281,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 302.6: Tokens have summoning sickness when they enter.
                         // Has Haste so can attack despite summoning sickness.
                         has_summoning_sickness: true,
+                        entered_turn: Some(state.turn.turn_number),
                         goaded_by: im::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,

@@ -172,6 +172,7 @@ fn test_clone_independence_object_modification() {
                 designations: mtg_engine::Designations::default(),
                 adventure_exiled_by: None,
                 meld_component: None,
+                entered_turn: None,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

@@ -462,6 +462,7 @@ fn test_commander_damage_survives_zone_change() {
                 designations: mtg_engine::Designations::default(),
                 adventure_exiled_by: None,
                 meld_component: None,
+                entered_turn: None,
             },
             ZoneId::Battlefield,
         )

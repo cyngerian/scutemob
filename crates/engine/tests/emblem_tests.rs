@@ -487,6 +487,7 @@ fn test_multiple_emblems_stack() {
         designations: Designations::default(),
         adventure_exiled_by: None,
         meld_component: None,
+        entered_turn: None,
     };
     state2
         .add_object(second_emblem, ZoneId::Command(p1()))

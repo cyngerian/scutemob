@@ -1886,6 +1886,29 @@ pub enum Effect {
         /// Number of extra turns to grant (usually Fixed(1), Teferi uses Fixed(2)).
         count: EffectAmount,
     },
+    /// CR 614.1 / CR 616.1: Dynamically register a replacement effect at runtime.
+    ///
+    /// Used by triggered abilities that create replacement effects for the remainder
+    /// of a duration (e.g., Lightning's Stagger: "until your next turn, if a source
+    /// would deal damage to that player ... it deals double that damage instead").
+    ///
+    /// The replacement is pushed to `state.replacement_effects` with the specified
+    /// trigger, modification, and duration. PlayerId(0) placeholders in the trigger's
+    /// `DamageTargetFilter` are resolved at execution time:
+    /// - `ToPlayerOrTheirPermanents(PlayerId(0))`: resolved from `ctx.damaged_player`
+    ///   (the player dealt combat damage by this trigger's source).
+    /// - All other `PlayerId(0)` filters: resolved to `ctx.controller`.
+    ///
+    /// The `duration` field's `UntilYourNextTurn(PlayerId(0))` is resolved to
+    /// `ctx.controller` at execution time.
+    RegisterReplacementEffect {
+        /// Which event the replacement watches for.
+        trigger: ReplacementTrigger,
+        /// What the replacement does when it fires.
+        modification: ReplacementModification,
+        /// How long the replacement effect lasts.
+        duration: EffectDuration,
+    },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).

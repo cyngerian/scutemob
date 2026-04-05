@@ -3053,6 +3053,7 @@ fn execute_effect_inner(
                             is_emblem: false,
                             timestamp: state.timestamp_counter,
                             has_summoning_sickness: true,
+                            entered_turn: Some(state.turn.turn_number),
                             goaded_by: im::Vector::new(),
                             kicker_times_paid: 0,
                             cast_alt_cost: None,
@@ -3923,6 +3924,7 @@ fn execute_effect_inner(
                     is_emblem: false,
                     timestamp: 0, // replaced by add_object
                     has_summoning_sickness: true,
+                    entered_turn: None, // set by add_object when placed on battlefield
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
@@ -4086,6 +4088,7 @@ fn execute_effect_inner(
                 is_emblem: true,
                 timestamp: 0, // replaced by add_object
                 has_summoning_sickness: false,
+                entered_turn: None, // emblems go to command zone, not battlefield
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
@@ -4535,6 +4538,65 @@ fn execute_effect_inner(
                     events.push(GameEvent::ExtraTurnAdded { player: pid });
                 }
             }
+        }
+        // CR 614.1 / CR 616.1: Dynamically register a replacement effect.
+        // Used by Lightning's Stagger: "until your next turn, if a source would deal
+        // damage to that player or a permanent that player controls, it deals double
+        // that damage instead."
+        //
+        // PlayerId(0) placeholder resolution:
+        // - In DamageTargetFilter::ToPlayerOrTheirPermanents(PlayerId(0)):
+        //   resolved to ctx.damaged_player (the player dealt combat damage).
+        // - In EffectDuration::UntilYourNextTurn(PlayerId(0)):
+        //   resolved to ctx.controller.
+        // - Other PlayerId(0) occurrences: resolved to ctx.controller.
+        Effect::RegisterReplacementEffect {
+            trigger,
+            modification,
+            duration,
+        } => {
+            use crate::state::continuous_effect::EffectDuration;
+            use crate::state::player::PlayerId;
+            use crate::state::replacement_effect::{
+                DamageTargetFilter, ReplacementEffect, ReplacementTrigger,
+            };
+            let controller = ctx.controller;
+            let damaged_player = ctx.damaged_player.unwrap_or(controller);
+            // Resolve PlayerId(0) placeholders in the trigger's DamageTargetFilter.
+            let resolved_trigger = match trigger {
+                ReplacementTrigger::DamageWouldBeDealt {
+                    target_filter: DamageTargetFilter::ToPlayerOrTheirPermanents(PlayerId(0)),
+                } => ReplacementTrigger::DamageWouldBeDealt {
+                    target_filter: DamageTargetFilter::ToPlayerOrTheirPermanents(damaged_player),
+                },
+                ReplacementTrigger::DamageWouldBeDealt {
+                    target_filter: DamageTargetFilter::FromControllerSources(PlayerId(0)),
+                } => ReplacementTrigger::DamageWouldBeDealt {
+                    target_filter: DamageTargetFilter::FromControllerSources(controller),
+                },
+                other => other.clone(),
+            };
+            // Resolve PlayerId(0) in duration (UntilYourNextTurn).
+            let resolved_duration = match duration {
+                EffectDuration::UntilYourNextTurn(PlayerId(0)) => {
+                    EffectDuration::UntilYourNextTurn(controller)
+                }
+                other => *other,
+            };
+            let id = state.next_replacement_id();
+            state.replacement_effects.push_back(ReplacementEffect {
+                id,
+                source: Some(ctx.source),
+                controller,
+                duration: resolved_duration,
+                is_self_replacement: false,
+                trigger: resolved_trigger,
+                modification: modification.clone(),
+            });
+            events.push(GameEvent::ReplacementEffectApplied {
+                effect_id: id,
+                description: format!("registered replacement: {:?}", modification),
+            });
         }
     }
 }
@@ -5464,6 +5526,7 @@ pub fn make_token(
         is_emblem: false,
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
+        entered_turn: None,           // set by add_object when placed on battlefield
         goaded_by: im::Vector::new(),
         kicker_times_paid: 0,
         cast_alt_cost: None,

@@ -234,6 +234,7 @@ fn test_add_object_to_state() {
         designations: mtg_engine::Designations::default(),
         adventure_exiled_by: None,
         meld_component: None,
+        entered_turn: None,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

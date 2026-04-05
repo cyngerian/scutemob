@@ -932,6 +932,8 @@ impl HashInto for GameObject {
         self.is_emblem.hash_into(hasher);
         self.timestamp.hash_into(hasher);
         self.has_summoning_sickness.hash_into(hasher);
+        // Entered turn (Neriv: "creature that entered this turn" filter)
+        self.entered_turn.hash_into(hasher);
         self.goaded_by.hash_into(hasher);
         // Kicker (CR 702.33d) — times kicker was paid when this permanent was cast
         self.kicker_times_paid.hash_into(hasher);
@@ -1570,6 +1572,16 @@ impl HashInto for DamageTargetFilter {
                 5u8.hash_into(hasher);
                 pid.hash_into(hasher);
             }
+            // CR 614.1: specific player damage filter (Lightning Stagger)
+            DamageTargetFilter::ToPlayerOrTheirPermanents(pid) => {
+                6u8.hash_into(hasher);
+                pid.hash_into(hasher);
+            }
+            // CR 614.1: source-side "entered this turn" filter (Neriv)
+            DamageTargetFilter::FromControllerCreaturesEnteredThisTurn(pid) => {
+                7u8.hash_into(hasher);
+                pid.hash_into(hasher);
+            }
         }
     }
 }
@@ -1698,6 +1710,8 @@ impl HashInto for ReplacementModification {
             ReplacementModification::DoubleLifeLoss => 16u8.hash_into(hasher),
             // CR 701.34: DoubleProliferate (discriminant 17)
             ReplacementModification::DoubleProliferate => 17u8.hash_into(hasher),
+            // CR 614.1 / CR 701.10g: TripleDamage (discriminant 18)
+            ReplacementModification::TripleDamage => 18u8.hash_into(hasher),
         }
     }
 }
@@ -5157,6 +5171,17 @@ impl HashInto for Effect {
                 76u8.hash_into(hasher);
                 player.hash_into(hasher);
                 count.hash_into(hasher);
+            }
+            // CR 614.1: RegisterReplacementEffect (discriminant 77)
+            Effect::RegisterReplacementEffect {
+                trigger,
+                modification,
+                duration,
+            } => {
+                77u8.hash_into(hasher);
+                trigger.hash_into(hasher);
+                modification.hash_into(hasher);
+                duration.hash_into(hasher);
             }
         }
     }

@@ -1293,6 +1293,16 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .cloned()
         .collect();
     state.continuous_effects = keep;
+    // Expire UntilYourNextTurn replacement effects for this player (CR 611.2b).
+    // This fixes the gap where dynamically-registered replacement effects (e.g.
+    // Lightning's Stagger) would persist forever without this cleanup.
+    let keep_repl: im::Vector<crate::state::replacement_effect::ReplacementEffect> = state
+        .replacement_effects
+        .iter()
+        .filter(|e| e.duration != EffectDuration::UntilYourNextTurn(active_player))
+        .cloned()
+        .collect();
+    state.replacement_effects = keep_repl;
     // Clear temporary protection for the active player.
     if let Some(ps) = state.players.get_mut(&active_player) {
         if !ps.temporary_protection_qualities.is_empty() {

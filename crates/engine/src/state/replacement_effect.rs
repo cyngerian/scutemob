@@ -129,6 +129,11 @@ pub enum ReplacementModification {
     /// "If a source you control would deal damage, it deals double that damage instead."
     /// Used by Twinflame Tyrant.
     DoubleDamage,
+    /// CR 614.1 / CR 701.10g: Triple damage from a damage event.
+    /// "If a source you control would deal damage to a permanent or player, it deals
+    /// triple that damage instead."
+    /// Used by Fiery Emancipation.
+    TripleDamage,
     /// CR 614.1: Double life loss.
     /// "If a player would lose life, they lose twice that much life instead."
     /// Used by Bloodletter of Aclazotz.
@@ -190,6 +195,17 @@ pub enum DamageTargetFilter {
     /// Used by Twinflame Tyrant oracle: "to an opponent or a permanent an opponent controls".
     /// The PlayerId is the Twinflame Tyrant controller; opponents are all other players.
     ToOpponentOrTheirPermanent(PlayerId),
+    /// Only damage dealt to a specific player or permanents that player controls.
+    /// Used by Lightning's Stagger: "damage to that player or a permanent that player controls".
+    /// Unlike `ToOpponentOrTheirPermanent`, this targets a SPECIFIC player by ID (not
+    /// "opponents of controller"). PlayerId(0) is a placeholder resolved at registration time.
+    ToPlayerOrTheirPermanents(PlayerId),
+    /// Only damage from creatures controlled by the specified player that entered
+    /// the battlefield this turn.
+    /// Used by Neriv, Heart of the Storm: "a creature you control that entered this turn".
+    /// Checks: source is a creature, controlled by PlayerId, and entered_turn == current turn.
+    /// PlayerId(0) is a placeholder resolved to the controller at registration time.
+    FromControllerCreaturesEnteredThisTurn(PlayerId),
 }
 /// A replacement or prevention effect active in the game (CR 614, 615).
 ///
