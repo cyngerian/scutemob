@@ -4,8 +4,9 @@
 // When you cast this spell, you gain control of target opponent during that player's next turn.
 // After that turn, that player takes an extra turn.
 // TODO: Protection from instants — Protection(filter) for instant card type not in DSL.
-// TODO: Cast trigger granting control of opponent for a turn + extra turn —
-//       player control and extra turn effects not in DSL.
+// TODO: Cast trigger — gain-control blocked (PB-A/PB-E); extra turn part expressible
+//       via Effect::ExtraTurn (PB-C). Entire trigger blocked until player-control
+//       infrastructure exists, since the extra turn fires AFTER the controlled turn.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,8 +32,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
                 ProtectionQuality::FromCardType(CardType::Instant),
             )),
-            // TODO: Cast trigger granting control of opponent for a turn + extra turn —
-            //       player-control and extra-turn effects not in DSL.
+            // TODO: Cast trigger — gain-control (PB-A/PB-E) blocks this entire trigger.
+            // Extra turn part is now expressible via Effect::ExtraTurn (PB-C) but cannot
+            // be sequenced correctly without the controlled-turn infrastructure.
         ],
         self_cost_reduction: Some(SelfCostReduction::CardTypesInGraveyard),
         ..Default::default()

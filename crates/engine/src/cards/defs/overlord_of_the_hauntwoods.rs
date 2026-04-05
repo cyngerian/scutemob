@@ -101,5 +101,7 @@ Everywhere that is every basic land type."
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }

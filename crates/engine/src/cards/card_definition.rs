@@ -138,6 +138,27 @@ pub struct CardDefinition {
     /// Examples: Hullbreaker Horror, Vexing Shusher, Carnage Tyrant.
     #[serde(default)]
     pub cant_be_countered: bool,
+    /// CR 608.2n / card-specific rule: If true, this instant/sorcery exiles itself on
+    /// successful resolution instead of going to the graveyard.
+    ///
+    /// Used for cards like Temporal Trespass and Temporal Mastery whose oracle text
+    /// says "Exile [card name]" as part of the spell effect. Checked at the resolution
+    /// destination selection site before the normal flashback/jump-start checks.
+    ///
+    /// False for copies (`is_copy: true`) — copies have no physical card to move.
+    #[serde(default)]
+    pub self_exile_on_resolution: bool,
+    /// CR 608.2n / 614.1a: If true, this instant/sorcery shuffles itself into its
+    /// owner's library on successful resolution instead of going to the graveyard.
+    ///
+    /// Used for Nexus of Fate whose oracle text says "If Nexus of Fate would be put
+    /// into a graveyard from anywhere, reveal it and shuffle it into its owner's library
+    /// instead." This flag is the simplified form of that replacement effect for
+    /// non-permanent cards. Checked at the resolution destination selection site.
+    ///
+    /// False for copies (`is_copy: true`) — copies have no physical card to move.
+    #[serde(default)]
+    pub self_shuffle_on_resolution: bool,
 }
 impl Default for CardDefinition {
     fn default() -> Self {
@@ -160,6 +181,8 @@ impl Default for CardDefinition {
             meld_pair: None,
             spell_additional_costs: vec![],
             cant_be_countered: false,
+            self_exile_on_resolution: false,
+            self_shuffle_on_resolution: false,
         }
     }
 }
@@ -1851,6 +1874,18 @@ pub enum Effect {
     /// The intervening-if on the trigger ensures the solve condition is met
     /// at both trigger and resolution time (CR 603.4).
     SolveCase,
+    /// CR 500.7: Grant extra turns to a player. The specified player takes
+    /// `count` extra turns after this one. Multiple turns are added one at a
+    /// time (LIFO — most recently added goes first per CR 500.7).
+    ///
+    /// Used by Nexus of Fate, Temporal Trespass, Temporal Mastery,
+    /// Teferi Master of Time (-10), Emrakul the Promised End (partial).
+    ExtraTurn {
+        /// The player who takes the extra turn(s).
+        player: PlayerTarget,
+        /// Number of extra turns to grant (usually Fixed(1), Teferi uses Fixed(2)).
+        count: EffectAmount,
+    },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).

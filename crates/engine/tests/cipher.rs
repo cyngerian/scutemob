@@ -133,6 +133,8 @@ fn cipher_instant_def() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 
@@ -921,6 +923,8 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
     let card_id2 = def2.card_id.clone();
     let registry = CardRegistry::new(vec![def, def2]);

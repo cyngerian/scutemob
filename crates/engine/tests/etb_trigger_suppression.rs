@@ -71,6 +71,8 @@ fn etb_draw_creature_def() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 
@@ -105,6 +107,8 @@ fn torpor_orb_def() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 
@@ -147,6 +151,8 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 

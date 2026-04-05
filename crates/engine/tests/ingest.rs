@@ -536,6 +536,8 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
 
     let registry = CardRegistry::new(vec![double_ingest_def]);

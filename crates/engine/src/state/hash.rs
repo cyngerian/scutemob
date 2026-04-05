@@ -5152,6 +5152,12 @@ impl HashInto for Effect {
             Effect::SolveCase => {
                 75u8.hash_into(hasher);
             }
+            // CR 500.7: ExtraTurn (discriminant 76)
+            Effect::ExtraTurn { player, count } => {
+                76u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }

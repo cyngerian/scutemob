@@ -1,70 +1,56 @@
-# Primitive WIP: PB-D — Chosen Creature Type
+# Primitive WIP: PB-C — Extra Turns
 
-batch: PB-D
-title: Chosen creature type
-cards_affected: 12
-started: 2026-04-02
-completed: 2026-04-02
-phase: closed
+batch: PB-C
+title: Extra turns
+cards_affected: 4
+started: 2026-04-05
+phase: implement
+plan_file: memory/primitives/pb-plan-C.md
 
-## Cards (from ops plan + grep)
-Cards with TODOs referencing chosen creature type:
-1. Morophon the Boundless — choose type ETB, cost reduction, +1/+1 anthem
-2. Vanquisher's Banner — choose type ETB, +1/+1 anthem, cast-trigger draw
-3. Patchwork Banner — choose type ETB, +1/+1 anthem, mana
-4. Herald's Horn — choose type ETB, cost reduction, upkeep look-at-top
-5. Kindred Dominance — choose type on cast, destroy non-chosen
-6. Cavern of Souls — choose type ETB, mana restriction, can't be countered (deferred — CounterRestriction not implemented)
-7. Unclaimed Territory — choose type ETB, mana restriction (already partial)
-8. Secluded Courtyard — choose type ETB, mana restriction (already partial)
-9. Urza's Incubator — choose type ETB, cost reduction (already partial)
-10. Three Tree City — choose type ETB, count-based mana
-11. Etchings of the Chosen — chosen type anthem + sac protection
-12. Pact of the Serpent — chosen type draw
+## Cards
+1. Nexus of Fate — "Take an extra turn after this one." + shuffle into library
+2. Temporal Trespass — Delve + "Take an extra turn after this one. Exile ~."
+3. Temporal Mastery — Miracle + "Take an extra turn after this one. Exile ~."
+4. Teferi, Master of Time — existing def stub, -10 loyalty: "Take two extra turns after this one."
+
+Also fixes TODO in: emrakul_the_promised_end.rs (extra turn part only; gain-control remains blocked)
 
 ## Existing Infrastructure
-- `chosen_creature_type: Option<SubType>` on GameObject (already exists)
-- `ReplacementEffect::ChooseCreatureType` (ETB replacement, already exists)
-- `SpellCostFilter::HasChosenCreatureSubtype` (cost reduction, already exists)
-- `ManaRestriction::ChosenCreatureTypeSpells` (mana restriction, already exists)
+- `extra_turns: Vector<PlayerId>` on TurnState (LIFO queue, CR 614.10)
+- `advance_turn()` in turn_structure.rs already pops from extra_turns
+- `GameEvent::ExtraTurnAdded { player }` already exists
+- `GiftType::ExtraTurn` variant exists (Gift mechanic, deferred)
+- 4 existing tests in extra_turns.rs verify LIFO, designated player, resumption, multi-stack
+
+## Deferred from Prior PBs
+- Cavern of Souls "can't be countered" (CounterRestriction) — unrelated
+- activated_ability_cost_reductions index off-by-one — unrelated
 
 ## Step Checklist
-- [x] 1. Engine changes (new types/variants/dispatch)
-  - `EffectFilter::CreaturesYouControlOfChosenType` + `OtherCreaturesYouControlOfChosenType` (continuous_effect.rs, layers.rs, hash.rs)
-  - `TriggerCondition::WheneverYouCastSpell.chosen_subtype_filter: bool` (card_definition.rs, hash.rs, abilities.rs)
-  - `TargetFilter.has_chosen_subtype: bool` + `exclude_chosen_subtype: bool` (card_definition.rs, effects/mod.rs via check_chosen_subtype_filter helper)
-  - `SpellCostModifier.colored_mana_reduction: Option<ManaCost>` (card_definition.rs, casting.rs)
-  - `EffectAmount::ChosenTypeCreatureCount { controller }` (card_definition.rs, effects/mod.rs, hash.rs)
-  - `Effect::AddManaOfAnyColorAmount { player, amount }` (card_definition.rs, effects/mod.rs, hash.rs)
-  - `Condition::TopCardIsCreatureOfChosenType` (card_definition.rs, effects/mod.rs, hash.rs)
-  - `SacrificeFilter::CreatureOfChosenType` (game_object.rs, abilities.rs, hash.rs, replay_harness.rs)
-  - `EffectContext.chosen_creature_type: Option<SubType>` (effects/mod.rs)
-  - `Effect::ChooseCreatureType` extended to also set `ctx.chosen_creature_type`
-  - Updated 19 card defs with `colored_mana_reduction: None`
-  - Updated 21 card defs with `chosen_subtype_filter: false`
-- [x] 2. Card definition fixes (8 cards done, Cavern of Souls deferred)
-  - morophon_the_boundless.rs — anthem + colored_mana_reduction
-  - vanquishers_banner.rs — ChooseCreatureType + anthem + chosen_subtype_filter cast trigger
-  - patchwork_banner.rs — ChooseCreatureType + anthem
-  - heralds_horn.rs — ChooseCreatureType + cost reduction + TopCardIsCreatureOfChosenType
-  - kindred_dominance.rs — Sequence(ChooseCreatureType, DestroyAll(exclude_chosen))
-  - three_tree_city.rs — AddManaOfAnyColorAmount + ChosenTypeCreatureCount
-  - etchings_of_the_chosen.rs — anthem + CreatureOfChosenType sac cost
-  - pact_of_the_serpent.rs — ChosenTypeCreatureCount draw + life loss
-- [x] 3. Unit tests (12 tests in crates/engine/tests/chosen_creature_type.rs)
-  - test_chosen_creature_type_etb_sets_type
-  - test_chosen_type_anthem_basic
-  - test_chosen_type_anthem_other
-  - test_chosen_type_cost_reduction_colored
-  - test_chosen_type_cost_reduction_generic
-  - test_chosen_type_spell_level_choice_propagates
-  - test_chosen_type_cast_trigger_definition
-  - test_chosen_type_destroy_all_except
-  - test_top_card_creature_of_chosen_type_true
-  - test_top_card_creature_of_chosen_type_false
-  - test_pact_of_the_serpent_definition
-  - test_chosen_type_permanent_count_via_effect
-- [x] 4. Workspace build verification — 2474 tests pass, 0 clippy warnings, build clean
-
-## Deferred
-- Cavern of Souls "can't be countered" — requires `CounterRestriction` primitive (separate PB)
+- [x] 1. Engine changes (Effect::ExtraTurn variant, dispatch in effects/mod.rs, hash in state/hash.rs, GiftType::ExtraTurn wired in resolution.rs)
+  - Added Effect::ExtraTurn { player: PlayerTarget, count: EffectAmount } to card_definition.rs (after SolveCase)
+  - Dispatch in effects/mod.rs: resolve_player_target_list + resolve_amount, pushes to extra_turns, emits ExtraTurnAdded
+  - Hash in state/hash.rs: discriminant 76
+  - GiftType::ExtraTurn wired in resolution.rs execute_gift_effect()
+  - Added self_exile_on_resolution and self_shuffle_on_resolution flags to CardDefinition
+  - Resolution.rs destination selection checks both flags before flashback/buyback
+  - Python script updated 131 card defs + 14 test files with new explicit-constructor fields
+- [x] 2. Card definition fixes (Teferi -10, Emrakul TODO comment)
+  - teferi_master_of_time.rs: Added LoyaltyAbility for -10 with Effect::ExtraTurn Fixed(2), updated TODO comments
+  - emrakul_the_promised_end.rs: Updated TODO comment to note ExtraTurn now expressible via PB-C
+- [x] 3. New card definitions (Nexus of Fate, Temporal Trespass, Temporal Mastery)
+  - nexus_of_fate.rs: instant, ExtraTurn Fixed(1), self_shuffle_on_resolution: true
+  - temporal_trespass.rs: sorcery, Delve keyword, ExtraTurn Fixed(1), self_exile_on_resolution: true
+  - temporal_mastery.rs: sorcery, Miracle {1}{U}, ExtraTurn Fixed(1), self_exile_on_resolution: true
+- [x] 4. Unit tests (6 new tests in extra_turns.rs, 10 total)
+  - test_effect_extra_turn_basic: CR 500.7 — ExtraTurn pushes to queue, emits event
+  - test_effect_extra_turn_two_turns: CR 500.7 — count=2 adds two turns
+  - test_gift_extra_turn: CR 702.174g — GiftType::ExtraTurn gives opponent extra turn
+  - test_self_exile_on_resolution: self_exile flag — card goes to exile not graveyard
+  - test_self_shuffle_on_resolution: self_shuffle flag — card goes to library not graveyard
+  - test_effect_extra_turn_resolves_and_taken: end-to-end extra turn taken
+- [x] 5. Workspace build verification
+  - cargo test --all: 2480 passing, 0 failing
+  - cargo clippy -- -D warnings: clean
+  - cargo build --workspace: clean
+  - cargo fmt --check: clean

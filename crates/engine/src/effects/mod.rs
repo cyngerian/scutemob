@@ -4524,6 +4524,18 @@ fn execute_effect_inner(
                 obj.designations.insert(Designations::SOLVED);
             }
         }
+        // CR 500.7: Grant extra turns to a player. Each turn is pushed onto the
+        // extra_turns queue one at a time (LIFO — most recently added goes first).
+        Effect::ExtraTurn { player, count } => {
+            let resolved_count = resolve_amount(state, count, ctx).max(0) as u32;
+            let targets = resolve_player_target_list(state, player, ctx);
+            for pid in targets {
+                for _ in 0..resolved_count {
+                    state.turn.extra_turns.push_back(pid);
+                    events.push(GameEvent::ExtraTurnAdded { player: pid });
+                }
+            }
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────

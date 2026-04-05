@@ -80,6 +80,8 @@ fn panharmonicon_def(id: &str, name: &str) -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 
@@ -145,6 +147,8 @@ fn test_panharmonicon_doubles_etb_trigger() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -313,6 +317,8 @@ fn test_two_panharmonicons_triple_triggers() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -486,6 +492,8 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -646,6 +654,8 @@ fn test_panharmonicon_registration_via_resolution() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
     let entering_card_id = entering_def.card_id.clone();
 

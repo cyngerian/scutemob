@@ -92,6 +92,8 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 
@@ -130,6 +132,8 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 
@@ -157,6 +161,8 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     }
 }
 

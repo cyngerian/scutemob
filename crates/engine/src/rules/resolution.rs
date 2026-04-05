@@ -1680,6 +1680,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 } else {
                     None
                 };
+                // Check card def for self-exile or self-shuffle flags.
+                let self_exile = !stack_obj.is_copy
+                    && card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| def.self_exile_on_resolution)
+                        .unwrap_or(false);
+                let self_shuffle = !stack_obj.is_copy
+                    && card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| def.self_shuffle_on_resolution)
+                        .unwrap_or(false);
                 let destination = if stack_obj.cast_with_flashback
                     || stack_obj.cast_with_jump_start
                     || (has_cipher && cipher_creature.is_some())
@@ -1691,6 +1704,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 715.3d: Adventure spell exiles on SUCCESSFUL resolution (NOT graveyard).
                     // NOTE: Adventure (CR 715.3d) only exiles on resolution, NOT on counter/fizzle.
                     ZoneId::Exile
+                } else if self_exile {
+                    // Card-specific rule: "Exile [card name]" — self-exile on resolution.
+                    // Used by Temporal Trespass, Temporal Mastery, etc.
+                    ZoneId::Exile
+                } else if self_shuffle {
+                    // CR 614.1a: "If [card] would be put into a graveyard from anywhere,
+                    // shuffle it into its owner's library instead."
+                    // Used by Nexus of Fate. Graveyard-destination replacement applies here.
+                    // NOTE: Engine uses deterministic library placement (top of library).
+                    // Proper shuffling requires external randomization outside engine scope.
+                    ZoneId::Library(owner)
                 } else if stack_obj.was_buyback_paid {
                     ZoneId::Hand(owner) // CR 702.27a
                 } else {
@@ -7205,8 +7229,13 @@ fn execute_gift_effect(
                 });
             }
         }
-        GiftType::TappedFish | GiftType::Octopus | GiftType::ExtraTurn => {
-            // CR 702.174f/i/g: TappedFish, Octopus, ExtraTurn gifts -- deferred.
+        GiftType::ExtraTurn => {
+            // CR 702.174g: "The chosen player takes an extra turn after this one."
+            state.turn.extra_turns.push_back(recipient);
+            events.push(GameEvent::ExtraTurnAdded { player: recipient });
+        }
+        GiftType::TappedFish | GiftType::Octopus => {
+            // CR 702.174f/i: TappedFish, Octopus gifts -- deferred.
             // No cards with these gift types are currently in scope.
             // The ability fires but no effect is applied.
             let _ = recipient;

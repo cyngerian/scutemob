@@ -395,6 +395,8 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
     };
 
     let registry = CardRegistry::new(vec![double_poison_def]);

@@ -7,7 +7,7 @@
 //
 // TODO: "Activate on any player's turn" — instant-speed loyalty not in DSL.
 // TODO: "Discard a card" after draw — WheneverYouDiscard gap. Using draw-only.
-// TODO: "Take two extra turns" — extra turn effect not in DSL.
+// TODO: "−3: phases out" — no Effect::PhaseOut variant.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -35,8 +35,16 @@ pub fn card() -> CardDefinition {
             },
             // −3: Target creature you don't control phases out.
             // TODO: Phase-out target effect — no Effect::PhaseOut variant.
-            // −10: Take two extra turns.
-            // TODO: Extra turn effect not in DSL.
+            // −10: Take two extra turns after this one.
+            // CR 500.7: Two extra turns are added one at a time (LIFO; second is taken first).
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::Minus(10),
+                effect: Effect::ExtraTurn {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(2),
+                },
+                targets: vec![],
+            },
         ],
         ..Default::default()
     }
