@@ -28,6 +28,9 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 cant_be_countered: false,
             },
+            // TODO: CR 614.1a — "from anywhere" graveyard replacement (discard, mill, counter)
+            // needs full replacement infrastructure for non-permanents. Only resolution case
+            // is handled via self_shuffle_on_resolution flag.
         ],
         // CR 614.1a: Shuffle into library instead of going to graveyard on resolution.
         self_shuffle_on_resolution: true,

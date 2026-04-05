@@ -34,7 +34,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // −3: Target creature you don't control phases out.
-            // TODO: Phase-out target effect — no Effect::PhaseOut variant.
+            // TODO: Effect::PhaseOut not yet implemented. Placeholder preserves oracle index order.
+            // Index 1 = -3 (this stub); index 2 = -10 (below).
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::Minus(3),
+                effect: Effect::Nothing,
+                targets: vec![],
+            },
             // −10: Take two extra turns after this one.
             // CR 500.7: Two extra turns are added one at a time (LIFO; second is taken first).
             AbilityDefinition::LoyaltyAbility {

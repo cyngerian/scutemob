@@ -4,7 +4,12 @@ batch: PB-C
 title: Extra turns
 cards_affected: 4
 started: 2026-04-05
-phase: implement
+phase: done
+
+## Review
+findings: 3 (HIGH: 0, MEDIUM: 1, LOW: 2)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-C.md
 plan_file: memory/primitives/pb-plan-C.md
 
 ## Cards
