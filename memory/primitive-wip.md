@@ -4,7 +4,7 @@ batch: PB-I
 title: Grant flash
 cards_affected: 4
 started: 2026-04-05
-phase: done
+phase: closed
 
 ## Review
 findings: 5 (HIGH: 0, MEDIUM: 3, LOW: 2)

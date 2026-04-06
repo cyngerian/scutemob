@@ -51,6 +51,7 @@
 | PB-37 | Complex activated (residual) | done | 7 | ~TBD | fixed | 1 |
 | PB-C | Extra turns | done | 4 | ~0 | fixed | 1 |
 | PB-F | Damage multiplier | done | 3 | ~0 | clean | 1 |
+| PB-I | Grant flash | done | 4 | ~0 | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -65,9 +66,9 @@
 | Clean (no TODOs) | ~785 | 54% |
 | With TODOs (fixable now) | ~88 | 6% |
 | With TODOs (still blocked) | ~578 | 40% |
-| Not Yet Authored | ~287 | — |
+| Not Yet Authored | ~286 | — |
 | **Total Universe** | **1743** | — |
-| **Total Authored** | **1455** | **83%** |
+| **Total Authored** | **1456** | **84%** |
 
 **Post-BF-1**: 678 files have TODOs (1,070 lines). ~100 fixable now, ~578 blocked.
 Re-triage report: `memory/card-authoring/bf1-retriage-report.md`.
@@ -114,7 +115,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2491 |
+| Total tests | 2504 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
