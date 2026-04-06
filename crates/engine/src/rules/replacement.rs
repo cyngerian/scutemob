@@ -1809,6 +1809,19 @@ pub fn register_static_continuous_effects(
                     },
                 );
             }
+            // PB-I: Register a static flash grant (Yeva-style).
+            // CR 601.3b: "You may cast [X] spells as though they had flash."
+            AbilityDefinition::StaticFlashGrant { filter } => {
+                state
+                    .flash_grants
+                    .push_back(crate::state::stubs::FlashGrant {
+                    source: Some(new_id),
+                    player: controller,
+                    filter: filter.clone(),
+                    duration:
+                        crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield,
+                });
+            }
             _ => {}
         }
     }

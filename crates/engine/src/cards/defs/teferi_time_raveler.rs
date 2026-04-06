@@ -17,12 +17,19 @@ pub fn card() -> CardDefinition {
         oracle_text: "Each opponent can cast spells only any time they could cast a sorcery.\n+1: Until your next turn, you may cast sorcery spells as though they had flash.\n\u{2212}3: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card.".to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
-            // TODO: "Each opponent can cast spells only any time they could cast a sorcery"
-            //   — stax restriction not expressible in DSL.
-            // TODO: +1 flash-for-sorceries not expressible.
+            // Passive: "Each opponent can cast spells only any time they could cast a sorcery."
+            // CR 307.5 / CR 101.2: restriction overrides permission (beats flash grants).
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed,
+            },
+            // +1: "Until your next turn, you may cast sorcery spells as though they had flash."
+            // CR 601.3b: PlayerId(0) is resolved to the controller at execution time.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::Nothing,
+                effect: Effect::GrantFlash {
+                    filter: FlashGrantFilter::Sorceries,
+                    duration: EffectDuration::UntilYourNextTurn(PlayerId(0)),
+                },
                 targets: vec![],
             },
             // −3: Bounce + draw
@@ -32,7 +39,9 @@ pub fn card() -> CardDefinition {
                     Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         to: ZoneTarget::Hand {
-                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                                index: 0,
+                            })),
                         },
                         controller_override: None,
                     },

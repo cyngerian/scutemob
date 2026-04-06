@@ -915,6 +915,16 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 71.
     AdditionalLandPlays { count: u32 },
+    /// Static flash grant — "You may cast [X] spells as though they had flash."
+    /// (Yeva, Nature's Herald)
+    ///
+    /// Registers a `FlashGrant` with `WhileSourceOnBattlefield` duration when the
+    /// permanent enters the battlefield. Cleaned up when source leaves.
+    ///
+    /// Discriminant 72.
+    StaticFlashGrant {
+        filter: crate::state::stubs::FlashGrantFilter,
+    },
 }
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
 ///
@@ -1908,6 +1918,14 @@ pub enum Effect {
         modification: ReplacementModification,
         /// How long the replacement effect lasts.
         duration: EffectDuration,
+    },
+    /// CR 601.3b: Grant the controller permission to cast certain spells as though
+    /// they had flash. Registers a `FlashGrant` on GameState.
+    ///
+    /// Used by Borne Upon a Wind, Complete the Circuit, Teferi's +1 loyalty ability.
+    GrantFlash {
+        filter: crate::state::stubs::FlashGrantFilter,
+        duration: crate::state::continuous_effect::EffectDuration,
     },
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────

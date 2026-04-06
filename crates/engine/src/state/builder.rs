@@ -318,6 +318,7 @@ impl GameStateBuilder {
             trigger_doublers: Vector::new(),
             etb_suppressors: Vector::new(),
             restrictions: Vector::new(),
+            flash_grants: Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
             timestamp_counter: 0,

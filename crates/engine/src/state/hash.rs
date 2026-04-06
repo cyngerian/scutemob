@@ -1488,6 +1488,7 @@ impl HashInto for GameRestriction {
                 7u8.hash_into(hasher);
                 max.hash_into(hasher);
             }
+            OpponentsCanOnlyCastAtSorcerySpeed => 8u8.hash_into(hasher),
         }
     }
 }
@@ -1496,6 +1497,25 @@ impl HashInto for ActiveRestriction {
         self.source.hash_into(hasher);
         self.controller.hash_into(hasher);
         self.restriction.hash_into(hasher);
+    }
+}
+// --- Flash grant type implementations (PB-I) ---
+impl HashInto for crate::state::stubs::FlashGrantFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::stubs::FlashGrantFilter;
+        match self {
+            FlashGrantFilter::AllSpells => 0u8.hash_into(hasher),
+            FlashGrantFilter::Sorceries => 1u8.hash_into(hasher),
+            FlashGrantFilter::GreenCreatures => 2u8.hash_into(hasher),
+        }
+    }
+}
+impl HashInto for crate::state::stubs::FlashGrant {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.player.hash_into(hasher);
+        self.filter.hash_into(hasher);
+        self.duration.hash_into(hasher);
     }
 }
 // --- Replacement effect type implementations (M8) ---
@@ -5183,6 +5203,12 @@ impl HashInto for Effect {
                 modification.hash_into(hasher);
                 duration.hash_into(hasher);
             }
+            // PB-I: GrantFlash (discriminant 78)
+            Effect::GrantFlash { filter, duration } => {
+                78u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                duration.hash_into(hasher);
+            }
         }
     }
 }
@@ -5641,6 +5667,11 @@ impl HashInto for AbilityDefinition {
                 71u8.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // PB-I: StaticFlashGrant (discriminant 72) -- static "cast as though flash" (CR 601.3b)
+            AbilityDefinition::StaticFlashGrant { filter } => {
+                72u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
         }
     }
 }
@@ -5768,6 +5799,8 @@ impl GameState {
         self.etb_suppressors.hash_into(&mut hasher);
         // PB-18: active restrictions (Rule of Law, Propaganda, etc.)
         self.restrictions.hash_into(&mut hasher);
+        // PB-I: active flash grants (CR 601.3b)
+        self.flash_grants.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
         // 6. Combat state
         self.combat.hash_into(&mut hasher);

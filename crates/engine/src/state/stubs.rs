@@ -564,6 +564,11 @@ pub enum GameRestriction {
     /// nonartifact spells." (Ethersworn Canonist)
     /// CR 101.2: effectively max 1 nonartifact spell per turn per player.
     MaxNonartifactSpellsPerTurn { max: u32 },
+    /// "Each opponent can cast spells only any time they could cast a sorcery."
+    /// (Teferi, Time Raveler)
+    /// CR 307.5: "only as a sorcery" = must have priority, main phase, empty stack.
+    /// CR 101.2: restriction overrides permission — this beats flash grants.
+    OpponentsCanOnlyCastAtSorcerySpeed,
 }
 /// An active restriction in the game, registered from a static ability of a
 /// permanent on the battlefield.
@@ -582,6 +587,35 @@ pub struct ActiveRestriction {
     pub controller: PlayerId,
     /// The restriction being imposed.
     pub restriction: GameRestriction,
+}
+/// Filter for which spells a flash grant applies to.
+/// CR 601.3b: "a spell with certain qualities"
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlashGrantFilter {
+    /// All spells (Borne Upon a Wind: "You may cast spells...")
+    AllSpells,
+    /// Sorcery spells only (Complete the Circuit, Teferi +1: "sorcery spells")
+    Sorceries,
+    /// Green creature spells only (Yeva: "green creature spells")
+    GreenCreatures,
+}
+/// An active flash grant allowing a player to cast certain spells at instant speed.
+///
+/// Follows the same pattern as `ActiveRestriction`:
+/// - `source: Option<ObjectId>` for cleanup when the source leaves the battlefield
+///   (None for spell-based grants that expire by duration)
+/// - Registered by `Effect::GrantFlash` or `AbilityDefinition::StaticFlashGrant`
+/// - Checked in `casting.rs` timing validation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FlashGrant {
+    /// ObjectId of the source (permanent for static grants, None for one-shot spell effects).
+    pub source: Option<ObjectId>,
+    /// The player who receives the flash permission.
+    pub player: PlayerId,
+    /// Which spells this grant applies to.
+    pub filter: FlashGrantFilter,
+    /// How long the grant lasts.
+    pub duration: crate::state::continuous_effect::EffectDuration,
 }
 /// CR 305.2: A static "additional land play" source registered from a permanent
 /// on the battlefield with `AbilityDefinition::AdditionalLandPlays`.

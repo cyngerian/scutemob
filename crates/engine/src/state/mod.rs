@@ -46,7 +46,8 @@ pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use std::sync::Arc;
 pub use stubs::{
     ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
-    GameRestriction, PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
+    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, TriggerDoubler,
+    TriggerDoublerFilter,
 };
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
@@ -121,6 +122,13 @@ pub struct GameState {
     /// enters the battlefield; cleaned up when that permanent leaves.
     #[serde(default)]
     pub restrictions: Vector<ActiveRestriction>,
+    /// Active flash grants (cast-as-though-flash permissions, CR 601.3b).
+    ///
+    /// Allows players to cast certain spells at instant speed. Checked at casting-validation
+    /// time in casting.rs. Registered by Effect::GrantFlash or AbilityDefinition::StaticFlashGrant.
+    /// Cleaned up by duration expiry or source leaving battlefield.
+    #[serde(default)]
+    pub flash_grants: Vector<FlashGrant>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

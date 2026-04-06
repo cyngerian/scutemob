@@ -1275,6 +1275,14 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
             state.prevention_counters.remove(id);
         }
     }
+    // PB-I: Expire UntilEndOfTurn flash grants (CR 514.2).
+    let keep_grants: im::Vector<crate::state::stubs::FlashGrant> = state
+        .flash_grants
+        .iter()
+        .filter(|g| g.duration != EffectDuration::UntilEndOfTurn)
+        .cloned()
+        .collect();
+    state.flash_grants = keep_grants;
 }
 
 /// Expire continuous effects and temporary player protections with
@@ -1303,6 +1311,14 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .cloned()
         .collect();
     state.replacement_effects = keep_repl;
+    // PB-I: Expire UntilYourNextTurn flash grants for this player (CR 611.2b).
+    let keep_grants: im::Vector<crate::state::stubs::FlashGrant> = state
+        .flash_grants
+        .iter()
+        .filter(|g| g.duration != EffectDuration::UntilYourNextTurn(active_player))
+        .cloned()
+        .collect();
+    state.flash_grants = keep_grants;
     // Clear temporary protection for the active player.
     if let Some(ps) = state.players.get_mut(&active_player) {
         if !ps.temporary_protection_qualities.is_empty() {

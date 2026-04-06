@@ -1523,6 +1523,17 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             p.land_plays_remaining += additional_land_plays;
         }
     }
+    // PB-I: Clean up WhileSourceOnBattlefield flash grants whose source left.
+    // Note: has_active_flash_grant() already checks source validity inline at query time,
+    // but this housekeeping sweep keeps the Vector tidy.
+    state.flash_grants.retain(|g| match g.source {
+        Some(src) => state
+            .objects
+            .get(&src)
+            .map(|o| matches!(o.zone, crate::state::ZoneId::Battlefield))
+            .unwrap_or(false),
+        None => true,
+    });
     // CR 615.1: Reset per-turn combat damage prevention flags.
     state.prevent_all_combat_damage = false;
     state.combat_damage_prevented_from = im::OrdSet::new();

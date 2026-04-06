@@ -6,8 +6,9 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, CounterType, FaceDownKind, GameRestriction,
-    GameState, KeywordAbility, ManaCost, ObjectId, PlayerId, Step, TurnFaceUpMethod, ZoneId,
+    AbilityDefinition, AttackTarget, CardType, CounterType, FaceDownKind, FlashGrantFilter,
+    GameRestriction, GameState, KeywordAbility, ManaCost, ObjectId, PlayerId, Step,
+    TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -214,9 +215,28 @@ impl LegalActionProvider for StubProvider {
                     .keywords
                     .contains(&KeywordAbility::Flash);
 
+                // CR 601.3b: Check if player has an active flash grant for this spell.
+                let has_flash_grant = state.flash_grants.iter().any(|g| {
+                    if g.player != player {
+                        return false;
+                    }
+                    match &g.filter {
+                        FlashGrantFilter::AllSpells => true,
+                        FlashGrantFilter::Sorceries => {
+                            obj.characteristics.card_types.contains(&CardType::Sorcery)
+                        }
+                        FlashGrantFilter::GreenCreatures => {
+                            obj.characteristics.card_types.contains(&CardType::Creature)
+                                && obj
+                                    .characteristics
+                                    .colors
+                                    .contains(&mtg_engine::Color::Green)
+                        }
+                    }
+                });
                 // Timing check: instants and flash anytime with priority;
                 // sorcery-speed only main phase + stack empty + active player
-                let can_cast = if is_instant || has_flash {
+                let can_cast = if is_instant || has_flash || has_flash_grant {
                     true
                 } else {
                     is_main_phase && stack_empty && is_active

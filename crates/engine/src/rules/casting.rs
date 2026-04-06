@@ -3012,7 +3012,9 @@ pub fn handle_cast_spell(
     // sorcery-speed cards with escape can only be cast at sorcery speed.
     // CR 702.81a ruling (2008-08-01): Retrace does NOT ignore timing restrictions —
     // sorceries with retrace can only be cast at sorcery speed from the graveyard.
-    if !is_instant_speed && !casting_with_madness && !cast_with_miracle {
+    // CR 601.3b: Check flash grants before enforcing sorcery-speed timing.
+    let has_flash_grant = has_active_flash_grant(state, player, &chars);
+    if !is_instant_speed && !casting_with_madness && !cast_with_miracle && !has_flash_grant {
         // Sorcery speed: active player only, main phase, empty stack (CR 307.1).
         if state.turn.active_player != player {
             return Err(GameStateError::InvalidCommand(
@@ -5361,12 +5363,68 @@ fn check_cast_restrictions(
                     }
                 }
             }
+            // Teferi, Time Raveler: "Each opponent can cast spells only any time
+            // they could cast a sorcery."
+            // CR 307.5: sorcery speed = priority + main phase + stack empty.
+            // CR 101.2: restriction overrides permission (beats flash grants).
+            GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed => {
+                let controller = restriction.controller;
+                if player != controller {
+                    let is_own_main = state.turn.active_player == player
+                        && matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain);
+                    if !is_own_main || !state.stack_objects.is_empty() {
+                        return Err(GameStateError::InvalidCommand(
+                            "restriction: opponents can only cast spells at sorcery speed (CR 101.2)"
+                                .into(),
+                        ));
+                    }
+                }
+            }
             // Attack tax and artifact ability restrictions don't affect casting.
             GameRestriction::CantAttackYouUnlessPay { .. }
             | GameRestriction::ArtifactAbilitiesCantBeActivated => {}
         }
     }
     Ok(())
+}
+/// CR 601.3b: Check if the player has an active flash grant that applies to this spell.
+///
+/// Iterates `state.flash_grants` and checks:
+/// 1. Source still on battlefield (for WhileSourceOnBattlefield grants)
+/// 2. Player matches
+/// 3. Filter matches the spell's characteristics
+fn has_active_flash_grant(state: &GameState, player: PlayerId, chars: &Characteristics) -> bool {
+    use crate::state::stubs::FlashGrantFilter;
+    state.flash_grants.iter().any(|grant| {
+        // Check player match
+        if grant.player != player {
+            return false;
+        }
+        // Check source validity for WhileSourceOnBattlefield grants
+        if let crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield =
+            grant.duration
+        {
+            if let Some(src) = grant.source {
+                let on_bf = state
+                    .objects
+                    .get(&src)
+                    .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                    .unwrap_or(false);
+                if !on_bf {
+                    return false;
+                }
+            }
+        }
+        // Check filter match
+        match &grant.filter {
+            FlashGrantFilter::AllSpells => true,
+            FlashGrantFilter::Sorceries => chars.card_types.contains(&CardType::Sorcery),
+            FlashGrantFilter::GreenCreatures => {
+                chars.card_types.contains(&CardType::Creature)
+                    && chars.colors.contains(&crate::state::types::Color::Green)
+            }
+        }
+    })
 }
 pub fn has_split_second_on_stack(state: &GameState) -> bool {
     state.stack_objects.iter().any(|stack_obj| {

@@ -4598,6 +4598,27 @@ fn execute_effect_inner(
                 description: format!("registered replacement: {:?}", modification),
             });
         }
+        // CR 601.3b: Register a flash grant for the controller.
+        Effect::GrantFlash { filter, duration } => {
+            use crate::state::continuous_effect::EffectDuration;
+            use crate::state::player::PlayerId;
+            let controller = ctx.controller;
+            // Resolve UntilYourNextTurn(PlayerId(0)) placeholder to controller.
+            let resolved_duration = match duration {
+                EffectDuration::UntilYourNextTurn(PlayerId(0)) => {
+                    EffectDuration::UntilYourNextTurn(controller)
+                }
+                other => *other,
+            };
+            state
+                .flash_grants
+                .push_back(crate::state::stubs::FlashGrant {
+                    source: None,
+                    player: controller,
+                    filter: filter.clone(),
+                    duration: resolved_duration,
+                });
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────
