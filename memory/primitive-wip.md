@@ -4,7 +4,12 @@ batch: PB-I
 title: Grant flash
 cards_affected: 4
 started: 2026-04-05
-phase: implement
+phase: done
+
+## Review
+findings: 5 (HIGH: 0, MEDIUM: 3, LOW: 2)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-I.md
 plan_file: memory/primitives/pb-plan-I.md
 
 ## Cards
@@ -28,3 +33,4 @@ plan_file: memory/primitives/pb-plan-I.md
 - [x] 3. New card definitions: yeva_natures_herald.rs (Flash + StaticFlashGrant GreenCreatures)
 - [x] 4. Unit tests: 13 tests in crates/engine/tests/grant_flash.rs — all passing
 - [x] 5. Workspace build verification: cargo build --workspace clean, cargo test --all 2504 passed, cargo clippy -- -D warnings clean, cargo fmt --check clean
+- [x] 6. Fix phase: 3 MEDIUM findings resolved — simulator source-validity for WhileSourceOnBattlefield grants (legal_actions.rs ~line 219), simulator OpponentsCanOnlyCastAtSorcerySpeed arm (legal_actions.rs ~line 970), test_yeva_static_flash_grant_registered_on_etb rewritten to exercise ETB pipeline (grant_flash.rs). 2504 tests pass, 0 clippy warnings.

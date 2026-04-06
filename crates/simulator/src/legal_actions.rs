@@ -6,9 +6,9 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, CounterType, FaceDownKind, FlashGrantFilter,
-    GameRestriction, GameState, KeywordAbility, ManaCost, ObjectId, PlayerId, Step,
-    TurnFaceUpMethod, ZoneId,
+    AbilityDefinition, AttackTarget, CardType, CounterType, EffectDuration, FaceDownKind,
+    FlashGrantFilter, GameRestriction, GameState, KeywordAbility, ManaCost, ObjectId, PlayerId,
+    Step, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -219,6 +219,21 @@ impl LegalActionProvider for StubProvider {
                 let has_flash_grant = state.flash_grants.iter().any(|g| {
                     if g.player != player {
                         return false;
+                    }
+                    // CR 611.2b: WhileSourceOnBattlefield grants are only active while
+                    // the source object is still on the battlefield (mirrors engine's
+                    // has_active_flash_grant check in casting.rs).
+                    if matches!(g.duration, EffectDuration::WhileSourceOnBattlefield) {
+                        if let Some(src) = g.source {
+                            let on_bf = state
+                                .objects
+                                .get(&src)
+                                .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                                .unwrap_or(false);
+                            if !on_bf {
+                                return false;
+                            }
+                        }
                     }
                     match &g.filter {
                         FlashGrantFilter::AllSpells => true,
@@ -965,6 +980,22 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
             GameRestriction::OpponentsCantCastOrActivateDuringYourTurn => {
                 if active_player == controller && player != controller {
                     return true;
+                }
+            }
+            // PB-I: Teferi, Time Raveler — opponents may only cast spells at sorcery speed.
+            // CR 101.2: This restriction overrides any flash permission the player has.
+            // Sorcery speed = player's own main phase + empty stack + active player.
+            GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed => {
+                if player != controller {
+                    let is_own_main = active_player == player
+                        && matches!(
+                            state.turn.step,
+                            Step::PreCombatMain | Step::PostCombatMain
+                        );
+                    let stack_empty = state.stack_objects.is_empty();
+                    if !is_own_main || !stack_empty {
+                        return true;
+                    }
                 }
             }
             _ => {}

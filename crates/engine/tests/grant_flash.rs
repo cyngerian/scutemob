@@ -800,9 +800,9 @@ fn test_grant_flash_multiplayer_grant_is_player_specific() {
 
 // ── Test 9: Yeva static flash grant registration on ETB ───────────────────────
 
-/// CR 601.3b — Verify Yeva's StaticFlashGrant is registered in state.flash_grants
-/// when Yeva enters the battlefield via Effect::MoveZone.
-/// Tests the full engine pipeline: `register_static_continuous_effects` → `flash_grants`.
+/// CR 601.3b — Casting Yeva populates state.flash_grants via register_static_continuous_effects.
+/// Tests the full engine pipeline: cast Yeva (Flash) → resolve → register_static_continuous_effects
+/// → state.flash_grants contains a WhileSourceOnBattlefield GreenCreatures grant for p1.
 #[test]
 fn test_yeva_static_flash_grant_registered_on_etb() {
     let p1 = p(1);
@@ -810,9 +810,9 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
 
     let registry = CardRegistry::new(vec![yeva_def()]);
 
-    // Yeva already on the battlefield (pre-placed via builder).
+    // Yeva in hand — will be cast during p1's main phase.
     let yeva_spec = ObjectSpec::card(p1, "Yeva, Nature's Herald")
-        .in_zone(ZoneId::Battlefield)
+        .in_zone(ZoneId::Hand(p1))
         .with_card_id(CardId("yeva-natures-herald".to_string()))
         .with_types(vec![CardType::Creature])
         .with_keyword(KeywordAbility::Flash)
@@ -822,7 +822,7 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
             ..Default::default()
         });
 
-    let state = GameStateBuilder::new()
+    let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
         .with_registry(registry)
@@ -832,25 +832,57 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
         .build()
         .unwrap();
 
-    // Yeva is pre-placed without going through register_static_continuous_effects.
-    // The grant is only registered on ETB. Check that a manually-cast Yeva would register.
-    // For this unit test, just verify that the StaticFlashGrant ability definition is correct
-    // by checking Yeva's card definition from the registry.
-    let yeva_def_from_reg = state
-        .card_registry
-        .get(mtg_engine::CardId("yeva-natures-herald".to_string()))
-        .expect("Yeva should be in registry");
+    // Provide {2}{G}{G} — 4 green mana covers both generic and green pips.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(mtg_engine::ManaColor::Green, 4);
+    state.turn.priority_holder = Some(p1);
 
-    let has_flash_grant = yeva_def_from_reg.abilities.iter().any(|a| {
-        matches!(
-            a,
-            AbilityDefinition::StaticFlashGrant {
-                filter: FlashGrantFilter::GreenCreatures
-            }
-        )
-    });
+    // No flash grant yet — flash_grants starts empty.
     assert!(
-        has_flash_grant,
-        "Yeva's card def should have StaticFlashGrant(GreenCreatures)"
+        state.flash_grants.is_empty(),
+        "flash_grants should be empty before Yeva enters the battlefield"
+    );
+
+    // Cast Yeva (she has Flash, so legal at any time with priority).
+    let yeva_id = find_object(&state, "Yeva, Nature's Herald");
+    let (state, _) = process_command(state, cast_spell_cmd(p1, yeva_id))
+        .expect("casting Yeva should succeed — she has Flash");
+
+    // Yeva is now on the stack. Both players pass priority to resolve her.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // After resolution Yeva is on the battlefield and flash_grants is populated.
+    // register_static_continuous_effects fires on ETB and pushes a FlashGrant.
+    assert_eq!(
+        state.flash_grants.len(),
+        1,
+        "flash_grants should contain exactly one entry after Yeva resolves"
+    );
+
+    let grant = state.flash_grants.iter().next().unwrap();
+    assert_eq!(grant.player, p1, "grant should be for Yeva's controller (p1)");
+    assert!(
+        matches!(grant.filter, FlashGrantFilter::GreenCreatures),
+        "grant filter should be GreenCreatures"
+    );
+    assert!(
+        matches!(grant.duration, EffectDuration::WhileSourceOnBattlefield),
+        "grant duration should be WhileSourceOnBattlefield"
+    );
+    assert!(
+        grant.source.is_some(),
+        "grant source should be Yeva's ObjectId on the battlefield"
+    );
+
+    // Verify the grant's source is Yeva on the battlefield.
+    let source_id = grant.source.unwrap();
+    let source_obj = state.objects.get(&source_id).expect("Yeva should be on the battlefield");
+    assert!(
+        matches!(source_obj.zone, ZoneId::Battlefield),
+        "Yeva's grant source should be on the battlefield"
     );
 }
