@@ -53,6 +53,7 @@
 | PB-F | Damage multiplier | done | 3 | ~0 | clean | 1 |
 | PB-I | Grant flash | done | 4 | ~0 | fixed | 1 |
 | PB-H | Mass reanimate | done | 5 | ~0 | fixed | 1 |
+| PB-L | Reveal/X effects | done | 7 | ~0 | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -116,7 +117,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2519 |
+| Total tests | 2531 |
 | Test files | 213 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
