@@ -1451,6 +1451,33 @@ pub(crate) fn resolve_cda_amount(
             resolve_cda_amount(state, a, object_id, controller)
                 + resolve_cda_amount(state, b, object_id, controller)
         }
+        // PB-L: Domain count — number of distinct basic land types among lands the
+        // controller controls. Uses base characteristics (avoids recursion; land types
+        // are set by Layer 4 effects like Dryad, not by CDAs).
+        // CR 305.6 / ability word "Domain".
+        EffectAmount::DomainCount => {
+            let basic_land_subtypes = [
+                crate::state::types::SubType("Plains".to_string()),
+                crate::state::types::SubType("Island".to_string()),
+                crate::state::types::SubType("Swamp".to_string()),
+                crate::state::types::SubType("Mountain".to_string()),
+                crate::state::types::SubType("Forest".to_string()),
+            ];
+            let mut count = 0i32;
+            for sub in &basic_land_subtypes {
+                let has_it = state.objects.values().any(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == controller
+                        && obj.characteristics.card_types.contains(&CardType::Land)
+                        && obj.characteristics.subtypes.contains(sub)
+                });
+                if has_it {
+                    count += 1;
+                }
+            }
+            count
+        }
         _ => {
             debug_assert!(
                 false,

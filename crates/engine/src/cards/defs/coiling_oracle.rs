@@ -2,10 +2,8 @@
 // When this enters, reveal the top card of your library. If it's a land card,
 // put it onto the battlefield. Otherwise, put that card into your hand.
 //
-// TODO: DSL gap — "reveal top card, if land put onto battlefield, else put into hand" requires
-// RevealAndRoute pattern: reveal top card of library, branch on card type (land → battlefield,
-// non-land → hand). Neither Effect::RevealLibraryTop nor conditional branching by revealed
-// card type exists in DSL. Approximated as Nothing to avoid wrong game state.
+// CR 701.20: "To reveal a card, show that card to all players for a brief time."
+// Effect::RevealAndRoute added in PB-22 with ZoneTarget::Battlefield support.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,11 +16,22 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: ETB — reveal top card of library; if land → battlefield, else → hand.
-            // Needs Effect::RevealTopOfLibrary with branching on card type. DSL gap.
+            // CR 701.20: ETB — reveal top card of library; if land → battlefield (untapped),
+            // else → hand. Uses RevealAndRoute with CardType::Land filter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Nothing,
+                effect: Effect::RevealAndRoute {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    matched_dest: ZoneTarget::Battlefield { tapped: false },
+                    unmatched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                },
                 intervening_if: None,
                 targets: vec![],
                 modes: None,

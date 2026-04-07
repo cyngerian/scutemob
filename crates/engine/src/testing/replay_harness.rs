@@ -1666,6 +1666,33 @@ pub fn translate_player_action(
                 phyrexian_life_payments: vec![],
             })
         }
+        // CR 118.9 / Commander 2020 cycle: Cast a spell from hand without paying its mana cost,
+        // conditional on controlling a commander on the battlefield.
+        // 2020-04-17 ruling: any commander (any player's) satisfies the condition.
+        // Action JSON fields:
+        //   `card_name`: the card to cast from hand
+        //   `targets`: optional target list
+        "cast_spell_commander_free" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::CommanderFreeCast),
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            })
+        }
         // CR 702.37e / CR 702.168d / CR 701.40b: Turn a face-down permanent face up.
         // This is a special action (CR 116.2b) — does NOT use the stack.
         // Action JSON fields:

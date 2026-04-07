@@ -168,6 +168,11 @@ pub enum AltCostKind {
     /// (CR 715.3b). On resolution, the card is exiled instead of going to graveyard (CR 715.3d).
     /// From exile, the controller may cast the creature half (but NOT as an Adventure again).
     Adventure,
+    /// CR 118.9 / Commander 2020 cycle: "If you control a commander, you may cast
+    /// this spell without paying its mana cost." Cost becomes {0}; condition validated
+    /// at cast time (caster must control a commander on the battlefield).
+    /// 2020-04-17 ruling: any commander works — doesn't have to be your own.
+    CommanderFreeCast,
 }
 /// Consolidated additional costs for spell casting (CR 601.2b, 601.2f-h).
 ///

@@ -11,7 +11,13 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.".to_string(),
         abilities: vec![
-            // TODO: Conditional free-cast (control a commander) not in DSL.
+            // CR 118.9 / 2020-04-17 ruling: cast without paying mana cost if you control
+            // any commander on the battlefield (any player's commander qualifies).
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::CommanderFreeCast,
+                cost: ManaCost::default(),
+                details: None,
+            },
             AbilityDefinition::Spell {
                 effect: Effect::CounterSpell {
                     target: EffectTarget::DeclaredTarget { index: 0 },

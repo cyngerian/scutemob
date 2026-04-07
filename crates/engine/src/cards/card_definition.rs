@@ -2089,6 +2089,14 @@ pub enum EffectAmount {
     /// Used for Three Tree City mana, Pact of the Serpent draw/life loss.
     /// CR 205.3m: Type check uses layer-resolved characteristics.
     ChosenTypeCreatureCount { controller: PlayerTarget },
+    /// Domain count: the number of distinct basic land types (Plains, Island, Swamp,
+    /// Mountain, Forest) among lands the controller controls.
+    ///
+    /// CR 305.6 / ability word "Domain": Used for effects whose magnitude equals
+    /// the domain count (e.g., Allied Strategies: "draw a card for each basic land
+    /// type among lands they control"). Uses layer-resolved characteristics so that
+    /// effects like Dryad of the Ilysian Grove (Layer 4) are accounted for.
+    DomainCount,
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

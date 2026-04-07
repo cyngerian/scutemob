@@ -640,21 +640,19 @@ fn test_living_death_replacement_exile_not_returned() {
     // Register a Leyline-of-the-Void-like replacement: any permanent that would
     // go to a graveyard from the battlefield goes to exile instead.
     let repl_id = state.next_replacement_id();
-    state
-        .replacement_effects
-        .push_back(ReplacementEffect {
-            id: repl_id,
-            source: None,
-            controller: p(1),
-            duration: EffectDuration::Indefinite,
-            is_self_replacement: false,
-            trigger: ReplacementTrigger::WouldChangeZone {
-                from: Some(ZoneType::Battlefield),
-                to: ZoneType::Graveyard,
-                filter: ObjectFilter::Any,
-            },
-            modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
-        });
+    state.replacement_effects.push_back(ReplacementEffect {
+        id: repl_id,
+        source: None,
+        controller: p(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    });
 
     let (state, _events) = run_effect(state, p(1), Effect::LivingDeath);
 

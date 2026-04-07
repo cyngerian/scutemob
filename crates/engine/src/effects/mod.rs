@@ -5785,6 +5785,39 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 })
                 .count() as i32
         }
+        // CR 305.6 / ability word "Domain": count distinct basic land types among lands the
+        // controller controls. Basic land subtypes are Plains, Island, Swamp, Mountain, Forest.
+        // Uses calculate_characteristics() so Layer 4 effects (e.g. Dryad of the Ilysian Grove)
+        // are reflected correctly (Blood Moon interaction: non-basic becomes Mountain only).
+        EffectAmount::DomainCount => {
+            let controller_id = ctx.controller;
+            let basic_land_subtypes = [
+                SubType("Plains".to_string()),
+                SubType("Island".to_string()),
+                SubType("Swamp".to_string()),
+                SubType("Mountain".to_string()),
+                SubType("Forest".to_string()),
+            ];
+            let mut count = 0i32;
+            for sub in &basic_land_subtypes {
+                let has_it = state.objects.values().any(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == controller_id
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            chars.card_types.contains(&CardType::Land)
+                                && chars.subtypes.contains(sub)
+                        }
+                });
+                if has_it {
+                    count += 1;
+                }
+            }
+            count
+        }
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────

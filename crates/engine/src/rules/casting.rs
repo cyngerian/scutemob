@@ -161,6 +161,7 @@ pub fn handle_cast_spell(
     let cast_with_disturb = alt_cost == Some(AltCostKind::Disturb);
     let cast_with_morph = alt_cost == Some(AltCostKind::Morph);
     let cast_with_adventure = alt_cost == Some(AltCostKind::Adventure);
+    let cast_with_commander_free = alt_cost == Some(AltCostKind::CommanderFreeCast);
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
@@ -1986,6 +1987,34 @@ pub fn handle_cast_spell(
     } else {
         None
     };
+    // Step 1m: Validate CommanderFreeCast (CR 118.9).
+    // "If you control a commander, you may cast this spell without paying its mana cost."
+    // 2020-04-17 ruling: "It doesn't matter whose commander you control. Any one will do."
+    if cast_with_commander_free {
+        // 2020-04-17 ruling: "It doesn't matter whose commander you control. Any one will do."
+        // Check if the caster controls ANY commander on the battlefield (any player's commander).
+        let controls_commander = state.objects.values().any(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && obj.is_phased_in()
+                && obj.controller == player
+                && obj
+                    .card_id
+                    .as_ref()
+                    .map(|cid| {
+                        state
+                            .players
+                            .values()
+                            .any(|p| p.commander_ids.contains(cid))
+                    })
+                    .unwrap_or(false)
+        });
+        if !controls_commander {
+            return Err(GameStateError::InvalidCommand(
+                "commander free-cast requires controlling a commander on the battlefield (CR 118.9)"
+                    .into(),
+            ));
+        }
+    }
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     // CR 718.3a: When prototype is true, the prototype mana cost REPLACES the card's
     // normal mana cost as the base. The alt-cost chain then operates on this base.
@@ -2161,6 +2190,10 @@ pub fn handle_cast_spell(
             ));
         }
         adventure_cost
+    } else if cast_with_commander_free {
+        // CR 118.9: Cast without paying mana cost. Cost is zero.
+        // CR 118.9d: Additional costs (kicker, splice, etc.) still apply on top.
+        Some(ManaCost::default())
     } else {
         base_mana_cost
     };
