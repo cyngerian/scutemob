@@ -447,6 +447,17 @@ pub struct StackObject {
     /// Read by EffectTarget::TriggeringCreature at resolution time.
     #[serde(default)]
     pub triggering_creature_id: Option<super::game_object::ObjectId>,
+    /// PB-A: If true, this spell was cast from the top of the library via a permission
+    /// that has an `on_cast_effect` (e.g. Thundermane Dragon grants haste).
+    ///
+    /// When this flag is set, `resolution.rs` directly inserts `KeywordAbility::Haste`
+    /// into the permanent's keywords after it enters the battlefield. This avoids the
+    /// CR 400.7 problem: a continuous effect targeting the *stack* ObjectId would never
+    /// apply to the *battlefield* permanent (which has a different ObjectId).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_from_top_with_bonus: bool,
 }
 impl StackObject {
     /// Build a triggered-ability StackObject with all cast-specific fields set to
@@ -509,6 +520,7 @@ impl StackObject {
             damaged_player: None,
             combat_damage_amount: 0,
             triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
         }
     }
 }

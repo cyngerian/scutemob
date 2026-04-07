@@ -636,6 +636,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             },
                         );
                     }
+                    // PB-A: Thundermane Dragon on_cast_effect (CR 400.7 fix).
+                    // When cast from library top via a permission with on_cast_effect,
+                    // grant Haste directly to the battlefield permanent here, using its
+                    // NEW ObjectId. We cannot use a continuous effect targeting the stack
+                    // ObjectId (CR 400.7: that id is dead after zone transition).
+                    // Pattern mirrors was_dashed / was_blitzed above.
+                    if stack_obj.cast_from_top_with_bonus {
+                        // Thundermane Dragon oracle: "it gains haste until end of turn."
+                        obj.characteristics.keywords.insert(KeywordAbility::Haste);
+                    }
                     // CR 702.62a: If the spell was cast via suspend and the permanent
                     // is a creature, it gains haste (modelled as clearing summoning
                     // sickness; V1 simplification per plan). The "until you lose control"

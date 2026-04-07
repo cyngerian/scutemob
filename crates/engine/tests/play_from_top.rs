@@ -18,12 +18,15 @@
 //! - Without permission, casting from library top fails
 //! - Without permission, PlayLand from library fails
 
-use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::cards::card_definition::{
+    ContinuousEffectDef as CardContinuousEffectDef, EffectAmount, PlayerTarget,
+};
 use mtg_engine::state::stubs::PlayFromTopPermission;
 use mtg_engine::{
-    process_command, AbilityDefinition, AltCostKind, CardDefinition, CardId, CardRegistry,
-    CardType, Color, Command, Effect, GameEvent, GameState, GameStateBuilder, ManaColor, ManaCost,
-    ObjectId, ObjectSpec, PlayFromTopFilter, PlayerId, Step, ZoneId,
+    calculate_characteristics, process_command, AbilityDefinition, AltCostKind, CardDefinition,
+    CardId, CardRegistry, CardType, Color, Command, Effect, EffectDuration, EffectFilter,
+    EffectLayer, GameEvent, GameState, GameStateBuilder, KeywordAbility, LayerModification,
+    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayFromTopFilter, PlayerId, Step, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -1137,5 +1140,246 @@ fn test_play_from_top_land_no_permission_rejected() {
     assert!(
         result.is_err(),
         "Should not be able to play a land from library top without a permission"
+    );
+}
+
+/// Pass priority for all listed players once (helper for resolution tests).
+fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
+    let mut all_events = Vec::new();
+    let mut current = state;
+    for &pl in players {
+        let (s, ev) = process_command(current, Command::PassPriority { player: pl })
+            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
+        current = s;
+        all_events.extend(ev);
+    }
+    (current, all_events)
+}
+
+/// An ObjectSpec for "Test X Creature" in a player's library (Creature {X}{G}{G}, P/T = 0/0).
+/// Used to test that X=0 is enforced for PayLifeForManaValue.
+fn x_creature_spec(owner: PlayerId) -> ObjectSpec {
+    ObjectSpec::creature(owner, "Test X Creature", 0, 0)
+        .in_zone(ZoneId::Library(owner))
+        .with_mana_cost(ManaCost {
+            green: 2,
+            x_count: 1,
+            ..Default::default()
+        })
+        .with_colors(vec![Color::Green])
+}
+
+/// An X-cost creature CardDefinition for {X}{G}{G} with x_count: 1.
+fn x_creature_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("test-x-creature".to_string()),
+        name: "Test X Creature".to_string(),
+        mana_cost: Some(ManaCost {
+            green: 2,
+            x_count: 1,
+            ..Default::default()
+        }),
+        types: mtg_engine::TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".to_string(),
+        power: Some(0),
+        toughness: Some(0),
+        abilities: vec![],
+        ..Default::default()
+    }
+}
+
+/// Inject a CreaturesWithMinPower(4) permission with haste on_cast_effect
+/// for the given source/controller (Thundermane Dragon style).
+fn inject_creatures_min_power_4_with_haste(
+    state: &mut GameState,
+    source: ObjectId,
+    controller: PlayerId,
+) {
+    state
+        .play_from_top_permissions
+        .push_back(PlayFromTopPermission {
+            source,
+            controller,
+            filter: PlayFromTopFilter::CreaturesWithMinPower(4),
+            look_at_top: true,
+            reveal_top: false,
+            pay_life_instead: false,
+            condition: None,
+            on_cast_effect: Some(Box::new(Effect::ApplyContinuousEffect {
+                effect_def: Box::new(CardContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                    filter: EffectFilter::Source,
+                    duration: EffectDuration::UntilEndOfTurn,
+                    condition: None,
+                }),
+            })),
+        });
+}
+
+/// CR 107.3 / 2019-05-03 Bolas's Citadel ruling (PB-A fix): When casting via
+/// PayLifeForManaValue, X must be 0. The engine rejects any cast where x_value > 0
+/// is paired with the PayLifeForManaValue alt cost.
+#[test]
+fn test_play_from_top_bolas_citadel_x_is_zero() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![x_creature_def()]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .object(ObjectSpec::artifact(p1, "Permission Source").in_zone(ZoneId::Battlefield))
+        // X creature costs {X}{G}{G} (mana value = 2 for X=0, variable for X>0).
+        .object(x_creature_spec(p1))
+        .build()
+        .unwrap();
+
+    state.turn.priority_holder = Some(p1);
+    let source_id = find_object(&state, "Permission Source");
+    inject_pay_life(&mut state, source_id, p1);
+
+    let creature_id = find_object(&state, "Test X Creature");
+
+    // Attempting to specify x_value > 0 with PayLifeForManaValue must be rejected.
+    let bad_cast = Command::CastSpell {
+        player: p1,
+        card: creature_id,
+        targets: vec![],
+        convoke_creatures: vec![],
+        improvise_artifacts: vec![],
+        delve_cards: vec![],
+        kicker_times: 0,
+        alt_cost: Some(AltCostKind::PayLifeForManaValue),
+        prototype: false,
+        modes_chosen: vec![],
+        x_value: 3, // non-zero — must be rejected
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+        face_down_kind: None,
+        additional_costs: vec![],
+    };
+    let result = process_command(state.clone(), bad_cast);
+    assert!(
+        result.is_err(),
+        "x_value > 0 with PayLifeForManaValue should be rejected (CR 107.3 / 2019-05-03 ruling)"
+    );
+
+    // x_value = 0 with PayLifeForManaValue must succeed (pays life = mana value 2).
+    let good_cast = Command::CastSpell {
+        player: p1,
+        card: creature_id,
+        targets: vec![],
+        convoke_creatures: vec![],
+        improvise_artifacts: vec![],
+        delve_cards: vec![],
+        kicker_times: 0,
+        alt_cost: Some(AltCostKind::PayLifeForManaValue),
+        prototype: false,
+        modes_chosen: vec![],
+        x_value: 0,
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+        face_down_kind: None,
+        additional_costs: vec![],
+    };
+    let initial_life = state.player(p1).unwrap().life_total;
+    let (state2, _events) = process_command(state, good_cast)
+        .expect("x_value=0 with PayLifeForManaValue should succeed");
+    // Life paid = mana value of {X}{G}{G} with X=0 → {0}{G}{G} = 2.
+    assert_eq!(
+        state2.player(p1).unwrap().life_total,
+        initial_life - 2,
+        "Life should decrease by mana value (2) for {{X}}{{G}}{{G}} with X=0"
+    );
+}
+
+/// Thundermane Dragon on_cast_effect fix (PB-A review HIGH-1): A creature cast from
+/// the top of the library via a permission with on_cast_effect gains Haste on the
+/// battlefield — not just on the stack — because the fix applies the keyword at
+/// resolution using the new battlefield ObjectId (CR 400.7).
+#[test]
+fn test_play_from_top_haste_grant() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![big_creature_def()]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .object(ObjectSpec::creature(p1, "Permission Source", 4, 4).in_zone(ZoneId::Battlefield))
+        // Big creature: 4/4 for {4} — matches CreaturesWithMinPower(4).
+        .object(big_creature_spec(p1))
+        .build()
+        .unwrap();
+
+    state.turn.priority_holder = Some(p1);
+    let source_id = find_object(&state, "Permission Source");
+    inject_creatures_min_power_4_with_haste(&mut state, source_id, p1);
+
+    // Add mana for the 4/4 creature ({4}).
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 4);
+
+    let creature_id = find_object(&state, "Test Big Creature");
+    // Cast the creature from the top of the library.
+    let (state2, _) = process_command(state, cast_spell(p1, creature_id))
+        .expect("Cast via CreaturesWithMinPower(4) permission should succeed");
+
+    // The spell is on the stack; cast_from_top_with_bonus should be set.
+    assert!(
+        !state2.stack_objects.is_empty(),
+        "Spell should be on the stack"
+    );
+    assert!(
+        state2
+            .stack_objects
+            .iter()
+            .any(|so| so.cast_from_top_with_bonus),
+        "StackObject should have cast_from_top_with_bonus = true"
+    );
+
+    // Pass priority for both players to resolve the spell.
+    let (state3, _) = pass_all(state2, &[p1, p2]);
+
+    // The creature should now be on the battlefield.
+    let bf_creature = state3
+        .objects
+        .values()
+        .find(|obj| {
+            obj.characteristics.name == "Test Big Creature"
+                && matches!(obj.zone, ZoneId::Battlefield)
+        })
+        .expect("Big Creature should be on the battlefield after resolution");
+
+    // The battlefield permanent's keywords must include Haste (CR 400.7 fix: applied at resolution
+    // to the new ObjectId, not via a continuous effect targeting the dead stack ObjectId).
+    assert!(
+        bf_creature
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Haste),
+        "Creature cast from top via on_cast_effect permission should have Haste on the battlefield"
+    );
+
+    // Also verify via calculate_characteristics to confirm layer system sees Haste.
+    let chars = calculate_characteristics(&state3, bf_creature.id)
+        .expect("calculate_characteristics should return Some for a battlefield permanent");
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Haste),
+        "calculate_characteristics should show Haste on the battlefield creature"
     );
 }

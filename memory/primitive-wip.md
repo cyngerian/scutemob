@@ -4,7 +4,7 @@ batch: PB-A
 title: Play from top of library — continuous cast permission system
 cards_affected: 6+
 started: 2026-04-07
-phase: complete
+phase: fix
 plan_file: memory/primitives/pb-plan-A.md
 
 ## Deferred from Prior PBs
@@ -58,6 +58,21 @@ Cards that need new defs (not yet authored):
   - cargo clippy -- -D warnings: clean
   - cargo build --workspace: clean
   - cargo fmt --check: clean
+
+## Review
+findings: 6 (HIGH: 2, MEDIUM: 2, LOW: 2)
+verdict: needs-fix → FIXED
+review_file: memory/primitives/pb-review-A.md
+
+## Fix Phase Results
+- HIGH-1: FIXED — removed continuous effect approach; added `cast_from_top_with_bonus: bool` to StackObject; resolution.rs now inserts KeywordAbility::Haste directly at resolution time using new battlefield ObjectId (CR 400.7 fix). Pattern mirrors was_dashed/was_blitzed.
+- HIGH-2: FIXED — `find_play_from_top_on_cast_effect` now inlines the filter check for the specific permission being evaluated instead of delegating to `has_play_from_top_permission()` (which checked ANY permission). Future Sight + Thundermane Dragon coexistence is now correct.
+- MEDIUM-3: FIXED — Added CR 119.4 life check before PayLifeForManaValue deduction at casting.rs line 3439. Returns InvalidCommand if life_total < mana value.
+- MEDIUM-4: FIXED — (1) Added X=0 enforcement: when cast_with_pay_life && x_value > 0, returns InvalidCommand. (2) Added `test_play_from_top_bolas_citadel_x_is_zero` test. (3) Added `test_play_from_top_haste_grant` test verifying haste is on battlefield permanent (not just stack).
+- LOW-5: documented, not fixed (mandatory life payment bypass acceptable)
+- LOW-6: documented, not fixed (simulator legal_actions gap acceptable)
+
+All 18 play_from_top tests pass. Workspace build clean. Clippy clean. fmt clean.
 
 ## Expected Remaining TODOs in Card Defs
 - Elven Chorus: GrantActivatedAbility (mana ability grant) — separate gap

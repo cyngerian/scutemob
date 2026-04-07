@@ -239,6 +239,8 @@ pub fn copy_spell_on_stack(
         damaged_player: None,
         combat_damage_amount: 0,
         triggering_creature_id: None,
+        // Copies are never cast from library top.
+        cast_from_top_with_bonus: false,
     };
     // Push the copy onto the stack (above the original).
     state.stack_objects.push_back(copy);
@@ -437,6 +439,8 @@ pub fn resolve_cascade(
                 damaged_player: None,
                 combat_damage_amount: 0,
                 triggering_creature_id: None,
+                // Cascade free-casts are not from library top.
+                cast_from_top_with_bonus: false,
             };
             state.stack_objects.push_back(stack_obj);
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
@@ -656,6 +660,8 @@ pub fn resolve_discover(
                 damaged_player: None,
                 combat_damage_amount: 0,
                 triggering_creature_id: None,
+                // Discover free-casts are not from library top.
+                cast_from_top_with_bonus: false,
             };
             state.stack_objects.push_back(stack_obj);
             // Discover free-cast triggers "whenever you cast a spell".

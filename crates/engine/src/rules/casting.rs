@@ -3379,6 +3379,16 @@ pub fn handle_cast_spell(
             &mut escape_exile_events,
         )?;
     }
+    // PB-A: CR 107.3 / 2019-05-03 Bolas's Citadel ruling: when casting via PayLifeForManaValue,
+    // X is always 0. You pay life equal to the card's printed mana value, and X contributes 0
+    // to that value (since the life cost is based on the mana value, and X=0 for cost purposes).
+    // Reject any attempt to specify x_value > 0 with PayLifeForManaValue — there is no mana
+    // payment where X would matter, and setting X > 0 would incorrectly add to the generic cost.
+    if cast_with_pay_life && x_value > 0 {
+        return Err(GameStateError::InvalidCommand(
+            "X must be 0 when casting via PayLifeForManaValue (Bolas's Citadel): X spells have X=0 (CR 107.3 / 2019-05-03 ruling)".into(),
+        ));
+    }
     // CR 107.3a: Add x_count * x_value to generic. Uses x_count from ManaCost
     // (structural, e.g., Treasure Vault has x_count: 2 for {X}{X}) and x_value
     // from CastSpell (player's chosen value). Falls back to old behavior for
@@ -3435,9 +3445,16 @@ pub fn handle_cast_spell(
         // PB-A: Bolas's Citadel — pay life equal to original mana value instead of mana cost.
         // CR 118.9: Alternative cost. Mana cost is {0}, life is the actual cost.
         // 2019-05-03 ruling: life is paid equal to the printed mana value (before any reductions).
-        // CR 119.4: Life payment is a cost. Life can go below 0 (SBA handles death).
+        // CR 119.4: "If a cost or effect allows a player to pay an amount of life greater than 0,
+        //   the player may do so only if their life total is greater than or equal to the amount."
         if cast_with_pay_life && original_mana_value > 0 {
             let player_state = state.player_mut(player)?;
+            if player_state.life_total < original_mana_value as i32 {
+                return Err(GameStateError::InvalidCommand(
+                    "not enough life to pay life cost (CR 119.4): life total is less than mana value"
+                        .into(),
+                ));
+            }
             player_state.life_total -= original_mana_value as i32;
             events.push(GameEvent::LifeLost {
                 player,
@@ -3823,6 +3840,12 @@ pub fn handle_cast_spell(
             source_object: new_card_id,
         }
     };
+    // PB-A: Determine whether the matching play-from-top permission has an on_cast_effect.
+    // This must be computed before the StackObject is built so the flag can be set on it.
+    // The actual haste grant is applied at resolution time in resolution.rs (CR 400.7:
+    // the stack ObjectId is invalid after resolution; apply to the new battlefield ObjectId).
+    let cast_from_top_with_bonus = casting_from_library_top
+        && find_play_from_top_on_cast_effect(state, player, card, &chars).is_some();
     let stack_obj = StackObject {
         id: stack_entry_id,
         controller: player,
@@ -3904,6 +3927,8 @@ pub fn handle_cast_spell(
         damaged_player: None,
         combat_damage_amount: 0,
         triggering_creature_id: None,
+        // PB-A: Thundermane Dragon on_cast_effect — apply haste at resolution (CR 400.7).
+        cast_from_top_with_bonus,
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source
@@ -3996,33 +4021,11 @@ pub fn handle_cast_spell(
     };
     // PB-A: Apply on-cast bonus effect from play-from-top permission.
     // Thundermane Dragon: "If you cast a creature spell this way, it gains haste until end of turn."
-    // We register a continuous effect (AddKeyword(Haste)) on the spell's source object.
-    // This takes effect once the spell resolves and the permanent is on the battlefield.
-    if casting_from_library_top {
-        if let Some(bonus_effect) = find_play_from_top_on_cast_effect(state, player, card, &chars) {
-            use crate::state::continuous_effect::{
-                ContinuousEffect, EffectDuration, EffectFilter, EffectId,
-            };
-            // Only handle the haste-grant pattern (ApplyContinuousEffect).
-            // Other effect types would need additional handling here.
-            if let crate::cards::card_definition::Effect::ApplyContinuousEffect { effect_def } =
-                bonus_effect.as_ref()
-            {
-                let ts = state.next_object_id().0;
-                state.continuous_effects.push_back(ContinuousEffect {
-                    id: EffectId(ts),
-                    source: Some(new_card_id),
-                    layer: effect_def.layer,
-                    modification: effect_def.modification.clone(),
-                    filter: EffectFilter::SingleObject(new_card_id),
-                    duration: EffectDuration::UntilEndOfTurn,
-                    condition: None,
-                    timestamp: ts,
-                    is_cda: false,
-                });
-            }
-        }
-    }
+    // We set `cast_from_top_with_bonus` on the StackObject; resolution.rs then applies haste
+    // directly to the battlefield permanent AFTER it enters (with its new ObjectId).
+    // This is necessary because CR 400.7: the stack ObjectId becomes invalid after resolution,
+    // so a continuous effect targeting the stack ObjectId would never reach the battlefield permanent.
+    // Pattern mirrors was_dashed / was_blitzed (resolution.rs lines 608-614).
     // CR 601.2i: "Then the active player receives priority."
     // Reset the priority round — a game action occurred.
     state.turn.players_passed = OrdSet::new();
@@ -5631,14 +5634,23 @@ pub fn has_play_from_top_permission(
 }
 /// PB-A: Find and clone the on_cast_effect from the matching play-from-top permission.
 ///
-/// Returns the effect if any matching permission has `on_cast_effect.is_some()`.
-/// Used by casting.rs to register the bonus effect (e.g., haste grant for Thundermane Dragon).
+/// Returns the effect if any matching permission has `on_cast_effect.is_some()` AND
+/// its own filter matches the card's characteristics.
+///
+/// IMPORTANT: We inline the filter match for the *specific* permission being evaluated,
+/// rather than delegating to `has_play_from_top_permission()` (which would match ANY
+/// permission). This prevents a bug where Player has both Future Sight (All filter,
+/// no bonus) and Thundermane Dragon (CreaturesWithMinPower(4), haste bonus): Future
+/// Sight's broader filter could cause `has_play_from_top_permission()` to return true
+/// while Thundermane's bonus is incorrectly returned for a 2/2 creature.
 fn find_play_from_top_on_cast_effect(
     state: &GameState,
     player: PlayerId,
-    source_card: ObjectId,
+    _source_card: ObjectId,
     chars: &Characteristics,
 ) -> Option<Box<crate::cards::card_definition::Effect>> {
+    use crate::state::stubs::PlayFromTopFilter;
+    use crate::state::types::CardType;
     state.play_from_top_permissions.iter().find_map(|perm| {
         if perm.controller != player || perm.on_cast_effect.is_none() {
             return None;
@@ -5651,7 +5663,35 @@ fn find_play_from_top_on_cast_effect(
         if !on_bf {
             return None;
         }
-        if has_play_from_top_permission(state, player, source_card, chars) {
+        // Check condition (if present) for this specific permission.
+        if let Some(ref cond) = perm.condition {
+            let ctx = crate::effects::EffectContext::new(player, perm.source, vec![]);
+            if !crate::effects::check_condition(state, cond, &ctx) {
+                return None;
+            }
+        }
+        // Inline the filter check for THIS permission's filter specifically.
+        // This ensures the on_cast_effect only fires when THIS permission's filter
+        // is satisfied — not when any other (broader) permission matches.
+        let filter_matches = match &perm.filter {
+            PlayFromTopFilter::All => true,
+            PlayFromTopFilter::LandsOnly => false, // lands use PlayLand, not CastSpell
+            PlayFromTopFilter::CreaturesOnly => chars.card_types.contains(&CardType::Creature),
+            PlayFromTopFilter::CreaturesWithMinPower(min_power) => {
+                chars.card_types.contains(&CardType::Creature)
+                    && chars.power.map(|p| p >= *min_power as i32).unwrap_or(false)
+            }
+            PlayFromTopFilter::ArtifactsAndColorless => {
+                let is_artifact = chars.card_types.contains(&CardType::Artifact);
+                let is_colorless = chars.colors.is_empty();
+                is_artifact || is_colorless
+            }
+            PlayFromTopFilter::CreaturesAndEnchantmentsAndLands => {
+                chars.card_types.contains(&CardType::Creature)
+                    || chars.card_types.contains(&CardType::Enchantment)
+            }
+        };
+        if filter_matches {
             perm.on_cast_effect.clone()
         } else {
             None

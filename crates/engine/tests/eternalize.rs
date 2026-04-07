@@ -1001,6 +1001,7 @@ fn test_eternalize_split_second_blocks() {
         damaged_player: None,
         combat_damage_amount: 0,
         triggering_creature_id: None,
+        cast_from_top_with_bonus: false,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

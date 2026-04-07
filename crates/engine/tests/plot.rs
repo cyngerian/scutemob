@@ -676,6 +676,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         damaged_player: None,
         combat_damage_amount: 0,
         triggering_creature_id: None,
+        cast_from_top_with_bonus: false,
     });
 
     let result = process_command(
@@ -1238,6 +1239,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         damaged_player: None,
         combat_damage_amount: 0,
         triggering_creature_id: None,
+        cast_from_top_with_bonus: false,
     });
 
     let result = process_command(
