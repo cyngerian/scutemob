@@ -262,7 +262,7 @@ newly unblocked cards before moving to the next batch.
 - [x] **PB-C**: Extra turns — `Effect::ExtraTurn { player, count }` + self_exile/self_shuffle_on_resolution flags, GiftType::ExtraTurn wiring. 3 new cards (Nexus of Fate, Temporal Trespass, Temporal Mastery) + 1 fix (Teferi -10 loyalty). 1M 2L fixed. 7 tests. Commit edbcccc.
 - [x] **PB-F**: Damage multiplier — ReplacementModification::TripleDamage, DamageTargetFilter::ToPlayerOrTheirPermanents + FromControllerCreaturesEnteredThisTurn, entered_turn tracking, Effect::RegisterReplacementEffect. 1 new card (Fiery Emancipation) + 2 fixes (Lightning Army of One, Neriv Heart of the Storm). Clean review. 10 tests. Commit 3e6847b.
 - [x] **PB-I**: Grant flash — FlashGrant/FlashGrantFilter on GameState, Effect::GrantFlash, AbilityDefinition::StaticFlashGrant, GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed (Teferi passive), has_active_flash_grant() in casting.rs. 1 new card (Yeva) + 3 fixes (Borne Upon a Wind, Complete the Circuit, Teferi Time Raveler). 3M fixed. 13 tests. Commit 020d391.
-- [ ] **PB-H**: Mass reanimate — multi-step zone changes, Living Death (5 cards unblocked, MEDIUM)
+- [x] **PB-H**: Mass reanimate — Effect::ReturnAllFromGraveyardToBattlefield + Effect::LivingDeath. 1 new card (Living Death) + 4 fixes (Splendid Reclamation, Open the Vaults, Eerie Ultimatum, World Shaper). 1M fixed. 15 tests. Commit 17264eb.
 - [ ] **PB-L**: Reveal/X effects — domain count, reveal-to-BF, free-cast (7 cards unblocked, MEDIUM)
 
 **Step 4: HIGH complexity engine batches**
