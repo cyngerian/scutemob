@@ -1534,6 +1534,16 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             .unwrap_or(false),
         None => true,
     });
+    // PB-A: Clean up play-from-top permissions whose source left the battlefield.
+    // has_play_from_top_permission() also checks source validity inline, but this sweep
+    // keeps the Vector tidy and bounded in size.
+    state.play_from_top_permissions.retain(|perm| {
+        state
+            .objects
+            .get(&perm.source)
+            .map(|o| matches!(o.zone, crate::state::ZoneId::Battlefield))
+            .unwrap_or(false)
+    });
     // CR 615.1: Reset per-turn combat damage prevention flags.
     state.prevent_all_combat_damage = false;
     state.combat_damage_prevented_from = im::OrdSet::new();

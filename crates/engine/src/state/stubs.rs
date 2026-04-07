@@ -617,6 +617,52 @@ pub struct FlashGrant {
     /// How long the grant lasts.
     pub duration: crate::state::continuous_effect::EffectDuration,
 }
+/// Filter for which cards a play-from-top-of-library permission applies to.
+/// CR 601.1a: "Playing a card" = playing as land OR casting as spell.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PlayFromTopFilter {
+    /// All cards (Future Sight: "play lands and cast spells")
+    All,
+    /// Lands only (Courser of Kruphix / Oracle of Mul Daya: "play lands")
+    LandsOnly,
+    /// Creature spells only (Elven Chorus: "cast creature spells")
+    CreaturesOnly,
+    /// Creature spells with power >= N (Thundermane Dragon: "creature spells with power 4 or greater")
+    CreaturesWithMinPower(u32),
+    /// Artifact spells and colorless spells (Mystic Forge: "artifact spells and colorless spells")
+    ArtifactsAndColorless,
+    /// Creature and enchantment spells + lands (Case of the Locked Hothouse solved)
+    CreaturesAndEnchantmentsAndLands,
+}
+/// An active play-from-top-of-library permission.
+///
+/// CR 601.3: A player can begin to cast a spell only if a rule or effect allows it.
+/// CR 305.1: Playing a land is a special action.
+///
+/// Registered by `AbilityDefinition::StaticPlayFromTop` when the source permanent
+/// enters the battlefield. Cleaned up in `reset_turn_state` when source leaves.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlayFromTopPermission {
+    /// ObjectId of the source permanent.
+    pub source: ObjectId,
+    /// The player who receives this permission.
+    pub controller: PlayerId,
+    /// Which cards this permission applies to.
+    pub filter: PlayFromTopFilter,
+    /// If true, the controller may look at the top card any time (hidden-info permission).
+    pub look_at_top: bool,
+    /// If true, the top card is revealed to ALL players.
+    pub reveal_top: bool,
+    /// If true, pay life equal to mana value instead of paying the mana cost.
+    /// CR 118.9: Alternative cost (Bolas's Citadel).
+    pub pay_life_instead: bool,
+    /// Optional condition that must be true for this permission to be active.
+    /// Used for Case of the Locked Hothouse (Condition::SourceIsSolved).
+    pub condition: Option<crate::cards::card_definition::Condition>,
+    /// Optional bonus effect applied when a spell is successfully cast from top this way.
+    /// Used for Thundermane Dragon (grant haste until end of turn).
+    pub on_cast_effect: Option<Box<crate::cards::card_definition::Effect>>,
+}
 /// CR 305.2: A static "additional land play" source registered from a permanent
 /// on the battlefield with `AbilityDefinition::AdditionalLandPlays`.
 ///

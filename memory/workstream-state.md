@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **ALL PBs COMPLETE (PB-0–37+G+K+D+C+F+I+H+L)**; BF complete; **Wave A+B COMPLETE**; Wave B engine review CLEAN |
+| W6: Primitive + Card Authoring | PB-A: Play from top of library | ACTIVE | 2026-04-07 | HIGH batches — PB-A first (6 cards, continuous cast permission) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

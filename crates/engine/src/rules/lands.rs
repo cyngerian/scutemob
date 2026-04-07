@@ -53,9 +53,25 @@ pub fn handle_play_land(
     if land_plays == 0 {
         return Err(GameStateError::NoLandPlaysRemaining(player));
     }
-    // 6. Fetch card and validate it is in the player's hand.
+    // 6. Fetch card and validate it is in the player's hand (or top of library via permission).
     let card_obj = state.object(card)?;
-    if card_obj.zone != ZoneId::Hand(player) {
+    // PB-A: CR 305.1 — land may also be played from the top of the player's library
+    // if an active PlayFromTopPermission with a land-compatible filter is present.
+    let playing_from_library_top = card_obj.zone == ZoneId::Library(player)
+        && state
+            .zones
+            .get(&ZoneId::Library(player))
+            .and_then(|z| z.top())
+            .map(|top_id| top_id == card)
+            .unwrap_or(false);
+    if playing_from_library_top {
+        // Validate that a play-from-top-land permission exists.
+        if !has_play_from_top_land_permission(state, player, card) {
+            return Err(GameStateError::InvalidCommand(
+                "no play-from-top-of-library permission for playing lands (CR 305.1)".into(),
+            ));
+        }
+    } else if card_obj.zone != ZoneId::Hand(player) {
         return Err(GameStateError::InvalidCommand(
             "card is not in your hand".into(),
         ));
@@ -68,8 +84,8 @@ pub fn handle_play_land(
     {
         return Err(GameStateError::InvalidCommand("card is not a land".into()));
     }
-    // 8. Player must own (and thereby control) the card in hand.
-    //    Cards in hand are always controlled by their owner.
+    // 8. Player must own (and thereby control) the card in hand/top-of-library.
+    //    Cards in hand/library are always controlled by their owner.
     // MR-M3-12: this is an ownership check, not a controller check — use InvalidCommand.
     if card_obj.owner != player {
         return Err(GameStateError::InvalidCommand(format!(
@@ -403,4 +419,48 @@ pub fn handle_play_land(
     //     starts fresh. The active player retains priority (CR 117.3b).
     state.turn.players_passed = im::OrdSet::new();
     Ok(events)
+}
+/// PB-A: Check if an active play-from-top-of-library permission allows playing a land.
+///
+/// CR 305.1: A player may play a land from the top of their library if a rule or effect
+/// permits it. Checks: (1) source on battlefield, (2) controller matches player,
+/// (3) filter includes lands (All, LandsOnly, CreaturesAndEnchantmentsAndLands),
+/// (4) condition evaluates to true if present.
+///
+/// Does NOT check whether the card is actually on top — that was validated at the call site.
+pub fn has_play_from_top_land_permission(
+    state: &crate::state::GameState,
+    player: crate::state::player::PlayerId,
+    _card: crate::state::game_object::ObjectId,
+) -> bool {
+    use crate::state::stubs::PlayFromTopFilter;
+    use crate::state::ZoneId;
+    state.play_from_top_permissions.iter().any(|perm| {
+        if perm.controller != player {
+            return false;
+        }
+        // Source must still be on the battlefield.
+        let on_bf = state
+            .objects
+            .get(&perm.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !on_bf {
+            return false;
+        }
+        // Condition (if any) must hold.
+        if let Some(ref cond) = perm.condition {
+            let ctx = crate::effects::EffectContext::new(player, perm.source, vec![]);
+            if !crate::effects::check_condition(state, cond, &ctx) {
+                return false;
+            }
+        }
+        // Filter must include lands.
+        matches!(
+            perm.filter,
+            PlayFromTopFilter::All
+                | PlayFromTopFilter::LandsOnly
+                | PlayFromTopFilter::CreaturesAndEnchantmentsAndLands
+        )
+    })
 }

@@ -162,6 +162,8 @@ pub fn handle_cast_spell(
     let cast_with_morph = alt_cost == Some(AltCostKind::Morph);
     let cast_with_adventure = alt_cost == Some(AltCostKind::Adventure);
     let cast_with_commander_free = alt_cost == Some(AltCostKind::CommanderFreeCast);
+    // PB-A: Bolas's Citadel: pay life equal to mana value instead of mana cost (CR 118.9).
+    let cast_with_pay_life = alt_cost == Some(AltCostKind::PayLifeForManaValue);
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
@@ -234,6 +236,7 @@ pub fn handle_cast_spell(
         casting_with_retrace,
         casting_with_jump_start,
         casting_with_aftermath,
+        casting_from_library_top,
     ) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
@@ -453,6 +456,16 @@ pub fn handle_cast_spell(
             // This check prevents accidentally allowing exile casts without a known reason.
         }
 
+        // PB-A: Check if this is a library-top cast (CR 601.3).
+        // We check zone here, then validate permissions after the block.
+        let casting_from_library_top = card_obj.zone == ZoneId::Library(player)
+            && state
+                .zones
+                .get(&ZoneId::Library(player))
+                .and_then(|z| z.top())
+                .map(|top_id| top_id == card)
+                .unwrap_or(false);
+
         if card_obj.zone != ZoneId::Hand(player)
             && !casting_from_command_zone
             && !casting_with_flashback
@@ -467,6 +480,8 @@ pub fn handle_cast_spell(
             && !cast_with_disturb
             // CR 715.3d: Adventure creature from exile is allowed
             && !casting_adventure_creature_from_exile
+            // PB-A: CR 601.3 — play-from-top-of-library permission
+            && !casting_from_library_top
         // CR 702.146a: Disturb allows graveyard cast
         // CR 702.127a: Aftermath allows graveyard cast
         {
@@ -486,6 +501,7 @@ pub fn handle_cast_spell(
             casting_with_retrace,
             casting_with_jump_start,
             casting_with_aftermath,
+            casting_from_library_top,
         )
     };
     // CR 903.8: Only a player's own commander may be cast from the command zone.
@@ -527,6 +543,14 @@ pub fn handle_cast_spell(
             chars.supertypes = adv_face.types.supertypes.clone();
             chars.subtypes = adv_face.types.subtypes.clone();
         }
+    }
+    // PB-A: Validate play-from-top-of-library permission (CR 601.3).
+    // If the card is on top of the library, there must be an active permission that:
+    // (1) source is on the battlefield, (2) controller matches, (3) filter matches.
+    if casting_from_library_top && !has_play_from_top_permission(state, player, card, &chars) {
+        return Err(GameStateError::InvalidCommand(
+            "no play-from-top-of-library permission for this card (CR 601.3)".into(),
+        ));
     }
     // Lands are not cast — they are played as a special action (CR 305.1).
     if chars.card_types.contains(&CardType::Land) {
@@ -2015,6 +2039,32 @@ pub fn handle_cast_spell(
             ));
         }
     }
+    // PB-A: Validate PayLifeForManaValue (Bolas's Citadel alternative cost).
+    // The player must have an active play-from-top permission with pay_life_instead: true
+    // AND the card must be on top of their library.
+    if cast_with_pay_life {
+        if !casting_from_library_top {
+            return Err(GameStateError::InvalidCommand(
+                "pay-life-for-mana-value: card must be on top of your library (Bolas's Citadel)"
+                    .into(),
+            ));
+        }
+        let has_pay_life_permission = state.play_from_top_permissions.iter().any(|perm| {
+            perm.controller == player
+                && perm.pay_life_instead
+                && state
+                    .objects
+                    .get(&perm.source)
+                    .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                    .unwrap_or(false)
+        });
+        if !has_pay_life_permission {
+            return Err(GameStateError::InvalidCommand(
+                "pay-life-for-mana-value: no active Bolas's Citadel-style permission (CR 118.9)"
+                    .into(),
+            ));
+        }
+    }
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     // CR 718.3a: When prototype is true, the prototype mana cost REPLACES the card's
     // normal mana cost as the base. The alt-cost chain then operates on this base.
@@ -2025,6 +2075,11 @@ pub fn handle_cast_spell(
     } else {
         base_mana_cost
     };
+    // PB-A: Capture the original mana value BEFORE alternative cost selection.
+    // Used by PayLifeForManaValue (Bolas's Citadel) to know how much life to deduct.
+    // We capture `base_mana_cost.as_ref().map(|c| c.mana_value())` which is the
+    // card's printed mana value (modified only by prototype, not by alt costs).
+    let original_mana_value: u32 = base_mana_cost.as_ref().map(|c| c.mana_value()).unwrap_or(0);
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
@@ -2193,6 +2248,13 @@ pub fn handle_cast_spell(
     } else if cast_with_commander_free {
         // CR 118.9: Cast without paying mana cost. Cost is zero.
         // CR 118.9d: Additional costs (kicker, splice, etc.) still apply on top.
+        Some(ManaCost::default())
+    } else if cast_with_pay_life {
+        // PB-A: Bolas's Citadel — pay life equal to mana value instead of mana cost.
+        // CR 118.9: Alternative cost. The mana cost is replaced by {0} (free).
+        // Life equal to the original mana value is deducted separately during cost payment.
+        // CR 107.3: X is 0 when casting with an alternative cost that ignores the mana cost.
+        // 2019-05-03 ruling: "you must choose 0 as the value of X when casting it this way."
         Some(ManaCost::default())
     } else {
         base_mana_cost
@@ -3370,6 +3432,18 @@ pub fn handle_cast_spell(
                 amount: phyrexian_life,
             });
         }
+        // PB-A: Bolas's Citadel — pay life equal to original mana value instead of mana cost.
+        // CR 118.9: Alternative cost. Mana cost is {0}, life is the actual cost.
+        // 2019-05-03 ruling: life is paid equal to the printed mana value (before any reductions).
+        // CR 119.4: Life payment is a cost. Life can go below 0 (SBA handles death).
+        if cast_with_pay_life && original_mana_value > 0 {
+            let player_state = state.player_mut(player)?;
+            player_state.life_total -= original_mana_value as i32;
+            events.push(GameEvent::LifeLost {
+                player,
+                amount: original_mana_value,
+            });
+        }
         // CR 601.2f: ManaCostPaid is emitted for all costs, including {0}.
         // Emit the original cost (with hybrid/phyrexian info) for event consumers.
         events.push(GameEvent::ManaCostPaid {
@@ -3920,6 +3994,35 @@ pub fn handle_cast_spell(
     } else {
         0
     };
+    // PB-A: Apply on-cast bonus effect from play-from-top permission.
+    // Thundermane Dragon: "If you cast a creature spell this way, it gains haste until end of turn."
+    // We register a continuous effect (AddKeyword(Haste)) on the spell's source object.
+    // This takes effect once the spell resolves and the permanent is on the battlefield.
+    if casting_from_library_top {
+        if let Some(bonus_effect) = find_play_from_top_on_cast_effect(state, player, card, &chars) {
+            use crate::state::continuous_effect::{
+                ContinuousEffect, EffectDuration, EffectFilter, EffectId,
+            };
+            // Only handle the haste-grant pattern (ApplyContinuousEffect).
+            // Other effect types would need additional handling here.
+            if let crate::cards::card_definition::Effect::ApplyContinuousEffect { effect_def } =
+                bonus_effect.as_ref()
+            {
+                let ts = state.next_object_id().0;
+                state.continuous_effects.push_back(ContinuousEffect {
+                    id: EffectId(ts),
+                    source: Some(new_card_id),
+                    layer: effect_def.layer,
+                    modification: effect_def.modification.clone(),
+                    filter: EffectFilter::SingleObject(new_card_id),
+                    duration: EffectDuration::UntilEndOfTurn,
+                    condition: None,
+                    timestamp: ts,
+                    is_cda: false,
+                });
+            }
+        }
+    }
     // CR 601.2i: "Then the active player receives priority."
     // Reset the priority round — a game action occurred.
     state.turn.players_passed = OrdSet::new();
@@ -5456,6 +5559,102 @@ fn has_active_flash_grant(state: &GameState, player: PlayerId, chars: &Character
                 chars.card_types.contains(&CardType::Creature)
                     && chars.colors.contains(&crate::state::types::Color::Green)
             }
+        }
+    })
+}
+/// PB-A: Check if an active play-from-top-of-library permission allows casting this card.
+///
+/// CR 601.3: A player can begin to cast a spell only if a rule or effect allows it.
+/// Checks: (1) source on battlefield, (2) controller matches player, (3) filter matches
+/// card's characteristics (types, power), (4) condition evaluates to true if present,
+/// (5) card is NOT a land (casting only; lands are handled by has_play_from_top_land_permission).
+///
+/// Does NOT check whether the card is actually on top of the library — that was validated
+/// at the zone-check site (`casting_from_library_top`).
+pub fn has_play_from_top_permission(
+    state: &GameState,
+    player: PlayerId,
+    _source_card: ObjectId,
+    chars: &Characteristics,
+) -> bool {
+    use crate::state::stubs::PlayFromTopFilter;
+    use crate::state::types::CardType;
+    // Lands cannot be cast — they use PlayLand (handled separately in lands.rs).
+    if chars.card_types.contains(&CardType::Land) {
+        return false;
+    }
+    state.play_from_top_permissions.iter().any(|perm| {
+        // 1. Controller matches.
+        if perm.controller != player {
+            return false;
+        }
+        // 2. Source still on battlefield.
+        let on_bf = state
+            .objects
+            .get(&perm.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !on_bf {
+            return false;
+        }
+        // 3. Condition (if present) must evaluate to true.
+        if let Some(ref cond) = perm.condition {
+            let ctx = crate::effects::EffectContext::new(player, perm.source, vec![]);
+            if !crate::effects::check_condition(state, cond, &ctx) {
+                return false;
+            }
+        }
+        // 4. Filter must match the card's characteristics.
+        match &perm.filter {
+            PlayFromTopFilter::All => true,
+            PlayFromTopFilter::LandsOnly => false, // lands use PlayLand, not CastSpell
+            PlayFromTopFilter::CreaturesOnly => chars.card_types.contains(&CardType::Creature),
+            PlayFromTopFilter::CreaturesWithMinPower(min_power) => {
+                chars.card_types.contains(&CardType::Creature)
+                    && chars.power.map(|p| p >= *min_power as i32).unwrap_or(false)
+            }
+            PlayFromTopFilter::ArtifactsAndColorless => {
+                // Mystic Forge: artifact spells OR spells with no colored mana in cost.
+                // "Colorless spells" = spells whose mana cost contains only colorless mana
+                // (no white/blue/black/red/green pips). Morph face-down spell is also colorless.
+                let is_artifact = chars.card_types.contains(&CardType::Artifact);
+                let is_colorless = chars.colors.is_empty();
+                is_artifact || is_colorless
+            }
+            PlayFromTopFilter::CreaturesAndEnchantmentsAndLands => {
+                // Case of the Locked Hothouse: creatures, enchantments (not lands via this path).
+                chars.card_types.contains(&CardType::Creature)
+                    || chars.card_types.contains(&CardType::Enchantment)
+            }
+        }
+    })
+}
+/// PB-A: Find and clone the on_cast_effect from the matching play-from-top permission.
+///
+/// Returns the effect if any matching permission has `on_cast_effect.is_some()`.
+/// Used by casting.rs to register the bonus effect (e.g., haste grant for Thundermane Dragon).
+fn find_play_from_top_on_cast_effect(
+    state: &GameState,
+    player: PlayerId,
+    source_card: ObjectId,
+    chars: &Characteristics,
+) -> Option<Box<crate::cards::card_definition::Effect>> {
+    state.play_from_top_permissions.iter().find_map(|perm| {
+        if perm.controller != player || perm.on_cast_effect.is_none() {
+            return None;
+        }
+        let on_bf = state
+            .objects
+            .get(&perm.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !on_bf {
+            return None;
+        }
+        if has_play_from_top_permission(state, player, source_card, chars) {
+            perm.on_cast_effect.clone()
+        } else {
+            None
         }
     })
 }

@@ -38,11 +38,12 @@ pub use state::{
     FlashGrantFilter, GameObject, GameRestriction, GameState, GameStateBuilder, GameStateError,
     HybridMana, HybridManaPayment, KeywordAbility, LandwalkType, LayerModification, ManaAbility,
     ManaColor, ManaCost, ManaPool, MergedComponent, ObjectFilter, ObjectId, ObjectSpec,
-    ObjectStatus, PendingZoneChange, Phase, PhyrexianMana, PlayerBuilder, PlayerFilter, PlayerId,
-    PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
-    ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
-    Target, TriggerData, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef,
-    TurnFaceUpMethod, TurnState, UpkeepCostKind, Zone, ZoneId, ZoneType,
+    ObjectStatus, PendingZoneChange, Phase, PhyrexianMana, PlayFromTopFilter,
+    PlayFromTopPermission, PlayerBuilder, PlayerFilter, PlayerId, PlayerState, ProtectionQuality,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, SpellTarget,
+    StackObject, StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
+    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, TurnState,
+    UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 pub use testing::replay_harness::{
     build_initial_state, card_name_to_id, enrich_spec_from_def, parse_counter_type, parse_step,

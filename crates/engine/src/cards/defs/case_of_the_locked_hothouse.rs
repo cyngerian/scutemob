@@ -39,10 +39,16 @@ pub fn card() -> CardDefinition {
             // CR 702.169b: "Solved -- You may look at the top card of your library any time,
             // and you may play lands and cast creature and enchantment spells from the top of
             // your library."
-            // TODO: Solved play-from-top ability requires PB-A (play spells/lands from top of
-            // library). The SourceIsSolved condition is correct; the play-from-top engine
-            // primitive is HIGH complexity and deferred. This ability is intentionally omitted
-            // until PB-A is implemented.
+            // PB-A: StaticPlayFromTop with SourceIsSolved condition — only active when solved.
+            // CreaturesAndEnchantmentsAndLands filter covers all three card categories.
+            AbilityDefinition::StaticPlayFromTop {
+                filter: PlayFromTopFilter::CreaturesAndEnchantmentsAndLands,
+                look_at_top: true,
+                reveal_top: false,
+                pay_life_instead: false,
+                condition: Some(Box::new(Condition::SourceIsSolved)),
+                on_cast_effect: None,
+            },
         ],
         ..Default::default()
     }

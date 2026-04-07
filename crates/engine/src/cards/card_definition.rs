@@ -925,6 +925,28 @@ pub enum AbilityDefinition {
     StaticFlashGrant {
         filter: crate::state::stubs::FlashGrantFilter,
     },
+    /// Static play-from-top-of-library permission (CR 601.3, CR 305.1).
+    ///
+    /// Registers a `PlayFromTopPermission` when the permanent enters the battlefield.
+    /// Cleaned up when the source leaves the battlefield (via reset_turn_state sweep).
+    /// Follows the same pattern as `StaticFlashGrant`.
+    ///
+    /// Discriminant 73.
+    StaticPlayFromTop {
+        filter: crate::state::stubs::PlayFromTopFilter,
+        /// If true, controller may look at the top card of their library any time.
+        look_at_top: bool,
+        /// If true, top card is revealed to ALL players (stronger than look_at_top).
+        reveal_top: bool,
+        /// If true, pay life equal to mana value instead of paying the mana cost.
+        /// CR 118.9: Alternative cost (Bolas's Citadel).
+        pay_life_instead: bool,
+        /// Optional condition that gates this permission (e.g., SourceIsSolved for Case).
+        condition: Option<Box<Condition>>,
+        /// Optional bonus effect applied when a spell is cast from top this way.
+        /// Used for Thundermane Dragon (grant haste until end of turn).
+        on_cast_effect: Option<Box<Effect>>,
+    },
 }
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
 ///

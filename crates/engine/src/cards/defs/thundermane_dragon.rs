@@ -3,8 +3,6 @@
 // You may look at the top card of your library any time.
 // You may cast creature spells with power 4 or greater from the top of your library.
 // If you cast a creature spell this way, it gains haste until end of turn.
-// TODO: DSL gap — "look at top of library any time" is a static permission effect;
-// casting from the top of library with a power filter has no DSL support.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,8 +16,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: look at top of library any time (static permission)
-            // TODO: cast creature spells with power 4+ from top of library, grant haste if cast this way
+            // CR 601.3 (PB-A): "You may look at the top card of your library any time.
+            // You may cast creature spells with power 4 or greater from the top of your library.
+            // If you cast a creature spell this way, it gains haste until end of turn."
+            // on_cast_effect: grant Haste (AddKeyword layer 6) until end of turn to the cast spell.
+            AbilityDefinition::StaticPlayFromTop {
+                filter: PlayFromTopFilter::CreaturesWithMinPower(4),
+                look_at_top: true,
+                reveal_top: false,
+                pay_life_instead: false,
+                condition: None,
+                on_cast_effect: Some(Box::new(Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                })),
+            },
         ],
         ..Default::default()
     }

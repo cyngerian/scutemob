@@ -46,8 +46,8 @@ pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use std::sync::Arc;
 pub use stubs::{
     ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
-    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, TriggerDoubler,
-    TriggerDoublerFilter,
+    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, PlayFromTopFilter,
+    PlayFromTopPermission, TriggerDoubler, TriggerDoublerFilter,
 };
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
@@ -129,6 +129,13 @@ pub struct GameState {
     /// Cleaned up by duration expiry or source leaving battlefield.
     #[serde(default)]
     pub flash_grants: Vector<FlashGrant>,
+    /// Active play-from-top-of-library permissions (CR 601.3, CR 305.1).
+    ///
+    /// Allows players to play lands and/or cast spells from the top of their library.
+    /// Registered by AbilityDefinition::StaticPlayFromTop when the source permanent enters.
+    /// Cleaned up when the source permanent leaves the battlefield (in reset_turn_state).
+    #[serde(default)]
+    pub play_from_top_permissions: Vector<crate::state::stubs::PlayFromTopPermission>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

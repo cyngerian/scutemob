@@ -319,6 +319,7 @@ impl GameStateBuilder {
             etb_suppressors: Vector::new(),
             restrictions: Vector::new(),
             flash_grants: Vector::new(),
+            play_from_top_permissions: im::Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
             timestamp_counter: 0,

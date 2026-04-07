@@ -24,7 +24,9 @@ pub use crate::state::player::PlayerId;
 pub use crate::state::replacement_effect::{
     DamageTargetFilter, ObjectFilter, PlayerFilter, ReplacementModification, ReplacementTrigger,
 };
-pub use crate::state::stubs::{FlashGrantFilter, GameRestriction, TriggerDoublerFilter};
+pub use crate::state::stubs::{
+    FlashGrantFilter, GameRestriction, PlayFromTopFilter, TriggerDoublerFilter,
+};
 pub use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 pub use crate::state::zone::ZoneType;
 pub use crate::state::{

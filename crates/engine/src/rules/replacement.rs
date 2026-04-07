@@ -1822,6 +1822,28 @@ pub fn register_static_continuous_effects(
                         crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield,
                 });
             }
+            // PB-A: Register a static play-from-top-of-library permission (CR 601.3, 305.1).
+            AbilityDefinition::StaticPlayFromTop {
+                filter,
+                look_at_top,
+                reveal_top,
+                pay_life_instead,
+                condition,
+                on_cast_effect,
+            } => {
+                state.play_from_top_permissions.push_back(
+                    crate::state::stubs::PlayFromTopPermission {
+                        source: new_id,
+                        controller,
+                        filter: filter.clone(),
+                        look_at_top: *look_at_top,
+                        reveal_top: *reveal_top,
+                        pay_life_instead: *pay_life_instead,
+                        condition: condition.as_ref().map(|c| *c.clone()),
+                        on_cast_effect: on_cast_effect.clone(),
+                    },
+                );
+            }
             _ => {}
         }
     }

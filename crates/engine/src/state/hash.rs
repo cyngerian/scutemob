@@ -1518,6 +1518,43 @@ impl HashInto for crate::state::stubs::FlashGrant {
         self.duration.hash_into(hasher);
     }
 }
+// --- Play-from-top-of-library type implementations (PB-A) ---
+impl HashInto for crate::state::stubs::PlayFromTopFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::stubs::PlayFromTopFilter;
+        match self {
+            PlayFromTopFilter::All => 0u8.hash_into(hasher),
+            PlayFromTopFilter::LandsOnly => 1u8.hash_into(hasher),
+            PlayFromTopFilter::CreaturesOnly => 2u8.hash_into(hasher),
+            PlayFromTopFilter::CreaturesWithMinPower(n) => {
+                3u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            PlayFromTopFilter::ArtifactsAndColorless => 4u8.hash_into(hasher),
+            PlayFromTopFilter::CreaturesAndEnchantmentsAndLands => 5u8.hash_into(hasher),
+        }
+    }
+}
+impl HashInto for crate::state::stubs::PlayFromTopPermission {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.filter.hash_into(hasher);
+        self.look_at_top.hash_into(hasher);
+        self.reveal_top.hash_into(hasher);
+        self.pay_life_instead.hash_into(hasher);
+        match &self.condition {
+            Some(c) => {
+                1u8.hash_into(hasher);
+                c.hash_into(hasher);
+            }
+            None => 0u8.hash_into(hasher),
+        }
+        // on_cast_effect intentionally not hashed — it's a pure effect descriptor
+        // (same as how individual ContinuousEffectDef fields work).
+        self.on_cast_effect.is_some().hash_into(hasher);
+    }
+}
 // --- Replacement effect type implementations (M8) ---
 impl HashInto for ReplacementId {
     fn hash_into(&self, hasher: &mut Hasher) {
@@ -2776,6 +2813,8 @@ impl HashInto for crate::state::types::AltCostKind {
             AltCostKind::Prototype => 26,
             AltCostKind::Adventure => 27,
             AltCostKind::CommanderFreeCast => 28,
+            // PB-A: Bolas's Citadel pay-life-instead-of-mana cost (CR 118.9)
+            AltCostKind::PayLifeForManaValue => 29,
         };
         disc.hash_into(hasher);
     }
@@ -5699,6 +5738,35 @@ impl HashInto for AbilityDefinition {
                 72u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
+            // PB-A: StaticPlayFromTop (discriminant 73) -- play from top of library (CR 601.3, 305.1)
+            AbilityDefinition::StaticPlayFromTop {
+                filter,
+                look_at_top,
+                reveal_top,
+                pay_life_instead,
+                condition,
+                on_cast_effect,
+            } => {
+                73u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                look_at_top.hash_into(hasher);
+                reveal_top.hash_into(hasher);
+                pay_life_instead.hash_into(hasher);
+                match condition {
+                    Some(c) => {
+                        1u8.hash_into(hasher);
+                        c.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+                match on_cast_effect {
+                    Some(e) => {
+                        1u8.hash_into(hasher);
+                        e.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+            }
         }
     }
 }
@@ -5828,6 +5896,10 @@ impl GameState {
         self.restrictions.hash_into(&mut hasher);
         // PB-I: active flash grants (CR 601.3b)
         self.flash_grants.hash_into(&mut hasher);
+        // PB-A: active play-from-top permissions (CR 601.3, CR 305.1)
+        for perm in self.play_from_top_permissions.iter() {
+            perm.hash_into(&mut hasher);
+        }
         self.stack_objects.hash_into(&mut hasher);
         // 6. Combat state
         self.combat.hash_into(&mut hasher);

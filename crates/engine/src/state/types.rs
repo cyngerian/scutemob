@@ -173,6 +173,12 @@ pub enum AltCostKind {
     /// at cast time (caster must control a commander on the battlefield).
     /// 2020-04-17 ruling: any commander works — doesn't have to be your own.
     CommanderFreeCast,
+    /// CR 118.9 (Bolas's Citadel): Pay life equal to the spell's mana value instead of
+    /// paying the mana cost. Only available when a play-from-top permission with
+    /// `pay_life_instead: true` is active. Mana cost becomes {0}; life equal to the
+    /// original mana value is deducted during cost payment.
+    /// 2019-05-03 ruling: X must be 0 when using this alternative cost.
+    PayLifeForManaValue,
 }
 /// Consolidated additional costs for spell casting (CR 601.2b, 601.2f-h).
 ///

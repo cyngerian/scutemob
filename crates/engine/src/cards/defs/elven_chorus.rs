@@ -2,11 +2,6 @@
 // You may look at the top card of your library any time.
 // You may cast creature spells from the top of your library.
 // Creatures you control have "{T}: Add one mana of any color."
-//
-// TODO: Three DSL gaps:
-//   (1) "look at the top card of your library" — hidden info reveal not in DSL
-//   (2) "cast creature spells from top of library" — cast-from-zone grant not in DSL
-//   (3) "creatures you control have '{T}: Add any color'" — GrantActivatedAbility not in DSL
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,7 +12,19 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "You may look at the top card of your library any time.\nYou may cast creature spells from the top of your library.\nCreatures you control have \"{T}: Add one mana of any color.\"".to_string(),
         abilities: vec![
-            // TODO: look at top of library, cast creatures from top, grant mana ability
+            // CR 601.3 (PB-A): "You may look at the top card of your library any time.
+            // You may cast creature spells from the top of your library."
+            // look_at_top: true (controller sees top; not all players — distinguish from reveal_top).
+            AbilityDefinition::StaticPlayFromTop {
+                filter: PlayFromTopFilter::CreaturesOnly,
+                look_at_top: true,
+                reveal_top: false,
+                pay_life_instead: false,
+                condition: None,
+                on_cast_effect: None,
+            },
+            // TODO: "Creatures you control have '{T}: Add one mana of any color.'"
+            // Requires GrantActivatedAbility DSL support (separate gap). Deferred.
         ],
         ..Default::default()
     }
