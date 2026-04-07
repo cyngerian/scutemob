@@ -5209,6 +5209,27 @@ impl HashInto for Effect {
                 filter.hash_into(hasher);
                 duration.hash_into(hasher);
             }
+            // PB-H: ReturnAllFromGraveyardToBattlefield (discriminant 79)
+            Effect::ReturnAllFromGraveyardToBattlefield {
+                graveyards,
+                filter,
+                tapped,
+                controller_override,
+                unique_names,
+                permanent_cards_only,
+            } => {
+                79u8.hash_into(hasher);
+                graveyards.hash_into(hasher);
+                filter.hash_into(hasher);
+                tapped.hash_into(hasher);
+                controller_override.hash_into(hasher);
+                unique_names.hash_into(hasher);
+                permanent_cards_only.hash_into(hasher);
+            }
+            // PB-H: LivingDeath (discriminant 80)
+            Effect::LivingDeath => {
+                80u8.hash_into(hasher);
+            }
         }
     }
 }

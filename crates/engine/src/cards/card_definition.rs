@@ -1927,6 +1927,39 @@ pub enum Effect {
         filter: crate::state::stubs::FlashGrantFilter,
         duration: crate::state::continuous_effect::EffectDuration,
     },
+    /// CR 400.7, 603.6a: Return all cards matching the filter from one or more
+    /// graveyards to the battlefield simultaneously.
+    /// All permanents enter at the same time; ETB triggers are queued for all of them
+    /// before any resolve.
+    ReturnAllFromGraveyardToBattlefield {
+        /// Which graveyards to search. `PlayerTarget::Controller` = your GY only.
+        /// `PlayerTarget::AllPlayers` = all graveyards.
+        graveyards: PlayerTarget,
+        /// Filter applied to cards in the graveyard (has_card_type, has_card_types, etc.).
+        filter: TargetFilter,
+        /// If true, permanents enter tapped (Splendid Reclamation, World Shaper).
+        tapped: bool,
+        /// Controller of the entering permanents.
+        /// `None` = owner (default for "under their owners' control").
+        /// `Some(PlayerTarget::Controller)` = "under your control".
+        #[serde(default)]
+        controller_override: Option<PlayerTarget>,
+        /// If true, only return one card per unique name (Eerie Ultimatum).
+        /// Deterministic: for duplicate names, lowest ObjectId wins.
+        #[serde(default)]
+        unique_names: bool,
+        /// If true, only return permanent cards (non-instant, non-sorcery).
+        /// Used by Eerie Ultimatum. Checked in addition to `filter`.
+        #[serde(default)]
+        permanent_cards_only: bool,
+    },
+    /// Living Death (2018-03-16 ruling):
+    /// Step 1: Each player exiles all creature cards from their graveyard simultaneously.
+    /// Step 2: Each player sacrifices all creatures they control simultaneously.
+    /// Step 3: Each player puts all cards they exiled in step 1 onto the battlefield simultaneously.
+    /// Cards exiled by replacement effects during step 2 are NOT returned in step 3
+    /// (only step-1 exiled cards are returned). CR 101.4, 701.17a.
+    LivingDeath,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).

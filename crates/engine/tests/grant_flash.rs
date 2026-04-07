@@ -864,7 +864,10 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
     );
 
     let grant = state.flash_grants.iter().next().unwrap();
-    assert_eq!(grant.player, p1, "grant should be for Yeva's controller (p1)");
+    assert_eq!(
+        grant.player, p1,
+        "grant should be for Yeva's controller (p1)"
+    );
     assert!(
         matches!(grant.filter, FlashGrantFilter::GreenCreatures),
         "grant filter should be GreenCreatures"
@@ -880,7 +883,10 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
 
     // Verify the grant's source is Yeva on the battlefield.
     let source_id = grant.source.unwrap();
-    let source_obj = state.objects.get(&source_id).expect("Yeva should be on the battlefield");
+    let source_obj = state
+        .objects
+        .get(&source_id)
+        .expect("Yeva should be on the battlefield");
     assert!(
         matches!(source_obj.zone, ZoneId::Battlefield),
         "Yeva's grant source should be on the battlefield"

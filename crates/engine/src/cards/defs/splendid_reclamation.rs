@@ -10,10 +10,24 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Return all land cards from your graveyard to the battlefield tapped.".to_string(),
         abilities: vec![
-            // TODO: "Return all land cards from your graveyard to the battlefield tapped"
-            // requires a ForEach that iterates over all cards in the controller's graveyard
-            // filtered by CardType::Land, moving each to the battlefield tapped. The DSL
-            // lacks a ForEachTarget::CardsInYourGraveyardWithFilter variant. Empty per W5 policy.
+            // CR 400.7, 603.6a: Return all land cards from the controller's graveyard
+            // to the battlefield simultaneously, each entering tapped.
+            AbilityDefinition::Spell {
+                effect: Effect::ReturnAllFromGraveyardToBattlefield {
+                    graveyards: PlayerTarget::Controller,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    tapped: true,
+                    controller_override: None,
+                    unique_names: false,
+                    permanent_cards_only: false,
+                },
+                targets: vec![],
+                modes: None,
+                cant_be_countered: false,
+            },
         ],
         ..Default::default()
     }

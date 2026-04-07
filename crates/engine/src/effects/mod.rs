@@ -4619,6 +4619,382 @@ fn execute_effect_inner(
                     duration: resolved_duration,
                 });
         }
+        // CR 400.7, 603.6a: Return all matching graveyard cards to the battlefield
+        // simultaneously. ETB triggers queue for all permanents before any resolve.
+        Effect::ReturnAllFromGraveyardToBattlefield {
+            graveyards,
+            filter,
+            tapped,
+            controller_override,
+            unique_names,
+            permanent_cards_only,
+        } => {
+            // Determine which players' graveyards to search.
+            let graveyard_owners: Vec<PlayerId> = match graveyards {
+                PlayerTarget::Controller => vec![ctx.controller],
+                _ => {
+                    let mut all: Vec<PlayerId> = state.players.keys().copied().collect();
+                    all.sort();
+                    all
+                }
+            };
+            // Collect all cards matching the filter from the specified graveyards.
+            // Cards in graveyards use their printed (base) characteristics — no layer system.
+            let mut candidates: Vec<(ObjectId, PlayerId)> = Vec::new();
+            for owner in &graveyard_owners {
+                let gy_zone = ZoneId::Graveyard(*owner);
+                let mut in_gy: Vec<(ObjectId, PlayerId)> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                        if obj.zone != gy_zone {
+                            return false;
+                        }
+                        let chars = &obj.characteristics;
+                        // Filter by has_card_type / has_card_types (matches_filter checks both).
+                        if !matches_filter(chars, filter) {
+                            return false;
+                        }
+                        // permanent_cards_only: exclude instants and sorceries.
+                        if *permanent_cards_only
+                            && (chars.card_types.contains(&CardType::Instant)
+                                || chars.card_types.contains(&CardType::Sorcery))
+                        {
+                            return false;
+                        }
+                        true
+                    })
+                    .map(|(&id, _)| (id, *owner))
+                    .collect();
+                in_gy.sort_by_key(|(id, _)| *id);
+                candidates.extend(in_gy);
+            }
+            // unique_names: keep only the lowest ObjectId per name (Eerie Ultimatum).
+            if *unique_names {
+                let mut seen_names: std::collections::HashSet<String> =
+                    std::collections::HashSet::new();
+                candidates.retain(|(id, _)| {
+                    let name = state
+                        .objects
+                        .get(id)
+                        .map(|o| o.characteristics.name.clone())
+                        .unwrap_or_default();
+                    seen_names.insert(name)
+                });
+            }
+            // Sort deterministically by ObjectId before any zone moves.
+            candidates.sort_by_key(|(id, _)| *id);
+            // Move all matching cards to the battlefield and run the ETB chain.
+            for (old_id, owner) in candidates {
+                // Determine the controller for this entering permanent.
+                let entering_controller = match controller_override {
+                    Some(PlayerTarget::Controller) => ctx.controller,
+                    Some(_) => owner,
+                    None => owner, // "under their owners' control"
+                };
+                if let Ok((new_id, _old)) = state.move_object_to_zone(old_id, ZoneId::Battlefield) {
+                    // Override controller if specified.
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.controller = entering_controller;
+                        // Apply tapped status if requested (Splendid Reclamation, World Shaper).
+                        if *tapped {
+                            obj.status.tapped = true;
+                        }
+                    }
+                    let card_id = state
+                        .objects
+                        .get(&new_id)
+                        .and_then(|obj| obj.card_id.clone());
+                    let registry = std::sync::Arc::clone(&state.card_registry);
+                    // Apply self-ETB replacements from the card definition.
+                    events.extend(crate::rules::replacement::apply_self_etb_from_definition(
+                        state,
+                        new_id,
+                        entering_controller,
+                        card_id.as_ref(),
+                        &registry,
+                    ));
+                    // Apply global ETB replacements (e.g., Torpor Orb, enter-tapped effects).
+                    events.extend(crate::rules::replacement::apply_etb_replacements(
+                        state,
+                        new_id,
+                        entering_controller,
+                    ));
+                    // Register permanent replacement abilities from the card's definition.
+                    crate::rules::replacement::register_permanent_replacement_abilities(
+                        state,
+                        new_id,
+                        entering_controller,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    // Register static continuous effects from the card's definition.
+                    crate::rules::replacement::register_static_continuous_effects(
+                        state,
+                        new_id,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    // Emit PermanentEnteredBattlefield for ETB triggers (CR 603.6a).
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: entering_controller,
+                        object_id: new_id,
+                    });
+                    // Queue CardDef ETB triggered abilities (CR 603.3).
+                    events.extend(crate::rules::replacement::queue_carddef_etb_triggers(
+                        state,
+                        new_id,
+                        entering_controller,
+                        card_id.as_ref(),
+                        &registry,
+                    ));
+                }
+            }
+        }
+        // Living Death (2018-03-16 ruling): three-step mass zone change.
+        // Step 1: Each player exiles all creature cards from their graveyard.
+        // Step 2: Each player sacrifices all creatures they control.
+        // Step 3: Each player puts all cards exiled in step 1 onto the battlefield.
+        // CR 101.4 (APNAP simultaneous), CR 701.17a (sacrifice semantics).
+        Effect::LivingDeath => {
+            // Determine APNAP player order (active player first, then in turn order).
+            let mut player_order: Vec<PlayerId> = state.players.keys().copied().collect();
+            player_order.sort();
+
+            // ── Step 1: Exile all creature CARDS from each player's graveyard. ──
+            // Track newly-exiled ObjectIds per player to use in step 3.
+            // The key correctness invariant: only cards exiled BY THIS STEP are returned.
+            let mut step1_exiled: Vec<(PlayerId, Vec<ObjectId>)> = Vec::new();
+            for pid in &player_order {
+                let gy_zone = ZoneId::Graveyard(*pid);
+                // Snapshot creature cards in this player's graveyard.
+                let mut creature_cards: Vec<ObjectId> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                        obj.zone == gy_zone
+                            && obj.characteristics.card_types.contains(&CardType::Creature)
+                    })
+                    .map(|(id, _)| *id)
+                    .collect();
+                creature_cards.sort();
+                let mut exiled_this_player: Vec<ObjectId> = Vec::new();
+                for old_id in creature_cards {
+                    if let Ok((new_exile_id, _old)) =
+                        state.move_object_to_zone(old_id, ZoneId::Exile)
+                    {
+                        events.push(GameEvent::ObjectExiled {
+                            player: *pid,
+                            object_id: old_id,
+                            new_exile_id,
+                        });
+                        // Track the NEW exile ObjectId for step 3.
+                        exiled_this_player.push(new_exile_id);
+                    }
+                }
+                step1_exiled.push((*pid, exiled_this_player));
+            }
+
+            // ── Step 2: Sacrifice all creatures on the battlefield. ──
+            // Snapshot ALL creatures on the battlefield first (simultaneous).
+            let creatures_to_sacrifice: Vec<ObjectId> = {
+                let mut ids: Vec<ObjectId> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.characteristics.card_types.contains(&CardType::Creature)
+                    })
+                    .map(|(id, _)| *id)
+                    .collect();
+                ids.sort();
+                ids
+            };
+            for id in creatures_to_sacrifice {
+                let (card_types, owner, pre_sacrifice_controller, pre_death_counters) =
+                    match state.objects.get(&id) {
+                        Some(obj) => (
+                            crate::rules::layers::calculate_characteristics(state, id)
+                                .unwrap_or_else(|| obj.characteristics.clone())
+                                .card_types,
+                            obj.owner,
+                            obj.controller,
+                            obj.counters.clone(),
+                        ),
+                        None => continue, // already gone (e.g. moved by earlier step)
+                    };
+                let pid = pre_sacrifice_controller;
+                // CR 614: Check replacement effects before moving to graveyard.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    id,
+                    ZoneType::Battlefield,
+                    ZoneType::Graveyard,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                            match dest {
+                                ZoneId::Exile => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: owner,
+                                        object_id: id,
+                                        new_exile_id: new_id,
+                                    });
+                                    events.push(GameEvent::PermanentSacrificed {
+                                        player: pid,
+                                        object_id: id,
+                                        new_id,
+                                    });
+                                    // NOTE: This exile was caused by a replacement effect, NOT
+                                    // by step 1. Do NOT add new_id to step1_exiled. Only
+                                    // step-1 exiled cards are returned in step 3.
+                                    // (Living Death 2018-03-16 ruling)
+                                }
+                                ZoneId::Command(_) => {}
+                                _ => {
+                                    if card_types.contains(&CardType::Creature) {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: id,
+                                            new_grave_id: new_id,
+                                            controller: pre_sacrifice_controller,
+                                            pre_death_counters: pre_death_counters.clone(),
+                                        });
+                                    } else {
+                                        events.push(GameEvent::PermanentDestroyed {
+                                            object_id: id,
+                                            new_grave_id: new_id,
+                                        });
+                                    }
+                                    events.push(GameEvent::PermanentSacrificed {
+                                        player: pid,
+                                        object_id: id,
+                                        new_id,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        use crate::state::replacement_effect::PendingZoneChange;
+                        state.pending_zone_changes.push_back(PendingZoneChange {
+                            object_id: id,
+                            original_from: ZoneType::Battlefield,
+                            original_destination: ZoneType::Graveyard,
+                            affected_player: player,
+                            already_applied: Vec::new(),
+                        });
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        if let Ok((new_id, _old)) =
+                            state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                        {
+                            if card_types.contains(&CardType::Creature) {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: id,
+                                    new_grave_id: new_id,
+                                    controller: pre_sacrifice_controller,
+                                    pre_death_counters: pre_death_counters.clone(),
+                                });
+                            } else {
+                                events.push(GameEvent::PermanentDestroyed {
+                                    object_id: id,
+                                    new_grave_id: new_id,
+                                });
+                            }
+                            events.push(GameEvent::PermanentSacrificed {
+                                player: pid,
+                                object_id: id,
+                                new_id,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // ── Step 3: Return step-1 exiled cards to the battlefield. ──
+            // Only the ObjectIds tracked in step1_exiled are returned.
+            for (owner, exiled_ids) in step1_exiled {
+                for exile_id in exiled_ids {
+                    // Verify the card is still in exile (it might have been moved if a
+                    // replacement effect in step 2 somehow affected it, which is unlikely
+                    // but we validate defensively).
+                    let still_in_exile = state
+                        .objects
+                        .get(&exile_id)
+                        .map(|o| o.zone == ZoneId::Exile)
+                        .unwrap_or(false);
+                    if !still_in_exile {
+                        continue;
+                    }
+                    if let Ok((new_id, _old)) =
+                        state.move_object_to_zone(exile_id, ZoneId::Battlefield)
+                    {
+                        // Returned cards are controlled by their owner (CR 101.4).
+                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                            obj.controller = owner;
+                        }
+                        let card_id = state
+                            .objects
+                            .get(&new_id)
+                            .and_then(|obj| obj.card_id.clone());
+                        let registry = std::sync::Arc::clone(&state.card_registry);
+                        // Full ETB chain for each returning permanent.
+                        events.extend(crate::rules::replacement::apply_self_etb_from_definition(
+                            state,
+                            new_id,
+                            owner,
+                            card_id.as_ref(),
+                            &registry,
+                        ));
+                        events.extend(crate::rules::replacement::apply_etb_replacements(
+                            state, new_id, owner,
+                        ));
+                        crate::rules::replacement::register_permanent_replacement_abilities(
+                            state,
+                            new_id,
+                            owner,
+                            card_id.as_ref(),
+                            &registry,
+                        );
+                        crate::rules::replacement::register_static_continuous_effects(
+                            state,
+                            new_id,
+                            card_id.as_ref(),
+                            &registry,
+                        );
+                        events.push(GameEvent::PermanentEnteredBattlefield {
+                            player: owner,
+                            object_id: new_id,
+                        });
+                        events.extend(crate::rules::replacement::queue_carddef_etb_triggers(
+                            state,
+                            new_id,
+                            owner,
+                            card_id.as_ref(),
+                            &registry,
+                        ));
+                    }
+                }
+            }
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────
