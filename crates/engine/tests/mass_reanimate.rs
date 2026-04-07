@@ -15,9 +15,12 @@
 
 use mtg_engine::cards::card_definition::PlayerTarget;
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::state::replacement_effect::{
+    ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
+};
 use mtg_engine::{
-    CardType, Effect, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step,
-    TargetFilter, ZoneId,
+    CardType, Effect, EffectDuration, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec,
+    PlayerId, Step, TargetFilter, ZoneId, ZoneType,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -615,4 +618,68 @@ fn test_living_death_two_players_full_swap() {
         .filter(|e| matches!(e, GameEvent::PermanentSacrificed { .. }))
         .count();
     assert_eq!(sacrifice_events, 2);
+}
+
+#[test]
+/// Living Death 2018-03-16 ruling: creatures sacrificed in step 2 that get
+/// exiled by a replacement effect (e.g. Leyline of the Void) must NOT return
+/// in step 3. Only cards exiled by step 1 (from graveyards) are returned.
+fn test_living_death_replacement_exile_not_returned() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        // P1: creature on BF (will be sacrificed in step 2)
+        .object(ObjectSpec::creature(p(1), "P1 Soldier", 2, 2))
+        // P1: creature card in GY (will be exiled in step 1, returned in step 3)
+        .object(gy_creature(p(1), "P1 Angel"))
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    // Register a Leyline-of-the-Void-like replacement: any permanent that would
+    // go to a graveyard from the battlefield goes to exile instead.
+    let repl_id = state.next_replacement_id();
+    state
+        .replacement_effects
+        .push_back(ReplacementEffect {
+            id: repl_id,
+            source: None,
+            controller: p(1),
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldChangeZone {
+                from: Some(ZoneType::Battlefield),
+                to: ZoneType::Graveyard,
+                filter: ObjectFilter::Any,
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+        });
+
+    let (state, _events) = run_effect(state, p(1), Effect::LivingDeath);
+
+    // P1 Angel was in the graveyard → exiled in step 1 → returned in step 3.
+    assert!(
+        find_in_zone(&state, "P1 Angel", ZoneId::Battlefield).is_some(),
+        "step-1 exiled Angel should be on the battlefield"
+    );
+
+    // P1 Soldier was on the battlefield → sacrificed in step 2 → replacement
+    // redirected to exile instead of graveyard. It should NOT return in step 3.
+    assert!(
+        find_in_zone(&state, "P1 Soldier", ZoneId::Battlefield).is_none(),
+        "step-2 sacrificed Soldier should NOT return to battlefield"
+    );
+    assert!(
+        find_in_zone(&state, "P1 Soldier", ZoneId::Exile).is_some(),
+        "step-2 sacrificed Soldier should be in exile (via replacement)"
+    );
+
+    // Only the Angel should be on the battlefield.
+    let bf_count = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Battlefield)
+        .count();
+    assert_eq!(bf_count, 1, "only the step-1 exiled Angel returns");
 }
