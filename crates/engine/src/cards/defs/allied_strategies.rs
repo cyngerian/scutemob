@@ -2,7 +2,8 @@
 // Domain — Target player draws a card for each basic land type among lands they control.
 //
 // CR 305.6 / ability word "Domain": the effect magnitude equals the number of distinct basic
-// land types (Plains, Island, Swamp, Mountain, Forest) among lands the target player controls.
+// land types (Plains, Island, Swamp, Mountain, Forest) among lands the TARGET PLAYER controls.
+// "They" in the oracle text refers to the target player, not the caster.
 // Uses layer-resolved characteristics via EffectAmount::DomainCount.
 use crate::cards::helpers::*;
 
@@ -15,11 +16,12 @@ pub fn card() -> CardDefinition {
         oracle_text: "Domain \u{2014} Target player draws a card for each basic land type among lands they control.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 305.6: Domain — draw cards equal to the number of distinct basic land types
-            // among lands the controller controls. DomainCount uses calculate_characteristics()
-            // so Layer 4 effects (e.g. Dryad of the Ilysian Grove) are accounted for.
+            // among lands the TARGET PLAYER controls (oracle: "lands they control").
+            // DomainCount { player: DeclaredTarget { index: 0 } } counts the target player's lands.
+            // DomainCount uses calculate_characteristics() so Layer 4 effects are accounted for.
             effect: Effect::DrawCards {
                 player: PlayerTarget::DeclaredTarget { index: 0 },
-                count: EffectAmount::DomainCount,
+                count: EffectAmount::DomainCount { player: PlayerTarget::DeclaredTarget { index: 0 } },
             },
             targets: vec![TargetRequirement::TargetPlayer],
             modes: None,

@@ -110,7 +110,9 @@ fn test_domain_count_zero_lands() {
         &mut state,
         &Effect::DrawCards {
             player: PlayerTarget::Controller,
-            count: EffectAmount::DomainCount,
+            count: EffectAmount::DomainCount {
+                player: PlayerTarget::Controller,
+            },
         },
         &mut ctx,
     );
@@ -180,7 +182,9 @@ fn test_domain_count_all_five_types() {
         &mut state,
         &Effect::DrawCards {
             player: PlayerTarget::Controller,
-            count: EffectAmount::DomainCount,
+            count: EffectAmount::DomainCount {
+                player: PlayerTarget::Controller,
+            },
         },
         &mut ctx,
     );
@@ -242,7 +246,9 @@ fn test_domain_count_duplicate_types() {
         &mut state,
         &Effect::DrawCards {
             player: PlayerTarget::Controller,
-            count: EffectAmount::DomainCount,
+            count: EffectAmount::DomainCount {
+                player: PlayerTarget::Controller,
+            },
         },
         &mut ctx,
     );
@@ -309,7 +315,9 @@ fn test_domain_count_only_controllers_lands() {
         &mut state,
         &Effect::DrawCards {
             player: PlayerTarget::Controller,
-            count: EffectAmount::DomainCount,
+            count: EffectAmount::DomainCount {
+                player: PlayerTarget::Controller,
+            },
         },
         &mut ctx,
     );
@@ -323,6 +331,116 @@ fn test_domain_count_only_controllers_lands() {
     assert_eq!(
         delta, 1,
         "CR 305.6: Only p1's Plains counts; domain = 1 (drew {})",
+        delta
+    );
+}
+
+#[test]
+/// CR 305.6 — DomainCount with a Layer 4 continuous effect granting all 5 basic land subtypes
+/// to a single non-basic land should yield domain count = 5 (effect-path uses
+/// calculate_characteristics() which includes Layer 4 changes).
+///
+/// This exercises the resolve_amount path (effects/mod.rs) which calls
+/// calculate_characteristics() — confirming that Layer 4 type changes ARE reflected
+/// in DomainCount when evaluated outside the CDA context.
+fn test_domain_count_dual_land() {
+    use mtg_engine::state::continuous_effect::{
+        ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
+    };
+
+    let p1 = p(1);
+
+    // A single non-basic land — starts with no basic land subtypes.
+    let nonbasic = ObjectSpec::land(p1, "Exotic Land")
+        .with_card_id(cid("exotic-land"))
+        .in_zone(ZoneId::Battlefield);
+    let source = ObjectSpec::artifact(p1, "Source").in_zone(ZoneId::Battlefield);
+
+    // Give p1 enough library cards to draw 5.
+    let libs: Vec<_> = (1..=6)
+        .map(|i| ObjectSpec::card(p1, &format!("Lib {}", i)).in_zone(ZoneId::Library(p1)))
+        .collect();
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .object(nonbasic)
+        .object(source);
+    for lib in libs {
+        builder = builder.object(lib);
+    }
+
+    let mut state = builder
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let nonbasic_id = find_object(&state, "Exotic Land");
+    let source_id = find_object(&state, "Source");
+
+    // Register a Layer 4 continuous effect that adds all 5 basic land subtypes to "Exotic Land".
+    // This simulates Dryad of the Ilysian Grove ("lands you control are every basic land type").
+    let all_basic_subtypes: im::OrdSet<SubType> = [
+        SubType("Plains".to_string()),
+        SubType("Island".to_string()),
+        SubType("Swamp".to_string()),
+        SubType("Mountain".to_string()),
+        SubType("Forest".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let layer4_effect = ContinuousEffect {
+        id: EffectId(8000),
+        source: Some(source_id),
+        timestamp: 1,
+        layer: EffectLayer::TypeChange,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(nonbasic_id),
+        modification: LayerModification::AddSubtypes(all_basic_subtypes),
+        is_cda: false,
+        condition: None,
+    };
+    state.continuous_effects.push_back(layer4_effect);
+
+    // Verify via calculate_characteristics that the layer effect is applied.
+    let chars = calculate_characteristics(&state, nonbasic_id)
+        .expect("Exotic Land should have characteristics");
+    assert!(
+        chars.subtypes.contains(&SubType("Plains".to_string())),
+        "Layer 4 should grant Plains subtype to Exotic Land"
+    );
+
+    // Now exercise DomainCount via the resolve_amount path (execute_effect).
+    // With all 5 basic land subtypes on "Exotic Land", domain count = 5.
+    let initial_hand = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    let mut ctx = ec(p1, source_id);
+    let _events = execute_effect(
+        &mut state,
+        &Effect::DrawCards {
+            player: PlayerTarget::Controller,
+            count: EffectAmount::DomainCount {
+                player: PlayerTarget::Controller,
+            },
+        },
+        &mut ctx,
+    );
+
+    let hand_after = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+    let delta = hand_after as i32 - initial_hand as i32;
+    assert_eq!(
+        delta, 5,
+        "CR 305.6: Layer 4 grants all 5 basic land subtypes to one land; domain = 5 (drew {})",
         delta
     );
 }
@@ -375,12 +493,20 @@ fn test_territorial_maro_cda() {
         filter: EffectFilter::SingleObject(maro_id),
         modification: LayerModification::SetPtDynamic {
             power: Box::new(EffectAmount::Sum(
-                Box::new(EffectAmount::DomainCount),
-                Box::new(EffectAmount::DomainCount),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
             )),
             toughness: Box::new(EffectAmount::Sum(
-                Box::new(EffectAmount::DomainCount),
-                Box::new(EffectAmount::DomainCount),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
             )),
         },
         is_cda: true,
@@ -440,12 +566,20 @@ fn test_territorial_maro_cda_zero_lands() {
         filter: EffectFilter::SingleObject(maro_id),
         modification: LayerModification::SetPtDynamic {
             power: Box::new(EffectAmount::Sum(
-                Box::new(EffectAmount::DomainCount),
-                Box::new(EffectAmount::DomainCount),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
             )),
             toughness: Box::new(EffectAmount::Sum(
-                Box::new(EffectAmount::DomainCount),
-                Box::new(EffectAmount::DomainCount),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
+                Box::new(EffectAmount::DomainCount {
+                    player: PlayerTarget::Controller,
+                }),
             )),
         },
         is_cda: true,

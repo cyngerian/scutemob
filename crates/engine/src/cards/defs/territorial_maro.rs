@@ -22,12 +22,12 @@ pub fn card() -> CardDefinition {
             // 2 * domain_count is expressed as DomainCount + DomainCount using Sum.
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::Sum(
-                    Box::new(EffectAmount::DomainCount),
-                    Box::new(EffectAmount::DomainCount),
+                    Box::new(EffectAmount::DomainCount { player: PlayerTarget::Controller }),
+                    Box::new(EffectAmount::DomainCount { player: PlayerTarget::Controller }),
                 ),
                 toughness: EffectAmount::Sum(
-                    Box::new(EffectAmount::DomainCount),
-                    Box::new(EffectAmount::DomainCount),
+                    Box::new(EffectAmount::DomainCount { player: PlayerTarget::Controller }),
+                    Box::new(EffectAmount::DomainCount { player: PlayerTarget::Controller }),
                 ),
             },
         ],

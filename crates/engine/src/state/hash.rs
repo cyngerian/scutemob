@@ -4155,8 +4155,11 @@ impl HashInto for EffectAmount {
                 13u8.hash_into(hasher);
                 controller.hash_into(hasher);
             }
-            // Domain count (discriminant 14) — PB-L: basic land types among lands you control
-            EffectAmount::DomainCount => 14u8.hash_into(hasher),
+            // Domain count (discriminant 14) — PB-L: basic land types among lands a player controls
+            EffectAmount::DomainCount { player } => {
+                14u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }

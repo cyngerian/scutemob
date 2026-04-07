@@ -1455,7 +1455,12 @@ pub(crate) fn resolve_cda_amount(
         // controller controls. Uses base characteristics (avoids recursion; land types
         // are set by Layer 4 effects like Dryad, not by CDAs).
         // CR 305.6 / ability word "Domain".
-        EffectAmount::DomainCount => {
+        // Limitation: Layer 4 type-changing effects (Blood Moon, Dryad) are not reflected
+        // here because resolve_cda_amount runs inside the layer loop. The resolve_amount
+        // path (effects/mod.rs) does use calculate_characteristics().
+        // The `player` field is ignored in the CDA context — CDAs always reference the
+        // controller (the permanent's controller at the time of evaluation).
+        EffectAmount::DomainCount { .. } => {
             let basic_land_subtypes = [
                 crate::state::types::SubType("Plains".to_string()),
                 crate::state::types::SubType("Island".to_string()),

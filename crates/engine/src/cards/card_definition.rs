@@ -2090,13 +2090,21 @@ pub enum EffectAmount {
     /// CR 205.3m: Type check uses layer-resolved characteristics.
     ChosenTypeCreatureCount { controller: PlayerTarget },
     /// Domain count: the number of distinct basic land types (Plains, Island, Swamp,
-    /// Mountain, Forest) among lands the controller controls.
+    /// Mountain, Forest) among lands a specified player controls.
     ///
     /// CR 305.6 / ability word "Domain": Used for effects whose magnitude equals
     /// the domain count (e.g., Allied Strategies: "draw a card for each basic land
-    /// type among lands they control"). Uses layer-resolved characteristics so that
-    /// effects like Dryad of the Ilysian Grove (Layer 4) are accounted for.
-    DomainCount,
+    /// type among lands they control").
+    ///
+    /// The `player` field selects whose lands are counted:
+    /// - `PlayerTarget::Controller` for controller-based effects (e.g., Territorial Maro CDA)
+    /// - `PlayerTarget::DeclaredTarget { index: 0 }` for target-player effects (Allied Strategies)
+    ///
+    /// In the effect resolution path (resolve_amount), uses layer-resolved characteristics so that
+    /// Layer 4 effects (e.g., Dryad of the Ilysian Grove, Blood Moon) are accounted for.
+    /// In the CDA path (resolve_cda_amount), uses base characteristics to avoid recursion during
+    /// layer calculation.
+    DomainCount { player: PlayerTarget },
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).
