@@ -27,8 +27,9 @@ pub fn card() -> CardDefinition {
             // TODO: Granting arbitrary mana abilities to permanents is a complex DSL
             // pattern (AnyColor mana production from lands). Known DSL gap.
 
-            // CR 613.1d/613.4b: +1: Target land becomes 3/3 Elemental with vigilance, hexproof,
-            // and haste until end of turn (approximation: "until your next turn" → UntilEndOfTurn).
+            // CR 613.1d/613.4b / CR 611.2b: +1: Target land becomes 3/3 Elemental with vigilance,
+            // hexproof, and haste until your next turn. PlayerId(0) resolves to the controller
+            // at execution time (same pattern as lightning_army_of_one, teferi_time_raveler).
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
                 effect: Effect::Sequence(vec![
@@ -39,7 +40,7 @@ pub fn card() -> CardDefinition {
                                 [CardType::Creature].into_iter().collect(),
                             ),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
-                            duration: EffectDuration::UntilEndOfTurn,
+                            duration: EffectDuration::UntilYourNextTurn(PlayerId(0)),
                             condition: None,
                         }),
                     },
@@ -50,7 +51,7 @@ pub fn card() -> CardDefinition {
                                 [SubType("Elemental".to_string())].into_iter().collect(),
                             ),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
-                            duration: EffectDuration::UntilEndOfTurn,
+                            duration: EffectDuration::UntilYourNextTurn(PlayerId(0)),
                             condition: None,
                         }),
                     },
@@ -62,7 +63,7 @@ pub fn card() -> CardDefinition {
                                 toughness: 3,
                             },
                             filter: EffectFilter::DeclaredTarget { index: 0 },
-                            duration: EffectDuration::UntilEndOfTurn,
+                            duration: EffectDuration::UntilYourNextTurn(PlayerId(0)),
                             condition: None,
                         }),
                     },
@@ -79,7 +80,7 @@ pub fn card() -> CardDefinition {
                                 .collect(),
                             ),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
-                            duration: EffectDuration::UntilEndOfTurn,
+                            duration: EffectDuration::UntilYourNextTurn(PlayerId(0)),
                             condition: None,
                         }),
                     },

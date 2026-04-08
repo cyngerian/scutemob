@@ -1,13 +1,12 @@
 // Brokkos, Apex of Forever — {2}{U/B}{G}{G}, Legendary Creature — Nightmare Beast Elemental 6/6
-// Mutate {3}{U/B}{G}
+// Mutate {2}{U/B}{G}{G}
 // Trample
 // You may cast Brokkos, Apex of Forever from your graveyard using its mutate ability.
 //
 // CR 702.140a: Mutate is an alternative cost targeting a non-Human creature you own.
-// TODO: "You may cast this card from your graveyard using its mutate ability" requires a
-//       cast-from-zone permission system that does not yet exist. This ability is omitted.
-//       When this is implemented, casting.rs must allow AltCostKind::Mutate from the graveyard
-//       when the source card has this ability, and the card must be found via find_in_graveyard.
+// CR 601.3: "You may cast this card from your graveyard using its mutate ability" is
+//           implemented via AbilityDefinition::CastSelfFromGraveyard with required_alt_cost
+//           Mutate, enforced in casting.rs. (PB-B)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,7 +28,7 @@ pub fn card() -> CardDefinition {
             &["Nightmare", "Beast", "Elemental"],
         ),
         oracle_text:
-            "Mutate {3}{U/B}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nTrample\nYou may cast Brokkos, Apex of Forever from your graveyard using its mutate ability."
+            "Mutate {2}{U/B}{G}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nTrample\nYou may cast Brokkos, Apex of Forever from your graveyard using its mutate ability."
                 .to_string(),
         power: Some(6),
         toughness: Some(6),
@@ -39,8 +38,8 @@ pub fn card() -> CardDefinition {
             // CR 702.140a: Mutate cost {3}{U/B}{G}
             AbilityDefinition::MutateCost {
                 cost: ManaCost {
-                    generic: 3,
-                    green: 1,
+                    generic: 2,
+                    green: 2,
                     hybrid: vec![HybridMana::ColorColor(ManaColor::Blue, ManaColor::Black)],
                     ..Default::default()
                 },

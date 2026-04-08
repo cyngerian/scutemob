@@ -649,7 +649,10 @@ fn test_cast_self_from_graveyard_squee_with_4_fillers() {
 
     let mut state = builder.build().unwrap();
     state.turn.priority_holder = Some(p1);
-    // Squee's alt cost is {3}{R}
+    // Squee's alt cost from GY is {3}{R}. Supply EXACTLY {3}{R} (4 total).
+    // If the engine incorrectly charges the normal mana cost {2}{R} (3 total),
+    // this would still succeed — so we also run a tighter test below that
+    // demonstrates the cost enforcement. This test verifies the happy path.
     if let Some(p) = state.players.get_mut(&p1) {
         p.mana_pool.red = 1;
         p.mana_pool.colorless = 3;
@@ -657,13 +660,8 @@ fn test_cast_self_from_graveyard_squee_with_4_fillers() {
 
     let squee_id = find_object(&state, "Test Squee");
 
-    // Squee's CastSelfFromGraveyard ability uses alt_mana_cost, which the engine
-    // validates in casting.rs. Since alt_mana_cost is present, casting.rs should
-    // accept the normal mana payment if {3}{R} is in the pool.
-    // Note: The actual exile of 4 cards is validated as feasibility (cards exist)
-    // at cast time; the actual exile would happen at resolution with additional_costs.
     let (_, events) = process_command(state, cast_spell(p1, squee_id, None))
-        .expect("Squee from GY with 4 filler cards should succeed");
+        .expect("Squee from GY with 4 filler cards and {3}{R} mana should succeed");
 
     assert!(
         events
@@ -931,5 +929,146 @@ fn test_play_from_graveyard_emblem_permission_persists() {
             .iter()
             .any(|e| matches!(e, GameEvent::PermanentEnteredBattlefield { .. })),
         "Land should enter the battlefield from graveyard via emblem permission"
+    );
+}
+
+/// CR 601.2f / CR 118.9 (PB-B fix MEDIUM-1): Squee's alt mana cost {3}{R} is enforced
+/// when casting from the graveyard. With only {2}{R} (normal cost, 3 mana) in the pool,
+/// the cast must fail — verifying the engine charges {3}{R}, not {2}{R}.
+#[test]
+fn test_cast_self_from_graveyard_squee_alt_cost_enforced() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let fillers: Vec<CardDefinition> = (1..=4).map(filler_card_def).collect();
+    let mut all_defs = vec![squee_def()];
+    all_defs.extend(fillers);
+    let registry = CardRegistry::new(all_defs);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .object(
+            ObjectSpec::creature(p1, "Test Squee", 2, 2)
+                .with_card_id(CardId("test-squee".to_string()))
+                .with_mana_cost(ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                })
+                .in_zone(ZoneId::Graveyard(p1)),
+        );
+
+    for i in 1..=4u8 {
+        builder = builder.object(
+            ObjectSpec::creature(p1, &format!("Filler {}", i), 1, 1)
+                .with_card_id(CardId(format!("gy-filler-{}", i)))
+                .in_zone(ZoneId::Graveyard(p1)),
+        );
+    }
+
+    let mut state = builder.build().unwrap();
+    state.turn.priority_holder = Some(p1);
+    // Provide only {2}{R} — Squee's normal mana cost, not the GY alt cost {3}{R}.
+    // The cast must fail: the engine must charge the alt cost {3}{R}.
+    if let Some(p) = state.players.get_mut(&p1) {
+        p.mana_pool.red = 1;
+        p.mana_pool.colorless = 2; // {2}{R} total — insufficient for {3}{R}
+    }
+
+    let squee_id = find_object(&state, "Test Squee");
+
+    let result = process_command(state, cast_spell(p1, squee_id, None));
+    assert!(
+        result.is_err(),
+        "Squee from GY should fail with only {{2}}{{R}} — alt cost is {{3}}{{R}} (CR 601.2f / CR 118.9)"
+    );
+}
+
+/// CR 601.2h (PB-B fix MEDIUM-2): When Squee is cast from the graveyard, the four
+/// other graveyard cards are actually exiled as part of cost payment.
+/// After the cast, the graveyard should contain only Squee (on stack) with 0 other cards.
+#[test]
+fn test_cast_self_from_graveyard_squee_exiles_4_cards() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let fillers: Vec<CardDefinition> = (1..=4).map(filler_card_def).collect();
+    let mut all_defs = vec![squee_def()];
+    all_defs.extend(fillers);
+    let registry = CardRegistry::new(all_defs);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .object(
+            ObjectSpec::creature(p1, "Test Squee", 2, 2)
+                .with_card_id(CardId("test-squee".to_string()))
+                .with_mana_cost(ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                })
+                .in_zone(ZoneId::Graveyard(p1)),
+        );
+
+    for i in 1..=4u8 {
+        builder = builder.object(
+            ObjectSpec::creature(p1, &format!("Filler {}", i), 1, 1)
+                .with_card_id(CardId(format!("gy-filler-{}", i)))
+                .in_zone(ZoneId::Graveyard(p1)),
+        );
+    }
+
+    let mut state = builder.build().unwrap();
+    state.turn.priority_holder = Some(p1);
+    if let Some(p) = state.players.get_mut(&p1) {
+        p.mana_pool.red = 1;
+        p.mana_pool.colorless = 3; // {3}{R} — exact alt cost
+    }
+
+    let squee_id = find_object(&state, "Test Squee");
+
+    let (state2, events) = process_command(state, cast_spell(p1, squee_id, None))
+        .expect("Squee from GY with 4 filler cards and {3}{R} should succeed");
+
+    // Four ObjectExiled events should have been emitted — one per filler card.
+    let exile_events: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::ObjectExiled { .. }))
+        .collect();
+    assert_eq!(
+        exile_events.len(),
+        4,
+        "Exactly 4 ObjectExiled events should be emitted for ExileOtherGraveyardCards(4) (CR 601.2h)"
+    );
+
+    // The filler cards should now be in exile, not in the graveyard.
+    let gy_zone = ZoneId::Graveyard(p1);
+    let gy_count = state2
+        .zones
+        .get(&gy_zone)
+        .map(|z| z.object_ids().len())
+        .unwrap_or(0);
+    assert_eq!(
+        gy_count, 0,
+        "Graveyard should be empty after Squee moves to stack and 4 fillers are exiled (CR 601.2h)"
+    );
+
+    // The 4 filler cards should be in exile.
+    let exile_zone = ZoneId::Exile;
+    let exile_count = state2
+        .zones
+        .get(&exile_zone)
+        .map(|z| z.object_ids().len())
+        .unwrap_or(0);
+    assert_eq!(
+        exile_count,
+        4,
+        "4 filler cards should be in exile after paying ExileOtherGraveyardCards(4) cost (CR 601.2h)"
     );
 }

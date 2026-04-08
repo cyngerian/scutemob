@@ -681,6 +681,11 @@ pub fn handle_cast_spell(
     // PB-B: Validate CastSelfFromGraveyard ability (CR 601.3).
     // The card is in the graveyard and has a self-referential graveyard cast ability.
     // Check: condition (if any), required_alt_cost (if any), additional_costs feasibility.
+    // These are stored in outer variables so the cost chain and exile execution can read them.
+    let self_gy_alt_mana_cost: Option<ManaCost>; // CR 601.2f: alt mana cost if Some
+    let self_gy_additional_costs: Vec<
+        crate::cards::card_definition::CastFromGraveyardAdditionalCost,
+    >;
     if has_cast_self_from_graveyard {
         if let Some(self_gy_ability) = card_id
             .as_ref()
@@ -698,7 +703,7 @@ pub fn handle_cast_spell(
                 })
             })
         {
-            let (condition, _alt_mana_cost, additional_costs, required_alt_cost_opt) = self_gy_ability;
+            let (condition, extracted_alt_mana_cost, extracted_additional_costs, required_alt_cost_opt) = self_gy_ability;
             // 1. Check condition (CR 601.3: the permission may require a condition).
             if let Some(ref cond) = condition {
                 let ctx = crate::effects::EffectContext::new(player, card, vec![]);
@@ -720,7 +725,7 @@ pub fn handle_cast_spell(
                 }
             }
             // 3. Validate additional_costs feasibility (ExileOtherGraveyardCards(N)).
-            for cost in &additional_costs {
+            for cost in &extracted_additional_costs {
                 match cost {
                     crate::cards::card_definition::CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(n) => {
                         // Count other cards in the player's graveyard (not the card being cast).
@@ -746,7 +751,15 @@ pub fn handle_cast_spell(
                     }
                 }
             }
+            self_gy_alt_mana_cost = extracted_alt_mana_cost;
+            self_gy_additional_costs = extracted_additional_costs;
+        } else {
+            self_gy_alt_mana_cost = None;
+            self_gy_additional_costs = vec![];
         }
+    } else {
+        self_gy_alt_mana_cost = None;
+        self_gy_additional_costs = vec![];
     }
     // Lands are not cast — they are played as a special action (CR 305.1).
     if chars.card_types.contains(&CardType::Land) {
@@ -2452,6 +2465,11 @@ pub fn handle_cast_spell(
         // CR 107.3: X is 0 when casting with an alternative cost that ignores the mana cost.
         // 2019-05-03 ruling: "you must choose 0 as the value of X when casting it this way."
         Some(ManaCost::default())
+    } else if has_cast_self_from_graveyard {
+        // CR 601.2f / CR 118.9: CastSelfFromGraveyard — if the ability specifies an alt mana
+        // cost (e.g., Squee, Dubious Monarch's {3}{R} instead of {2}{R}), use that cost.
+        // If no alt_mana_cost is specified (e.g., Oathsworn Vampire), pay normal mana cost.
+        self_gy_alt_mana_cost.or(base_mana_cost)
     } else {
         base_mana_cost
     };
@@ -3575,6 +3593,44 @@ pub fn handle_cast_spell(
             &mut escape_exile_events,
         )?;
     }
+    // PB-B: CR 601.2h — CastSelfFromGraveyard ExileOtherGraveyardCards additional cost.
+    // When has_cast_self_from_graveyard is true and the ability has ExileOtherGraveyardCards(n),
+    // exile n other cards from the caster's graveyard as part of cost payment.
+    // The card being cast is still in the graveyard at this point; it moves to the stack below
+    // via move_object_to_zone. We select the n lowest ObjectIds from the graveyard
+    // (excluding the card being cast) — deterministic, matching the engine's existing pattern.
+    let mut self_gy_exile_events: Vec<GameEvent> = Vec::new();
+    if has_cast_self_from_graveyard {
+        for cost in &self_gy_additional_costs {
+            match cost {
+                crate::cards::card_definition::CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(n) => {
+                    let gy_zone = ZoneId::Graveyard(player);
+                    let mut other_gy_cards: Vec<ObjectId> = state
+                        .zones
+                        .get(&gy_zone)
+                        .map(|z| {
+                            z.object_ids()
+                                .iter()
+                                .filter(|&&id| id != card)
+                                .copied()
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    // Deterministic selection: lowest ObjectIds first.
+                    other_gy_cards.sort();
+                    other_gy_cards.truncate(*n as usize);
+                    for exile_id in other_gy_cards {
+                        let (new_exile_id, _) = state.move_object_to_zone(exile_id, ZoneId::Exile)?;
+                        self_gy_exile_events.push(GameEvent::ObjectExiled {
+                            player,
+                            object_id: exile_id,
+                            new_exile_id,
+                        });
+                    }
+                }
+            }
+        }
+    }
     // PB-A: CR 107.3 / 2019-05-03 Bolas's Citadel ruling: when casting via PayLifeForManaValue,
     // X is always 0. You pay life equal to the card's printed mana value, and X contributes 0
     // to that value (since the life cost is based on the mana value, and X=0 for cost purposes).
@@ -3679,6 +3735,9 @@ pub fn handle_cast_spell(
     // CR 702.138a / CR 601.2h: Emit ObjectExiled events for escape exile cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(escape_exile_events);
+    // PB-B / CR 601.2h: Emit ObjectExiled events for CastSelfFromGraveyard exile cost.
+    // The ExileOtherGraveyardCards(n) additional cost cards were exiled above; emit here.
+    events.extend(self_gy_exile_events);
     // CR 702.81a / CR 601.2f: Pay the retrace additional cost — discard a land from hand.
     // The discard is a real discard (CR 118.8 / 701.8): the land goes from hand to the
     // owner's graveyard and triggers any "whenever a player discards a card" effects.

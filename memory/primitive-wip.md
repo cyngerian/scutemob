@@ -4,7 +4,7 @@ batch: PB-B
 title: Play from GY/exile — zone-play permission system for graveyard and exile zones
 cards_affected: 5+
 started: 2026-04-08
-phase: done
+phase: fix
 plan_file: memory/primitives/pb-plan-B.md
 
 ## Deferred from Prior PBs
@@ -56,3 +56,17 @@ Pitch alt-cost cards (may be in scope):
 - [x] 3. New card definitions: none
 - [x] 4. Unit tests (13 tests in crates/engine/tests/play_from_graveyard.rs — all passing)
 - [x] 5. Workspace build verification (all pass; clippy clean; fmt clean)
+
+## Review
+findings: 5 (HIGH: 0, MEDIUM: 2, LOW: 3)
+verdict: fixed
+review_file: memory/primitives/pb-review-B.md
+
+## Fix Phase Results (2026-04-07)
+- MEDIUM-1: Fixed. `self_gy_alt_mana_cost` extracted from validation block; new branch in cost chain for `has_cast_self_from_graveyard` uses `self_gy_alt_mana_cost.or(base_mana_cost)`. Squee now charged {3}{R} from GY.
+- MEDIUM-2: Fixed. `apply_cast_from_graveyard_exile_cost` inline block added after escape exile block. Selects lowest N ObjectIds from GY (excluding the cast card), moves to exile, emits `ObjectExiled` events. New `self_gy_exile_events` vec extends main events.
+- LOW-3: Fixed. Stale TODO comment removed from brokkos_apex_of_forever.rs lines 7-10; replaced with CR 601.3 implementation note.
+- LOW-4: Fixed. All 4 `EffectDuration::UntilEndOfTurn` in wrenn_and_realmbreaker.rs changed to `UntilYourNextTurn(PlayerId(0))`.
+- LOW-5: Fixed. Brokkos MutateCost ManaCost changed from `generic: 3, green: 1` to `generic: 2, green: 2`. oracle_text and top comment updated to match.
+- Tests: 2 new tests added (alt_cost_enforced, exiles_4_cards); existing Squee test comment updated.
+- All 15 play_from_graveyard tests pass; full suite clean; clippy clean; fmt clean; workspace build clean.
