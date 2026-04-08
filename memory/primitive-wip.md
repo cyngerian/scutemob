@@ -4,7 +4,7 @@ batch: PB-B
 title: Play from GY/exile — zone-play permission system for graveyard and exile zones
 cards_affected: 5+
 started: 2026-04-08
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-B.md
 
 ## Deferred from Prior PBs
