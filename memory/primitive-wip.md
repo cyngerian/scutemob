@@ -4,7 +4,7 @@ batch: PB-A
 title: Play from top of library — continuous cast permission system
 cards_affected: 6+
 started: 2026-04-07
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-A.md
 
 ## Deferred from Prior PBs

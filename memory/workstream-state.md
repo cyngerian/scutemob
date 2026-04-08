@@ -25,26 +25,29 @@
 
 **Date**: 2026-04-07
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Wave B.5 — PB-H + PB-L engine batches
+**Task**: Wave B.5 — PB-A (play from top of library)
 
 **Completed**:
-- PB-H: Effect::ReturnAllFromGraveyardToBattlefield + Effect::LivingDeath. 1 new card (Living Death) + 4 fixes (Splendid Reclamation, Open the Vaults, Eerie Ultimatum, World Shaper). 1M fixed. 15 tests.
-- PB-L: EffectAmount::DomainCount { player: PlayerTarget } + AltCostKind::CommanderFreeCast. 2 new cards (Allied Strategies, Territorial Maro) + 5 fixes (Coiling Oracle, Bounty of Skemfar, Fierce Guardianship, Deadly Rollick, Flawless Maneuver). 2H 4M fixed. 12 tests.
-- 2531 tests, 0 clippy warnings, ~1735 total card defs
+- PB-A: PlayFromTopPermission/PlayFromTopFilter on GameState, AbilityDefinition::StaticPlayFromTop (disc 73), AltCostKind::PayLifeForManaValue, casting.rs + lands.rs integration, on_cast_effect bonus (haste grant pattern). 6 new cards (Future Sight, Bolas's Citadel, Mystic Forge, Oracle of Mul Daya, Vizier of the Menagerie, Radha Heart of Keld) + 4 fixes (Courser of Kruphix, Elven Chorus, Thundermane Dragon, Case of the Locked Hothouse). 2H 2M fixed (haste CR 400.7, permission filter scoping, life check CR 119.4, X=0 enforcement). 18 tests.
+- 2549 tests, 0 clippy warnings, ~1741 total card defs
 
 **Next** (agreed priority order):
-1. HIGH batches: **PB-A** (play from top of library, 6 cards), **PB-B** (play from GY/exile, 5 cards), **PB-E** (mana doubling, 9 cards), **PB-J** (copy/redirect spells, 4 cards), **PB-M** (Panharmonicon trigger doubling, 1 card)
+1. HIGH batches: **PB-B** (play from GY/exile, 5 cards), **PB-E** (mana doubling, 9 cards), **PB-J** (copy/redirect spells, 4 cards), **PB-M** (Panharmonicon trigger doubling, 1 card)
 2. After HIGH batches: Wave C (A-30, A-36, A-40, A-41), then final audit (X-1 through X-3)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
 - Cavern of Souls "can't be countered" deferred (needs CounterRestriction primitive)
 - Nexus of Fate "from anywhere" graveyard replacement only covers resolution case
-- A-42 BLOCKED categories remaining: mana-doubling, wheel (mass-reanimate resolved by PB-H, domain-count resolved by PB-L)
+- A-42 BLOCKED categories remaining: mana-doubling, wheel (play-from-top resolved by PB-A)
+- PB-A remaining card TODOs: Elven Chorus mana grant, Vizier mana restriction, Bolas's Citadel sac-10, Mystic Forge exile-top, Radha +X/+X (separate gaps)
 
 **Commit prefix**: `W6-prim:` (engine), `W6-cards:` (card defs)
 
 ## Handoff History
+
+### 2026-04-07 — W6: PB-H + PB-L
+- PB-H: mass reanimate. PB-L: reveal/X effects. 2531 tests.
 
 ### 2026-04-06 — W6: PB-C + PB-F + PB-I
 - PB-C: ExtraTurn + self_exile/self_shuffle. PB-F: TripleDamage, DamageTargetFilter. PB-I: FlashGrant, OpponentsCanOnlyCastAtSorcerySpeed. 2504 tests.
