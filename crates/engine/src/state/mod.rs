@@ -46,8 +46,8 @@ pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use std::sync::Arc;
 pub use stubs::{
     ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
-    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, PlayFromTopFilter,
-    PlayFromTopPermission, TriggerDoubler, TriggerDoublerFilter,
+    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, PlayFromGraveyardPermission,
+    PlayFromTopFilter, PlayFromTopPermission, TriggerDoubler, TriggerDoublerFilter,
 };
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
@@ -136,6 +136,15 @@ pub struct GameState {
     /// Cleaned up when the source permanent leaves the battlefield (in reset_turn_state).
     #[serde(default)]
     pub play_from_top_permissions: Vector<crate::state::stubs::PlayFromTopPermission>,
+    /// Active play-from-graveyard permissions (CR 601.3, CR 305.1).
+    ///
+    /// Allows players to play lands and/or cast spells from their graveyard.
+    /// Registered by AbilityDefinition::StaticPlayFromGraveyard when the source permanent
+    /// enters the battlefield, or by CreateEmblem with play_from_graveyard filter.
+    /// Cleaned up when the source permanent leaves the battlefield. Emblem-sourced
+    /// permissions are permanent (emblems never leave the command zone).
+    #[serde(default)]
+    pub play_from_graveyard_permissions: Vector<crate::state::stubs::PlayFromGraveyardPermission>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

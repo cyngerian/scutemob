@@ -1491,6 +1491,9 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             // CR 702.137a: per-turn life-loss counter resets at the start of each
             // turn for all players (Spectacle eligibility is scoped to the current game turn).
             p.life_lost_this_turn = 0;
+            // PB-B: per-turn life-gain counter resets at the start of each turn for all players
+            // (Oathsworn Vampire's "if you gained life this turn" check — CR 601.3).
+            p.life_gained_this_turn = 0;
             // CR 702.54a: per-turn damage-received counter resets at the start of each
             // turn for all players (Bloodthirst eligibility is scoped to the current game turn).
             p.damage_received_this_turn = 0;
@@ -1542,6 +1545,16 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             .objects
             .get(&perm.source)
             .map(|o| matches!(o.zone, crate::state::ZoneId::Battlefield))
+            .unwrap_or(false)
+    });
+    // PB-B: Clean up play-from-graveyard permissions whose source left the battlefield.
+    // Emblem sources live in the command zone (is_emblem == true) and are NEVER cleaned up.
+    // Permanent sources are cleaned up when they leave the battlefield.
+    state.play_from_graveyard_permissions.retain(|perm| {
+        state
+            .objects
+            .get(&perm.source)
+            .map(|o| o.is_emblem || matches!(o.zone, crate::state::ZoneId::Battlefield))
             .unwrap_or(false)
     });
     // CR 615.1: Reset per-turn combat damage prevention flags.

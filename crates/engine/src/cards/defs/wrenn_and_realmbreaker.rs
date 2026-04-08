@@ -99,19 +99,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // −7: You get an emblem with "You may play lands and cast permanent spells
-            // from your graveyard." (CR 114.1-114.4)
-            // TODO: "Play lands from graveyard" and "cast permanent spells from graveyard"
-            // are game-rules-modifying static abilities that require changes to legal_actions.rs
-            // to scan the graveyard for castable cards. This is a separate primitive gap
-            // beyond emblem infrastructure — similar to Crucible of Worlds / Yawgmoth's Will.
-            // The emblem is created correctly; the rule modification is deferred.
+            // from your graveyard." (CR 114.1-114.4, CR 601.3, CR 305.1)
+            // PB-B: PlayFromGraveyardPermission with PermanentsAndLands filter.
+            // The emblem is the permission source; since emblems never leave the command zone,
+            // this permission is permanent for the rest of the game.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(7),
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![],
                     static_effects: vec![],
-                    // TODO: Static rule-modifying effect for "play lands/permanents from graveyard".
-                    // This requires a new DSL primitive or a custom legal_actions.rs hook.
+                    play_from_graveyard: Some(PlayFromTopFilter::PermanentsAndLands),
                 },
                 targets: vec![],
             },

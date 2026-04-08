@@ -20,8 +20,15 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // TODO: "You may cast this card from your graveyard if you gained life this turn."
-            // DSL gap: graveyard casting permission with life-gained-this-turn condition.
+            // CR 601.3: "You may cast this card from your graveyard if you gained life this turn."
+            // Ruling 2018-01-19: Casting is permitted if ANY life was gained this turn,
+            // regardless of subsequent life loss. The condition is checked at cast time.
+            AbilityDefinition::CastSelfFromGraveyard {
+                condition: Some(Box::new(Condition::ControllerGainedLifeThisTurn)),
+                alt_mana_cost: None,
+                additional_costs: vec![],
+                required_alt_cost: None,
+            },
         ],
         power: Some(2),
         toughness: Some(2),

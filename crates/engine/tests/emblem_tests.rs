@@ -54,6 +54,7 @@ fn emblem_pw_def(
                 effect: Effect::CreateEmblem {
                     triggered_abilities,
                     static_effects,
+                    play_from_graveyard: None,
                 },
                 targets: vec![],
             },

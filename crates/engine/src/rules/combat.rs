@@ -1749,6 +1749,8 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     for (controller, amount) in &lifelink_gains {
         if let Some(player) = state.players.get_mut(controller) {
             player.life_total += *amount as i32;
+            // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
+            player.life_gained_this_turn += *amount;
         }
         events.push(GameEvent::LifeGained {
             player: *controller,

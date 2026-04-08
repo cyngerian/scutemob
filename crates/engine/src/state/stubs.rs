@@ -633,6 +633,11 @@ pub enum PlayFromTopFilter {
     ArtifactsAndColorless,
     /// Creature and enchantment spells + lands (Case of the Locked Hothouse solved)
     CreaturesAndEnchantmentsAndLands,
+    /// Permanent spells (creature, artifact, enchantment, planeswalker) and lands.
+    ///
+    /// Used by Wrenn and Realmbreaker emblem: "play lands and cast permanent spells from
+    /// your graveyard." Matches all permanent types but NOT instants or sorceries.
+    PermanentsAndLands,
 }
 /// An active play-from-top-of-library permission.
 ///
@@ -662,6 +667,25 @@ pub struct PlayFromTopPermission {
     /// Optional bonus effect applied when a spell is successfully cast from top this way.
     /// Used for Thundermane Dragon (grant haste until end of turn).
     pub on_cast_effect: Option<Box<crate::cards::card_definition::Effect>>,
+}
+/// An active play-from-graveyard permission.
+///
+/// CR 601.3: A player can begin to cast a spell only if a rule or effect allows it.
+/// CR 305.1 (modified): Playing a land from graveyard requires explicit permission.
+///
+/// Registered by `AbilityDefinition::StaticPlayFromGraveyard` when the source permanent
+/// enters the battlefield, or by emblem creation. Cleaned up when source leaves battlefield.
+/// Emblem sources (in command zone) are never cleaned up — emblems are permanent.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlayFromGraveyardPermission {
+    /// ObjectId of the source permanent or emblem.
+    pub source: ObjectId,
+    /// The player who receives this permission.
+    pub controller: PlayerId,
+    /// Which cards this permission applies to (reuse PlayFromTopFilter).
+    pub filter: PlayFromTopFilter,
+    /// Optional condition that must be true for this permission to be active.
+    pub condition: Option<crate::cards::card_definition::Condition>,
 }
 /// CR 305.2: A static "additional land play" source registered from a permanent
 /// on the battlefield with `AbilityDefinition::AdditionalLandPlays`.

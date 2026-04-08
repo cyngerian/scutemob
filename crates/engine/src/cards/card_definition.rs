@@ -947,6 +947,55 @@ pub enum AbilityDefinition {
         /// Used for Thundermane Dragon (grant haste until end of turn).
         on_cast_effect: Option<Box<Effect>>,
     },
+    /// Static play-from-graveyard permission (CR 601.3, CR 305.1).
+    ///
+    /// Registers a `PlayFromGraveyardPermission` when the permanent enters the battlefield.
+    /// Cleaned up when the source leaves the battlefield (via reset_turn_state sweep).
+    /// Follows the same pattern as `StaticPlayFromTop` but applies to the graveyard zone.
+    ///
+    /// Discriminant 74.
+    StaticPlayFromGraveyard {
+        filter: crate::state::stubs::PlayFromTopFilter,
+        /// Optional condition that gates this permission.
+        condition: Option<Box<Condition>>,
+    },
+    /// Self-referential graveyard cast permission.
+    ///
+    /// "You may cast this card from your graveyard [condition] [with alt cost]."
+    /// Unlike StaticPlayFromGraveyard (which grants a continuous permission for
+    /// ALL matching cards), this grants permission to cast only THIS card from
+    /// THIS card's own graveyard position.
+    ///
+    /// casting.rs checks: card is in owner's graveyard, has this ability,
+    /// condition (if any) is met, and applies the specified cost/restrictions.
+    ///
+    /// CR 601.3: A player can begin to cast a spell only if a rule or effect allows it.
+    ///
+    /// Discriminant 75.
+    CastSelfFromGraveyard {
+        /// Optional condition (e.g., ControllerGainedLifeThisTurn for Oathsworn Vampire).
+        condition: Option<Box<Condition>>,
+        /// If Some, this is the mana cost to pay (instead of the card's normal mana cost).
+        /// If None, pay the card's normal mana cost.
+        alt_mana_cost: Option<ManaCost>,
+        /// Additional costs required (e.g., exile 4 other GY cards for Squee).
+        additional_costs: Vec<CastFromGraveyardAdditionalCost>,
+        /// If Some, must cast using this specific alt cost kind (e.g., Mutate for Brokkos).
+        /// Ruling 2020-04-17 (Brokkos): must pay mutate cost to cast from graveyard.
+        required_alt_cost: Option<crate::state::types::AltCostKind>,
+    },
+}
+/// Additional costs for the CastSelfFromGraveyard ability (CR 601.3).
+///
+/// Specifies what else must be done when casting a card from the graveyard using
+/// its own self-referential ability (not using an AltCastAbility keyword).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CastFromGraveyardAdditionalCost {
+    /// Exile N other cards from your graveyard as part of casting.
+    ///
+    /// Used by Squee, Dubious Monarch: "exiling four other cards from your graveyard."
+    /// "Other" means cards other than the one being cast.
+    ExileOtherGraveyardCards(u32),
 }
 /// Extra data for `AltCastAbility` variants that need more than just a `ManaCost`.
 ///
@@ -1806,6 +1855,13 @@ pub enum Effect {
         triggered_abilities: Vec<crate::state::game_object::TriggeredAbilityDef>,
         /// Static continuous effects on the emblem (e.g., "Ninjas you control get +1/+1").
         static_effects: Vec<ContinuousEffectDef>,
+        /// If Some, the emblem grants a play-from-graveyard permission with this filter.
+        ///
+        /// Used by Wrenn and Realmbreaker -7: "play lands and cast permanent spells from
+        /// your graveyard." The emblem acts as the permission source; since emblems never
+        /// leave the command zone, this permission is permanent for the rest of the game.
+        #[serde(default)]
+        play_from_graveyard: Option<crate::state::stubs::PlayFromTopFilter>,
     },
     /// CR 305.2: Grant the controller one additional land play this turn.
     ///
@@ -2719,6 +2775,12 @@ pub enum Condition {
     /// you may reveal it and put it into your hand."
     /// CR 614.1c: The check is a peek (hidden information); deterministic engine sees all.
     TopCardIsCreatureOfChosenType,
+    /// "if you gained life this turn" — Oathsworn Vampire.
+    ///
+    /// True when the controller's `life_gained_this_turn > 0`.
+    /// Does not care about net life change — only whether ANY life was gained.
+    /// Ruling 2018-01-19: if you gained life and lost life this turn, you still qualify.
+    ControllerGainedLifeThisTurn,
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

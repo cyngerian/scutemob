@@ -237,6 +237,7 @@ pub fn handle_cast_spell(
         casting_with_jump_start,
         casting_with_aftermath,
         casting_from_library_top,
+        has_cast_self_from_graveyard,
     ) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
@@ -466,6 +467,126 @@ pub fn handle_cast_spell(
                 .map(|top_id| top_id == card)
                 .unwrap_or(false);
 
+        // PB-B: Check if this card has a CastSelfFromGraveyard ability (CR 601.3).
+        // This is for self-referential graveyard casts (Oathsworn Vampire, Squee, Brokkos).
+        let has_cast_self_from_graveyard = casting_from_graveyard
+            && card_obj
+                .card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry.get(cid.clone()))
+                .map(|def| {
+                    def.abilities.iter().any(|a| {
+                        matches!(
+                            a,
+                            crate::cards::card_definition::AbilityDefinition::CastSelfFromGraveyard {
+                                ..
+                            }
+                        )
+                    })
+                })
+                .unwrap_or(false);
+        // PB-B: Check if there's a PlayFromGraveyardPermission allowing this cast (CR 601.3).
+        // This is for cards granted permission by another permanent (Ancient Greenwarden, etc.)
+        // but only for non-land spells (lands use PlayLand, not CastSpell).
+        let casting_via_graveyard_permission = casting_from_graveyard
+            && !casting_with_flashback
+            && !casting_with_escape_auto
+            && !cast_with_escape
+            && !casting_with_retrace
+            && !casting_with_jump_start
+            && !casting_with_aftermath
+            && !cast_with_disturb
+            && !has_cast_self_from_graveyard
+            && state.play_from_graveyard_permissions.iter().any(|perm| {
+                perm.controller == player && {
+                    // Source must still be on battlefield or be an emblem.
+                    let valid_source = state
+                        .objects
+                        .get(&perm.source)
+                        .map(|o| o.is_emblem || matches!(o.zone, ZoneId::Battlefield))
+                        .unwrap_or(false);
+                    valid_source
+                        && {
+                            // Evaluate optional condition.
+                            if let Some(ref cond) = perm.condition {
+                                let ctx =
+                                    crate::effects::EffectContext::new(player, perm.source, vec![]);
+                                crate::effects::check_condition(state, cond, &ctx)
+                            } else {
+                                true
+                            }
+                        }
+                        && {
+                            // Filter must allow non-land permanent spells.
+                            use crate::state::stubs::PlayFromTopFilter;
+                            use crate::state::types::CardType;
+                            match &perm.filter {
+                                PlayFromTopFilter::All => {
+                                    // All non-land card types allowed (sorcery/instant included).
+                                    !card_obj
+                                        .characteristics
+                                        .card_types
+                                        .contains(&CardType::Land)
+                                }
+                                PlayFromTopFilter::PermanentsAndLands => {
+                                    // Permanent types only: creature, artifact, enchantment, planeswalker.
+                                    // Instants and sorceries are excluded.
+                                    card_obj
+                                        .characteristics
+                                        .card_types
+                                        .contains(&CardType::Creature)
+                                        || card_obj
+                                            .characteristics
+                                            .card_types
+                                            .contains(&CardType::Artifact)
+                                        || card_obj
+                                            .characteristics
+                                            .card_types
+                                            .contains(&CardType::Enchantment)
+                                        || card_obj
+                                            .characteristics
+                                            .card_types
+                                            .contains(&CardType::Planeswalker)
+                                }
+                                PlayFromTopFilter::CreaturesOnly => card_obj
+                                    .characteristics
+                                    .card_types
+                                    .contains(&CardType::Creature),
+                                PlayFromTopFilter::CreaturesWithMinPower(min_power) => {
+                                    card_obj
+                                        .characteristics
+                                        .card_types
+                                        .contains(&CardType::Creature)
+                                        && card_obj
+                                            .characteristics
+                                            .power
+                                            .map(|p| p >= *min_power as i32)
+                                            .unwrap_or(false)
+                                }
+                                PlayFromTopFilter::ArtifactsAndColorless => {
+                                    let is_artifact = card_obj
+                                        .characteristics
+                                        .card_types
+                                        .contains(&CardType::Artifact);
+                                    let is_colorless = card_obj.characteristics.colors.is_empty();
+                                    is_artifact || is_colorless
+                                }
+                                PlayFromTopFilter::CreaturesAndEnchantmentsAndLands => {
+                                    card_obj
+                                        .characteristics
+                                        .card_types
+                                        .contains(&CardType::Creature)
+                                        || card_obj
+                                            .characteristics
+                                            .card_types
+                                            .contains(&CardType::Enchantment)
+                                }
+                                PlayFromTopFilter::LandsOnly => false, // lands use PlayLand
+                            }
+                        }
+                }
+            });
+
         if card_obj.zone != ZoneId::Hand(player)
             && !casting_from_command_zone
             && !casting_with_flashback
@@ -482,6 +603,10 @@ pub fn handle_cast_spell(
             && !casting_adventure_creature_from_exile
             // PB-A: CR 601.3 — play-from-top-of-library permission
             && !casting_from_library_top
+            // PB-B: CR 601.3 — self-referential graveyard cast ability
+            && !has_cast_self_from_graveyard
+            // PB-B: CR 601.3 — graveyard-play permission from another permanent
+            && !casting_via_graveyard_permission
         // CR 702.146a: Disturb allows graveyard cast
         // CR 702.127a: Aftermath allows graveyard cast
         {
@@ -502,6 +627,7 @@ pub fn handle_cast_spell(
             casting_with_jump_start,
             casting_with_aftermath,
             casting_from_library_top,
+            has_cast_self_from_graveyard,
         )
     };
     // CR 903.8: Only a player's own commander may be cast from the command zone.
@@ -551,6 +677,76 @@ pub fn handle_cast_spell(
         return Err(GameStateError::InvalidCommand(
             "no play-from-top-of-library permission for this card (CR 601.3)".into(),
         ));
+    }
+    // PB-B: Validate CastSelfFromGraveyard ability (CR 601.3).
+    // The card is in the graveyard and has a self-referential graveyard cast ability.
+    // Check: condition (if any), required_alt_cost (if any), additional_costs feasibility.
+    if has_cast_self_from_graveyard {
+        if let Some(self_gy_ability) = card_id
+            .as_ref()
+            .and_then(|cid| state.card_registry.get(cid.clone()))
+            .and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let crate::cards::card_definition::AbilityDefinition::CastSelfFromGraveyard {
+                        condition, alt_mana_cost, additional_costs, required_alt_cost,
+                    } = a
+                    {
+                        Some((condition.clone(), alt_mana_cost.clone(), additional_costs.clone(), *required_alt_cost))
+                    } else {
+                        None
+                    }
+                })
+            })
+        {
+            let (condition, _alt_mana_cost, additional_costs, required_alt_cost_opt) = self_gy_ability;
+            // 1. Check condition (CR 601.3: the permission may require a condition).
+            if let Some(ref cond) = condition {
+                let ctx = crate::effects::EffectContext::new(player, card, vec![]);
+                if !crate::effects::check_condition(state, cond, &ctx) {
+                    return Err(GameStateError::InvalidCommand(
+                        "CastSelfFromGraveyard condition is not met (CR 601.3)".into(),
+                    ));
+                }
+            }
+            // 2. Check required_alt_cost (Brokkos must use Mutate — Ruling 2020-04-17).
+            if let Some(ref req_kind) = required_alt_cost_opt {
+                if alt_cost.as_ref() != Some(req_kind) {
+                    return Err(GameStateError::InvalidCommand(
+                        format!(
+                            "CastSelfFromGraveyard requires alt cost {:?} (CR 601.3, Ruling 2020-04-17)",
+                            req_kind
+                        ),
+                    ));
+                }
+            }
+            // 3. Validate additional_costs feasibility (ExileOtherGraveyardCards(N)).
+            for cost in &additional_costs {
+                match cost {
+                    crate::cards::card_definition::CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(n) => {
+                        // Count other cards in the player's graveyard (not the card being cast).
+                        let gy_zone = ZoneId::Graveyard(player);
+                        let other_gy_count = state
+                            .zones
+                            .get(&gy_zone)
+                            .map(|z| {
+                                z.object_ids()
+                                    .iter()
+                                    .filter(|&&id| id != card)
+                                    .count()
+                            })
+                            .unwrap_or(0);
+                        if other_gy_count < *n as usize {
+                            return Err(GameStateError::InvalidCommand(
+                                format!(
+                                    "CastSelfFromGraveyard: need {} other graveyard cards to exile, have {}",
+                                    n, other_gy_count
+                                ),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
     }
     // Lands are not cast — they are played as a special action (CR 305.1).
     if chars.card_types.contains(&CardType::Land) {
@@ -5629,6 +5825,15 @@ pub fn has_play_from_top_permission(
                 chars.card_types.contains(&CardType::Creature)
                     || chars.card_types.contains(&CardType::Enchantment)
             }
+            PlayFromTopFilter::PermanentsAndLands => {
+                // Wrenn and Realmbreaker emblem: permanent spells (not instants/sorceries).
+                // "Permanent spells" = creature, artifact, enchantment, planeswalker.
+                // Lands via this filter use PlayLand, not CastSpell.
+                chars.card_types.contains(&CardType::Creature)
+                    || chars.card_types.contains(&CardType::Artifact)
+                    || chars.card_types.contains(&CardType::Enchantment)
+                    || chars.card_types.contains(&CardType::Planeswalker)
+            }
         }
     })
 }
@@ -5689,6 +5894,14 @@ fn find_play_from_top_on_cast_effect(
             PlayFromTopFilter::CreaturesAndEnchantmentsAndLands => {
                 chars.card_types.contains(&CardType::Creature)
                     || chars.card_types.contains(&CardType::Enchantment)
+            }
+            PlayFromTopFilter::PermanentsAndLands => {
+                // PermanentsAndLands: creature, artifact, enchantment, planeswalker.
+                // Lands use PlayLand, not CastSpell, so not matched here.
+                chars.card_types.contains(&CardType::Creature)
+                    || chars.card_types.contains(&CardType::Artifact)
+                    || chars.card_types.contains(&CardType::Enchantment)
+                    || chars.card_types.contains(&CardType::Planeswalker)
             }
         };
         if filter_matches {

@@ -1088,6 +1088,8 @@ impl HashInto for PlayerState {
         self.has_citys_blessing.hash_into(hasher);
         // CR 702.137a: per-turn life-loss counter for Spectacle eligibility.
         self.life_lost_this_turn.hash_into(hasher);
+        // PB-B: per-turn life-gain counter for Oathsworn Vampire eligibility (CR 601.3).
+        self.life_gained_this_turn.hash_into(hasher);
         // CR 702.54a: per-turn damage-received counter for Bloodthirst eligibility.
         self.damage_received_this_turn.hash_into(hasher);
         // CR 702.16b/e: player protection qualities.
@@ -1532,6 +1534,7 @@ impl HashInto for crate::state::stubs::PlayFromTopFilter {
             }
             PlayFromTopFilter::ArtifactsAndColorless => 4u8.hash_into(hasher),
             PlayFromTopFilter::CreaturesAndEnchantmentsAndLands => 5u8.hash_into(hasher),
+            PlayFromTopFilter::PermanentsAndLands => 6u8.hash_into(hasher),
         }
     }
 }
@@ -1553,6 +1556,31 @@ impl HashInto for crate::state::stubs::PlayFromTopPermission {
         // on_cast_effect intentionally not hashed — it's a pure effect descriptor
         // (same as how individual ContinuousEffectDef fields work).
         self.on_cast_effect.is_some().hash_into(hasher);
+    }
+}
+impl HashInto for crate::state::stubs::PlayFromGraveyardPermission {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.filter.hash_into(hasher);
+        match &self.condition {
+            Some(c) => {
+                1u8.hash_into(hasher);
+                c.hash_into(hasher);
+            }
+            None => 0u8.hash_into(hasher),
+        }
+    }
+}
+impl HashInto for crate::cards::card_definition::CastFromGraveyardAdditionalCost {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::cards::card_definition::CastFromGraveyardAdditionalCost;
+        match self {
+            CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(n) => {
+                0u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+        }
     }
 }
 // --- Replacement effect type implementations (M8) ---
@@ -4528,6 +4556,8 @@ impl HashInto for Condition {
             }
             // CR 614.1c: Herald's Horn top-card check (discriminant 41)
             Condition::TopCardIsCreatureOfChosenType => 41u8.hash_into(hasher),
+            // PB-B: "if you gained life this turn" — Oathsworn Vampire (discriminant 42)
+            Condition::ControllerGainedLifeThisTurn => 42u8.hash_into(hasher),
         }
     }
 }
@@ -5155,6 +5185,7 @@ impl HashInto for Effect {
             Effect::CreateEmblem {
                 triggered_abilities,
                 static_effects,
+                play_from_graveyard,
             } => {
                 66u8.hash_into(hasher);
                 (triggered_abilities.len() as u32).hash_into(hasher);
@@ -5164,6 +5195,14 @@ impl HashInto for Effect {
                 (static_effects.len() as u32).hash_into(hasher);
                 for se in static_effects {
                     se.hash_into(hasher);
+                }
+                // PB-B: play_from_graveyard field (Wrenn and Realmbreaker emblem).
+                match play_from_graveyard {
+                    Some(f) => {
+                        1u8.hash_into(hasher);
+                        f.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
                 }
             }
             // CR 107.3m: Repeat (discriminant 67) — execute N times, N from EffectAmount
@@ -5767,6 +5806,52 @@ impl HashInto for AbilityDefinition {
                     None => 0u8.hash_into(hasher),
                 }
             }
+            // PB-B: StaticPlayFromGraveyard (discriminant 74) -- play from graveyard (CR 601.3, 305.1)
+            AbilityDefinition::StaticPlayFromGraveyard { filter, condition } => {
+                74u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                match condition {
+                    Some(c) => {
+                        1u8.hash_into(hasher);
+                        c.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+            }
+            // PB-B: CastSelfFromGraveyard (discriminant 75) -- self-referential GY cast (CR 601.3)
+            AbilityDefinition::CastSelfFromGraveyard {
+                condition,
+                alt_mana_cost,
+                additional_costs,
+                required_alt_cost,
+            } => {
+                75u8.hash_into(hasher);
+                match condition {
+                    Some(c) => {
+                        1u8.hash_into(hasher);
+                        c.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+                match alt_mana_cost {
+                    Some(mc) => {
+                        1u8.hash_into(hasher);
+                        mc.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+                (additional_costs.len() as u32).hash_into(hasher);
+                for cost in additional_costs {
+                    cost.hash_into(hasher);
+                }
+                match required_alt_cost {
+                    Some(k) => {
+                        1u8.hash_into(hasher);
+                        k.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+            }
         }
     }
 }
@@ -5898,6 +5983,10 @@ impl GameState {
         self.flash_grants.hash_into(&mut hasher);
         // PB-A: active play-from-top permissions (CR 601.3, CR 305.1)
         for perm in self.play_from_top_permissions.iter() {
+            perm.hash_into(&mut hasher);
+        }
+        // PB-B: active play-from-graveyard permissions (CR 601.3, CR 305.1)
+        for perm in self.play_from_graveyard_permissions.iter() {
             perm.hash_into(&mut hasher);
         }
         self.stack_objects.hash_into(&mut hasher);

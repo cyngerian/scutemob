@@ -354,6 +354,16 @@ pub struct PlayerState {
     /// lost life this turn.
     #[serde(default)]
     pub life_lost_this_turn: u32,
+    /// Total life gained by this player this turn (CR 118.5, CR 702.X).
+    ///
+    /// Incremented whenever this player's life total increases due to life gain effects
+    /// (GainLife, DrainLife, lifelink). Does NOT track life loss offset — only raw gain.
+    /// Reset to 0 at the start of each turn in `reset_turn_state`.
+    /// Used by Condition::ControllerGainedLifeThisTurn (Oathsworn Vampire).
+    ///
+    /// Ruling 2018-01-19: cares only about whether any life was gained, not net change.
+    #[serde(default)]
+    pub life_gained_this_turn: u32,
     /// Total damage dealt to this player this turn (CR 120.2, CR 702.54a).
     ///
     /// Incremented whenever this player is dealt damage (combat or non-combat,

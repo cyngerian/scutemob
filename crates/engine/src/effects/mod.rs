@@ -418,6 +418,8 @@ fn execute_effect_inner(
             for p in players {
                 if let Some(ps) = state.players.get_mut(&p) {
                     ps.life_total += gain as i32;
+                    // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
+                    ps.life_gained_this_turn += gain;
                 }
                 events.push(GameEvent::LifeGained {
                     player: p,
@@ -486,6 +488,8 @@ fn execute_effect_inner(
             if total_lost > 0 {
                 if let Some(ps) = state.players.get_mut(&ctx.controller) {
                     ps.life_total += total_lost as i32;
+                    // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
+                    ps.life_gained_this_turn += total_lost;
                 }
                 events.push(GameEvent::LifeGained {
                     player: ctx.controller,
@@ -4060,6 +4064,7 @@ fn execute_effect_inner(
         Effect::CreateEmblem {
             triggered_abilities,
             static_effects,
+            play_from_graveyard,
         } => {
             use crate::state::game_object::ObjectStatus;
             let ctrl = ctx.controller;
@@ -4158,6 +4163,19 @@ fn execute_effect_inner(
                     timestamp: ts,
                 };
                 state.continuous_effects.push_back(eff);
+            }
+            // PB-B: Register a play-from-graveyard permission if the emblem grants one.
+            // CR 601.3, CR 305.1: Emblems never leave the command zone, so this permission
+            // is permanent for the rest of the game (no cleanup needed).
+            if let Some(gy_filter) = play_from_graveyard {
+                state.play_from_graveyard_permissions.push_back(
+                    crate::state::stubs::PlayFromGraveyardPermission {
+                        source: emblem_id,
+                        controller: ctrl,
+                        filter: gy_filter.clone(),
+                        condition: None,
+                    },
+                );
             }
             events.push(GameEvent::EmblemCreated {
                 player: ctrl,
@@ -5486,6 +5504,8 @@ fn deal_creature_power_damage(
         if let Some(controller_id) = state.objects.get(&creature_source).map(|o| o.controller) {
             if let Some(ps) = state.players.get_mut(&controller_id) {
                 ps.life_total += final_dmg as i32;
+                // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
+                ps.life_gained_this_turn += final_dmg;
             }
             events.push(GameEvent::LifeGained {
                 player: controller_id,
@@ -6623,6 +6643,13 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .unwrap_or(false),
         // Logical conjunction: true only when both arms are true.
         Condition::And(a, b) => check_condition(state, a, ctx) && check_condition(state, b, ctx),
+        // PB-B: "if you gained life this turn" — Oathsworn Vampire (Ruling 2018-01-19).
+        // True when the controller's life_gained_this_turn > 0. Net life change irrelevant.
+        Condition::ControllerGainedLifeThisTurn => state
+            .players
+            .get(&ctx.controller)
+            .map(|p| p.life_gained_this_turn > 0)
+            .unwrap_or(false),
         // CR 614.1c: Herald's Horn upkeep trigger — check if top of library is a creature
         // of the source permanent's chosen type. Hidden-info peek; deterministic engine sees all.
         Condition::TopCardIsCreatureOfChosenType => {

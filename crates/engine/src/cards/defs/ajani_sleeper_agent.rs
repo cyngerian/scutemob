@@ -75,6 +75,7 @@ pub fn card() -> CardDefinition {
                         },
                     ],
                     static_effects: vec![],
+                    play_from_graveyard: None,
                 },
                 targets: vec![],
             },

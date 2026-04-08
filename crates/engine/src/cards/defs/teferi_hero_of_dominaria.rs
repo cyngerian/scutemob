@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![],
                     static_effects: vec![],
+                    play_from_graveyard: None,
                 },
                 targets: vec![],
             },

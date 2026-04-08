@@ -46,10 +46,15 @@ pub fn card() -> CardDefinition {
                 },
             },
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: "You may cast this card from your graveyard using its mutate ability."
-            // This requires a cast-from-zone permission system (deferred). No effect stub
-            // needed — the casting.rs validation would need to allow graveyard-zone casting
-            // for this specific ability. Omitted until that infrastructure exists.
+            // CR 601.3: "You may cast this card from your graveyard using its mutate ability."
+            // Ruling 2020-04-17: You MUST pay its mutate cost to cast it from the graveyard
+            // (required_alt_cost enforces this in casting.rs).
+            AbilityDefinition::CastSelfFromGraveyard {
+                condition: None,
+                alt_mana_cost: None,
+                additional_costs: vec![],
+                required_alt_cost: Some(AltCostKind::Mutate),
+            },
         ],
         color_indicator: None,
         back_face: None,

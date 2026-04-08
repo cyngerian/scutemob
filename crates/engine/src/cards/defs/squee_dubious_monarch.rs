@@ -44,10 +44,16 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "You may cast this card from your graveyard by paying {3}{R} and exiling
-            // four other cards from your graveyard" — AltCostKind lacks a variant for paying
-            // mana + exiling N graveyard cards as an alternate cost from graveyard zone.
-            // Neither AltCastAbility nor existing AltCostKind variants cover this pattern.
+            // CR 601.3: "You may cast this card from your graveyard by paying {3}{R} and
+            // exiling four other cards from your graveyard rather than paying its mana cost."
+            // Ruling 2022-09-09: If countered or dies after casting this way, it returns to
+            // GY and may be cast again later.
+            AbilityDefinition::CastSelfFromGraveyard {
+                condition: None,
+                alt_mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+                additional_costs: vec![CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(4)],
+                required_alt_cost: None,
+            },
         ],
         ..Default::default()
     }

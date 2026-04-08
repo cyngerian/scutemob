@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                             condition: None,
                         },
                     ],
+                    play_from_graveyard: None,
                 },
                 targets: vec![],
             },

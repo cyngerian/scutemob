@@ -64,11 +64,19 @@ pub fn handle_play_land(
             .and_then(|z| z.top())
             .map(|top_id| top_id == card)
             .unwrap_or(false);
+    let playing_from_graveyard = card_obj.zone == ZoneId::Graveyard(player);
     if playing_from_library_top {
         // Validate that a play-from-top-land permission exists.
         if !has_play_from_top_land_permission(state, player, card) {
             return Err(GameStateError::InvalidCommand(
                 "no play-from-top-of-library permission for playing lands (CR 305.1)".into(),
+            ));
+        }
+    } else if playing_from_graveyard {
+        // PB-B: CR 601.3, CR 305.1 — graveyard land play via permission.
+        if !has_play_from_graveyard_land_permission(state, player) {
+            return Err(GameStateError::InvalidCommand(
+                "no play-from-graveyard permission for playing lands (CR 305.1)".into(),
             ));
         }
     } else if card_obj.zone != ZoneId::Hand(player) {
@@ -420,6 +428,50 @@ pub fn handle_play_land(
     state.turn.players_passed = im::OrdSet::new();
     Ok(events)
 }
+/// PB-B: Check if an active play-from-graveyard permission allows playing a land.
+///
+/// CR 305.1: A player may play a land from their graveyard if a rule or effect permits.
+/// Checks: (1) source on battlefield or is an emblem, (2) controller matches player,
+/// (3) filter includes lands (All, LandsOnly, PermanentsAndLands, CreaturesAndEnchantmentsAndLands),
+/// (4) condition evaluates to true if present.
+///
+/// Called when the land being played is in the player's graveyard zone.
+pub fn has_play_from_graveyard_land_permission(
+    state: &crate::state::GameState,
+    player: crate::state::player::PlayerId,
+) -> bool {
+    use crate::state::stubs::PlayFromTopFilter;
+    use crate::state::ZoneId;
+    state.play_from_graveyard_permissions.iter().any(|perm| {
+        if perm.controller != player {
+            return false;
+        }
+        // Source must still be on the battlefield or be an emblem in the command zone.
+        let valid_source = state
+            .objects
+            .get(&perm.source)
+            .map(|o| o.is_emblem || matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !valid_source {
+            return false;
+        }
+        // Condition (if any) must hold.
+        if let Some(ref cond) = perm.condition {
+            let ctx = crate::effects::EffectContext::new(player, perm.source, vec![]);
+            if !crate::effects::check_condition(state, cond, &ctx) {
+                return false;
+            }
+        }
+        // Filter must include lands.
+        matches!(
+            perm.filter,
+            PlayFromTopFilter::All
+                | PlayFromTopFilter::LandsOnly
+                | PlayFromTopFilter::PermanentsAndLands
+                | PlayFromTopFilter::CreaturesAndEnchantmentsAndLands
+        )
+    })
+}
 /// PB-A: Check if an active play-from-top-of-library permission allows playing a land.
 ///
 /// CR 305.1: A player may play a land from the top of their library if a rule or effect
@@ -460,6 +512,7 @@ pub fn has_play_from_top_land_permission(
             perm.filter,
             PlayFromTopFilter::All
                 | PlayFromTopFilter::LandsOnly
+                | PlayFromTopFilter::PermanentsAndLands
                 | PlayFromTopFilter::CreaturesAndEnchantmentsAndLands
         )
     })

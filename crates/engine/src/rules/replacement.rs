@@ -1822,6 +1822,17 @@ pub fn register_static_continuous_effects(
                         crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield,
                 });
             }
+            // PB-B: Register a static play-from-graveyard permission (CR 601.3, 305.1).
+            AbilityDefinition::StaticPlayFromGraveyard { filter, condition } => {
+                state.play_from_graveyard_permissions.push_back(
+                    crate::state::stubs::PlayFromGraveyardPermission {
+                        source: new_id,
+                        controller,
+                        filter: filter.clone(),
+                        condition: condition.as_ref().map(|c| *c.clone()),
+                    },
+                );
+            }
             // PB-A: Register a static play-from-top-of-library permission (CR 601.3, 305.1).
             AbilityDefinition::StaticPlayFromTop {
                 filter,
