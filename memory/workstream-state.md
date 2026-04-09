@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-A: Play from top of library | ACTIVE | 2026-04-07 | HIGH batches — PB-A first (6 cards, continuous cast permission) |
+| W6: Primitive + Card Authoring | — | available | — | **PB-A+B+E DONE**; 2 HIGH remain (PB-J, PB-M) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,7 +23,7 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-08
+**Date**: 2026-04-09
 **Workstream**: W6: Primitive + Card Authoring
 **Task**: Wave B.5 — PB-A + PB-B + PB-E (play-from-top, play-from-GY, mana doubling)
 
