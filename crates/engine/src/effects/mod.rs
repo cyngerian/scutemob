@@ -5053,6 +5053,153 @@ fn execute_effect_inner(
                 }
             }
         }
+        // ── PB-J: CopySpellOnStack ────────────────────────────────────────────
+        // CR 707.10: Create N copies of a targeted spell on the stack.
+        // Each copy is controlled by the effect controller and inherits the
+        // original's characteristics and targets (choose-new-targets deferred to M10).
+        Effect::CopySpellOnStack { target, count } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            let n = resolve_amount(state, count, ctx).max(0) as u32;
+            for resolved in targets {
+                if let ResolvedTarget::Object(stack_obj_id) = resolved {
+                    let is_on_stack = state.stack_objects.iter().any(|s| s.id == stack_obj_id);
+                    if is_on_stack {
+                        for _ in 0..n {
+                            match crate::rules::copy::copy_spell_on_stack(
+                                state,
+                                stack_obj_id,
+                                ctx.controller,
+                                false,
+                            ) {
+                                Ok((_, evt)) => events.push(evt),
+                                Err(_) => break,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // ── PB-J: ChangeTargets ───────────────────────────────────────────────
+        // CR 115.7: Change or choose new targets for a spell or ability on the stack.
+        //
+        // must_change: true (CR 115.7a) — "Change the target": MUST change to a
+        //   different legal target. If no alternative exists, target is unchanged.
+        // must_change: false (CR 115.7d) — "Choose new targets": MAY change any
+        //   targets. Deterministic fallback: leave all targets unchanged (player
+        //   "chose" not to change them). Interactive choice deferred to M10.
+        Effect::ChangeTargets {
+            target,
+            must_change,
+        } => {
+            let target_refs = resolve_effect_target_list(state, target, ctx);
+            for resolved in target_refs {
+                if let ResolvedTarget::Object(stack_obj_id) = resolved {
+                    // Only applies to stack objects.
+                    let is_on_stack = state.stack_objects.iter().any(|s| s.id == stack_obj_id);
+                    if !is_on_stack {
+                        continue;
+                    }
+                    // CR 115.7d: if not must_change, deterministic fallback = unchanged.
+                    if !must_change {
+                        // "Choose new targets" — player may leave any unchanged.
+                        // Deterministic: leave all targets unchanged.
+                        // No event emitted (no change was made).
+                        continue;
+                    }
+                    // CR 115.7a: must change. Find the current target and pick a different
+                    // legal alternative. Simplified approach: player targets → different
+                    // active player; object targets → different object in same zone.
+                    let stack_obj = match state.stack_objects.iter().find(|s| s.id == stack_obj_id)
+                    {
+                        Some(s) => s.clone(),
+                        None => continue,
+                    };
+                    if stack_obj.targets.is_empty() {
+                        continue;
+                    }
+                    let old_targets = stack_obj.targets.clone();
+                    let mut new_targets = old_targets.clone();
+                    let mut changed = false;
+                    for (i, spell_target) in old_targets.iter().enumerate() {
+                        match &spell_target.target {
+                            Target::Player(current_pid) => {
+                                // Find a different active player to retarget to.
+                                // Prefer the effect controller, then any other player.
+                                let controller = ctx.controller;
+                                let new_pid = if controller != *current_pid {
+                                    Some(controller)
+                                } else {
+                                    // Pick the first active player that isn't the current target.
+                                    let mut sorted_pids: Vec<PlayerId> =
+                                        state.players.keys().copied().collect();
+                                    sorted_pids.sort();
+                                    sorted_pids.into_iter().find(|&p| {
+                                        p != *current_pid
+                                            && !state
+                                                .players
+                                                .get(&p)
+                                                .map(|ps| ps.has_lost)
+                                                .unwrap_or(true)
+                                    })
+                                };
+                                if let Some(new_pid) = new_pid {
+                                    new_targets[i] = SpellTarget {
+                                        target: Target::Player(new_pid),
+                                        zone_at_cast: None,
+                                    };
+                                    changed = true;
+                                }
+                                // If no alternative exists, target remains unchanged (CR 115.7a).
+                            }
+                            Target::Object(current_oid) => {
+                                // Find a different object in the same zone as the original target.
+                                // The original target's zone is captured in zone_at_cast.
+                                // Prefer the smallest ObjectId (deterministic).
+                                let original_zone = spell_target.zone_at_cast;
+                                let new_oid = {
+                                    let mut candidates: Vec<ObjectId> = state
+                                        .objects
+                                        .iter()
+                                        .filter(|(oid, obj)| {
+                                            **oid != *current_oid
+                                                && original_zone
+                                                    .map(|z| obj.zone == z)
+                                                    .unwrap_or(true)
+                                        })
+                                        .map(|(oid, _)| *oid)
+                                        .collect();
+                                    candidates.sort();
+                                    candidates.into_iter().next()
+                                };
+                                if let Some(new_oid) = new_oid {
+                                    new_targets[i] = SpellTarget {
+                                        target: Target::Object(new_oid),
+                                        zone_at_cast: original_zone,
+                                    };
+                                    changed = true;
+                                }
+                                // If no alternative exists, target remains unchanged (CR 115.7a).
+                            }
+                        }
+                    }
+                    if changed {
+                        // Update the stack object's targets in-place.
+                        if let Some(so) = state
+                            .stack_objects
+                            .iter_mut()
+                            .find(|s| s.id == stack_obj_id)
+                        {
+                            so.targets = new_targets.clone();
+                        }
+                        events.push(crate::rules::events::GameEvent::TargetsChanged {
+                            stack_object_id: stack_obj_id,
+                            old_targets,
+                            new_targets,
+                        });
+                    }
+                }
+            }
+        }
     }
 }
 // ── Target resolution helpers ─────────────────────────────────────────────────

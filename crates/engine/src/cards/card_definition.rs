@@ -2038,6 +2038,39 @@ pub enum Effect {
         #[serde(default)]
         permanent_cards_only: bool,
     },
+    /// CR 707.10: Copy a spell on the stack. Creates `count` copies of the targeted
+    /// spell, each controlled by the effect's controller.
+    ///
+    /// Uses the existing `copy_spell_on_stack()` from `rules/copy.rs`.
+    /// CR 707.10c: "choose new targets" is deterministic — copies keep original targets.
+    /// Interactive target choice deferred to M10.
+    CopySpellOnStack {
+        /// The spell to copy. Should be `EffectTarget::DeclaredTarget { index: N }`.
+        target: EffectTarget,
+        /// Number of copies to create (e.g., Fixed(2) for Complete the Circuit).
+        count: EffectAmount,
+    },
+    /// CR 115.7: Change or choose new targets for a spell or ability on the stack.
+    ///
+    /// Two modes based on card text:
+    /// - `must_change: true` (CR 115.7a): "Change the target" — MUST change to
+    ///   another legal target. If no other legal target exists, target is unchanged.
+    ///   Used by Bolt Bend, Untimely Malfunction.
+    /// - `must_change: false` (CR 115.7d): "Choose new targets" — MAY change any
+    ///   or all targets. Used by Deflecting Swat. Deterministic fallback: unchanged.
+    ///
+    /// Deterministic fallback for `must_change: true`: retargets to the effect's
+    /// controller (if legal). If the controller is not a legal target, picks the
+    /// first legal alternative (smallest PlayerId/ObjectId). If no legal alternative
+    /// exists, target unchanged.
+    ChangeTargets {
+        /// The spell or ability whose targets to change.
+        target: EffectTarget,
+        /// CR 115.7a vs 115.7d: if true, the target MUST be changed to a different
+        /// legal target (Bolt Bend). If false, the controller MAY choose new targets
+        /// (Deflecting Swat) — deterministic fallback leaves targets unchanged.
+        must_change: bool,
+    },
     /// Living Death (2018-03-16 ruling):
     /// Step 1: Each player exiles all creature cards from their graveyard simultaneously.
     /// Step 2: Each player sacrifices all creatures they control simultaneously.
@@ -2230,6 +2263,12 @@ pub enum TargetRequirement {
     TargetCardInYourGraveyard(TargetFilter),
     /// "target [type] card from a graveyard" — card in any player's graveyard (CR 115.1).
     TargetCardInGraveyard(TargetFilter),
+    /// "target spell or ability with a single target" (CR 115.7a).
+    ///
+    /// Validates that the targeted stack object has exactly one target. Used by
+    /// Bolt Bend and Untimely Malfunction mode 1. The targeting spell itself is
+    /// excluded as a valid target (prevents self-targeting loops).
+    TargetSpellOrAbilityWithSingleTarget,
 }
 /// A filter on game objects, used for target requirements and `SearchLibrary`.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

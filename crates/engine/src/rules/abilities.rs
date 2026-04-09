@@ -6414,6 +6414,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                             TargetRequirement::TargetPlayerOrPlaneswalker => {
                                                 is_planeswalker
                                             }
+                                            // TargetSpellOrAbilityWithSingleTarget targets
+                                            // stack objects, not battlefield permanents.
+                                            TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
+                                                false
+                                            }
                                         }
                                     })
                                     .map(|(id, obj)| SpellTarget {

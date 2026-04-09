@@ -1,47 +1,49 @@
-# Primitive WIP: PB-E — Mana Doubling
+# Primitive WIP: PB-J — Copy/Redirect Spells
 
-batch: PB-E
-title: Mana doubling — mana trigger interception system
-cards_affected: 9
-started: 2026-04-08
-phase: closed
-plan_file: memory/primitives/pb-plan-E.md
+batch: PB-J
+title: Copy/redirect spells — spell copy + target changing on stack
+cards_affected: 4
+started: 2026-04-09
+phase: implement
+plan_file: memory/primitives/pb-plan-J.md
 
 ## Deferred from Prior PBs
-- A-38 blocked "mana-doubling" category (~9 cards)
-- A-42 may have additional mana-doubling cards
+- none directly; existing copy_spell_on_stack in copy.rs (Storm/Cascade) is foundation
 
-## Known Cards with Mana Doubling TODOs
-Existing defs with TODOs:
-- Mirari's Wake: "Whenever you tap a land for mana, add one mana of any type that land produced"
-- Crypt Ghast: "Whenever you tap a Swamp for mana, add an additional {B}"
-- Wild Growth: "Whenever enchanted land is tapped for mana, add {G}"
-- Leyline of Abundance: "Whenever you tap a creature for mana, add {G}"
-- Badgermole Cub: "Whenever you tap a creature for mana, add an additional {G}"
-- Forbidden Orchard: "Whenever you tap this land for mana, target opponent creates a 1/1"
-
-Cards that may need new defs:
-- Nyxbloom Ancient: "If you tap a permanent for mana, it produces three times as much"
-- Mana Reflection: "If you tap a permanent for mana, it produces twice as much"
-- Zendikar Resurgent: "Whenever you tap a land for mana, add one mana of any type that land produced"
+## Known Cards with Copy/Redirect TODOs
+Cards with TODOs referencing these gaps:
+- Bolt Bend: DONE — Effect::ChangeTargets { must_change: true } + TargetSpellOrAbilityWithSingleTarget
+- Deflecting Swat: DONE — AltCastAbility(CommanderFreeCast) + Effect::ChangeTargets { must_change: false }
+- Complete the Circuit: PARTIAL — GrantFlash correct; delayed copy trigger deferred (TODO updated)
+- Untimely Malfunction: DONE — Mode 1 fixed with ChangeTargets { must_change: true }, target index 1
 
 ## Step Checklist
-- [x] 1. Engine changes — GameEvent::ManaAdded source field; TriggerCondition::WhenTappedForMana + ManaSourceFilter; ReplacementTrigger::ManaWouldBeProduced + ReplacementModification::MultiplyMana; Effect::AddManaMatchingType; EffectContext.mana_produced; mana.rs: apply_mana_production_replacements + fire_mana_triggered_abilities + mana_source_matches + is_mana_producing_effect; hash.rs; helpers.rs; replay_harness.rs; tui/app.rs
-- [x] 2. Card definition fixes — miraris_wake.rs, crypt_ghast.rs, wild_growth.rs, leyline_of_abundance.rs, badgermole_cub.rs, forbidden_orchard.rs (6 files)
-- [x] 3. New card definitions — nyxbloom_ancient.rs, mana_reflection.rs, zendikar_resurgent.rs (3 new files)
-- [x] 4. Unit tests — crates/engine/tests/mana_triggers.rs (10 tests, all pass); also fixed mana_and_lands.rs, treasure_tokens.rs, mana_filter.rs, primitive_pb37.rs for GameEvent::ManaAdded source field + EffectContext.mana_produced
-- [x] 5. Workspace build verification — cargo test --all: 0 failed; cargo clippy -- -D warnings: 0 errors; cargo build --workspace: clean; cargo fmt --check: clean
-
-## Review
-findings: 6 (HIGH: 1, MEDIUM: 3, LOW: 2)
-verdict: needs-fix
-review_file: memory/primitives/pb-review-E.md
-
-## Fix Phase (2026-04-07)
-- [x] HIGH-1: mana.rs — changed `for ability in &def.abilities` to `for (ability_idx, ability) in def.abilities.iter().enumerate()`, set `trigger.ability_index = ability_idx` on the PendingTrigger pushed for non-mana triggers (Forbidden Orchard case)
-- [x] MEDIUM-2: crypt_ghast.rs — removed stale TODO comment block (lines 4-6)
-- [x] MEDIUM-3: wild_growth.rs — removed stale TODO comment block (lines 5-6)
-- [x] MEDIUM-5: mana_triggers.rs — added `test_mana_trigger_forbidden_orchard` (Test 11): verifies ability_index=1 on PendingTrigger, trigger goes on stack (not immediate), Spirit token created after priority passes
-- [x] LOW-4: forbidden_orchard.rs — added NOTE to existing TODO documenting TargetPlayer vs TargetOpponent gap, deferred to M10
-- [x] LOW-6: deferred — Zendikar draw trigger integration test not added (noted as known gap)
-- All 11 mana_triggers tests pass; 0 clippy warnings; workspace build clean; fmt clean
+- [x] 1. Engine changes (new Effect variants, dispatch logic)
+  - Added TargetRequirement::TargetSpellOrAbilityWithSingleTarget (card_definition.rs:2233+)
+  - Added Effect::CopySpellOnStack { target, count } (card_definition.rs ~L2041)
+  - Added Effect::ChangeTargets { target, must_change } (card_definition.rs ~L2055)
+  - Added GameEvent::TargetsChanged { stack_object_id, old_targets, new_targets } (events.rs L1238+)
+  - Updated hash.rs: TargetRequirement disc 16, Effect discs 82+83, GameEvent disc 126
+  - Added validate_object_satisfies_requirement arm for TargetSpellOrAbilityWithSingleTarget (casting.rs ~L5418)
+  - Added match arm in abilities.rs exhaustive TargetRequirement match (L6414+)
+  - Dispatched Effect::CopySpellOnStack and Effect::ChangeTargets in effects/mod.rs (~L5057)
+- [x] 2. Card definition fixes
+  - bolt_bend.rs: ChangeTargets must_change: true + TargetSpellOrAbilityWithSingleTarget
+  - deflecting_swat.rs: AltCastAbility(CommanderFreeCast) + ChangeTargets must_change: false
+  - untimely_malfunction.rs: Mode 1 fixed (ChangeTargets + target index 1), mode 2 corrected to index 2
+  - complete_the_circuit.rs: TODO comment updated to reference PB-J partial completion
+- [x] 3. New card definitions (if any) — none needed
+- [x] 4. Unit tests
+  - crates/engine/tests/copy_redirect.rs: 8 tests all passing
+  - test_copy_spell_on_stack_basic, test_copy_spell_on_stack_twice
+  - test_change_targets_must_change_redirects_to_new_player
+  - test_change_targets_no_alternative_leaves_unchanged
+  - test_change_targets_may_choose_new_leaves_unchanged
+  - test_change_targets_accepts_single_target_spell
+  - test_change_targets_object_redirect
+  - test_bolt_bend_redirects_single_target_spell
+- [x] 5. Workspace build verification
+  - cargo test --all: all pass, 0 failures
+  - cargo clippy -- -D warnings: 0 warnings
+  - cargo build --workspace: clean
+  - cargo fmt --check: clean

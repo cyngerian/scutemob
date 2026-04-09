@@ -3,7 +3,11 @@
 // 1: Change the target of target spell or ability with a single target.
 // 2: One or two target creatures can't block this turn.
 //
-// Mode 2 implemented: grants CantBlock keyword to target creature(s) until end of turn.
+// CR 115.7a: Mode 1 uses "change the target" — must_change: true.
+// Target index convention (pooled across modes):
+//   index 0: mode 0 — target artifact
+//   index 1: mode 1 — target spell or ability with a single target
+//   index 2: mode 2 — target creature (can't block)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,10 +23,14 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            // Mode 0: target artifact. Mode 1/2 targets declared per mode.
+            // Pooled targets across all modes:
+            //   index 0: mode 0 — artifact
+            //   index 1: mode 1 — spell or ability with a single target (CR 115.7a)
+            //   index 2: mode 2 — creature that can't block
             targets: vec![
                 TargetRequirement::TargetArtifact, // mode 0
-                // TODO: mode 1 requires TargetSpellOrAbility (not in DSL)
+                TargetRequirement::TargetSpellOrAbilityWithSingleTarget, // mode 1
+                TargetRequirement::TargetCreature, // mode 2
             ],
             modes: Some(ModeSelection {
                 min_modes: 1,
@@ -33,19 +41,21 @@ pub fn card() -> CardDefinition {
                     // Mode 0: Destroy target artifact.
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                     // Mode 1: Change the target of target spell or ability with a single target.
-                    // TODO: ChangeTarget / RetargetSpell effect does not exist in the DSL.
-                    // When it is added, implement this mode with the appropriate target selector.
-                    Effect::Sequence(vec![]),
+                    // CR 115.7a: must_change: true — MUST change to a different legal target.
+                    Effect::ChangeTargets {
+                        target: EffectTarget::DeclaredTarget { index: 1 },
+                        must_change: true,
+                    },
                     // Mode 2: One or two target creatures can't block this turn.
                     // CR 509.1b: Grant CantBlock to target creature(s) until end of turn.
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
                             modification: LayerModification::AddKeyword(KeywordAbility::CantBlock),
-                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            filter: EffectFilter::DeclaredTarget { index: 2 },
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),

@@ -3985,6 +3985,17 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 new_id.hash_into(hasher);
             }
+            // PB-J: TargetsChanged -- CR 115.7 (discriminant 126)
+            GameEvent::TargetsChanged {
+                stack_object_id,
+                old_targets,
+                new_targets,
+            } => {
+                126u8.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                old_targets.hash_into(hasher);
+                new_targets.hash_into(hasher);
+            }
         }
     }
 }
@@ -4065,6 +4076,10 @@ impl HashInto for TargetRequirement {
             TargetRequirement::TargetCardInGraveyard(filter) => {
                 15u8.hash_into(hasher);
                 filter.hash_into(hasher);
+            }
+            // PB-J: TargetSpellOrAbilityWithSingleTarget -- CR 115.7a (discriminant 16)
+            TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
+                16u8.hash_into(hasher);
             }
         }
     }
@@ -5350,6 +5365,21 @@ impl HashInto for Effect {
             Effect::AddManaMatchingType { player } => {
                 81u8.hash_into(hasher);
                 player.hash_into(hasher);
+            }
+            // PB-J: CopySpellOnStack -- CR 707.10 (discriminant 82)
+            Effect::CopySpellOnStack { target, count } => {
+                82u8.hash_into(hasher);
+                target.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // PB-J: ChangeTargets -- CR 115.7 (discriminant 83)
+            Effect::ChangeTargets {
+                target,
+                must_change,
+            } => {
+                83u8.hash_into(hasher);
+                target.hash_into(hasher);
+                must_change.hash_into(hasher);
             }
         }
     }

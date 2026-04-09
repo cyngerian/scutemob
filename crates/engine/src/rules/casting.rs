@@ -5416,6 +5416,26 @@ fn validate_object_satisfies_requirement(
         }
         return Ok(());
     }
+    // CR 115.7a: "target spell or ability with a single target" — must be on the stack
+    // with exactly one declared target (CR 115.7a -- the effect can only change one target).
+    if matches!(req, TargetRequirement::TargetSpellOrAbilityWithSingleTarget) {
+        if obj.zone != ZoneId::Stack {
+            return Err(GameStateError::InvalidTarget(format!(
+                "object {:?} is not on the stack",
+                id
+            )));
+        }
+        // Find the StackObject to check its declared targets.
+        let stack_obj = state.stack_objects.iter().find(|so| so.id == id);
+        let target_count = stack_obj.map(|so| so.targets.len()).unwrap_or(0);
+        if target_count != 1 {
+            return Err(GameStateError::InvalidTarget(format!(
+                "stack object {:?} has {} targets, need exactly 1 for TargetSpellOrAbilityWithSingleTarget",
+                id, target_count
+            )));
+        }
+        return Ok(());
+    }
     // Use calculate_characteristics to respect continuous effects (CR 613).
     let chars: Characteristics =
         calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone());
@@ -5479,6 +5499,8 @@ fn validate_object_satisfies_requirement(
         TargetRequirement::TargetPlayer => false,
         // TargetSpell and TargetSpellWithFilter handled above via early return (zone + filter check).
         TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_) => false,
+        // TargetSpellOrAbilityWithSingleTarget handled above via early return.
+        TargetRequirement::TargetSpellOrAbilityWithSingleTarget => false,
     };
     if valid {
         Ok(())

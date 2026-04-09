@@ -3,8 +3,12 @@
 // You may cast sorcery spells this turn as though they had flash.
 // When you next cast an instant or sorcery spell this turn, copy that spell twice.
 //   You may choose new targets for the copies.
-// TODO: "When you next cast an instant or sorcery spell this turn, copy that spell twice" —
-//   delayed trigger (WhenNextCastSpell) + copy-on-stack not in DSL.
+// PARTIAL (PB-J): Effect::CopySpellOnStack is now available in the DSL.
+//   The remaining gap is the "When you NEXT cast an instant or sorcery spell THIS TURN"
+//   delayed trigger — this requires a DelayedTrigger variant keyed on "next spell cast
+//   matching a filter during current turn", which is a separate engine primitive not yet
+//   built. The GrantFlash effect is correct and fully implemented. The copy-twice
+//   trigger is deferred until the delayed-spell-cast-trigger primitive is added.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

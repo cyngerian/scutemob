@@ -1235,6 +1235,18 @@ pub enum GameEvent {
         /// The ObjectId of the emblem in the command zone.
         object_id: crate::state::game_object::ObjectId,
     },
+    /// CR 115.7: Targets of a spell or ability on the stack were changed.
+    ///
+    /// Emitted by `Effect::ChangeTargets` when targets are updated.
+    /// Discriminant: 126.
+    TargetsChanged {
+        /// The stack object whose targets changed.
+        stack_object_id: crate::state::game_object::ObjectId,
+        /// The targets before the change.
+        old_targets: Vec<crate::state::targeting::SpellTarget>,
+        /// The targets after the change.
+        new_targets: Vec<crate::state::targeting::SpellTarget>,
+    },
 }
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.
