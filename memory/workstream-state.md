@@ -25,24 +25,26 @@
 
 **Date**: 2026-04-08
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: Wave B.5 — PB-A + PB-B (play from top + play from graveyard)
+**Task**: Wave B.5 — PB-A + PB-B + PB-E (play-from-top, play-from-GY, mana doubling)
 
 **Completed**:
-- PB-A: PlayFromTopPermission, PayLifeForManaValue, StaticPlayFromTop (disc 73). 6 new cards + 4 fixes. 2H 2M fixed. 18 tests.
-- PB-B: PlayFromGraveyardPermission, CastSelfFromGraveyard (disc 74-75), ControllerGainedLifeThisTurn, life_gained_this_turn. 6 card fixes (Ancient Greenwarden, Perennial Behemoth, Wrenn+Realmbreaker, Oathsworn Vampire, Squee, Brokkos). 2M 3L fixed. 15 tests.
-- 2564 tests, 0 clippy warnings, ~1741 total card defs
+- PB-A: PlayFromTopPermission, PayLifeForManaValue. 6 new cards + 4 fixes. 2H 2M fixed. 18 tests.
+- PB-B: PlayFromGraveyardPermission, CastSelfFromGraveyard. 6 card fixes. 2M 3L fixed. 15 tests.
+- PB-E: WhenTappedForMana + ManaSourceFilter, MultiplyMana, AddManaMatchingType. 3 new cards + 6 fixes. 1H 3M fixed. 11 tests.
+- 2575 tests, 0 clippy warnings, ~1750 total card defs
 
 **Next** (agreed priority order):
-1. HIGH batches: **PB-E** (mana doubling, 9 cards), **PB-J** (copy/redirect spells, 4 cards), **PB-M** (Panharmonicon trigger doubling, 1 card)
+1. HIGH batches: **PB-J** (copy/redirect spells, 4 cards), **PB-M** (Panharmonicon trigger doubling, 1 card)
 2. After HIGH batches: Wave C (A-30, A-36, A-40, A-41), then final audit (X-1 through X-3)
 
 **Hazards**:
 - `activated_ability_cost_reductions` index on channel lands may be off-by-one (carried forward)
 - Cavern of Souls "can't be countered" deferred (needs CounterRestriction primitive)
 - Nexus of Fate "from anywhere" graveyard replacement only covers resolution case
-- A-42 BLOCKED categories remaining: mana-doubling, wheel
+- A-42 BLOCKED categories: mana-doubling resolved by PB-E; wheel still blocked
 - PB-A remaining card TODOs: Elven Chorus mana grant, Vizier mana restriction, Bolas's Citadel sac-10, Mystic Forge exile-top, Radha +X/+X (separate gaps)
 - Pitch-alt-costs (Force of Negation/Vigor) still blocked — separate PB needed
+- Forbidden Orchard: TargetPlayer should be TargetOpponent (deferred to M10)
 
 **Commit prefix**: `W6-prim:` (engine), `W6-cards:` (card defs)
 

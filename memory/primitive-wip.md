@@ -4,7 +4,7 @@ batch: PB-E
 title: Mana doubling — mana trigger interception system
 cards_affected: 9
 started: 2026-04-08
-phase: fix
+phase: closed
 plan_file: memory/primitives/pb-plan-E.md
 
 ## Deferred from Prior PBs

@@ -271,7 +271,7 @@ These touch deep engine architecture. Do last.
 
 - [x] **PB-A**: Play from top of library — PlayFromTopPermission/PlayFromTopFilter, AltCostKind::PayLifeForManaValue, StaticPlayFromTop (disc 73). 6 new cards (Future Sight, Bolas's Citadel, Mystic Forge, Oracle of Mul Daya, Vizier of the Menagerie, Radha Heart of Keld) + 4 fixes (Courser of Kruphix, Elven Chorus, Thundermane Dragon, Case of the Locked Hothouse). 2H 2M fixed. 18 tests. Commit 4e15b450.
 - [x] **PB-B**: Play from graveyard — PlayFromGraveyardPermission, CastSelfFromGraveyard (disc 74-75), ControllerGainedLifeThisTurn, life_gained_this_turn. 6 card fixes (Ancient Greenwarden, Perennial Behemoth, Wrenn+Realmbreaker, Oathsworn Vampire, Squee, Brokkos). 2M 3L fixed. 15 tests. Commit f877e1a2.
-- [ ] **PB-E**: Mana doubling — mana trigger interception (9 cards unblocked, HIGH)
+- [x] **PB-E**: Mana doubling — WhenTappedForMana + ManaSourceFilter, MultiplyMana replacement, AddManaMatchingType effect. 3 new cards (Nyxbloom Ancient, Mana Reflection, Zendikar Resurgent) + 6 fixes (Mirari's Wake, Crypt Ghast, Wild Growth, Leyline of Abundance, Badgermole Cub, Forbidden Orchard). 1H 3M fixed. 11 tests. Commit 4dc97eaf.
 - [ ] **PB-J**: Copy/redirect spells — spell copy + target changing on stack (4 cards unblocked, HIGH)
 - [ ] **PB-M**: Panharmonicon — trigger doubling architecture (1 card unblocked, HIGH)
 

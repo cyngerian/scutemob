@@ -56,6 +56,7 @@
 | PB-L | Reveal/X effects | done | 7 | ~0 | fixed | 1 |
 | PB-A | Play from top of library | done | 4 | ~0 | fixed | 1 |
 | PB-B | Play from graveyard | done | 6 | ~0 | fixed | 1 |
+| PB-E | Mana doubling | done | 6 | ~0 | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -119,8 +120,8 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2564 |
-| Test files | 215 |
+| Total tests | 2575 |
+| Test files | 216 |
 | Game scripts | 270 |
 | Approved scripts | 112 |
 | Abilities validated | 194 / 204 |
