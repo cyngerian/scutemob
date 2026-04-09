@@ -4,7 +4,7 @@ batch: PB-J
 title: Copy/redirect spells — spell copy + target changing on stack
 cards_affected: 4
 started: 2026-04-09
-phase: done
+phase: closed
 plan_file: memory/primitives/pb-plan-J.md
 
 ## Deferred from Prior PBs
