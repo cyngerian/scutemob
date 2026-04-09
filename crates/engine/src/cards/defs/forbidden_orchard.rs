@@ -34,6 +34,10 @@ pub fn card() -> CardDefinition {
             // beneficiary). Correct implementation deferred to M10 when targeted player choice
             // is fully interactive. The trigger mechanism (WhenTappedForMana + stack queueing)
             // is correct.
+            //
+            // NOTE (LOW-4): TargetRequirement::TargetPlayer is used below, but oracle says
+            // "target opponent". No TargetOpponent variant exists yet. Deferred until target
+            // validation is fully implemented.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::This,

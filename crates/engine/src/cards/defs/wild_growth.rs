@@ -1,9 +1,6 @@
 // Wild Growth — {G}, Enchantment — Aura
 // Enchant land
 // Whenever enchanted land is tapped for mana, its controller adds an additional {G}.
-//
-// TODO: "Whenever enchanted land is tapped for mana, add {G}" — mana trigger on enchanted
-//   land is not expressible. Needs a trigger that fires when the attached land produces mana.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

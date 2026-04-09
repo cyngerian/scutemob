@@ -1,9 +1,6 @@
 // Crypt Ghast — {3}{B}, Creature — Spirit 2/2
 // Extort
 // Whenever you tap a Swamp for mana, add an additional {B}.
-//
-// TODO: "Whenever you tap a Swamp for mana, add an additional {B}" — mana doubling for
-//   a specific land subtype needs a trigger on mana ability resolution. Not expressible.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

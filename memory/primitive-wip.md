@@ -4,7 +4,7 @@ batch: PB-E
 title: Mana doubling — mana trigger interception system
 cards_affected: 9
 started: 2026-04-08
-phase: DONE
+phase: fix
 plan_file: memory/primitives/pb-plan-E.md
 
 ## Deferred from Prior PBs
@@ -31,3 +31,17 @@ Cards that may need new defs:
 - [x] 3. New card definitions — nyxbloom_ancient.rs, mana_reflection.rs, zendikar_resurgent.rs (3 new files)
 - [x] 4. Unit tests — crates/engine/tests/mana_triggers.rs (10 tests, all pass); also fixed mana_and_lands.rs, treasure_tokens.rs, mana_filter.rs, primitive_pb37.rs for GameEvent::ManaAdded source field + EffectContext.mana_produced
 - [x] 5. Workspace build verification — cargo test --all: 0 failed; cargo clippy -- -D warnings: 0 errors; cargo build --workspace: clean; cargo fmt --check: clean
+
+## Review
+findings: 6 (HIGH: 1, MEDIUM: 3, LOW: 2)
+verdict: needs-fix
+review_file: memory/primitives/pb-review-E.md
+
+## Fix Phase (2026-04-07)
+- [x] HIGH-1: mana.rs — changed `for ability in &def.abilities` to `for (ability_idx, ability) in def.abilities.iter().enumerate()`, set `trigger.ability_index = ability_idx` on the PendingTrigger pushed for non-mana triggers (Forbidden Orchard case)
+- [x] MEDIUM-2: crypt_ghast.rs — removed stale TODO comment block (lines 4-6)
+- [x] MEDIUM-3: wild_growth.rs — removed stale TODO comment block (lines 5-6)
+- [x] MEDIUM-5: mana_triggers.rs — added `test_mana_trigger_forbidden_orchard` (Test 11): verifies ability_index=1 on PendingTrigger, trigger goes on stack (not immediate), Spirit token created after priority passes
+- [x] LOW-4: forbidden_orchard.rs — added NOTE to existing TODO documenting TargetPlayer vs TargetOpponent gap, deferred to M10
+- [x] LOW-6: deferred — Zendikar draw trigger integration test not added (noted as known gap)
+- All 11 mana_triggers tests pass; 0 clippy warnings; workspace build clean; fmt clean

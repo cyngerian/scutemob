@@ -318,7 +318,7 @@ fn fire_mana_triggered_abilities(
             Some(d) => d.clone(),
             None => continue,
         };
-        for ability in &def.abilities {
+        for (ability_idx, ability) in def.abilities.iter().enumerate() {
             let (source_filter, effect, targets) = match ability {
                 AbilityDefinition::Triggered {
                     trigger_condition: TriggerCondition::WhenTappedForMana { source_filter },
@@ -348,8 +348,9 @@ fn fire_mana_triggered_abilities(
             } else {
                 // Normal triggered ability with targets or non-mana effect: push to stack.
                 // CR 605.5a: this trigger is NOT a mana ability; goes on the stack normally.
-                let trigger =
+                let mut trigger =
                     PendingTrigger::blank(trigger_source_id, player, PendingTriggerKind::Normal);
+                trigger.ability_index = ability_idx;
                 state.pending_triggers.push_back(trigger);
             }
         }

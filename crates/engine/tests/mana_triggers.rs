@@ -755,3 +755,106 @@ fn test_mana_trigger_only_fires_on_tap_abilities() {
         "Mirari's Wake fires on TapForMana (Command::TapForMana), adding 1G to Forest's 1G = 2G total"
     );
 }
+
+fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
+    let mut all_events = Vec::new();
+    let mut current = state;
+    for &p in players {
+        let (s, ev) = process_command(current, Command::PassPriority { player: p })
+            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", p, e));
+        current = s;
+        all_events.extend(ev);
+    }
+    (current, all_events)
+}
+
+// ── Test 11: Forbidden Orchard — trigger uses correct ability_index (CR 605.5a) ─
+
+#[test]
+/// CR 605.5a — "An ability with a target is not a mana ability." Forbidden Orchard's
+/// Spirit token trigger has a target, so it goes on the stack as a normal triggered ability
+/// (NOT an immediate triggered mana ability). The PendingTrigger must use ability_index=1
+/// (the Triggered ability in the card def), NOT ability_index=0 (the mana Activated ability).
+///
+/// Verifies:
+/// 1. Tapping Forbidden Orchard for mana adds mana to the pool (the Activated ability fires).
+/// 2. A PendingTrigger is queued with kind=Normal and ability_index=1 (the Spirit trigger).
+/// 3. After priority passes, the trigger resolves and a Spirit token appears on the battlefield.
+fn test_mana_trigger_forbidden_orchard() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let orchard = make_spec(p1, "Forbidden Orchard", ZoneId::Battlefield, &defs);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .object(orchard)
+        .build()
+        .unwrap();
+
+    let orchard_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Forbidden Orchard" && o.zone == ZoneId::Battlefield)
+        .map(|o| o.id)
+        .unwrap();
+
+    // Tap Forbidden Orchard for mana (AddManaAnyColor — produces white as first color).
+    // This should: (a) add mana to p1's pool, and (b) queue a PendingTrigger for the
+    // Spirit token trigger (NOT immediately resolve it).
+    let (state, _tap_events) = process_command(
+        state,
+        Command::TapForMana {
+            player: p1,
+            source: orchard_id,
+            ability_index: 0,
+        },
+    )
+    .unwrap();
+
+    // Verify: exactly one PendingTrigger of kind Normal with ability_index=1.
+    // (Index 0 is the mana Activated ability; index 1 is the Spirit token Triggered ability.)
+    assert_eq!(
+        state.pending_triggers.len(),
+        1,
+        "CR 605.5a: Forbidden Orchard Spirit token trigger (has target) must be queued as a \
+         normal triggered ability, not resolved immediately as a triggered mana ability"
+    );
+    let trigger = &state.pending_triggers[0];
+    assert_eq!(
+        trigger.kind,
+        mtg_engine::state::stubs::PendingTriggerKind::Normal,
+        "Forbidden Orchard Spirit trigger must be PendingTriggerKind::Normal"
+    );
+    assert_eq!(
+        trigger.ability_index, 1,
+        "Forbidden Orchard Spirit trigger ability_index must be 1 (index of the Triggered \
+         ability in the card def, NOT 0 which is the Activated mana ability)"
+    );
+
+    // Pass priority for both players → trigger goes on stack, then resolves.
+    // CR 605.5a: the trigger follows normal stack rules.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Verify: a Spirit creature token exists on the battlefield.
+    let spirit_count = state
+        .objects
+        .values()
+        .filter(|o| {
+            o.zone == ZoneId::Battlefield
+                && o.characteristics.name.contains("Spirit")
+                && o.characteristics.power == Some(1)
+                && o.characteristics.toughness == Some(1)
+        })
+        .count();
+    assert_eq!(
+        spirit_count, 1,
+        "Forbidden Orchard Spirit token trigger should create a 1/1 Spirit token when it resolves"
+    );
+}
