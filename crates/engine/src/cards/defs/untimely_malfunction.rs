@@ -50,6 +50,9 @@ pub fn card() -> CardDefinition {
                         must_change: true,
                     },
                     // Mode 2: One or two target creatures can't block this turn.
+                    // TODO: "one or two target creatures" requires variable target count (1-2 targets),
+                    // which is not expressible in the current DSL. Currently only supports one target.
+                    // Same limitation as Abzan Charm mode 2.
                     // CR 509.1b: Grant CantBlock to target creature(s) until end of turn.
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {

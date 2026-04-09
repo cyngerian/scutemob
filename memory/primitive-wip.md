@@ -4,7 +4,7 @@ batch: PB-J
 title: Copy/redirect spells — spell copy + target changing on stack
 cards_affected: 4
 started: 2026-04-09
-phase: implement
+phase: done
 plan_file: memory/primitives/pb-plan-J.md
 
 ## Deferred from Prior PBs
@@ -47,3 +47,14 @@ Cards with TODOs referencing these gaps:
   - cargo clippy -- -D warnings: 0 warnings
   - cargo build --workspace: clean
   - cargo fmt --check: clean
+
+## Fix Phase (review findings applied 2026-04-09)
+- [x] MEDIUM-1: Added `has_lost` guard before controller-prefer in ChangeTargets (effects/mod.rs ~L5129)
+- [x] MEDIUM-2: Added self-targeting prevention for TargetSpellOrAbilityWithSingleTarget (casting.rs ~L5421)
+  - Refactored `validate_targets` → `validate_targets_inner` + `validate_targets_with_source` wrapper
+  - Added `self_id: Option<ObjectId>` param to `validate_object_satisfies_requirement`
+  - `handle_cast_spell` now calls `validate_targets_with_source` passing `card` as source
+  - Added unit test `test_target_spell_single_target_self_targeting_prevented` in casting.rs
+- [x] LOW-3: Added KNOWN LIMITATION comment at object redirect site (effects/mod.rs ~L5161)
+- [x] LOW-4: Added variable target count TODO to untimely_malfunction.rs mode 2 (line 52)
+- All tests pass; 0 clippy warnings; workspace build clean

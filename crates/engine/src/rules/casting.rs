@@ -3391,7 +3391,9 @@ pub fn handle_cast_spell(
     };
     // CR 601.2c: Validate and record targets at cast time.
     // Pass source characteristics for protection-from checks (CR 702.16b).
-    let spell_targets = validate_targets(state, &targets, &requirements, player, Some(&chars))?;
+    // Pass card (the casting spell's own ObjectId) for self-targeting prevention (CR 115.7a).
+    let spell_targets =
+        validate_targets_with_source(state, &targets, &requirements, player, Some(&chars), card)?;
     // CR 702.5a / 303.4a: Aura spells require exactly one target matching the Enchant restriction.
     // The Enchant keyword defines the target restriction — it is derived from the card's
     // keywords rather than from an explicit TargetRequirement (which applies to instants/sorceries).
@@ -5239,6 +5241,35 @@ pub(crate) fn validate_targets(
     caster: PlayerId,
     source_chars: Option<&Characteristics>,
 ) -> Result<Vec<SpellTarget>, GameStateError> {
+    validate_targets_inner(state, targets, requirements, caster, source_chars, None)
+}
+
+pub(crate) fn validate_targets_with_source(
+    state: &GameState,
+    targets: &[Target],
+    requirements: &[TargetRequirement],
+    caster: PlayerId,
+    source_chars: Option<&Characteristics>,
+    source_object_id: ObjectId,
+) -> Result<Vec<SpellTarget>, GameStateError> {
+    validate_targets_inner(
+        state,
+        targets,
+        requirements,
+        caster,
+        source_chars,
+        Some(source_object_id),
+    )
+}
+
+fn validate_targets_inner(
+    state: &GameState,
+    targets: &[Target],
+    requirements: &[TargetRequirement],
+    caster: PlayerId,
+    source_chars: Option<&Characteristics>,
+    self_id: Option<ObjectId>,
+) -> Result<Vec<SpellTarget>, GameStateError> {
     // CR 601.2c: When requirements are specified, the number of targets must match.
     // When requirements is empty, targets are validated individually (used by auras/bestow
     // which validate via a separate enchant path, not via TargetRequirement).
@@ -5344,7 +5375,7 @@ pub(crate) fn validate_targets(
                 }
                 // CR 601.2c: Validate the target satisfies the declared requirement.
                 if let Some(req) = req {
-                    validate_object_satisfies_requirement(state, *id, req, caster)?;
+                    validate_object_satisfies_requirement(state, *id, req, caster, self_id)?;
                 }
                 SpellTarget {
                     target: Target::Object(*id),
@@ -5385,6 +5416,7 @@ fn validate_object_satisfies_requirement(
     id: ObjectId,
     req: &TargetRequirement,
     caster: PlayerId,
+    self_id: Option<ObjectId>,
 ) -> Result<(), GameStateError> {
     // All requirements look up the object in state.objects.
     // Spells on the stack exist in state.objects with zone == ZoneId::Stack.
@@ -5424,6 +5456,17 @@ fn validate_object_satisfies_requirement(
                 "object {:?} is not on the stack",
                 id
             )));
+        }
+        // Self-targeting prevention: the casting spell cannot target itself on the stack.
+        // This prevents self-referential loops (e.g., Bolt Bend targeting itself).
+        // See card_definition.rs TargetSpellOrAbilityWithSingleTarget doc comment.
+        if let Some(self_oid) = self_id {
+            if id == self_oid {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "spell {:?} cannot target itself (self-targeting prevention)",
+                    id
+                )));
+            }
         }
         // Find the StackObject to check its declared targets.
         let stack_obj = state.stack_objects.iter().find(|so| so.id == id);
@@ -6980,4 +7023,146 @@ fn has_morph_keyword(
             })
             .unwrap_or(false)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::builder::{GameStateBuilder, ObjectSpec};
+    use crate::state::stack::{StackObject, StackObjectKind};
+    use crate::state::targeting::SpellTarget;
+
+    fn p(n: u64) -> PlayerId {
+        PlayerId(n)
+    }
+
+    /// Build a minimal StackObject for testing self-targeting prevention.
+    fn make_test_stack_spell(
+        id: ObjectId,
+        controller: PlayerId,
+        targets: Vec<SpellTarget>,
+    ) -> StackObject {
+        StackObject {
+            id,
+            controller,
+            kind: StackObjectKind::Spell {
+                source_object: id,
+            },
+            targets,
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            was_cast_as_adventure: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            x_value: 0,
+            evidence_collected: false,
+            is_cast_transformed: false,
+            additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
+        }
+    }
+
+    /// CR 115.7a -- TargetSpellOrAbilityWithSingleTarget self-targeting prevention.
+    ///
+    /// The casting spell's own ObjectId is not a valid target for its own
+    /// TargetSpellOrAbilityWithSingleTarget requirement. This prevents self-reference
+    /// loops (e.g., Bolt Bend targeting itself on the stack).
+    #[test]
+    fn test_target_spell_single_target_self_targeting_prevented() {
+        // Build a state with a card in ZoneId::Stack (simulating a spell already there).
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .object(ObjectSpec::card(p(1), "Bolt Bend").in_zone(ZoneId::Stack))
+            .at_step(Step::PreCombatMain)
+            .active_player(p(1))
+            .build()
+            .unwrap();
+
+        // Find the object we just placed on the stack.
+        let spell_id = state
+            .objects
+            .iter()
+            .find(|(_, obj)| obj.zone == ZoneId::Stack)
+            .map(|(id, _)| *id)
+            .expect("expected a stack object");
+
+        // Also add a StackObject entry so the target-count check works.
+        let stack_entry = make_test_stack_spell(
+            spell_id,
+            p(1),
+            vec![SpellTarget {
+                target: Target::Player(p(2)),
+                zone_at_cast: None,
+            }],
+        );
+        state.stack_objects.push_back(stack_entry);
+
+        let req = TargetRequirement::TargetSpellOrAbilityWithSingleTarget;
+
+        // Without self_id: targeting the spell itself should succeed (it's on the stack
+        // with exactly 1 target).
+        let result_no_self =
+            validate_object_satisfies_requirement(&state, spell_id, &req, p(1), None);
+        assert!(
+            result_no_self.is_ok(),
+            "without self_id, single-target spell is a valid target: {:?}",
+            result_no_self
+        );
+
+        // With self_id == spell_id: self-targeting should be rejected.
+        let result_self =
+            validate_object_satisfies_requirement(&state, spell_id, &req, p(1), Some(spell_id));
+        assert!(
+            result_self.is_err(),
+            "self-targeting must be rejected for TargetSpellOrAbilityWithSingleTarget"
+        );
+        let err_msg = format!("{:?}", result_self.unwrap_err());
+        assert!(
+            err_msg.contains("self-targeting"),
+            "error should mention self-targeting, got: {}",
+            err_msg
+        );
+
+        // With a different self_id: targeting should succeed (different source spell).
+        let other_self_id = ObjectId(spell_id.0 + 99);
+        let result_other = validate_object_satisfies_requirement(
+            &state,
+            spell_id,
+            &req,
+            p(1),
+            Some(other_self_id),
+        );
+        assert!(
+            result_other.is_ok(),
+            "different self_id should not block targeting: {:?}",
+            result_other
+        );
+    }
 }

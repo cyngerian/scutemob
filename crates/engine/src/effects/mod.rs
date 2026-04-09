@@ -5126,7 +5126,14 @@ fn execute_effect_inner(
                                 // Find a different active player to retarget to.
                                 // Prefer the effect controller, then any other player.
                                 let controller = ctx.controller;
-                                let new_pid = if controller != *current_pid {
+                                // CR 115.7a: A player who has lost the game is not a legal target.
+                                // Check has_lost before preferring the controller as the new target.
+                                let controller_alive = !state
+                                    .players
+                                    .get(&controller)
+                                    .map(|ps| ps.has_lost)
+                                    .unwrap_or(true);
+                                let new_pid = if controller_alive && controller != *current_pid {
                                     Some(controller)
                                 } else {
                                     // Pick the first active player that isn't the current target.
@@ -5155,6 +5162,13 @@ fn execute_effect_inner(
                                 // Find a different object in the same zone as the original target.
                                 // The original target's zone is captured in zone_at_cast.
                                 // Prefer the smallest ObjectId (deterministic).
+                                //
+                                // KNOWN LIMITATION: The redirect picks the smallest ObjectId in the
+                                // same zone without checking whether the new object satisfies the
+                                // original spell's TargetRequirement (CR 115.7a — "another legal
+                                // target"). The original TargetRequirement is not readily available
+                                // from StackObject. Simplified approach is safer for M9.4;
+                                // M10 interactive choice will replace this deterministic fallback.
                                 let original_zone = spell_target.zone_at_cast;
                                 let new_oid = {
                                     let mut candidates: Vec<ObjectId> = state
