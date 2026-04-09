@@ -265,6 +265,7 @@ pub fn handle_activate_ability(
                 damaged_player: None,
                 triggering_creature_id: None,
                 chosen_creature_type: None,
+                mana_produced: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(

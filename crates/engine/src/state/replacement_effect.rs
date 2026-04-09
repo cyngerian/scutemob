@@ -66,6 +66,11 @@ pub enum ReplacementTrigger {
     /// A player would proliferate (CR 701.34, CR 614.1).
     /// Used by Tekuthal: "If you would proliferate, proliferate twice instead."
     WouldProliferate { player_filter: PlayerFilter },
+    /// CR 106.12b: A replacement effect that applies when a permanent is tapped for mana.
+    /// "If you tap a permanent for mana, it produces [N] times as much of that mana instead."
+    /// Only applies to mana abilities with {T} in cost (CR 106.12).
+    /// `controller` is bound at registration time from the card controller.
+    ManaWouldBeProduced { controller: PlayerId },
 }
 /// What a replacement effect does when it applies (CR 614.6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,6 +147,10 @@ pub enum ReplacementModification {
     /// "If you would proliferate, proliferate twice instead."
     /// Used by Tekuthal, Inquiry Dominus.
     DoubleProliferate,
+    /// CR 106.12b / CR 106.6a: Multiply the mana produced by a tap-mana ability.
+    /// `multiplier` is the factor (2 for Mana Reflection, 3 for Nyxbloom Ancient).
+    /// Multiple instances stack multiplicatively per ruling (two Nyxblooms = 9x).
+    MultiplyMana(u32),
 }
 /// Filters which objects a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

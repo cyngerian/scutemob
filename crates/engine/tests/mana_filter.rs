@@ -150,6 +150,7 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
                 player,
                 color: ManaColor::White,
                 amount: 1,
+                ..
             } if *player == p(1)
         )),
         "ManaAdded(White, 1) event should be emitted (CR 605.1a)"
@@ -161,6 +162,7 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
                 player,
                 color: ManaColor::Black,
                 amount: 1,
+                ..
             } if *player == p(1)
         )),
         "ManaAdded(Black, 1) event should be emitted (CR 605.1a)"

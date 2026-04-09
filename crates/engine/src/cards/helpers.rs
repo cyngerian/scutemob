@@ -7,7 +7,7 @@ pub use super::card_definition::{
     AbilityDefinition, ActivationZone, AltCastDetails, CardDefinition, CardFace,
     CastFromGraveyardAdditionalCost, Condition, ContinuousEffectDef, Cost, CostModifierScope,
     CraftMaterials, Effect, EffectAmount, EffectTarget, ForEachTarget, GiftType, LibraryPosition,
-    LoyaltyCost, ManaRestriction, MeldPair, ModeSelection, PlayerTarget,
+    LoyaltyCost, ManaRestriction, ManaSourceFilter, MeldPair, ModeSelection, PlayerTarget,
     SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant, SpellAdditionalCost,
     SpellCostFilter, SpellCostModifier, TargetController, TargetFilter, TargetRequirement,
     TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, ZoneTarget,

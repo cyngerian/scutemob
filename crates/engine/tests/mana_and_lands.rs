@@ -348,6 +348,7 @@ fn test_tap_for_mana_adds_to_pool() {
             player: PlayerId(1),
             color: ManaColor::Green,
             amount: 1,
+            ..
         }
     )));
 }

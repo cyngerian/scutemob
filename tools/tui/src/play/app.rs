@@ -566,6 +566,7 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
             player,
             color,
             amount,
+            ..
         } => {
             format!("P{} adds {} {:?} mana", player.0, amount, color)
         }

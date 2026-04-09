@@ -1661,6 +1661,11 @@ pub fn register_permanent_replacement_abilities(
                             player_filter: bind_player_filter(player_filter, controller),
                         }
                     }
+                    // CR 106.12b: Bind the controller PlayerId at registration time.
+                    // Card defs use Specific(PlayerId(0)) as placeholder; resolved here.
+                    ReplacementTrigger::ManaWouldBeProduced { .. } => {
+                        ReplacementTrigger::ManaWouldBeProduced { controller }
+                    }
                     other => other.clone(),
                 }
             };

@@ -40,9 +40,9 @@ use super::GameState;
 use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
     AbilityDefinition, ActivationZone, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
-    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ModeSelection, PlayerTarget,
-    SoulbondGrant, TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
-    TriggerCondition, TriggerZone, TypeLine, ZoneTarget,
+    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter, ModeSelection,
+    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
+    TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
@@ -1742,6 +1742,11 @@ impl HashInto for ReplacementTrigger {
                 10u8.hash_into(hasher);
                 player_filter.hash_into(hasher);
             }
+            // CR 106.12b: ManaWouldBeProduced (discriminant 11)
+            ReplacementTrigger::ManaWouldBeProduced { controller } => {
+                11u8.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
         }
     }
 }
@@ -1797,6 +1802,11 @@ impl HashInto for ReplacementModification {
             ReplacementModification::DoubleProliferate => 17u8.hash_into(hasher),
             // CR 614.1 / CR 701.10g: TripleDamage (discriminant 18)
             ReplacementModification::TripleDamage => 18u8.hash_into(hasher),
+            // CR 106.12b / CR 106.6a: MultiplyMana (discriminant 19)
+            ReplacementModification::MultiplyMana(n) => {
+                19u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -3008,11 +3018,13 @@ impl HashInto for GameEvent {
                 player,
                 color,
                 amount,
+                source,
             } => {
                 16u8.hash_into(hasher);
                 player.hash_into(hasher);
                 color.hash_into(hasher);
                 amount.hash_into(hasher);
+                source.hash_into(hasher);
             }
             GameEvent::PermanentTapped { player, object_id } => {
                 17u8.hash_into(hasher);
@@ -4397,6 +4409,26 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent => 39u8.hash_into(hasher),
             // CR 305.1: "Whenever an opponent plays a land" — discriminant 40
             TriggerCondition::WheneverOpponentPlaysLand => 40u8.hash_into(hasher),
+            // CR 605.1b / CR 106.12a: "Whenever you tap a [type] for mana" — discriminant 41
+            TriggerCondition::WhenTappedForMana { source_filter } => {
+                41u8.hash_into(hasher);
+                source_filter.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for ManaSourceFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ManaSourceFilter::Land => 0u8.hash_into(hasher),
+            ManaSourceFilter::LandSubtype(st) => {
+                1u8.hash_into(hasher);
+                st.0.hash_into(hasher);
+            }
+            ManaSourceFilter::Creature => 2u8.hash_into(hasher),
+            ManaSourceFilter::AnyPermanent => 3u8.hash_into(hasher),
+            ManaSourceFilter::EnchantedLand => 4u8.hash_into(hasher),
+            ManaSourceFilter::This => 5u8.hash_into(hasher),
         }
     }
 }
@@ -5313,6 +5345,11 @@ impl HashInto for Effect {
             // PB-H: LivingDeath (discriminant 80)
             Effect::LivingDeath => {
                 80u8.hash_into(hasher);
+            }
+            // CR 106.12a: AddManaMatchingType (discriminant 81)
+            Effect::AddManaMatchingType { player } => {
+                81u8.hash_into(hasher);
+                player.hash_into(hasher);
             }
         }
     }

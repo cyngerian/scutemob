@@ -1915,6 +1915,7 @@ pub fn enrich_spec_from_def(
                         | Effect::AddManaAnyColor { .. }
                         | Effect::AddManaScaled { .. }
                         | Effect::AddManaFilterChoice { .. }
+                        | Effect::AddManaMatchingType { .. }
                 ) || try_as_tap_mana_ability(effect).is_some());
             if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);

@@ -17,6 +17,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Extort),
+            // CR 605.1b / CR 106.12a: "Whenever you tap a Swamp for mana, add {B}."
+            // Triggered mana ability — resolves immediately (CR 605.4a).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenTappedForMana {
+                    source_filter: ManaSourceFilter::LandSubtype(SubType("Swamp".into())),
+                },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: ManaPool { black: 1, ..Default::default() },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

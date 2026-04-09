@@ -21,8 +21,20 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — "Whenever you tap a land for mana, add one mana of any type
-            // that land produced." Mana doubling triggered ability not in DSL.
+            // CR 605.1b / CR 106.12a: "Whenever you tap a land for mana, add one mana of
+            // any type that land produced." Triggered mana ability — resolves immediately.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenTappedForMana {
+                    source_filter: ManaSourceFilter::Land,
+                },
+                effect: Effect::AddManaMatchingType {
+                    player: PlayerTarget::Controller,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

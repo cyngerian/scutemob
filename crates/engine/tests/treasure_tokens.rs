@@ -200,6 +200,7 @@ fn test_treasure_sacrifice_for_mana() {
                 player,
                 color: ManaColor::Colorless,
                 amount: 1,
+                ..
             } if *player == p1
         )),
         "ManaAdded event should be emitted"

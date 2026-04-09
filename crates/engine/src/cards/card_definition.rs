@@ -1295,6 +1295,13 @@ pub enum Effect {
         player: PlayerTarget,
         amount: EffectAmount,
     },
+    /// CR 106.12a: "Add one mana of any type that land produced."
+    ///
+    /// Used by Mirari's Wake and Zendikar Resurgent triggered mana abilities.
+    /// At resolution, picks the first color from the `mana_produced` context list.
+    /// Deterministic fallback: colorless if no context available.
+    /// Interactive color choice deferred to M10.
+    AddManaMatchingType { player: PlayerTarget },
     // ── Counters ─────────────────────────────────────────────────────────────
     /// CR 122: Put one or more counters on a permanent or player.
     AddCounter {
@@ -2579,6 +2586,31 @@ pub enum TriggerCondition {
     /// Unlike WhenEntersBattlefield, this fires from the stack BEFORE resolution.
     /// The triggered ability goes above the spell on the stack and resolves first.
     WhenYouCastThisSpell,
+    /// CR 605.1b / CR 106.12a: "Whenever you tap a [type] for mana."
+    ///
+    /// Fires when a mana ability with {T} in its cost resolves and produces mana.
+    /// `source_filter` determines which permanents match (land, creature, Swamp, etc.).
+    /// If the trigger's effect only produces mana and doesn't target, it's a triggered
+    /// mana ability (CR 605.1b) that resolves immediately (CR 605.4a). If it targets
+    /// (e.g. Forbidden Orchard), it's a normal triggered ability (CR 605.5a).
+    WhenTappedForMana { source_filter: ManaSourceFilter },
+}
+/// Filter for "whenever you tap a [type] for mana" trigger conditions.
+/// CR 106.12a: triggers whenever such a mana ability resolves and produces mana.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ManaSourceFilter {
+    /// Any land you control (Mirari's Wake, Zendikar Resurgent)
+    Land,
+    /// A land with a specific subtype (Crypt Ghast: "a Swamp")
+    LandSubtype(SubType),
+    /// Any creature you control (Leyline of Abundance, Badgermole Cub)
+    Creature,
+    /// Any permanent you control (for future use)
+    AnyPermanent,
+    /// The enchanted land (Wild Growth: "enchanted land")
+    EnchantedLand,
+    /// This specific permanent (Forbidden Orchard: "this land")
+    This,
 }
 // ── Conditions ────────────────────────────────────────────────────────────────
 /// A boolean condition checked at trigger time or in Conditional effects (CR 603.4).

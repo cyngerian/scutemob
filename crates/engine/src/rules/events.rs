@@ -107,6 +107,11 @@ pub enum GameEvent {
         player: PlayerId,
         color: ManaColor,
         amount: u32,
+        /// The permanent that produced this mana (if from a tap mana ability).
+        /// None for mana from spell effects (Effect::AddMana, etc.).
+        /// CR 106.12: used to determine which permanents triggered mana abilities fire on.
+        #[serde(default)]
+        source: Option<ObjectId>,
     },
     /// A permanent became tapped (CR 701.21).
     PermanentTapped {

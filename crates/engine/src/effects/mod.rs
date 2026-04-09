@@ -123,6 +123,10 @@ pub struct EffectContext {
     /// Read by TargetFilter's `exclude_chosen_subtype` / `has_chosen_subtype` flags, and by
     /// `EffectAmount::ChosenTypeCreatureCount`.
     pub chosen_creature_type: Option<crate::state::types::SubType>,
+    /// CR 106.12a: Mana produced by the tap-mana ability that triggered this mana trigger.
+    /// Set by `fire_mana_triggered_abilities` in mana.rs when resolving AddManaMatchingType.
+    /// Each entry is (color, amount). Deterministic fallback: first entry's color is used.
+    pub mana_produced: Option<Vec<(ManaColor, u32)>>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -148,6 +152,7 @@ impl EffectContext {
             damaged_player: None,
             triggering_creature_id: None,
             chosen_creature_type: None,
+            mana_produced: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -178,6 +183,7 @@ impl EffectContext {
             damaged_player: None,
             triggering_creature_id: None,
             chosen_creature_type: None,
+            mana_produced: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -1466,6 +1472,7 @@ fn execute_effect_inner(
                             player: p,
                             color,
                             amount,
+                            source: None,
                         });
                     }
                 }
@@ -1481,6 +1488,7 @@ fn execute_effect_inner(
                         player: p,
                         color: ManaColor::Colorless,
                         amount: 1,
+                        source: None,
                     });
                 }
             }
@@ -1500,12 +1508,14 @@ fn execute_effect_inner(
                         player: p,
                         color: *color_a,
                         amount: 1,
+                        source: None,
                     });
                     ps.mana_pool.add(*color_b, 1);
                     events.push(GameEvent::ManaAdded {
                         player: p,
                         color: *color_b,
                         amount: 1,
+                        source: None,
                     });
                 }
             }
@@ -1524,6 +1534,7 @@ fn execute_effect_inner(
                         player: p,
                         color: *color,
                         amount,
+                        source: None,
                     });
                 }
             }
@@ -1555,6 +1566,7 @@ fn execute_effect_inner(
                             player: p,
                             color,
                             amount,
+                            source: None,
                         });
                     }
                 }
@@ -1574,6 +1586,31 @@ fn execute_effect_inner(
                         player: p,
                         color: ManaColor::Colorless,
                         amount: 1,
+                        source: None,
+                    });
+                }
+            }
+        }
+        // CR 106.12a: "Add one mana of any type that land produced."
+        // Used by Mirari's Wake / Zendikar Resurgent triggered mana abilities.
+        // Picks the first color from ctx.mana_produced (set by fire_mana_triggered_abilities).
+        // Deterministic fallback: colorless when no context is available.
+        Effect::AddManaMatchingType { player } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            let color = ctx
+                .mana_produced
+                .as_deref()
+                .and_then(|v| v.first())
+                .map(|&(c, _)| c)
+                .unwrap_or(ManaColor::Colorless);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    ps.mana_pool.add(color, 1);
+                    events.push(GameEvent::ManaAdded {
+                        player: p,
+                        color,
+                        amount: 1,
+                        source: None,
                     });
                 }
             }
@@ -1591,6 +1628,7 @@ fn execute_effect_inner(
                             player: p,
                             color: ManaColor::Colorless,
                             amount: n,
+                            source: None,
                         });
                     }
                 }
@@ -2277,6 +2315,7 @@ fn execute_effect_inner(
                             damaged_player: ctx.damaged_player,
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
+                            mana_produced: ctx.mana_produced.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2309,6 +2348,7 @@ fn execute_effect_inner(
                             damaged_player: ctx.damaged_player,
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
+                            mana_produced: ctx.mana_produced.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -6774,6 +6814,7 @@ pub fn check_static_condition(
                 damaged_player: None,
                 triggering_creature_id: None,
                 chosen_creature_type: None,
+                mana_produced: None,
             };
             check_condition(state, condition, &ctx)
         }

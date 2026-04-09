@@ -6,10 +6,14 @@
 //!
 //! For M3-A, only tap-activated mana abilities are supported.
 use super::events::{CombatDamageTarget, GameEvent};
+use crate::cards::card_definition::{
+    AbilityDefinition, Effect, ManaSourceFilter, TriggerCondition,
+};
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
-use crate::state::stubs::GameRestriction;
+use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
+use crate::state::stubs::{GameRestriction, PendingTrigger, PendingTriggerKind};
 use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -186,28 +190,42 @@ pub fn handle_tap_for_mana(
             });
         }
     }
-    // 8. Add produced mana to the player's pool.
+    // 7b. Apply mana-production replacement effects (CR 106.12b).
+    //     Only applies to mana abilities with {T} in cost (CR 106.12).
+    let mana_multiplier = if ability.requires_tap {
+        apply_mana_production_replacements(state, player)
+    } else {
+        1u32
+    };
+    // 8. Add produced mana to the player's pool (multiplied by replacement effects).
     //    CR 111.10a: `any_color` produces 1 mana of any color.
     //    Simplified: colorless until interactive color choice is implemented
     //    (consistent with Effect::AddManaAnyColor in effects/mod.rs).
+    let mut mana_produced: Vec<(ManaColor, u32)> = Vec::new();
     if ability.any_color {
         // CR 111.10a: "Add one mana of any color."
+        let amount = mana_multiplier;
         let player_state = state.player_mut(player)?;
-        player_state.mana_pool.add(ManaColor::Colorless, 1);
+        player_state.mana_pool.add(ManaColor::Colorless, amount);
         events.push(GameEvent::ManaAdded {
             player,
             color: ManaColor::Colorless,
-            amount: 1,
+            amount,
+            source: Some(source),
         });
+        mana_produced.push((ManaColor::Colorless, amount));
     } else {
         let player_state = state.player_mut(player)?;
-        for (color, amount) in &ability.produces {
-            player_state.mana_pool.add(*color, *amount);
+        for (color, base_amount) in &ability.produces {
+            let amount = base_amount * mana_multiplier;
+            player_state.mana_pool.add(*color, amount);
             events.push(GameEvent::ManaAdded {
                 player,
                 color: *color,
-                amount: *amount,
+                amount,
+                source: Some(source),
             });
+            mana_produced.push((*color, amount));
         }
     }
     // 9. Pain land damage: deal damage to controller as part of the mana ability.
@@ -221,7 +239,189 @@ pub fn handle_tap_for_mana(
             amount: ability.damage_to_controller,
         });
     }
-    // 10. Player retains priority. players_passed is unchanged.
+    // 10. Fire triggered mana abilities (CR 605.4a / CR 106.12a).
+    //     Only fires for tap-cost mana abilities (CR 106.12: "tap for mana").
+    //     Triggered mana abilities (no target) resolve immediately.
+    //     Normal triggered abilities (has targets, e.g., Forbidden Orchard) go on the stack.
+    if ability.requires_tap {
+        fire_mana_triggered_abilities(state, player, source, &mana_produced, &mut events);
+    }
+    // 11. Player retains priority. players_passed is unchanged.
     //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
     Ok(events)
+}
+/// CR 106.12b: Check for mana multiplication replacement effects.
+/// Returns the product of all matching multipliers for the given player.
+/// Multiple Nyxbloom Ancients: 3 * 3 = 9x. Multiple Mana Reflections: 2 * 2 = 4x.
+fn apply_mana_production_replacements(state: &GameState, player: PlayerId) -> u32 {
+    let mut multiplier = 1u32;
+    for effect in state.replacement_effects.iter() {
+        if let ReplacementTrigger::ManaWouldBeProduced { controller } = &effect.trigger {
+            if *controller == player {
+                if let ReplacementModification::MultiplyMana(n) = &effect.modification {
+                    // Skip inactive sources (source no longer on battlefield).
+                    let source_on_bf = effect
+                        .source
+                        .map(|src| {
+                            state
+                                .objects
+                                .get(&src)
+                                .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false);
+                    if source_on_bf {
+                        multiplier = multiplier.saturating_mul(*n);
+                    }
+                }
+            }
+        }
+    }
+    multiplier
+}
+/// CR 605.4a / CR 106.12a: Fire triggered abilities that trigger from tapping a permanent
+/// for mana. Called after mana is added to the pool.
+///
+/// - Triggered mana abilities (no targets, produces mana) resolve immediately per CR 605.4a.
+/// - Triggered abilities with targets (e.g., Forbidden Orchard) go on the stack per CR 605.5a.
+///
+/// The `source` is the permanent that was tapped for mana.
+/// `mana_produced` is the list of (color, amount) pairs the ability produced (post-multiplier).
+fn fire_mana_triggered_abilities(
+    state: &mut GameState,
+    player: PlayerId,
+    source: ObjectId,
+    mana_produced: &[(ManaColor, u32)],
+    events: &mut Vec<GameEvent>,
+) {
+    // Collect permanents on the battlefield with WhenTappedForMana triggered abilities.
+    // We snapshot IDs first to avoid borrow conflicts.
+    let battlefield_ids: Vec<ObjectId> = state
+        .objects
+        .values()
+        .filter(|o| matches!(o.zone, ZoneId::Battlefield) && o.controller == player)
+        .map(|o| o.id)
+        .collect();
+    for trigger_source_id in battlefield_ids {
+        // Get the card_id for registry lookup.
+        let card_id = match state.objects.get(&trigger_source_id) {
+            Some(o) => o.card_id.clone(),
+            None => continue,
+        };
+        let card_id = match card_id {
+            Some(cid) => cid,
+            None => continue,
+        };
+        // Look up the card definition.
+        let registry = state.card_registry.clone();
+        let def = match registry.get(card_id) {
+            Some(d) => d.clone(),
+            None => continue,
+        };
+        for ability in &def.abilities {
+            let (source_filter, effect, targets) = match ability {
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenTappedForMana { source_filter },
+                    effect,
+                    targets,
+                    ..
+                } => (source_filter, effect, targets),
+                _ => continue,
+            };
+            // Check if the tapped source matches the filter.
+            if !mana_source_matches(state, source, trigger_source_id, source_filter) {
+                continue;
+            }
+            // Determine if this is a triggered mana ability (CR 605.1b):
+            // no targets + could add mana → resolves immediately (CR 605.4a).
+            // Has targets → goes on the stack as a normal triggered ability (CR 605.5a).
+            if targets.is_empty() && is_mana_producing_effect(effect) {
+                // Triggered mana ability: resolve immediately (CR 605.4a).
+                use crate::effects::{execute_effect, EffectContext};
+                let dummy_source = trigger_source_id;
+                let mut ctx = EffectContext::new(player, dummy_source, vec![]);
+                ctx.mana_produced = Some(mana_produced.to_vec());
+                let mut mana_events = execute_effect(state, effect, &mut ctx);
+                // Tag ManaAdded events with no source (triggered mana is not the original tap).
+                // Per Nyxbloom ruling: triggered mana abilities are NOT multiplied.
+                events.append(&mut mana_events);
+            } else {
+                // Normal triggered ability with targets or non-mana effect: push to stack.
+                // CR 605.5a: this trigger is NOT a mana ability; goes on the stack normally.
+                let trigger =
+                    PendingTrigger::blank(trigger_source_id, player, PendingTriggerKind::Normal);
+                state.pending_triggers.push_back(trigger);
+            }
+        }
+    }
+}
+/// Check if the tapped permanent (`source`) matches the `ManaSourceFilter` on the
+/// trigger source (`trigger_source_id`). The trigger source is the permanent whose
+/// ability is firing (e.g., Mirari's Wake, Wild Growth, Forbidden Orchard).
+fn mana_source_matches(
+    state: &GameState,
+    source: ObjectId,
+    trigger_source_id: ObjectId,
+    filter: &ManaSourceFilter,
+) -> bool {
+    match filter {
+        ManaSourceFilter::Land => {
+            // Source must be a land controlled by the trigger source's controller.
+            let chars = crate::rules::layers::calculate_characteristics(state, source);
+            chars
+                .map(|c| c.card_types.contains(&CardType::Land))
+                .unwrap_or(false)
+        }
+        ManaSourceFilter::LandSubtype(subtype) => {
+            // Source must be a land with the specific subtype.
+            let chars = crate::rules::layers::calculate_characteristics(state, source);
+            chars
+                .map(|c| c.card_types.contains(&CardType::Land) && c.subtypes.contains(subtype))
+                .unwrap_or(false)
+        }
+        ManaSourceFilter::Creature => {
+            // Source must be a creature.
+            let chars = crate::rules::layers::calculate_characteristics(state, source);
+            chars
+                .map(|c| c.card_types.contains(&CardType::Creature))
+                .unwrap_or(false)
+        }
+        ManaSourceFilter::AnyPermanent => {
+            // Any permanent matches.
+            state
+                .objects
+                .get(&source)
+                .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                .unwrap_or(false)
+        }
+        ManaSourceFilter::EnchantedLand => {
+            // The trigger source (Aura) must be attached to the tapped permanent.
+            state
+                .objects
+                .get(&trigger_source_id)
+                .and_then(|o| o.attached_to)
+                .map(|attached_id| attached_id == source)
+                .unwrap_or(false)
+        }
+        ManaSourceFilter::This => {
+            // The trigger source IS the tapped permanent.
+            trigger_source_id == source
+        }
+    }
+}
+/// Returns true if the effect can produce mana (making this ability a triggered mana ability
+/// per CR 605.1b when it also has no targets). Only checks top-level mana-producing effects.
+fn is_mana_producing_effect(effect: &Effect) -> bool {
+    matches!(
+        effect,
+        Effect::AddMana { .. }
+            | Effect::AddManaAnyColor { .. }
+            | Effect::AddManaMatchingType { .. }
+            | Effect::AddManaChoice { .. }
+            | Effect::AddManaFilterChoice { .. }
+            | Effect::AddManaScaled { .. }
+            | Effect::AddManaRestricted { .. }
+            | Effect::AddManaAnyColorRestricted { .. }
+            | Effect::AddManaOfAnyColorAmount { .. }
+    )
 }

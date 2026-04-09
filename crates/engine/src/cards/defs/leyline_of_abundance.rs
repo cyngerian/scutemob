@@ -13,8 +13,21 @@ pub fn card() -> CardDefinition {
         oracle_text: "If Leyline of Abundance is in your opening hand, you may begin the game with it on the battlefield.\nWhenever you tap a creature for mana, add an additional {G}.\n{6}{G}{G}: Put a +1/+1 counter on each creature you control.".to_string(),
         abilities: vec![
             // TODO: DSL gap — "If in opening hand, begin game on battlefield" (Leyline).
-            // TODO: DSL gap — "Whenever you tap a creature for mana, add {G}."
-            // Mana ability trigger not in DSL.
+            // CR 605.1b / CR 106.12a: "Whenever you tap a creature for mana, add {G}."
+            // Triggered mana ability — resolves immediately (CR 605.4a).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenTappedForMana {
+                    source_filter: ManaSourceFilter::Creature,
+                },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: ManaPool { green: 1, ..Default::default() },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 6, green: 2, ..Default::default() }),
                 effect: Effect::ForEach {
