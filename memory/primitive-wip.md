@@ -4,7 +4,7 @@ batch: PB-M
 title: Panharmonicon trigger doubling — wire existing infrastructure + card def
 cards_affected: 1 (Panharmonicon) + related cards with trigger doubling TODOs
 started: 2026-04-09
-phase: implement
+phase: done
 plan_file: memory/primitives/pb-plan-M.md
 
 ## Deferred from Prior PBs
@@ -42,3 +42,7 @@ plan_file: memory/primitives/pb-plan-M.md
   - `cargo clippy -- -D warnings`: 0 warnings
   - `cargo build --workspace`: clean (replay-viewer + TUI compile, no new exhaustive match gaps)
   - `cargo fmt --check`: clean
+
+## Fix Phase (pb-review-M.md)
+- [x] HIGH-1: Removed `SuperType::Legendary` from ancient_greenwarden.rs line 20 — oracle text confirms "Creature — Elemental" only
+- [x] MEDIUM-2: Added `test_panharmonicon_doubles_carddef_etb_trigger` to trigger_doubling.rs — exercises `queue_carddef_etb_triggers` path specifically (CardDef-based ETB via `AbilityDefinition::Triggered`, not ObjectSpec runtime trigger); test passes

@@ -13,8 +13,9 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    GameEvent, GameStateBuilder, ManaCost, ObjectSpec, PlayerId, StackObjectKind, Step,
-    TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
+    Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectSpec, PlayerTarget,
+    PlayerId, StackObjectKind, Step, TriggerCondition, TriggerDoubler, TriggerDoublerFilter,
+    TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -1497,5 +1498,171 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
         "CR 603.2d: LandETB filter must NOT double triggers when a creature enters; \
          expected 1 AbilityTriggered event, got {}; events: {:?}",
         triggered_count2, resolution_events2
+    );
+}
+
+// ── PB-M Fix: CardDef ETB path — queue_carddef_etb_triggers doubling ──────────
+
+/// CR 603.2d — Bug 2 regression: `queue_carddef_etb_triggers` sets
+/// `entering_object_id: Some(new_id)` so `doubler_applies_to_trigger` can inspect
+/// the entering permanent's card types and apply the doubler.
+///
+/// Unlike all other PB-M tests (which use `ObjectSpec::with_triggered_ability` and
+/// go through `check_triggers`), this test uses a `CardDefinition` with
+/// `AbilityDefinition::Triggered { trigger_condition: WhenEntersBattlefield, .. }`,
+/// which routes through `queue_carddef_etb_triggers` — the code path fixed in Bug 2.
+///
+/// Setup:
+/// - Panharmonicon TriggerDoubler registered for `ArtifactOrCreatureETB`.
+/// - Creature with a CardDef-based ETB trigger (AbilityDefinition::Triggered).
+/// - Creature resolves and enters the battlefield.
+///
+/// Expected: 2 `AbilityTriggered` events (1 base + 1 doubled by Panharmonicon).
+#[test]
+fn test_panharmonicon_doubles_carddef_etb_trigger() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    let pharm_def = panharmonicon_def("pharm-carddef-etb", "Panharmonicon CardDef ETB");
+    let pharm_card_id = pharm_def.card_id.clone();
+
+    // Creature with a CardDef-based ETB trigger (NOT ObjectSpec runtime trigger).
+    // This is the path exercised by queue_carddef_etb_triggers.
+    let creature_with_carddef_etb = CardDefinition {
+        card_id: CardId("carddef-etb-creature".into()),
+        name: "CardDef ETB Creature".into(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "When this creature enters the battlefield, draw a card.".into(),
+        // AbilityDefinition::Triggered routes through queue_carddef_etb_triggers
+        // (not ObjectSpec runtime triggers / check_triggers).
+        abilities: vec![AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let creature_card_id = creature_with_carddef_etb.card_id.clone();
+
+    let registry = CardRegistry::new(vec![pharm_def, creature_with_carddef_etb]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        // Panharmonicon already on battlefield.
+        .object(
+            ObjectSpec::artifact(p1, "Panharmonicon CardDef ETB")
+                .with_card_id(pharm_card_id)
+                .in_zone(ZoneId::Battlefield),
+        )
+        // Creature in hand — has a CardDef ETB trigger (AbilityDefinition::Triggered).
+        .object(
+            ObjectSpec::creature(p1, "CardDef ETB Creature", 2, 2)
+                .with_card_id(creature_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // Manually register Panharmonicon's TriggerDoubler (already on battlefield).
+    let mut state = state;
+
+    let pharm_obj_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Panharmonicon CardDef ETB")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state.trigger_doublers.push_back(TriggerDoubler {
+        source: pharm_obj_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::ArtifactOrCreatureETB,
+        additional_triggers: 1,
+    });
+
+    // Give p1 enough mana to cast the creature (MV=2).
+    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+
+    let creature_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "CardDef ETB Creature")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // Cast the creature.
+    let (state, _cast_events) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: creature_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap();
+
+    // All four players pass priority → creature resolves and enters the battlefield via
+    // queue_carddef_etb_triggers. The CardDef ETB trigger fires, and Panharmonicon's
+    // ArtifactOrCreatureETB doubler (Bug 2 fix: entering_object_id: Some(new_id)) doubles it.
+    // Expect 2 AbilityTriggered events (1 baseline + 1 doubled).
+    let (_state, resolution_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    let triggered_count = resolution_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count, 2,
+        "CR 603.2d (PB-M Bug 2 fix): Panharmonicon must double CardDef-based ETB triggers \
+         routed through queue_carddef_etb_triggers; expected 2 AbilityTriggered events, \
+         got {}; events: {:?}",
+        triggered_count, resolution_events
     );
 }

@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             green: 2,
             ..Default::default()
         }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elemental"]),
+        types: full_types(&[], &[CardType::Creature], &["Elemental"]),
         oracle_text: "Reach\nYou may play lands from your graveyard.\nIf a land entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.".to_string(),
         power: Some(5),
         toughness: Some(7),
