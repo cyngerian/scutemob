@@ -273,7 +273,7 @@ These touch deep engine architecture. Do last.
 - [x] **PB-B**: Play from graveyard — PlayFromGraveyardPermission, CastSelfFromGraveyard (disc 74-75), ControllerGainedLifeThisTurn, life_gained_this_turn. 6 card fixes (Ancient Greenwarden, Perennial Behemoth, Wrenn+Realmbreaker, Oathsworn Vampire, Squee, Brokkos). 2M 3L fixed. 15 tests. Commit f877e1a2.
 - [x] **PB-E**: Mana doubling — WhenTappedForMana + ManaSourceFilter, MultiplyMana replacement, AddManaMatchingType effect. 3 new cards (Nyxbloom Ancient, Mana Reflection, Zendikar Resurgent) + 6 fixes (Mirari's Wake, Crypt Ghast, Wild Growth, Leyline of Abundance, Badgermole Cub, Forbidden Orchard). 1H 3M fixed. 11 tests. Commit 4dc97eaf.
 - [x] **PB-J**: Copy/redirect spells — CopySpellOnStack, ChangeTargets (CR 115.7a/d), TargetSpellOrAbilityWithSingleTarget. 3 card fixes (Bolt Bend, Deflecting Swat, Untimely Malfunction). 2M 2L fixed. 9 tests. Commit 33edae38.
-- [ ] **PB-M**: Panharmonicon — trigger doubling architecture (1 card unblocked, HIGH)
+- [x] **PB-M**: Panharmonicon — 2 bug fixes (SelfEntersBattlefield matching, entering_object_id), 2 new TriggerDoublerFilter variants (AnyPermanentETB, LandETB). 1 new card (Panharmonicon) + 3 fixes (Drivnod, Elesh Norn, Ancient Greenwarden). 1H 1M fixed. 5 tests. Commit 416c8a72.
 
 Each engine batch uses `/implement-primitive` pipeline (plan → implement → review → fix).
 Commit prefix: `W6-prim:` for engine work, `W6-cards:` for card defs authored after.

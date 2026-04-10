@@ -4,7 +4,7 @@ batch: PB-M
 title: Panharmonicon trigger doubling — wire existing infrastructure + card def
 cards_affected: 1 (Panharmonicon) + related cards with trigger doubling TODOs
 started: 2026-04-09
-phase: done
+phase: closed
 plan_file: memory/primitives/pb-plan-M.md
 
 ## Deferred from Prior PBs
