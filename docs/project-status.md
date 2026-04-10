@@ -59,6 +59,8 @@
 | PB-E | Mana doubling | done | 6 | ~0 | fixed | 1 |
 | PB-J | Copy/redirect spells | done | 3 | ~0 | fixed | 1 |
 | PB-M | Panharmonicon trigger doubling | done | 4 | ~0 | fixed | 1 |
+| PB-S | GrantActivatedAbility | planned | 0 | ~8 | — | 0 |
+| PB-X | A-42 Tier 1 micro-PB (exclusion pump + dynamic P/T + ExileSelf) | planned | 0 | ~6 | — | 0 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
