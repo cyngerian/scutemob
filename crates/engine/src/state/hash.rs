@@ -1376,6 +1376,18 @@ impl HashInto for LayerModification {
                 power.hash_into(hasher);
                 toughness.hash_into(hasher);
             }
+            // AddActivatedAbility (discriminant 23) -- PB-S: grants a single activated ability
+            // to matching permanents in Layer 6 (CR 613.1f).
+            LayerModification::AddActivatedAbility(ab) => {
+                23u8.hash_into(hasher);
+                ab.hash_into(hasher);
+            }
+            // AddManaAbility (discriminant 24) -- PB-S: grants a single mana ability
+            // to matching permanents in Layer 6 (CR 605.1a, 613.1f).
+            LayerModification::AddManaAbility(ab) => {
+                24u8.hash_into(hasher);
+                ab.hash_into(hasher);
+            }
         }
     }
 }

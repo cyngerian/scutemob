@@ -13,8 +13,8 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectSpec, PlayerTarget,
-    PlayerId, StackObjectKind, Step, TriggerCondition, TriggerDoubler, TriggerDoublerFilter,
+    Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectSpec, PlayerId,
+    PlayerTarget, StackObjectKind, Step, TriggerCondition, TriggerDoubler, TriggerDoublerFilter,
     TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 

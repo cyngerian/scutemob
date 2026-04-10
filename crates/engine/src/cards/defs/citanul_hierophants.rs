@@ -1,9 +1,5 @@
 // Citanul Hierophants — {3}{G} Creature — Human Druid 3/2
 // Creatures you control have "{T}: Add {G}."
-//
-// DSL gap: granting an activated mana ability to all creatures you control via a static effect
-//   is not in DSL (LayerModification only supports GrantKeyword, not GrantActivatedAbility).
-// W5 policy: cannot faithfully express this — abilities: vec![].
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,8 +12,19 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
-            // TODO: Creatures you control have "{T}: Add {G}."
-            //   (LayerModification lacks GrantActivatedAbility; only GrantKeyword exists)
+            // CR 613.1f: Layer 6 static ability — grants {T}: Add {G} to each
+            // creature you control (including itself) while it's on the battlefield.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddManaAbility(
+                        ManaAbility::tap_for(ManaColor::Green),
+                    ),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
         ],
         ..Default::default()
     }

@@ -284,6 +284,26 @@ pub enum LayerModification {
     RemoveAllAbilities,
     /// Removes a specific keyword ability.
     RemoveKeyword(KeywordAbility),
+    /// Grants a single non-mana activated ability to matching permanents (CR 613.1f).
+    ///
+    /// The ability is appended to `chars.activated_abilities`. Multiple grant sources
+    /// produce multiple ability entries (CR 613.5). The ability's source is always the
+    /// permanent it's activated from, not the grantor — cost payment, effect resolution,
+    /// and targeting use the current object's ObjectId as `source`/`controller`.
+    ///
+    /// Boxed to avoid large_enum_variant clippy warning (ActivatedAbility contains Effect).
+    ///
+    /// Used by: Umbral Mantle (once `{Q}` cost exists), Sword-style equipment grants.
+    AddActivatedAbility(Box<crate::state::game_object::ActivatedAbility>),
+    /// Grants a single mana ability to matching permanents (CR 605.1a, 613.1f).
+    ///
+    /// The ability is appended to `chars.mana_abilities`. Per CR 605.1a, any granted
+    /// no-target tap-to-add-mana ability IS a mana ability regardless of how it was
+    /// granted. It resolves immediately without using the stack.
+    ///
+    /// Used by: Cryptolith Rite, Chromatic Lantern, Citanul Hierophants, Paradise Mantle,
+    /// Enduring Vitality, Song of Freyalise (chapters I/II).
+    AddManaAbility(crate::state::game_object::ManaAbility),
     // --- Layer 7a: P/T from characteristic-defining abilities ---
     /// Sets P/T via a CDA to fixed values.
     ///

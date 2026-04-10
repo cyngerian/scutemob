@@ -119,9 +119,12 @@ pub fn handle_tap_for_mana(
             object_id: source,
         });
     }
-    // 5. Fetch the mana ability.
-    let ability = obj
-        .characteristics
+    // 5. Fetch the mana ability via layer-resolved characteristics.
+    // CR 613.1f: Use calc'd chars so granted abilities (Cryptolith Rite, Chromatic Lantern)
+    // and ability-removal (Humility) both apply. W3-LC audit fix.
+    let resolved_chars = crate::rules::layers::calculate_characteristics(state, source)
+        .unwrap_or_else(|| obj.characteristics.clone());
+    let ability = resolved_chars
         .mana_abilities
         .get(ability_index)
         .ok_or(GameStateError::InvalidAbilityIndex {

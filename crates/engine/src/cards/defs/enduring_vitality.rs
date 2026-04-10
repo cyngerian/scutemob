@@ -3,13 +3,6 @@
 // Creatures you control have "{T}: Add one mana of any color."
 // When Enduring Vitality dies, if it was a creature, return it to the battlefield
 // under its owner's control. It's an enchantment. (It's not a creature.)
-//
-// TODO: Two DSL gaps:
-//   (1) "Creatures you control have '{T}: Add one mana of any color.'" — no mechanism
-//       to grant activated abilities via static effects (only keywords via AddKeyword).
-//   (2) "When this dies, if it was a creature, return as enchantment" — Enduring cycle
-//       die-return mechanic not in DSL (needs zone-change replacement + type change).
-// Implementing only Vigilance keyword.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,8 +16,25 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // TODO: grant "{T}: Add any color" to creatures you control (no GrantActivatedAbility in DSL)
-            // TODO: die-return-as-enchantment (Enduring cycle mechanic not in DSL)
+            // CR 613.1f: Layer 6 static ability — grants tap-for-any-color mana ability
+            // to each creature you control while this permanent is on the battlefield.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddManaAbility(ManaAbility {
+                        produces: Default::default(),
+                        requires_tap: true,
+                        sacrifice_self: false,
+                        any_color: true,
+                        damage_to_controller: 0,
+                    }),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
+            // replacement + type change not yet in DSL)
         ],
         ..Default::default()
     }

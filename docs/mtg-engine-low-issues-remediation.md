@@ -170,6 +170,18 @@ of other tasks.
 | **Prerequisite** | Verify no existing tests depend on Colossus going to library top. Write a test asserting the library IS shuffled. |
 | **When** | When implementing more "shuffle into library" effects (Blightsteel Colossus, etc.) or when library-order-matters interactions are being tested. Not urgent as a standalone fix. |
 
+### Simulator mana_solver reads base characteristics (PB-S-L01)
+
+| Aspect | Detail |
+|--------|--------|
+| **File** | `crates/simulator/src/mana_solver.rs:35` |
+| **Issue** | `mana_solver` reads `obj.characteristics.mana_abilities` (base) instead of `calculate_characteristics(state, id).mana_abilities`. Granted mana abilities from Layer 6 (Cryptolith Rite, Chromatic Lantern, Citanul Hierophants, Paradise Mantle, Enduring Vitality) are invisible to the bot mana planner. |
+| **Impact** | Bots undervalue mana sources granted by Layer 6 effects. E.g., a creature under Cryptolith Rite will not be counted as a mana source when the bot plans payment. Bot plays suboptimally — NOT a correctness issue; real game rules still enforce the granted abilities through `handle_tap_for_mana` (which PB-S fixed to read calculated chars). |
+| **Risk** | Low. `calculate_characteristics` is already called from `legal_actions.rs` after PB-S; adding it to `mana_solver` uses the same pattern. Main risk is cost: `calculate_characteristics` allocates, and the mana solver iterates every mana source per payment plan. May need caching if hot. |
+| **Related** | PB-S (surfaced this), W3-LC (original layer-correctness audit closed 2026-03-19, missed `mana_solver` because it's in the simulator crate, not engine) |
+| **Prerequisite** | None. Bench before/after if the solver is in a hot path during simulator runs. |
+| **When** | Opportunistic. Whenever someone touches `mana_solver.rs`, or when bot behavior in commander playtesting reveals the gap. Not urgent for pre-alpha since bot quality is not blocking path-to-playable. |
+
 ### Server bind address (MR-M9.5-06)
 
 | Aspect | Detail |

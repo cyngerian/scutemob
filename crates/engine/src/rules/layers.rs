@@ -1066,6 +1066,16 @@ fn apply_layer_modification(
         LayerModification::RemoveKeyword(kw) => {
             chars.keywords.remove(kw);
         }
+        // CR 613.1f: Grants a single non-mana activated ability; appended to vec.
+        // Multiple grant sources produce multiple entries (CR 613.5).
+        LayerModification::AddActivatedAbility(ability) => {
+            chars.activated_abilities.push((**ability).clone());
+        }
+        // CR 605.1a, 613.1f: Grants a single mana ability; appended to vector.
+        // Append-only — preserves original abilities (Chromatic Lantern 2018-10-05 ruling).
+        LayerModification::AddManaAbility(ability) => {
+            chars.mana_abilities.push_back(ability.clone());
+        }
         // Layer 7a: CDAs
         LayerModification::SetPtViaCda { power, toughness } => {
             chars.power = Some(*power);

@@ -272,6 +272,8 @@ impl LegalActionProvider for StubProvider {
         }
 
         // Tap for mana: untapped permanents with mana abilities on battlefield
+        // CR 613.1f: Use layer-resolved characteristics so granted mana abilities
+        // (Cryptolith Rite, Chromatic Lantern) and removals (Humility) are visible.
         for obj in state.objects_in_zone(&ZoneId::Battlefield) {
             if obj.controller != player {
                 continue;
@@ -279,7 +281,9 @@ impl LegalActionProvider for StubProvider {
             if obj.status.tapped {
                 continue;
             }
-            for (idx, ability) in obj.characteristics.mana_abilities.iter().enumerate() {
+            let chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            for (idx, ability) in chars.mana_abilities.iter().enumerate() {
                 if ability.requires_tap {
                     actions.push(LegalAction::TapForMana {
                         source: obj.id,
@@ -371,11 +375,15 @@ impl LegalActionProvider for StubProvider {
         }
 
         // Activate non-mana abilities on battlefield permanents
+        // CR 613.1f: Use layer-resolved characteristics so granted activated abilities
+        // and removals (Humility) are visible. W3-LC audit fix.
         for obj in state.objects_in_zone(&ZoneId::Battlefield) {
             if obj.controller != player {
                 continue;
             }
-            for (idx, ability) in obj.characteristics.activated_abilities.iter().enumerate() {
+            let act_chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            for (idx, ability) in act_chars.activated_abilities.iter().enumerate() {
                 // Check tap requirement
                 if ability.cost.requires_tap && obj.status.tapped {
                     continue;
