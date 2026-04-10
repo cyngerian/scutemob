@@ -475,6 +475,16 @@ pub enum TriggerDoublerFilter {
     /// CR 603.2d: the trigger fires an additional time when a creature dying
     /// is the triggering event.
     CreatureDeath,
+    /// "If a permanent entering causes a triggered ability to trigger" — Yarok, Elesh Norn.
+    ///
+    /// Doubles ETB triggered abilities from ANY permanent entering (not just
+    /// artifacts/creatures). CR 603.2d.
+    AnyPermanentETB,
+    /// "If a land entering causes a triggered ability to trigger" — Ancient Greenwarden.
+    ///
+    /// Doubles ETB triggered abilities only when a land enters the battlefield.
+    /// CR 603.2d.
+    LandETB,
 }
 /// A Panharmonicon-style trigger-doubling effect (CR 603.2d).
 ///

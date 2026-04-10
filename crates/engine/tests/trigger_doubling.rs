@@ -14,7 +14,7 @@
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameStateBuilder, ManaCost, ObjectSpec, PlayerId, StackObjectKind, Step,
-    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
+    TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -791,5 +791,711 @@ fn test_panharmonicon_registration_via_resolution() {
         "CR 603.2d: Panharmonicon registered via resolution should double ETB trigger: \
          expected 2 AbilityTriggered events, got {}; events: {:?}",
         triggered_count, resolution_events
+    );
+}
+
+// ── PB-M: SelfEntersBattlefield fix (Bug 1) ──────────────────────────────────
+
+/// CR 603.2d + Panharmonicon ruling 2021-03-19 — Panharmonicon doubles a
+/// creature's own "when this enters" self-ETB triggered ability.
+///
+/// Previously, `doubler_applies_to_trigger` only matched
+/// `TriggerEvent::AnyPermanentEntersBattlefield`, so self-ETB triggers (using
+/// `TriggerEvent::SelfEntersBattlefield`) were never doubled. PB-M fixes this by
+/// also matching `SelfEntersBattlefield` in the `ArtifactOrCreatureETB` arm.
+///
+/// Setup: Panharmonicon + a creature with its own self-ETB trigger. When the
+/// creature enters (via a second creature resolving), the self-ETB trigger must
+/// fire twice.
+#[test]
+fn test_panharmonicon_doubles_self_etb_trigger() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    let pharm_def = panharmonicon_def("pharm-self-etb", "Panharmonicon SelfETB Test");
+    let pharm_card_id = pharm_def.card_id.clone();
+
+    // Creature with its own self-ETB trigger (SelfEntersBattlefield).
+    let self_etb_def = CardDefinition {
+        card_id: CardId("self-etb-creature".into()),
+        name: "Self-ETB Creature".into(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "When this creature enters, do something.".into(),
+        abilities: vec![],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let self_etb_card_id = self_etb_def.card_id.clone();
+
+    let registry = CardRegistry::new(vec![pharm_def, self_etb_def]);
+
+    // Panharmonicon on battlefield; creature with self-ETB trigger (SelfEntersBattlefield)
+    // is in hand via ObjectSpec triggered_ability.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .object(
+            ObjectSpec::artifact(p1, "Panharmonicon SelfETB Test")
+                .with_card_id(pharm_card_id)
+                .in_zone(ZoneId::Battlefield),
+        )
+        // Creature in hand with a self-ETB trigger (SelfEntersBattlefield event).
+        .object(
+            ObjectSpec::creature(p1, "Self-ETB Creature", 2, 2)
+                .with_card_id(self_etb_card_id)
+                .with_triggered_ability(TriggeredAbilityDef {
+                    trigger_on: TriggerEvent::SelfEntersBattlefield,
+                    intervening_if: None,
+                    description: "When this enters, do something (self-ETB test)".to_string(),
+                    effect: None,
+                    etb_filter: None,
+                    death_filter: None,
+                    combat_damage_filter: None,
+                    targets: vec![],
+                })
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+
+    // Register Panharmonicon's TriggerDoubler manually (already on battlefield).
+    let pharm_obj_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Panharmonicon SelfETB Test")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state.trigger_doublers.push_back(TriggerDoubler {
+        source: pharm_obj_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::ArtifactOrCreatureETB,
+        additional_triggers: 1,
+    });
+
+    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+
+    let creature_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Self-ETB Creature")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // Cast the creature.
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: creature_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap();
+
+    // All four pass → creature resolves, self-ETB trigger fires.
+    // Panharmonicon's ArtifactOrCreatureETB filter now also matches SelfEntersBattlefield.
+    // Expect 2 AbilityTriggered events (1 base + 1 doubled).
+    let (_state, resolution_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    let triggered_count = resolution_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count, 2,
+        "CR 603.2d (PB-M Bug 1 fix): Panharmonicon must double self-ETB (SelfEntersBattlefield) \
+         triggers; expected 2 AbilityTriggered events, got {}; events: {:?}",
+        triggered_count, resolution_events
+    );
+}
+
+// ── PB-M: Negative test — enchantment ETB not doubled by Panharmonicon ───────
+
+/// CR 603.2d — Panharmonicon only doubles ETBs caused by artifacts or creatures.
+/// An enchantment entering the battlefield must NOT cause doubling.
+///
+/// This is a negative test verifying the type check in `doubler_applies_to_trigger`.
+#[test]
+fn test_panharmonicon_does_not_double_enchantment_etb() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    let pharm_def = panharmonicon_def("pharm-no-enchantment", "Panharmonicon No-Enchantment");
+    let pharm_card_id = pharm_def.card_id.clone();
+
+    // Enchantment card — not an artifact or creature.
+    let enchantment_def = CardDefinition {
+        card_id: CardId("test-enchantment-entering".into()),
+        name: "Test Enchantment".into(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".into(),
+        abilities: vec![],
+        power: None,
+        toughness: None,
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let enchantment_card_id = enchantment_def.card_id.clone();
+
+    let registry = CardRegistry::new(vec![pharm_def, enchantment_def]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .object(
+            ObjectSpec::artifact(p1, "Panharmonicon No-Enchantment")
+                .with_card_id(pharm_card_id)
+                .in_zone(ZoneId::Battlefield),
+        )
+        // Watcher with AnyPermanentEntersBattlefield trigger.
+        .object(
+            ObjectSpec::creature(p1, "Watcher Enchantment Test", 1, 1)
+                .with_triggered_ability(any_etb_trigger("Watcher for enchantment ETB test"))
+                .in_zone(ZoneId::Battlefield),
+        )
+        // Enchantment in hand (use enchantment spec so CardType::Enchantment is set).
+        .object(
+            ObjectSpec::enchantment(p1, "Test Enchantment")
+                .with_card_id(enchantment_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+
+    let pharm_obj_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Panharmonicon No-Enchantment")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state.trigger_doublers.push_back(TriggerDoubler {
+        source: pharm_obj_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::ArtifactOrCreatureETB,
+        additional_triggers: 1,
+    });
+
+    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+
+    let enchantment_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Test Enchantment")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: enchantment_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap();
+
+    // Enchantment resolves. Watcher's AnyPermanentEntersBattlefield trigger fires ONCE only.
+    // Panharmonicon must NOT double it (the entering permanent is an enchantment, not an
+    // artifact or creature).
+    let (_state, resolution_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    let triggered_count = resolution_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count, 1,
+        "CR 603.2d: Panharmonicon must NOT double enchantment ETBs; \
+         expected 1 AbilityTriggered event, got {}; events: {:?}",
+        triggered_count, resolution_events
+    );
+}
+
+// ── PB-M: AnyPermanentETB filter doubles enchantment ETBs ────────────────────
+
+/// CR 603.2d — `AnyPermanentETB` filter (Yarok / Elesh Norn pattern) doubles
+/// ETB triggers from any permanent entering, including enchantments — which
+/// `ArtifactOrCreatureETB` does NOT double.
+///
+/// Verifies the new `AnyPermanentETB` variant added in PB-M.
+#[test]
+fn test_any_permanent_etb_doubler_doubles_enchantment() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    // AnyPermanentETB doubler (Yarok / Elesh Norn pattern).
+    let any_perm_doubler_def = CardDefinition {
+        card_id: CardId("any-perm-doubler-test".into()),
+        name: "Any-Perm Doubler".into(),
+        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If a permanent entering causes a triggered ability to trigger, that ability triggers an additional time.".into(),
+        abilities: vec![AbilityDefinition::TriggerDoubling {
+            filter: TriggerDoublerFilter::AnyPermanentETB,
+            additional_triggers: 1,
+        }],
+        power: Some(5),
+        toughness: Some(4),
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+
+    let enchantment_entering = CardDefinition {
+        card_id: CardId("enchantment-for-any-perm-test".into()),
+        name: "Enchantment For AnyPerm Test".into(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".into(),
+        abilities: vec![],
+        power: None,
+        toughness: None,
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let ench_card_id = enchantment_entering.card_id.clone();
+
+    let registry = CardRegistry::new(vec![any_perm_doubler_def, enchantment_entering]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        // AnyPermanentETB doubler on battlefield.
+        .object(ObjectSpec::creature(p1, "Any-Perm Doubler", 5, 4).in_zone(ZoneId::Battlefield))
+        // Watcher with AnyPermanentEntersBattlefield trigger.
+        .object(
+            ObjectSpec::creature(p1, "Watcher AnyPerm", 1, 1)
+                .with_triggered_ability(any_etb_trigger("Watcher for AnyPerm test"))
+                .in_zone(ZoneId::Battlefield),
+        )
+        // Enchantment in hand (use enchantment spec so CardType::Enchantment is set).
+        .object(
+            ObjectSpec::enchantment(p1, "Enchantment For AnyPerm Test")
+                .with_card_id(ench_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+
+    let doubler_obj_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Any-Perm Doubler")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state.trigger_doublers.push_back(TriggerDoubler {
+        source: doubler_obj_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::AnyPermanentETB,
+        additional_triggers: 1,
+    });
+
+    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+
+    let ench_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Enchantment For AnyPerm Test")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: ench_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap();
+
+    // Enchantment resolves. AnyPermanentETB filter doubles the watcher's trigger.
+    // Expect 2 AbilityTriggered events (enchantment ETB IS doubled by AnyPermanentETB).
+    let (_state, resolution_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    let triggered_count = resolution_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count, 2,
+        "CR 603.2d: AnyPermanentETB filter must double enchantment ETB triggers; \
+         expected 2 AbilityTriggered events, got {}; events: {:?}",
+        triggered_count, resolution_events
+    );
+}
+
+// ── PB-M: LandETB filter doubles landfall triggers ───────────────────────────
+
+/// CR 603.2d — `LandETB` filter (Ancient Greenwarden pattern) doubles ETB
+/// triggers when a land enters but NOT when a creature enters.
+///
+/// Part 1: Land entering → 2 triggers (doubled).
+/// Part 2 (negative): Creature entering → 1 trigger (NOT doubled).
+///
+/// Verifies the new `LandETB` variant added in PB-M.
+#[test]
+fn test_land_etb_doubler_doubles_landfall_not_creature() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    // Land card with proper card_id for the registry (so enrich populates land type).
+    let land_def = CardDefinition {
+        card_id: CardId("test-basic-land-landetb".into()),
+        name: "Test Basic Land LandETB".into(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Land].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "{T}: Add {G}.".into(),
+        abilities: vec![],
+        power: None,
+        toughness: None,
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let land_card_id = land_def.card_id.clone();
+
+    let creature_def = CardDefinition {
+        card_id: CardId("test-creature-landetb".into()),
+        name: "Test Creature LandETB".into(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".into(),
+        abilities: vec![],
+        power: Some(1),
+        toughness: Some(1),
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let creature_card_id = creature_def.card_id.clone();
+
+    let registry = CardRegistry::new(vec![land_def, creature_def]);
+
+    // ── Part 1: Land entering → doubled ──────────────────────────────────────
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        // LandETB doubler (Ancient Greenwarden pattern) on battlefield.
+        .object(ObjectSpec::creature(p1, "LandETB Doubler", 5, 7).in_zone(ZoneId::Battlefield))
+        // Watcher with AnyPermanentEntersBattlefield trigger (watches all ETBs).
+        .object(
+            ObjectSpec::creature(p1, "LandETB Watcher", 1, 1)
+                .with_triggered_ability(any_etb_trigger("LandETB watcher"))
+                .in_zone(ZoneId::Battlefield),
+        )
+        // Land in hand.
+        .object(
+            ObjectSpec::land(p1, "Test Basic Land LandETB")
+                .with_card_id(land_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+
+    let mut state = state;
+
+    let doubler_obj_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "LandETB Doubler")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state.trigger_doublers.push_back(TriggerDoubler {
+        source: doubler_obj_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::LandETB,
+        additional_triggers: 1,
+    });
+
+    let land_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Test Basic Land LandETB")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // Play the land. AbilityTriggered events are emitted immediately by check_triggers
+    // (called inside Command::PlayLand handling), before priority is given out.
+    let (state, play_events) = process_command(
+        state,
+        Command::PlayLand {
+            player: p1,
+            card: land_hand_id,
+        },
+    )
+    .unwrap();
+
+    // Drain remaining stack items (watcher trigger resolves).
+    let (_state, _drain_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    // LandETB filter matches → watcher trigger doubles → expect 2 AbilityTriggered
+    // events in the PlayLand response (triggers queued and emitted during land ETB).
+    let triggered_count = play_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count, 2,
+        "CR 603.2d: LandETB filter must double triggers when a land enters; \
+         expected 2 AbilityTriggered events, got {}; events: {:?}",
+        triggered_count, play_events
+    );
+
+    // ── Part 2: Creature entering → NOT doubled ───────────────────────────────
+
+    // Fresh state for Part 2: same setup but creature enters instead of a land.
+    let state2 = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .object(ObjectSpec::creature(p1, "LandETB Doubler2", 5, 7).in_zone(ZoneId::Battlefield))
+        .object(
+            ObjectSpec::creature(p1, "LandETB Watcher2", 1, 1)
+                .with_triggered_ability(any_etb_trigger("LandETB watcher 2"))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::creature(p1, "Test Creature LandETB", 1, 1)
+                .with_card_id(creature_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let mut state2 = state2;
+
+    let doubler2_obj_id = state2
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "LandETB Doubler2")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state2.trigger_doublers.push_back(TriggerDoubler {
+        source: doubler2_obj_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::LandETB,
+        additional_triggers: 1,
+    });
+
+    state2.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
+
+    let creature_hand_id = state2
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Test Creature LandETB")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let (state2, _) = process_command(
+        state2,
+        Command::CastSpell {
+            player: p1,
+            card: creature_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap();
+
+    // Creature resolves. LandETB filter must NOT match → expect 1 AbilityTriggered only.
+    let (_state2, resolution_events2) = pass_all_four(state2, [p1, p2, p3, p4]);
+
+    let triggered_count2 = resolution_events2
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count2, 1,
+        "CR 603.2d: LandETB filter must NOT double triggers when a creature enters; \
+         expected 1 AbilityTriggered event, got {}; events: {:?}",
+        triggered_count2, resolution_events2
     );
 }

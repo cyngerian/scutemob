@@ -5,10 +5,7 @@
 // that ability triggers an additional time.
 //
 // CR 601.3, CR 305.1: Graveyard land play implemented via StaticPlayFromGraveyard (PB-B).
-// TODO: The land-ETB trigger doubling ("that ability triggers an additional time") requires a
-//       continuous effect that intercepts trigger generation and duplicates land-ETB triggers.
-//       This is a separate primitive (similar to Panharmonicon but filtered to land ETBs).
-//       Deferred — no DSL primitive exists for conditional trigger doubling. (See PB-M plan.)
+// CR 603.2d: Land-ETB trigger doubling implemented via TriggerDoublerFilter::LandETB (PB-M).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,6 +29,12 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::StaticPlayFromGraveyard {
                 filter: PlayFromTopFilter::LandsOnly,
                 condition: None,
+            },
+            // CR 603.2d: If a land entering causes a triggered ability of a permanent you
+            // control to trigger, that ability triggers an additional time.
+            AbilityDefinition::TriggerDoubling {
+                filter: TriggerDoublerFilter::LandETB,
+                additional_triggers: 1,
             },
         ],
         ..Default::default()

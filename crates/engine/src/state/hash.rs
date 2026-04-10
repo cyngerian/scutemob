@@ -1398,6 +1398,8 @@ impl HashInto for TriggerDoublerFilter {
         match self {
             TriggerDoublerFilter::ArtifactOrCreatureETB => 0u8.hash_into(hasher),
             TriggerDoublerFilter::CreatureDeath => 1u8.hash_into(hasher),
+            TriggerDoublerFilter::AnyPermanentETB => 2u8.hash_into(hasher),
+            TriggerDoublerFilter::LandETB => 3u8.hash_into(hasher),
         }
     }
 }

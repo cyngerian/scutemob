@@ -1179,7 +1179,10 @@ pub fn queue_carddef_etb_triggers(
                     triggering_event: Some(
                         crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
                     ),
-                    entering_object_id: None,
+                    // CR 603.2d: Set entering_object_id so doubler_applies_to_trigger can
+                    // verify the entering permanent's card types (artifact/creature for
+                    // Panharmonicon, land for Ancient Greenwarden, etc.).
+                    entering_object_id: Some(new_id),
                     targeting_stack_id: None,
                     triggering_player: None,
                     exalted_attacker_id: None,
@@ -1217,7 +1220,8 @@ pub fn queue_carddef_etb_triggers(
                         triggering_event: Some(
                             crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
                         ),
-                        entering_object_id: None,
+                        // CR 603.2d: Set entering_object_id for trigger doubling type checks.
+                        entering_object_id: Some(new_id),
                         targeting_stack_id: None,
                         triggering_player: None,
                         exalted_attacker_id: None,

@@ -1,11 +1,13 @@
 // Elesh Norn, Mother of Machines — {4}{W}, Legendary Creature — Phyrexian Praetor 4/7
 // Vigilance
-// TODO: DSL gap — static ability "If a permanent entering causes a triggered ability of a
-//   permanent you control to trigger, that ability triggers an additional time."
-//   (ETB trigger doubling not supported in card DSL)
-// TODO: DSL gap — static ability "Permanents entering don't cause abilities of permanents
-//   your opponents control to trigger."
-//   (ETB trigger suppression for opponents not supported in card DSL)
+// If a permanent entering causes a triggered ability of a permanent you control to
+// trigger, that ability triggers an additional time.
+// Permanents entering don't cause abilities of permanents your opponents control to trigger.
+//
+// CR 603.2d: The ETB trigger doubling (AnyPermanentETB) is now implemented via PB-M.
+// TODO: DSL gap — "Permanents entering don't cause abilities of permanents your opponents
+//   control to trigger." (controller-scoped ETB suppression for opponents not yet supported;
+//   requires a new ETBSuppressor variant scoped to opposing controllers. Separate PB needed.)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -27,6 +29,12 @@ pub fn card() -> CardDefinition {
         toughness: Some(7),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
+            // CR 603.2d: If a permanent entering causes a triggered ability of a permanent
+            // you control to trigger, that ability triggers an additional time.
+            AbilityDefinition::TriggerDoubling {
+                filter: TriggerDoublerFilter::AnyPermanentETB,
+                additional_triggers: 1,
+            },
         ],
         ..Default::default()
     }

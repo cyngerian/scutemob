@@ -7045,9 +7045,7 @@ mod tests {
         StackObject {
             id,
             controller,
-            kind: StackObjectKind::Spell {
-                source_object: id,
-            },
+            kind: StackObjectKind::Spell { source_object: id },
             targets,
             cant_be_countered: false,
             is_copy: false,

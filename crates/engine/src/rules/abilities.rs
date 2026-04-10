@@ -7221,13 +7221,14 @@ fn compute_trigger_doubling(state: &GameState, trigger: &PendingTrigger) -> u32 
 ///
 /// For `ArtifactOrCreatureETB`: the trigger must be from a permanent entering the
 /// battlefield, AND the trigger's source (the permanent with the ability) must be
-/// controlled by the doubler's controller, AND the triggering event must be
-/// `AnyPermanentEntersBattlefield` caused by an artifact or creature entering.
+/// controlled by the doubler's controller, AND the triggering event must be an ETB
+/// (`AnyPermanentEntersBattlefield` or `SelfEntersBattlefield`) caused by an artifact
+/// or creature entering.
 ///
-/// TODO: SelfEntersBattlefield triggers (PartnerWith, Hideaway, Exploit) are not doubled
-/// by Panharmonicon — fix holistically when addressing trigger doubling for all self-ETB
-/// triggers. These keyword ETB triggers use TriggerEvent::SelfEntersBattlefield, but this
-/// function only matches TriggerEvent::AnyPermanentEntersBattlefield.
+/// Panharmonicon ruling 2021-03-19: "Panharmonicon affects a permanent's own
+/// enters-the-battlefield triggered abilities as well as other triggered abilities that
+/// trigger when that permanent enters the battlefield." This means both
+/// `AnyPermanentEntersBattlefield` and `SelfEntersBattlefield` must be matched.
 fn doubler_applies_to_trigger(
     state: &GameState,
     doubler: &TriggerDoubler,
@@ -7248,10 +7249,14 @@ fn doubler_applies_to_trigger(
     }
     match &doubler.filter {
         TriggerDoublerFilter::ArtifactOrCreatureETB => {
-            // The triggering event must be AnyPermanentEntersBattlefield (CR 603.2d).
+            // The triggering event must be an ETB event (CR 603.2d + Panharmonicon ruling
+            // 2021-03-19): both AnyPermanentEntersBattlefield (other permanents watching)
+            // and SelfEntersBattlefield (the entering artifact/creature's own ETB ability)
+            // are matched. This mirrors the CreatureDeath arm's dual-event pattern.
             let is_etb = matches!(
                 trigger.triggering_event,
                 Some(TriggerEvent::AnyPermanentEntersBattlefield)
+                    | Some(TriggerEvent::SelfEntersBattlefield)
             );
             if !is_etb {
                 return false;
@@ -7290,6 +7295,46 @@ fn doubler_applies_to_trigger(
                 trigger.triggering_event,
                 Some(TriggerEvent::SelfDies) | Some(TriggerEvent::AnyCreatureDies)
             )
+        }
+        TriggerDoublerFilter::AnyPermanentETB => {
+            // CR 603.2d: Yarok / Elesh Norn pattern — doubles ETB triggers from ANY
+            // permanent entering, not just artifacts and creatures. No type check needed.
+            // Matches both the "watching" trigger variant and the self-ETB variant.
+            matches!(
+                trigger.triggering_event,
+                Some(TriggerEvent::AnyPermanentEntersBattlefield)
+                    | Some(TriggerEvent::SelfEntersBattlefield)
+            )
+        }
+        TriggerDoublerFilter::LandETB => {
+            // CR 603.2d: Ancient Greenwarden pattern — doubles ETB triggers only when a
+            // land enters. Checks the entering permanent's card types (under continuous
+            // effects) to confirm it is a land.
+            let is_etb = matches!(
+                trigger.triggering_event,
+                Some(TriggerEvent::AnyPermanentEntersBattlefield)
+                    | Some(TriggerEvent::SelfEntersBattlefield)
+            );
+            if !is_etb {
+                return false;
+            }
+            let entering_id = match trigger.entering_object_id {
+                Some(id) => id,
+                None => return false,
+            };
+            let entering_chars =
+                crate::rules::layers::calculate_characteristics(state, entering_id).or_else(|| {
+                    state
+                        .objects
+                        .get(&entering_id)
+                        .map(|o| o.characteristics.clone())
+                });
+            entering_chars
+                .map(|chars| {
+                    use crate::state::types::CardType;
+                    chars.card_types.contains(&CardType::Land)
+                })
+                .unwrap_or(false)
         }
     }
 }

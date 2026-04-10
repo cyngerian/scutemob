@@ -17,12 +17,15 @@ pub fn card() -> CardDefinition {
         power: Some(8),
         toughness: Some(3),
         abilities: vec![
-            // TODO: Static ability — if a creature dying causes a triggered ability of a permanent
-            // you control to trigger, that ability triggers an additional time.
-            // DSL gap: no death-trigger-doubling static effect.
+            // CR 603.2d: If a creature dying causes a triggered ability of a permanent you
+            // control to trigger, that ability triggers an additional time.
+            AbilityDefinition::TriggerDoubling {
+                filter: TriggerDoublerFilter::CreatureDeath,
+                additional_triggers: 1,
+            },
             // TODO: Activated ability — {B/P}{B/P}, exile three creature cards from your graveyard:
             // put an indestructible counter on this.
-            // DSL gap: phyrexian mana costs NOW representable (PB-9); exile-from-graveyard cost + AddCounters self-target still missing.
+            // DSL gap: exile-from-graveyard activated cost + AddCounters self-target not yet supported.
         ],
         ..Default::default()
     }
