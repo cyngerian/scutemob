@@ -1994,6 +1994,10 @@ impl HashInto for ActivatedAbility {
         self.activation_condition.hash_into(hasher);
         // CR 602.2: activation zone (graveyard-activated abilities)
         self.activation_zone.hash_into(hasher);
+        // CR 602.5b: once-per-turn restriction (replay determinism — two abilities
+        // differing only in this flag must hash to distinct values, critical now
+        // that LayerModification::AddActivatedAbility participates in the layer hash).
+        self.once_per_turn.hash_into(hasher);
     }
 }
 impl HashInto for TriggerEvent {

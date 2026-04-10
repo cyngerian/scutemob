@@ -170,6 +170,30 @@ of other tasks.
 | **Prerequisite** | Verify no existing tests depend on Colossus going to library top. Write a test asserting the library IS shuffled. |
 | **When** | When implementing more "shuffle into library" effects (Blightsteel Colossus, etc.) or when library-order-matters interactions are being tested. Not urgent as a standalone fix. |
 
+### W3-LC residuals surfaced by PB-S fix cycle (PB-S-L02/L03/L04/L05)
+
+| Aspect | Detail |
+|--------|--------|
+| **Context** | During PB-S review fix-cycle spot-check of `rules/abilities.rs::handle_activate_ability`, four sites were found that read base `obj.characteristics.*` where calculated characteristics should be used (CR 613.1f). Two were fixed in PB-S (HIGH: invisibility of granted activated abilities, and HIGH: summoning-sickness/haste check on tap-cost activations — sibling of the mana.rs fix). The remaining four are LOW because they are latent bugs not directly on the granted-ability invisibility path. Logged per oversight instruction: "If the spot-check finds base-reads outside abilities.rs, log them as new LOWs... move on. Don't fix them in this session." Scope interpretation extended to in-file-but-out-of-scope finds. |
+| **Related** | PB-S (surfaced these), W3-LC (original layer-correctness audit, missed these) |
+
+**PB-S-L02** — `crates/engine/src/rules/abilities.rs:159-165`. Channel/graveyard zone dispatch reads `obj.characteristics.activated_abilities.get(ability_index).map(|ab| (ab.cost.discard_self, ab.activation_zone.clone()))` from base. For PB-S grants, `.get()` returns `None` → falls through to the battlefield branch, which is correct-by-accident for all current Layer 6 grant patterns. Latent bug for future "grant a channel ability" or "grant a graveyard-activated ability" patterns. Fix: read from `calculate_characteristics`.
+
+**PB-S-L03** — `crates/engine/src/rules/abilities.rs:583-585`. Sacrifice-self cost path reads `obj.characteristics.card_types.contains(Creature)` to decide whether to emit `CreatureDied` or `PermanentDestroyed`. If an animated creature (Layer 4 type-change) dies from a sac-self cost, base read says "not creature" and the `CreatureDied` event is skipped — "whenever a creature dies" triggers fail to fire. Not specific to granted abilities but on the activation-path. Fix: read from `calculate_characteristics`.
+
+**PB-S-L04** — `crates/engine/src/rules/abilities.rs:685-695`. Same pattern as L03 for sacrifice-another-permanent cost. Animated creature sacrificed as a cost emits wrong event. Fix: read from calculated chars.
+
+**PB-S-L05** — `crates/engine/src/rules/abilities.rs:519`. `get_self_activated_reduction(card_def, ability_index)` keys cost reductions by the card definition's native ability-index. For a granted ability (index beyond native range), returns `None` → no reduction applied. Correct-by-accident for current grants (none have card-def-specific cost reductions). Latent if a card-def author adds an indexed cost reduction that collides with a granted ability's index. Fix: either key reductions by stable identifier instead of numeric index, or document that grants always append past the native range.
+
+**Missing test: Humility later than grant preserves grant** (PB-S-L06 / was L1 in PB-S review)
+
+| Aspect | Detail |
+|--------|--------|
+| **Issue** | The PB-S test suite includes `test_humility_removes_granted_mana_ability` which asserts that a Humility timestamp LATER than Cryptolith Rite wipes the grant. The inverse case (Humility EARLIER than Cryptolith Rite → Humility strips base abilities, then Rite adds the grant on top, grant survives) is not tested. |
+| **Related** | PB-S review, CR 613.1f layer ordering |
+| **Risk** | Very low — the current timestamp-based layer ordering is well-exercised elsewhere. This is a coverage gap, not a known-broken path. |
+| **Fix** | Add `test_humility_before_grant_preserves_grant` to `crates/engine/tests/grant_activated_ability.rs`. ~20 LOC. |
+
 ### Simulator mana_solver reads base characteristics (PB-S-L01)
 
 | Aspect | Detail |

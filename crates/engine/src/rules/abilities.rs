@@ -201,12 +201,13 @@ pub fn handle_activate_ability(
             }
         }
         // Validate the ability index exists.
-        if obj
-            .characteristics
-            .activated_abilities
-            .get(ability_index)
-            .is_none()
-        {
+        // CR 613.1f: Use layer-resolved activated abilities so Layer 6 grants
+        // (e.g. PB-S LayerModification::AddActivatedAbility) are reachable; base
+        // characteristics would only see native printed abilities, making granted
+        // abilities unreachable at runtime.
+        let resolved_ab = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        if resolved_ab.activated_abilities.get(ability_index).is_none() {
             return Err(GameStateError::InvalidAbilityIndex {
                 object_id: source,
                 index: ability_index,
@@ -475,13 +476,19 @@ pub fn handle_activate_ability(
         }
         // CR 302.6 / CR 702.10: Summoning sickness prevents using {T} abilities
         // on creatures unless they have haste.
-        let is_creature = obj
-            .characteristics
+        // CR 613.1f: Use layer-resolved characteristics so that animated lands (Layer 4
+        // type-change) are recognized as creatures, and granted haste (Layer 6) is seen.
+        // Sibling of the mana.rs fix in PB-S: handle_tap_for_mana was already updated to
+        // use calculate_characteristics for the same reason. Without this, a granted
+        // tap-cost activated ability on an animated non-creature would skip sickness
+        // checks, and a granted haste on a summoning-sick creature would still be rejected.
+        let resolved_tap = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        let is_creature = resolved_tap
             .card_types
             .contains(&crate::state::types::CardType::Creature);
         if is_creature && obj.has_summoning_sickness {
-            let has_haste = obj
-                .characteristics
+            let has_haste = resolved_tap
                 .keywords
                 .contains(&crate::state::types::KeywordAbility::Haste);
             if !has_haste {

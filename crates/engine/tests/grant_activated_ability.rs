@@ -7,10 +7,12 @@
 //! inheritance, and card-integration smoke tests.
 
 use im::OrdMap;
+use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
-    calculate_characteristics, process_command, Command, ContinuousEffect, EffectDuration,
-    EffectFilter, EffectId, EffectLayer, GameEvent, GameStateBuilder, KeywordAbility,
-    LayerModification, ManaAbility, ManaColor, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    calculate_characteristics, process_command, Command, ContinuousEffect, Effect, EffectAmount,
+    EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameStateBuilder,
+    KeywordAbility, LayerModification, ManaAbility, ManaColor, ObjectId, ObjectSpec, PlayerId,
+    PlayerTarget, Step, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -680,5 +682,141 @@ fn test_face_down_creature_inherits_granted_mana_ability() {
             .keywords
             .contains(&KeywordAbility::Flying),
         "(c) face-up again: printed Flying should be restored"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 11: LayerModification::AddActivatedAbility — variant 23 positive test
+// CR 602.5b — granted once_per_turn restriction must be preserved + enforced
+// ---------------------------------------------------------------------------
+
+/// CR 613.1f + CR 602.5b: A Layer 6 grant of an ActivatedAbility must preserve
+/// the `once_per_turn` flag on the granted ability and enforce the restriction.
+///
+/// This test exercises `LayerModification::AddActivatedAbility` (hash discriminant 23)
+/// which was untested by the other 10 PB-S tests (all of which use AddManaAbility).
+/// It also exercises the H1 hash fix path: `once_per_turn` is now hashed by
+/// `HashInto for ActivatedAbility`, so two grants differing only in that flag
+/// produce distinct hashes. We can't observe the hash directly from a unit test,
+/// but we can prove the flag survives the grant round-trip and drives engine
+/// behavior — which is what the hash is meant to track.
+#[test]
+fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
+    let source_spec = ObjectSpec::artifact(p1(), "Grant Source").in_zone(ZoneId::Battlefield);
+    // Creature with vigilance so we don't need to worry about summoning sickness
+    // semantics for cost-free activated abilities (activation does not need a tap cost).
+    let creature_spec = ObjectSpec::creature(p1(), "Granted Creature", 2, 2)
+        .in_zone(ZoneId::Battlefield)
+        .with_keyword(KeywordAbility::Haste);
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1())
+        .at_step(Step::PreCombatMain)
+        .object(source_spec)
+        .object(creature_spec)
+        .build()
+        .unwrap();
+
+    let source_id = find_obj_by_name(&state, "Grant Source");
+    let creature_id = find_obj_by_name(&state, "Granted Creature");
+
+    // The ability being granted: "0: you gain 1 life. Activate only once each turn."
+    // Cost-free so we can isolate the once_per_turn failure mode from tap/mana/etc.
+    let granted = ActivatedAbility {
+        cost: ActivationCost::default(),
+        description: "0: Gain 1 life. Activate only once each turn.".to_string(),
+        effect: Some(Effect::GainLife {
+            player: PlayerTarget::Controller,
+            amount: EffectAmount::Fixed(1),
+        }),
+        sorcery_speed: false,
+        targets: vec![],
+        activation_condition: None,
+        activation_zone: None,
+        once_per_turn: true,
+    };
+
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(1),
+        source: Some(source_id),
+        timestamp: 10,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::CreaturesYouControl,
+        modification: LayerModification::AddActivatedAbility(Box::new(granted.clone())),
+        is_cda: false,
+        condition: None,
+    });
+
+    // Assertion (a): the grant appears in calculated characteristics.
+    let chars = calculate_characteristics(&state, creature_id)
+        .expect("calculate_characteristics should succeed");
+    assert_eq!(
+        chars.activated_abilities.len(),
+        1,
+        "granted creature should have exactly 1 activated ability (the grant)"
+    );
+
+    // Assertion (b): the once_per_turn flag is preserved on the granted ability.
+    // If the Layer 6 apply path dropped or defaulted the flag, this would fail.
+    // Also proves the runner's claim that specialized vecs carry full ability state.
+    let granted_copy = &chars.activated_abilities[0];
+    assert!(
+        granted_copy.once_per_turn,
+        "granted ability must preserve once_per_turn=true through Layer 6 (CR 602.5b)"
+    );
+    assert_eq!(
+        granted_copy.description, granted.description,
+        "granted ability description must match source"
+    );
+
+    // Assertion (c): first activation succeeds.
+    let (state, _events) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1(),
+            source: creature_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+        },
+    )
+    .expect("first activation of granted once-per-turn ability should succeed");
+
+    // After first activation, the counter should be > 0, preventing a second activation.
+    let counter = state
+        .objects
+        .get(&creature_id)
+        .map(|o| o.abilities_activated_this_turn)
+        .unwrap_or(0);
+    assert!(
+        counter > 0,
+        "abilities_activated_this_turn should increment after once_per_turn activation (CR 602.5b)"
+    );
+
+    // Assertion (d): second activation in the same turn fails with the once-per-turn error.
+    let result = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1(),
+            source: creature_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+        },
+    );
+    assert!(
+        result.is_err(),
+        "second activation of granted once-per-turn ability should fail (CR 602.5b)"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("once per turn"),
+        "failure should cite once-per-turn restriction, got: {}",
+        err_msg
     );
 }

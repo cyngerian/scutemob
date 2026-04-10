@@ -4,7 +4,16 @@ batch: PB-S
 title: GrantActivatedAbility — Layer 6 AddManaAbility + AddActivatedAbility
 cards_affected: 5 full (Cryptolith Rite, Chromatic Lantern, Citanul Hierophants, Paradise Mantle, Enduring Vitality) + 2 partial (Song of Freyalise, Umbral Mantle)
 started: 2026-04-11
-phase: implement
+phase: fix-complete
+
+## Fix cycle (2026-04-11)
+- **H1 (HIGH)**: hash.rs ActivatedAbility::hash_into now hashes once_per_turn (field 8/8). Verified field-count against game_object.rs:254-290.
+- **L2 (LOW → test added)**: test_granted_once_per_turn_activated_ability_is_preserved_and_enforced — exercises LayerModification::AddActivatedAbility (discriminant 23, previously untested), asserts flag preservation + once-per-turn enforcement.
+- **NEW HIGH (surfaced by L2)**: abilities.rs:204-214 ability-index existence check now reads calculated chars — variant 23 was previously unreachable at runtime. Fixed.
+- **NEW HIGH (sibling of mana.rs fix, caught by spot-check)**: abilities.rs:478-493 summoning-sickness/haste check on tap-cost activations now reads calculated chars — latent for granted tap-cost non-mana abilities + animated creatures.
+- **Spot-check residuals** logged as LOWs PB-S-L02/L03/L04/L05 in docs/mtg-engine-low-issues-remediation.md (channel/graveyard zone dispatch base read, sacrifice-self event emission base read, sacrifice-target event emission base read, indexed cost reduction lookup).
+- **L1 (humility-inverse test)**: logged as PB-S-L06 LOW.
+- Test count: 2599 → 2600. cargo test --all / clippy / workspace build / fmt all green.
 plan_file: memory/primitives/pb-plan-S.md
 
 ## Resolved Open Questions (oversight 2026-04-11)
