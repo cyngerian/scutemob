@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-S planned 2026-04-11; A-42 Tier 1 reclassified → PB-X; ready for PB-S implement next session |
+| W6: Primitive + Card Authoring | — | available | — | PB-S DONE 2026-04-11 (GrantActivatedAbility, 5 cards, 11 tests, 3 HIGH fixed, 5 LOW logged); next: PB-X (micro — A-42 Tier 1 unblock) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,9 +23,51 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-11
+**Date**: 2026-04-11 (late — second session of the day)
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-S plan + A-42 Tier 1 blocked reclassification
+**Task**: PB-S implement + review + fix cycle — CLOSED
+
+**Completed** (continuation of earlier PB-S plan session):
+- **Implement phase** (runner stop-and-flagged on face-down test expectation; oversight verified CR 708.2, flipped test to "inherits", runner resumed): 2 new LayerModification variants (AddManaAbility + AddActivatedAbility), Layer 6 append semantics, ~80 LOC engine + 5 card defs + 2 TODO updates + 10 tests. Closed W3-LC deferred item in `handle_tap_for_mana` (mana.rs now reads calculated chars).
+- **Review phase**: reviewer found 1 HIGH (hash `ActivatedAbility::once_per_turn` field gap — pre-existing, escalated by PB-S's discriminant 23), 0 MEDIUM, 3 LOW. File: `memory/primitives/pb-review-S.md`.
+- **Fix cycle** (oversight-bundled H1 + L2 + mandatory spot-check):
+  - H1: `hash.rs` — added `once_per_turn` to `HashInto for ActivatedAbility` (field 8/8, verified against struct)
+  - L2 test added: `test_granted_once_per_turn_activated_ability_is_preserved_and_enforced` — exercises discriminant 23 (previously untested)
+  - **NEW HIGH** (surfaced by L2): `abilities.rs:204` index validation read base → variant 23 unreachable at runtime. Fixed to use calculated chars.
+  - **NEW HIGH** (caught by mandatory spot-check): `abilities.rs:478` summoning-sickness/haste check on tap-cost activated abilities read base — sibling W3-LC gap to the mana.rs fix. Fixed.
+  - Spot-check residuals logged as LOWs: PB-S-L02 (channel/graveyard dispatch base read), L03 (sacrifice-self event emission), L04 (sacrifice-target event emission), L05 (indexed cost reduction), L06 (humility-inverse test gap). All in `docs/mtg-engine-low-issues-remediation.md`.
+- **Tracking updates**: CLAUDE.md, `docs/project-status.md` (PB-S status → done), workstream-state.md, `memory/primitive-wip.md` (phase → fix-complete).
+- **New auto-memory**: `feedback_verify_full_chain.md` — generalized verification rule covering triage/plan/impl/review, citing 3 appearances in this session (A-42 re-triage, H1 hash miss, reviewer Q6 miss).
+
+**Test count**: 2589 (start of session) → 2600 (+11: 10 from implement, 1 from fix cycle L2). All tests green, clippy clean, workspace build clean, fmt clean.
+
+**Cards unblocked**: 5 full (Cryptolith Rite, Chromatic Lantern, Citanul Hierophants, Paradise Mantle, Enduring Vitality) + 2 partial TODO updates (Song of Freyalise — Saga-blocked, Umbral Mantle — `{Q}`-blocked).
+
+**Commits**:
+- `b212c100` — PB-S plan + A-42 Tier 1 blocked reclassification
+- `9dc9331a` — PB-S implement (17 files, +921 lines)
+- `5b8496ab` — PB-S review fixes (6 files, +383 lines)
+
+**Next session** (priority order, unchanged):
+1. **PB-X**: micro-PB unblocking A-42 Tier 1 (`AllCreaturesExcludingSubtype` EffectFilter, dynamic P/T in LayerModification, `Cost::ExileSelf`) — ~100-150 LOC, unblocks 6 cards + likely others
+2. Author A-42 Tier 1 after PB-X lands
+3. PB-Q (ChooseColor)
+4. PB-R (ExchangeZones, ~60 LOC)
+5. PB-T, PB-U, PB-V, PB-W per slate
+
+**Hazards** (carried forward + new):
+- Re-triage discipline: verify full primitive chain (feedback_retriage_verification.md + feedback_verify_full_chain.md)
+- Spot-check mandatory for any PB that fixes a dispatch pattern — walk every entry point for the subsystem, not just the file touched (feedback_verify_full_chain.md, #4)
+- PB-S-L02..L06 residuals in abilities.rs — fix opportunistically or batch into a W3-LC-residuals micro-PB
+- Simulator mana_solver.rs:35 still reads base chars (PB-S-L01) — bots undervalue granted mana
+- PB-M deferred items (Isshin, Delney, Elesh Norn opponent ETB suppression, Drivnod activated ability)
+- Complete the Circuit: delayed copy trigger still TODO
+- Forbidden Orchard: TargetPlayer → TargetOpponent (deferred to M10)
+- Heritage Druid `TapNCreatures` cost — own PB, not in PB-X scope
+
+**Commit prefix**: `W6-prim:` (primitive work) or `W6-cards:` (authoring)
+
+### 2026-04-11 (earlier) — W6: PB-S plan + A-42 Tier 1 reclassification
 
 **Completed**:
 - Attempted A-42 Tier 1 authoring (8 cards); 2 parallel `bulk-card-author` runs spun on DSL-gap research, wrote 0 files
