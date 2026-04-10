@@ -153,6 +153,19 @@
   Reading `card_registry.get(card_id)` bypasses Humility/Dress Down (ability removal in Layer 6)
   and also misses abilities granted by continuous effects. Always use `chars.keywords.iter()` where
   `chars = calculate_characteristics(state, obj_id)`. Discovered in Toxic review (MEDIUM finding).
+- **Ability-dispatch paths must read calculated chars, not base, when looking up activated/mana
+  abilities by index.** The W3-LC audit (2026-03-19) caught the mana side; PB-S (2026-04-11) caught
+  the activated side. Specifically: `rules/mana.rs::handle_tap_for_mana` and
+  `rules/abilities.rs::handle_activate_ability` both index into `activated_abilities`/`mana_abilities`
+  during existence validation, cost payment, sorcery-speed check, and once-per-turn check. Each
+  index lookup must go through `calculate_characteristics(state, source).unwrap_or_else(...)` or
+  Layer 6 grants (`LayerModification::AddManaAbility`, `AddActivatedAbility`) are silently
+  unreachable. When adding new dispatch sites or new Layer 6 variants, grep the full dispatch
+  function (not just the entry point) for every `obj.characteristics.activated_abilities` /
+  `obj.characteristics.mana_abilities` read and convert it. Sibling gotcha: the summoning-sickness
+  /haste check at the tap-cost payment site must also be layer-resolved — animated creatures and
+  granted haste both need to flow through. Spot-check residuals from PB-S tracked as PB-S-L02..L05
+  in `docs/mtg-engine-low-issues-remediation.md`.
 - **`im::OrdSet` deduplicates equal values.** Two `Toxic(2)` instances collapse to one. For
   cumulative parameterized keywords, the multi-instance test must put both N values on the ObjectSpec
   directly (`.with_keyword(Toxic(2)).with_keyword(Toxic(1))`) so they appear as distinct entries.
