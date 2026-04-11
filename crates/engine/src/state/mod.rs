@@ -518,6 +518,7 @@ impl GameState {
             // A face-down permanent leaving the battlefield is revealed (CR 708.9),
             // and the new object in the destination zone is no longer face-down.
             chosen_creature_type: None,
+            chosen_color: None,
             face_down_as: None,
             loyalty_ability_activated_this_turn: false,
             class_level: 0,
@@ -661,6 +662,7 @@ impl GameState {
                     craft_exiled_cards: im::Vector::new(),
                     // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
                     chosen_creature_type: None,
+                    chosen_color: None,
                     face_down_as: None,
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
@@ -775,6 +777,7 @@ impl GameState {
                         abilities_activated_this_turn: 0,
                         craft_exiled_cards: im::Vector::new(),
                         chosen_creature_type: None,
+                        chosen_color: None,
                         face_down_as: None,
                         loyalty_ability_activated_this_turn: false,
                         class_level: 0,
@@ -970,6 +973,7 @@ impl GameState {
             craft_exiled_cards: im::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
             chosen_creature_type: None,
+            chosen_color: None,
             face_down_as: None,
             loyalty_ability_activated_this_turn: false,
             class_level: 0,

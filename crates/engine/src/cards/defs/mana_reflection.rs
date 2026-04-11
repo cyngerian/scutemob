@@ -17,6 +17,9 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::ManaWouldBeProduced {
                     // PlayerId(0) is a placeholder; bound to controller at ETB registration.
                     controller: PlayerId(0),
+                    // No color filter or source filter — applies to all tap-mana (CR 106.12b).
+                    color_filter: None,
+                    source_filter: None,
                 },
                 modification: ReplacementModification::MultiplyMana(2),
                 is_self: false,

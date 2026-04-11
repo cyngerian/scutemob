@@ -941,6 +941,43 @@ fn effect_applies_to(
             );
             false
         }
+        // CR 614.12 / CR 105.1 / CR 613.1e: Creatures you control of the chosen color.
+        // Reads source.chosen_color dynamically at layer-application time.
+        // Color comparison uses layer-resolved colors (chars.colors already resolved by layer 5).
+        EffectFilter::CreaturesYouControlOfChosenColor => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let source = state.objects.get(&source_id);
+                let source_controller = source.map(|s| s.controller);
+                let chosen_color = source.and_then(|s| s.chosen_color);
+                let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
+                source_controller.is_some()
+                    && source_controller == obj_controller
+                    && chosen_color
+                        .map(|c| chars.colors.contains(&c))
+                        .unwrap_or(false)
+            } else {
+                false
+            }
+        }
+        // CR 614.12 / CR 105.1 / CR 613.1e: All creatures (any controller) of the chosen color.
+        // Unlike CreaturesYouControlOfChosenColor, this is NOT controller-restricted.
+        // Used by Gauntlet of Power: "Creatures of the chosen color get +1/+1."
+        EffectFilter::AllCreaturesOfChosenColor => {
+            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                let chosen_color = state.objects.get(&source_id).and_then(|s| s.chosen_color);
+                chosen_color
+                    .map(|c| chars.colors.contains(&c))
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
         EffectFilter::OtherCreaturesYouControlOfChosenType => {
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;

@@ -12,7 +12,9 @@ use crate::cards::card_definition::{
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
-use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
+use crate::state::replacement_effect::{
+    ChosenColorRef, ReplacementManaSourceFilter, ReplacementModification, ReplacementTrigger,
+};
 use crate::state::stubs::{GameRestriction, PendingTrigger, PendingTriggerKind};
 use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::ZoneId;
@@ -195,10 +197,21 @@ pub fn handle_tap_for_mana(
     }
     // 7b. Apply mana-production replacement effects (CR 106.12b).
     //     Only applies to mana abilities with {T} in cost (CR 106.12).
-    let mana_multiplier = if ability.requires_tap {
-        apply_mana_production_replacements(state, player)
+    //     Returns (multiplier, additions) where additions is a list of (color, amount)
+    //     to append to the mana pool after multiplication (CR 106.6a).
+    let (mana_multiplier, mana_additions) = if ability.requires_tap {
+        // Compute base mana preview for color-filter checks in apply_mana_production_replacements.
+        let mut base_preview: Vec<(ManaColor, u32)> = Vec::new();
+        if ability.any_color {
+            base_preview.push((ManaColor::Colorless, 1));
+        } else {
+            for (color, amount) in &ability.produces {
+                base_preview.push((*color, *amount));
+            }
+        }
+        apply_mana_production_replacements(state, player, source, &base_preview)
     } else {
-        1u32
+        (1u32, Vec::new())
     };
     // 8. Add produced mana to the player's pool (multiplied by replacement effects).
     //    CR 111.10a: `any_color` produces 1 mana of any color.
@@ -231,6 +244,22 @@ pub fn handle_tap_for_mana(
             mana_produced.push((*color, amount));
         }
     }
+    // 8b. Apply additive mana additions (CR 106.6a — e.g., Caged Sun / Gauntlet of Power).
+    //     These are added to the pool after the base mana (and multiplier) has been applied.
+    //     Each entry is one mana of the chosen color (replacement source's chosen_color).
+    for (add_color, add_amount) in &mana_additions {
+        if *add_amount > 0 {
+            let player_state = state.player_mut(player)?;
+            player_state.mana_pool.add(*add_color, *add_amount);
+            events.push(GameEvent::ManaAdded {
+                player,
+                color: *add_color,
+                amount: *add_amount,
+                source: Some(source),
+            });
+            mana_produced.push((*add_color, *add_amount));
+        }
+    }
     // 9. Pain land damage: deal damage to controller as part of the mana ability.
     //    CR 605: this is part of the mana ability resolution, not a separate trigger.
     if ability.damage_to_controller > 0 {
@@ -253,34 +282,152 @@ pub fn handle_tap_for_mana(
     //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
     Ok(events)
 }
-/// CR 106.12b: Check for mana multiplication replacement effects.
-/// Returns the product of all matching multipliers for the given player.
-/// Multiple Nyxbloom Ancients: 3 * 3 = 9x. Multiple Mana Reflections: 2 * 2 = 4x.
-fn apply_mana_production_replacements(state: &GameState, player: PlayerId) -> u32 {
+/// CR 106.12b / CR 106.6a: Check for mana production replacement effects.
+///
+/// Returns `(multiplier, additions)` where:
+/// - `multiplier`: product of all `MultiplyMana` replacements active for this player
+///   (Multiple Nyxbloom Ancients: 3 * 3 = 9x. Multiple Mana Reflections: 2 * 2 = 4x.)
+/// - `additions`: list of `(ManaColor, amount)` to add to the pool (CR 106.6a additivity).
+///   Used by Caged Sun / Gauntlet of Power ("add an additional one mana of that color").
+///
+/// `source_perm` is the permanent being tapped for mana (used for source_filter checks).
+/// `base_mana` is the mana the ability would produce before replacements (color-filter check).
+fn apply_mana_production_replacements(
+    state: &GameState,
+    player: PlayerId,
+    source_perm: ObjectId,
+    base_mana: &[(ManaColor, u32)],
+) -> (u32, Vec<(ManaColor, u32)>) {
     let mut multiplier = 1u32;
+    let mut additions: Vec<(ManaColor, u32)> = Vec::new();
     for effect in state.replacement_effects.iter() {
-        if let ReplacementTrigger::ManaWouldBeProduced { controller } = &effect.trigger {
-            if *controller == player {
-                if let ReplacementModification::MultiplyMana(n) = &effect.modification {
-                    // Skip inactive sources (source no longer on battlefield).
-                    let source_on_bf = effect
-                        .source
-                        .map(|src| {
-                            state
-                                .objects
-                                .get(&src)
-                                .map(|o| matches!(o.zone, ZoneId::Battlefield))
-                                .unwrap_or(false)
+        if let ReplacementTrigger::ManaWouldBeProduced {
+            controller,
+            color_filter,
+            source_filter,
+        } = &effect.trigger
+        {
+            if *controller != player {
+                continue;
+            }
+            // Check source_filter: does this replacement apply to the tapped permanent?
+            if let Some(sf) = source_filter {
+                let source_obj = state.objects.get(&source_perm);
+                let passes_source_filter = match sf {
+                    ReplacementManaSourceFilter::Any => true,
+                    ReplacementManaSourceFilter::AnyLand => source_obj
+                        .map(|o| {
+                            crate::rules::layers::calculate_characteristics(state, source_perm)
+                                .unwrap_or_else(|| o.characteristics.clone())
+                                .card_types
+                                .contains(&crate::state::types::CardType::Land)
                         })
-                        .unwrap_or(false);
-                    if source_on_bf {
+                        .unwrap_or(false),
+                    ReplacementManaSourceFilter::BasicLand => source_obj
+                        .map(|o| {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, source_perm)
+                                    .unwrap_or_else(|| o.characteristics.clone());
+                            chars
+                                .card_types
+                                .contains(&crate::state::types::CardType::Land)
+                                && chars
+                                    .supertypes
+                                    .contains(&crate::state::types::SuperType::Basic)
+                        })
+                        .unwrap_or(false),
+                    // Utopia Sprawl: only the enchanted land (reads attached_to from the Aura source).
+                    ReplacementManaSourceFilter::EnchantedLand => {
+                        // The replacement's source is the Aura (Utopia Sprawl).
+                        // The tapped permanent must be the land the Aura is attached to.
+                        effect
+                            .source
+                            .and_then(|sid| state.objects.get(&sid))
+                            .and_then(|aura| aura.attached_to)
+                            .map(|enchanted| enchanted == source_perm)
+                            .unwrap_or(false)
+                    }
+                };
+                if !passes_source_filter {
+                    continue;
+                }
+            }
+            // Check color_filter: does this replacement only fire for a specific color?
+            if let Some(cf) = color_filter {
+                let required_color = match cf {
+                    ChosenColorRef::SelfChosen => {
+                        // Read chosen_color from the replacement's source (Caged Sun etc.),
+                        // not from the tapped land.
+                        effect
+                            .source
+                            .and_then(|sid| state.objects.get(&sid))
+                            .and_then(|o| o.chosen_color)
+                    }
+                    ChosenColorRef::Fixed(c) => Some(*c),
+                };
+                // Check if any of the base_mana produced matches the required color.
+                let mana_color_for_comparison = required_color.map(|c| match c {
+                    crate::state::types::Color::White => ManaColor::White,
+                    crate::state::types::Color::Blue => ManaColor::Blue,
+                    crate::state::types::Color::Black => ManaColor::Black,
+                    crate::state::types::Color::Red => ManaColor::Red,
+                    crate::state::types::Color::Green => ManaColor::Green,
+                });
+                let color_matches = mana_color_for_comparison
+                    .map(|mc| base_mana.iter().any(|(bc, amt)| *bc == mc && *amt > 0))
+                    .unwrap_or(false);
+                if !color_matches {
+                    continue;
+                }
+                // This filter passed — apply modification.
+                // Skip inactive sources (source no longer on battlefield).
+                let source_on_bf = effect
+                    .source
+                    .map(|src| {
+                        state
+                            .objects
+                            .get(&src)
+                            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false);
+                if !source_on_bf {
+                    continue;
+                }
+                match &effect.modification {
+                    ReplacementModification::MultiplyMana(n) => {
+                        multiplier = multiplier.saturating_mul(*n);
+                    }
+                    ReplacementModification::AddOneManaOfChosenColor => {
+                        // Add one mana of the chosen color (from the replacement source).
+                        // CR 106.6a: "additional one mana of that color" per trigger event.
+                        if let Some(mc) = mana_color_for_comparison {
+                            additions.push((mc, 1));
+                        }
+                    }
+                    _ => {}
+                }
+            } else {
+                // No color filter — unconditional replacement (Mana Reflection / Nyxbloom).
+                let source_on_bf = effect
+                    .source
+                    .map(|src| {
+                        state
+                            .objects
+                            .get(&src)
+                            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false);
+                if source_on_bf {
+                    if let ReplacementModification::MultiplyMana(n) = &effect.modification {
                         multiplier = multiplier.saturating_mul(*n);
                     }
                 }
             }
         }
     }
-    multiplier
+    (multiplier, additions)
 }
 /// CR 605.4a / CR 106.12a: Fire triggered abilities that trigger from tapping a permanent
 /// for mana. Called after mana is added to the pool.
@@ -427,5 +574,6 @@ fn is_mana_producing_effect(effect: &Effect) -> bool {
             | Effect::AddManaRestricted { .. }
             | Effect::AddManaAnyColorRestricted { .. }
             | Effect::AddManaOfAnyColorAmount { .. }
+            | Effect::AddManaOfChosenColor { .. }
     )
 }

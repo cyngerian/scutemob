@@ -1032,6 +1032,14 @@ impl HashInto for GameObject {
                 st.0.hash_into(hasher);
             }
         }
+        // CR 614.12 / CR 105.1: chosen_color set by as-ETB ChooseColor replacement (PB-Q).
+        match self.chosen_color {
+            None => 0u8.hash_into(hasher),
+            Some(c) => {
+                1u8.hash_into(hasher);
+                (c as u8).hash_into(hasher);
+            }
+        }
         // CR 606.3: loyalty ability activated this turn
         self.loyalty_ability_activated_this_turn.hash_into(hasher);
         self.class_level.hash_into(hasher);
@@ -1279,6 +1287,10 @@ impl HashInto for EffectFilter {
             }
             // DSL placeholder for "creatures not of the chosen type" — discriminant 33
             EffectFilter::AllCreaturesExcludingChosenSubtype => 33u8.hash_into(hasher),
+            // CR 614.12 / CR 105.1: Creatures you control of the chosen color — discriminant 34
+            EffectFilter::CreaturesYouControlOfChosenColor => 34u8.hash_into(hasher),
+            // CR 614.12 / CR 105.1: All creatures (any controller) of the chosen color — discriminant 35
+            EffectFilter::AllCreaturesOfChosenColor => 35u8.hash_into(hasher),
         }
     }
 }
@@ -1770,11 +1782,41 @@ impl HashInto for ReplacementTrigger {
                 10u8.hash_into(hasher);
                 player_filter.hash_into(hasher);
             }
-            // CR 106.12b: ManaWouldBeProduced (discriminant 11)
-            ReplacementTrigger::ManaWouldBeProduced { controller } => {
+            // CR 106.12b / CR 106.6a: ManaWouldBeProduced (discriminant 11)
+            // PB-Q: extended with optional color_filter and source_filter fields.
+            ReplacementTrigger::ManaWouldBeProduced {
+                controller,
+                color_filter,
+                source_filter,
+            } => {
                 11u8.hash_into(hasher);
                 controller.hash_into(hasher);
+                color_filter.hash_into(hasher);
+                source_filter.hash_into(hasher);
             }
+        }
+    }
+}
+impl HashInto for crate::state::replacement_effect::ChosenColorRef {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::replacement_effect::ChosenColorRef;
+        match self {
+            ChosenColorRef::SelfChosen => 0u8.hash_into(hasher),
+            ChosenColorRef::Fixed(c) => {
+                1u8.hash_into(hasher);
+                (*c as u8).hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for crate::state::replacement_effect::ReplacementManaSourceFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::replacement_effect::ReplacementManaSourceFilter;
+        match self {
+            ReplacementManaSourceFilter::Any => 0u8.hash_into(hasher),
+            ReplacementManaSourceFilter::BasicLand => 1u8.hash_into(hasher),
+            ReplacementManaSourceFilter::AnyLand => 2u8.hash_into(hasher),
+            ReplacementManaSourceFilter::EnchantedLand => 3u8.hash_into(hasher),
         }
     }
 }
@@ -1835,6 +1877,13 @@ impl HashInto for ReplacementModification {
                 19u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // CR 614.12 / CR 105.1: ChooseColor (discriminant 20)
+            ReplacementModification::ChooseColor(c) => {
+                20u8.hash_into(hasher);
+                (*c as u8).hash_into(hasher);
+            }
+            // CR 106.6a / CR 105.1: AddOneManaOfChosenColor (discriminant 21)
+            ReplacementModification::AddOneManaOfChosenColor => 21u8.hash_into(hasher),
         }
     }
 }
@@ -5419,6 +5468,12 @@ impl HashInto for Effect {
                 target.hash_into(hasher);
                 must_change.hash_into(hasher);
             }
+            // PB-Q: AddManaOfChosenColor -- CR 614.12 / CR 105.1 (discriminant 84)
+            Effect::AddManaOfChosenColor { player, amount } => {
+                84u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
         }
     }
 }
@@ -6027,9 +6082,13 @@ impl GameState {
         // Hash schema version sentinel — bump when enum discriminant chains change.
         // PB-X (2026-04-11): added EffectFilter discriminants 32+33, LayerModification 25,
         // Cost discriminant 10, ActivationCost.exile_self field.
+        // PB-Q (2026-04-11): added EffectFilter discriminants 34+35, ReplacementModification
+        // discriminants 20+21, ChosenColorRef/ReplacementManaSourceFilter hash impls,
+        // ManaWouldBeProduced new fields (color_filter, source_filter),
+        // GameObject.chosen_color field.
         // Increment this value for each PB that changes the hash space to prevent stale
         // replays from incorrectly validating against new engine versions.
-        2u8.hash_into(&mut hasher); // schema version 2
+        3u8.hash_into(&mut hasher); // schema version 3
                                     // 1. Turn state
         self.turn.hash_into(&mut hasher);
         // 2. Timestamp counter and replacement ID counter

@@ -1634,6 +1634,41 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 614.12 / CR 105.1: "Add N mana of the chosen color."
+        // Reads chosen_color from the source object at execution time.
+        // Deterministic fallback: colorless if chosen_color is None.
+        // Used by Throne of Eldraine ("{T}: Add four mana of the chosen color") and
+        // Temple of the Dragon Queen ("{T}: Add one mana of the chosen color").
+        Effect::AddManaOfChosenColor { player, amount } => {
+            let n = *amount;
+            let players = resolve_player_target_list(state, player, ctx);
+            // Determine the chosen color from the source object.
+            let chosen_mana_color = state
+                .objects
+                .get(&ctx.source)
+                .and_then(|o| o.chosen_color)
+                .map(|c| match c {
+                    crate::state::types::Color::White => ManaColor::White,
+                    crate::state::types::Color::Blue => ManaColor::Blue,
+                    crate::state::types::Color::Black => ManaColor::Black,
+                    crate::state::types::Color::Red => ManaColor::Red,
+                    crate::state::types::Color::Green => ManaColor::Green,
+                })
+                .unwrap_or(ManaColor::Colorless);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    ps.mana_pool.add(chosen_mana_color, n);
+                    if n > 0 {
+                        events.push(GameEvent::ManaAdded {
+                            player: p,
+                            color: chosen_mana_color,
+                            amount: n,
+                            source: Some(ctx.source),
+                        });
+                    }
+                }
+            }
+        }
         // ── Counters ──────────────────────────────────────────────────────
         Effect::AddCounter {
             target,
@@ -3161,6 +3196,7 @@ fn execute_effect_inner(
                             abilities_activated_this_turn: 0,
                             craft_exiled_cards: im::Vector::new(),
                             chosen_creature_type: None,
+                            chosen_color: None,
                             face_down_as: None,
                             loyalty_ability_activated_this_turn: false,
                             class_level: 0,
@@ -4032,6 +4068,7 @@ fn execute_effect_inner(
                     abilities_activated_this_turn: 0,
                     craft_exiled_cards: im::Vector::new(),
                     chosen_creature_type: None,
+                    chosen_color: None,
                     face_down_as: None,
                     loyalty_ability_activated_this_turn: false,
                     class_level: 0,
@@ -4197,6 +4234,7 @@ fn execute_effect_inner(
                 abilities_activated_this_turn: 0,
                 craft_exiled_cards: im::Vector::new(),
                 chosen_creature_type: None,
+                chosen_color: None,
                 face_down_as: None,
                 loyalty_ability_activated_this_turn: false,
                 class_level: 0,
@@ -6251,6 +6289,7 @@ pub fn make_token(
         abilities_activated_this_turn: 0,
         craft_exiled_cards: im::Vector::new(),
         chosen_creature_type: None,
+        chosen_color: None,
         face_down_as: None,
         loyalty_ability_activated_this_turn: false,
         class_level: 0,

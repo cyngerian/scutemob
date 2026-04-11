@@ -23,7 +23,8 @@ pub use crate::state::game_object::{
 };
 pub use crate::state::player::PlayerId;
 pub use crate::state::replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PlayerFilter, ReplacementModification, ReplacementTrigger,
+    ChosenColorRef, DamageTargetFilter, ObjectFilter, PlayerFilter, ReplacementManaSourceFilter,
+    ReplacementModification, ReplacementTrigger,
 };
 pub use crate::state::stubs::{
     FlashGrantFilter, GameRestriction, PlayFromGraveyardPermission, PlayFromTopFilter,

@@ -482,6 +482,7 @@ fn test_multiple_emblems_stack() {
         abilities_activated_this_turn: 0,
         craft_exiled_cards: im::Vector::new(),
         chosen_creature_type: None,
+        chosen_color: None,
         face_down_as: None,
         loyalty_ability_activated_this_turn: false,
         class_level: 0,

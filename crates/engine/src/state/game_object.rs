@@ -1086,6 +1086,18 @@ pub struct GameObject {
     /// Set by `Effect::ChooseCreatureType`. Reset to `None` on zone changes (CR 400.7).
     #[serde(default)]
     pub chosen_creature_type: Option<SubType>,
+    /// CR 614.12 / CR 105.1: Chosen color set by an as-ETB replacement effect
+    /// ("As this enters, choose a color."). Used by Caged Sun, Gauntlet of Power,
+    /// Throne of Eldraine, Temple of the Dragon Queen, Utopia Sprawl.
+    /// Reset to `None` on zone changes (CR 400.7); new GameObjects default to `None`.
+    ///
+    /// Read by:
+    /// - `EffectFilter::CreaturesYouControlOfChosenColor` / `AllCreaturesOfChosenColor`
+    ///   in `rules/layers.rs` (chosen-color creature pump dispatch)
+    /// - mana-production replacement dispatch in `rules/mana.rs` (chosen-color mana doubling)
+    /// - `Effect::AddManaOfChosenColor` in `effects/mod.rs` (tap-for-N-of-chosen-color)
+    #[serde(default)]
+    pub chosen_color: Option<crate::state::types::Color>,
     /// CR 606.3: True if a loyalty ability of this permanent has been activated this turn.
     ///
     /// Only one loyalty ability per permanent per turn. Reset to false at the beginning

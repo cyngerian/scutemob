@@ -1,84 +1,105 @@
-# Primitive WIP: PB-X — A-42 Tier 1 Micro-PB
+# Primitive WIP: PB-Q — ChooseColor
 
-batch: PB-X
-title: Exclusion pump filter + dynamic P/T in LayerModification + Cost::ExileSelf
-cards_unblocked: 6 of 8 A-42 Tier 1 (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor the Defiled, Obelisk of Urd, City on Fire). Metallic Mimic deferred (needs 4th primitive — `LayerModification::AddChosenCreatureType`). Heritage Druid out of scope (TapNCreatures cost framework).
+batch: PB-Q
+title: ChooseColor (as-ETB color choice + color-aware downstream effects)
+cards_unblocked: 6 in-scope (Caged Sun, Gauntlet of Power, Throne of Eldraine, Temple of the Dragon Queen, Utopia Sprawl, Painter's Servant Tier-1-verify) + 3+ deferred to PB-Q2 (activated-time)
 started: 2026-04-11
-phase: closed
-plan_file: memory/primitives/pb-plan-X.md (DONE)
-review_file: memory/primitives/pb-review-X.md (DONE)
+phase: review
+plan_file: memory/primitives/pb-plan-Q.md
 
-## Review (2026-04-11)
-findings: 7 (HIGH: 1, MEDIUM: 3, LOW: 3)
-verdict: needs-fix
-- **C1 HIGH**: FIXED 2026-04-11. `obelisk_of_urd.rs` — rewrote "As this enters, choose a creature type" from `AbilityDefinition::Triggered` to `AbilityDefinition::Replacement { trigger: WouldEnterBattlefield, modification: ChooseCreatureType(...), is_self: true }`. Mirrors Urza's Incubator / Vanquisher's Banner / Morophon pattern exactly.
-- **E1 MEDIUM**: FIXED 2026-04-11. Replaced all 6 "CR 701.10" citations with "CR 118.12 + CR 406 + CR 602.2c" (abilities.rs, card_definition.rs, hash.rs ×2, game_object.rs, balthor_the_defiled.rs). Also fixed 4 citations in primitive_pb_x.rs test file.
-- **C2 MEDIUM**: FIXED 2026-04-11. Added `test_balthor_activated_reanimates_black_and_red` to primitive_pb_x.rs — activates via `Command::ActivateAbility` with ExileSelf, verifies (a) Balthor in exile, (b) black+red creatures on battlefield, (c) green creature stays in graveyard.
-- **C3 MEDIUM**: FIXED 2026-04-11. Added `test_obelisk_of_urd_chosen_type_pump` (anti-C1 observability window test — Humans get +2/+2 immediately, Goblins unchanged), `test_city_on_fire_triples_damage` (2→6 via apply_damage_doubling), `test_city_on_fire_does_not_triple_opponent_sources` (opponent sources unchanged).
-- **E2 LOW**: FIXED 2026-04-11. Expanded `ModifyBothDynamic` doc in continuous_effect.rs to cite CR 608.2h explicitly and state substitution invariant.
-- **E3 LOW**: FIXED 2026-04-11. Simplified `exile_self` block in abilities.rs:636-643 — dropped dead `pre_exile_counters`/`is_creature` captures and `let _ = (...)` discard.
-- **E4 LOW**: SKIPPED (review marked optional/low priority; no real dispatch path to defend).
-- **C4 LOW**: SKIPPED (review: no fix required).
-- **Positives**: ModifyBothDynamic locked-at-resolution test is model full-dispatch test; ActivationCost hash field-count audit correct (9/9); schema version sentinel correctly bumped to 2; Balthor filter resolved affirmatively (plan open question 4).
+## Plan Phase Summary (2026-04-11)
 
-## Fix Gates (2026-04-11)
-- cargo test --all: ALL PASS (16 tests in primitive_pb_x.rs, no failures in workspace)
-- cargo clippy --workspace -- -D warnings: CLEAN (0 warnings)
-- cargo build --workspace: CLEAN (replay-viewer + TUI build)
-- cargo fmt --check: CLEAN
+Plan written to `memory/primitives/pb-plan-Q.md`. Key findings:
 
-## Scope (from a42-retriage-2026-04-10.md + 2026-04-11 reclassification)
+- **One primitive shipped**: as-ETB ChooseColor as a `ReplacementModification` (CR 614.12), exact parallel of existing `ChooseCreatureType` at `replacement.rs:1440`. Plus dispatch surface for the in-scope cards: 2 new `EffectFilter` variants (`CreaturesYouControlOfChosenColor`, `AllCreaturesOfChosenColor`) and a new mana-production replacement modification (`AddOneManaOfChosenColor`).
+- **NO new `LayerModification` variant** in core PB-Q. (Painter's Servant might need one — Tier 1 verify, defer if confirmed.)
+- **Coordinator scope notes had two factual errors** (verified via MCP):
+  - Cavern of Souls is choose-creature-type, NOT choose-color. Removed from scope.
+  - Utopia Sprawl is choose-color, NOT choose-basic-land-type. Stays in scope (not bundled — it IS this primitive).
+- **Activated-time choose-color is a different primitive** — Skrelv, Nykthos, Three Tree City, Throne's draw activation deferred to PB-Q2.
+- **Painter's Servant flagged Tier 1**: its color-add scope ("nearly every card in nearly every zone") may need a new Layer 5 color-add modification — defer if true.
 
-PB-X is a **micro-PB** bundling three small independent primitives whose absence blocks A-42 Tier 1 authoring:
+## Standing Rules (MUST follow — NON-NEGOTIABLE)
 
-1. **`EffectFilter::AllCreaturesExcludingSubtype(SubType)` + `AllCreaturesExcludingChosenSubtype`** — "all non-Elf creatures", "all non-Vampire creatures", and "creatures not of the chosen type". Blocks Crippling Fear, Eyeblight Massacre, Olivia's Wrath. Discriminants 32, 33.
-2. **`LayerModification::ModifyBothDynamic { amount: Box<EffectAmount>, negate: bool }`** — substituted at `Effect::ApplyContinuousEffect` execution time into a concrete `ModifyBoth(i32)` per CR 608.2h. New variant rather than migration (76 call sites of existing `ModifyBoth(i32)`). Discriminant 25. Blocks Olivia's Wrath.
-3. **`Cost::ExileSelf` + `ActivationCost.exile_self: bool`** — activated-ability cost that exiles the source permanent. LKI handled by existing `embedded_effect` plumbing in `abilities.rs` (mirrors `sacrifice_self`). Blocks Balthor the Defiled.
+(unchanged from plan-phase brief)
 
-**Explicitly NOT in scope** (deferred to other PBs):
-- `TapNCreatures` cost variant (Heritage Druid) — own PB.
-- `LayerModification::AddChosenCreatureType` (Metallic Mimic) — fourth primitive; spawn PB-Y micro-PB.
-- Obelisk of Urd / City on Fire — verified during plan phase as **already authorable**; will be authored in the PB-X session as free wins.
+1. **"As ~ enters the battlefield, choose X" is a REPLACEMENT effect per CR 614.12, NOT a triggered ability.** PB-X C1 lesson. Templates: Urza's Incubator, Vanquisher's Banner, Morophon, Cavern of Souls, Patchwork Banner, Obelisk of Urd (post-PB-X).
+2. **Full-dispatch tests for every new `LayerModification` variant.** PB-Q does not introduce one; the rule still binds the dispatch tests for the new EffectFilter variants and the mana doubling path. Plan tests 5 and 8 are mandatory.
+3. **Full-chain verification.** Walk effect → filter → layer → cost/trigger.
+4. **CR verification before implement.**
 
-## Scope Boundary (enforced)
-- Three primitives only. No fourth.
-- Plan phase confirmed: Metallic Mimic needs a fourth primitive. **Stopped and flagged**, did not expand.
-- Followed full-chain verification discipline: feedback_verify_full_chain.md, feedback_verify_cr_before_implement.md, feedback_retriage_verification.md.
+## Implement Phase Summary (2026-04-11)
 
-## Open Questions (resolved by plan; oversight to confirm before implement)
-1. ~~`AllCreaturesExcludingSubtype(SubType)` shape vs general combinator?~~ — **Resolved**: two variants (static + chosen) with substitution at Effect::ApplyContinuousEffect time. Combinator is overkill.
-2. ~~`ModifyBoth(i32,i32)` migration vs new variant?~~ — **Resolved**: new variant `ModifyBothDynamic`. 76 call sites of the existing form would all need touching for migration.
-3. ~~`Cost::ExileSelf` LKI dispatch?~~ — **Resolved**: existing `embedded_effect` capture at `abilities.rs:294-313` handles it. Resolution path at `resolution.rs:1776` already falls back to embedded_effect when source is dead. Mirrors sacrifice_self plumbing exactly.
-4. ~~Metallic Mimic / Obelisk / City on Fire authorability?~~ — **Resolved**: Mimic blocked (4th primitive); Obelisk + City on Fire already authorable, will be done in PB-X session.
+### Engine Changes Completed
 
-## Open Questions for Oversight (still pending)
-1. `ModifyBothDynamic` sign handling: `negate: bool` (proposed) vs. `EffectAmount::Negate` combinator.
-2. Hash version bump policy — confirm constant location and bump value.
-3. Metallic Mimic disposition: PB-Y micro-PB (proposed) vs. fold into PB-Q ChooseColor.
-4. Balthor's `ReturnAllFromGraveyardToBattlefield` body — needs grep at impl time to confirm per-player + color filter exists. May force partial authoring of Balthor if absent.
-5. Exact `Cost::ExileSelf` discriminant in HashInto for Cost — count at impl.
+- [x] **`GameObject.chosen_color: Option<Color>`** field added (`state/game_object.rs`) — `#[serde(default)]`, doc citing CR 614.12 / CR 105.1 / CR 400.7
+- [x] **`ReplacementModification::ChooseColor(Color)`** — ETB replacement fires deterministic fallback (scan controller permanents by color count; tie-break prefers default_color then highest discriminant) (`state/replacement_effect.rs`)
+- [x] **`ReplacementModification::AddOneManaOfChosenColor`** — mana-production replacement modification (`state/replacement_effect.rs`)
+- [x] **`ChosenColorRef { SelfChosen, Fixed(Color) }`** — enum for color reference in `ManaWouldBeProduced` (`state/replacement_effect.rs`)
+- [x] **`ReplacementManaSourceFilter { Any, BasicLand, AnyLand, EnchantedLand }`** — scopes which tapped permanents trigger replacement (`state/replacement_effect.rs`). Named to avoid conflict with `ManaSourceFilter` in `card_definition.rs`.
+- [x] **`ManaWouldBeProduced` extended** with `color_filter: Option<ChosenColorRef>` + `source_filter: Option<ReplacementManaSourceFilter>` fields
+- [x] **`EffectFilter::CreaturesYouControlOfChosenColor`** + **`EffectFilter::AllCreaturesOfChosenColor`** — layer filter variants (`state/continuous_effect.rs`)
+- [x] **`Effect::AddManaOfChosenColor { player: PlayerTarget, amount: u32 }`** — new effect variant (`cards/card_definition.rs`)
+- [x] **`apply_mana_production_replacements` refactored** — new signature `(state, player, source_perm, base_mana) -> (u32, Vec<(ManaColor, u32)>)` handles both MultiplyMana and AddOneManaOfChosenColor paths (`rules/mana.rs`)
+- [x] **`effects/mod.rs`** — dispatch for `Effect::AddManaOfChosenColor`; reads `ctx.source.chosen_color`, maps Color→ManaColor
+- [x] **`is_mana_producing_effect`** — added `AddManaOfChosenColor` arm so triggered mana ability detection works for Utopia Sprawl
+- [x] **`rules/layers.rs`** — two dispatch arms in `is_effect_active` for new EffectFilter variants; read `source.chosen_color` dynamically
+- [x] **`rules/replacement.rs`** — `ChooseColor` arm in `emit_etb_modification`; deterministic fallback with tie-break
+- [x] **Hash schema sentinel bumped 2→3** with all new fields/variants hashed (`state/hash.rs`)
+- [x] **`chosen_color` added to `HashInto for GameObject`** (PB-S H1 discipline)
+- [x] **`helpers.rs`** — `ChosenColorRef` + `ReplacementManaSourceFilter` re-exported
+- [x] **`mana_reflection.rs` + `nyxbloom_ancient.rs`** — added `color_filter: None, source_filter: None` to old `ManaWouldBeProduced` struct literals
+- [x] **19 `chosen_color: None` entries** added to all `GameObject` constructors (state/mod.rs, state/builder.rs, rules/resolution.rs)
 
-## Step Checklist (PLAN — DONE)
-- [x] 1. Read memory/card-authoring/a42-retriage-2026-04-10.md + a42-tier4-diagnosis-2026-04-10.md for current Tier 1 status
-- [x] 2. Walk full primitive chain for each of the 8 Tier 1 cards (filter → effect → layer → cost) — confirm what PB-X actually needs vs. what's already supported
-- [x] 3. Read engine sources: effects/mod.rs (EffectFilter), rules/layers.rs + continuous_effect.rs (LayerModification), rules/casting.rs + abilities.rs (Cost payment), cards/helpers.rs (exports)
-- [x] 4. CR lookups: 602.1, 608.2h, 118.12, 701.10
-- [x] 5. Write plan file memory/primitives/pb-plan-X.md with design for all 3 primitives, test list, card def patches, explicit "do not implement this session" marker
-- [x] 6. Grep call sites for LayerModification::ModifyBoth — decided new variant (76 sites)
-- [x] 7. Note hash version bump policy: yes (adds enum variants → discriminant chain extends)
-- [x] 8. Do NOT implement this session — end plan phase, wait for oversight to green-light implement
+### Card Definitions Completed
 
-## Step Checklist (IMPLEMENT — COMPLETE 2026-04-11)
-- [x] 1. Engine changes per plan (EffectFilter +2, LayerModification +1, Cost +1, ActivationCost +field, payment block, substitution, hash arms) — continuous_effect.rs, game_object.rs, hash.rs, layers.rs, effects/mod.rs, rules/abilities.rs, replay_harness.rs, card_definition.rs (3 token specs). All exhaustive matches covered.
-- [x] 2. Card defs: Crippling Fear (crippling_fear.rs), Eyeblight Massacre (eyeblight_massacre.rs), Olivia's Wrath (olivias_wrath.rs), Balthor the Defiled (balthor_the_defiled.rs), Obelisk of Urd (obelisk_of_urd.rs), City on Fire (city_on_fire.rs) — all 6 authored and compiling.
-- [x] 3. Unit tests in tests/primitive_pb_x.rs — 12 tests across all three primitives + card integrations. All pass.
-- [x] 4. Build verification — cargo test --all (all pass), cargo clippy -- -D warnings (0 warnings), cargo build --workspace (clean), cargo fmt --check (clean).
-- [x] 5. Hash version bump — schema version sentinel `2u8.hash_into(&mut hasher)` added at top of `public_state_hash()` in hash.rs.
-- [x] 6. No new TODOs introduced; deferred Metallic Mimic noted in scope boundary. ActivationCost.exile_self hashed (PB-S H1 defense); test #11 (`test_exile_self_field_participates_in_hash`) verifies. 20+ test files bulk-fixed to add `exile_self: false` to ActivationCost struct literals.
+- [x] **`caged_sun.rs`** (NEW) — ETB ChooseColor(White) + CreaturesYouControlOfChosenColor +1/+1 + ManaWouldBeProduced { SelfChosen, AnyLand } replacement
+- [x] **`gauntlet_of_power.rs`** (NEW) — ETB ChooseColor(White) + AllCreaturesOfChosenColor +1/+1 + ManaWouldBeProduced { SelfChosen, BasicLand } replacement
+- [x] **`throne_of_eldraine.rs`** (PATCHED) — ETB ChooseColor(White) + {T}: AddManaOfChosenColor{4} + {3}{T}: DrawCards{2}
+- [x] **`temple_of_the_dragon_queen.rs`** (PATCHED) — ETB ChooseColor(White) + {T}: AddManaOfChosenColor{1} (added to existing EntersTapped replacement)
+- [x] **`utopia_sprawl.rs`** (NEW) — Aura. ChooseColor(Green) ETB + WhenTappedForMana{EnchantedLand} triggered → AddManaOfChosenColor{1}
+
+### Tests Written (primitive_pb_q.rs — 11 tests)
+
+- [x] `test_choose_color_replacement_sets_field` — ETB sets chosen_color (Component 2)
+- [x] `test_choose_color_deterministic_fallback_picks_majority` — majority wins (Component 2)
+- [x] `test_choose_color_default_when_no_permanents` — empty board uses default (Component 2)
+- [x] `test_choose_color_resets_on_zone_change` — CR 400.7: fresh object has None (Component 2)
+- [x] `test_caged_sun_full_dispatch_pumps_chosen_color_creatures` — **MANDATORY** full-dispatch (Component 4/5)
+- [x] `test_gauntlet_of_power_pumps_all_controllers_chosen_color` — AllCreaturesOfChosenColor (Component 4)
+- [x] `test_chosen_color_filter_no_choice_matches_nothing` — None source → no pump (Component 4)
+- [x] `test_caged_sun_doubles_chosen_color_land_mana` — **MANDATORY** full-dispatch mana doubling (Component 5)
+- [x] `test_caged_sun_does_not_double_other_color_mana` — color filter discrimination (Component 5)
+- [x] `test_gauntlet_of_power_only_doubles_basic_lands` — BasicLand vs AnyLand source filter (Component 5)
+- [x] `test_chosen_color_hash_field_audit` — PB-S H1 hash defense
+
+### Verification Gates (all PASS)
+
+- [x] `cargo test --all` — ALL PASS (2616 + 11 = 2627 tests)
+- [x] `cargo clippy --workspace -- -D warnings` — CLEAN
+- [x] `cargo build --workspace` — CLEAN (replay-viewer + TUI compile)
+- [x] `cargo fmt --check` — CLEAN
+
+### Open Questions Resolved at Implement Time
+
+- **Q4 verification gate**: Mana Reflection exists (`mana_reflection.rs`) using `ManaWouldBeProduced { controller }` + `MultiplyMana` — Alt A matched exactly.
+- **Q7 Utopia Sprawl ETB ordering**: Verified `resolution.rs` — Aura attachment (~line 1547) before ETB replacements (~line 1571). `chosen_color` set atomically with ETB. No STOP-AND-FLAG needed.
+- **Tied-color tie-break**: Added deterministic tie-break logic — default_color preferred when tied for max; otherwise highest Color discriminant. Prevents non-determinism from HashMap iteration.
+
+### Deferred Items
+
+- **Painter's Servant**: Deferred (Q2). Scope unclear; may need Layer 5 color-add modification.
+- **PB-Q2**: Activated-time choose-color (Skrelv, Nykthos, Three Tree City, Throne's draw activation). Reserve in `docs/primitive-card-plan.md` (Q10 — not yet done, pending oversight).
+- **`mana_reflection.rs` TODO comment**: Still references "spending restrictions" — existing behavior correct, comment cleanup deferred.
 
 ## Hazards / Carry-forward
-- PB-S-L01..L06 residuals in abilities.rs / mana_solver — opportunistic only; not in PB-X scope
-- ActivationCost gains a new field (`exile_self`) — HIGH RISK for PB-S H1-style hash gap. Implementer MUST field-count `HashInto for ActivationCost` against the struct definition. Test #14 defends.
-- `AllCreaturesExcludingChosenSubtype` and `ModifyBothDynamic` are DSL placeholders — must NEVER be stored in a `ContinuousEffect`. Substitution at Effect::ApplyContinuousEffect is mandatory; debug_assert arms in layers.rs catch substitution bugs.
-- Full-chain verification for Balthor's body still has open question 4 (per-player color-filtered reanimate). Implementer must verify before authoring the activated body or partially author with TODO.
-- replay-viewer view_model.rs + TUI stack_view.rs: exhaustive matches on KeywordAbility/StackObjectKind — PB-X does NOT touch either, but verify with `cargo build --workspace` after impl.
+
+- Cavern of Souls is creature-type-choice (oversight WIP error — corrected in plan)
+- Utopia Sprawl IS choose-color (not basic-land-type — coordinator note corrected via MCP)
+- Painter's Servant deferred
+- PB-Q2 scope: Skrelv / Nykthos / Three Tree City / Throne's draw activation
+- PB-S H1 hash field-count discipline — DONE for chosen_color
+
+## Next Action
+
+Oversight: trigger `primitive-impl-reviewer` for PB-Q review phase.

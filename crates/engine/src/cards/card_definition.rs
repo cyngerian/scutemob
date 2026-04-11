@@ -1304,6 +1304,14 @@ pub enum Effect {
         player: PlayerTarget,
         amount: EffectAmount,
     },
+    /// CR 614.12 / CR 105.1: "Add N mana of the chosen color."
+    /// Reads `source.chosen_color` from the source object's `chosen_color` field at
+    /// execution time. Deterministic fallback: colorless if `chosen_color` is None.
+    ///
+    /// Used by Throne of Eldraine ("{T}: Add four mana of the chosen color") and
+    /// Temple of the Dragon Queen ("{T}: Add one mana of the chosen color").
+    /// The source object must have `chosen_color` set by a prior `ChooseColor` replacement.
+    AddManaOfChosenColor { player: PlayerTarget, amount: u32 },
     /// CR 106.12a: "Add one mana of any type that land produced."
     ///
     /// Used by Mirari's Wake and Zendikar Resurgent triggered mana abilities.

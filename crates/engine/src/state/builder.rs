@@ -1065,6 +1065,7 @@ impl GameStateBuilder {
                 craft_exiled_cards: im::Vector::new(),
                 // CR 708.2: test-placed objects are not morph/manifest/cloak face-down.
                 chosen_creature_type: None,
+                chosen_color: None,
                 face_down_as: None,
                 // CR 606.3: loyalty abilities not yet activated.
                 loyalty_ability_activated_this_turn: false,

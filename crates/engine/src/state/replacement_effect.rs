@@ -12,7 +12,7 @@
 use super::continuous_effect::EffectDuration;
 use super::game_object::ObjectId;
 use super::player::{CardId, PlayerId};
-use super::types::{CardType, CounterType, SubType};
+use super::types::{CardType, Color, CounterType, SubType};
 use super::zone::ZoneType;
 use serde::{Deserialize, Serialize};
 /// Unique identifier for a replacement effect instance.
@@ -70,7 +70,48 @@ pub enum ReplacementTrigger {
     /// "If you tap a permanent for mana, it produces [N] times as much of that mana instead."
     /// Only applies to mana abilities with {T} in cost (CR 106.12).
     /// `controller` is bound at registration time from the card controller.
-    ManaWouldBeProduced { controller: PlayerId },
+    ///
+    /// Extended for PB-Q (CR 106.6a / CR 105.1): optional `color_filter` restricts the trigger
+    /// to fire only when the tapped land produces mana of the source's chosen color.
+    /// `source_filter` restricts which permanents being tapped are affected (e.g., basic lands only).
+    ManaWouldBeProduced {
+        controller: PlayerId,
+        /// CR 106.6a / CR 105.1: If Some, only fires when the tapped land produces mana of
+        /// the color referenced here. Reads source.chosen_color at trigger time if SelfChosen.
+        color_filter: Option<ChosenColorRef>,
+        /// Optional: restrict which land types fire this replacement.
+        /// None = any tap-mana source (Mana Reflection / Nyxbloom pattern).
+        /// Some(BasicLand) = only basic lands (Gauntlet of Power).
+        /// Some(AnyLand) = any land (Caged Sun).
+        source_filter: Option<ReplacementManaSourceFilter>,
+    },
+}
+/// Reference to a color choice: either a literal color or the source object's chosen color.
+///
+/// Used by `ManaWouldBeProduced.color_filter` to express "only if the mana produced matches
+/// the color this permanent chose when it entered."
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChosenColorRef {
+    /// The source permanent's `chosen_color` field (set by `ReplacementModification::ChooseColor`).
+    SelfChosen,
+    /// A literal fixed color.
+    Fixed(Color),
+}
+/// Filter for which mana-producing permanents a replacement applies to.
+///
+/// Used by `ManaWouldBeProduced.source_filter`. Distinct from the trigger-condition
+/// `ManaSourceFilter` in `card_definition.rs` (which filters triggered ability conditions).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReplacementManaSourceFilter {
+    /// Any permanent being tapped for mana (no restriction).
+    Any,
+    /// Only basic lands (has the Basic supertype). Used by Gauntlet of Power.
+    BasicLand,
+    /// Any land. Used by Caged Sun.
+    AnyLand,
+    /// Only the land this Aura is currently attached to (reads `source.attached_to`).
+    /// Used by Utopia Sprawl: "the enchanted Forest's ability causes you to add mana".
+    EnchantedLand,
 }
 /// What a replacement effect does when it applies (CR 614.6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,6 +192,24 @@ pub enum ReplacementModification {
     /// `multiplier` is the factor (2 for Mana Reflection, 3 for Nyxbloom Ancient).
     /// Multiple instances stack multiplicatively per ruling (two Nyxblooms = 9x).
     MultiplyMana(u32),
+    /// CR 614.12 / CR 105.1: "As this enters, choose a color."
+    /// Sets `chosen_color` on the entering permanent. Deterministic fallback (M10 deferred):
+    /// picks the most common color among permanents the controller controls,
+    /// falling back to the provided default.
+    ///
+    /// Mirrors `ChooseCreatureType` exactly (`replacement.rs:1440`). The default argument
+    /// is the design-time fallback when no permanents exist to scan.
+    ChooseColor(Color),
+    /// CR 106.6a / CR 105.1: "Add an additional one mana of that color."
+    /// Used by Caged Sun and Gauntlet of Power's mana-doubling clause.
+    ///
+    /// Caged Sun / Gauntlet of Power are triggered abilities per oracle text, but mana
+    /// abilities are stackless per CR 605.3, so we implement the effect as a replacement
+    /// on `ManaWouldBeProduced` to maintain engine-wide consistency with PB-E's
+    /// mana-modification pattern (CR 603.2).
+    /// Reads `source.chosen_color` from the replacement source (Caged Sun / Gauntlet of
+    /// Power object) at application time, NOT from the tapped land.
+    AddOneManaOfChosenColor,
 }
 /// Filters which objects a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

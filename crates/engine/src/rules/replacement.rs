@@ -1473,6 +1473,47 @@ fn emit_etb_modification(
                 obj.chosen_creature_type = Some(chosen);
             }
         }
+        Some(ReplacementModification::ChooseColor(default_color)) => {
+            // CR 614.12a: "As this enters, choose a color." Choice committed before the
+            // permanent enters. Deterministic fallback (M10 deferred): scan battlefield
+            // permanents controlled by this controller, count their layer-resolved colors
+            // (CR 613.1e), pick the most common. Fall back to default_color if none.
+            let chosen = {
+                let mut color_counts: std::collections::HashMap<crate::state::types::Color, usize> =
+                    std::collections::HashMap::new();
+                // CR 613.1d/e: Use layer-resolved characteristics for color scan.
+                for obj in state.objects.values() {
+                    if obj.controller == controller
+                        && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
+                    {
+                        let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                        for c in &chars.colors {
+                            *color_counts.entry(*c).or_insert(0usize) += 1;
+                        }
+                    }
+                }
+                // Tie-break: prefer default_color if it appears with the max count,
+                // otherwise pick the Color with the highest discriminant (deterministic).
+                let max_count = color_counts.values().copied().max().unwrap_or(0);
+                if max_count == 0 {
+                    default_color
+                } else if color_counts.get(&default_color).copied().unwrap_or(0) == max_count {
+                    // Default color tied for first — prefer it (deterministic).
+                    default_color
+                } else {
+                    color_counts
+                        .into_iter()
+                        .filter(|(_, count)| *count == max_count)
+                        .max_by_key(|(c, _)| *c as u8)
+                        .map(|(c, _)| c)
+                        .unwrap_or(default_color)
+                }
+            };
+            if let Some(obj) = state.objects.get_mut(&new_id) {
+                obj.chosen_color = Some(chosen);
+            }
+        }
         _ => {
             // RedirectToZone and other modifications are not applicable to ETB
             // modification interception. Zone redirections are handled at zone-change
@@ -1666,10 +1707,17 @@ pub fn register_permanent_replacement_abilities(
                         }
                     }
                     // CR 106.12b: Bind the controller PlayerId at registration time.
-                    // Card defs use Specific(PlayerId(0)) as placeholder; resolved here.
-                    ReplacementTrigger::ManaWouldBeProduced { .. } => {
-                        ReplacementTrigger::ManaWouldBeProduced { controller }
-                    }
+                    // Card defs use PlayerId(0) as placeholder; resolved here.
+                    // PB-Q: preserve color_filter and source_filter fields.
+                    ReplacementTrigger::ManaWouldBeProduced {
+                        color_filter,
+                        source_filter,
+                        ..
+                    } => ReplacementTrigger::ManaWouldBeProduced {
+                        controller,
+                        color_filter: color_filter.clone(),
+                        source_filter: source_filter.clone(),
+                    },
                     other => other.clone(),
                 }
             };
