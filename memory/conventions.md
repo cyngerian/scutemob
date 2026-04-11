@@ -50,6 +50,7 @@ fn test_613_10_humility_opalescence() { ... }
 - **Golden test format**: JSON files in `test-data/golden-games/`. Schema in architecture
   doc §6.4.
 - **Property tests**: Use `proptest` crate. Define invariants in `tests/properties/`.
+- **Full-dispatch tests for new `LayerModification` variants**: every new variant added to `LayerModification` MUST ship with at least one test that exercises the full dispatch path — effect application, layer resolution, dispatch-site reads, and a game-state mutation verifying the behavior through `calculate_characteristics` after full layer resolution. Not a direct unit test of the substitution function. Established after PB-S (discriminant 23 was unreachable at runtime, surfaced by a retroactive L2 test that caught 2 HIGH bugs neither plan nor review noticed). Reinforced by PB-X (C1 HIGH — Obelisk's observability-window bug was invisible until `test_obelisk_of_urd_chosen_type_pump` exercised the post-ETB pre-priority characteristics read).
 
 ## Commit Conventions
 

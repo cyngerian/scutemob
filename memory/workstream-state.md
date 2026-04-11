@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-X: A-42 Tier 1 micro-PB (exclusion pump + dynamic P/T + ExileSelf) | ACTIVE | 2026-04-11 | Claimed for PB-X planning → implement; unblocks 6 A-42 Tier 1 cards |
+| W6: Primitive + Card Authoring | — | paused | — | PB-X implement + review + fix DONE 2026-04-11 (6 cards unblocked, 2616 tests); **close phase deferred** (project-status.md + CLAUDE.md updates pending); next: PB-X close, then PB-Q (ChooseColor) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,9 +23,47 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-11 (late — second session of the day)
+**Date**: 2026-04-11 (third session of the day)
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-S implement + review + fix cycle — CLOSED
+**Task**: PB-X plan → implement → review → fix (close phase deferred to next session)
+
+**Completed**:
+- **Plan phase** (Opus planner): `memory/primitives/pb-plan-X.md`. Held scope to 3 primitives, stop-and-flagged on Metallic Mimic (needs 4th primitive → parked as PB-Y), caught that Obelisk of Urd + City on Fire were already authorable (free wins from plan-phase full-chain verification), 5 open questions resolved by oversight before implement green-light.
+- **Implement phase** (Sonnet runner): 3 primitives landed — `EffectFilter::AllCreaturesExcludingSubtype` + `AllCreaturesExcludingChosenSubtype` (disc 32/33), `LayerModification::ModifyBothDynamic { amount, negate: bool }` (disc 25, substituted at `Effect::ApplyContinuousEffect` per CR 608.2h — new variant, not migration; 76 existing ModifyBoth call sites untouched), `Cost::ExileSelf` + `ActivationCost.exile_self: bool` (disc 10, LKI via existing `embedded_effect` plumbing). Hash schema version bumped 1→2. All 6 Tier 1 cards authored fully (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor, Obelisk, City on Fire). Balthor's `ReturnAllFromGraveyardToBattlefield` filter resolved affirmatively — filter supports per-player + color-filtered reanimate, no PB-Z parking needed.
+- **Review phase** (Opus reviewer): 7 findings (1 HIGH, 3 MEDIUM, 3 LOW). C1 HIGH — Obelisk authored `ChooseCreatureType` as `TriggerCondition::WhenEntersBattlefield` instead of `ReplacementTrigger::WouldEnterBattlefield`; violated CR 614.12 and diverged from the in-codebase precedent (Urza's Incubator, Vanquisher's Banner, Morophon, Patchwork Banner, ~10 others). Observable bug: pump inactive during the trigger-resolution window. STOP-AND-FLAGGED to oversight before fix cycle per session discipline.
+- **Fix phase** (Sonnet runner, sequential pass discipline per oversight): Pass 1 — C1 alone, full gates green in isolation (Obelisk rewritten to `AbilityDefinition::Replacement` mirroring Urza's Incubator pattern). Pass 2 — bundled E1 (10 CR citation rewrites: "701.10" → "118.12 + 406 + 602.2c"; 701.10 is actually "Double"), C2 (Balthor activated end-to-end test via `Command::ActivateAbility`), C3 (3 tests: `test_obelisk_of_urd_chosen_type_pump` with anti-C1 observability window shape, `test_city_on_fire_triples_damage`, `test_city_on_fire_does_not_triple_opponent_sources`), E2/E3 LOWs (doc expansion + dead capture cleanup). E4/C4 LOWs skipped per review guidance.
+- **Standing rule established** (oversight): every new `LayerModification` variant must ship with at least one full-dispatch test (not just substitution unit test). Saved in `memory/conventions.md`.
+- **Standing rule established** (oversight): "As ~ enters the battlefield, choose X" is a replacement effect per CR 614.12, NOT a triggered ability. Saved in `memory/gotchas-rules.md`.
+
+**Test count**: 2600 → 2612 (implement, +12) → 2616 (fix, +4). All gates green after each phase.
+
+**Cards unblocked**: 6 A-42 Tier 1 (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor the Defiled, Obelisk of Urd, City on Fire).
+
+**Commits**:
+- `049b6802` — PB-X implement (39 files, +2580 / -62; 3 primitives, 6 cards, 12 tests)
+- `10411bd8` — PB-X review fixes (9 files, +485 / -37; C1 HIGH + 3 MEDIUMs + 2 LOWs, +4 tests)
+
+**Next session** (priority order):
+1. **PB-X close phase**: update `docs/project-status.md` (PB-X → done, review → fixed), `memory/workstream-state.md`, CLAUDE.md Current State (2616 tests, PB-X done), and `memory/primitive-wip.md` (phase → closed). Commit as `W6-prim: PB-X close`.
+2. **PB-Q** (ChooseColor) — next highest-yield primitive. Unblocks 9+ cards. Revised slate order: PB-Q → PB-R (ExchangeZones, ~60 LOC) → PB-T + PB-V (up-to-N targeting + DoubleCounters) → PB-U (trigger extensions) → PB-Y (Metallic Mimic) → PB-W (text-changing).
+3. **PB-Y** (Metallic Mimic — `LayerModification::AddChosenCreatureType`) parked; do NOT schedule ahead of PB-Q (unblocks only 1 card vs PB-Q's 9+).
+
+**Hazards** (carried forward + new):
+- PB-X close phase left undone — remember to update project-status.md, CLAUDE.md, primitive-wip.md before starting PB-Q
+- PB-Y (Metallic Mimic) parked — new deferred micro-PB in the slate
+- Standing rule: "As ~ enters, choose X" = replacement effect per CR 614.12 (see `memory/gotchas-rules.md`)
+- Standing rule: every new LayerModification variant ships with a full-dispatch test (see `memory/conventions.md`)
+- Re-triage / full-chain verification discipline holds: `feedback_verify_full_chain.md`, `feedback_verify_cr_before_implement.md`, `feedback_retriage_verification.md`
+- PB-S-L02..L06 residuals in abilities.rs — opportunistic or batch into W3-LC-residuals micro-PB
+- Simulator mana_solver.rs:35 still reads base chars (PB-S-L01)
+- PB-M deferred items (Isshin, Delney, Elesh Norn opponent ETB suppression, Drivnod activated ability)
+- Complete the Circuit: delayed copy trigger still TODO
+- Forbidden Orchard: TargetPlayer → TargetOpponent (deferred to M10)
+- Heritage Druid `TapNCreatures` cost — cost-framework PB, not scheduled
+
+**Commit prefix**: `W6-prim:`
+
+### 2026-04-11 (second session) — W6: PB-S implement + review + fix cycle CLOSED
 
 **Completed** (continuation of earlier PB-S plan session):
 - **Implement phase** (runner stop-and-flagged on face-down test expectation; oversight verified CR 708.2, flipped test to "inherits", runner resumed): 2 new LayerModification variants (AddManaAbility + AddActivatedAbility), Layer 6 append semantics, ~80 LOC engine + 5 card defs + 2 TODO updates + 10 tests. Closed W3-LC deferred item in `handle_tap_for_mana` (mana.rs now reads calculated chars).
@@ -151,15 +189,3 @@ Crippling Fear, Metallic Mimic, Obelisk of Urd, City on Fire, Eyeblight Massacre
 
 ### 2026-04-09 — W6: PB-A + PB-B + PB-E
 - PB-A: play from top of library. PB-B: play from graveyard. PB-E: mana doubling. 2575 tests.
-
-### 2026-04-07 — W6: PB-A + PB-H + PB-L
-- PB-A: play from top of library. PB-H: mass reanimate. PB-L: reveal/X effects. 2549 tests.
-
-### 2026-04-06 — W6: PB-C + PB-F + PB-I
-- PB-C: ExtraTurn + self_exile/self_shuffle. PB-F: TripleDamage, DamageTargetFilter. PB-I: FlashGrant, OpponentsCanOnlyCastAtSorcerySpeed. 2504 tests.
-
-### 2026-04-04 — W6: PB-K + PB-D
-- PB-K: land drops, Case mechanic. PB-D: chosen creature type, 8 fixes. 2474 tests.
-
-### 2026-04-02 — W6: PB-N + PB-G
-- PB-N: 19 misc card defs. PB-G: BounceAll + TargetFilter extensions + 4 cards. 2445 tests.

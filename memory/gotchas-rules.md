@@ -110,6 +110,8 @@
   printed ability that gets removed. The article states no more counters are added under Blood
   Moon, but verify against CR 714 before implementing.
 
+- **"As ~ enters the battlefield, [choose X / it becomes Y]" is a REPLACEMENT effect, not a triggered ability (CR 614.12).** PB-X C1 bug: Obelisk of Urd was authored as `AbilityDefinition::Triggered { trigger_condition: WhenEntersBattlefield, effect: ChooseCreatureType }`. This is wrong. The choice must resolve atomically with ETB, before any priority window and before any other ETB trigger sees the permanent's battlefield state. Authoring as a trigger leaves the permanent on the battlefield with `chosen_creature_type = None` during the trigger-resolution window; the pump is inactive then, and responses at that point violate CR 614.12. Correct form: `AbilityDefinition::Replacement { trigger: WouldEnterBattlefield, modification: ChooseCreatureType(default), is_self: true }`. In-codebase templates: Urza's Incubator, Vanquisher's Banner, Morophon, Cavern of Souls, Patchwork Banner, Heralds' Horn. When authoring any "As this enters, ..." card, grep one of these first.
+
 ---
 
 ## Top-10 Corner Cases

@@ -236,7 +236,7 @@ These groups are too heterogeneous to author blindly. Before starting each group
 3. Author the safe cards; flag blocked cards for Wave C or X-2
 
 - [x] **A-38**: modal-choice — 53/105 authored (48 BLOCKED on play-from-top, pitch-alt-cost, copy-target-spell, grant-flash, mana-doubling, extra-turn, gain-control)
-- [ ] **A-42**: other — 77/131 authored (~54 BLOCKED). Continue authoring safe cards first.
+- [ ] **A-42**: other — 83/131 authored (~48 BLOCKED). PB-X unblocked 6 Tier 1 cards (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor the Defiled, Obelisk of Urd, City on Fire) 2026-04-11. Metallic Mimic parked as PB-Y (AddChosenCreatureType). Heritage Druid parked on cost-framework PB (TapNCreatures).
 
 **Engine review checkpoint**: DONE 2026-04-01 — CLEAN (zero engine changes, all 130 files
 were pure card defs).
