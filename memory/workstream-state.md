@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | paused | — | PB-X implement + review + fix DONE 2026-04-11 (6 cards unblocked, 2616 tests); **close phase deferred** (project-status.md + CLAUDE.md updates pending); next: PB-X close, then PB-Q (ChooseColor) |
+| W6: Primitive + Card Authoring | PB-X close + PB-Q plan | ACTIVE | 2026-04-11 | PB-X CLOSED (tracking files updated). Next in session: PB-Q (ChooseColor) plan phase via `/implement-primitive` |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

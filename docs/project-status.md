@@ -60,7 +60,7 @@
 | PB-J | Copy/redirect spells | done | 3 | ~0 | fixed | 1 |
 | PB-M | Panharmonicon trigger doubling | done | 4 | ~0 | fixed | 1 |
 | PB-S | GrantActivatedAbility | done | 5 | ~0 | fixed | 1 |
-| PB-X | A-42 Tier 1 micro-PB (exclusion pump + dynamic P/T + ExileSelf) | planned | 0 | ~6 | — | 0 |
+| PB-X | A-42 Tier 1 micro-PB (exclusion pump + dynamic P/T + ExileSelf) | done | 6 | 0 | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -124,7 +124,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2589 |
+| Total tests | 2616 |
 | Test files | 216 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

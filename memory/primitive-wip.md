@@ -4,7 +4,7 @@ batch: PB-X
 title: Exclusion pump filter + dynamic P/T in LayerModification + Cost::ExileSelf
 cards_unblocked: 6 of 8 A-42 Tier 1 (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor the Defiled, Obelisk of Urd, City on Fire). Metallic Mimic deferred (needs 4th primitive — `LayerModification::AddChosenCreatureType`). Heritage Druid out of scope (TapNCreatures cost framework).
 started: 2026-04-11
-phase: fix-complete (awaiting oversight commit)
+phase: closed
 plan_file: memory/primitives/pb-plan-X.md (DONE)
 review_file: memory/primitives/pb-review-X.md (DONE)
 
