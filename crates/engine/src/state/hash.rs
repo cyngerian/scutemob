@@ -1994,7 +1994,7 @@ impl HashInto for ActivationCost {
         self.forage.hash_into(hasher);
         self.sacrifice_filter.hash_into(hasher);
         self.remove_counter_cost.hash_into(hasher);
-        // CR 701.10 / CR 602.2: exile_self field — PB-X (field 9 of 9).
+        // CR 118.12 + CR 406 + CR 602.2c: exile_self field — PB-X (field 9 of 9).
         // Must be present or two ActivationCosts differing only in exile_self
         // would produce identical hashes (PB-S H1 failure mode).
         self.exile_self.hash_into(hasher);
@@ -4682,7 +4682,7 @@ impl HashInto for Cost {
                 counter.hash_into(hasher);
                 count.hash_into(hasher);
             }
-            // CR 701.10 / CR 602.2: Exile self as activation cost — discriminant 10
+            // CR 118.12 + CR 406 + CR 602.2c: Exile self as activation cost — discriminant 10
             Cost::ExileSelf => 10u8.hash_into(hasher),
         }
     }

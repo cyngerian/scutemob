@@ -1062,7 +1062,7 @@ pub enum Cost {
     Tap,
     /// Sacrifice this permanent (CR 602.2).
     SacrificeSelf,
-    /// Exile this permanent as a cost (CR 701.10, CR 602.2).
+    /// Exile this permanent as a cost (CR 118.12 + CR 406 + CR 602.2c).
     ///
     /// Used for activated abilities like Balthor the Defiled's "{B}{B}{B}, Exile Balthor: ..."
     ///

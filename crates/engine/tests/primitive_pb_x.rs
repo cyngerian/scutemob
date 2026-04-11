@@ -7,17 +7,20 @@
 //! - `LayerModification::ModifyBothDynamic { amount, negate }` — dynamic -X/-X resolved once
 //!   at spell resolution (CR 608.2h)
 //! - `Cost::ExileSelf` + `ActivationCost.exile_self` — "exile this permanent as a cost"
-//!   (CR 701.10, CR 602.2)
+//!   (CR 118.12 + CR 406 + CR 602.2c)
 //!
 //! Card integrations: Eyeblight Massacre, Crippling Fear, Olivia's Wrath, Balthor the Defiled.
 
+use mtg_engine::rules::replacement::{
+    apply_damage_doubling, register_permanent_replacement_abilities,
+};
 use mtg_engine::state::game_object::ActivatedAbility;
 use mtg_engine::state::ActivationCost;
 use mtg_engine::{
-    calculate_characteristics, process_command, CardId, CardRegistry, CardType, Command,
+    calculate_characteristics, process_command, CardId, CardRegistry, CardType, Color, Command,
     ContinuousEffect, Effect, EffectAmount, EffectDuration, EffectFilter, EffectId, EffectLayer,
     GameEvent, GameState, GameStateBuilder, LayerModification, ManaCost, ManaPool, ObjectId,
-    ObjectSpec, PlayerId, PlayerTarget, Step, SubType, ZoneId,
+    ObjectSpec, PlayerId, PlayerTarget, Step, SubType, TargetFilter, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -731,7 +734,7 @@ fn test_modify_both_dynamic_zero_vampires() {
 
 // ── Primitive #3: Cost::ExileSelf ────────────────────────────────────────────
 
-/// CR 701.10 / CR 602.2c — ExileSelf cost moves source to exile at activation time.
+/// CR 118.12 + CR 406 + CR 602.2c — ExileSelf cost moves source to exile at activation time.
 /// After activation (before resolution), the source should be in exile.
 #[test]
 fn test_exile_self_cost_moves_source_to_exile() {
@@ -790,7 +793,7 @@ fn test_exile_self_cost_moves_source_to_exile() {
     let exiled = find_object_in_zone(&state, "Exile Stone", ZoneId::Exile);
     assert!(
         exiled.is_some(),
-        "CR 701.10: source must be in exile after exile-self cost payment"
+        "CR 118.12 + CR 406 + CR 602.2c: source must be in exile after exile-self cost payment"
     );
 
     // Source is NOT on the battlefield anymore
@@ -805,7 +808,7 @@ fn test_exile_self_cost_moves_source_to_exile() {
         events
             .iter()
             .any(|e| matches!(e, GameEvent::ObjectExiled { player, .. } if *player == p1)),
-        "CR 701.10: ObjectExiled event must be emitted when exile-self cost is paid"
+        "CR 118.12 + CR 406 + CR 602.2c: ObjectExiled event must be emitted when exile-self cost is paid"
     );
 
     // Ability is on the stack (not yet resolved)
@@ -1104,4 +1107,428 @@ fn test_balthor_static_minion_pump() {
     let balthor_chars = calculate_characteristics(&state, balthor_id).unwrap();
     assert_eq!(balthor_chars.power, Some(2), "Balthor: 2/2 base");
     assert_eq!(balthor_chars.toughness, Some(2), "Balthor: 2/2 base");
+}
+
+// ── Balthor End-to-End Integration ────────────────────────────────────────────
+
+/// CR 118.12 + CR 406 + CR 602.2c — Balthor activated ability: exile Balthor as cost,
+/// return all black and red creatures from each player's graveyard to the battlefield.
+///
+/// Setup:
+/// - Balthor on the battlefield under P1 (abilities injected via with_activated_ability)
+/// - P1 graveyard: 1 black creature, 1 red creature
+/// - P2 graveyard: 1 black creature, 1 green creature (green must stay)
+/// - Activate {B}{B}{B} + ExileSelf
+///
+/// Assertions:
+/// (a) Balthor ends up in exile, NOT graveyard
+/// (b) All black/red creatures (P1 and P2) are on the battlefield
+/// (c) The green creature remains in P2's graveyard
+#[test]
+fn test_balthor_activated_reanimates_black_and_red() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Build Balthor with the exact same activated ability from the card def
+    let balthor = ObjectSpec::creature(p1, "Balthor the Defiled", 2, 2)
+        .with_card_id(CardId("balthor-the-defiled".to_string()))
+        .with_subtypes(vec![SubType("Zombie".to_string()), SubType("Dwarf".to_string())])
+        .in_zone(ZoneId::Battlefield)
+        .with_activated_ability(ActivatedAbility {
+            targets: vec![],
+            cost: ActivationCost {
+                mana_cost: Some(ManaCost {
+                    black: 3,
+                    ..Default::default()
+                }),
+                exile_self: true,
+                ..Default::default()
+            },
+            description: "{B}{B}{B}, Exile Balthor the Defiled: Each player returns all black and all red creature cards from their graveyard to the battlefield.".to_string(),
+            effect: Some(Effect::ReturnAllFromGraveyardToBattlefield {
+                graveyards: PlayerTarget::EachPlayer,
+                filter: TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    colors: Some(
+                        [Color::Black, Color::Red].into_iter().collect(),
+                    ),
+                    ..Default::default()
+                },
+                tapped: false,
+                controller_override: None,
+                unique_names: false,
+                permanent_cards_only: false,
+            }),
+            sorcery_speed: false,
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        });
+
+    // Creatures in graveyards — set their colors so the filter works
+    let p1_black = ObjectSpec::creature(p1, "P1 Black Zombie", 2, 2)
+        .with_subtypes(vec![SubType("Zombie".to_string())])
+        .with_colors(vec![Color::Black])
+        .in_zone(ZoneId::Graveyard(p1));
+    let p1_red = ObjectSpec::creature(p1, "P1 Red Dragon", 3, 3)
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_colors(vec![Color::Red])
+        .in_zone(ZoneId::Graveyard(p1));
+    let p2_black = ObjectSpec::creature(p2, "P2 Black Vampire", 2, 2)
+        .with_subtypes(vec![SubType("Vampire".to_string())])
+        .with_colors(vec![Color::Black])
+        .in_zone(ZoneId::Graveyard(p2));
+    let p2_green = ObjectSpec::creature(p2, "P2 Green Elf", 1, 1)
+        .with_subtypes(vec![SubType("Elf".to_string())])
+        .with_colors(vec![Color::Green])
+        .in_zone(ZoneId::Graveyard(p2));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p(3))
+        .add_player(p(4))
+        .object(balthor)
+        .object(p1_black)
+        .object(p1_red)
+        .object(p2_black)
+        .object(p2_green)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .player_mana(
+            p1,
+            ManaPool {
+                black: 3,
+                ..Default::default()
+            },
+        )
+        .build()
+        .unwrap();
+
+    let balthor_id = find_object(&state, "Balthor the Defiled");
+
+    // Activate Balthor's ability (index 0 — the only activated ability)
+    let (state, events) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: balthor_id,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+        },
+    )
+    .expect("Balthor activation should succeed");
+
+    // ExileSelf: Balthor should be in exile, not graveyard, immediately after activation
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ObjectExiled { player, .. } if *player == p1)),
+        "CR 118.12 + CR 406: ObjectExiled event must be emitted"
+    );
+
+    // Resolve the ability: pass priority through all players
+    let (state, _) = pass_all(state, &[p1, p2, p(3), p(4)]);
+
+    // (a) Balthor is in exile, NOT graveyard
+    let balthor_in_exile = find_object_in_zone(&state, "Balthor the Defiled", ZoneId::Exile);
+    assert!(
+        balthor_in_exile.is_some(),
+        "(a) Balthor must be in exile after ExileSelf activation"
+    );
+    let balthor_in_gy = find_object_in_zone(&state, "Balthor the Defiled", ZoneId::Graveyard(p1));
+    assert!(
+        balthor_in_gy.is_none(),
+        "(a) Balthor must NOT be in graveyard"
+    );
+
+    // (b) Black and red creatures are on the battlefield
+    let p1_black_bf = find_object_in_zone(&state, "P1 Black Zombie", ZoneId::Battlefield);
+    assert!(
+        p1_black_bf.is_some(),
+        "(b) P1 black creature must be on battlefield after reanimate"
+    );
+    let p1_red_bf = find_object_in_zone(&state, "P1 Red Dragon", ZoneId::Battlefield);
+    assert!(
+        p1_red_bf.is_some(),
+        "(b) P1 red creature must be on battlefield after reanimate"
+    );
+    let p2_black_bf = find_object_in_zone(&state, "P2 Black Vampire", ZoneId::Battlefield);
+    assert!(
+        p2_black_bf.is_some(),
+        "(b) P2 black creature must be on battlefield after reanimate"
+    );
+
+    // (c) Green creature remains in P2's graveyard
+    let p2_green_bf = find_object_in_zone(&state, "P2 Green Elf", ZoneId::Battlefield);
+    assert!(
+        p2_green_bf.is_none(),
+        "(c) P2 green creature must NOT be on battlefield"
+    );
+    let p2_green_gy = find_object_in_zone(&state, "P2 Green Elf", ZoneId::Graveyard(p2));
+    assert!(
+        p2_green_gy.is_some(),
+        "(c) P2 green creature must remain in graveyard"
+    );
+}
+
+// ── Obelisk of Urd Integration ────────────────────────────────────────────────
+
+/// CR 614.1c — Obelisk of Urd: "As this enters, choose a creature type."
+/// Chosen type is set via Replacement (not Triggered), so the static +2/+2 anthem
+/// is immediately active after Obelisk enters — chosen_creature_type is NOT deferred.
+///
+/// **Observability window test** (anti-C1 regression):
+/// - Humans and Goblins are on battlefield before Obelisk enters.
+/// - Cast Obelisk via registry path.
+/// - After resolution (stack empty), assert that:
+///   (1) Humans get +2/+2 immediately (Replacement form set chosen_creature_type before anthem registered)
+///   (2) Goblins are NOT pumped
+///
+/// If the choice were deferred to trigger resolution (the C1 bug), chosen_creature_type
+/// would be None at the anthem-registration point, and power would still show base 1/1.
+#[test]
+fn test_obelisk_of_urd_chosen_type_pump() {
+    let p1 = p(1);
+    let registry = CardRegistry::new(vec![mtg_engine::cards::defs::obelisk_of_urd::card()]);
+
+    // Two Humans (more common, so Replacement picks Human deterministically)
+    let human1 = ObjectSpec::creature(p1, "Human Soldier 1", 1, 1)
+        .with_subtypes(vec![SubType("Human".to_string())])
+        .in_zone(ZoneId::Battlefield);
+    let human2 = ObjectSpec::creature(p1, "Human Soldier 2", 1, 1)
+        .with_subtypes(vec![SubType("Human".to_string())])
+        .in_zone(ZoneId::Battlefield);
+    let goblin = ObjectSpec::creature(p1, "Goblin Ruffian", 1, 1)
+        .with_subtypes(vec![SubType("Goblin".to_string())])
+        .in_zone(ZoneId::Battlefield);
+
+    // Obelisk costs {6}: give player 6 generic mana
+    let obelisk_spec = ObjectSpec::card(p1, "Obelisk of Urd")
+        .with_card_id(CardId("obelisk-of-urd".to_string()))
+        .with_types(vec![CardType::Artifact])
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .add_player(p(3))
+        .add_player(p(4))
+        .with_registry(registry)
+        .object(human1)
+        .object(human2)
+        .object(goblin)
+        .object(obelisk_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .player_mana(
+            p1,
+            ManaPool {
+                // Obelisk of Urd costs {6} — pay with 6 colorless (white+blue+black+red+green+2 colorless)
+                white: 1,
+                blue: 1,
+                black: 1,
+                red: 1,
+                green: 1,
+                colorless: 1,
+                ..Default::default()
+            },
+        )
+        .build()
+        .unwrap();
+
+    let obelisk_id = find_object(&state, "Obelisk of Urd");
+
+    // Cast Obelisk of Urd
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: obelisk_id,
+            targets: vec![],
+            alt_cost: None,
+            additional_costs: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            x_value: 0,
+            modes_chosen: vec![],
+            kicker_times: 0,
+            prototype: false,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+            face_down_kind: None,
+        },
+    )
+    .expect("cast Obelisk of Urd");
+
+    // Resolve: pass priority for all players (Obelisk resolves, enters battlefield)
+    let (state, _) = pass_all(state, &[p1, p(2), p(3), p(4)]);
+
+    // After resolution, Obelisk is on the battlefield with chosen_creature_type set (Replacement)
+    // The static anthem immediately applies. Verify immediately — before any further priority pass.
+
+    // Find the humans and goblin on the battlefield (they were already there)
+    let h1_id = find_object(&state, "Human Soldier 1");
+    let h2_id = find_object(&state, "Human Soldier 2");
+    let g_id = find_object(&state, "Goblin Ruffian");
+
+    let h1_chars = calculate_characteristics(&state, h1_id).unwrap();
+    let h2_chars = calculate_characteristics(&state, h2_id).unwrap();
+    let g_chars = calculate_characteristics(&state, g_id).unwrap();
+
+    // Humans (chosen type) get +2/+2 immediately — CR 614.1c Replacement sets type at ETB
+    assert_eq!(
+        h1_chars.power,
+        Some(3),
+        "Human 1 must get +2 power immediately after Obelisk enters (anti-C1 regression)"
+    );
+    assert_eq!(
+        h1_chars.toughness,
+        Some(3),
+        "Human 1 must get +2 toughness immediately"
+    );
+    assert_eq!(
+        h2_chars.power,
+        Some(3),
+        "Human 2 must get +2 power immediately"
+    );
+
+    // Goblin is NOT of the chosen type — unchanged
+    assert_eq!(
+        g_chars.power,
+        Some(1),
+        "Goblin must NOT be pumped by Obelisk of Urd (wrong creature type)"
+    );
+    assert_eq!(
+        g_chars.toughness,
+        Some(1),
+        "Goblin toughness must be unchanged"
+    );
+}
+
+// ── City on Fire Integration ──────────────────────────────────────────────────
+
+/// CR 614.1 — City on Fire: "If a source you control would deal damage to a permanent
+/// or player, it deals triple that damage instead."
+///
+/// A creature with power 2 deals combat damage; player B should receive 6 (2 × 3).
+/// Uses apply_damage_doubling (which handles both Double and Triple replacements).
+///
+/// CR 616.1 stacking note: Multiple self-replacement effects from the same player's
+/// permanents are ordered by the affected player (or controller for damage-source
+/// replacements). City on Fire (×3) + Angrath's Marauders (×2) → 2 × 3 × 2 = 12
+/// or 2 × 2 × 3 = 12. Order is irrelevant for multiplication; both orderings give
+/// the same result. Cite CR 616.1 / CR 701.10g.
+#[test]
+fn test_city_on_fire_triples_damage() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![mtg_engine::cards::defs::city_on_fire::card()]);
+
+    // City on Fire on P1's battlefield
+    let city_spec = ObjectSpec::card(p1, "City on Fire")
+        .with_card_id(CardId("city-on-fire".to_string()))
+        .with_types(vec![CardType::Enchantment])
+        .in_zone(ZoneId::Battlefield);
+
+    // P1's creature (power 2) — the damage source
+    let attacker = ObjectSpec::creature(p1, "Attacker", 2, 2).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p(3))
+        .add_player(p(4))
+        .with_registry(registry)
+        .object(city_spec)
+        .object(attacker)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    // Register City on Fire's replacement ability
+    let city_id = find_object(&state, "City on Fire");
+    let registry = state.card_registry.clone();
+    register_permanent_replacement_abilities(
+        &mut state,
+        city_id,
+        p1,
+        Some(&CardId("city-on-fire".to_string())).as_ref().copied(),
+        &registry,
+    );
+
+    let attacker_id = find_object(&state, "Attacker");
+
+    // CR 614.1a: City on Fire triples damage from P1's sources
+    let (tripled, events) = apply_damage_doubling(&state, attacker_id, 2, None);
+    assert_eq!(
+        tripled, 6,
+        "CR 614.1 / CR 701.10g: City on Fire must triple 2 → 6"
+    );
+    assert!(
+        !events.is_empty(),
+        "ReplacementEffectApplied event must be emitted"
+    );
+
+    // CR 616.1 / CR 701.10g: Doc note — City on Fire (×3) + a DoubleDamage effect (×2)
+    // stacks multiplicatively: 2 × 3 × 2 = 12 (order-independent for multiplication).
+    // Full stacking test is covered by damage_multiplier.rs test_double_and_triple_stack.
+}
+
+/// CR 614.1 — City on Fire does NOT triple damage from opponents' sources.
+#[test]
+fn test_city_on_fire_does_not_triple_opponent_sources() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![mtg_engine::cards::defs::city_on_fire::card()]);
+
+    let city_spec = ObjectSpec::card(p1, "City on Fire")
+        .with_card_id(CardId("city-on-fire".to_string()))
+        .with_types(vec![CardType::Enchantment])
+        .in_zone(ZoneId::Battlefield);
+
+    let opp_creature = ObjectSpec::creature(p2, "Opp Creature", 3, 3).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p(3))
+        .add_player(p(4))
+        .with_registry(registry)
+        .object(city_spec)
+        .object(opp_creature)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let city_id = find_object(&state, "City on Fire");
+    let registry2 = state.card_registry.clone();
+    register_permanent_replacement_abilities(
+        &mut state,
+        city_id,
+        p1,
+        Some(&CardId("city-on-fire".to_string())).as_ref().copied(),
+        &registry2,
+    );
+
+    let opp_id = find_object(&state, "Opp Creature");
+
+    // Opponent's source — not tripled by P1's City on Fire
+    let (damage, events) = apply_damage_doubling(&state, opp_id, 3, None);
+    assert_eq!(
+        damage, 3,
+        "CR 614.1: City on Fire must NOT triple opponent sources"
+    );
+    assert!(
+        events.is_empty(),
+        "No replacement event for opponent sources"
+    );
 }

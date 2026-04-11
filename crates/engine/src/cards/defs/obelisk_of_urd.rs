@@ -13,15 +13,19 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 702.51: Convoke — creatures you control can help pay the mana cost.
             AbilityDefinition::Keyword(KeywordAbility::Convoke),
-            // CR 603.3 / ETB: "As this artifact enters, choose a creature type."
-            // Effect::ChooseCreatureType stores the choice on obj.chosen_creature_type.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::ChooseCreatureType { default: SubType("Human".to_string()) },
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
+            // "As this artifact enters, choose a creature type" — self-replacement (CR 614.1c).
+            // Must be a Replacement (not Triggered) so chosen_creature_type is set on the
+            // permanent before it fully enters the battlefield. This ensures the static anthem
+            // below is active immediately — with a Triggered form, the choice would be deferred
+            // to trigger-resolution, leaving chosen_creature_type=None during the ETB window.
+            // Pattern mirrors Urza's Incubator, Vanquisher's Banner, Morophon (all use Replacement).
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                is_self: true,
+                unless_condition: None,
             },
             // CR 613.1c / Layer 7c: Static "+2/+2 to creatures you control of the chosen type."
             // EffectFilter::CreaturesYouControlOfChosenType reads chosen_creature_type from

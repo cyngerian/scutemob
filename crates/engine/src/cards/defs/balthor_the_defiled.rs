@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // CR 602.2 / CR 701.10: {B}{B}{B}, Exile Balthor — activated ability.
+            // CR 118.12 + CR 406 + CR 602.2c: {B}{B}{B}, Exile Balthor — activated ability.
             // Cost::ExileSelf moves the source to exile before the ability resolves.
             // LKI: the effect is captured into embedded_effect in abilities.rs before exile,
             // so resolution succeeds even though the source is gone.

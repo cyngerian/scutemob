@@ -365,12 +365,20 @@ pub enum LayerModification {
     /// DSL placeholder: dynamic +X/+X (or -X/-X) where X is an `EffectAmount`
     /// resolved at `Effect::ApplyContinuousEffect` execution time (CR 608.2h).
     ///
-    /// Substituted into `ModifyBoth(resolved_value)` before the `ContinuousEffect`
-    /// is stored, so layer-application code never sees this variant directly.
+    /// CR 608.2h: "If an effect refers to a specific value of X, the value is
+    /// determined when the effect is created and remains that value regardless of
+    /// what X would be for the source." This variant must be substituted into a
+    /// concrete `ModifyBoth(resolved_value)` at `Effect::ApplyContinuousEffect`
+    /// execution time — it must NEVER appear in a stored `ContinuousEffect`. If
+    /// this variant is seen by layer-application code it means the substitution
+    /// was skipped (a bug).
     ///
     /// Used for "creatures get -X/-X where X is the number of Vampires you control"
     /// (Olivia's Wrath). `negate=true` produces `-X` from a non-negative amount;
     /// `negate=false` produces `+X`. Boxed to avoid `large_enum_variant` clippy warnings.
+    ///
+    /// Mirrors `AllCreaturesExcludingChosenSubtype` (EffectFilter): both are DSL
+    /// placeholders that must be substituted at `ApplyContinuousEffect` time.
     ModifyBothDynamic {
         amount: Box<crate::cards::card_definition::EffectAmount>,
         negate: bool,

@@ -4,8 +4,28 @@ batch: PB-X
 title: Exclusion pump filter + dynamic P/T in LayerModification + Cost::ExileSelf
 cards_unblocked: 6 of 8 A-42 Tier 1 (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor the Defiled, Obelisk of Urd, City on Fire). Metallic Mimic deferred (needs 4th primitive — `LayerModification::AddChosenCreatureType`). Heritage Druid out of scope (TapNCreatures cost framework).
 started: 2026-04-11
-phase: review
+phase: fix-complete (awaiting oversight commit)
 plan_file: memory/primitives/pb-plan-X.md (DONE)
+review_file: memory/primitives/pb-review-X.md (DONE)
+
+## Review (2026-04-11)
+findings: 7 (HIGH: 1, MEDIUM: 3, LOW: 3)
+verdict: needs-fix
+- **C1 HIGH**: FIXED 2026-04-11. `obelisk_of_urd.rs` — rewrote "As this enters, choose a creature type" from `AbilityDefinition::Triggered` to `AbilityDefinition::Replacement { trigger: WouldEnterBattlefield, modification: ChooseCreatureType(...), is_self: true }`. Mirrors Urza's Incubator / Vanquisher's Banner / Morophon pattern exactly.
+- **E1 MEDIUM**: FIXED 2026-04-11. Replaced all 6 "CR 701.10" citations with "CR 118.12 + CR 406 + CR 602.2c" (abilities.rs, card_definition.rs, hash.rs ×2, game_object.rs, balthor_the_defiled.rs). Also fixed 4 citations in primitive_pb_x.rs test file.
+- **C2 MEDIUM**: FIXED 2026-04-11. Added `test_balthor_activated_reanimates_black_and_red` to primitive_pb_x.rs — activates via `Command::ActivateAbility` with ExileSelf, verifies (a) Balthor in exile, (b) black+red creatures on battlefield, (c) green creature stays in graveyard.
+- **C3 MEDIUM**: FIXED 2026-04-11. Added `test_obelisk_of_urd_chosen_type_pump` (anti-C1 observability window test — Humans get +2/+2 immediately, Goblins unchanged), `test_city_on_fire_triples_damage` (2→6 via apply_damage_doubling), `test_city_on_fire_does_not_triple_opponent_sources` (opponent sources unchanged).
+- **E2 LOW**: FIXED 2026-04-11. Expanded `ModifyBothDynamic` doc in continuous_effect.rs to cite CR 608.2h explicitly and state substitution invariant.
+- **E3 LOW**: FIXED 2026-04-11. Simplified `exile_self` block in abilities.rs:636-643 — dropped dead `pre_exile_counters`/`is_creature` captures and `let _ = (...)` discard.
+- **E4 LOW**: SKIPPED (review marked optional/low priority; no real dispatch path to defend).
+- **C4 LOW**: SKIPPED (review: no fix required).
+- **Positives**: ModifyBothDynamic locked-at-resolution test is model full-dispatch test; ActivationCost hash field-count audit correct (9/9); schema version sentinel correctly bumped to 2; Balthor filter resolved affirmatively (plan open question 4).
+
+## Fix Gates (2026-04-11)
+- cargo test --all: ALL PASS (16 tests in primitive_pb_x.rs, no failures in workspace)
+- cargo clippy --workspace -- -D warnings: CLEAN (0 warnings)
+- cargo build --workspace: CLEAN (replay-viewer + TUI build)
+- cargo fmt --check: CLEAN
 
 ## Scope (from a42-retriage-2026-04-10.md + 2026-04-11 reclassification)
 
