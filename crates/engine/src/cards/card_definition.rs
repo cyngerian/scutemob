@@ -1062,6 +1062,15 @@ pub enum Cost {
     Tap,
     /// Sacrifice this permanent (CR 602.2).
     SacrificeSelf,
+    /// Exile this permanent as a cost (CR 701.10, CR 602.2).
+    ///
+    /// Used for activated abilities like Balthor the Defiled's "{B}{B}{B}, Exile Balthor: ..."
+    ///
+    /// LKI behavior: the ability's effect is captured into `embedded_effect` on the stack
+    /// object before the source is moved to exile, mirroring the `SacrificeSelf` plumbing
+    /// in `rules/abilities.rs`. Resolution falls back to the embedded effect when
+    /// `state.objects.get(source)` returns None.
+    ExileSelf,
     /// Sacrifice another permanent matching the filter (CR 602.2).
     Sacrifice(TargetFilter),
     /// Pay N life (CR 119).
@@ -2994,6 +3003,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -3042,6 +3052,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -3093,6 +3104,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

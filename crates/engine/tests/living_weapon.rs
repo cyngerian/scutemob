@@ -85,6 +85,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
             forage: false,
             sacrifice_filter: None,
             remove_counter_cost: None,
+            exile_self: false,
         },
         description: format!("Equip {{{}}}", generic_mana),
         effect: Some(Effect::AttachEquipment {

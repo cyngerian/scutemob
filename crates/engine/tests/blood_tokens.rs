@@ -74,6 +74,7 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

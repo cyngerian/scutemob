@@ -245,6 +245,11 @@ pub struct ActivationCost {
     /// E.g., "Remove a charge counter: ..." = `Some((CounterType::Charge, 1))`.
     #[serde(default)]
     pub remove_counter_cost: Option<(crate::state::types::CounterType, u32)>,
+    /// CR 701.10 / CR 602.2: True if activating this ability requires exiling the
+    /// source permanent as a cost. Mirrors `sacrifice_self`; differs only in the
+    /// destination zone and the emitted event.
+    #[serde(default)]
+    pub exile_self: bool,
 }
 /// A non-mana activated ability that uses the stack (CR 602).
 ///

@@ -76,6 +76,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

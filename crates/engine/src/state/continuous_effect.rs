@@ -216,6 +216,24 @@ pub enum EffectFilter {
     ///
     /// Used for "Other creatures you control of the chosen type get +1/+1" (Morophon).
     OtherCreaturesYouControlOfChosenType,
+    /// Applies to all creature permanents on the battlefield (any controller) that
+    /// do NOT have the specified subtype.
+    ///
+    /// Used for "Non-Elf creatures get -2/-2" (Eyeblight Massacre), "non-Vampire
+    /// creatures" (Olivia's Wrath after dynamic-amount substitution).
+    /// CR 613.1f: evaluates against layer-resolved subtypes.
+    AllCreaturesExcludingSubtype(SubType),
+    /// DSL placeholder: "creatures that aren't of the chosen type" — substituted
+    /// at `Effect::ApplyContinuousEffect` execution time into
+    /// `AllCreaturesExcludingSubtype(ctx.chosen_creature_type)`.
+    ///
+    /// Used for "Choose a creature type. Creatures that aren't of the chosen type
+    /// get -3/-3" (Crippling Fear).
+    ///
+    /// Note: this variant should never appear in a stored `ContinuousEffect`. It
+    /// only exists in `ContinuousEffectDef` literals on card definitions and is
+    /// substituted before storage. Layer code does not handle it.
+    AllCreaturesExcludingChosenSubtype,
 }
 /// What a continuous effect does when applied.
 ///
@@ -344,6 +362,19 @@ pub enum LayerModification {
     ModifyToughness(i32),
     /// Adds equally to both power and toughness (e.g., "+2/+2" effects).
     ModifyBoth(i32),
+    /// DSL placeholder: dynamic +X/+X (or -X/-X) where X is an `EffectAmount`
+    /// resolved at `Effect::ApplyContinuousEffect` execution time (CR 608.2h).
+    ///
+    /// Substituted into `ModifyBoth(resolved_value)` before the `ContinuousEffect`
+    /// is stored, so layer-application code never sees this variant directly.
+    ///
+    /// Used for "creatures get -X/-X where X is the number of Vampires you control"
+    /// (Olivia's Wrath). `negate=true` produces `-X` from a non-negative amount;
+    /// `negate=false` produces `+X`. Boxed to avoid `large_enum_variant` clippy warnings.
+    ModifyBothDynamic {
+        amount: Box<crate::cards::card_definition::EffectAmount>,
+        negate: bool,
+    },
     // --- Layer 7d: P/T-switching ---
     /// Switches power and toughness values (e.g., Inside Out, Behind the Scenes).
     SwitchPowerToughness,

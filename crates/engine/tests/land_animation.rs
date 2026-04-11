@@ -50,6 +50,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: format!(
                 "{{1}}: Becomes a {power}/{toughness} creature with flying until EOT"

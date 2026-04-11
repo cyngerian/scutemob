@@ -74,6 +74,7 @@ fn food_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: None,
+                exile_self: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {

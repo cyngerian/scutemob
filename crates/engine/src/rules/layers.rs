@@ -925,6 +925,22 @@ fn effect_applies_to(
         }
         // CR 205.3m: Other creatures you control of the chosen type (EXCLUDING source).
         // Used for Morophon's "+1/+1 to other creatures of the chosen type".
+        // CR 613.1f: "Non-[Subtype] creatures" — all creatures (any controller) that
+        // do NOT have the specified subtype. Used for Eyeblight Massacre, Olivia's Wrath.
+        EffectFilter::AllCreaturesExcludingSubtype(subtype) => {
+            obj_zone == ZoneId::Battlefield
+                && chars.card_types.contains(&CardType::Creature)
+                && !chars.subtypes.contains(subtype)
+        }
+        // CR 608.2h: this placeholder must be substituted at Effect::ApplyContinuousEffect
+        // execution time (effects/mod.rs). Reaching it during layer application is a bug.
+        EffectFilter::AllCreaturesExcludingChosenSubtype => {
+            debug_assert!(
+                false,
+                "AllCreaturesExcludingChosenSubtype must be substituted before storage into ContinuousEffect"
+            );
+            false
+        }
         EffectFilter::OtherCreaturesYouControlOfChosenType => {
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
@@ -1121,6 +1137,15 @@ fn apply_layer_modification(
             if let Some(t) = &mut chars.toughness {
                 *t += delta;
             }
+        }
+        // CR 608.2h: ModifyBothDynamic must be substituted at Effect::ApplyContinuousEffect
+        // execution time. If it reaches here, substitution was skipped — this is a bug.
+        LayerModification::ModifyBothDynamic { .. } => {
+            debug_assert!(
+                false,
+                "ModifyBothDynamic must be substituted into ModifyBoth at Effect::ApplyContinuousEffect time"
+            );
+            // Production behavior: silently no-op rather than panic.
         }
         // Layer 7d: P/T-switching
         LayerModification::SwitchPowerToughness => {

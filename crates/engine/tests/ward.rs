@@ -490,6 +490,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             forage: false,
             sacrifice_filter: None,
             remove_counter_cost: None,
+            exile_self: false,
         },
         description: "{T}: Destroy target creature".to_string(),
         effect: Some(Effect::DestroyPermanent {

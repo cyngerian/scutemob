@@ -2216,6 +2216,7 @@ fn execute_effect_inner(
         // ── Continuous Effects ─────────────────────────────────────────────
         Effect::ApplyContinuousEffect { effect_def } => {
             use crate::state::continuous_effect::EffectFilter as CEFilter;
+            use crate::state::continuous_effect::LayerModification as LM;
             // Resolve DeclaredTarget filter to a specific object at runtime (CR 611.2a).
             let resolved_filter = match &effect_def.filter {
                 CEFilter::DeclaredTarget { index } => {
@@ -2232,6 +2233,27 @@ fn execute_effect_inner(
                 // CR 702.108a: Prowess and similar "this permanent" effects use Source
                 // as a placeholder. Resolve it to the source object at execution time.
                 CEFilter::Source => CEFilter::SingleObject(ctx.source),
+                // CR 608.2h / PB-X: "creatures not of the chosen type" — substitute the
+                // dynamic placeholder with the concrete chosen subtype at execution time.
+                // If no creature type was chosen (ctx.chosen_creature_type == None), skip
+                // this effect (no valid filter to store).
+                CEFilter::AllCreaturesExcludingChosenSubtype => {
+                    match ctx.chosen_creature_type.clone() {
+                        Some(subtype) => CEFilter::AllCreaturesExcludingSubtype(subtype),
+                        None => return, // No chosen type — skip effect.
+                    }
+                }
+                other => other.clone(),
+            };
+            // CR 608.2h / PB-X: Resolve ModifyBothDynamic at execution time so the stored
+            // ContinuousEffect always carries a concrete ModifyBoth(i32) value. This ensures
+            // X is locked in at resolution (not re-evaluated later when creatures enter/leave).
+            let resolved_modification = match &effect_def.modification {
+                LM::ModifyBothDynamic { amount, negate } => {
+                    let raw = resolve_amount(state, amount, ctx);
+                    let v = if *negate { -raw } else { raw };
+                    LM::ModifyBoth(v)
+                }
                 other => other.clone(),
             };
             // Build a ContinuousEffect from the definition and add it to state.
@@ -2253,7 +2275,7 @@ fn execute_effect_inner(
                 id: crate::state::continuous_effect::EffectId(id_inner),
                 source: Some(source),
                 layer: effect_def.layer,
-                modification: effect_def.modification.clone(),
+                modification: resolved_modification,
                 filter: resolved_filter,
                 duration: resolved_duration,
                 is_cda: false,

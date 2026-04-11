@@ -618,6 +618,30 @@ pub fn handle_activate_ability(
             new_id,
         });
     }
+    // CR 701.10 / CR 602.2c: Pay exile-self cost. Move source to its owner's exile zone
+    // before pushing the ability to the stack. `embedded_effect` was already captured at
+    // line ~309 (before cost payment), so resolution works after the source ID is dead.
+    // Note: exile is NOT death (CR 700.4) — no CreatureDied event is emitted.
+    if ability_cost.exile_self {
+        let (pre_exile_controller, pre_exile_counters, is_creature) = {
+            let obj = state.object(source)?;
+            (
+                obj.controller,
+                obj.counters.clone(),
+                obj.characteristics
+                    .card_types
+                    .contains(&crate::state::types::CardType::Creature),
+            )
+        };
+        let (new_exile_id, _) = state.move_object_to_zone(source, ZoneId::Exile)?;
+        events.push(crate::rules::events::GameEvent::ObjectExiled {
+            player: pre_exile_controller,
+            object_id: source,
+            new_exile_id,
+        });
+        // Capture for future use (LTB trigger hooks, etc.)
+        let _ = (pre_exile_counters, is_creature);
+    }
     // CR 602.2: Pay sacrifice-another-permanent cost (e.g., "Sacrifice a creature: ...").
     // The caller supplies the ObjectId of the permanent to sacrifice via `sacrifice_target`.
     if let Some(ref filter) = ability_cost.sacrifice_filter {

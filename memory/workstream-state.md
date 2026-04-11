@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-S DONE 2026-04-11 (GrantActivatedAbility, 5 cards, 11 tests, 3 HIGH fixed, 5 LOW logged); next: PB-X (micro — A-42 Tier 1 unblock) |
+| W6: Primitive + Card Authoring | PB-X: A-42 Tier 1 micro-PB (exclusion pump + dynamic P/T + ExileSelf) | ACTIVE | 2026-04-11 | Claimed for PB-X planning → implement; unblocks 6 A-42 Tier 1 cards |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

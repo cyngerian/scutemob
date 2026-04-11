@@ -2033,6 +2033,7 @@ pub fn enrich_spec_from_def(
                     forage: false,
                     sacrifice_filter: None,
                     remove_counter_cost: None,
+                    exile_self: false,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -3103,6 +3104,7 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::DiscardCard => ac.discard_card = true,
         Cost::DiscardSelf => ac.discard_self = true,
         Cost::Forage => ac.forage = true,
+        Cost::ExileSelf => ac.exile_self = true,
         Cost::PayLife(_) => {} // no ActivationCost representation yet
         Cost::RemoveCounter { counter, count } => {
             ac.remove_counter_cost = Some((counter.clone(), *count));

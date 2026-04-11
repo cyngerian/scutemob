@@ -1272,6 +1272,13 @@ impl HashInto for EffectFilter {
             EffectFilter::CreaturesYouControlOfChosenType => 30u8.hash_into(hasher),
             // CR 205.3m: "Other creatures you control of the chosen type" — discriminant 31
             EffectFilter::OtherCreaturesYouControlOfChosenType => 31u8.hash_into(hasher),
+            // CR 613.1f: "Non-[Subtype] creatures" (all controllers) — discriminant 32
+            EffectFilter::AllCreaturesExcludingSubtype(st) => {
+                32u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            // DSL placeholder for "creatures not of the chosen type" — discriminant 33
+            EffectFilter::AllCreaturesExcludingChosenSubtype => 33u8.hash_into(hasher),
         }
     }
 }
@@ -1387,6 +1394,13 @@ impl HashInto for LayerModification {
             LayerModification::AddManaAbility(ab) => {
                 24u8.hash_into(hasher);
                 ab.hash_into(hasher);
+            }
+            // ModifyBothDynamic (discriminant 25) -- PB-X: dynamic +X/-X P/T pump
+            // resolved at Effect::ApplyContinuousEffect time (CR 608.2h).
+            LayerModification::ModifyBothDynamic { amount, negate } => {
+                25u8.hash_into(hasher);
+                amount.hash_into(hasher);
+                negate.hash_into(hasher);
             }
         }
     }
@@ -1980,6 +1994,10 @@ impl HashInto for ActivationCost {
         self.forage.hash_into(hasher);
         self.sacrifice_filter.hash_into(hasher);
         self.remove_counter_cost.hash_into(hasher);
+        // CR 701.10 / CR 602.2: exile_self field — PB-X (field 9 of 9).
+        // Must be present or two ActivationCosts differing only in exile_self
+        // would produce identical hashes (PB-S H1 failure mode).
+        self.exile_self.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {
@@ -4664,6 +4682,8 @@ impl HashInto for Cost {
                 counter.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // CR 701.10 / CR 602.2: Exile self as activation cost — discriminant 10
+            Cost::ExileSelf => 10u8.hash_into(hasher),
         }
     }
 }
@@ -6004,7 +6024,13 @@ impl GameState {
     ///   sequences began, so including it in the public hash would cause false mismatches.
     pub fn public_state_hash(&self) -> [u8; 32] {
         let mut hasher = Hasher::new();
-        // 1. Turn state
+        // Hash schema version sentinel — bump when enum discriminant chains change.
+        // PB-X (2026-04-11): added EffectFilter discriminants 32+33, LayerModification 25,
+        // Cost discriminant 10, ActivationCost.exile_self field.
+        // Increment this value for each PB that changes the hash space to prevent stale
+        // replays from incorrectly validating against new engine versions.
+        2u8.hash_into(&mut hasher); // schema version 2
+                                    // 1. Turn state
         self.turn.hash_into(&mut hasher);
         // 2. Timestamp counter and replacement ID counter
         self.timestamp_counter.hash_into(&mut hasher);

@@ -35,6 +35,7 @@ fn remove_counter_cost(counter: CounterType, count: u32) -> ActivationCost {
         forage: false,
         sacrifice_filter: None,
         remove_counter_cost: Some((counter, count)),
+        exile_self: false,
     }
 }
 
@@ -231,6 +232,7 @@ fn test_remove_counter_cost_in_sequence() {
                 forage: false,
                 sacrifice_filter: None,
                 remove_counter_cost: Some((CounterType::PlusOnePlusOne, 1)),
+                exile_self: false,
             },
             description: "{T}, Remove a +1/+1 counter: Gain 1 life.".to_string(),
             effect: Some(Effect::GainLife {
