@@ -1,117 +1,143 @@
-# Primitive WIP: PB-Q4 — EnchantTarget::Filtered (bundled land-variant enchant targets)
+# Primitive WIP: PB-N — SubtypeFilteredAttack + SubtypeFilteredDeath triggers
 
-batch: PB-Q4
-title: EnchantTarget::Filtered — bundled land-variant enchant target filter
-cards_unblocked_planned: 11 considered; 5 committed for clean ship; 6 deferred
-started: 2026-04-12 (plan session)
-phase: review-complete
-plan_file: memory/primitives/pb-plan-Q4.md
-review_file: memory/primitives/pb-review-Q4.md
+batch: PB-N
+title: Combined subtype-filtered attack and death triggers (single dispatch site)
+cards_unblocked_estimated: ~33 considered (18 attack + 15 death); ~20 yield expected post 60% calibration
+started: 2026-04-12 (oversight session — re-prioritization)
+phase: plan
+plan_file: memory/primitives/pb-plan-N.md (TO BE WRITTEN by next worker session)
+review_file: (TBD)
 
-## Planner checklist
+## How this PB was selected
 
-- [x] Read primitive-wip.md scope + gates
-- [x] Read relevant feedback entries (verify_full_chain, pb_yield_calibration)
-- [x] Gate 1 (Genju animate-land): PASS literal; Genju cycle still DEFERRED on rebuy-trigger grounds
-- [x] Gate 2 (Chained controller filter): FAIL — EnchantTarget is flat; resolved by new Filtered variant
-- [x] Gate 3 (Corrupted Roots disjunction): PASS via existing `TargetFilter.has_subtypes: Vec<SubType>`
-- [x] MCP oracle lookups done for all considered cards
-- [x] Plan file written: memory/primitives/pb-plan-Q4.md
-- [x] Mandatory/optional test labels applied (12 mandatory, 2 optional)
+Top of new data-driven priority queue (2026-04-12 re-slate, commit `70757770`).
+See `docs/primitive-card-plan.md` Phase 1.8 and
+`memory/card-authoring/todo-classification-2026-04-12.md` for the report.
 
-## Verification gate summary
+PB-N combines classification ranks 1 (SubtypeFilteredAttack, 18 cards) and
+3 (SubtypeFilteredDeath, 15 cards) because they share the same dispatch
+pattern: a trigger condition that fires on a specific event (attack /
+death) filtered by the triggering object's creature subtype. The planner
+should verify in the first 10 minutes whether this combination holds — if
+the dispatch sites are actually different, split into PB-N (attack) and a
+follow-up PB.
 
-1. **Genju animate-land**: PASS (LayerModification::AddCardTypes/AddSubtypes/SetPowerToughness/AddKeywords all exist; EffectFilter::AttachedLand exists; live precedent in tatyova_steward_of_tides.rs). Genju cycle (5 cards) nonetheless DEFERRED because "when enchanted Forest is put into graveyard, return THIS from graveyard to hand" requires a `WhenAttachedPermanentLeavesBattlefield` + self-graveyard-rebuy trigger that does not exist.
-2. **Chained to the Rocks controller filter**: FAIL in current enum (8 flat variants, no filter). Plan adds `EnchantTarget::Filtered(TargetFilter)` and extends `matches_enchant_target` to receive `aura_controller` and `target_controller`.
-3. **Corrupted Roots disjunction**: PASS via existing `TargetFilter.has_subtypes: Vec<SubType>`. Corrupted Roots still DEFERRED because "whenever enchanted land becomes tapped" trigger does not exist.
+## MANDATORY pre-plan steps for the worker
 
-## Yield reality
+### Step 0: Stale-TODO sweep (do FIRST, before any planning work)
 
-- Planner considered: 11 cards (Genju×5, Utopia Sprawl, Awaken the Ancient, Chained to the Rocks, Spreading Algae, Corrupted Roots, Uncontrolled Infestation, Ossification, Dimensional Exile, Caribou Range, Crackling Emergence, Harmonious Emergence, Hot Springs, Mystic Might, Tourach's Gate, Earthlore — actually ~17 if counted fully)
-- **Committed for clean ship (HIGH confidence, 4)**: Awaken the Ancient, Chained to the Rocks, Ossification, Dimensional Exile
-- **Committed pending verification (MEDIUM, 1 of 2)**: Hot Springs OR Earthlore if granted-activated-ability + prevention/untapped-state primitives exist
-- **Deferred (blocking primitive named)**:
-  - Genju cycle ×5 → needs `WhenAttachedPermanentLeavesBattlefield` + graveyard self-rebuy trigger
-  - Utopia Sprawl → needs `AddMana(ChosenColor)` + as-enters chosen_color
-  - Corrupted Roots, Spreading Algae, Uncontrolled Infestation → need "whenever enchanted land becomes tapped" trigger (no current analog of `WhenSelfBecomesTapped` for attached)
-  - Caribou Range, Crackling Emergence, Harmonious Emergence, Mystic Might, Tourach's Gate → each needs complex grant (activated-ability with custom cost), replacement ("if would be destroyed instead…"), or Cumulative Upkeep + time-counter sac loops
+Three card defs were flagged in the classification report (line 26-32) as
+potentially stale post PB-S / PB-Q. Initial oversight grep results:
 
-**Realistic shipping expectation: 5 cards (45% of 11 considered)**, matching the pb_yield_calibration retro average.
+| Card | TODO Line | Initial Verdict | Worker Action |
+|------|-----------|-----------------|---------------|
+| `song_of_freyalise` | "via PB-S LayerModification::AddManaAbility" | **NOT STALE** — comment is misleading. PB-S added grant-ability primitives but Saga chapter machinery is the real blocker. | Update comment wording to remove the PB-S misdirection; leave card blocked on Saga primitive. |
+| `bootleggers_stash` | "Lands you control gain activated ability" | **LIKELY STALE-FIXABLE** — PB-S shipped `LayerModification::AddManaAbility` + `AddActivatedAbility`. Verify whether the existing grant supports "lands you control" filter (vs "permanents you control"). | If filter supports it, author the card. If not, log as a 1-line micro-PB candidate (filter extension) and move on. |
+| `throne_of_eldraine` | "ChosenColor designation not in DSL" | **PARTIAL STALE** — PB-Q shipped ChosenColor as a designation. The static spending restriction is still PB-Q5 territory and the activation-time choice is PB-Q2 territory. | Update the card's TODO comments to reflect what's now expressible vs what's still blocked; cite PB-Q2 / PB-Q5 reservations. |
 
-## Non-negotiable constraints carried forward
+Commit the stale sweep as a separate prep commit BEFORE the PB-N plan
+lands: `W6-prim: stale-TODO sweep — PB-N pre-launch (3 cards)`.
 
-- `apply_mana_production_replacements` (PB-Q) stays — do NOT revert
-- Commit `464d9e79` is the baseline
-- One PB: bundle all 4 isomorphic variants (LandSubtype, BasicLand, NonbasicLand, LandYouControl) under the single `Filtered(TargetFilter)` variant
-- 12 MANDATORY tests (numbered in the plan) — skipping requires explicit justification in review doc
-- `cargo build --workspace` is MANDATORY before completion (catches replay-viewer + TUI exhaustive-match drift)
+### Step 1: Verify PB-L is not collapsing into a stale-TODO sweep
 
-## Implementation completed: 2026-04-12
+Before assuming PB-L (Landfall, rank 4) is a real PB, grep the engine
+for `WhenEntersBattlefield` + `EffectFilter::Land` patterns and check
+whether the existing trigger condition + filter combo already covers
+landfall. If yes, demote PB-L to a stale-TODO sweep instead of a full
+PB. This is a 5-minute check the planner should do while still in PB-N
+plan mode (no extra context cost). Report finding in the PB-N plan
+preamble; do not act on it (let oversight call the next slate).
 
-### Engine changes
-- `state/types.rs`: Added `EnchantControllerConstraint` enum, `EnchantFilter` struct, `EnchantTarget::Filtered(EnchantFilter)` variant.
-- `state/hash.rs`: Added `HashInto for EnchantTarget::Filtered`, `HashInto for EnchantFilter`, `HashInto for EnchantControllerConstraint`. Added `nonbasic` field to `HashInto for TargetFilter`.
-- `cards/card_definition.rs`: Added `pub nonbasic: bool` field to `TargetFilter`.
-- `rules/sba.rs`: Extended `matches_enchant_target` signature to `(enchant, target_chars, aura_controller, target_controller)`. Added `EnchantTarget::Filtered` arm. Added `enchant_filter_matches` helper covering all 6 filter checks.
-- `rules/casting.rs`: Updated call site to pass `player` and `target_ctrl` to `matches_enchant_target`.
-- `effects/mod.rs`: Added `nonbasic` check in TargetFilter evaluation.
-- `state/mod.rs`: Re-exported `EnchantControllerConstraint`, `EnchantFilter`.
-- `cards/helpers.rs`: Re-exported `EnchantControllerConstraint`, `EnchantFilter`.
-- `lib.rs`: Exported `EnchantControllerConstraint`, `EnchantFilter`.
+### Step 2: PB-N plan proper
 
-### Design deviation from plan
-Plan called for `EnchantTarget::Filtered(TargetFilter)` (or boxed). Changed to `Filtered(EnchantFilter)` using a new minimal struct in `state/types.rs` to avoid a circular dependency (`state/types.rs` → `cards/card_definition.rs` → `state/types.rs`). `EnchantFilter` captures all 6 fields needed for enchant enforcement. Semantically identical to the plan's intent; no information loss.
+Standard `primitive-impl-planner` flow. Required artifacts:
 
-### Card defs authored (4 HIGH confidence, 0 MEDIUM)
-- `awaken_the_ancient.rs`: Enchant Mountain, 7/7 Creature+Giant+Red+Haste animation via 5 layer effects.
-- `chained_to_the_rocks.rs`: Enchant Mountain you control, ETB exile creature until leaves.
-- `ossification.rs`: Enchant basic land you control, ETB exile creature or planeswalker until leaves.
-- `dimensional_exile.rs`: Enchant basic land you control, ETB exile creature until leaves.
+1. **CR research**: cite the trigger event sources (CR 603.2 for
+   triggered abilities, CR 509.2 for declaring attackers as the event
+   point for attack triggers, CR 700.4/704 for death events). Identify
+   the exact intervening-if vs ETB ordering for filtered death triggers
+   (CR 603.10 — zone-change triggers look back).
 
-### MEDIUM cards deferred
-- `Hot Springs`: Prevention-shield activated ability — no `Effect::PreventDamage` in DSL.
-- `Earthlore`: Grants activated ability targeting "blocking creature" — no `is_blocking` field in `TargetFilter`.
+2. **Engine architecture study**: read the trigger-firing site that
+   currently handles `WhenAttacks` and `WhenDies` (or whatever the
+   nearest variants are). Use rust-analyzer to walk:
+   - `TriggerCondition` enum definition + all match sites
+   - `combat.rs` declare-attackers event emission
+   - The death-triggered-ability fan-out site in `sba.rs` /
+     `resolution.rs` / `zones.rs`
+   - Hash dispatch for `TriggerCondition` (ensure new variant gets a
+     hash arm)
 
-### Mandatory tests (12/12 PASS)
-1. test_enchant_filtered_land_subtype_cast_time_legal — PASS
-2. test_enchant_filtered_land_subtype_cast_time_illegal — PASS
-3. test_enchant_filtered_controller_cast_time_legal — PASS
-4. test_enchant_filtered_controller_cast_time_illegal — PASS
-5. test_enchant_filtered_basic_land_legal — PASS
-6. test_enchant_filtered_basic_land_illegal_nonbasic — PASS
-7. test_enchant_filtered_sba_control_change — PASS
-8. test_enchant_filtered_sba_land_becomes_nonland — PASS
-9. test_enchant_filtered_disjunction_forest_or_plains — PASS
-10. test_enchant_filtered_nonbasic_land — PASS
-11. test_animate_land_pt_and_types_via_chained_or_awaken — PASS
-12. test_animate_land_summoning_sickness_propagation — PASS
+3. **Dispatch unification verification (MANDATORY GATE)**: confirm the
+   attack-side and death-side dispatch sites can take a single new
+   variant (e.g. `TriggerCondition::SubtypeFilteredEvent { event,
+   subtype }`) or whether they need two parallel variants. **Do not
+   skip this gate** — if the verification fails, split the PB and
+   stop-and-flag to oversight before continuing.
 
-### Final verification
-- `cargo build --workspace`: CLEAN
-- `cargo test --all`: 2637 passed (was 2625, +12), 0 failed
-- `cargo clippy --workspace -- -D warnings`: CLEAN
-- `cargo fmt --check`: CLEAN
-- `apply_mana_production_replacements`: UNTOUCHED (verified via git diff 464d9e79..HEAD)
+4. **Card roster verification**: MCP-look-up oracle text for all 33
+   candidate cards from the classification report:
+   - **Attack-side (18)**: aqueous_form, argentum_armor, battle_cry_goblin,
+     bear_umbra, diamond_pick_axe, dreadhorde_invasion, dromoka_the_eternal,
+     hellrider, hermes_overseer_of_elpis, kazuul_tyrant_of_the_cliffs,
+     kolaghan_the_storms_fury, najeela_the_blade_blossom, quilled_charger,
+     sanctum_seeker, shared_animosity, +3 more in classification report
+   - **Death-side (15)**: anafenza_unyielding_lineage, athreos_god_of_passage,
+     blade_of_the_bloodchief, crossway_troublemakers, luminous_broodmoth,
+     marionette_apprentice, miara_thorn_of_the_glade, morbid_opportunist,
+     omnath_locus_of_rage, pashalik_mons, patron_of_the_vein,
+     serpents_soul_jar, skullclamp, teysa_orzhov_scion, thornbite_staff
+   - For each card, confirm: (a) the trigger really is subtype-filtered
+     (not just creature-typed), (b) the rest of the card body is
+     authorable post-PB-N, (c) no compound blocker.
+   - **Apply 60% yield discount** per `feedback_pb_yield_calibration.md`
+     — expect ~20 cards actually shippable, not 33. Drop the rest into
+     "deferred" with a one-line reason.
 
-## Review completed: 2026-04-12
+5. **Test plan**: number every test as MANDATORY or OPTIONAL up front.
+   No silent skips (per PB-Q4 retro). Minimum mandatory:
+   - One attack-side dispatch test (new variant fires on attack)
+   - One death-side dispatch test (new variant fires on death)
+   - One subtype-filter negative test (different subtype does not fire)
+   - One LKI test (death-side reads pre-zone-change subtype, CR 603.10)
+   - One hash parity test for the new variant
+   - One real-card end-to-end (e.g., Shared Animosity attack or Skullclamp death)
 
-**Verdict**: needs-fix (LOW only) — 0 HIGH, 1 MEDIUM (architectural duplication, forward-looking), 3 LOW (defensive fallback, two under-asserting tests). All 12 mandatory tests present and correct. All 4 card defs match oracle text. Hash schema parity verified. Full dispatch chain verified. Circular dependency claim verified.
+6. **Standing rules to honor**:
+   - `feedback_verify_full_chain.md` — walk every dispatch site, not just the file touched
+   - `feedback_oversight_primitive_category_not_cards.md` — oversight named the category; you verify rosters from MCP
+   - Every new layer/dispatch variant ships with a full-dispatch test (`memory/conventions.md`)
+   - PB planner overcounts — discount 40-50% from ANY yield estimate
 
-## Fix pass completed: 2026-04-12
+## Stop-and-flag triggers (escalate to oversight, do not silently work around)
 
-**phase: fix-complete**
+- Dispatch unification gate fails (attack and death need separate sites)
+- PB-L Landfall check reveals it's a stale-TODO sweep (no new info needed, but report it)
+- Any card in the roster reveals a hidden compound blocker (e.g., needs a target filter that isn't the PB-N scope)
+- Hash version bump policy unclear (we're at sentinel 3 post-PB-Q)
 
-- L2 CLOSED: `test_animate_land_pt_and_types_via_chained_or_awaken` — added Layer 5 `SetColors(Red)` continuous effect registration and `assert!(chars.colors.contains(&Color::Red))`. Test now fails if Layer 5 dispatch on `AttachedLand` regresses.
-- L3 CLOSED: `test_animate_land_summoning_sickness_propagation` — changed step to `DeclareAttackers`, added `process_command(DeclareAttackers)` call asserting success WITH Haste, then strips the Haste effect via `retain` and asserts failure WITHOUT Haste. Test now fails if Haste-overrides-sickness path on animated lands regresses.
-- L1 DEFERRED: `rules/sba.rs:1067-1071` unwrap_or fallback — LOW backlog.
-- M1 DEFERRED: `EnchantFilter` / `TargetFilter` architectural duplication — LOW/MEDIUM backlog.
+## Out of scope for PB-N
 
-**Post-fix verification**:
-- `cargo test --all`: 2639 passed (was 2637, +2), 0 failed
-- `cargo clippy --workspace -- -D warnings`: CLEAN
-- `cargo fmt --check`: CLEAN
+- PB-D (DamagedPlayer) — separate, queued next
+- PB-L (Landfall) — separate, queued third (verify it's still a PB first)
+- PB-P (PowerOfCreature) — separate, queued fourth
+- Any non-subtype-filtered trigger condition
+- Any new EffectFilter variant unless strictly required to author one of the verified roster cards
 
-See `memory/primitives/pb-review-Q4.md` for full findings.
+## Planner checklist (worker fills in)
 
-## Next action for runner
-Apply LOW fixes opportunistically OR close PB-Q4 as-is and address M1 (EnchantFilter/TargetFilter duplication) when authoring the next non-land enchant-target card. No HIGH/MEDIUM showstoppers.
+- [ ] Step 0: stale-TODO sweep committed (separate commit, prefix `W6-prim:`)
+- [ ] Step 1: PB-L landfall pre-check completed; finding noted in PB-N plan preamble
+- [ ] Step 2.1: CR research notes captured
+- [ ] Step 2.2: rust-analyzer walk of TriggerCondition dispatch sites done
+- [ ] Step 2.3: dispatch unification gate verdict (PASS/FAIL/SPLIT) recorded
+- [ ] Step 2.4: 33-card MCP roster verification complete with 60% yield discount applied
+- [ ] Step 2.5: mandatory/optional test labels assigned with no silent skips
+- [ ] Plan file written: `memory/primitives/pb-plan-N.md`
+- [ ] Wip file phase advanced to `plan-complete` for oversight handoff
+
+## Artifacts the planner must produce
+
+- `memory/primitives/pb-plan-N.md` (full plan file)
+- Updated `memory/primitive-wip.md` checklist (this file) with all planner steps checked
+- A 1-paragraph summary at the top of pb-plan-N.md naming: confirmed yield, dispatch unification verdict, mandatory test count, deferred-card list
