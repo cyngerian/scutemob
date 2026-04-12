@@ -4,9 +4,9 @@ batch: PB-N
 title: Combined subtype-filtered attack and death triggers (single dispatch site)
 cards_unblocked_estimated: ~33 considered (18 attack + 15 death); ~20 yield expected post 60% calibration
 started: 2026-04-12 (oversight session — re-prioritization)
-phase: implement
+phase: review
 plan_file: memory/primitives/pb-plan-N.md (WRITTEN 2026-04-12 by Opus planner session)
-review_file: (TBD — runs after implement)
+review_file: memory/primitives/pb-review-N.md (TBD — reviewer writes this)
 oversight_directives: 2026-04-12 — coordinator approved ship-as-planned. Hash bump 3→4 (now standing rule). Tighten combat_damage_filter to damage-only + regression test. Mechanical card-def fixup as single commit driven by cargo build. 4 confirmed cards (Kolaghan, Dromoka, Sanctum Seeker, Teysa partial). All 8 mandatory tests, no silent skips. Catalog 11 deferred cards in plan close + Phase 1.8 "PB-N spawned candidates" subsection. Pre-existing clippy warnings → log as BASELINE-CLIPPY-01/02 LOWs at close (do NOT fix in PB-N). Calibration memory update at close: trigger PBs 15-25% yield. Next batch after PB-N close: PB-D.
 
 ## How this PB was selected
@@ -142,3 +142,35 @@ Standard `primitive-impl-planner` flow. Required artifacts:
 - `memory/primitives/pb-plan-N.md` (full plan file)
 - Updated `memory/primitive-wip.md` checklist (this file) with all planner steps checked
 - A 1-paragraph summary at the top of pb-plan-N.md naming: confirmed yield, dispatch unification verdict, mandatory test count, deferred-card list
+
+## Implementation Complete (runner session, 2026-04-12)
+
+Commit: `d343e1ba` — W6-prim: PB-N — SubtypeFilteredAttack + SubtypeFilteredDeath triggers
+
+### Engine changes delivered
+- `card_definition.rs`: WheneverCreatureDies + WheneverCreatureYouControlAttacks shape changes
+- `game_object.rs`: TriggeredAbilityDef.triggering_creature_filter field added
+- `hash.rs`: sentinel 3→4; new field hashed; WheneverCreatureYouControlAttacks hash arm updated
+- `abilities.rs`: attack-side + death-side dispatch with triggering_creature_filter; combat_damage_filter tightened to damage events only
+- `replay_harness.rs`, `resolution.rs`, `builder.rs`: triggering_creature_filter: None backfilled
+
+### Card defs shipped
+- kolaghan_the_storms_fury: Dragon filter on WheneverCreatureYouControlAttacks ✓
+- dromoka_the_eternal: Dragon filter + Bolster 2 ✓
+- sanctum_seeker: Vampire filter + DrainLife 1 ✓
+- teysa_orzhov_scion: Black color filter on WheneverCreatureDies + Spirit token ✓ (sacrifice ability still TODO)
+
+### Mechanical backfill
+- 56 card def files updated (filter: None / unit→struct shape change)
+
+### Tests
+- 9 tests in crates/engine/tests/pbn_subtype_filtered_triggers.rs
+  - 8 mandatory PASS (attack subtype match/mismatch, color match, death subtype match/mismatch, LKI color, hash parity+sentinel, Kolaghan e2e)
+  - 1 optional PASS (combat_damage_filter regression)
+- Total: 2646 tests (baseline 2637, delta +9), 0 failures
+- cargo fmt: clean; cargo clippy -D warnings: clean; cargo build --workspace: clean
+
+### Deferred
+- BASELINE-CLIPPY-01/02 pre-existing warnings (log as LOWs, do not fix in PB-N)
+- teysa_orzhov_scion sacrifice ability (requires targeted activated ability primitive)
+- 11 explicitly deferred cards from roster (see pb-plan-N.md "Deferred cards")
