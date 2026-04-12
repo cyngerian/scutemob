@@ -35,7 +35,8 @@ use crate::state::player::PlayerId;
 use crate::state::replacement_effect::PendingZoneChange;
 use crate::state::stack::StackObjectKind;
 use crate::state::types::{
-    CardType, CounterType, EnchantTarget, KeywordAbility, SubType, SuperType,
+    CardType, CounterType, EnchantControllerConstraint, EnchantFilter, EnchantTarget,
+    KeywordAbility, SubType, SuperType,
 };
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
@@ -911,9 +912,14 @@ pub(crate) fn get_enchant_target(keywords: &im::OrdSet<KeywordAbility>) -> Optio
 /// CR 702.5a: Check if a target's characteristics satisfy the Enchant restriction.
 ///
 /// Used both at cast time (CR 303.4a) and in the Aura SBA (CR 704.5m).
+/// The `aura_controller` and `target_controller` parameters are used for
+/// `EnchantTarget::Filtered` variants that include a controller constraint.
+/// For flat variants that don't check controller, the parameters are ignored.
 pub(crate) fn matches_enchant_target(
     enchant: &EnchantTarget,
     target_chars: &crate::state::game_object::Characteristics,
+    aura_controller: PlayerId,
+    target_controller: PlayerId,
 ) -> bool {
     match enchant {
         EnchantTarget::Creature => target_chars.card_types.contains(&CardType::Creature),
@@ -927,7 +933,66 @@ pub(crate) fn matches_enchant_target(
             target_chars.card_types.contains(&CardType::Creature)
                 || target_chars.card_types.contains(&CardType::Planeswalker)
         }
+        EnchantTarget::Filtered(f) => {
+            enchant_filter_matches(f, target_chars, aura_controller, target_controller)
+        }
     }
+}
+/// CR 702.5a / 303.4 — Evaluate an `EnchantFilter` against layer-resolved characteristics
+/// and the relative controllers of the Aura and its target.
+///
+/// Checks (all must pass):
+/// - `has_card_type`: target must have this card type.
+/// - `has_subtype`: target must have this subtype (AND — single).
+/// - `has_subtypes`: target must have at least one of these (OR — Vec). Empty = no restriction.
+/// - `basic`: if true, target must have the Basic supertype (CR 205.4a).
+/// - `nonbasic`: if true, target must NOT have the Basic supertype (CR 205.4a).
+/// - `controller`: `You` = target_controller must equal aura_controller; `Opponent` = must differ.
+fn enchant_filter_matches(
+    f: &EnchantFilter,
+    chars: &crate::state::game_object::Characteristics,
+    aura_controller: PlayerId,
+    target_controller: PlayerId,
+) -> bool {
+    // Card type check.
+    if let Some(required_type) = &f.has_card_type {
+        if !chars.card_types.contains(required_type) {
+            return false;
+        }
+    }
+    // Single subtype check (AND).
+    if let Some(required_subtype) = &f.has_subtype {
+        if !chars.subtypes.contains(required_subtype) {
+            return false;
+        }
+    }
+    // Multi-subtype check (OR): must match at least one if the vec is nonempty.
+    if !f.has_subtypes.is_empty() && !f.has_subtypes.iter().any(|st| chars.subtypes.contains(st)) {
+        return false;
+    }
+    // Basic supertype check (CR 205.4a).
+    if f.basic && !chars.supertypes.contains(&SuperType::Basic) {
+        return false;
+    }
+    // Nonbasic check: must NOT be basic (CR 205.4a).
+    if f.nonbasic && chars.supertypes.contains(&SuperType::Basic) {
+        return false;
+    }
+    // Controller constraint.
+    match f.controller {
+        EnchantControllerConstraint::Any => {}
+        EnchantControllerConstraint::You => {
+            if target_controller != aura_controller {
+                return false;
+            }
+        }
+        EnchantControllerConstraint::Opponent => {
+            if target_controller == aura_controller {
+                return false;
+            }
+        }
+    }
+    true
 }
 /// CR 704.5m: If an Aura is attached to an object or player it can't legally
 /// be attached to, put it into its owner's graveyard.
@@ -997,7 +1062,15 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                                     .map(|o| o.characteristics.clone())
                             });
                         if let Some(tc) = target_chars {
-                            if !matches_enchant_target(&enchant_target, &tc) {
+                            // CR 704.5m: for Filtered enchant targets, compare controllers.
+                            let aura_ctrl = obj.controller;
+                            let target_ctrl = state
+                                .objects
+                                .get(&target_id)
+                                .map(|o| o.controller)
+                                .unwrap_or(aura_ctrl);
+                            if !matches_enchant_target(&enchant_target, &tc, aura_ctrl, target_ctrl)
+                            {
                                 return true;
                             }
                         }

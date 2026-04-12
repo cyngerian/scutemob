@@ -32,8 +32,8 @@ use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
     AdditionalCost, AffinityTarget, BlockingExceptionFilter, CardType, ChampionFilter, Color,
-    CounterType, CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
-    ProtectionQuality, SubType, SuperType,
+    CounterType, CumulativeUpkeepCost, EnchantControllerConstraint, EnchantFilter, EnchantTarget,
+    KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -270,6 +270,29 @@ impl HashInto for EnchantTarget {
             EnchantTarget::Planeswalker => 5u8.hash_into(hasher),
             EnchantTarget::Player => 6u8.hash_into(hasher),
             EnchantTarget::CreatureOrPlaneswalker => 7u8.hash_into(hasher),
+            EnchantTarget::Filtered(f) => {
+                8u8.hash_into(hasher);
+                f.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for EnchantFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.has_card_type.hash_into(hasher);
+        self.has_subtype.hash_into(hasher);
+        self.has_subtypes.hash_into(hasher);
+        self.basic.hash_into(hasher);
+        self.nonbasic.hash_into(hasher);
+        self.controller.hash_into(hasher);
+    }
+}
+impl HashInto for EnchantControllerConstraint {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EnchantControllerConstraint::Any => 0u8.hash_into(hasher),
+            EnchantControllerConstraint::You => 1u8.hash_into(hasher),
+            EnchantControllerConstraint::Opponent => 2u8.hash_into(hasher),
         }
     }
 }
@@ -4108,6 +4131,7 @@ impl HashInto for TargetFilter {
         self.non_creature.hash_into(hasher);
         self.non_land.hash_into(hasher);
         self.basic.hash_into(hasher);
+        self.nonbasic.hash_into(hasher);
         self.controller.hash_into(hasher);
         self.has_subtype.hash_into(hasher);
         self.has_subtypes.hash_into(hasher);

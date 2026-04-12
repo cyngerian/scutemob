@@ -2308,6 +2308,11 @@ pub struct TargetFilter {
     pub non_land: bool,
     /// Must be basic.
     pub basic: bool,
+    /// Must NOT be basic (i.e. must be a nonbasic permanent).
+    /// Distinct from `basic: false` which is the default "no restriction" state.
+    /// CR 205.4a — "nonbasic land" requires absence of the Basic supertype.
+    #[serde(default)]
+    pub nonbasic: bool,
     /// Controller constraint.
     pub controller: TargetController,
     /// Subtype constraint (single — must have this subtype).

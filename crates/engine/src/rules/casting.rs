@@ -3429,7 +3429,19 @@ pub fn handle_cast_spell(
                             .map(|o| o.characteristics.clone())
                     });
                     if let Some(tc) = target_chars {
-                        if !super::sba::matches_enchant_target(&enchant_target, &tc) {
+                        // CR 303.4a: for Filtered enchant targets, compare controllers.
+                        // `player` is the caster (= future Aura controller).
+                        let target_ctrl = state
+                            .objects
+                            .get(&target_id)
+                            .map(|o| o.controller)
+                            .unwrap_or(player);
+                        if !super::sba::matches_enchant_target(
+                            &enchant_target,
+                            &tc,
+                            player,
+                            target_ctrl,
+                        ) {
                             return Err(GameStateError::InvalidTarget(format!(
                                 "target does not match Enchant restriction ({enchant_target:?})"
                             )));

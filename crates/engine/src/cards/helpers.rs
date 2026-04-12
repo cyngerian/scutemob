@@ -34,8 +34,9 @@ pub use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFac
 pub use crate::state::zone::ZoneType;
 pub use crate::state::{
     AffinityTarget, BlockingExceptionFilter, CardId, CardType, ChampionFilter, Color, CounterType,
-    CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor, ManaCost,
-    ManaPool, ProtectionQuality, SubType, SuperType,
+    CumulativeUpkeepCost, EnchantControllerConstraint, EnchantFilter, EnchantTarget,
+    KeywordAbility, LandwalkType, ManaColor, ManaCost, ManaPool, ProtectionQuality, SubType,
+    SuperType,
 };
 pub use im::OrdSet;
 // ── Helper functions ─────────────────────────────────────────────────────────

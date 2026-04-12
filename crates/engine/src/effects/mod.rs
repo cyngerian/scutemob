@@ -6517,6 +6517,14 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
     {
         return false;
     }
+    // CR 205.4a — nonbasic means must NOT have the Basic supertype.
+    if filter.nonbasic
+        && chars
+            .supertypes
+            .contains(&crate::state::types::SuperType::Basic)
+    {
+        return false;
+    }
     if let Some(st) = &filter.has_subtype {
         if !chars.subtypes.contains(st) {
             return false;

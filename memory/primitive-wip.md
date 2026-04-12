@@ -1,74 +1,96 @@
-# Primitive WIP: PB-Q4 — EnchantTarget::LandSubtype (+ bundled variants)
+# Primitive WIP: PB-Q4 — EnchantTarget::Filtered (bundled land-variant enchant targets)
 
 batch: PB-Q4
-title: EnchantTarget::LandSubtype + bundled enchant target variants
-cards_unblocked: 10-20 (pending Genju animate-land verification gate)
-started: not yet — next session begins plan phase
-phase: pending
-plan_file: memory/primitives/pb-plan-Q4.md (not yet written)
+title: EnchantTarget::Filtered — bundled land-variant enchant target filter
+cards_unblocked_planned: 11 considered; 5 committed for clean ship; 6 deferred
+started: 2026-04-12 (plan session)
+phase: implement-complete
+plan_file: memory/primitives/pb-plan-Q4.md
 
-## Yield audit (2026-04-12)
+## Planner checklist
 
-**Direct LandSubtype yield: 10 commander-legal cards, all unauthored**:
-- Utopia Sprawl (Forest)
-- Genju cycle (5): Cedars/Falls/Spires/Fields/Fens — each enchants its basic land + animate-land activated ability
-- Awaken the Ancient (Mountain → 5/5 elemental)
-- Chained to the Rocks (Mountain you control)
-- Spreading Algae (Swamp)
-- Corrupted Roots (Forest or Plains — disjunction)
+- [x] Read primitive-wip.md scope + gates
+- [x] Read relevant feedback entries (verify_full_chain, pb_yield_calibration)
+- [x] Gate 1 (Genju animate-land): PASS literal; Genju cycle still DEFERRED on rebuy-trigger grounds
+- [x] Gate 2 (Chained controller filter): FAIL — EnchantTarget is flat; resolved by new Filtered variant
+- [x] Gate 3 (Corrupted Roots disjunction): PASS via existing `TargetFilter.has_subtypes: Vec<SubType>`
+- [x] MCP oracle lookups done for all considered cards
+- [x] Plan file written: memory/primitives/pb-plan-Q4.md
+- [x] Mandatory/optional test labels applied (12 mandatory, 2 optional)
 
-**Bundled scope yield: ~20 cards** (3 isomorphic adjacent variants):
-- `EnchantTarget::BasicLand` (basic supertype only): Dimensional Exile, Ossification (2)
-- `EnchantTarget::NonbasicLand`: Uncontrolled Infestation (1)
-- `EnchantTarget::LandYouControl`: Caribou Range, Crackling Emergence, Earthlore, Harmonious Emergence, Hot Springs, Mystic Might, Tourach's Gate (7)
+## Verification gate summary
 
-## Three Verification Gates (planner must run BEFORE writing pb-plan-Q4.md)
+1. **Genju animate-land**: PASS (LayerModification::AddCardTypes/AddSubtypes/SetPowerToughness/AddKeywords all exist; EffectFilter::AttachedLand exists; live precedent in tatyova_steward_of_tides.rs). Genju cycle (5 cards) nonetheless DEFERRED because "when enchanted Forest is put into graveyard, return THIS from graveyard to hand" requires a `WhenAttachedPermanentLeavesBattlefield` + self-graveyard-rebuy trigger that does not exist.
+2. **Chained to the Rocks controller filter**: FAIL in current enum (8 flat variants, no filter). Plan adds `EnchantTarget::Filtered(TargetFilter)` and extends `matches_enchant_target` to receive `aura_controller` and `target_controller`.
+3. **Corrupted Roots disjunction**: PASS via existing `TargetFilter.has_subtypes: Vec<SubType>`. Corrupted Roots still DEFERRED because "whenever enchanted land becomes tapped" trigger does not exist.
 
-1. **Genju animate-land effect** — does the engine have "enchanted land becomes an N/N creature until end of turn"?
-   - Grep `crates/engine/src/effects/` for: `BecomesCreature`, `AnimateLand`, `SetCreatureType`, `Effect::Animate*`, `Effect::LandBecomes*`
-   - Also check `LayerModification` variants in `state/continuous_effect.rs`
-   - **If MISSING → exclude Genju cycle (5 cards), yield drops from 10→5 narrow / 20→15 bundled.** This is the make-or-break gate.
+## Yield reality
 
-2. **Chained to the Rocks controller filter** — "Enchant Mountain you control" needs subtype + controller constraint.
-   - Check `EnchantTarget` enum in `crates/engine/src/cards/card_definition.rs`
-   - **If no controller predicate → defer Chained to the Rocks (1 card), yield drops by 1.**
+- Planner considered: 11 cards (Genju×5, Utopia Sprawl, Awaken the Ancient, Chained to the Rocks, Spreading Algae, Corrupted Roots, Uncontrolled Infestation, Ossification, Dimensional Exile, Caribou Range, Crackling Emergence, Harmonious Emergence, Hot Springs, Mystic Might, Tourach's Gate, Earthlore — actually ~17 if counted fully)
+- **Committed for clean ship (HIGH confidence, 4)**: Awaken the Ancient, Chained to the Rocks, Ossification, Dimensional Exile
+- **Committed pending verification (MEDIUM, 1 of 2)**: Hot Springs OR Earthlore if granted-activated-ability + prevention/untapped-state primitives exist
+- **Deferred (blocking primitive named)**:
+  - Genju cycle ×5 → needs `WhenAttachedPermanentLeavesBattlefield` + graveyard self-rebuy trigger
+  - Utopia Sprawl → needs `AddMana(ChosenColor)` + as-enters chosen_color
+  - Corrupted Roots, Spreading Algae, Uncontrolled Infestation → need "whenever enchanted land becomes tapped" trigger (no current analog of `WhenSelfBecomesTapped` for attached)
+  - Caribou Range, Crackling Emergence, Harmonious Emergence, Mystic Might, Tourach's Gate → each needs complex grant (activated-ability with custom cost), replacement ("if would be destroyed instead…"), or Cumulative Upkeep + time-counter sac loops
 
-3. **Corrupted Roots disjunction** — "Enchant Forest or Plains" needs OR / `Vec<SubType>`.
-   - Decide: support `LandSubtype(SubType)` only, or `LandSubtypes(Vec<SubType>)` with len-1 default?
-   - **If single-subtype only → defer Corrupted Roots (1 card), yield drops by 1.**
+**Realistic shipping expectation: 5 cards (45% of 11 considered)**, matching the pb_yield_calibration retro average.
 
-## Scoping Directive
+## Non-negotiable constraints carried forward
 
-**Bundle all 4 isomorphic enchant target variants into ONE PB**. Do NOT split:
-- `EnchantTarget::LandSubtype(SubType)` — 10 cards (pending gates)
-- `EnchantTarget::BasicLand` — 2 cards
-- `EnchantTarget::NonbasicLand` — 1 card
-- `EnchantTarget::LandYouControl` — 7 cards
+- `apply_mana_production_replacements` (PB-Q) stays — do NOT revert
+- Commit `464d9e79` is the baseline
+- One PB: bundle all 4 isomorphic variants (LandSubtype, BasicLand, NonbasicLand, LandYouControl) under the single `Filtered(TargetFilter)` variant
+- 12 MANDATORY tests (numbered in the plan) — skipping requires explicit justification in review doc
+- `cargo build --workspace` is MANDATORY before completion (catches replay-viewer + TUI exhaustive-match drift)
 
-These are the same dispatch pattern repeated in `casting.rs::validate_enchant_target` (or wherever Enchant validation lives). One plan, one implement, one review, one close.
+## Implementation completed: 2026-04-12
 
-## Apply Yield Calibration
+### Engine changes
+- `state/types.rs`: Added `EnchantControllerConstraint` enum, `EnchantFilter` struct, `EnchantTarget::Filtered(EnchantFilter)` variant.
+- `state/hash.rs`: Added `HashInto for EnchantTarget::Filtered`, `HashInto for EnchantFilter`, `HashInto for EnchantControllerConstraint`. Added `nonbasic` field to `HashInto for TargetFilter`.
+- `cards/card_definition.rs`: Added `pub nonbasic: bool` field to `TargetFilter`.
+- `rules/sba.rs`: Extended `matches_enchant_target` signature to `(enchant, target_chars, aura_controller, target_controller)`. Added `EnchantTarget::Filtered` arm. Added `enchant_filter_matches` helper covering all 6 filter checks.
+- `rules/casting.rs`: Updated call site to pass `player` and `target_ctrl` to `matches_enchant_target`.
+- `effects/mod.rs`: Added `nonbasic` check in TargetFilter evaluation.
+- `state/mod.rs`: Re-exported `EnchantControllerConstraint`, `EnchantFilter`.
+- `cards/helpers.rs`: Re-exported `EnchantControllerConstraint`, `EnchantFilter`.
+- `lib.rs`: Exported `EnchantControllerConstraint`, `EnchantFilter`.
 
-Per `feedback_pb_yield_calibration.md` (auto-memory): planners overcount in-scope cards by 2-3x. Whatever count the planner claims, **expect 40-50% of those cards to actually ship clean** and the rest to spawn micro-PBs (PB-Q4a, PB-Q4b, etc.).
+### Design deviation from plan
+Plan called for `EnchantTarget::Filtered(TargetFilter)` (or boxed). Changed to `Filtered(EnchantFilter)` using a new minimal struct in `state/types.rs` to avoid a circular dependency (`state/types.rs` → `cards/card_definition.rs` → `state/types.rs`). `EnchantFilter` captures all 6 fields needed for enchant enforcement. Semantically identical to the plan's intent; no information loss.
 
-Realistic shipping expectations:
-- **Best case** (all 3 gates pass): plan 20, ship 12-14
-- **Genju gate fails**: plan 15, ship 9-11
-- **All gates fail**: plan 13, ship 7-9
+### Card defs authored (4 HIGH confidence, 0 MEDIUM)
+- `awaken_the_ancient.rs`: Enchant Mountain, 7/7 Creature+Giant+Red+Haste animation via 5 layer effects.
+- `chained_to_the_rocks.rs`: Enchant Mountain you control, ETB exile creature until leaves.
+- `ossification.rs`: Enchant basic land you control, ETB exile creature or planeswalker until leaves.
+- `dimensional_exile.rs`: Enchant basic land you control, ETB exile creature until leaves.
 
-## CR Reference
+### MEDIUM cards deferred
+- `Hot Springs`: Prevention-shield activated ability — no `Effect::PreventDamage` in DSL.
+- `Earthlore`: Grants activated ability targeting "blocking creature" — no `is_blocking` field in `TargetFilter`.
 
-- CR 303.4 — Enchant keyword and target restrictions
-- CR 702.5 — Enchant ability
-- CR 205.3i — Land subtypes (basic land types: Plains, Island, Swamp, Mountain, Forest)
+### Mandatory tests (12/12 PASS)
+1. test_enchant_filtered_land_subtype_cast_time_legal — PASS
+2. test_enchant_filtered_land_subtype_cast_time_illegal — PASS
+3. test_enchant_filtered_controller_cast_time_legal — PASS
+4. test_enchant_filtered_controller_cast_time_illegal — PASS
+5. test_enchant_filtered_basic_land_legal — PASS
+6. test_enchant_filtered_basic_land_illegal_nonbasic — PASS
+7. test_enchant_filtered_sba_control_change — PASS
+8. test_enchant_filtered_sba_land_becomes_nonland — PASS
+9. test_enchant_filtered_disjunction_forest_or_plains — PASS
+10. test_enchant_filtered_nonbasic_land — PASS
+11. test_animate_land_pt_and_types_via_chained_or_awaken — PASS
+12. test_animate_land_summoning_sickness_propagation — PASS
 
-## Hazards
+### Final verification
+- `cargo build --workspace`: CLEAN
+- `cargo test --all`: 2637 passed (was 2625, +12), 0 failed
+- `cargo clippy --workspace -- -D warnings`: CLEAN
+- `cargo fmt --check`: CLEAN
+- `apply_mana_production_replacements`: UNTOUCHED (verified via git diff 464d9e79..HEAD)
 
-- Genju gate is load-bearing. Run it FIRST.
-- Planner will be tempted to claim "20 cards" — discount before scoping
-- `apply_mana_production_replacements` refactor (PB-Q) stays — do NOT touch
-- PB-Q close (commit `464d9e79`) is the baseline state for PB-Q4 work
-
-## Next Action
-
-Next session: `/start-work W6-PB-Q4`, then dispatch primitive-impl-planner with the 3 verification gates as mandatory pre-plan steps.
+## Next action for reviewer
+Review `memory/primitives/pb-plan-Q4.md` against implementation. Key deviation: `EnchantFilter` instead of `Box<TargetFilter>` in `EnchantTarget::Filtered` — verify this is acceptable. Check that `enchant_filter_matches` covers all 6 filter fields correctly.

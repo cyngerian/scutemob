@@ -255,6 +255,57 @@ pub enum CounterType {
     /// Catch-all for counter types not explicitly enumerated.
     Custom(String),
 }
+/// Controller constraint for enchant restrictions.
+/// Used by `EnchantFilter` to express "you control" / "opponent controls" / "any controller".
+/// Analogous to `TargetController` in `cards::card_definition` but defined here to avoid
+/// a circular dependency between `state::types` and `cards::card_definition`.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+pub enum EnchantControllerConstraint {
+    /// No controller restriction (default).
+    #[default]
+    Any,
+    /// Target must be controlled by the same player as the Aura.
+    You,
+    /// Target must be controlled by a different player than the Aura.
+    Opponent,
+}
+/// A filter for `EnchantTarget::Filtered` — specifies what the Aura can legally enchant.
+///
+/// All types here are from `state::types` to avoid a circular dependency with
+/// `cards::card_definition::TargetFilter`.
+///
+/// Covers:
+///   "Enchant Forest"               → `has_subtype: Some(Forest), has_card_type: Some(Land)`
+///   "Enchant Mountain you control" → + `controller: You`
+///   "Enchant basic land you control" → `basic: true, has_card_type: Some(Land), controller: You`
+///   "Enchant nonbasic land"        → `has_card_type: Some(Land), nonbasic: true`
+///   "Enchant land you control"     → `has_card_type: Some(Land), controller: You`
+///   "Enchant Forest or Plains"     → `has_subtypes: vec![Forest, Plains], has_card_type: Some(Land)`
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct EnchantFilter {
+    /// Must have this card type. `None` = no restriction.
+    #[serde(default)]
+    pub has_card_type: Option<CardType>,
+    /// Must have this subtype (single, AND). `None` = no restriction.
+    #[serde(default)]
+    pub has_subtype: Option<SubType>,
+    /// Must have at least one of these subtypes (OR semantics). Empty = no restriction.
+    /// Used for "Enchant Forest or Plains".
+    #[serde(default)]
+    pub has_subtypes: Vec<SubType>,
+    /// Must have the Basic supertype (CR 205.4a).
+    #[serde(default)]
+    pub basic: bool,
+    /// Must NOT have the Basic supertype (i.e. must be nonbasic).
+    /// CR 205.4a — distinct from `basic: false` (which means "no restriction").
+    #[serde(default)]
+    pub nonbasic: bool,
+    /// Controller constraint relative to the Aura's controller.
+    #[serde(default)]
+    pub controller: EnchantControllerConstraint,
+}
 /// CR 702.5a: Specifies what an Aura can legally target and enchant.
 ///
 /// The Enchant keyword restricts both the target at cast time (CR 303.4a) and
@@ -277,6 +328,16 @@ pub enum EnchantTarget {
     Player,
     /// "Enchant creature or planeswalker"
     CreatureOrPlaneswalker,
+    /// Filtered enchant restriction — the Aura's target must match the given `EnchantFilter`,
+    /// evaluated against layer-resolved characteristics AND relative controllers of Aura and target.
+    ///
+    /// CR 303.4a / 702.5a / 704.5m — covers all four bundled land-variant patterns:
+    ///   "Enchant Forest"                  → `has_subtype: Forest, has_card_type: Land`
+    ///   "Enchant Mountain you control"    → + `controller: You`
+    ///   "Enchant basic land you control"  → `basic: true, has_card_type: Land, controller: You`
+    ///   "Enchant nonbasic land"           → `nonbasic: true, has_card_type: Land`
+    ///   "Enchant Forest or Plains"        → `has_subtypes: [Forest, Plains], has_card_type: Land`
+    Filtered(EnchantFilter),
 }
 /// CR 702.24a: The cost paid for each age counter on a permanent with
 /// cumulative upkeep. Multiplied by the number of age counters at
