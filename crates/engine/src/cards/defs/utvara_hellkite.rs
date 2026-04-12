@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // PB-23: WheneverCreatureYouControlAttacks.
             // TODO: Dragon subtype filter not yet in DSL — over-triggers on non-Dragon attackers.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Dragon".to_string(),

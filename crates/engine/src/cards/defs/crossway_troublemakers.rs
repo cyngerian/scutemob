@@ -45,7 +45,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: false,
-                },
+                                filter: None,
+            },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

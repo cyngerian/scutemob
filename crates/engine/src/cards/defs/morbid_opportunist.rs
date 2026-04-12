@@ -15,7 +15,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: WheneverCreatureDies overbroad + once-per-turn not in DSL.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
+},
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

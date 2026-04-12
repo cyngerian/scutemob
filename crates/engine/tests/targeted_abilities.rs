@@ -316,6 +316,7 @@ fn triggered_ability_targets_propagate_to_runtime() {
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
+            triggering_creature_filter: None,
             targets: vec![TargetRequirement::TargetCreature],
         })
         .in_zone(ZoneId::Battlefield);
@@ -355,6 +356,7 @@ fn triggered_ability_target_player_propagates() {
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
+            triggering_creature_filter: None,
             targets: vec![TargetRequirement::TargetPlayer],
         })
         .in_zone(ZoneId::Battlefield);
@@ -395,6 +397,7 @@ fn triggered_ability_no_targets_backward_compatible() {
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
+            triggering_creature_filter: None,
             targets: vec![],
         })
         .in_zone(ZoneId::Battlefield);

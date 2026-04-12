@@ -22,7 +22,8 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             // CR 603.10a: "Whenever another creature dies, put a +1/+1 counter on Elenda."
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
+},
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::PlusOnePlusOne,

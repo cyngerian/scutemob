@@ -14,7 +14,7 @@ pub fn card() -> CardDefinition {
             // CR 508.1m: "Whenever a creature you control attacks, put a charge counter on this."
             // PB-23: WheneverCreatureYouControlAttacks.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Charge,

@@ -203,6 +203,7 @@ fn test_w3lc_humility_suppresses_triggered_abilities() {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     };
 

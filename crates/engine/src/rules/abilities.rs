@@ -4173,6 +4173,33 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     continue;
                                 }
                             }
+                            // PB-N: triggering_creature_filter — subtype/color/type filter on
+                            // the dying creature. Evaluated against PRE-DEATH characteristics
+                            // preserved on the graveyard object by move_object_to_zone
+                            // (CR 603.10a LKI). Placed after death_filter checks (cheap first).
+                            if let Some(ref creature_filter) =
+                                trigger_def.triggering_creature_filter
+                            {
+                                let dying_obj = match state.objects.get(&dying_obj_id) {
+                                    Some(o) => o,
+                                    None => continue,
+                                };
+                                // is_token check: runtime field on GameObject, not in Characteristics.
+                                if creature_filter.is_token && !dying_is_token {
+                                    continue;
+                                }
+                                // Layer-resolved characteristics preserve pre-death state
+                                // because move_object_to_zone retains Characteristics on the
+                                // graveyard object (CR 603.10a look-back-in-time).
+                                let dying_chars = crate::rules::layers::calculate_characteristics(
+                                    state,
+                                    dying_obj_id,
+                                )
+                                .unwrap_or_else(|| dying_obj.characteristics.clone());
+                                if !crate::effects::matches_filter(&dying_chars, creature_filter) {
+                                    continue;
+                                }
+                            }
                             // CR 603.4: Check intervening-if at trigger time.
                             if let Some(ref cond) = trigger_def.intervening_if {
                                 if !check_intervening_if(state, cond, obj.controller, None) {
@@ -5818,19 +5845,46 @@ fn collect_triggers_for_event(
                         if attacking_obj.controller != obj.controller {
                             continue;
                         }
+                        // PB-N: tighten combat_damage_filter to DAMAGE events only.
+                        // Previously this block ran for both AnyCreatureYouControlAttacks
+                        // and AnyCreatureYouControlDealsCombatDamageToPlayer events, which
+                        // was a latent semantic bug (the field name says "combat damage"
+                        // but fired on attacks too). Now gated on the damage event only.
                         // CR 510.3a: Apply combat_damage_filter — subtype, token, keyword checks.
-                        if let Some(ref filter) = trigger_def.combat_damage_filter {
-                            let dealing_chars = crate::rules::layers::calculate_characteristics(
+                        if event_type
+                            == TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer
+                        {
+                            if let Some(ref filter) = trigger_def.combat_damage_filter {
+                                let dealing_chars =
+                                    crate::rules::layers::calculate_characteristics(
+                                        state,
+                                        attacking_id,
+                                    )
+                                    .unwrap_or_else(|| attacking_obj.characteristics.clone());
+                                // is_token check: uses the object's is_token field directly.
+                                if filter.is_token && !attacking_obj.is_token {
+                                    continue;
+                                }
+                                // Other filter fields (subtype, card type, etc.) checked via matches_filter.
+                                if !crate::effects::matches_filter(&dealing_chars, filter) {
+                                    continue;
+                                }
+                            }
+                        }
+                        // PB-N: triggering_creature_filter — subtype/color/type filter on the
+                        // attacking creature. Applies to BOTH attack and damage events (author's
+                        // choice per trigger def). CR 508.1m / CR 603.2.
+                        if let Some(ref creature_filter) = trigger_def.triggering_creature_filter {
+                            let attacking_chars = crate::rules::layers::calculate_characteristics(
                                 state,
                                 attacking_id,
                             )
                             .unwrap_or_else(|| attacking_obj.characteristics.clone());
-                            // is_token check: uses the object's is_token field directly.
-                            if filter.is_token && !attacking_obj.is_token {
+                            // is_token check: runtime field on GameObject.
+                            if creature_filter.is_token && !attacking_obj.is_token {
                                 continue;
                             }
-                            // Other filter fields (subtype, card type, etc.) checked via matches_filter.
-                            if !crate::effects::matches_filter(&dealing_chars, filter) {
+                            if !crate::effects::matches_filter(&attacking_chars, creature_filter) {
                                 continue;
                             }
                         }

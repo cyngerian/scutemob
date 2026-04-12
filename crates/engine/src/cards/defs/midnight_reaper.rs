@@ -16,7 +16,8 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever a nontoken creature you control dies, draw a card and take 1 damage."
             // PB-23: controller_you + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: true },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: true, filter: None,
+},
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {
                         target: EffectTarget::Controller,

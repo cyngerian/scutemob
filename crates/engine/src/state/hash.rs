@@ -2254,6 +2254,8 @@ impl HashInto for TriggeredAbilityDef {
         self.targets.hash_into(hasher);
         // CR 510.3a: combat_damage_filter — subtype/token filter for combat damage triggers
         self.combat_damage_filter.hash_into(hasher);
+        // PB-N: triggering_creature_filter — subtype/color/type filter for attack and death triggers
+        self.triggering_creature_filter.hash_into(hasher);
     }
 }
 impl HashInto for TriggerData {
@@ -4430,11 +4432,14 @@ impl HashInto for TriggerCondition {
                 controller,
                 exclude_self,
                 nontoken_only,
+                filter,
             } => {
                 7u8.hash_into(hasher);
                 controller.hash_into(hasher);
                 exclude_self.hash_into(hasher);
                 nontoken_only.hash_into(hasher);
+                // PB-N: hash the new subtype/color/type filter field
+                filter.hash_into(hasher);
             }
             TriggerCondition::WheneverCreatureEntersBattlefield { filter } => {
                 8u8.hash_into(hasher);
@@ -4484,7 +4489,11 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WheneverRingTemptsYou => 26u8.hash_into(hasher),
             TriggerCondition::WhenSelfBecomesTapped => 27u8.hash_into(hasher),
             // CR 508.1m / CR 603.2: "Whenever a creature you control attacks" — discriminant 28
-            TriggerCondition::WheneverCreatureYouControlAttacks => 28u8.hash_into(hasher),
+            TriggerCondition::WheneverCreatureYouControlAttacks { filter } => {
+                28u8.hash_into(hasher);
+                // PB-N: hash the new subtype/color/type filter field
+                filter.hash_into(hasher);
+            }
             // CR 510.3a / CR 603.2: "Whenever a creature you control deals combat damage to a player" — discriminant 29
             TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter } => {
                 29u8.hash_into(hasher);
@@ -6106,9 +6115,14 @@ impl GameState {
         // discriminants 20+21, ChosenColorRef/ReplacementManaSourceFilter hash impls,
         // ManaWouldBeProduced new fields (color_filter, source_filter),
         // GameObject.chosen_color field.
+        // PB-N (2026-04-12): added TriggeredAbilityDef.triggering_creature_filter field;
+        // added filter field to TriggerCondition::WheneverCreatureDies and
+        // TriggerCondition::WheneverCreatureYouControlAttacks (unit→struct shape change).
+        // Standing rule: bump on any wire-format-affecting change to TriggeredAbilityDef,
+        // TriggerCondition variants, LayerModification, or CastSpell/StackObject/GameObject.
         // Increment this value for each PB that changes the hash space to prevent stale
         // replays from incorrectly validating against new engine versions.
-        3u8.hash_into(&mut hasher); // schema version 3
+        4u8.hash_into(&mut hasher); // schema version 4 (PB-N)
                                     // 1. Turn state
         self.turn.hash_into(&mut hasher);
         // 2. Timestamp counter and replacement ID counter

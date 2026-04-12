@@ -19,7 +19,8 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: controller_you because oracle says "this creature or another creature
             // you control dies." Self is covered since Zulaport is your creature.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: None,
+},
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
                 intervening_if: None,
                 targets: vec![],

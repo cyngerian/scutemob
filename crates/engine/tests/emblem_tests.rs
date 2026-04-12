@@ -174,6 +174,7 @@ fn test_emblem_triggered_ability_fires() {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     };
 
@@ -385,6 +386,7 @@ fn test_multiple_emblems_stack() {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     };
 

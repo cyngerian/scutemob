@@ -39,7 +39,8 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
                     controller: Some(TargetController::You),
                     exclude_self: true,
                     nontoken_only: false,
-                },
+                                filter: None,
+            },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::LoseLife {

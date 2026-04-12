@@ -695,6 +695,7 @@ fn test_mutate_trigger_fires() {
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
+            triggering_creature_filter: None,
             targets: vec![],
         });
     mutating_beast.power = Some(4);

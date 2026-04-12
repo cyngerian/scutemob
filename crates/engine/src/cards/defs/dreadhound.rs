@@ -35,7 +35,8 @@ pub fn card() -> CardDefinition {
                     controller: None,
                     exclude_self: false,
                     nontoken_only: false,
-                },
+                                filter: None,
+            },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::LoseLife {

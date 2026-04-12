@@ -26,7 +26,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::Opponent),
                     exclude_self: false,
                     nontoken_only: false,
-                },
+                                filter: None,
+            },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::PlusOnePlusOne,

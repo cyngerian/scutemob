@@ -23,7 +23,8 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever another nontoken creature you control dies, draw a card and lose 1 life."
             // PB-23: controller_you + exclude_self + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: true },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: true, filter: None,
+},
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,

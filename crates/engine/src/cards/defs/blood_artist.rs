@@ -16,7 +16,8 @@ pub fn card() -> CardDefinition {
             // "this creature or another creature dies" = any creature dies.
             // NOTE: oracle targets a single player but DrainLife drains all opponents.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false, filter: None,
+},
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
                 intervening_if: None,
                 targets: vec![],

@@ -2440,6 +2440,12 @@ pub enum TriggerCondition {
         /// Maps to `DeathTriggerFilter::nontoken_only`.
         #[serde(default)]
         nontoken_only: bool,
+        /// PB-N: optional filter on the dying creature's layer-resolved characteristics.
+        /// Used for "Whenever a Vampire you control dies" (Teysa Orzhov Scion), etc.
+        /// Evaluated against PRE-DEATH characteristics preserved on the graveyard object
+        /// by move_object_to_zone (CR 603.10a LKI). Default: None (no filter).
+        #[serde(default)]
+        filter: Option<TargetFilter>,
     },
     /// "Whenever a creature enters the battlefield" (with optional filter).
     WheneverCreatureEntersBattlefield { filter: Option<TargetFilter> },
@@ -2553,7 +2559,14 @@ pub enum TriggerCondition {
     ///
     /// CR 508.1m / CR 603.2: Fires after attackers are declared, once per attacker
     /// controlled by the trigger source's controller.
-    WheneverCreatureYouControlAttacks,
+    WheneverCreatureYouControlAttacks {
+        /// PB-N: optional filter on the attacking creature's layer-resolved characteristics.
+        /// Used for "Whenever a Dragon you control attacks" (Kolaghan, Dromoka),
+        /// "Whenever a Vampire you control attacks" (Sanctum Seeker), etc.
+        /// CR 508.1m / CR 603.2.
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+    },
     /// "Whenever a creature you control deals combat damage to a player."
     ///
     /// CR 510.3a / CR 603.2: Fires after combat damage is dealt, once per

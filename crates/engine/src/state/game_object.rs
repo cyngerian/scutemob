@@ -594,6 +594,14 @@ pub struct TriggeredAbilityDef {
     /// CR 510.3a / CR 603.2
     #[serde(default)]
     pub combat_damage_filter: Option<crate::cards::card_definition::TargetFilter>,
+    /// PB-N: layer-resolved filter applied to the triggering creature for
+    /// `AnyCreatureYouControlAttacks` and `AnyCreatureDies` dispatch paths.
+    /// Distinct from `combat_damage_filter` (which targets the damage-dealing creature
+    /// on `AnyCreatureYouControlDealsCombatDamageToPlayer`).
+    /// For death triggers, evaluated against PRE-DEATH characteristics (CR 603.10a LKI).
+    /// For attack triggers, evaluated at declare-attackers time (CR 508.1m).
+    #[serde(default)]
+    pub triggering_creature_filter: Option<crate::cards::card_definition::TargetFilter>,
     /// Target requirements for this triggered ability (CR 601.2c).
     /// Empty = no targets required.
     #[serde(default)]

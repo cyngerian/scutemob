@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: Nontoken filter not yet in DSL for attack triggers — over-triggers on token
             // attackers (including Goblin tokens created by this ability itself).
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Goblin".to_string(),

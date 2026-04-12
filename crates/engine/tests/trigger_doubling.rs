@@ -96,6 +96,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     }
 }
@@ -875,6 +876,7 @@ fn test_panharmonicon_doubles_self_etb_trigger() {
                     etb_filter: None,
                     death_filter: None,
                     combat_damage_filter: None,
+                    triggering_creature_filter: None,
                     targets: vec![],
                 })
                 .in_zone(ZoneId::Hand(p1)),

@@ -12,9 +12,23 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
-            // TODO: DSL gap — "Whenever a Vampire you control attacks" requires a
-            // creature-type-filtered attack trigger (WheneverCreatureWithSubtypeAttacks)
-            // which does not exist in the DSL.
+            // CR 508.1m / CR 603.2: "Whenever a Vampire you control attacks,
+            // each opponent loses 1 life and you gain 1 life."
+            // PB-N: Vampire subtype filter via triggering_creature_filter.
+            // DrainLife: each opponent loses 1, controller gains total lost.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Vampire".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

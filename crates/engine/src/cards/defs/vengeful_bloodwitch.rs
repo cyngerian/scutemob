@@ -22,7 +22,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: false,
-                },
+                                filter: None,
+            },
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {
                         player: PlayerTarget::DeclaredTarget { index: 0 },

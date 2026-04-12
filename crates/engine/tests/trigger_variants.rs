@@ -400,6 +400,7 @@ fn test_sacrifice_trigger_not_on_destruction() {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(1),
             }),
+            triggering_creature_filter: None,
             targets: vec![],
         });
 
@@ -492,6 +493,7 @@ fn test_whenever_you_attack_fires_once_per_combat() {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(1),
             }),
+            triggering_creature_filter: None,
             targets: vec![],
         },
     );
@@ -608,6 +610,7 @@ fn test_when_leaves_battlefield_fires_on_death() {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(2),
             }),
+            triggering_creature_filter: None,
             targets: vec![],
         });
 
@@ -664,6 +667,7 @@ fn test_when_leaves_battlefield_fires_on_destruction() {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(1),
             }),
+            triggering_creature_filter: None,
             targets: vec![],
         },
     );
@@ -760,6 +764,7 @@ fn test_whenever_you_draw_card_trigger_fires() {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(1),
             }),
+            triggering_creature_filter: None,
             targets: vec![],
         });
 
@@ -858,6 +863,7 @@ fn test_whenever_you_gain_life_trigger_fires() {
                 player: PlayerTarget::EachOpponent,
                 amount: EffectAmount::Fixed(1),
             }),
+            triggering_creature_filter: None,
             targets: vec![],
         });
 

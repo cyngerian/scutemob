@@ -2072,6 +2072,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
                 intervening_if: None,
                 targets: targets.clone(),
@@ -2105,6 +2106,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
                 intervening_if: None,
                 targets: vec![],
@@ -2127,6 +2129,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
                 intervening_if: None,
                 targets: vec![],
@@ -2159,6 +2162,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
                 intervening_if: None,
                 targets: targets.clone(),
@@ -2182,6 +2186,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfIsDealtDamage,
                 intervening_if: None,
                 targets: vec![],
@@ -2207,6 +2212,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2229,6 +2235,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
                 intervening_if: None,
                 targets: vec![],
@@ -2252,6 +2259,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
                 targets: vec![],
@@ -2274,6 +2282,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
                 intervening_if: None,
                 targets: vec![],
@@ -2298,6 +2307,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2356,6 +2366,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: Some(etb_filter),
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2374,6 +2385,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfMutates,
                 intervening_if: None,
                 targets: vec![],
@@ -2396,6 +2408,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfBecomesTapped,
                 intervening_if: None,
                 targets: vec![],
@@ -2422,6 +2435,7 @@ pub fn enrich_spec_from_def(
                     controller,
                     exclude_self,
                     nontoken_only,
+                    filter,
                 },
             effect,
             ..
@@ -2441,6 +2455,8 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: Some(death_filter),
                 combat_damage_filter: None,
+                // PB-N: forward the DSL subtype/color filter to the runtime field (CR 603.10a)
+                triggering_creature_filter: filter.clone(),
                 targets: vec![],
             });
         }
@@ -2453,7 +2469,8 @@ pub fn enrich_spec_from_def(
     // creature's controller matches the trigger source's controller.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+            // PB-N: WheneverCreatureYouControlAttacks changed from unit to struct variant
+            trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter },
             effect,
             ..
         } = ability
@@ -2466,6 +2483,8 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                // PB-N: forward the DSL subtype/color filter to the runtime field (CR 508.1m)
+                triggering_creature_filter: filter.clone(),
                 targets: vec![],
             });
         }
@@ -2494,6 +2513,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: filter.clone(),
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2518,6 +2538,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: filter.clone(),
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2540,6 +2561,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2561,6 +2583,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2584,6 +2607,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2604,6 +2628,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2624,6 +2649,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2642,6 +2668,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
                 description: "Whenever an opponent plays a land (CR 305.1)".to_string(),
                 effect: Some(effect.clone()),
@@ -2666,6 +2693,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2686,6 +2714,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2706,6 +2735,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2727,6 +2757,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2759,6 +2790,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }
@@ -2780,6 +2812,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
+                triggering_creature_filter: None,
                 targets: vec![],
             });
         }

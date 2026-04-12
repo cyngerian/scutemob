@@ -45,7 +45,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: true,
-                },
+                                filter: None,
+            },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Pest".to_string(),

@@ -622,6 +622,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 etb_filter: None,
                                 death_filter: None,
                                 combat_damage_filter: None,
+                                triggering_creature_filter: None,
                                 targets: vec![],
                                 trigger_on: crate::state::game_object::TriggerEvent::SelfDies,
                                 intervening_if: None,

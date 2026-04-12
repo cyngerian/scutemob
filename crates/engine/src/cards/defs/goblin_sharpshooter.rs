@@ -21,7 +21,8 @@ pub fn card() -> CardDefinition {
                     controller: None,
                     exclude_self: false,
                     nontoken_only: false,
-                },
+                                filter: None,
+            },
                 effect: Effect::UntapPermanent {
                     target: EffectTarget::Source,
                 },

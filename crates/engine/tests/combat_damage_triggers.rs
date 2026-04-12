@@ -68,6 +68,7 @@ fn per_creature_draw() -> TriggeredAbilityDef {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     }
 }
@@ -90,6 +91,7 @@ fn ninja_combat_damage_draw() -> TriggeredAbilityDef {
             has_subtype: Some(SubType("Ninja".to_string())),
             ..Default::default()
         }),
+        triggering_creature_filter: None,
         targets: vec![],
     }
 }
@@ -107,6 +109,7 @@ fn batch_draw() -> TriggeredAbilityDef {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     }
 }
@@ -126,6 +129,7 @@ fn equipped_creature_draw() -> TriggeredAbilityDef {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     }
 }
@@ -145,6 +149,7 @@ fn enchanted_creature_draw() -> TriggeredAbilityDef {
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
         targets: vec![],
     }
 }

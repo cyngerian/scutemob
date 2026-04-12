@@ -22,7 +22,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: true,
                     nontoken_only: true,
-                },
+                                filter: None,
+            },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Eldrazi Scion".to_string(),

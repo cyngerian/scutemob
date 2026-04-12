@@ -75,6 +75,7 @@ fn alliance_gain_life_trigger() -> TriggeredAbilityDef {
         }),
         death_filter: None,
         combat_damage_filter: None,
+        triggering_creature_filter: None,
     }
 }
 

@@ -4,9 +4,10 @@ batch: PB-N
 title: Combined subtype-filtered attack and death triggers (single dispatch site)
 cards_unblocked_estimated: ~33 considered (18 attack + 15 death); ~20 yield expected post 60% calibration
 started: 2026-04-12 (oversight session — re-prioritization)
-phase: plan
-plan_file: memory/primitives/pb-plan-N.md (TO BE WRITTEN by next worker session)
-review_file: (TBD)
+phase: implement
+plan_file: memory/primitives/pb-plan-N.md (WRITTEN 2026-04-12 by Opus planner session)
+review_file: (TBD — runs after implement)
+oversight_directives: 2026-04-12 — coordinator approved ship-as-planned. Hash bump 3→4 (now standing rule). Tighten combat_damage_filter to damage-only + regression test. Mechanical card-def fixup as single commit driven by cargo build. 4 confirmed cards (Kolaghan, Dromoka, Sanctum Seeker, Teysa partial). All 8 mandatory tests, no silent skips. Catalog 11 deferred cards in plan close + Phase 1.8 "PB-N spawned candidates" subsection. Pre-existing clippy warnings → log as BASELINE-CLIPPY-01/02 LOWs at close (do NOT fix in PB-N). Calibration memory update at close: trigger PBs 15-25% yield. Next batch after PB-N close: PB-D.
 
 ## How this PB was selected
 
@@ -126,15 +127,15 @@ Standard `primitive-impl-planner` flow. Required artifacts:
 
 ## Planner checklist (worker fills in)
 
-- [ ] Step 0: stale-TODO sweep committed (separate commit, prefix `W6-prim:`)
-- [ ] Step 1: PB-L landfall pre-check completed; finding noted in PB-N plan preamble
-- [ ] Step 2.1: CR research notes captured
-- [ ] Step 2.2: rust-analyzer walk of TriggerCondition dispatch sites done
-- [ ] Step 2.3: dispatch unification gate verdict (PASS/FAIL/SPLIT) recorded
-- [ ] Step 2.4: 33-card MCP roster verification complete with 60% yield discount applied
-- [ ] Step 2.5: mandatory/optional test labels assigned with no silent skips
-- [ ] Plan file written: `memory/primitives/pb-plan-N.md`
-- [ ] Wip file phase advanced to `plan-complete` for oversight handoff
+- [x] Step 0: stale-TODO sweep committed (separate commit, prefix `W6-prim:`) — `fc83d9d0`. Bootleggers' Stash newly authored (first AddActivatedAbility filtered grant); song_of_freyalise + throne_of_eldraine TODOs corrected. Build/tests clean (2637 pass). Pre-existing clippy warnings flagged for oversight.
+- [x] Step 1: PB-L landfall pre-check completed (2026-04-12). **Finding: PB-L is a real PB, not a stale-TODO sweep.** `ETBTriggerFilter` (game_object.rs:549) has `creature_only` but no land/card_type filter, and `TriggerEvent` only has `SelfEntersBattlefield` / `AnyPermanentEntersBattlefield` — no land-typed variant. Card defs `khalni_heart_expedition.rs` and `druid_class.rs` explicitly TODO on `WheneverLandEntersBattlefield`. Cheapest implementation path: extend `ETBTriggerFilter` with `card_type_filter: Option<CardType>` (one new field, ~3 dispatch sites) — or add a `LandEntersBattlefield` variant if the dispatch site warrants. Per-rank-4 yield estimate (~7 cards) holds. To be repeated in PB-N plan preamble.
+- [x] Step 2.1: CR research notes captured — CR 508.1m (declare attackers), 603.2 (trigger event matching), 603.10a (death-trigger LKI for pre-death subtypes/colors), 603.4 (intervening-if not used here — filter is part of trigger condition not intervening), 613.1d/f (layer-resolved chars at all dispatch sites). Recorded in `memory/primitives/pb-plan-N.md` "CR Rule Text" section.
+- [x] Step 2.2: rust-analyzer walk of TriggerCondition dispatch sites done — used Grep+Read instead of RA to keep RAM free. Dispatch sites mapped: DSL `TriggerCondition` at `cards/card_definition.rs:2396`, runtime `TriggerEvent` at `state/game_object.rs:301`, attack-side fan-out at `rules/abilities.rs:3632-3704`, attack/damage filter check at `rules/abilities.rs:5800-5845`, death-side inline loop at `rules/abilities.rs:4117-4214`, hash at `state/hash.rs:2230-2257`. Card-def grep returned 59 existing files using these conditions — exhaustive list deferred to runner impl phase.
+- [x] Step 2.3: dispatch unification gate verdict — **PASS-AS-FIELD-ADDITION**. Single new field `triggering_creature_filter: Option<TargetFilter>` on `TriggeredAbilityDef`, plus mirror `filter: Option<TargetFilter>` on the two DSL `TriggerCondition` variants. NO new TriggerCondition wrapper variant. Both dispatch sites consume the field via existing `matches_filter` against `calculate_characteristics` — death-side is a new code block (~12 LOC), attack-side is a peer block to the existing combat_damage_filter check (~12 LOC). Recorded in plan "Dispatch unification verdict" and "Engine Changes" sections.
+- [x] Step 2.4: 33-card MCP roster verification complete with 60% yield discount applied — 11 card lookups via MCP `lookup_card`. Result: original brief was very optimistic. Most "subtype-filtered attack" candidates are actually `SelfAttacks` on enchanted/equipped creatures (Bear Umbra, Argentum Armor, Diamond Pick-Axe, Aqueous Form), `AnyCreatureYouControlAttacks` with NO subtype filter (Hellrider, Battle Cry Goblin, Shared Animosity), or different controller-shapes (Najeela — no "you control"). Only Kolaghan, Dromoka, Sanctum Seeker, (and the existing TODO on Kolaghan confirms the gap) cleanly need PB-N. Death-side similar — Skullclamp wants equipment-LKI, Athreos wants owner-not-controller, Pashalik/Miara/Omnath want self-OR-filtered, Patron of the Vein already supported via existing controller_opponent, Marionette/Morbid/Luminous want non-subtype filters. Only Crossway Troublemakers, Teysa, and (conditionally) Serpent's Soul-Jar are clean PB-N targets. **Actual yield: 4 cards confirmed (Kolaghan, Dromoka, Sanctum Seeker, Teysa partial); 11 explicitly deferred with one-line reasons.** Yield is 12% of the 33 brief estimate, well below the 60% discount. Recorded in plan "Card Definition Fixes" and "Deferred cards" sections. **Stop-and-flag noted in plan**: yield is small enough that oversight may want to defer PB-N in favor of a higher-yield batch — flagged in plan Risks section.
+- [x] Step 2.5: mandatory/optional test labels assigned with no silent skips — 8 MANDATORY + 2 OPTIONAL. Mandatory covers: attack subtype match (1), attack subtype mismatch (2), attack color filter (3), death subtype match (4), death subtype mismatch (5), pre-death LKI on color (6 — load-bearing per PB-Q4 retro), hash parity (7 — closes PB-Q H1 retro), Kolaghan end-to-end (8). Optional covers AND-combined filters (9) and Arcane Adaptation layer-resolved subtype (10). Recorded in plan "Test Plan" section.
+- [x] Plan file written: `memory/primitives/pb-plan-N.md`
+- [x] Wip file phase advanced to `plan-complete` for oversight handoff
 
 ## Artifacts the planner must produce
 

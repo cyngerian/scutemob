@@ -17,7 +17,8 @@ pub fn card() -> CardDefinition {
             // PB-23: controller_you + exclude_self + nontoken_only via DeathTriggerFilter.
             // TODO: Elf/Berserker subtype filter not yet in DSL — over-triggers on other creature types.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: true },
+                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: true, filter: None,
+},
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,

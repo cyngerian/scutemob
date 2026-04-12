@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 508.1m: "Whenever a creature you control attacks, put a quest counter on this."
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Quest,
