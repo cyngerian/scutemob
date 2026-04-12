@@ -243,16 +243,6 @@ pub enum EffectFilter {
     ///
     /// Used for "Creatures you control of the chosen color get +1/+1" (Caged Sun).
     CreaturesYouControlOfChosenColor,
-    /// Applies to all creature permanents on the battlefield (any controller)
-    /// that have a color matching the source permanent's `chosen_color` field.
-    ///
-    /// CR 614.12 / CR 105.1: reads `chosen_color` from the source object dynamically.
-    /// Unlike `CreaturesYouControlOfChosenColor`, this is NOT limited to the source's
-    /// controller — all players' creatures matching the chosen color are affected.
-    ///
-    /// Used for "Creatures of the chosen color get +1/+1" (Gauntlet of Power — note:
-    /// all controllers, not just you).
-    AllCreaturesOfChosenColor,
 }
 /// What a continuous effect does when applied.
 ///

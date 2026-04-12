@@ -4,13 +4,12 @@
 //! - `ReplacementModification::ChooseColor(Color)` — "As this enters, choose a color"
 //!   (CR 614.12 / CR 614.12a)
 //! - `EffectFilter::CreaturesYouControlOfChosenColor` — chosen-color creature pump (CR 105.1)
-//! - `EffectFilter::AllCreaturesOfChosenColor` — all-controller chosen-color pump
 //! - `ReplacementTrigger::ManaWouldBeProduced` color_filter + source_filter — chosen-color
 //!   mana doubling (CR 106.6a)
 //! - `Effect::AddManaOfChosenColor` — tap for N mana of chosen color (CR 614.12)
 //! - `GameObject.chosen_color` hash field participation
 //!
-//! Card integrations: Caged Sun, Gauntlet of Power, Throne of Eldraine, Temple of the Dragon Queen.
+//! Card integrations: Caged Sun, Temple of the Dragon Queen.
 //!
 //! Standing rules enforced:
 //! - Tests 5 and 8 are MANDATORY full-dispatch tests (memory/conventions.md).
@@ -403,99 +402,6 @@ fn test_caged_sun_full_dispatch_pumps_chosen_color_creatures() {
     );
 }
 
-/// CR 614.12 / CR 613.1f — Gauntlet of Power pumps creatures of chosen color for ALL controllers.
-///
-/// P0 controls 1 red creature. P1 controls 1 red + 1 green creature.
-/// Cast Gauntlet of Power (choosing Red). Assert: BOTH red creatures get +1/+1;
-/// green unchanged.
-///
-/// Discriminates AllCreaturesOfChosenColor from CreaturesYouControlOfChosenColor.
-#[test]
-fn test_gauntlet_of_power_pumps_all_controllers_chosen_color() {
-    let p1 = p(1);
-    let p2 = p(2);
-    let registry = CardRegistry::new(vec![mtg_engine::cards::defs::gauntlet_of_power::card()]);
-
-    let p1_red = ObjectSpec::creature(p1, "P1 Red Creature", 2, 2)
-        .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Battlefield);
-    let p2_red = ObjectSpec::creature(p2, "P2 Red Creature", 2, 2)
-        .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Battlefield);
-    let p2_green = ObjectSpec::creature(p2, "P2 Green Creature", 2, 2)
-        .with_colors(vec![Color::Green])
-        .in_zone(ZoneId::Battlefield);
-
-    // P1 has 1 red creature → fallback picks Red.
-    let gauntlet_spec = ObjectSpec::card(p1, "Gauntlet of Power")
-        .with_card_id(CardId("gauntlet-of-power".to_string()))
-        .with_types(vec![CardType::Artifact])
-        .in_zone(ZoneId::Hand(p1));
-
-    let state = GameStateBuilder::new()
-        .add_player(p1)
-        .add_player(p2)
-        .add_player(p(3))
-        .add_player(p(4))
-        .with_registry(registry)
-        .object(p1_red)
-        .object(p2_red)
-        .object(p2_green)
-        .object(gauntlet_spec)
-        .at_step(Step::PreCombatMain)
-        .active_player(p1)
-        .player_mana(
-            p1,
-            ManaPool {
-                colorless: 5,
-                ..Default::default()
-            },
-        )
-        .build()
-        .unwrap();
-
-    let gauntlet_id = find_object(&state, "Gauntlet of Power");
-    let state = cast_spell(state, p1, gauntlet_id);
-    let (state, _) = pass_all(state, &[p1, p2, p(3), p(4)]);
-
-    // Gauntlet chose Red (P1 has 1 red)
-    let bf_gauntlet_id = find_object_in_zone(&state, "Gauntlet of Power", ZoneId::Battlefield)
-        .expect("Gauntlet of Power must be on battlefield");
-    let gauntlet_obj = state.objects.get(&bf_gauntlet_id).unwrap();
-    assert_eq!(
-        gauntlet_obj.chosen_color,
-        Some(Color::Red),
-        "Gauntlet should have chosen Red"
-    );
-
-    let p1_red_id = find_object(&state, "P1 Red Creature");
-    let p2_red_id = find_object(&state, "P2 Red Creature");
-    let p2_green_id = find_object(&state, "P2 Green Creature");
-
-    let p1_red_chars = calculate_characteristics(&state, p1_red_id).unwrap();
-    let p2_red_chars = calculate_characteristics(&state, p2_red_id).unwrap();
-    let p2_green_chars = calculate_characteristics(&state, p2_green_id).unwrap();
-
-    // P1's red creature gets +1/+1
-    assert_eq!(
-        p1_red_chars.power,
-        Some(3),
-        "CR 105.1: P1 Red creature gets +1/+1 from Gauntlet"
-    );
-    // P2's red creature ALSO gets +1/+1 (AllCreaturesOfChosenColor, not just P1)
-    assert_eq!(
-        p2_red_chars.power,
-        Some(3),
-        "CR 105.1: P2 Red creature also gets +1/+1 (Gauntlet pumps all controllers)"
-    );
-    // P2's green creature unchanged
-    assert_eq!(
-        p2_green_chars.power,
-        Some(2),
-        "CR 105.1: P2 Green creature is not the chosen color, unchanged"
-    );
-}
-
 /// CR 614.12 / CR 105.1 — Filter with no chosen_color set matches nothing.
 ///
 /// Manually register a CreaturesYouControlOfChosenColor effect with no source
@@ -712,106 +618,6 @@ fn test_caged_sun_does_not_double_other_color_mana() {
         "CR 105.1: Mountain produces 1R; Caged Sun chose White — no doubling"
     );
     assert_eq!(pool.white, 0, "No white mana from Mountain tap");
-}
-
-/// CR 106.6a — Gauntlet of Power only doubles basic lands, NOT nonbasic lands.
-///
-/// P1 has Gauntlet (chose Red), a Mountain (basic), and a Sulfur Falls-like nonbasic (taps for R).
-/// Tap Mountain → 2R. Tap nonbasic → 1R.
-/// Discriminates BasicLand from AnyLand source filter.
-#[test]
-fn test_gauntlet_of_power_only_doubles_basic_lands() {
-    let p1 = p(1);
-    let registry = CardRegistry::new(vec![mtg_engine::cards::defs::gauntlet_of_power::card()]);
-
-    let red_creature = ObjectSpec::creature(p1, "Red Goblin", 1, 1)
-        .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Battlefield);
-    // Basic Mountain
-    let mountain = ObjectSpec::card(p1, "Mountain")
-        .with_types(vec![CardType::Land])
-        .with_supertypes(vec![SuperType::Basic])
-        .with_mana_ability(ManaAbility::tap_for(ManaColor::Red))
-        .in_zone(ZoneId::Battlefield);
-    // Nonbasic land that produces R (no Basic supertype)
-    let nonbasic_red = ObjectSpec::card(p1, "Nonbasic Red Land")
-        .with_types(vec![CardType::Land])
-        .with_mana_ability(ManaAbility::tap_for(ManaColor::Red))
-        .in_zone(ZoneId::Battlefield);
-
-    let gauntlet_spec = ObjectSpec::card(p1, "Gauntlet of Power")
-        .with_card_id(CardId("gauntlet-of-power".to_string()))
-        .with_types(vec![CardType::Artifact])
-        .in_zone(ZoneId::Hand(p1));
-
-    let state = GameStateBuilder::new()
-        .add_player(p1)
-        .add_player(p(2))
-        .add_player(p(3))
-        .add_player(p(4))
-        .with_registry(registry)
-        .object(red_creature)
-        .object(mountain)
-        .object(nonbasic_red)
-        .object(gauntlet_spec)
-        .at_step(Step::PreCombatMain)
-        .active_player(p1)
-        .player_mana(
-            p1,
-            ManaPool {
-                colorless: 5,
-                ..Default::default()
-            },
-        )
-        .build()
-        .unwrap();
-
-    let gauntlet_id = find_object(&state, "Gauntlet of Power");
-    let state = cast_spell(state, p1, gauntlet_id);
-    let (state, _) = pass_all(state, &[p1, p(2), p(3), p(4)]);
-
-    // Verify chose Red
-    let bf_gauntlet_id =
-        find_object_in_zone(&state, "Gauntlet of Power", ZoneId::Battlefield).unwrap();
-    assert_eq!(
-        state.objects.get(&bf_gauntlet_id).unwrap().chosen_color,
-        Some(Color::Red),
-        "Gauntlet should have chosen Red"
-    );
-
-    // Tap Mountain (basic) → should produce 2R
-    let mountain_id = find_object(&state, "Mountain");
-    let (state, _) = process_command(
-        state,
-        Command::TapForMana {
-            player: p1,
-            source: mountain_id,
-            ability_index: 0,
-        },
-    )
-    .expect("TapForMana on Mountain should succeed");
-    let pool = &state.players.get(&p1).unwrap().mana_pool;
-    assert_eq!(
-        pool.red, 2,
-        "CR 106.6a: Gauntlet doubles basic Mountain tap: 2R"
-    );
-
-    // Now tap the nonbasic land → should produce only 1R (no doubling)
-    let nonbasic_id = find_object(&state, "Nonbasic Red Land");
-    let (state, _) = process_command(
-        state,
-        Command::TapForMana {
-            player: p1,
-            source: nonbasic_id,
-            ability_index: 0,
-        },
-    )
-    .expect("TapForMana on nonbasic red land should succeed");
-    let pool = &state.players.get(&p1).unwrap().mana_pool;
-    assert_eq!(
-        pool.red, 3,
-        "CR 106.6a: Nonbasic land not doubled: 2R + 1R = 3R total"
-    );
 }
 
 // ── Hash test ────────────────────────────────────────────────────────────────

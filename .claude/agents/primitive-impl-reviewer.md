@@ -109,7 +109,16 @@ not just that it compiles.
 - Are parameter values correct (filter conditions, amounts, targets)?
 - Does the card def produce the correct game state?
 
-#### 3. No Remaining TODOs
+#### 3. Oracle-vs-Filter Semantic Gate
+- **Verify that each enum variant's dispatch semantics match the card's oracle text, not
+  just that the variant exists.** For example, a filter variant named `BasicLand` may exist
+  but dispatch as "controller's basic lands only" — if oracle says "any player's basic
+  land," the card produces wrong game state despite referencing a correctly-named variant.
+- Walk the full dispatch chain: card def → enum variant → match arm → runtime behavior.
+  If any link in that chain narrows or widens scope vs. oracle text, flag as HIGH.
+- This is the #1 failure mode in primitive reviews (PB-S, PB-X, PB-Q all had it).
+
+#### 4. No Remaining TODOs
 - Are there any TODO comments left in the card def?
 - Are there any placeholder values or stubs?
 

@@ -61,6 +61,11 @@
 | PB-M | Panharmonicon trigger doubling | done | 4 | ~0 | fixed | 1 |
 | PB-S | GrantActivatedAbility | done | 5 | ~0 | fixed | 1 |
 | PB-X | A-42 Tier 1 micro-PB (exclusion pump + dynamic P/T + ExileSelf) | done | 6 | 0 | fixed | 1 |
+| PB-Q | ChooseColor (as-ETB color choice + color-aware effects) | done | 2 | ~4 | fixed | 1 |
+| PB-Q2 | Activated-time ChooseColor | planned | 0 | ~4 | — | — |
+| PB-Q3 | ReplacementScope (any-player mana replacement) | planned | 0 | ~1 | — | — |
+| PB-Q4 | EnchantTarget::LandSubtype | planned | 0 | ~1+ | — | — |
+| PB-Q5 | SpendOnlyChosenColorMana | planned | 0 | ~1 | — | — |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)

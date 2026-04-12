@@ -1087,13 +1087,11 @@ pub struct GameObject {
     #[serde(default)]
     pub chosen_creature_type: Option<SubType>,
     /// CR 614.12 / CR 105.1: Chosen color set by an as-ETB replacement effect
-    /// ("As this enters, choose a color."). Used by Caged Sun, Gauntlet of Power,
-    /// Throne of Eldraine, Temple of the Dragon Queen, Utopia Sprawl.
+    /// ("As this enters, choose a color."). Used by Caged Sun, Temple of the Dragon Queen.
     /// Reset to `None` on zone changes (CR 400.7); new GameObjects default to `None`.
     ///
     /// Read by:
-    /// - `EffectFilter::CreaturesYouControlOfChosenColor` / `AllCreaturesOfChosenColor`
-    ///   in `rules/layers.rs` (chosen-color creature pump dispatch)
+    /// - `EffectFilter::CreaturesYouControlOfChosenColor` in `rules/layers.rs`
     /// - mana-production replacement dispatch in `rules/mana.rs` (chosen-color mana doubling)
     /// - `Effect::AddManaOfChosenColor` in `effects/mod.rs` (tap-for-N-of-chosen-color)
     #[serde(default)]

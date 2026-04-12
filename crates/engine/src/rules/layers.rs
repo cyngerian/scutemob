@@ -962,22 +962,6 @@ fn effect_applies_to(
                 false
             }
         }
-        // CR 614.12 / CR 105.1 / CR 613.1e: All creatures (any controller) of the chosen color.
-        // Unlike CreaturesYouControlOfChosenColor, this is NOT controller-restricted.
-        // Used by Gauntlet of Power: "Creatures of the chosen color get +1/+1."
-        EffectFilter::AllCreaturesOfChosenColor => {
-            if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
-                return false;
-            }
-            if let Some(source_id) = effect.source {
-                let chosen_color = state.objects.get(&source_id).and_then(|s| s.chosen_color);
-                chosen_color
-                    .map(|c| chars.colors.contains(&c))
-                    .unwrap_or(false)
-            } else {
-                false
-            }
-        }
         EffectFilter::OtherCreaturesYouControlOfChosenType => {
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;

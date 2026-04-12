@@ -686,6 +686,50 @@ descriptions, and backfill protocol.
 
 ---
 
+## Phase 1.7: Alphabetic Micro-PBs (PB-A through PB-Y)
+
+Micro-PBs spawned during W6 card authoring to unblock specific cards.
+Each follows the full plan→implement→review→fix→close pipeline.
+
+### PB-Q: ChooseColor (as-ETB color choice + color-aware downstream effects)
+
+- **Status**: done (closed 2026-04-12)
+- **Shipped cards**: Caged Sun, Temple of the Dragon Queen (2)
+- **Parked cards**: Gauntlet of Power (→PB-Q3), Utopia Sprawl (→PB-Q4), Throne of Eldraine (→PB-Q5), Painter's Servant (verify-only, parked)
+- **Engine**: `GameObject.chosen_color`, `ReplacementModification::ChooseColor`, `AddOneManaOfChosenColor`, `ChosenColorRef`, `ReplacementManaSourceFilter`, `EffectFilter::CreaturesYouControlOfChosenColor`, `Effect::AddManaOfChosenColor`, `apply_mana_production_replacements` refactor
+- **Tests**: 9 (primitive_pb_q.rs)
+- **Review**: 2 HIGH (Gauntlet controller filter, Utopia Sprawl Enchant Forest) resolved by parking; 4 MEDIUM; 5 LOW (CR citations fixed at close)
+
+### PB-Q2: Activated-time ChooseColor (reserved)
+
+- **Status**: planned
+- **Scope**: Choose-color at activation time (not ETB). Skrelv, Nykthos, Three Tree City, Throne of Eldraine draw activation.
+- **Engine**: Likely new `ActivationCost` variant or `Command` extension for color choice at activation resolution.
+- **Depends on**: PB-Q (done)
+
+### PB-Q3: ReplacementScope you-vs-its-controller (reserved)
+
+- **Status**: planned
+- **Scope**: ~30 LOC. Extend `ManaWouldBeProduced` replacement to fire for any player's tap, not just the replacement controller's. Unblocks Gauntlet of Power.
+- **Engine**: `fires_for: AnyPlayer | SpecificPlayer(PlayerId)` field on `ManaWouldBeProduced` or equivalent dispatch change in `apply_mana_production_replacements`.
+- **Depends on**: PB-Q (done)
+
+### PB-Q4: EnchantTarget::LandSubtype (reserved)
+
+- **Status**: planned
+- **Scope**: New `EnchantTarget::LandSubtype(SubType)` variant + casting validation + hash arm. Unblocks Utopia Sprawl + likely other aura cards targeting specific land subtypes.
+- **Engine**: 1 new enum variant, 1 dispatch arm in `casting.rs`, 1 hash arm.
+- **Depends on**: PB-Q (done)
+
+### PB-Q5: SpendOnlyChosenColorMana (reserved)
+
+- **Status**: planned
+- **Scope**: Mana spending restrictions tied to chosen color. Unblocks Throne of Eldraine. Cost framework risk — do last.
+- **Engine**: `ManaRestriction` extension or new framework for "spend only mana of chosen color."
+- **Depends on**: PB-Q (done)
+
+---
+
 ## Total Effort Estimate
 
 | Phase | Sessions | Cards |

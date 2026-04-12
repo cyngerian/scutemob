@@ -1289,8 +1289,6 @@ impl HashInto for EffectFilter {
             EffectFilter::AllCreaturesExcludingChosenSubtype => 33u8.hash_into(hasher),
             // CR 614.12 / CR 105.1: Creatures you control of the chosen color — discriminant 34
             EffectFilter::CreaturesYouControlOfChosenColor => 34u8.hash_into(hasher),
-            // CR 614.12 / CR 105.1: All creatures (any controller) of the chosen color — discriminant 35
-            EffectFilter::AllCreaturesOfChosenColor => 35u8.hash_into(hasher),
         }
     }
 }
@@ -1814,9 +1812,7 @@ impl HashInto for crate::state::replacement_effect::ReplacementManaSourceFilter 
         use crate::state::replacement_effect::ReplacementManaSourceFilter;
         match self {
             ReplacementManaSourceFilter::Any => 0u8.hash_into(hasher),
-            ReplacementManaSourceFilter::BasicLand => 1u8.hash_into(hasher),
             ReplacementManaSourceFilter::AnyLand => 2u8.hash_into(hasher),
-            ReplacementManaSourceFilter::EnchantedLand => 3u8.hash_into(hasher),
         }
     }
 }

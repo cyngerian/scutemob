@@ -4,7 +4,7 @@ batch: PB-Q
 title: ChooseColor (as-ETB color choice + color-aware downstream effects)
 cards_unblocked: 6 in-scope (Caged Sun, Gauntlet of Power, Throne of Eldraine, Temple of the Dragon Queen, Utopia Sprawl, Painter's Servant Tier-1-verify) + 3+ deferred to PB-Q2 (activated-time)
 started: 2026-04-11
-phase: review
+phase: closed
 plan_file: memory/primitives/pb-plan-Q.md
 
 ## Plan Phase Summary (2026-04-11)

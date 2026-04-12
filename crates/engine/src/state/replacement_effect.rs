@@ -81,7 +81,6 @@ pub enum ReplacementTrigger {
         color_filter: Option<ChosenColorRef>,
         /// Optional: restrict which land types fire this replacement.
         /// None = any tap-mana source (Mana Reflection / Nyxbloom pattern).
-        /// Some(BasicLand) = only basic lands (Gauntlet of Power).
         /// Some(AnyLand) = any land (Caged Sun).
         source_filter: Option<ReplacementManaSourceFilter>,
     },
@@ -105,13 +104,8 @@ pub enum ChosenColorRef {
 pub enum ReplacementManaSourceFilter {
     /// Any permanent being tapped for mana (no restriction).
     Any,
-    /// Only basic lands (has the Basic supertype). Used by Gauntlet of Power.
-    BasicLand,
     /// Any land. Used by Caged Sun.
     AnyLand,
-    /// Only the land this Aura is currently attached to (reads `source.attached_to`).
-    /// Used by Utopia Sprawl: "the enchanted Forest's ability causes you to add mana".
-    EnchantedLand,
 }
 /// What a replacement effect does when it applies (CR 614.6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -201,14 +195,15 @@ pub enum ReplacementModification {
     /// is the design-time fallback when no permanents exist to scan.
     ChooseColor(Color),
     /// CR 106.6a / CR 105.1: "Add an additional one mana of that color."
-    /// Used by Caged Sun and Gauntlet of Power's mana-doubling clause.
+    /// Used by Caged Sun's mana-doubling clause.
     ///
-    /// Caged Sun / Gauntlet of Power are triggered abilities per oracle text, but mana
-    /// abilities are stackless per CR 605.3, so we implement the effect as a replacement
-    /// on `ManaWouldBeProduced` to maintain engine-wide consistency with PB-E's
-    /// mana-modification pattern (CR 603.2).
-    /// Reads `source.chosen_color` from the replacement source (Caged Sun / Gauntlet of
-    /// Power object) at application time, NOT from the tapped land.
+    /// CR 106.6a: "Some replacement effects increase the amount of mana produced by a
+    /// spell or ability." Caged Sun is natively a replacement effect under this rule —
+    /// it modifies mana production as it happens. Mana abilities do not use the stack
+    /// (CR 605.4), so the replacement fires immediately during mana production, consistent
+    /// with PB-E's mana-modification pattern.
+    /// Reads `source.chosen_color` from the replacement source (Caged Sun) at application
+    /// time, NOT from the tapped land.
     AddOneManaOfChosenColor,
 }
 /// Filters which objects a replacement trigger matches.

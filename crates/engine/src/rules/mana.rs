@@ -323,30 +323,6 @@ fn apply_mana_production_replacements(
                                 .contains(&crate::state::types::CardType::Land)
                         })
                         .unwrap_or(false),
-                    ReplacementManaSourceFilter::BasicLand => source_obj
-                        .map(|o| {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, source_perm)
-                                    .unwrap_or_else(|| o.characteristics.clone());
-                            chars
-                                .card_types
-                                .contains(&crate::state::types::CardType::Land)
-                                && chars
-                                    .supertypes
-                                    .contains(&crate::state::types::SuperType::Basic)
-                        })
-                        .unwrap_or(false),
-                    // Utopia Sprawl: only the enchanted land (reads attached_to from the Aura source).
-                    ReplacementManaSourceFilter::EnchantedLand => {
-                        // The replacement's source is the Aura (Utopia Sprawl).
-                        // The tapped permanent must be the land the Aura is attached to.
-                        effect
-                            .source
-                            .and_then(|sid| state.objects.get(&sid))
-                            .and_then(|aura| aura.attached_to)
-                            .map(|enchanted| enchanted == source_perm)
-                            .unwrap_or(false)
-                    }
                 };
                 if !passes_source_filter {
                     continue;
