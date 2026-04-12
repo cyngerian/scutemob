@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-Q close done | ACTIVE | 2026-04-12 | PB-Q CLOSED. 2 shipped (Caged Sun, Temple), 4 parked. 4 micro-PBs reserved (Q2-Q5). Next: yield-audit PB-Q4, then priority order per CLAUDE.md. |
+| W6: Primitive + Card Authoring | — | available | — | PB-Q CLOSED + PB-Q4 yield audit done. Next: PB-Q4 plan phase (3 verification gates listed in handoff). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,35 +23,47 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-12
+**Date**: 2026-04-12 (second session)
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-Q review phase (review-only session — no code changes, no commits)
+**Task**: PB-Q close session + PB-Q4 yield audit
 
 **Completed**:
-- Dispatched Opus reviewer for PB-Q (ChooseColor). Result: 2 HIGH, 4 MEDIUM, 5 LOW. Full findings: `memory/primitives/pb-review-Q.md`
-- Oversight verification gate: "Does HIGH-1 also break Caged Sun?" **NO** — Caged Sun accidentally correct (oracle "you" matches controller filter; Gauntlet "its controller" = tapping player, doesn't match)
-- Disposition decided: **ship 2** (Caged Sun, Temple), **park 4** (Gauntlet→PB-Q3, Utopia Sprawl→PB-Q4, Throne→PB-Q5, Painter's Servant already parked)
-- Three micro-PB buckets defined: PB-Q3 (ReplacementScope ~30 LOC), PB-Q4 (EnchantTarget::LandSubtype, highest unblock), PB-Q5 (SpendOnlyChosenColorMana, cost framework risk)
+- **PB-Q close** (`464d9e79`): deleted gauntlet_of_power.rs + utopia_sprawl.rs, reverted throne_of_eldraine.rs to pre-PB-Q (empty abilities). Removed parked-only engine variants: `ReplacementManaSourceFilter::{BasicLand, EnchantedLand}`, `EffectFilter::AllCreaturesOfChosenColor` + their hash/dispatch arms. Dropped 2 Gauntlet tests (2627→2625). Fixed CR citation LOWs (LOW-2 + LOW-5: AddOneManaOfChosenColor comment now cites CR 106.6a + CR 605.4).
+- **Reviewer agent hardened**: added oracle-vs-filter semantic gate as step 3 in `.claude/agents/primitive-impl-reviewer.md` (5th appearance of verify-existence-not-completeness failure mode — now baked into review checklist).
+- **Reservations written**: PB-Q2/Q3/Q4/Q5 in `docs/primitive-card-plan.md` Phase 1.7 + `docs/project-status.md` table.
+- **Build verified**: 2625 tests pass, clippy clean, workspace builds clean.
+- **Auto-memory**: `feedback_pb_yield_calibration.md` saved — PB planners overcount in-scope cards by 2-3x (PB-Q 2/6, PB-X 6/8, PB-S 5/7); discount yield estimates 40-50% and budget for spawned micro-PBs.
+- **PB-Q4 yield audit** (SQLite query against cards.sqlite, NOT just grepping defs/):
+  - **Direct LandSubtype yield: 10 commander-legal cards, all unauthored**: Utopia Sprawl, Genju cycle (5: Cedars/Falls/Spires/Fields/Fens), Awaken the Ancient, Chained to the Rocks, Spreading Algae, Corrupted Roots
+  - **Bundled scope yield: ~20 cards** (adds 3 isomorphic variants): `EnchantTarget::BasicLand` (+2: Dimensional Exile, Ossification), `EnchantTarget::NonbasicLand` (+1: Uncontrolled Infestation), `EnchantTarget::LandYouControl` (+7: Caribou Range, Crackling Emergence, Earthlore, Harmonious Emergence, Hot Springs, Mystic Might, Tourach's Gate)
+  - **Verdict**: PB-Q4 stays #1 priority (10-20 cards >> PB-R's 4)
 
-**Next**: PB-Q **close session**:
-1. Delete parked card defs (gauntlet_of_power.rs, utopia_sprawl.rs); revert throne_of_eldraine.rs to pre-PB-Q
-2. Remove parked-only engine variants (EnchantedLand, BasicLand on ReplacementManaSourceFilter; AllCreaturesOfChosenColor on EffectFilter)
-3. Drop parked-card tests (~2627→2622)
-4. Write PB-Q2/Q3/Q4/Q5 reservations in `docs/primitive-card-plan.md`
-5. Fix CR citation LOWs (605.4+106.6a, misframed "shoehorned trigger" comment)
-6. Add oracle-vs-filter semantic gate to `.claude/agents/primitive-impl-reviewer.md` (5th verify-existence-not-completeness appearance)
-7. Update CLAUDE.md, project-status.md
-8. Commit: `W6-prim: PB-Q close — 2 cards shipped, 3 micro-PBs spawned`
+**Next session**: PB-Q4 plan phase. **Three verification gates BEFORE scoping** (planner must run all three before writing pb-plan-Q4.md):
+
+1. **Genju animate-land effect**: does the engine have "enchanted land becomes an N/N creature until end of turn"? Grep for `BecomesCreature`, `AnimateLand`, `SetCreatureType`, `Effect::Animate*` in `crates/engine/src/effects/`. **If MISSING → exclude Genju cycle (5 cards), yield drops to 5.** This is the make-or-break gate.
+2. **Chained to the Rocks controller filter**: "Enchant Mountain you control" needs subtype + controller constraint. If `EnchantTarget` doesn't support a controller predicate, **defer Chained (1 card)**.
+3. **Corrupted Roots disjunction**: "Enchant Forest or Plains" needs OR/`Vec<SubType>`. If unsupported, **defer Corrupted Roots (1 card)**.
+
+After verification, planner reports actual yield. **Apply 40-50% calibration discount** to whatever planner claims (per `feedback_pb_yield_calibration.md`).
+
+**Scoping directive**: bundle all 4 isomorphic enchant target variants (`LandSubtype`, `BasicLand`, `NonbasicLand`, `LandYouControl`) into ONE PB. They're the same dispatch pattern repeated. Do NOT split into 4 micro-PBs. One plan, one implement, one review, one close.
+
+**Updated priority order (post-audit, corrected from oversight)**:
+1. **PB-Q4** — EnchantTarget::LandSubtype + bundled variants (10-20 cards, pending Genju gate)
+2. **PB-R** — ExchangeZones/ShuffleZones (4 cards, ~60 LOC)
+3. **PB-Q3** — ReplacementScope (Gauntlet, ~30 LOC)
+4. **PB-T+V** — up-to-N targeting + DoubleCountersOnTarget
+5. **PB-U** — trigger extensions
+6. **PB-Y** (Metallic Mimic), **PB-Q5** (SpendOnlyChosenColorMana, last), **PB-W** (text-changing, very last)
 
 **Hazards**:
-- `memory/primitive-wip.md` stays at `phase: review` — close session flips to `closed`
-- Close revert surgery is load-bearing: grep-verify every removed enum variant compiles out cleanly
-- `apply_mana_production_replacements` stays refactored (Caged Sun needs it); do NOT revert signature
-- Q10 PB-Q2 reservation carried forward 3 sessions — write in close
-- Worker discipline drift: plan tests 12-14 not delivered despite being flagged mandatory — retro item
+- Genju gate is load-bearing — if animate-land is missing, PB-Q4 yield halves and the bundled scope decision changes (might still be worth it for the other 5+ cards, but reconsider)
+- Planner will be tempted to claim "20 cards unblocked" — apply yield calibration before believing it
+- `apply_mana_production_replacements` (refactored in PB-Q implement) stays — do NOT revert
 - PB-S residuals L01..L06, PB-M deferred items, PB-Y (Metallic Mimic) all still parked
+- Worker discipline drift from PB-Q implement (plan tests 12-14 not delivered despite mandatory flag) — retro item, fold into next planner brief
 
-**Commit prefix used**: `W6-prim:` (no commit this session — review only)
+**Commit prefix used**: `W6-prim:` (1 commit this session: `464d9e79`)
 
 ## Handoff History
 
