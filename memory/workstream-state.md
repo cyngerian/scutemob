@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-Q CLOSED + PB-Q4 yield audit done. Next: PB-Q4 plan phase (3 verification gates listed in handoff). |
+| W6: Primitive + Card Authoring | PB-Q4: EnchantTarget::LandSubtype + bundled variants | ACTIVE | 2026-04-12 | Plan phase — 3 verification gates pending (Genju animate-land, Chained controller filter, Corrupted Roots disjunction) |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

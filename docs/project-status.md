@@ -64,7 +64,7 @@
 | PB-Q | ChooseColor (as-ETB color choice + color-aware effects) | done | 2 | ~4 | fixed | 1 |
 | PB-Q2 | Activated-time ChooseColor | planned | 0 | ~4 | — | — |
 | PB-Q3 | ReplacementScope (any-player mana replacement) | planned | 0 | ~1 | — | — |
-| PB-Q4 | EnchantTarget::LandSubtype | planned | 0 | ~1+ | — | — |
+| PB-Q4 | EnchantTarget::Filtered (bundled land-variant enchant targets) | done | 4 | ~6 deferred | fixed | 1 |
 | PB-Q5 | SpendOnlyChosenColorMana | planned | 0 | ~1 | — | — |
 
 **Status values**: `done`, `active`, `planned`

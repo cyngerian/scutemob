@@ -4,8 +4,9 @@ batch: PB-Q4
 title: EnchantTarget::Filtered — bundled land-variant enchant target filter
 cards_unblocked_planned: 11 considered; 5 committed for clean ship; 6 deferred
 started: 2026-04-12 (plan session)
-phase: implement-complete
+phase: review-complete
 plan_file: memory/primitives/pb-plan-Q4.md
+review_file: memory/primitives/pb-review-Q4.md
 
 ## Planner checklist
 
@@ -92,5 +93,25 @@ Plan called for `EnchantTarget::Filtered(TargetFilter)` (or boxed). Changed to `
 - `cargo fmt --check`: CLEAN
 - `apply_mana_production_replacements`: UNTOUCHED (verified via git diff 464d9e79..HEAD)
 
-## Next action for reviewer
-Review `memory/primitives/pb-plan-Q4.md` against implementation. Key deviation: `EnchantFilter` instead of `Box<TargetFilter>` in `EnchantTarget::Filtered` — verify this is acceptable. Check that `enchant_filter_matches` covers all 6 filter fields correctly.
+## Review completed: 2026-04-12
+
+**Verdict**: needs-fix (LOW only) — 0 HIGH, 1 MEDIUM (architectural duplication, forward-looking), 3 LOW (defensive fallback, two under-asserting tests). All 12 mandatory tests present and correct. All 4 card defs match oracle text. Hash schema parity verified. Full dispatch chain verified. Circular dependency claim verified.
+
+## Fix pass completed: 2026-04-12
+
+**phase: fix-complete**
+
+- L2 CLOSED: `test_animate_land_pt_and_types_via_chained_or_awaken` — added Layer 5 `SetColors(Red)` continuous effect registration and `assert!(chars.colors.contains(&Color::Red))`. Test now fails if Layer 5 dispatch on `AttachedLand` regresses.
+- L3 CLOSED: `test_animate_land_summoning_sickness_propagation` — changed step to `DeclareAttackers`, added `process_command(DeclareAttackers)` call asserting success WITH Haste, then strips the Haste effect via `retain` and asserts failure WITHOUT Haste. Test now fails if Haste-overrides-sickness path on animated lands regresses.
+- L1 DEFERRED: `rules/sba.rs:1067-1071` unwrap_or fallback — LOW backlog.
+- M1 DEFERRED: `EnchantFilter` / `TargetFilter` architectural duplication — LOW/MEDIUM backlog.
+
+**Post-fix verification**:
+- `cargo test --all`: 2639 passed (was 2637, +2), 0 failed
+- `cargo clippy --workspace -- -D warnings`: CLEAN
+- `cargo fmt --check`: CLEAN
+
+See `memory/primitives/pb-review-Q4.md` for full findings.
+
+## Next action for runner
+Apply LOW fixes opportunistically OR close PB-Q4 as-is and address M1 (EnchantFilter/TargetFilter duplication) when authoring the next non-land enchant-target card. No HIGH/MEDIUM showstoppers.

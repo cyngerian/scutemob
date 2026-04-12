@@ -1584,6 +1584,19 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         is_cda: false,
         timestamp: 1003,
     });
+    // Layer 5: Set color to red (Awaken the Ancient makes the land red).
+    use mtg_engine::Color;
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: mtg_engine::EffectId(5),
+        source: Some(aura_id),
+        layer: EffectLayer::ColorChange,
+        modification: LayerModification::SetColors([Color::Red].into_iter().collect()),
+        filter: EffectFilter::AttachedLand,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        condition: None,
+        is_cda: false,
+        timestamp: 1004,
+    });
 
     let chars = calculate_characteristics(&state, mountain_id)
         .expect("Mountain characteristics should be calculable");
@@ -1624,6 +1637,12 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         "Haste must be present; keywords: {:?}",
         chars.keywords
     );
+    // CR 613.1d: Layer 5 SetColors dispatch on AttachedLand — mountain must now be red.
+    assert!(
+        chars.colors.contains(&Color::Red),
+        "Layer 5 SetColors must make the animated land red; colors: {:?}",
+        chars.colors
+    );
 }
 
 // ── Test M12: Summoning sickness — Haste overrides it for animated land ───────
@@ -1633,7 +1652,8 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
 /// Haste must be present in layer-resolved characteristics (prerequisite for sickness override).
 fn test_animate_land_summoning_sickness_propagation() {
     use mtg_engine::{
-        ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
+        AttackTarget, ContinuousEffect, EffectDuration, EffectFilter, EffectLayer,
+        LayerModification,
     };
 
     let p1 = p(1);
@@ -1655,7 +1675,7 @@ fn test_animate_land_summoning_sickness_propagation() {
         .object(mountain)
         .object(aura)
         .active_player(p1)
-        .at_step(Step::PreCombatMain)
+        .at_step(Step::DeclareAttackers)
         .build()
         .unwrap();
 
@@ -1713,5 +1733,38 @@ fn test_animate_land_summoning_sickness_propagation() {
         chars.card_types.contains(&CardType::Land),
         "Land type must be preserved on animated Mountain; card_types: {:?}",
         chars.card_types
+    );
+
+    // CR 702.10b: With Haste, summoning sickness does not prevent attacking.
+    // Exercise the actual can-attack gate — DeclareAttackers must succeed.
+    let result_with_haste = process_command(
+        state.clone(),
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(mountain_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    );
+    assert!(
+        result_with_haste.is_ok(),
+        "Animated land with Haste should be able to attack despite summoning sickness; got: {:?}",
+        result_with_haste.err()
+    );
+
+    // Negative case: same mountain without the Haste effect → must be blocked by sickness.
+    state
+        .continuous_effects
+        .retain(|e| e.id != mtg_engine::EffectId(11));
+    let result_no_haste = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(mountain_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    );
+    assert!(
+        result_no_haste.is_err(),
+        "Animated land without Haste should be blocked by summoning sickness"
     );
 }
