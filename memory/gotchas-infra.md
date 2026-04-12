@@ -4,6 +4,11 @@
 
 - **`im-rs` HashMap iteration is not deterministic** across program runs unless using a
   fixed hasher. For deterministic replay, use `im::OrdMap` or sort before iterating.
+  Corollary: **any deterministic fallback that picks a "winner" from a HashMap-derived
+  count (e.g., "choose the most common color on the battlefield") needs an explicit
+  tie-break** that does NOT depend on iteration order. PB-Q `ChooseColor` fallback uses:
+  prefer `default_color` when tied for max count, then highest `Color` discriminant.
+  Without this, state-hash equality breaks across equivalent states and tests flake.
 - **Recursive enums need `Box`** for the recursive variant. `Effect` uses `Box<Effect>`
   inside `Sequence`/`Conditional`.
 - **`im` serde support**: `im = { version = "15", features = ["serde"] }` in Cargo.toml.
