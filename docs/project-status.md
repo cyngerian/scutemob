@@ -99,7 +99,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 | W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S2 DONE**. S3 next: fix MEDIUM sites |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-03-29 | **Phase 2.5: DSL gap closure COMPLETE (PB-23–37)**. Next: BF-1 re-triage, then resume authoring. |
+| W6 | Primitive + Card Authoring | active | 2026-04-12 | **PB queue re-prioritized from classification data**. Next: stale-TODO check + plan PB-N (SubtypeFilteredAttack+Death triggers). See primitive-card-plan.md Phase 1.8. |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
@@ -129,7 +129,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2616 |
+| Total tests | 2639 |
 | Test files | 216 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

@@ -730,6 +730,76 @@ Each follows the full plan→implement→review→fix→close pipeline.
 
 ---
 
+## Phase 1.8: Data-Driven Priority Re-Slate (2026-04-12)
+
+**Source**: `memory/card-authoring/todo-classification-2026-04-12.md` — 780 cards / 1236 TODOs / 190 categories. Yield calibration per `memory/feedback_pb_yield_calibration.md` (40-50% attrition).
+
+**Why this re-slate exists**: The pre-classification queue (PB-R → PB-Q3 → PB-T+V → PB-U → PB-Y → PB-Q5 → PB-W) was assembled before yield data existed. The classification report shows the top 5 unblockers are **all new PBs**, not in the old queue. PB-T (UpToN, 21 cards) was overrated — yield ~6, rank 10. The old queue is **deprioritized but not deleted**; address opportunistically after the data-driven top 4 land.
+
+### New Priority Order
+
+| Rank | PB | Primitive | Cards | Est. Yield | Notes |
+|------|----|-----------|-------|------------|-------|
+| 1 | **PB-N** | TriggerCondition::SubtypeFilteredAttack + SubtypeFilteredDeath | 33 (18+15) | ~20 | Combined — same dispatch site |
+| 2 | **PB-D** | TargetFilter::DamagedPlayer | 15 | ~9 | ForEach + targeting |
+| 3 | **PB-L** | TriggerCondition::Landfall | 13 | ~7 | Common pattern |
+| 4 | **PB-P** | EffectAmount::PowerOfCreature | 13 | ~9 | EffectAmount variant |
+| — | PB-R | ExchangeZones | ~4 | — | Old queue, opportunistic |
+| — | PB-Q3 | Gauntlet ReplacementScope | 1 | — | Old queue, opportunistic |
+| — | PB-T | TargetFilter::UpToN | 21 | ~6 | Demoted from rank-1 — yield rank 10 |
+| — | PB-U / PB-V / PB-W / PB-Y / PB-Q5 / PB-Q2 | various | — | — | Reserved, defer |
+
+**Pre-launch step (mandatory)**: Before PB-N starts, grep for the 3 potentially-stale TODOs flagged in the classification report (line 26-32):
+- `song_of_freyalise` ("grant via PB-S LayerModification::AddManaAbility")
+- `bootleggers_stash` ("Lands you control gain activated ability")
+- `throne_of_eldraine` ("ChosenColor designation")
+
+If PB-S / PB-Q already shipped these, close the TODOs in the same commit before the new plan lands.
+
+**Excluded by design**:
+- `Interactive::PlayerChoice` (21 cards) → M10+ deferred, 0% yield now
+- `ComplexPattern::ConditionalIf` (37 cards) → too heterogeneous for one PB
+- `DSL Gap (unclassified)` (135 cards) → per-card triage required, not a batch
+
+### PB-N: SubtypeFilteredAttack + SubtypeFilteredDeath (queued, top priority)
+
+- **Status**: planned (next to plan)
+- **Scope**: Two trigger-condition variants sharing one dispatch pattern (filter on subtype + event). Combined because they share the same enforcement site and the planner doc notes mid-PB extension is cheap when the dispatch pattern is identical.
+- **Cards**: ~33 (18 attack-side + 15 death-side; samples: aurelia_the_law_above, dromoka_the_eternal, hellrider, najeela_the_blade_blossom, shared_animosity, kolaghan_the_storms_fury, athreos_god_of_passage, luminous_broodmoth, omnath_locus_of_rage, skullclamp, teysa_orzhov_scion)
+- **Yield estimate**: ~20 cards (60% attrition per trigger-condition heuristic)
+- **Engine**: Two new `TriggerCondition` variants (or one parameterized variant `SubtypeFilteredEvent { event, subtype }`); enforcement in the same trigger-firing site that handles other subtype-filtered triggers; hash arms; dispatch tests for both events.
+- **Depends on**: nothing — fresh
+
+### PB-D: TargetFilter::DamagedPlayer (queued, second)
+
+- **Status**: planned
+- **Scope**: New `TargetFilter` field/variant for "player who was dealt damage by this object/turn". Unblocks Goad and damage-triggered targeting patterns.
+- **Cards**: 15 (samples: alela_cunning_conqueror, balefire_dragon, ink_eyes_servant_of_oni, mistblade_shinobi, mystic_remora, smothering_tithe, throat_slitter)
+- **Yield estimate**: ~9
+- **Engine**: `TargetFilter.dealt_damage_by_self` or new `damaged_by_source: Option<ObjectIdRef>` field; ForEach iteration over `damage_dealt_to_players` ledger (verify exists); validation in `validate_object_satisfies_requirement` for player targets.
+- **Depends on**: nothing — fresh
+
+### PB-L: TriggerCondition::Landfall (queued, third)
+
+- **Status**: planned
+- **Scope**: Dedicated landfall trigger condition (not a generic ETB filter). CR 614.12 / common Zendikar mechanic.
+- **Cards**: 13 (samples: bojuka_bog, druid_class, field_of_the_dead, khalni_heart_expedition, moraug_fury_of_akoum, omnath_locus_of_creation, omnath_locus_of_rage, roil_elemental, tatyova_steward_of_tides)
+- **Yield estimate**: ~7
+- **Engine**: New `TriggerCondition::Landfall` (or `WhenLandEntersUnderYourControl`) variant; enforcement in the zone-change/ETB trigger site that already handles `WhenEntersBattlefield`; verify whether existing `WhenEntersBattlefield` + `EffectFilter::Land` already covers this (if yes, re-classify as a stale-TODO sweep, not a PB).
+- **Depends on**: nothing — fresh
+- **Risk**: may collapse to a stale-TODO sweep on inspection. Worth a 5-min check before planning.
+
+### PB-P: EffectAmount::PowerOfCreature (queued, fourth)
+
+- **Status**: planned
+- **Scope**: New `EffectAmount` variant for "X equal to power of [filter]". Common modifier pattern for Greater Good, Altar of Dementia, etc.
+- **Cards**: 13 (samples: altar_of_dementia, conclave_mentor, greater_good, jagged_scar_archers, krenko_tin_street_kingpin, master_biomancer, the_great_henge, warstorm_surge)
+- **Yield estimate**: ~9
+- **Engine**: `EffectAmount::PowerOfTarget` and/or `EffectAmount::PowerOfSacrificedCreature` (the classification sample TODO calls out the latter explicitly); resolution-time evaluation; LKI lookup for sacrificed-creature variant. Verify `calculate_characteristics()` is used for power read (post W3-LC).
+- **Depends on**: nothing — fresh
+
+---
+
 ## Total Effort Estimate
 
 | Phase | Sessions | Cards |
