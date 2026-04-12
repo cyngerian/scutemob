@@ -17,6 +17,15 @@
 - **`HashInto`: when adding new fields to `GameState`, `PlayerState`, `GameObject`, etc.,
   update `state/hash.rs` manually.** Fields not added to the hasher cause non-determinism
   that only shows up in distributed verification.
+- **Module dependency direction: `cards/` imports from `state/`, never the reverse.**
+  `cards/card_definition.rs` uses `use crate::state::*;`. This means types in `state/types.rs`
+  (like `EnchantTarget`) **cannot** reference types in `cards/card_definition.rs` (like
+  `TargetFilter`) — even via `Box<T>`, the import is still a cycle. Hit during PB-Q4 plan:
+  the plan called for `EnchantTarget::Filtered(Box<TargetFilter>)` but had to be replaced
+  with a parallel minimal `EnchantFilter` struct in `state/types.rs` (PB-Q4-M01 in the LOW
+  backlog). **Fix paths**: (a) move the shared type into `state/`, (b) introduce a parallel
+  minimal struct, or (c) define a trait the `state/` side can hold via a generic. (a) is
+  cleanest but has blast radius; (b) is what PB-Q4 did and accepts long-term divergence risk.
 
 ## Builder Gotchas
 
