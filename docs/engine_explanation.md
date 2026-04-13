@@ -1,5 +1,13 @@
 # How the MTG Rules Engine Works
 
+> **Audience**: narrative walkthrough for new contributors and external readers.
+> This document is a concrete explanatory tour of the engine: what the core idea
+> is, what the six key systems do, and how they compose on a worked example.
+> For the design-decision and testing-strategy reference used day-to-day during
+> engine development, see `docs/mtg-engine-architecture.md`. The two documents
+> are intentionally kept separate — this one is the "how it works" orientation,
+> the architecture doc is the "why we chose this" reference.
+
 This document explains the architecture of a Magic: The Gathering rules engine built in
 Rust, targeting Commander format (4-player multiplayer). It covers the high-level design,
 the key systems that make it work, and walks through a concrete example showing how

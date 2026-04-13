@@ -1,5 +1,11 @@
 # MTG Commander Rules Engine: Architecture & Testing Strategy
 
+> **Audience**: design-decision reference for engine developers and Claude Code
+> sessions. Decision-oriented and detailed. For a narrative walkthrough of how
+> the engine actually works at runtime (with a concrete worked example), see
+> `docs/engine_explanation.md` — that document is the orientation tour, this
+> one is the reference manual.
+
 ## Purpose of This Document
 
 This document defines the architectural decisions, system design, and testing strategy for an MTG rules engine targeting Commander format play. It serves as the primary technical reference for Claude Code during development. Every decision here is scoped to support the Development Roadmap (see `mtg-engine-roadmap.md`) and should be read alongside it.
