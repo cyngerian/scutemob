@@ -64,7 +64,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Card Authoring Operations | `docs/card-authoring-operations.md` | Ordered task list for triage → fix → author → audit (68 tasks) |
 | Runtime Integrity | `docs/mtg-engine-runtime-integrity.md` | Watchdog, recovery, bug reporting — pre-alpha requirement |
 | Type Consolidation Plan | `docs/mtg-engine-type-consolidation.md` | Pre-M10 refactoring: CastSpell, SOK triggers, AbilityDef, Designations — 8 sessions |
-| Codebase Analysis | `codebase_analysis_220260228.md` | Comprehensive codebase snapshot (2026-02-28): architecture, file inventory, stats |
+| Cleanup Retention Policy | `docs/cleanup-retention-policy.md` | Two-tier ladder, year-month archive convention, /cleanup skill protocol |
 | This file | `CLAUDE.md` | Current project state; session context |
 
 **Read the architecture doc before implementing anything.**
@@ -91,6 +91,7 @@ Before starting work, check which files apply to your task:
 | Implementing a keyword ability | `docs/mtg-engine-ability-coverage.md` |
 | Checking ability gaps | Use `/audit-abilities` or `/ability-status` |
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
+| End-of-milestone cleanup pass | Use `/cleanup` — reads `docs/cleanup-retention-policy.md` and runs Gate A → B → dry-run → execute |
 | Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
 | Authoring card definitions | `docs/card-authoring-operations.md` (operations plan with ordered tasks); `docs/mtg-engine-card-pipeline.md` (DSL reference) |
 | Triaging card defs for TODOs | Use `/triage-cards` — scans defs, reclassifies blocked sessions, consolidates review findings |
@@ -169,7 +170,7 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 - **Rules search**: query by rule number ("613.8") or concept ("dependency continuous effects")
 - **Card lookup**: query by exact card name for oracle text, types, rulings
 - **Rulings search**: query by interaction concept ("copy effect on double-faced card")
-- **rust-analyzer**: semantic code navigation — hover, definition, references, implementations, incoming/outgoing calls, workspace symbols. Call `rust_analyzer_stop` when done to free ~2.5GB RAM. First call triggers ~70s indexing warmup. Results default to 50 max; pass `limit` to override. See `memory/MEMORY.md` "rust-analyzer MCP Server" section for details.
+- **rust-analyzer**: semantic code navigation — hover, definition, references, implementations, incoming/outgoing calls, workspace symbols. Call `rust_analyzer_stop` when done to free ~2.5GB RAM. First call triggers ~70s indexing warmup. Results default to 50 max; pass `limit` to override. See your auto-memory MEMORY.md index (rust-analyzer MCP Server section) for details.
 
 ---
 
