@@ -48,7 +48,7 @@ needed to complete it, with a checklist from the Ability Addition Workflow.
      `crates/engine/src/` for a matching `TriggerCondition` variant and check if it's wired
      to runtime dispatch.
    - **Step 4 (unit tests)**: Grep `crates/engine/tests/` for the ability name or CR number.
-   - **Step 5 (card definition)**: Grep `crates/engine/src/cards/definitions.rs` for the
+   - **Step 5 (card definition)**: Grep `crates/engine/src/cards/defs/` for the
      ability name.
    - **Step 6 (game script)**: Grep `test-data/generated-scripts/` for the ability name.
    - **Step 7 (coverage doc update)**: This happens after the other steps.

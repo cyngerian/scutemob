@@ -133,6 +133,6 @@ Use `/review-subsystem <name>` to load the right file and see open issues in one
 
 ## Step 6: Session plan check
 
-Check if a session plan file exists in `memory/` (e.g., `m8-session-plan.md`). If one exists, call it out prominently: **"Session plan found: `memory/m<N>-session-plan.md` — use `/start-milestone <N>` to load it without touching the roadmap."** Do not read it unless the developer asks.
+Check if a session plan file exists in `memory/` (e.g., `m<N>-session-plan.md` for the active milestone). If one exists, call it out prominently: **"Session plan found: `memory/m<N>-session-plan.md` — use `/start-milestone <N>` to load it without touching the roadmap."** Do not read it unless the developer asks.
 
 Do not read any files beyond `memory/workstream-state.md`, the Implementation Order section of `docs/card-authoring-operations.md` (or the progress checkboxes of `docs/workstream-coordination.md` if in general mode), and `memory/ability-wip.md`. Do not run any commands beyond the single git log above.

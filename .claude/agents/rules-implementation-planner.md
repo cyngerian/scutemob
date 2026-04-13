@@ -7,7 +7,7 @@ description: |
   <example>
   Context: M8 is the active milestone and no session plan exists yet
   user: "plan M8 implementation"
-  assistant: "I'll research CR 614-616 (replacement/prevention effects), audit the codebase for interception sites, and produce a session plan at memory/m8-session-plan.md."
+  assistant: "I'll research CR 614-616 (replacement/prevention effects), audit the codebase for interception sites, and produce a session plan at memory/m<N>-session-plan.md."
   <commentary>Triggered by explicit planning request for a milestone.</commentary>
   </example>
 

@@ -57,7 +57,7 @@ Record the file(s) and line numbers where the ability is implemented or referenc
 #### b. Check Card Definitions
 
 ```
-Grep for the ability name in crates/engine/src/cards/definitions.rs
+Grep for the ability name in crates/engine/src/cards/defs/
 ```
 
 Record which card definitions use this ability.

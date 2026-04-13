@@ -9,8 +9,7 @@ Given a milestone number (`$ARGUMENTS`, e.g. "8" or "M8"), do the following:
 
 ## Step 1: Check for a session plan
 
-Check if `memory/m<N>-session-plan.md` exists (where `<N>` is the milestone number, e.g.
-`memory/m8-session-plan.md`).
+Check if `memory/m<N>-session-plan.md` exists (where `<N>` is the milestone number).
 
 **If the session plan exists:**
 - Read it.
