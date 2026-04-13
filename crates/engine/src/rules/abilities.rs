@@ -4188,9 +4188,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 if creature_filter.is_token && !dying_is_token {
                                     continue;
                                 }
-                                // Layer-resolved characteristics preserve pre-death state
-                                // because move_object_to_zone retains Characteristics on the
-                                // graveyard object (CR 603.10a look-back-in-time).
+                                // TODO(BASELINE-LKI-01): this dispatch site re-runs layer filters
+                                // against the graveyard object via calculate_characteristics, which
+                                // causes battlefield-gated filters (SingleObject, AttachedCreature,
+                                // etc.) to drop out. The unwrap_or_else fallback to preserved chars
+                                // is unreachable because calculate_characteristics returns Some(_)
+                                // for valid graveyard objects. Any subtype/color granted via a
+                                // continuous effect while the creature was on the battlefield will
+                                // NOT be matched by this filter. See
+                                // docs/mtg-engine-low-issues-remediation.md — BASELINE-LKI-01.
+                                // Dispatch is intentionally left unchanged in PB-N scope; fix
+                                // belongs to a dedicated LKI-completeness audit session.
                                 let dying_chars = crate::rules::layers::calculate_characteristics(
                                     state,
                                     dying_obj_id,

@@ -108,6 +108,50 @@ For each card, look up its oracle text:
 mcp__mtg-rules__lookup_card(card_name: "<card name>")
 ```
 
+### 3a. MANDATORY — Pre-existing TODO sweep for the target primitive (roster-recall gate)
+
+Before finalizing the candidate roster, **grep `crates/engine/src/cards/defs/` for TODO
+comments that name the target primitive in question**. This is a load-bearing gate — any
+card with such a comment is a **forced add** to the candidate list. These are cards that
+have already self-identified as needing the primitive, and missing them is a
+roster-recall failure that MCP oracle lookup alone will not catch.
+
+```
+Grep pattern="TODO.*<primitive keyword>" path="crates/engine/src/cards/defs/" output_mode="content"
+```
+
+Use multiple keywords if the primitive has synonyms. For example, if planning a
+"SubtypeFilteredAttack" PB:
+```
+Grep pattern="TODO.*subtype.*filter" path="crates/engine/src/cards/defs/" output_mode="content"
+Grep pattern="TODO.*Dragon subtype" path="crates/engine/src/cards/defs/" output_mode="content"
+Grep pattern="TODO.*over-trigger" path="crates/engine/src/cards/defs/" output_mode="content"
+```
+
+For each result:
+1. Verify the TODO names the primitive this PB is shipping (vs. a different primitive)
+2. If yes, add the card to the candidate roster as a **forced add** (do not apply yield
+   discount to forced adds — they are already verified as needing the primitive)
+3. Record the finding in the plan's "Card Definition Fixes" section with a note: *"added
+   via pre-existing TODO sweep — not in original PB brief"*
+
+If the TODO sweep finds NO results: record "TODO sweep: 0 cards with matching comments"
+in the plan preamble. This is a positive assertion, not an omission. It tells the
+reviewer that the gate was run and produced no additions.
+
+**Originating incident (PB-N, 2026-04-12)**: the planner ran MCP-oracle-lookup roster
+verification on 33 candidate cards and confirmed 4. During re-review, the reviewer
+caught that `utvara_hellkite.rs` had a pre-existing TODO comment naming the exact
+primitive PB-N was shipping. The card was missed entirely — not in the brief, not in
+the plan, authored as `filter: None` in the implement commit. Fixing it in the fix
+phase bumped PB-N's confirmed yield from 4 to 5 cards. See
+`memory/feedback_planner_roster_recall.md` (auto-memory) for the full incident record.
+
+**This gate is complementary to MCP oracle lookup, not a replacement.** MCP lookup
+answers "does this card's oracle text match the primitive?"; TODO sweep answers "does
+this card's source self-identify as needing the primitive?" Both questions catch
+different failure modes; run both.
+
 ### 4. Check Dependencies
 
 Verify all prerequisite primitives from earlier PBs exist:

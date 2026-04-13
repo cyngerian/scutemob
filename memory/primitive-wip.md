@@ -4,9 +4,9 @@ batch: PB-N
 title: Combined subtype-filtered attack and death triggers (single dispatch site)
 cards_unblocked_estimated: ~33 considered (18 attack + 15 death); ~20 yield expected post 60% calibration
 started: 2026-04-12 (oversight session — re-prioritization)
-phase: re-review
+phase: close
 plan_file: memory/primitives/pb-plan-N.md (WRITTEN 2026-04-12 by Opus planner session)
-review_file: memory/primitives/pb-review-N.md (WRITTEN 2026-04-12 by Opus reviewer session)
+review_file: memory/primitives/pb-review-N.md (WRITTEN 2026-04-12, re-review appended 2026-04-13)
 oversight_directives: 2026-04-12 — coordinator approved ship-as-planned. Hash bump 3→4 (now standing rule). Tighten combat_damage_filter to damage-only + regression test. Mechanical card-def fixup as single commit driven by cargo build. 4 confirmed cards (Kolaghan, Dromoka, Sanctum Seeker, Teysa partial). All 8 mandatory tests, no silent skips. Catalog 11 deferred cards in plan close + Phase 1.8 "PB-N spawned candidates" subsection. Pre-existing clippy warnings → log as BASELINE-CLIPPY-01/02 LOWs at close (do NOT fix in PB-N). Calibration memory update at close: trigger PBs 15-25% yield. Next batch after PB-N close: PB-D.
 
 fix_phase_directives: 2026-04-12 — coordinator approved fix-all-6 (F1+F2 HIGH, F3+F4+F5 MEDIUM, F6 LOW), single fix commit. NEW STANDING RULE: test-validity MEDIUMs (silent-skip pattern) are fix-phase HIGHs. F1 Sanctum Seeker: try existing primitives (e.g. Effect::ForEach Opponents + DrainLife 1) — STOP-AND-FLAG if new engine surface needed (do not sneak in primitive extension). F2 Utvara Hellkite: add filter mirroring Kolaghan + strip TODO + card-specific test, **bumps PB-N yield 4 → 5**. F3 LKI test: wedge must be SUBTYPE (not color) — use Layer 4 grant of Vampire subtype WhileOnBattlefield, dying creature is base Human; tests filter `subtype: Vampire` death trigger. F4 combat_damage_filter regression: use `WheneverCreatureYouControlAttacks` variant with non-matching filter set, attack with non-matching creature, assert trigger DOES fire (post-fix ignores filter on attack). F5 hash sentinel: tighten to `assert_eq!(SCHEMA_VERSION, 4)` — verify the actual constant name in hash.rs first. F6 batch fmt the 5 listed files only (do not touch pre-existing baseline clippy issues). Run `cargo test --all` after each substantive fix. Commit body lists all 6 findings + the F2 yield bump explicitly. Standing rules 1-4 (test-validity = fix-HIGH, planner roster grep step 4a, subtype-layer test wedge, hash assert_eq!) are DEFERRED to a SEPARATE PB-N close commit, not the fix commit.
@@ -237,3 +237,42 @@ Test 6 (LKI) and Test 9 (combat_damage_filter) were REPLACED (same count, more d
 - cargo fmt --check: clean
 - cargo clippy --all-targets -D warnings: 8 pre-existing baseline errors (same count as pre-fix); 0 new errors introduced
 - cargo build --workspace: clean
+
+## Re-Review Complete (reviewer session, 2026-04-12)
+
+Review file: `memory/primitives/pb-review-N.md` (Re-Review section appended)
+Verdict: **READY FOR CLOSE**
+
+### Per-finding status
+
+- **F1 (HIGH) PASS**: Sanctum Seeker uses `Effect::Sequence([ForEach(EachOpponent, LoseLife 1), GainLife(Controller, 1)])` per oracle. Test `test_sanctum_seeker_flat_gain_4_player` is discriminating (asserts +1 life, not +3).
+- **F2 (HIGH) PASS**: Utvara Hellkite has `filter: Some(Dragon)`, TODO stripped, PB-N citation added, card-specific test exercises Dragon-fires + Goblin-no-fire. Yield 4→5.
+- **F3 (MEDIUM/fix-HIGH) ACCEPTED — RESOLVED BY INVESTIGATION**: per coordinator preamble. Test 6 exercises the new `triggering_creature_filter` dispatch path on death events (the load-bearing property PB-N owns). The pre-death-vs-post-death LKI wedge is structurally blocked by BASELINE-LKI-01 (CR 400.7 ObjectId reassignment), tracked separately. NOT re-escalated.
+- **F4 (MEDIUM/fix-HIGH) PASS**: Test 9 now uses `trigger_on: AnyCreatureYouControlAttacks` + `combat_damage_filter: Ninja` + Goblin attacker, asserting `stack_trigger_count > 0`. Strictly discriminating against pre-fix engine.
+- **F5 (MEDIUM/fix-HIGH) PASS**: `pub const HASH_SCHEMA_VERSION: u8 = 4` declared at `state/hash.rs:31` with full history doc. Exported from `lib.rs:30`. Sentinel call site at `hash.rs:6146` uses the constant. Test 7 asserts `assert_eq!(HASH_SCHEMA_VERSION, 4u8)`.
+- **F6 (LOW) PARTIAL → re-classified as F-N1 LOW**: `cargo fmt` did not normalize the misaligned `filter: None,` blocks in the 5 backfill files (rustfmt leaves them alone). Cosmetic only — no compilation/hash/dispatch impact. Should be hand-fixed in the close commit alongside the abilities.rs:4191-4193 comment update.
+
+### New findings
+
+- **F-N1 (LOW)**: Mechanical backfill misalignment carryover (5 files). Cosmetic only. Fix in close commit.
+
+### Coordinator focus area re-verdicts
+
+| Focus | Original | Re-review |
+|-------|----------|-----------|
+| 1 (combat_damage_filter tightening) | PARTIAL | **PASS** |
+| 2 (mechanical card-def backfill + utvara promotion) | PARTIAL | **PASS** (with F-N1 LOW carryover) |
+| 3 (hash bump parity test) | PARTIAL | **PASS** |
+| 4 (oracle vs DSL parity, 5 cards) | PARTIAL | **PASS** |
+
+### Test 6 dispatch path validation
+
+YES — Test 6 calls into the new `triggering_creature_filter` consumption path at `abilities.rs:4180-4202` for the death-side dispatch. The base-Vampire dying creature is the strongest discriminator available within engine constraints; the test would fail if the new field were ignored or if the death-side dispatch were removed. The narrower load-bearing property is validated.
+
+### Stop-and-flag events
+
+NONE. F3's BASELINE-LKI-01 escalation is pre-existing and accepted as resolved-by-investigation per coordinator directive.
+
+### Final verdict
+
+**READY FOR CLOSE.** All HIGH and MEDIUM findings resolved; F3 accepted per coordinator directive; F-N1 LOW + abilities.rs:4191-4193 comment + BASELINE-LKI-01/CLIPPY-0N logging can fold into the single PB-N close commit. Worker should advance `phase: re-review` → `phase: close`.

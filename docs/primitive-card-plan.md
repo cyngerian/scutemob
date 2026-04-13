@@ -761,14 +761,51 @@ If PB-S / PB-Q already shipped these, close the TODOs in the same commit before 
 - `ComplexPattern::ConditionalIf` (37 cards) → too heterogeneous for one PB
 - `DSL Gap (unclassified)` (135 cards) → per-card triage required, not a batch
 
-### PB-N: SubtypeFilteredAttack + SubtypeFilteredDeath (queued, top priority)
+### PB-N: SubtypeFilteredAttack + SubtypeFilteredDeath ✅ DONE (2026-04-13)
 
-- **Status**: planned (next to plan)
-- **Scope**: Two trigger-condition variants sharing one dispatch pattern (filter on subtype + event). Combined because they share the same enforcement site and the planner doc notes mid-PB extension is cheap when the dispatch pattern is identical.
-- **Cards**: ~33 (18 attack-side + 15 death-side; samples: aurelia_the_law_above, dromoka_the_eternal, hellrider, najeela_the_blade_blossom, shared_animosity, kolaghan_the_storms_fury, athreos_god_of_passage, luminous_broodmoth, omnath_locus_of_rage, skullclamp, teysa_orzhov_scion)
-- **Yield estimate**: ~20 cards (60% attrition per trigger-condition heuristic)
-- **Engine**: Two new `TriggerCondition` variants (or one parameterized variant `SubtypeFilteredEvent { event, subtype }`); enforcement in the same trigger-firing site that handles other subtype-filtered triggers; hash arms; dispatch tests for both events.
-- **Depends on**: nothing — fresh
+- **Status**: **done** — close commit follows the fix commit `0e5d7cf1`
+- **Planned yield**: ~20 cards; **Confirmed shipped**: **5 cards** (15% of the 33 brief) — a material recalibration point, see below
+- **Dispatch verdict**: PASS-AS-FIELD-ADDITION — no new `TriggerCondition` wrapper variant. Added `filter: Option<TargetFilter>` to two existing DSL variants (`WheneverCreatureYouControlAttacks`, `WheneverCreatureDies`) + `triggering_creature_filter: Option<TargetFilter>` on runtime `TriggeredAbilityDef`. Mirrors the existing `combat_damage_filter` pattern.
+- **Engine surface shipped**: 7 files touched (`card_definition.rs`, `game_object.rs`, `hash.rs`, `abilities.rs`, `replay_harness.rs`, `resolution.rs`, `builder.rs`). Hash sentinel bumped **3 → 4** (now a `pub const HASH_SCHEMA_VERSION` in `hash.rs`, exported from `lib.rs`). Bundled correctness fix: `combat_damage_filter` tightened to damage events only (latent semantic bug — previously consulted on attack events too).
+- **Cards shipped** (5): Kolaghan the Storm's Fury, Dromoka the Eternal, Sanctum Seeker, Teysa Orzhov Scion (partial — death trigger half only; sacrifice ability still blocked on targeted-activated primitive), **Utvara Hellkite** (added in fix phase after planner roster-recall miss)
+- **Mechanical card-def backfill**: 56 existing card defs updated for the `WheneverCreatureYouControlAttacks` unit → struct shape change (all `filter: None`, no semantic content changed)
+- **Tests**: 9 tests in `crates/engine/tests/pbn_subtype_filtered_triggers.rs` (8 mandatory + 1 optional). All landed, all discriminating post-fix-phase. Test count 2637 → 2648 (+11 net: +9 impl, +2 fix).
+- **Cards deferred** (11, cataloged from roster): most turned out to be `SelfAttacks` on enchanted/equipped creatures (Bear Umbra, Argentum Armor, Diamond Pick-Axe, Aqueous Form), `AnyCreatureYouControlAttacks` with no subtype filter (Hellrider, Battle Cry Goblin, Shared Animosity), or different controller-shapes (Najeela — no "you control"). See `memory/primitives/pb-plan-N.md` "Deferred cards" section.
+
+#### PB-N spawned candidates (6 micro-PBs, cataloged — not auto-promoted)
+
+The PB-N roster audit identified 6 deferred cards each needing a *different* dispatch
+shape. These are cataloged here so the next planner can group them; do NOT auto-promote
+them to the priority queue yet — the next oversight cycle re-runs calibration and decides
+which are worth picking up.
+
+| Card | Dispatch shape needed | One-line |
+|------|----------------------|----------|
+| Najeela, the Blade-Blossom | `WheneverCreatureAttacks` controller-agnostic filter | Attack trigger without "you control" restriction |
+| Athreos, God of Passage | `WheneverCreatureDies` owner-not-controller filter | Owner check instead of controller check |
+| Skullclamp | Equipment-LKI on death trigger | "Whenever equipped creature dies" requires equipment attachment at pre-death |
+| Pashalik Mons | Self-OR-filtered death trigger | "Whenever Pashalik or another Goblin dies" — OR combinator not in DSL |
+| Omnath, Locus of Rage | Self-OR-filtered death trigger | Same as Pashalik |
+| Miara, Thorn of the Glade | Self-OR-filtered death trigger | Same as Pashalik |
+
+#### PB-N calibration data for future planners
+
+- **Yield: 15%** (5/33). **Trigger-condition PBs are now calibrated at 15-25%**, materially lower than filter PBs (50-65%) or EffectAmount PBs (50-65%). See `memory/feedback_pb_yield_calibration.md` for the category-specific table.
+- **Roster-recall miss**: planner MCP-oracle-lookup alone missed Utvara Hellkite (card had a pre-existing TODO naming the exact primitive). Reviewer caught it; runner fixed it. **New standing rule**: planner agent now has a mandatory "step 3a — pre-existing TODO sweep" before finalizing roster. See `memory/feedback_planner_roster_recall.md` and `.claude/agents/primitive-impl-planner.md` step 3a.
+- **Tests/finding**: 2/8 mandatory tests (6 + 9) were silent-skip pattern — they existed but didn't validate what their names claimed. Fix phase rewrote both; F3 (LKI test) hit a structural engine gap (BASELINE-LKI-01). See `docs/mtg-engine-low-issues-remediation.md` BASELINE-LKI-01.
+- **Aura wedge experiment**: 30-min worker-run experiment during F3 escalation. Setup: aura attached to base-Human creature grants Vampire subtype via `EffectFilter::AttachedCreature` + `LayerModification::AddSubtypes`; death trigger filtered by Vampire. Result: **no triggers fired** (same failure as LayerModification wedge). Source-level diagnosis at `abilities.rs:4180-4202` confirmed root cause: dispatch calls `calculate_characteristics(dying_obj_id)` which re-runs layer filters against the graveyard object; every battlefield-gated filter drops out. The `.unwrap_or_else` fallback to preserved characteristics is dead code. Two-data-point verification promoted the diagnosis from hypothesis to confirmed; logged as BASELINE-LKI-01.
+
+#### Post-PB-N queue re-discount (applied 2026-04-13)
+
+| Rank | PB | Original est | Revised est | Notes |
+|------|----|--------------|-------------|-------|
+| 1 | PB-D (DamagedPlayer target filter) | ~9 | 7-8 | Filter PB — calibration unchanged |
+| 2 | PB-P (PowerOfCreature EffectAmount) | ~9 | 7-8 | EffectAmount PB — calibration unchanged |
+| 3 | PB-L (Landfall trigger) | ~7 | 3-4 | Trigger PB — demoted by new calibration, and pre-check found real primitive gap (`ETBTriggerFilter` needs `card_type_filter`) |
+| — | PB-N spawned micro-PBs (×6) | — | — | Catalog only, not auto-promoted |
+| — | Old queue (R/Q3/T/U/V/W/Y/Q2/Q5) | — | — | Opportunistic |
+
+**Next batch after PB-N close**: PB-D (revised est 7-8 cards). PB-P is a viable swap if the next worker prefers EffectAmount over target filter. PB-L drops to 3rd.
 
 ### PB-D: TargetFilter::DamagedPlayer (queued, second)
 

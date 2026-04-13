@@ -167,3 +167,64 @@ Cost extraction: use `get_alt_cast_cost(abilities, AltCostKind::X)` pattern — 
 
 Engine crate must NEVER depend on network, card-db, or tauri-app crates. Information flows
 inward only: app depends on network, network depends on engine. Never the reverse.
+
+## Review & Fix Discipline (PB pipeline)
+
+### Test-validity MEDIUMs are fix-phase HIGHs
+
+Any review finding of the form *"test exists but doesn't validate what its name promises"*
+is a **fix-phase HIGH**, regardless of the severity the reviewer initially tagged. The
+PB-Q4 retro established that silent-skip tests are the exact failure mode we are trying
+to extinguish; deferring them as LOWs perpetuates the pattern. PB-N F3/F4 reinforced this
+when test 6 (LKI wedge) and test 9 (combat_damage_filter regression) both passed against
+both pre-fix and post-fix engines.
+
+**Rule**: if the test title says "pre-death LKI" and the setup can't discriminate pre- vs
+post-death evaluation, that is a test-validity bug with the same urgency as a
+wrong-game-state bug. Fix-phase must rewrite the test or escalate to the coordinator;
+never log it as a LOW.
+
+### Hash sentinel convention
+
+Hash schema version lives as a `pub const` in `crates/engine/src/state/hash.rs`,
+referenced at:
+1. The literal hash arm where the sentinel is written into the hash stream
+2. The parity test assertion (`assert_eq!(HASH_SCHEMA_VERSION, <N>)`, not `assert_ne!(hash, [0u8; 32])`)
+3. Re-exported from `crates/engine/src/lib.rs` for test access
+
+Non-zero assertions on the sentinel are too weak — they pass against rollbacks and
+forks. The strict equality form catches both.
+
+**Hash bump rule**: bump on every change to a serialized type's field shape or variant
+shape. Default action: bump. Stop-and-flag is only required if the change is to a
+derived/computed field that does not affect serialization. The cost of bumping is
+near-zero (one constant edit + one test parity assertion); the cost of *not* bumping when
+an old replay file deserializes against new state is real and silent. Document the bump
+in the implement commit message and in the hash module comment.
+
+### Implement-phase default-to-defer (new standing rule, PB-N)
+
+During fix-phase work, if a finding requires new engine surface beyond the declared PB
+scope, **stop and flag**, do not silently extend. "I'll just add one more variant" is the
+anti-pattern. The worker's job is to fix within-scope; a primitive extension is a
+micro-PB and needs its own plan/review cycle.
+
+Exception: trivial no-op extensions (e.g. re-exporting an existing constant, adding a
+one-field backfill default) are allowed if they unblock multiple existing sites and do
+not introduce new dispatch logic.
+
+### Aspirationally-wrong code comments are correctness hazards
+
+If a fix-phase investigation reveals that an existing source comment describes *intended*
+behavior rather than *actual* behavior, the comment is a lie that will mislead the next
+reader. Either fix the behavior (if in scope) or fix the comment to describe actual
+behavior + point at the tracking LOW (if out of scope). **Never leave the aspirational
+version standing.**
+
+Originating incident: PB-N close phase found `crates/engine/src/rules/abilities.rs:4191-4193`
+claiming *"Layer-resolved characteristics preserve pre-death state because
+move_object_to_zone retains Characteristics on the graveyard object"* — the comment was
+aspirationally correct (that's what CR 603.10a requires) but the code path called
+`calculate_characteristics` instead, which re-runs layer filters against the graveyard
+object and drops battlefield-gated filters. The PB-N close commit replaced the comment
+with a `TODO(BASELINE-LKI-01)` pointing at the tracking LOW.

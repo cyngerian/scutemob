@@ -66,6 +66,7 @@
 | PB-Q3 | ReplacementScope (any-player mana replacement) | planned | 0 | ~1 | — | — |
 | PB-Q4 | EnchantTarget::Filtered (bundled land-variant enchant targets) | done | 4 | ~6 deferred | fixed | 1 |
 | PB-Q5 | SpendOnlyChosenColorMana | planned | 0 | ~1 | — | — |
+| PB-N | SubtypeFiltered Attack + Death triggers (field addition on existing variants) | done | 5 | 11 deferred + 6 spawned micro-PB candidates | fixed | 1 |
 
 **Status values**: `done`, `active`, `planned`
 **Review values**: `clean` (reviewed, no issues), `fixed` (reviewed, issues fixed), `none` (not reviewed), `—` (not yet implemented)
@@ -99,7 +100,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 | W3 | LOW Remediation | active | 2026-03-19 | **W3-LC S2 DONE**. S3 next: fix MEDIUM sites |
 | W4 | M10 Networking | not-started | — | Blocked: finish W6 first |
 | W5 | Card Authoring | retired | — | Replaced by W6 |
-| W6 | Primitive + Card Authoring | active | 2026-04-12 | **PB queue re-prioritized from classification data**. Next: stale-TODO check + plan PB-N (SubtypeFilteredAttack+Death triggers). See primitive-card-plan.md Phase 1.8. |
+| W6 | Primitive + Card Authoring | available | 2026-04-13 | **PB-N closed 2026-04-13** — 5/33 yield, trigger-category calibration set at 15-25%, hash sentinel 3→4, `combat_damage_filter` tightened, BASELINE-LKI-01 + BASELINE-CLIPPY-01..06 logged. **Next batch: PB-D** (DamagedPlayer target filter, revised est 7-8 cards). See primitive-card-plan.md Phase 1.8. |
 
 **Status values**: `done`, `active`, `stalled`, `partial`, `not-started`, `retired`
 
@@ -129,7 +130,7 @@ As of 2026-03-30 (post PB-37, BF-1 complete).
 
 | Metric | Count |
 |--------|-------|
-| Total tests | 2639 |
+| Total tests | 2648 |
 | Test files | 216 |
 | Game scripts | 270 |
 | Approved scripts | 112 |

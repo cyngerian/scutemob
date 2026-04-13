@@ -199,3 +199,35 @@ The batch plan was authored before MCP lookups. Planners have caught multiple er
 - Skulk: plan said 702.120 (wrong — that's Escalate); correct is 702.118
 - Decayed: plan said 702.145 (wrong); correct is 702.147
 Always verify CR numbers via MCP lookup at plan time, not from the batch plan table.
+
+### #39 — Subtype-filter test wedges must operate on the filter's target property
+When writing a test that exercises a filter-read dispatch site (e.g., "subtype-filtered
+death trigger"), the test wedge must discriminate on **the property the filter actually
+reads**, not on an incidental field that happens to differ pre- vs post-condition.
+
+**Originating incident**: PB-N F3. Test 6 was originally named for LKI death evaluation
+but used `Color::Black` as the wedge — a static field with no continuous effect ending
+at death. The test passed under both pre- and post-death evaluation because the color
+was never variable. The filter read subtype, not color; the wedge should have been on
+subtype.
+
+**Rule**: for any `filter` dispatch test, the wedge property must be:
+1. The exact property the filter reads (subtype for subtype filter, color for color
+   filter, card_type for card_type filter, etc.)
+2. Variable in a way that differs between the pre-condition and post-condition being
+   tested (on-battlefield vs. in-graveyard, pre-death vs. post-death, etc.)
+3. Independently observable (you can verify with `assert!` that the variation is
+   present in the pre-condition before running the assertion on the post-condition)
+
+If your proposed wedge doesn't meet all three, your test is the silent-skip pattern
+recurring. Pick a different property or a different mechanism.
+
+**Known structural limitation (BASELINE-LKI-01)**: the LKI dispatch at
+`rules/abilities.rs:4180-4202` currently re-runs layer filters against the graveyard
+object via `calculate_characteristics`, so any wedge that depends on a filter-matched
+continuous effect ending at zone change is structurally unobservable. Both
+`LayerModification + SingleObject` and `LayerModification + AttachedCreature` grants
+were verified to fail this way in the PB-N fix phase experiment. Do not try to build a
+wedge around these until BASELINE-LKI-01 is fixed; use a different test pattern
+(e.g., base characteristics + filter-read dispatch, which at least validates the
+dispatch path consumption of the filter field, without validating the LKI semantics).
