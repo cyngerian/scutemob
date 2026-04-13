@@ -4,10 +4,12 @@ batch: PB-N
 title: Combined subtype-filtered attack and death triggers (single dispatch site)
 cards_unblocked_estimated: ~33 considered (18 attack + 15 death); ~20 yield expected post 60% calibration
 started: 2026-04-12 (oversight session — re-prioritization)
-phase: review
+phase: re-review
 plan_file: memory/primitives/pb-plan-N.md (WRITTEN 2026-04-12 by Opus planner session)
-review_file: memory/primitives/pb-review-N.md (TBD — reviewer writes this)
+review_file: memory/primitives/pb-review-N.md (WRITTEN 2026-04-12 by Opus reviewer session)
 oversight_directives: 2026-04-12 — coordinator approved ship-as-planned. Hash bump 3→4 (now standing rule). Tighten combat_damage_filter to damage-only + regression test. Mechanical card-def fixup as single commit driven by cargo build. 4 confirmed cards (Kolaghan, Dromoka, Sanctum Seeker, Teysa partial). All 8 mandatory tests, no silent skips. Catalog 11 deferred cards in plan close + Phase 1.8 "PB-N spawned candidates" subsection. Pre-existing clippy warnings → log as BASELINE-CLIPPY-01/02 LOWs at close (do NOT fix in PB-N). Calibration memory update at close: trigger PBs 15-25% yield. Next batch after PB-N close: PB-D.
+
+fix_phase_directives: 2026-04-12 — coordinator approved fix-all-6 (F1+F2 HIGH, F3+F4+F5 MEDIUM, F6 LOW), single fix commit. NEW STANDING RULE: test-validity MEDIUMs (silent-skip pattern) are fix-phase HIGHs. F1 Sanctum Seeker: try existing primitives (e.g. Effect::ForEach Opponents + DrainLife 1) — STOP-AND-FLAG if new engine surface needed (do not sneak in primitive extension). F2 Utvara Hellkite: add filter mirroring Kolaghan + strip TODO + card-specific test, **bumps PB-N yield 4 → 5**. F3 LKI test: wedge must be SUBTYPE (not color) — use Layer 4 grant of Vampire subtype WhileOnBattlefield, dying creature is base Human; tests filter `subtype: Vampire` death trigger. F4 combat_damage_filter regression: use `WheneverCreatureYouControlAttacks` variant with non-matching filter set, attack with non-matching creature, assert trigger DOES fire (post-fix ignores filter on attack). F5 hash sentinel: tighten to `assert_eq!(SCHEMA_VERSION, 4)` — verify the actual constant name in hash.rs first. F6 batch fmt the 5 listed files only (do not touch pre-existing baseline clippy issues). Run `cargo test --all` after each substantive fix. Commit body lists all 6 findings + the F2 yield bump explicitly. Standing rules 1-4 (test-validity = fix-HIGH, planner roster grep step 4a, subtype-layer test wedge, hash assert_eq!) are DEFERRED to a SEPARATE PB-N close commit, not the fix commit.
 
 ## How this PB was selected
 
@@ -174,3 +176,64 @@ Commit: `d343e1ba` — W6-prim: PB-N — SubtypeFilteredAttack + SubtypeFiltered
 - BASELINE-CLIPPY-01/02 pre-existing warnings (log as LOWs, do not fix in PB-N)
 - teysa_orzhov_scion sacrifice ability (requires targeted activated ability primitive)
 - 11 explicitly deferred cards from roster (see pb-plan-N.md "Deferred cards")
+
+## Review Complete (reviewer session, 2026-04-12)
+
+Review file: `memory/primitives/pb-review-N.md`
+Verdict: **needs-fix**
+
+Findings count:
+- HIGH: 2
+- MEDIUM: 3
+- LOW: 1
+
+HIGH summary:
+- F1: Sanctum Seeker `Effect::DrainLife { amount: 1 }` produces wrong game state (gains `total_lost`, not flat 1; oracle says flat 1 — 3-life-gain in 4-player Commander).
+- F2: Utvara Hellkite was left at `filter: None` with its pre-PB-N "Dragon subtype filter not yet in DSL" TODO intact, despite being the canonical PB-N target. Not in deferred list. Free-win miss; still produces wrong game state.
+
+MEDIUM summary:
+- F3: Test 6 (load-bearing LKI test) does not actually exercise pre-death LKI — the dying creature has a static color, no continuous effect that ends at death. The test would pass under either pre-death or post-death evaluation. Silent-skip pattern per PB-Q4 retro.
+- F4: Test 9 (combat_damage_filter regression) does not actually validate the tightening — the trigger uses `trigger_on: AnyCreatureYouControlDealsCombatDamageToPlayer`, which the outer event-type match filters out on attack events regardless of any inner filter scoping. Test would pass against both pre-fix and post-fix engine.
+- F5: Test 7 hash sentinel assertion only checks for non-zero, which is true at any sentinel value once a player exists. Does not catch a sentinel rollback.
+
+LOW summary:
+- 5 mechanical-backfill files (grim_haruspex, cruel_celebrant, blood_artist, marionette_apprentice, syr_konrad_the_grim) have misaligned indentation on the inserted `filter: None,` line. Cosmetic only.
+
+Coordinator focus area verdicts:
+- Focus 1 (combat_damage_filter tightening): PARTIAL — engine fix correct, regression test invalid (Finding F4).
+- Focus 2 (mechanical card-def backfill): PARTIAL — sample of 10 verified clean for shape change, but utvara_hellkite missed in-scope promotion (Finding F2).
+- Focus 3 (hash bump parity test): PARTIAL — field-parity assertion correct, sentinel-bump assertion too weak (Finding F5).
+- Focus 4 (oracle vs DSL parity, 4 cards): PARTIAL — Kolaghan/Dromoka/Teysa pass, Sanctum Seeker fails (Finding F1).
+
+8 mandatory tests landed: YES — all 8 present, none `#[ignore]`d, none missing. (Two of them, however, do not actually validate what their names claim — Findings F3 and F4.)
+
+Stop-and-flag events: NONE — all findings are routine fix-phase items, not design-level escalations. The engine direction is sound; the gaps are in test coverage of two coordinator focus areas and two card-level oracle mismatches.
+
+## Fix Phase Complete (fix-runner session, 2026-04-12)
+
+Commit: (see W6-prim fix commit)
+
+### Fix descriptions
+
+- F1 (HIGH) PASS: Sanctum Seeker DrainLife → ForEach(EachOpponent, LoseLife 1) + GainLife(Controller, 1). Used `Effect::Sequence` + `ForEach` (both pre-existing; no new engine surface). 4-player test added: asserts p1 gains exactly 1 life (not 3).
+- F2 (HIGH) PASS: Utvara Hellkite filter: None → `Some(TargetFilter { has_subtype: Some(SubType("Dragon")), .. })`. TODO comment stripped. PB-N citation added. Card-specific test `test_utvara_hellkite_dragon_filter` added. **PB-N yield bumped 4 → 5 cards.**
+- F3 (MEDIUM, treated as HIGH) PARTIAL+ESCALATED: Test 6 converted from base-Black color to base-Vampire subtype dying creature (subtype-based as directed). However, the full LKI wedge (dying creature whose subtype comes ONLY from a continuous effect that ends at zone change) cannot be implemented with the current engine: `move_object_to_zone` assigns a NEW ObjectId to the graveyard object (CR 400.7 implementation), so `EffectFilter::SingleObject(old_id)` never matches the new graveyard object. The coordinator's prescribed wedge (Layer 4 grant, base Human, Vampire filter) fails because the effect is lost on zone change. **ESCALATED per stop-and-flag protocol** (structural engine limitation, not a primitive gap). Test now uses Vampire in base characteristics as the strongest available discriminator; docstring documents the engine limitation and escalation.
+- F4 (MEDIUM, treated as HIGH) PASS: Test 9 changed from `trigger_on: AnyCreatureYouControlDealsCombatDamageToPlayer` (non-discriminating — outer event-type match would filter it before combat_damage_filter) to `trigger_on: AnyCreatureYouControlAttacks` with `combat_damage_filter: Some(Ninja)` and a Goblin attacker. Post-fix: trigger fires (filter ignored on attack). Pre-fix: trigger would be suppressed (filter wrongly checked on attacks). Asserts stack_trigger_count > 0.
+- F5 (MEDIUM, treated as HIGH) PASS: Added `pub const HASH_SCHEMA_VERSION: u8 = 4` to `state/hash.rs` (with history doc comment). Exported from `lib.rs`. Replaced `4u8.hash_into` literal with `HASH_SCHEMA_VERSION.hash_into`. Sentinel assertion in test 7 changed from `assert_ne!(hash, [0u8; 32])` to `assert_eq!(HASH_SCHEMA_VERSION, 4u8)`.
+- F6 (LOW) PASS: `cargo fmt` ran on the 5 files (grim_haruspex, cruel_celebrant, blood_artist, marionette_apprentice, syr_konrad_the_grim). Files were already formatted per rustfmt; no git diff produced. The misaligned indentation visible in the reviewer's sample is a display artifact that rustfmt accepts as-is.
+
+### Test count delta
+
+Baseline: 2646 → Post-fix: 2648 (delta +2: `test_utvara_hellkite_dragon_filter`, `test_sanctum_seeker_flat_gain_4_player`)
+Test 6 (LKI) and Test 9 (combat_damage_filter) were REPLACED (same count, more discriminating).
+
+### Stop-and-flag events
+
+- F3 wedge: structural engine limitation (CR 400.7 object identity prevents continuous-effect-based subtype surviving zone change). Escalated to coordinator. No new primitive needed, but engine's LKI snapshot mechanism is incomplete for this case.
+
+### Build status
+
+- cargo test --all: 2648 passed, 0 failed
+- cargo fmt --check: clean
+- cargo clippy --all-targets -D warnings: 8 pre-existing baseline errors (same count as pre-fix); 0 new errors introduced
+- cargo build --workspace: clean

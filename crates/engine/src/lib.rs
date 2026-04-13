@@ -27,6 +27,7 @@ pub use rules::layers::calculate_characteristics;
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{Command, GameEvent, LossReason};
 pub use state::builder::register_commander_zone_replacements;
+pub use state::hash::HASH_SCHEMA_VERSION;
 pub use state::types::ALL_CREATURE_TYPES;
 pub use state::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomIndex};
 pub use state::{

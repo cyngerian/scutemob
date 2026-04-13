@@ -16,10 +16,15 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 508.1m: "Whenever a Dragon you control attacks, create a 6/6 red Dragon token."
-            // PB-23: WheneverCreatureYouControlAttacks.
-            // TODO: Dragon subtype filter not yet in DSL — over-triggers on non-Dragon attackers.
+            // PB-N: Dragon subtype filter now available via triggering_creature_filter.
+            // Fixed: was filter: None (over-triggered on non-Dragon attackers). PB-N closes this gap.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Dragon".to_string())),
+                        ..Default::default()
+                    }),
+                },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Dragon".to_string(),

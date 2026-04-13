@@ -15,7 +15,10 @@ pub fn card() -> CardDefinition {
             // CR 508.1m / CR 603.2: "Whenever a Vampire you control attacks,
             // each opponent loses 1 life and you gain 1 life."
             // PB-N: Vampire subtype filter via triggering_creature_filter.
-            // DrainLife: each opponent loses 1, controller gains total lost.
+            // Each opponent loses exactly 1 life (ForEach EachOpponent), then
+            // controller gains exactly 1 life (flat — not total_lost). This is
+            // distinct from DrainLife, which gains total_lost across all opponents
+            // (wrong in 3+ player games per effects/mod.rs:493-504).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
                     filter: Some(TargetFilter {
@@ -23,7 +26,19 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     }),
                 },
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
+                effect: Effect::Sequence(vec![
+                    Effect::ForEach {
+                        over: ForEachTarget::EachOpponent,
+                        effect: Box::new(Effect::LoseLife {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(1),
+                        }),
+                    },
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
                 intervening_if: None,
                 targets: vec![],
                 modes: None,

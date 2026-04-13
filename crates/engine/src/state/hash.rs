@@ -8,6 +8,27 @@
 //! control over which fields contribute to public vs private hashes.
 //!
 //! See `docs/mtg-engine-network-security.md` for the three-tier security model.
+
+/// Schema version sentinel for the public state hash.
+///
+/// Bump this value whenever a change to the wire format of `GameState` is made:
+/// - New fields on `TriggeredAbilityDef`, `TriggerCondition`, `LayerModification`
+/// - New fields on `CastSpell`, `StackObject`, or `GameObject`
+/// - Any enum discriminant renumbering
+///
+/// Tests assert `assert_eq!(HASH_SCHEMA_VERSION, <expected>)` so that CI catches
+/// uncommitted bumps. Stale replays hashing against an older sentinel will produce
+/// a different fingerprint and fail validation.
+///
+/// History:
+/// - 1: initial (pre-PB-X)
+/// - 2: PB-X — EffectFilter discriminants 32+33, LayerModification 25, Cost 10
+/// - 3: PB-Q — EffectFilter discriminants 34+35, ReplacementModification 20+21,
+///   ChosenColorRef, ManaWouldBeProduced fields, GameObject.chosen_color
+/// - 4: PB-N — TriggeredAbilityDef.triggering_creature_filter,
+///   TriggerCondition::WheneverCreatureDies + WheneverCreatureYouControlAttacks
+///   shape change (unit → struct with `filter` field)
+pub const HASH_SCHEMA_VERSION: u8 = 4;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -6122,8 +6143,8 @@ impl GameState {
         // TriggerCondition variants, LayerModification, or CastSpell/StackObject/GameObject.
         // Increment this value for each PB that changes the hash space to prevent stale
         // replays from incorrectly validating against new engine versions.
-        4u8.hash_into(&mut hasher); // schema version 4 (PB-N)
-                                    // 1. Turn state
+        HASH_SCHEMA_VERSION.hash_into(&mut hasher); // schema version (see HASH_SCHEMA_VERSION const)
+                                                    // 1. Turn state
         self.turn.hash_into(&mut hasher);
         // 2. Timestamp counter and replacement ID counter
         self.timestamp_counter.hash_into(&mut hasher);
