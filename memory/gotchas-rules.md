@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + Batch 10 (2026-03-07)
+# Rules Gotchas — Last verified: M9.5 + PB-N (2026-04-13)
 
 ## MTG Rules Gotchas
 
