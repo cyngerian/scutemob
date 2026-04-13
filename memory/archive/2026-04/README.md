@@ -10,8 +10,8 @@ preserved for possible later migration to the auto-memory system at:
 The dry-run plan that authorized each move is in
 `memory/cleanup/cleanup-plan-2026-04-12.md`.
 
-The retention policy doc that defines the archive convention will land in
-`docs/cleanup-retention-policy.md` after PB-N closes.
+The retention policy doc that defines the archive convention is at
+`docs/cleanup-retention-policy.md`. Read it before running another cleanup pass.
 
 ## Files in this batch
 
