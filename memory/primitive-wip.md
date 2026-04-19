@@ -4,9 +4,12 @@ batch: PB-P
 title: EffectAmount::PowerOfSacrificedCreature — LKI-based read of a sacrificed creature's power at effect resolution
 cards_unblocked_estimated: 3 confirmed (altar_of_dementia, greater_good, lifes_legacy); below filter-PB calibration (yield ~23%); accepted as narrow real-but-narrow primitive
 started: 2026-04-19
-phase: implement-complete
+phase: review-complete
 plan_file: memory/primitives/pb-plan-P.md (WRITTEN 2026-04-19)
 implement_completed: 2026-04-19
+review_completed: 2026-04-19
+review_file: memory/primitives/pb-review-P.md
+review_verdict: PASS-WITH-NOTES (0 HIGH, 0 MEDIUM, 5 LOW)
 
 ## How this PB was selected
 
@@ -209,3 +212,21 @@ OPTIONAL tests planner may add for edge coverage.
 - [x] HASH_SCHEMA_VERSION sentinel assertions updated in `pbd_damaged_player_filter.rs` and `pbn_subtype_filtered_triggers.rs` (5→6)
 - [x] `AdditionalCost::Sacrifice` tuple→struct converted at all 43 test-file construction sites
 - [x] `StackObject.sacrificed_creature_powers` added to all 15+ direct struct-literal constructions in test files
+
+## Reviewer checklist
+
+- [x] CR rules independently verified (608.2b, 701.16, 400.7, 117.1f, 602.2)
+- [x] Card oracle text verified via MCP for all 3 cards (Altar of Dementia, Greater Good, Life's Legacy)
+- [x] LKI capture-by-value confirmed at both sacrifice cost-payment sites (BEFORE move_object_to_zone)
+- [x] Hash sentinel 5→6 verified in `state/hash.rs:36`; assertion updates verified in 3 test files
+- [x] EffectAmount discriminant 15 unique, no collision with neighbors (4-14)
+- [x] All EffectContext literal/new sites populate `sacrificed_creature_powers: vec![]`
+- [x] All StackObject construction sites populate `sacrificed_creature_powers: vec![]`
+- [x] Activated-ability resolution path propagates from StackObject to ctx
+- [x] Spell-resolution path propagates from `additional_costs.Sacrifice.lki_powers` to ctx
+- [x] M4 (load-bearing LKI test) genuinely discriminates capture-by-value from capture-by-ID
+- [x] Card defs match oracle text verbatim
+- [x] AdditionalCost reshape did not break devour/casualty/bargain/emerge sites (all use `..` to ignore lki_powers)
+- [x] Tools (TUI, replay-viewer) don't have exhaustive matches on these enums (no updates needed)
+- [x] Review file written: `memory/primitives/pb-review-P.md`
+- [x] Wip phase advanced to `review-complete`
