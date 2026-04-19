@@ -5643,6 +5643,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             }
                                         }
                                         TargetController::Any => {} // No filter
+                                        // PB-D: DamagedPlayer makes no sense on sacrifice triggers —
+                                        // there is no combat-damage context here. Reject defensively
+                                        // so a card author can't accidentally write this.
+                                        TargetController::DamagedPlayer => {
+                                            return false;
+                                        }
                                     }
                                 } else {
                                     // Default: only fire when the controller sacrificed (you only).
@@ -6303,11 +6309,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             .triggered_abilities
                             .get(trigger.ability_index)
                             .and_then(|ab| {
-                                // Runtime triggered_abilities come from characteristics;
-                                // they don't carry a `targets` field directly but are
-                                // InterveningIf-keyed. No targets from runtime path.
-                                let _ = ab;
-                                None::<Vec<crate::cards::card_definition::TargetRequirement>>
+                                // PB-D fix: TriggeredAbilityDef carries a `targets` field
+                                // (CR 601.2c). Return it when non-empty so that runtime
+                                // triggers added via ObjectSpec::with_triggered_ability (or
+                                // enrich_spec_from_def) participate in auto-target selection.
+                                // Falls through to card-registry fallback when empty (the
+                                // common case for triggers authored without targets).
+                                if ab.targets.is_empty() {
+                                    None
+                                } else {
+                                    Some(ab.targets.clone())
+                                }
                             })
                     } else {
                         None
@@ -6465,6 +6477,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                     crate::cards::card_definition::TargetController::Opponent => {
                                                         obj.controller != trigger.controller
                                                     }
+                                                    // PB-D: CR 510.3a, 601.2c — target must be
+                                                    // controlled by the player dealt combat damage in
+                                                    // the triggering event. Falls through to false if
+                                                    // no damaged_player is set (non-combat trigger).
+                                                    crate::cards::card_definition::TargetController::DamagedPlayer => {
+                                                        trigger.damaged_player
+                                                            .is_some_and(|dp| obj.controller == dp)
+                                                    }
                                                 };
                                                 passes && ctrl_ok
                                             }
@@ -6478,6 +6498,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                     }
                                                     crate::cards::card_definition::TargetController::Opponent => {
                                                         obj.controller != trigger.controller
+                                                    }
+                                                    // PB-D: CR 510.3a, 601.2c — target must be
+                                                    // controlled by the player dealt combat damage in
+                                                    // the triggering event. Falls through to false if
+                                                    // no damaged_player is set (non-combat trigger).
+                                                    crate::cards::card_definition::TargetController::DamagedPlayer => {
+                                                        trigger.damaged_player
+                                                            .is_some_and(|dp| obj.controller == dp)
                                                     }
                                                 };
                                                 passes && ctrl_ok

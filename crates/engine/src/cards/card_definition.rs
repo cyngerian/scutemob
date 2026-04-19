@@ -2389,6 +2389,13 @@ pub enum TargetController {
     Any,
     You,
     Opponent,
+    /// CR 510.3a: Scope to the player dealt combat damage in the triggering event.
+    /// Used on combat-damage triggered abilities that say "that player controls" — e.g.
+    /// Throat Slitter, Sigil of Sleep, Mistblade Shinobi, Alela, Nature's Will, Balefire Dragon.
+    /// Resolves from `ctx.damaged_player` (or `trigger.damaged_player` at target-selection time);
+    /// returns `false` at sites where no damaged-player context exists (e.g. spell casting),
+    /// gracefully degrading to "no legal target".
+    DamagedPlayer,
 }
 // ── Trigger Conditions ────────────────────────────────────────────────────────
 /// What game event causes a triggered ability to fire (CR 603.1).

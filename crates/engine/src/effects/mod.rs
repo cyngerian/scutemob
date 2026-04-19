@@ -870,6 +870,11 @@ fn execute_effect_inner(
                             TargetController::Any => true,
                             TargetController::You => obj.controller == ctx.controller,
                             TargetController::Opponent => obj.controller != ctx.controller,
+                            // PB-D: CR 510.3a — scope to the player dealt combat damage in the
+                            // triggering event. Fallback to ctx.controller when not set (defensive).
+                            TargetController::DamagedPlayer => {
+                                obj.controller == ctx.damaged_player.unwrap_or(ctx.controller)
+                            }
                         }
                 })
                 .map(|(&id, _)| id)
@@ -1050,6 +1055,11 @@ fn execute_effect_inner(
                             TargetController::Any => true,
                             TargetController::You => obj.controller == ctx.controller,
                             TargetController::Opponent => obj.controller != ctx.controller,
+                            // PB-D: CR 510.3a — scope to the player dealt combat damage in the
+                            // triggering event. Fallback to ctx.controller when not set (defensive).
+                            TargetController::DamagedPlayer => {
+                                obj.controller == ctx.damaged_player.unwrap_or(ctx.controller)
+                            }
                         }
                 })
                 .map(|(&id, _)| id)
@@ -1155,6 +1165,11 @@ fn execute_effect_inner(
                             TargetController::Any => true,
                             TargetController::You => obj.controller == ctx.controller,
                             TargetController::Opponent => obj.controller != ctx.controller,
+                            // PB-D: CR 510.3a — scope to the player dealt combat damage in the
+                            // triggering event. Fallback to ctx.controller when not set (defensive).
+                            TargetController::DamagedPlayer => {
+                                obj.controller == ctx.damaged_player.unwrap_or(ctx.controller)
+                            }
                         }
                         // is_attacking: runtime check against CombatState (not in matches_filter)
                         && (!effective_filter.is_attacking
@@ -5410,6 +5425,11 @@ fn resolve_effect_target_list_indexed(
                         TargetController::Any => true,
                         TargetController::You => obj.controller == ctx.controller,
                         TargetController::Opponent => obj.controller != ctx.controller,
+                        // PB-D: CR 510.3a — scope to the player dealt combat damage in the
+                        // triggering event. Fallback to ctx.controller when not set (defensive).
+                        TargetController::DamagedPlayer => {
+                            obj.controller == ctx.damaged_player.unwrap_or(ctx.controller)
+                        }
                     }
             })
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
@@ -7204,6 +7224,13 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                     TargetController::Any => true,
                     TargetController::You => obj.controller == ctx.controller,
                     TargetController::Opponent => obj.controller != ctx.controller,
+                    // PB-D: CR 510.3a — load-bearing for Nature's Will + Balefire Dragon.
+                    // Scopes ForEach iteration to permanents controlled by the player dealt
+                    // combat damage in the triggering event. Fallback to ctx.controller when
+                    // not set (defensive; not expected in practice for combat-damage triggers).
+                    TargetController::DamagedPlayer => {
+                        obj.controller == ctx.damaged_player.unwrap_or(ctx.controller)
+                    }
                 }
             })
             .map(|(&id, _)| id)
