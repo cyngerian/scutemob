@@ -2,9 +2,6 @@
 // Flying
 // Whenever this creature deals combat damage to a player, it deals that much damage to
 // each creature that player controls.
-//
-// TODO: "each creature that player controls" requires ForEach over DamagedPlayer's creatures,
-//   which needs TargetController::DamagedPlayer support in ForEach filters. Deferred to PB-37.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,8 +15,29 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "it deals that much damage to each creature that player controls" —
-            //   ForEach over DamagedPlayer's creatures not in DSL. Deferred to PB-37.
+            // CR 510.3a: "Whenever this creature deals combat damage to a player, it deals that
+            // much damage to each creature that player controls."
+            // CombatDamageDealt resolves from ctx.combat_damage_amount (propagated through ForEach
+            // inner context at effects/mod.rs:2419). DamagedPlayer scopes the ForEach to creatures
+            // controlled by the specific player dealt damage.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::DamagedPlayer,
+                        ..Default::default()
+                    })),
+                    effect: Box::new(Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::CombatDamageDealt,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

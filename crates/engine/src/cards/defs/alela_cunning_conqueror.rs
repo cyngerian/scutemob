@@ -5,7 +5,6 @@
 // that player controls.
 //
 // "First spell per turn" tracking deferred (requires per-turn state counter).
-// TODO: Goad effect needs DamagedPlayer resolution for "that player" targeting.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -61,10 +60,8 @@ pub fn card() -> CardDefinition {
             },
             // CR 510.3a / CR 603.2c: "Whenever one or more Faeries you control deal combat
             // damage to a player, goad target creature that player controls." — batch trigger
-            // with Faerie subtype filter.
-            // TODO(PB-37): Goad effect needs DamagedPlayer ForEach support to resolve "that
-            // player controls" scoping. DeclaredTarget { index: 0 } with empty targets would
-            // panic at resolution, so the effect is a no-op placeholder until PB-37.
+            // with Faerie subtype filter. DamagedPlayer scopes target selection to the specific
+            // player dealt damage (PB-D).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
                     filter: Some(TargetFilter {
@@ -72,9 +69,14 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     }),
                 },
-                effect: Effect::Sequence(vec![]),
+                effect: Effect::Goad {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
                 intervening_if: None,
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::DamagedPlayer,
+                    ..Default::default()
+                })],
 
                 modes: None,
                 trigger_zone: None,
