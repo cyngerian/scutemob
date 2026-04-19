@@ -264,3 +264,144 @@ When completing a milestone:
     reads `memory/m<N>-fix-session-plan.md` → applies fixes → `cargo test --all` → `cargo clippy -- -D warnings` → closes issues in reviews doc → commit
   - When all sessions complete, update "Current State" and advance to the next milestone
   - LOW-only findings do not require a fix phase; collect them in the reviews doc and address opportunistically
+
+---
+
+# Scutemob MTG Engine — ESM-Managed Project
+
+This project is managed by ESM (External State Machine). Use the `esm` CLI and slash commands to interact with it.
+
+## Quick Start
+
+Use these slash commands to manage your ESM session:
+
+- **`/start`** — Begin a session. Bootstraps context from ESM, starts session tracking, orients you.
+- **`/dispatch <title>`** — **Primary workflow.** Create a task, worktree, and auto-launch a worker in a kitty pane. Use this for all implementation work.
+- **`/status`** — Quick snapshot of tasks, sessions, and fleet-wide context.
+- **`/collect [task_id]`** — Collect a finished worker's work: merge worktree to main, clean up.
+- **`/task <title>`** — Create a task and work on it yourself (for small, self-assigned work only).
+- **`/done [task_id]`** — Complete a self-assigned task: transition to done, merge branch to main.
+- **`/spawn <title>`** — Like /dispatch, but you launch the worker manually.
+- **`/end`** — End a session. Records summary, checks for uncommitted work, ensures continuity.
+
+**Every session must begin with `/start`** (or manually running `esm project bootstrap scutemob` + `esm session start`).
+
+## Worker Detection
+
+If the file `.esm/worker.md` exists in this directory, **you are a worker agent**.
+Read `.esm/worker.md` immediately and follow its instructions. The worker file
+defines your task, acceptance criteria, and constraints. The rest of this CLAUDE.md
+still applies (conventions, tools, project info) but the worker file takes
+precedence for your role and workflow.
+
+## Session Lifecycle
+
+1. **Start session**: Run `/start`
+2. **Work normally** — heartbeats happen automatically
+3. **Complete tasks**: Run `/collect` (for dispatched workers) or `/done` (for self-assigned)
+4. **End session**: Run `/end`
+
+Sessions without a heartbeat for 10 minutes are automatically ended.
+
+## Workflow Rules
+
+**Follow this workflow for all implementation work.**
+
+1. **Bootstrap first**: Run `/start` to see current state.
+2. **Check tasks**: Run `esm task list --project scutemob` to see tasks and their state.
+3. **Before writing code**, you need an active task in `in_progress` state.
+4. **Task lifecycle**: backlog → in_progress → in_review → done (can go to `blocked` from in_progress or in_review)
+5. **Write tests.** Every task that adds or changes functionality must include tests. Write
+   tests alongside implementation, not after. Tests must pass before transitioning to `in_review`.
+   If the project has an existing test framework, follow its patterns.
+6. **Branch protocol**:
+   - Create a feature branch for each task before transitioning to `in_progress`
+   - Include `working_branch` in your attestations when transitioning
+   - **Run `/done` to merge to main** — this transitions to done AND merges the branch
+7. **Commit frequently** with descriptive messages.
+8. **Acceptance criteria**: Run `esm task satisfy <task_id> <criterion_id> --by <agent>` to mark them as met.
+9. **Task comments** should be short status updates (2-4 lines), not design docs. Use structured formats:
+   - `Completed: <what>. Next: <what>.`
+   - `Blocked: <issue>. Tried: <what>.`
+   - `Decision: <choice>. Reason: <why>.`
+   Put detailed content in project files (docs/, DESIGN.md), not in comments.
+10. **Dispatch, don't implement.** The primary agent creates tasks and dispatches
+    workers. Use `/dispatch` for implementation work. Only implement directly
+    for trivial fixes (< 10 lines) or when explicitly told to work inline.
+
+## ESM CLI Quick Reference
+
+```bash
+# Session
+esm session start --project scutemob --agent primary
+esm session end <session_id> --summary "<text>"
+
+# Tasks
+esm task create --project scutemob --title "<title>" --description "<desc>" --criteria "<c1>" --criteria "<c2>"
+esm task list --project scutemob [--status <status>]
+esm task get <task_id>
+esm task transition <task_id> <status> --agent primary --attest key=val --attest key=val
+esm task satisfy <task_id> <criterion_id> --by primary [--note "<text>"]
+esm task signal-ready <task_id> --agent primary
+esm task comment <task_id> --agent primary "<message>"
+esm task lock <task_id> --agent primary
+esm task unlock <task_id> --agent primary
+
+# Worktrees
+esm worktree create <task_id>
+esm worktree list
+esm worktree merge <task_id> [--no-ff]
+esm worktree check <task_id>
+esm worktree conflicts
+
+# Project & Fleet
+esm project bootstrap scutemob
+esm fleet status [--md]
+esm local
+```
+
+## Required Attestations
+
+When transitioning to `in_progress`:
+- `branch_exists`: "true"
+- `acceptance_criteria_defined`: "true"
+- `working_branch`: "<branch-name>"
+
+When transitioning to `in_review`:
+- `tests_passing`: "true"
+- `implementation_complete`: "true"
+
+When transitioning to `done`:
+- `review_complete`: "true"
+
+When transitioning to `blocked`:
+- `blocked_reason`: describe what you need before you can continue
+
+Unblocking requires admin approval — you cannot unblock yourself.
+
+## Advisory Mode
+
+ESM runs in **advisory mode** by default. The hook will warn you about scope violations and missing tasks, but won't block your work. Warnings appear in stderr — pay attention to them.
+
+If this project uses **blocking mode**, scope violations will be denied. Check the project's `enforcement_mode` setting.
+
+## Documentation Management
+
+If `.claude/docs.yaml` exists, this project uses ESM documentation management.
+Managed docs have a `<!-- last_updated: YYYY-MM-DD -->` comment that tracks freshness.
+
+- **`/docs status`** — Quick health overview of all managed docs
+- **`/docs check`** — Audit docs for drift (checks triggers against git history)
+- **`/docs init`** — Interactive setup: scan existing docs, detect features, scaffold new ones
+
+When you update a managed doc, always update the `<!-- last_updated: YYYY-MM-DD -->`
+comment to today's date. Only update it for substantive changes — not typo fixes.
+
+The `/done` and `/end` skills automatically check for stale docs based on which
+files you changed. Follow their recommendations or dismiss with a reason.
+
+## Project Info
+
+- **ESM Project ID**: `scutemob`
+- **Agent ID**: `primary`
+- **ESM Server**: `http://tower:8765`
