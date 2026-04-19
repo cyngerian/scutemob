@@ -18,9 +18,28 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Ninjutsu {
                 cost: ManaCost { blue: 1, ..Default::default() },
             },
-            // TODO: "you may return target creature that player controls to its owner's hand"
-            // — requires targeting a creature controlled by the damaged player + MoveZone.
-            // "that player controls" filter is not expressible with current TargetRequirement.
+            // CR 510.3a: "Whenever this creature deals combat damage to a player, you may
+            // return target creature that player controls to its owner's hand."
+            // Authored as mandatory (no "you may" wrapper — authored consistently with Sigil of Sleep
+            // and per PB-D plan R7). TODO(MayEffect): "you may" optionality deferred to a future
+            // MayEffect primitive; authoring as mandatory is correct for the DamagedPlayer scoping.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::MoveZone {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                    },
+                    controller_override: None,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::DamagedPlayer,
+                    ..Default::default()
+                })],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

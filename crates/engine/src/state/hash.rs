@@ -28,7 +28,8 @@
 /// - 4: PB-N — TriggeredAbilityDef.triggering_creature_filter,
 ///   TriggerCondition::WheneverCreatureDies + WheneverCreatureYouControlAttacks
 ///   shape change (unit → struct with `filter` field)
-pub const HASH_SCHEMA_VERSION: u8 = 4;
+/// - 5: PB-D (2026-04-19) — TargetController::DamagedPlayer added
+pub const HASH_SCHEMA_VERSION: u8 = 5;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4140,6 +4141,7 @@ impl HashInto for TargetController {
             TargetController::Any => 0u8.hash_into(hasher),
             TargetController::You => 1u8.hash_into(hasher),
             TargetController::Opponent => 2u8.hash_into(hasher),
+            TargetController::DamagedPlayer => 3u8.hash_into(hasher),
         }
     }
 }

@@ -14,10 +14,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // CR 510.3a: "Whenever enchanted creature deals damage to a player, return target
-            // creature that player controls to its owner's hand." — any damage, target must be
-            // controlled by the damaged player.
-            // Note: targeting a "creature that player controls" would need DamagedPlayer target
-            // filtering; approximated as any creature target for now.
+            // creature that player controls to its owner's hand." — DamagedPlayer scopes the
+            // target to the specific player dealt damage (precision fix: multiplayer correctness).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
                     combat_only: false,
@@ -28,7 +26,10 @@ pub fn card() -> CardDefinition {
                     controller_override: None,
                 },
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::DamagedPlayer,
+                    ..Default::default()
+                })],
 
                 modes: None,
                 trigger_zone: None,

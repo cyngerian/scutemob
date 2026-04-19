@@ -5522,6 +5522,10 @@ fn validate_object_satisfies_requirement(
                     TargetController::Any => true,
                     TargetController::You => obj.controller == caster,
                     TargetController::Opponent => obj.controller != caster,
+                    // PB-D: DamagedPlayer is meaningful only for triggered abilities that carry a
+                    // damaged_player context. Spells cast from hand have no such context — reject
+                    // as unreachable (produces clean "no legal target" error, CR 601.2c).
+                    TargetController::DamagedPlayer => false,
                 };
                 passes_filter && passes_controller
             }
@@ -5535,6 +5539,10 @@ fn validate_object_satisfies_requirement(
                     TargetController::Any => true,
                     TargetController::You => obj.controller == caster,
                     TargetController::Opponent => obj.controller != caster,
+                    // PB-D: DamagedPlayer is meaningful only for triggered abilities that carry a
+                    // damaged_player context. Spells cast from hand have no such context — reject
+                    // as unreachable (produces clean "no legal target" error, CR 601.2c).
+                    TargetController::DamagedPlayer => false,
                 };
                 passes_filter && passes_controller
             }

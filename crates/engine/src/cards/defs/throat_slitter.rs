@@ -3,12 +3,6 @@
 //   onto the battlefield from your hand tapped and attacking.)
 // Whenever this creature deals combat damage to a player, destroy target nonblack creature
 //   that player controls.
-//
-// Note: The combat damage trigger targets "a nonblack creature that player controls" —
-// the "that player controls" constraint requires TargetFilter with controller=DamagedPlayer
-// which does not exist as a TargetController variant. Approximated with controller=Opponent
-// (targets nonblack creature an opponent controls — close but may not match the specific
-// damaged player in multiplayer). TODO: TargetController::DamagedPlayer for precision.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,9 +19,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Ninjutsu {
                 cost: ManaCost { generic: 2, black: 1, ..Default::default() },
             },
-            // CR 510.3a: "Whenever this deals combat damage to a player, destroy target nonblack creature."
-            // TODO: "that player controls" → TargetController::DamagedPlayer not in DSL.
-            // Approximated as TargetController::Opponent.
+            // CR 510.3a: "Whenever this deals combat damage to a player, destroy target nonblack
+            // creature that player controls." — DamagedPlayer scopes the target to the specific
+            // player dealt damage (precision fix: multiplayer correctness).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::DestroyPermanent {
@@ -37,7 +31,7 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     exclude_colors: Some([Color::Black].iter().copied().collect()),
-                    controller: TargetController::Opponent,
+                    controller: TargetController::DamagedPlayer,
                     ..Default::default()
                 })],
                 modes: None,
