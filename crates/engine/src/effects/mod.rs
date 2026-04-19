@@ -127,6 +127,11 @@ pub struct EffectContext {
     /// Set by `fire_mana_triggered_abilities` in mana.rs when resolving AddManaMatchingType.
     /// Each entry is (color, amount). Deterministic fallback: first entry's color is used.
     pub mana_produced: Option<Vec<(ManaColor, u32)>>,
+    /// CR 608.2b: LKI powers of creatures sacrificed as a cost for this spell or ability,
+    /// captured at the cost-payment site BEFORE `move_object_to_zone`.
+    /// Read by `EffectAmount::PowerOfSacrificedCreature` (PB-P).
+    /// Empty for spells/abilities whose costs did not include creature sacrifice.
+    pub sacrificed_creature_powers: Vec<i32>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -153,6 +158,7 @@ impl EffectContext {
             triggering_creature_id: None,
             chosen_creature_type: None,
             mana_produced: None,
+            sacrificed_creature_powers: vec![],
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -184,6 +190,7 @@ impl EffectContext {
             triggering_creature_id: None,
             chosen_creature_type: None,
             mana_produced: None,
+            sacrificed_creature_powers: vec![],
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -2388,6 +2395,7 @@ fn execute_effect_inner(
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
+                            sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2421,6 +2429,7 @@ fn execute_effect_inner(
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
+                            sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -6119,6 +6128,14 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
             }
             count
         }
+        // CR 608.2b: Read the LKI power of the first creature sacrificed as a cost.
+        // Captured BEFORE move_object_to_zone at the sacrifice cost-payment site.
+        // Returns 0 defensively if no creature was sacrificed (ctx.sacrificed_creature_powers
+        // is empty), so a card author mistakenly using this variant without a sacrifice cost
+        // gets a deterministic 0, not a panic.
+        EffectAmount::PowerOfSacrificedCreature => {
+            ctx.sacrificed_creature_powers.first().copied().unwrap_or(0)
+        }
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────
@@ -7065,6 +7082,7 @@ pub fn check_static_condition(
                 triggering_creature_id: None,
                 chosen_creature_type: None,
                 mana_produced: None,
+                sacrificed_creature_powers: vec![],
             };
             check_condition(state, condition, &ctx)
         }

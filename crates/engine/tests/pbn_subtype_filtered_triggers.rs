@@ -541,11 +541,11 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // states that participate in PB-N wire format — this assertion catches that.
     // Uses the exported HASH_SCHEMA_VERSION constant from state::hash (not a magic literal)
     // so the test must be updated when the sentinel is bumped.
-    // PB-D bumped the sentinel from 4 → 5 (TargetController::DamagedPlayer added).
+    // PB-P bumped the sentinel from 5 → 6 (EffectAmount::PowerOfSacrificedCreature + AdditionalCost::Sacrifice struct + StackObject field).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 5u8,
-        "HASH_SCHEMA_VERSION must be 5 (PB-D bump). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 6u8,
+        "HASH_SCHEMA_VERSION must be 6 (PB-P bump). If you bumped the sentinel, update this test."
     );
 }
 

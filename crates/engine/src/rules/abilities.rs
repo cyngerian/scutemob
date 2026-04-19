@@ -267,6 +267,7 @@ pub fn handle_activate_ability(
                 triggering_creature_id: None,
                 chosen_creature_type: None,
                 mana_produced: None,
+                sacrificed_creature_powers: vec![],
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -631,6 +632,10 @@ pub fn handle_activate_ability(
             new_exile_id,
         });
     }
+    // PB-P: CR 608.2b — LKI powers of creatures sacrificed as activated-ability cost.
+    // Populated inside the sacrifice block (BEFORE move_object_to_zone); read at
+    // StackObject construction and propagated to EffectContext at resolution.
+    let mut sacrificed_lki_powers: Vec<i32> = vec![];
     // CR 602.2: Pay sacrifice-another-permanent cost (e.g., "Sacrifice a creature: ...").
     // The caller supplies the ObjectId of the permanent to sacrifice via `sacrifice_target`.
     if let Some(ref filter) = ability_cost.sacrifice_filter {
@@ -713,6 +718,20 @@ pub fn handle_activate_ability(
                 obj.counters.clone(),
             )
         };
+        // CR 608.2b: Capture LKI power of the sacrificed creature BEFORE the zone move.
+        // After move_object_to_zone, the OLD sac_id is dead (CR 400.7) and the NEW
+        // graveyard object's characteristics have lost battlefield-gated layer effects.
+        {
+            let lki_chars = crate::rules::layers::calculate_characteristics(state, sac_id)
+                .or_else(|| {
+                    state
+                        .objects
+                        .get(&sac_id)
+                        .map(|o| o.characteristics.clone())
+                })
+                .unwrap_or_default();
+            sacrificed_lki_powers.push(lki_chars.power.unwrap_or(0));
+        }
         let (new_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(owner))?;
         if is_creature {
             events.push(GameEvent::CreatureDied {
@@ -927,6 +946,9 @@ pub fn handle_activate_ability(
     stack_obj.targets = spell_targets;
     // CR 107.3k: Propagate x_value so effects using EffectAmount::XValue resolve correctly.
     stack_obj.x_value = x_value.unwrap_or(0);
+    // PB-P: Carry captured LKI powers of cost-sacrificed creatures forward to resolution,
+    // where EffectAmount::PowerOfSacrificedCreature reads them from EffectContext.
+    stack_obj.sacrificed_creature_powers = sacrificed_lki_powers;
     state.stack_objects.push_back(stack_obj);
     // CR 602.5b: Track once-per-turn activation for abilities with the restriction.
     if is_once_per_turn {

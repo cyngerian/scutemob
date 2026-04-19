@@ -593,8 +593,8 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 fn test_damaged_player_hash_parity_all_variants() {
     // Verify hash sentinel is exactly 5 (PB-D bump from 4).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 5u8,
-        "HASH_SCHEMA_VERSION must be 5 (PB-D bump). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 6u8,
+        "HASH_SCHEMA_VERSION must be 6 (PB-P bump from PB-D's 5). If you bumped the sentinel, update this test."
     );
 
     let p1 = PlayerId(1);

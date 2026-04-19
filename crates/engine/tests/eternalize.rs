@@ -1002,6 +1002,7 @@ fn test_eternalize_split_second_blocks() {
         combat_damage_amount: 0,
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
+        sacrificed_creature_powers: vec![],
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

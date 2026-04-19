@@ -29,7 +29,11 @@
 ///   TriggerCondition::WheneverCreatureDies + WheneverCreatureYouControlAttacks
 ///   shape change (unit → struct with `filter` field)
 /// - 5: PB-D (2026-04-19) — TargetController::DamagedPlayer added
-pub const HASH_SCHEMA_VERSION: u8 = 5;
+/// - 6: PB-P (2026-04-19) — EffectAmount::PowerOfSacrificedCreature added (disc 15);
+///   AdditionalCost::Sacrifice changed from tuple to struct variant { ids, lki_powers };
+///   StackObject.sacrificed_creature_powers field added; EffectContext gains
+///   sacrificed_creature_powers (not hashed — runtime resolution scratch only).
+pub const HASH_SCHEMA_VERSION: u8 = 6;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2918,6 +2922,13 @@ impl HashInto for StackObject {
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
         self.triggering_creature_id.hash_into(hasher);
+        // PB-P: CR 608.2b — LKI powers of cost-sacrificed creatures.
+        // For spell stack objects these flow through additional_costs.Sacrifice.lki_powers;
+        // for activated-ability stack objects this field is populated directly.
+        (self.sacrificed_creature_powers.len() as u64).hash_into(hasher);
+        for p in &self.sacrificed_creature_powers {
+            p.hash_into(hasher);
+        }
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -2988,11 +2999,18 @@ impl HashInto for crate::state::types::AltCostKind {
 impl HashInto for AdditionalCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
-            AdditionalCost::Sacrifice(ids) => {
+            AdditionalCost::Sacrifice { ids, lki_powers } => {
                 0u8.hash_into(hasher);
                 (ids.len() as u64).hash_into(hasher);
                 for id in ids {
                     id.hash_into(hasher);
+                }
+                // PB-P: Hash lki_powers so states with different LKI captures
+                // produce different hashes. Non-LKI callers pass vec![] which
+                // hashes as a zero-length vector — stable across old states.
+                (lki_powers.len() as u64).hash_into(hasher);
+                for p in lki_powers {
+                    p.hash_into(hasher);
                 }
             }
             AdditionalCost::Discard(ids) => {
@@ -4384,6 +4402,8 @@ impl HashInto for EffectAmount {
                 14u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // CR 608.2b: PowerOfSacrificedCreature (discriminant 15) — LKI power of cost-sacrificed creature
+            EffectAmount::PowerOfSacrificedCreature => 15u8.hash_into(hasher),
         }
     }
 }

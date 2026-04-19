@@ -896,6 +896,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         combat_damage_amount: 0,
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
+        sacrificed_creature_powers: vec![],
     };
     state.stack_objects.push_back(backup_trigger);
 

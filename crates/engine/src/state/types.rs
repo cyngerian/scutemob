@@ -192,9 +192,19 @@ pub enum AltCostKind {
 /// for Bargain, `was_casualty_paid` for Casualty, and `Devour(N)` keyword presence.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AdditionalCost {
-    /// Sacrifice permanents as part of the cost (Bargain, Emerge, Casualty, Devour).
-    /// Which ability the sacrifice is for is determined by context (alt_cost, was_bargained, etc.).
-    Sacrifice(Vec<ObjectId>),
+    /// Sacrifice permanents as part of the cost (Bargain, Emerge, Casualty, Devour, and
+    /// spell additional costs such as SpellAdditionalCost::SacrificeCreature).
+    ///
+    /// `ids` are the (now-dead) ObjectIds at the time of sacrifice.
+    /// `lki_powers` is parallel to `ids` and stores the layer-resolved power of each
+    /// sacrificed creature captured BEFORE `move_object_to_zone` (CR 608.2b LKI).
+    /// Non-LKI consumers (emerge, bargain, casualty, devour) may set `lki_powers: vec![]`
+    /// and ignore it. LKI consumers (PB-P: PowerOfSacrificedCreature) MUST verify
+    /// `lki_powers.len() == ids.len()` or fall back to 0.
+    Sacrifice {
+        ids: Vec<ObjectId>,
+        lki_powers: Vec<i32>,
+    },
     /// Discard cards as part of the cost (Retrace land discard, Jump-Start discard).
     Discard(Vec<ObjectId>),
     /// Exile cards from graveyard as Escape's additional cost (CR 702.138).

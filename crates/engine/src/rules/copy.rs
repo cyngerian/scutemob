@@ -241,6 +241,9 @@ pub fn copy_spell_on_stack(
         triggering_creature_id: None,
         // Copies are never cast from library top.
         cast_from_top_with_bonus: false,
+        // PB-P: Copies do not inherit sacrifice LKI powers (the copy was not cast with
+        // a sacrifice cost — CR 707.2: one-shot additional costs are not copied).
+        sacrificed_creature_powers: vec![],
     };
     // Push the copy onto the stack (above the original).
     state.stack_objects.push_back(copy);
@@ -441,6 +444,8 @@ pub fn resolve_cascade(
                 triggering_creature_id: None,
                 // Cascade free-casts are not from library top.
                 cast_from_top_with_bonus: false,
+                // PB-P: Cascade free-casts do not have sacrifice costs.
+                sacrificed_creature_powers: vec![],
             };
             state.stack_objects.push_back(stack_obj);
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
@@ -662,6 +667,8 @@ pub fn resolve_discover(
                 triggering_creature_id: None,
                 // Discover free-casts are not from library top.
                 cast_from_top_with_bonus: false,
+                // PB-P: Discover free-casts do not have sacrifice costs.
+                sacrificed_creature_powers: vec![],
             };
             state.stack_objects.push_back(stack_obj);
             // Discover free-cast triggers "whenever you cast a spell".

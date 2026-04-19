@@ -2239,6 +2239,24 @@ pub enum EffectAmount {
     /// In the CDA path (resolve_cda_amount), uses base characteristics to avoid recursion during
     /// layer calculation.
     DomainCount { player: PlayerTarget },
+    /// CR 608.2b LKI: The layer-resolved power of the (first) creature sacrificed as
+    /// a cost for this spell or activated ability. Captured at sacrifice time (BEFORE
+    /// `move_object_to_zone`) and stored in `EffectContext.sacrificed_creature_powers`.
+    /// Returns 0 if no creature was sacrificed (defensive default — the card author
+    /// should not pair this variant with a non-sacrifice cost).
+    ///
+    /// Used by:
+    /// - Altar of Dementia: "Sacrifice a creature: Target player mills cards equal to
+    ///   the sacrificed creature's power."
+    /// - Greater Good: "Sacrifice a creature: Draw cards equal to the sacrificed
+    ///   creature's power, then discard three cards."
+    /// - Life's Legacy: "As an additional cost to cast this spell, sacrifice a creature.
+    ///   Draw cards equal to the sacrificed creature's power."
+    ///
+    /// Implementation note: uses the LKI value (on-battlefield, layer-resolved power),
+    /// NOT the graveyard object's base characteristics. Any anthem or P/T-setting effect
+    /// that applied on the battlefield contributes the boosted value, not the printed value.
+    PowerOfSacrificedCreature,
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

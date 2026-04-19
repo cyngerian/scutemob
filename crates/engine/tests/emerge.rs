@@ -221,7 +221,10 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![creature_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -307,7 +310,10 @@ fn test_emerge_sacrifice_token_mv_zero() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![token_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![token_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -381,7 +387,10 @@ fn test_emerge_sacrifice_high_mv_creature() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![creature_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -463,7 +472,10 @@ fn test_emerge_sacrifice_must_be_creature() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![artifact_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![artifact_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -532,9 +544,10 @@ fn test_emerge_sacrifice_must_be_own_creature() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![
-                opponent_creature_id,
-            ])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![opponent_creature_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -661,7 +674,10 @@ fn test_emerge_mutual_exclusion_with_flashback() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])], // // Also providing emerge sacrifice
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![creature_id],
+                lki_powers: vec![],
+            }], // // Also providing emerge sacrifice
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -744,7 +760,10 @@ fn test_emerge_no_keyword_rejects_emerge() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![creature_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -867,7 +886,10 @@ fn test_sacrifice_without_matching_ability_is_ignored() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![creature_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![creature_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },

@@ -381,6 +381,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 // CR 702.174b: Pass gift status so Condition::GiftWasGiven works.
                                 ctx.gift_was_given = ac_gift_was_given;
                                 ctx.gift_opponent = ac_gift_opponent;
+                                // PB-P: CR 608.2b — Extract LKI powers from additional_costs
+                                // for spells with SpellAdditionalCost::SacrificeCreature
+                                // (e.g., Life's Legacy). Activated abilities use
+                                // stack_obj.sacrificed_creature_powers instead.
+                                let lki_powers_from_ac: Vec<i32> = stack_obj
+                                    .additional_costs
+                                    .iter()
+                                    .find_map(|c| match c {
+                                        AdditionalCost::Sacrifice { lki_powers, .. } => {
+                                            Some(lki_powers.clone())
+                                        }
+                                        _ => None,
+                                    })
+                                    .unwrap_or_default();
+                                ctx.sacrificed_creature_powers = lki_powers_from_ac;
                                 // CR 702.174j: For instant/sorcery spells, the gift effect always
                                 // happens BEFORE any other spell abilities of the card.
                                 // Only execute if gift cost was paid AND it's an instant/sorcery.
@@ -1102,7 +1117,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .additional_costs
                         .iter()
                         .find_map(|c| {
-                            if let crate::state::types::AdditionalCost::Sacrifice(ids) = c {
+                            if let crate::state::types::AdditionalCost::Sacrifice { ids, .. } = c {
                                 Some(ids.clone())
                             } else {
                                 None
@@ -1790,6 +1805,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 107.3k: Propagate x_value from the stack object so effects using
                 // EffectAmount::XValue (e.g., Treasure Vault's Repeat) resolve correctly.
                 ctx.x_value = stack_obj.x_value;
+                // PB-P: CR 608.2b — Propagate captured LKI powers of cost-sacrificed creatures
+                // so EffectAmount::PowerOfSacrificedCreature resolves to the correct value.
+                ctx.sacrificed_creature_powers = stack_obj.sacrificed_creature_powers.clone();
                 let effect_events = execute_effect(state, &effect, &mut ctx);
                 events.extend(effect_events);
             }

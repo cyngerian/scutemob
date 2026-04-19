@@ -65,7 +65,7 @@ pub fn handle_cast_spell(
     mut modes_chosen: Vec<usize>,
     x_value: u32,
     _face_down_kind: Option<crate::state::types::FaceDownKind>,
-    additional_costs: Vec<crate::state::types::AdditionalCost>,
+    mut additional_costs: Vec<crate::state::types::AdditionalCost>,
     hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
     phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
@@ -131,9 +131,10 @@ pub fn handle_cast_spell(
                 mutate_target = Some(*target);
                 _mutate_on_top = *on_top;
             }
-            // Sacrifice: used for Bargain/Emerge/Casualty/Devour — extracted later by
-            // pattern-matching against `additional_costs` in the sections that need it.
-            AdditionalCost::Sacrifice(_) => {}
+            // Sacrifice: used for Bargain/Emerge/Casualty/Devour/SpellAdditionalCost —
+            // extracted later by pattern-matching against `additional_costs` in the sections
+            // that need it.
+            AdditionalCost::Sacrifice { .. } => {}
         }
     }
     // Jump-start discard: same Discard variant. Retrace and Jump-Start are mutually exclusive
@@ -172,7 +173,7 @@ pub fn handle_cast_spell(
     // Disambiguation: emerge uses alt_cost == Emerge; bargain/casualty/devour are
     // determined by the spell's keywords (checked at each usage site below).
     let sacrifice_from_additional_costs: Option<ObjectId> = additional_costs.iter().find_map(|c| {
-        if let crate::state::types::AdditionalCost::Sacrifice(ids) = c {
+        if let crate::state::types::AdditionalCost::Sacrifice { ids, .. } = c {
             ids.first().copied()
         } else {
             None
@@ -3830,6 +3831,35 @@ pub fn handle_cast_spell(
                 sac_obj.counters.clone(),
             )
         };
+        // CR 608.2b: Capture the LKI power of the sacrificed creature BEFORE the zone move.
+        // After move_object_to_zone, the OLD sac_id is dead (CR 400.7) and the NEW graveyard
+        // object's calculate_characteristics has lost battlefield-gated layer effects (BASELINE-LKI-01).
+        // Only a captured integer (snapshot before zone change) is correct (CAPTURE-BY-VALUE).
+        let sac_lki_power: i32 = {
+            let chars = crate::rules::layers::calculate_characteristics(state, sac_id)
+                .or_else(|| {
+                    state
+                        .objects
+                        .get(&sac_id)
+                        .map(|o| o.characteristics.clone())
+                })
+                .unwrap_or_default();
+            chars.power.unwrap_or(0)
+        };
+        // Patch the lki_powers field of the AdditionalCost::Sacrifice entry in additional_costs
+        // so that at resolution time, ctx.sacrificed_creature_powers is populated correctly.
+        for ac in additional_costs.iter_mut() {
+            if let crate::state::types::AdditionalCost::Sacrifice { ids, lki_powers } = ac {
+                if ids.contains(&sac_id) {
+                    if lki_powers.len() != ids.len() {
+                        lki_powers.resize(ids.len(), 0);
+                    }
+                    if let Some(pos) = ids.iter().position(|id| *id == sac_id) {
+                        lki_powers[pos] = sac_lki_power;
+                    }
+                }
+            }
+        }
         let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
         if is_creature {
             events.push(GameEvent::CreatureDied {
@@ -3956,7 +3986,7 @@ pub fn handle_cast_spell(
     let devour_sacrifices: Vec<ObjectId> = additional_costs
         .iter()
         .find_map(|c| {
-            if let crate::state::types::AdditionalCost::Sacrifice(ids) = c {
+            if let crate::state::types::AdditionalCost::Sacrifice { ids, .. } = c {
                 if chars
                     .keywords
                     .iter()
@@ -4198,6 +4228,9 @@ pub fn handle_cast_spell(
         triggering_creature_id: None,
         // PB-A: Thundermane Dragon on_cast_effect — apply haste at resolution (CR 400.7).
         cast_from_top_with_bonus,
+        // PB-P: For spells, LKI powers flow through additional_costs.Sacrifice.lki_powers
+        // at resolution; this field is for activated abilities only.
+        sacrificed_creature_powers: vec![],
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source
@@ -7103,6 +7136,7 @@ mod tests {
             combat_damage_amount: 0,
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
+            sacrificed_creature_powers: vec![],
         }
     }
 

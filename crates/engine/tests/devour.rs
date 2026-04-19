@@ -107,7 +107,10 @@ fn cast_devour_creature(
             additional_costs: if devour_sacrifices.is_empty() {
                 vec![]
             } else {
-                vec![mtg_engine::AdditionalCost::Sacrifice(devour_sacrifices)]
+                vec![mtg_engine::AdditionalCost::Sacrifice {
+                    ids: devour_sacrifices,
+                    lki_powers: vec![],
+                }]
             },
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -634,7 +637,10 @@ fn test_devour_only_own_creatures() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![opp_fodder_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![opp_fodder_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
@@ -709,7 +715,10 @@ fn test_devour_cannot_sacrifice_self() {
             modes_chosen: vec![],
             x_value: 0,
             face_down_kind: None,
-            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice(vec![devour_id])],
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![devour_id],
+                lki_powers: vec![],
+            }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         },
