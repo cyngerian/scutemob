@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-D: planner phase | **ACTIVE** | 2026-04-13 | Planning PB-D (TargetController::DamagedPlayer). PB-N closed; handoff below. |
+| W6: Primitive + Card Authoring | PB-D implement | ACTIVE | 2026-04-16 | PB-D plan-complete, greenlit for implement. Plan: `memory/primitives/pb-plan-D.md`. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,37 +23,42 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-13 (PB-N close session — worker ran plan → implement → review → fix → re-review → close pipeline under coordinator oversight)
+**Date**: 2026-04-13 (PB-D planner session — Opus planner executed plan phase under coordinator oversight)
 **Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-N full pipeline — stale-TODO sweep + plan + implement + review + fix + aura experiment + close
+**Task**: PB-D plan phase (DamagedPlayer target-scope primitive for combat-damage triggers)
 
 **Completed**:
-- **Step 0 stale-TODO sweep** (`fc83d9d0`): bootleggers_stash NEWLY AUTHORED (first `LayerModification::AddActivatedAbility` filtered grant on `LandsYouControl`); song_of_freyalise comment rewritten (blocker is Saga framework, not PB-S); throne_of_eldraine comments updated (PB-Q delivered ChooseColor pieces but PB-Q2 + PB-Q5 still block per no-wrong-game-state policy).
-- **Step 1 PB-L Landfall pre-check**: confirmed PB-L is a real PB, not a stale sweep. `ETBTriggerFilter` has `creature_only` but no land/card_type filter; `TriggerEvent` has no land-typed variant; `khalni_heart_expedition` and `druid_class` explicitly TODO on it. Cheapest path: extend `ETBTriggerFilter` with `card_type_filter`. Yield re-discounted to 3-4 per trigger calibration.
-- **PB-N plan** (Opus planner): dispatch verdict PASS-AS-FIELD-ADDITION (new `filter: Option<TargetFilter>` on two DSL variants + `triggering_creature_filter` on runtime `TriggeredAbilityDef` — mirrors existing `combat_damage_filter`). 8 mandatory + 2 optional tests numbered. Plan file: `memory/primitives/pb-plan-N.md`.
-- **PB-N implement** (`d343e1ba` + `7e7d426a`): 7 engine files. Hash sentinel bumped 3→4 (now `pub const HASH_SCHEMA_VERSION` in `hash.rs`, exported from `lib.rs`). `combat_damage_filter` tightened to damage-only (latent semantic bug fix). 56 mechanical card-def backfills for unit → struct shape change. 4 newly authored cards + 9 tests. 2637 → 2646.
-- **PB-N review**: 2 HIGH + 3 MEDIUM + 1 LOW. HIGHs: F1 Sanctum Seeker drained `total_lost` (wrong in multi-opponent), F2 Utvara Hellkite missed in roster (had a pre-existing TODO naming the primitive). MEDIUMs: F3 LKI test wedge invalid, F4 combat_damage_filter regression test invalid, F5 hash sentinel assertion too weak. All test-validity MEDIUMs treated as fix-phase HIGHs per new standing rule.
-- **PB-N fix phase** (`0e5d7cf1`): F1 rewritten using `Sequence([ForEach(EachOpponent, LoseLife 1), GainLife(Controller, 1)])` (no new engine surface). F2 Utvara Hellkite filter added + TODO stripped + card-specific test — **PB-N yield bumped 4 → 5 cards**. F4 rewritten as `AnyCreatureYouControlAttacks + Ninja filter + Goblin attacker` (strictly discriminating). F5 tightened to `assert_eq!(HASH_SCHEMA_VERSION, 4u8)`. F6 cosmetic — rustfmt doesn't normalize the misalignment, logged as PB-N-L01. F3 STOP-AND-FLAGGED: prescribed wedge structurally unreachable.
-- **F3 escalation + aura wedge experiment**: worker ran a 30-min coordinator-directed experiment to test whether an aura-based continuous-effect grant (via `EffectFilter::AttachedCreature`) would survive the LKI dispatch where the LayerModification wedge failed. Pre-experiment source read of `abilities.rs:4180-4202` predicted failure: the dispatch calls `calculate_characteristics(dying_obj_id)` on the graveyard object, re-runs all layer filters, and every battlefield-gated filter drops out (including `AttachedCreature`). The `.unwrap_or_else(|| dying_obj.characteristics.clone())` fallback is dead code. Experiment confirmed: sanity assertions passed (aura grant was visible while on battlefield, base Human preserved), but trigger did not fire after death. **Two independent data points** (LayerMod + aura) promoted the diagnosis from hypothesis to confirmed. Experiment test deleted post-run per directive.
-- **PB-N re-review** (post-fix): all findings PASS or accepted. F3 accepted as "resolved by investigation, not by fix" per coordinator directive — Test 6 validates the new `triggering_creature_filter` dispatch path consumption (the load-bearing property), does NOT validate pre-death-vs-post-death LKI (structurally impossible pre-LKI-audit). New finding F-N1 (LOW): cosmetic misaligned `filter: None` indentation in 5 backfilled files — same issue as F6, folded in as PB-N-L01. Verdict: **READY FOR CLOSE**.
-- **PB-N close commit** (following): aspirationally-wrong comment at `abilities.rs:4191-4193` replaced with `TODO(BASELINE-LKI-01)` pointing at the tracking LOW. BASELINE-LKI-01 + BASELINE-CLIPPY-01..06 + PB-N-L01 logged in `docs/mtg-engine-low-issues-remediation.md`. Four new standing rules written to `memory/conventions.md`. New gotcha #39 in `memory/gotchas-rules.md` (subtype-filter test wedge discipline). Two new auto-memory feedback files created: `feedback_planner_roster_recall.md` (roster-recall vs yield-overcount separation) and `feedback_escalation_report_behavior_not_cause.md`. `feedback_pb_yield_calibration.md` updated with category-specific yield rates. Planner agent prompt (`.claude/agents/primitive-impl-planner.md`) updated with mandatory step 3a — pre-existing TODO sweep. All docs updated (CLAUDE.md, project-status.md, primitive-card-plan.md Phase 1.8).
-- **Test count**: 2637 → **2648** (+11 net: +9 impl, +2 fix). Build clean, fmt clean, tests green.
-- **Clippy baseline** (corrected — previous "clippy clean" handoffs were wrong): `cargo clippy --all-targets -- -D warnings` shows ≥6 pre-existing errors across multiple test targets. Cargo's per-target bailout makes the visible count vary run-to-run. All documented individually as BASELINE-CLIPPY-01..06.
+- **Planner agent run** (Opus, ~35 min, 123 tool calls): ran first-actions list, read standing-rules memory files, claimed W6, executed Step 0 sweep + Step 1 PB-P pre-check + Step 2 full plan, wrote `memory/primitives/pb-plan-D.md`, advanced `memory/primitive-wip.md` to `phase=plan-complete`, and committed as `b9f43bf1 W6-prim: PB-D plan phase complete — 6 cards, PASS-AS-NEW-VARIANT`. (The agent hit an API overload on its post-commit report step — artifacts are intact on disk and in git; no resumption needed.)
+- **Step 0 stale-TODO sweep**: SKIPPED with positive null — classification report `memory/card-authoring/todo-classification-2026-04-12.md` flags no DamagedPlayer-bucket cards as potentially stale post PB-S/X/Q/N. Recorded in plan preamble.
+- **Step 1 PB-P pre-check**: PB-P is a real PB but narrower than its name suggests. `EffectAmount::PowerOf(EffectTarget)` already exists and covers the bulk of "power of creature" cases. The real gap is `EffectAmount::PowerOf` with a `SacrificedCreature` LKI target (Altar of Dementia, Greater Good — sacrifice-time power read). Queue impact TBD by oversight; worker did not act on the finding per instructions.
+- **PB-D plan proper**: dispatch verdict **PASS-AS-NEW-VARIANT** — adds a fourth `TargetController` enum entry (`DamagedPlayer`) instead of a new TargetRequirement variant, new PlayerTarget variant, or new enum. Estimated ~10 new match arms across `casting.rs`, `abilities.rs`, `effects/mod.rs`, `hash.rs`. CR citations: 510.1, 510.3a, 603.2, 601.2c.
+- **Roster verification** (MCP `lookup_card` on 15 classification candidates + 7 forced-adds via TODO sweep): **6 confirmed shippable** — 2 precision fixes (Throat Slitter, Sigil of Sleep — currently approximated as `Opponent`, wrong in multiplayer) + 4 newly authorable (Mistblade Shinobi, Alela Cunning Conqueror, Nature's Will, Balefire Dragon). 9 deferred for compound blockers, wrong bucket, or already implemented (enumerated in plan's "Deferred cards" section). Yield ≈40% — at the low end of the 50-65% filter-PB calibration band.
+- **Test plan**: 7 mandatory + 2 optional tests numbered up front. Mandatory covers positive filter, negative filter, phase-boundary reset on `damage_received_this_turn`, hash parity via `assert_eq!(HASH_SCHEMA_VERSION, <bump>)`, multi-player isolation, real-card e2e (top-yield roster card).
+- **BASELINE-LKI-01 verification**: confirmed structurally NOT a concern for PB-D. Player filters read `PlayerState.damage_received_this_turn`, which has no zone-change/layer-resolution dependency. Recorded in plan Risks section.
+- **Stop-and-flag count**: 0 — no dispatch split required, no compound-blocker expansion, no hash policy ambiguity (default bump documented).
 
-**Next session**: **Plan PB-D** (DamagedPlayer target filter). Revised yield 7-8 cards (filter-PB calibration unchanged). Fresh batch, no dependencies. PB-P (PowerOfCreature EffectAmount) is a viable swap if the next worker prefers EffectAmount. PB-L (Landfall trigger) drops to 3rd — trigger calibration + real primitive gap makes it less attractive than either alternative.
+**Not done (deliberate — requires oversight greenlight)**:
+- Implement phase. `memory/primitive-wip.md` halted at `phase=plan-complete`.
+
+**Next session**: **Oversight greenlight review of `pb-plan-D.md`**, then `/implement-primitive` to run the implement phase. Confirm the hash sentinel bump policy (default: 4 → 5 on any wire-visible change per `memory/conventions.md`) before runner starts. After PB-D close, re-slate: PB-P needs oversight triage (real-but-narrow finding), PB-L still rank 3 at ~3-4 calibrated yield.
 
 **Hazards**:
-- **BASELINE-LKI-01** (LOW, cause identified, fix deferred): death-trigger dispatch at `abilities.rs:4180-4202` re-runs layer filters against graveyard objects via `calculate_characteristics`, dropping every battlefield-gated filter. Fix candidates: (a) dispatch reads `dying_obj.characteristics.clone()` directly; (b) teach `calculate_characteristics` to honor preserved chars for non-battlefield zones. **Needs a dedicated LKI-completeness audit session** — not just this one dispatch site. Audit scope: enumerate every battlefield-zone-guarded filter + every dispatch site that reads LKI via `calculate_characteristics` (replacement effects, "leaves the battlefield" triggers, LTB ability resolution are all candidates).
-- **PB-N spawned micro-PB candidates (6)**: Najeela (controller-agnostic attack filter), Athreos (owner-not-controller death filter), Skullclamp (equipment-LKI death), Pashalik / Omnath Locus of Rage / Miara (self-OR-filtered death). Each needs a different dispatch shape. **Cataloged, not auto-promoted** — next oversight cycle decides.
-- **Trigger-PB yield recalibration**: 15-25% now, not 50%. Filter PBs and EffectAmount PBs remain at 50-65%. See `feedback_pb_yield_calibration.md` category table. Apply this to PB-L's re-estimate (~3-4, not ~7).
-- **Planner roster-recall miss**: PB-N missed Utvara Hellkite because the planner only ran MCP oracle lookup; the card had a pre-existing TODO naming the exact primitive. Step 3a in `.claude/agents/primitive-impl-planner.md` now makes this a mandatory pre-roster-finalize grep. Every future PB planner run must either produce a non-empty TODO sweep result or assert "TODO sweep: 0 cards" positively.
-- **Handoff "clippy clean" lie**: every previous W6 handoff has said "clippy clean". That was never true with `--all-targets`. Next worker's end-session handoff should say something like "clippy: N pre-existing BASELINE-CLIPPY-0N warnings, no new from this session" instead.
-- PB-Q4-M01 carryover: `EnchantFilter` vs `TargetFilter` divergence still open. Address at next non-land enchant target.
-- PB-S residuals (L02-L06) still open in `abilities.rs`.
+- **API overload risk**: the PB-D planner run hit an overload on its final report step (agent ID `aeeb21943656b1111`). Artifacts are intact, but if the next worker resumes an agent via `SendMessage` during overload windows, expect retries. Starting fresh agents is safer.
+- **BASELINE-LKI-01** (carried from PB-N): `abilities.rs:4180-4202` re-runs layer filters against graveyard objects. Fix deferred, needs dedicated LKI-completeness audit session. Does NOT reach PB-D scope (verified).
+- **BASELINE-CLIPPY-01..06** (carried from PB-N): `cargo clippy --all-targets -- -D warnings` shows ≥6 pre-existing errors. Report honestly in implement-phase end-session — "N pre-existing BASELINE-CLIPPY-0N warnings, no new from this session", not "clippy clean".
+- **PB-N spawned micro-PB candidates (6)**: Najeela, Athreos, Skullclamp, Pashalik, Omnath Locus of Rage, Miara — cataloged in PB-N handoff, not auto-promoted.
+- **PB-P narrow gap** (new this session): if oversight promotes PB-P, scope is `EffectAmount::PowerOf(SacrificedCreature)` LKI read only — not a general power-of-creature PB.
+- **PB-Q4-M01 carryover**: `EnchantFilter` vs `TargetFilter` divergence still open. Address at next non-land enchant target.
+- **PB-S residuals L02-L06**: still open in `abilities.rs`.
+- **Trigger-PB yield recalibration**: 15-25% for triggers; 50-65% for filters/EffectAmount. PB-D landed at 40%, slightly below band — usual filter-PB variance, not a calibration miss.
 
-**Commit prefix used**: `W6-prim:` (close commit following this handoff; prior session commits: `fc83d9d0`, `d343e1ba`, `7e7d426a`, `0e5d7cf1`)
+**Commit prefix used**: `W6-prim:` (`b9f43bf1` — single plan-phase commit this session)
 
 ## Handoff History
+
+### 2026-04-13 (PB-N close session) — W6: PB-N full pipeline
+
+- Full pipeline (plan → implement → review → fix → re-review → close) under coordinator oversight. Step 0 stale-TODO sweep (`fc83d9d0`) shipped bootleggers_stash as first filtered `LayerModification::AddActivatedAbility` grant on `LandsYouControl`. PB-N plan verdict PASS-AS-FIELD-ADDITION (`filter: Option<TargetFilter>` + `triggering_creature_filter` mirroring `combat_damage_filter`). Implement (`d343e1ba`, `7e7d426a`): 7 engine files, hash sentinel 3→4 promoted to `pub const HASH_SCHEMA_VERSION`, `combat_damage_filter` tightened to damage-only (latent bug fix), 56 mechanical card-def backfills, 4 cards + 9 tests (2637 → 2646). Review found 2 HIGH + 3 MEDIUM + 1 LOW; fix phase (`0e5d7cf1`) rewrote Sanctum Seeker drain (no new engine surface), added Utvara Hellkite catch via TODO sweep (yield 4→5), tightened hash assertion, fixed combat_damage_filter regression test. F3 LKI test wedge stop-and-flagged as structurally unreachable — 30-min aura wedge experiment confirmed BASELINE-LKI-01 (death-trigger dispatch re-runs layer filters against graveyard objects, dropping battlefield-gated filters). Close commit logged BASELINE-LKI-01 + BASELINE-CLIPPY-01..06 + PB-N-L01 in remediation doc, added gotcha #39, created 2 new feedback memory files, updated primitive-impl-planner agent with mandatory step 3a (pre-existing TODO sweep). Tests 2637 → 2648. Clippy baseline correction: every prior "clippy clean" handoff was wrong with `--all-targets`; ≥6 pre-existing errors now logged.
 
 ### 2026-04-12 (third session) — W6: PB-Q4 full pipeline
 
@@ -101,60 +106,5 @@
 - `9dc9331a` — PB-S implement (17 files, +921 lines)
 - `5b8496ab` — PB-S review fixes (6 files, +383 lines)
 
-**Next session** (priority order, unchanged):
-1. **PB-X**: micro-PB unblocking A-42 Tier 1 (`AllCreaturesExcludingSubtype` EffectFilter, dynamic P/T in LayerModification, `Cost::ExileSelf`) — ~100-150 LOC, unblocks 6 cards + likely others
-2. Author A-42 Tier 1 after PB-X lands
-3. PB-Q (ChooseColor)
-4. PB-R (ExchangeZones, ~60 LOC)
-5. PB-T, PB-U, PB-V, PB-W per slate
-
-**Hazards** (carried forward + new):
-- Re-triage discipline: verify full primitive chain (feedback_retriage_verification.md + feedback_verify_full_chain.md)
-- Spot-check mandatory for any PB that fixes a dispatch pattern — walk every entry point for the subsystem, not just the file touched (feedback_verify_full_chain.md, #4)
-- PB-S-L02..L06 residuals in abilities.rs — fix opportunistically or batch into a W3-LC-residuals micro-PB
-- Simulator mana_solver.rs:35 still reads base chars (PB-S-L01) — bots undervalue granted mana
-- PB-M deferred items (Isshin, Delney, Elesh Norn opponent ETB suppression, Drivnod activated ability)
-- Complete the Circuit: delayed copy trigger still TODO
-- Forbidden Orchard: TargetPlayer → TargetOpponent (deferred to M10)
-- Heritage Druid `TapNCreatures` cost — own PB, not in PB-X scope
-
 **Commit prefix**: `W6-prim:` (primitive work) or `W6-cards:` (authoring)
-
-### 2026-04-11 (earlier) — W6: PB-S plan + A-42 Tier 1 reclassification
-
-**Completed**:
-- Attempted A-42 Tier 1 authoring (8 cards); 2 parallel `bulk-card-author` runs spun on DSL-gap research, wrote 0 files
-- Diagnosed the blocker: 2026-04-10 re-triage verified individual filter fields but didn't trace the full primitive chain (effect → filter → layer → cost). Gaps found:
-  - `EffectFilter::AllCreaturesExcludingSubtype` missing (blocks Crippling Fear, Eyeblight Massacre, Olivia's Wrath)
-  - `LayerModification::ModifyBoth` takes `i32`, not `EffectAmount` — no dynamic P/T (blocks Olivia's Wrath)
-  - `Cost::ExileSelf` missing (blocks Balthor the Defiled)
-  - No `TapNCreatures` cost variant (blocks Heritage Druid — deferred to larger cost-framework PB)
-  - Metallic Mimic "is the chosen type in addition" not verified (needs type-adding layer check)
-- Reclassified 6 of 8 Tier 1 cards → new **PB-X** micro-PB bucket
-- Updated `memory/card-authoring/a42-retriage-2026-04-10.md` with 2026-04-11 reclassification table
-- Added PB-S + PB-X rows to `docs/project-status.md`
-- Saved auto-memory `feedback_retriage_verification.md` (re-triage must trace full primitive chain; flag unverified as "Tier 1 (verify)")
-- **PB-S plan written**: `memory/primitives/pb-plan-S.md` — GrantActivatedAbility via Layer 6 LayerModification::AddManaAbility + AddActivatedAbility, ~70 LOC engine, ~60 LOC card defs, ~200 LOC tests; unblocks Cryptolith Rite, Chromatic Lantern, Citanul Hierophants, Paradise Mantle, Enduring Vitality (5 full) + Song of Freyalise, Umbral Mantle (2 partial, other blockers remain); scope boundary: NOT Marvin's reflection pattern
-- `memory/primitive-wip.md` → phase=plan, steps 1-4 checked, step 5 is "do not implement this session"
-
-**Next session**:
-1. `/implement-primitive` → implement phase for PB-S (runner executes plan)
-2. After PB-S: plan + implement PB-X (micro — unblocks A-42 Tier 1 authoring)
-3. Author A-42 Tier 1 once PB-X lands
-4. Then PB-Q (ChooseColor), PB-R, etc. per revised slate
-
-**Open questions flagged by PB-S planner** (resolve before implement):
-1. Does `chars.abilities: Vector<AbilityInstance>` need parallel population, or only specialized vecs? (Planner recommends specialized only.)
-2. Face-down creature + grant interaction test needed?
-3. Hash version bump policy?
-4. Include `mana_solver.rs` calc-chars fix in PB-S, or defer as LOW? (Planner recommends defer.)
-
-**Hazards** (carried forward):
-- Re-triage discipline: verify the full primitive chain, not single fields (see `feedback_retriage_verification.md`)
-- PB-M deferred items: Isshin attack trigger doubling, Delney power-filtered doubling, Elesh Norn opponent ETB suppression, Drivnod activated ability
-- Complete the Circuit: delayed copy trigger still TODO
-- Forbidden Orchard: TargetPlayer → TargetOpponent (deferred to M10)
-- Heritage Druid `TapNCreatures` cost — own PB, not in PB-X scope
-
-**Commit prefix**: `W6-prim:` (primitive planning)
 
