@@ -924,7 +924,7 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
 
     // P2 gains life equal to exiled creature's power (5).
     let p2_life_after = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(40);
-    let life_gained = p2_life_after as i32 - p2_life_before as i32;
+    let life_gained = p2_life_after - p2_life_before;
     assert_eq!(
         life_gained, 5,
         "PB-P M8: P2 should gain 5 life (PowerOf(DeclaredTarget) path — unaffected by PB-P). \
