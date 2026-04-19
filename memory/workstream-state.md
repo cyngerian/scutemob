@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | PB-D implement | ACTIVE | 2026-04-16 | PB-D plan-complete, greenlit for implement. Plan: `memory/primitives/pb-plan-D.md`. |
+| W6: Primitive + Card Authoring | — | available | — | PB-D merged 2026-04-19 via ESM dispatch A/B. Workstream coordination migrating to ESM tasks; this file kept for history. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,38 +23,42 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-13 (PB-D planner session — Opus planner executed plan phase under coordinator oversight)
-**Workstream**: W6: Primitive + Card Authoring
-**Task**: PB-D plan phase (DamagedPlayer target-scope primitive for combat-damage triggers)
+**Date**: 2026-04-19 (post-migration session — first ESM dispatch A/B on scutemob, PB-D shipped)
+**Workstream**: W6: Primitive + Card Authoring + coordination migration
+**Task**: commit ESM install, A/B PB-D via /dispatch, merge winning run, validate new dispatch skill
 
 **Completed**:
-- **Planner agent run** (Opus, ~35 min, 123 tool calls): ran first-actions list, read standing-rules memory files, claimed W6, executed Step 0 sweep + Step 1 PB-P pre-check + Step 2 full plan, wrote `memory/primitives/pb-plan-D.md`, advanced `memory/primitive-wip.md` to `phase=plan-complete`, and committed as `b9f43bf1 W6-prim: PB-D plan phase complete — 6 cards, PASS-AS-NEW-VARIANT`. (The agent hit an API overload on its post-commit report step — artifacts are intact on disk and in git; no resumption needed.)
-- **Step 0 stale-TODO sweep**: SKIPPED with positive null — classification report `memory/card-authoring/todo-classification-2026-04-12.md` flags no DamagedPlayer-bucket cards as potentially stale post PB-S/X/Q/N. Recorded in plan preamble.
-- **Step 1 PB-P pre-check**: PB-P is a real PB but narrower than its name suggests. `EffectAmount::PowerOf(EffectTarget)` already exists and covers the bulk of "power of creature" cases. The real gap is `EffectAmount::PowerOf` with a `SacrificedCreature` LKI target (Altar of Dementia, Greater Good — sacrifice-time power read). Queue impact TBD by oversight; worker did not act on the finding per instructions.
-- **PB-D plan proper**: dispatch verdict **PASS-AS-NEW-VARIANT** — adds a fourth `TargetController` enum entry (`DamagedPlayer`) instead of a new TargetRequirement variant, new PlayerTarget variant, or new enum. Estimated ~10 new match arms across `casting.rs`, `abilities.rs`, `effects/mod.rs`, `hash.rs`. CR citations: 510.1, 510.3a, 603.2, 601.2c.
-- **Roster verification** (MCP `lookup_card` on 15 classification candidates + 7 forced-adds via TODO sweep): **6 confirmed shippable** — 2 precision fixes (Throat Slitter, Sigil of Sleep — currently approximated as `Opponent`, wrong in multiplayer) + 4 newly authorable (Mistblade Shinobi, Alela Cunning Conqueror, Nature's Will, Balefire Dragon). 9 deferred for compound blockers, wrong bucket, or already implemented (enumerated in plan's "Deferred cards" section). Yield ≈40% — at the low end of the 50-65% filter-PB calibration band.
-- **Test plan**: 7 mandatory + 2 optional tests numbered up front. Mandatory covers positive filter, negative filter, phase-boundary reset on `damage_received_this_turn`, hash parity via `assert_eq!(HASH_SCHEMA_VERSION, <bump>)`, multi-player isolation, real-card e2e (top-yield roster card).
-- **BASELINE-LKI-01 verification**: confirmed structurally NOT a concern for PB-D. Player filters read `PlayerState.damage_received_this_turn`, which has no zone-change/layer-resolution dependency. Recorded in plan Risks section.
-- **Stop-and-flag count**: 0 — no dispatch split required, no compound-blocker expansion, no hash policy ambiguity (default bump documented).
+- **ESM install committed** (`aca3035e`, `a253c24f`): `.claude/settings.json` hook, CLAUDE.md ESM section, 10 new ESM slash-command skills, `CLAUDE.md.pre-esm` → gitignored, stray `package-lock.json` separated.
+- **PB-D A/B experiment via /dispatch**: two worker tasks (scutemob-1 inline, scutemob-2 agent-delegated) against identical acceptance criteria + plan. scutemob-2 used `primitive-impl-runner` + `primitive-impl-reviewer`, landed 14 files / 4 clean commits / PASS-WITH-NOTES. scutemob-1 ran inline, landed 68 files (54 out-of-scope, including simulator + replay-viewer + TUI drift). scutemob-2 merged at `72cddb62`. scutemob-1 worktree + branch torn down, task marked done with supersession comment.
+- **Dispatch skill hardened** (`7d255645`): `.claude/skills/dispatch/SKILL.md` + `.claude/skills/spawn/SKILL.md` now instruct workers to (1) TaskCreate a granular live-updated task list before implementing, and (2) delegate to specialized agents (primitive-impl-runner, ability-impl-runner, bulk-card-author, etc.) rather than grinding inline. Validated by the A/B: inline produced drift; delegated produced tight, reviewed work.
+- **Two feedback memory files added**: `feedback_worker_task_list.md`, `feedback_worker_delegate_to_agents.md` (+ MEMORY.md pointers).
+- **PB-D shipped**: `TargetController::DamagedPlayer` variant + 10 dispatch sites + 6 card defs (Throat Slitter, Sigil of Sleep, Mistblade Shinobi, Alela, Nature's Will, Balefire Dragon) + 7 MANDATORY tests. Hash sentinel 4→5. Tests 2648 → 2655.
+- **1 LOW finding open**: stale TODO in `marisi_breaker_of_the_coil.rs` per `memory/primitives/pb-review-D.md`.
 
-**Not done (deliberate — requires oversight greenlight)**:
-- Implement phase. `memory/primitive-wip.md` halted at `phase=plan-complete`.
+**Not done (deferred to next session)**:
+- Update CLAUDE.md "Active Plan" to reflect PB-D merged + queue next PB (PB-P narrow-gap triage, PB-L rank 3).
+- Retire workstream-state.md `/start-work`-based claim sections in CLAUDE.md (kept for history but the protocol is now ESM-managed).
+- Apply the marisi_breaker stale-TODO LOW fix opportunistically.
 
-**Next session**: **Oversight greenlight review of `pb-plan-D.md`**, then `/implement-primitive` to run the implement phase. Confirm the hash sentinel bump policy (default: 4 → 5 on any wire-visible change per `memory/conventions.md`) before runner starts. After PB-D close, re-slate: PB-P needs oversight triage (real-but-narrow finding), PB-L still rank 3 at ~3-4 calibrated yield.
+**Next session**:
+- Plan more ESM tasks (per-PB, following the v2 pattern). Likely candidates: PB-P re-triage (narrow gap: `EffectAmount::PowerOf(SacrificedCreature)` LKI only), PB-L (~3-4 card yield). Oversight makes the call.
+- Consider wiring `CARGO_TARGET_DIR` per-worktree to avoid another disk-pressure incident during concurrent dispatches.
 
 **Hazards**:
-- **API overload risk**: the PB-D planner run hit an overload on its final report step (agent ID `aeeb21943656b1111`). Artifacts are intact, but if the next worker resumes an agent via `SendMessage` during overload windows, expect retries. Starting fresh agents is safer.
-- **BASELINE-LKI-01** (carried from PB-N): `abilities.rs:4180-4202` re-runs layer filters against graveyard objects. Fix deferred, needs dedicated LKI-completeness audit session. Does NOT reach PB-D scope (verified).
-- **BASELINE-CLIPPY-01..06** (carried from PB-N): `cargo clippy --all-targets -- -D warnings` shows ≥6 pre-existing errors. Report honestly in implement-phase end-session — "N pre-existing BASELINE-CLIPPY-0N warnings, no new from this session", not "clippy clean".
-- **PB-N spawned micro-PB candidates (6)**: Najeela, Athreos, Skullclamp, Pashalik, Omnath Locus of Rage, Miara — cataloged in PB-N handoff, not auto-promoted.
-- **PB-P narrow gap** (new this session): if oversight promotes PB-P, scope is `EffectAmount::PowerOf(SacrificedCreature)` LKI read only — not a general power-of-creature PB.
-- **PB-Q4-M01 carryover**: `EnchantFilter` vs `TargetFilter` divergence still open. Address at next non-land enchant target.
-- **PB-S residuals L02-L06**: still open in `abilities.rs`.
-- **Trigger-PB yield recalibration**: 15-25% for triggers; 50-65% for filters/EffectAmount. PB-D landed at 40%, slightly below band — usual filter-PB variance, not a calibration miss.
+- **Disk pressure during parallel dispatches**: two concurrent worker builds consumed ~54G of `target/` at peak. Budget: single worker ≈ 15-18G; two parallel ≈ 30-35G; free space should be >50G before dispatching two. Consider shared-but-isolated `CARGO_TARGET_DIR` pattern.
+- **ESM advisory-mode attestation noise**: `esm task transition` interprets `--attest branch_exists=true` as a literal branch-name lookup ("Branch 'true' not found"). Cosmetic; transitions still accepted.
+- **BASELINE-LKI-01** carried forward: graveyard re-filter dispatch gap. Dedicated audit session still pending.
+- **BASELINE-CLIPPY-01..06** carried forward.
+- **PB-Q4-M01**: `EnchantFilter` vs `TargetFilter` divergence still open.
+- **PB-S residuals L02-L06**: open in `abilities.rs`.
 
-**Commit prefix used**: `W6-prim:` (`b9f43bf1` — single plan-phase commit this session)
+**Commit prefix used**: mostly `chore:` (infra migration work + skill hardening). The worker-delegated PB-D commits used `scutemob-2:` prefix naturally from the worker agent; that's the emerging convention for ESM-dispatched work (`<task_id>:` prefix on worker commits, `chore:`/`W6-prim:` for coordinator commits).
 
 ## Handoff History
+
+### 2026-04-13 (PB-D planner session) — W6: PB-D plan phase
+
+- Opus planner run (`b9f43bf1`): `memory/primitives/pb-plan-D.md` written. Verdict PASS-AS-NEW-VARIANT (`TargetController::DamagedPlayer`), 6 confirmed cards of 15 classified (~40% yield), ~10 dispatch sites across casting/abilities/effects/hash, hash bump 4→5, 7 mandatory + 2 optional tests. Step 0 stale-TODO sweep returned positive null; Step 1 PB-P pre-check found PB-P is real-but-narrow (real gap is `EffectAmount::PowerOf(SacrificedCreature)` LKI read — Altar of Dementia / Greater Good). BASELINE-LKI-01 verified structurally NOT reaching PB-D. 0 stop-and-flags. `memory/primitive-wip.md` halted at phase=plan-complete pending oversight greenlight.
 
 ### 2026-04-13 (PB-N close session) — W6: PB-N full pipeline
 
@@ -74,37 +78,4 @@
 
 ### 2026-04-11 (fourth session) — W6: PB-X close + PB-Q plan + implement
 - PB-X close (`c502f8fc`). PB-Q plan caught 2 oversight roster errors via MCP. PB-Q implement (`880b7797`): `GameObject.chosen_color`, `ReplacementModification::ChooseColor` + `AddOneManaOfChosenColor`, `ChosenColorRef`, `ReplacementManaSourceFilter`, 2 EffectFilter variants, `Effect::AddManaOfChosenColor`, `apply_mana_production_replacements` refactor, hash sentinel 2→3. 6 cards, 11 tests, 2616→2627. Review deferred per context pressure.
-
-### 2026-04-11 (third session) — W6: PB-X plan + implement + review + fix
-- Plan (Opus): 3 primitives, scope held; stop-and-flagged Metallic Mimic → parked as PB-Y; Obelisk + City on Fire verified already-authorable. 5 open questions resolved by oversight.
-- Implement: `EffectFilter::AllCreaturesExcludingSubtype` + `AllCreaturesExcludingChosenSubtype`, `LayerModification::ModifyBothDynamic { amount, negate }` substituted at `Effect::ApplyContinuousEffect` per CR 608.2h (new variant, 76 existing `ModifyBoth` sites untouched), `Cost::ExileSelf` + `ActivationCost.exile_self` via existing `embedded_effect` LKI plumbing. Hash schema 1→2. 6 cards authored (Crippling Fear, Eyeblight Massacre, Olivia's Wrath, Balthor, Obelisk, City on Fire).
-- Review: 1 HIGH (C1 — Obelisk `ChooseCreatureType` authored as `TriggerCondition::WhenEntersBattlefield` instead of `ReplacementTrigger::WouldEnterBattlefield`; observable bug in trigger-resolution window), 3 MEDIUM, 3 LOW.
-- Fix: sequential two-pass discipline. Pass 1 — C1 alone (Obelisk rewritten to `AbilityDefinition::Replacement` mirroring Urza's Incubator). Pass 2 — bundled E1 (10 CR citation rewrites: "701.10" → "118.12 + 406 + 602.2c"), C2 (Balthor activated e2e), C3 (Obelisk observability-window test + City on Fire tests), E2/E3 LOWs.
-- Standing rules established: (a) "As ~ enters, choose X" = replacement effect per CR 614.12, saved to `memory/gotchas-rules.md`; (b) every new `LayerModification` variant ships with a full-dispatch test, saved to `memory/conventions.md`.
-- Tests: 2600 → 2612 (+12 impl) → 2616 (+4 fix). Commits: `049b6802` (implement), `10411bd8` (fixes).
-
-### 2026-04-11 (second session) — W6: PB-S implement + review + fix cycle CLOSED
-
-**Completed** (continuation of earlier PB-S plan session):
-- **Implement phase** (runner stop-and-flagged on face-down test expectation; oversight verified CR 708.2, flipped test to "inherits", runner resumed): 2 new LayerModification variants (AddManaAbility + AddActivatedAbility), Layer 6 append semantics, ~80 LOC engine + 5 card defs + 2 TODO updates + 10 tests. Closed W3-LC deferred item in `handle_tap_for_mana` (mana.rs now reads calculated chars).
-- **Review phase**: reviewer found 1 HIGH (hash `ActivatedAbility::once_per_turn` field gap — pre-existing, escalated by PB-S's discriminant 23), 0 MEDIUM, 3 LOW. File: `memory/primitives/pb-review-S.md`.
-- **Fix cycle** (oversight-bundled H1 + L2 + mandatory spot-check):
-  - H1: `hash.rs` — added `once_per_turn` to `HashInto for ActivatedAbility` (field 8/8, verified against struct)
-  - L2 test added: `test_granted_once_per_turn_activated_ability_is_preserved_and_enforced` — exercises discriminant 23 (previously untested)
-  - **NEW HIGH** (surfaced by L2): `abilities.rs:204` index validation read base → variant 23 unreachable at runtime. Fixed to use calculated chars.
-  - **NEW HIGH** (caught by mandatory spot-check): `abilities.rs:478` summoning-sickness/haste check on tap-cost activated abilities read base — sibling W3-LC gap to the mana.rs fix. Fixed.
-  - Spot-check residuals logged as LOWs: PB-S-L02 (channel/graveyard dispatch base read), L03 (sacrifice-self event emission), L04 (sacrifice-target event emission), L05 (indexed cost reduction), L06 (humility-inverse test gap). All in `docs/mtg-engine-low-issues-remediation.md`.
-- **Tracking updates**: CLAUDE.md, `docs/project-status.md` (PB-S status → done), workstream-state.md, `memory/primitive-wip.md` (phase → fix-complete).
-- **New auto-memory**: `feedback_verify_full_chain.md` — generalized verification rule covering triage/plan/impl/review, citing 3 appearances in this session (A-42 re-triage, H1 hash miss, reviewer Q6 miss).
-
-**Test count**: 2589 (start of session) → 2600 (+11: 10 from implement, 1 from fix cycle L2). All tests green, clippy clean, workspace build clean, fmt clean.
-
-**Cards unblocked**: 5 full (Cryptolith Rite, Chromatic Lantern, Citanul Hierophants, Paradise Mantle, Enduring Vitality) + 2 partial TODO updates (Song of Freyalise — Saga-blocked, Umbral Mantle — `{Q}`-blocked).
-
-**Commits**:
-- `b212c100` — PB-S plan + A-42 Tier 1 blocked reclassification
-- `9dc9331a` — PB-S implement (17 files, +921 lines)
-- `5b8496ab` — PB-S review fixes (6 files, +383 lines)
-
-**Commit prefix**: `W6-prim:` (primitive work) or `W6-cards:` (authoring)
 
