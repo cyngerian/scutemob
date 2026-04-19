@@ -30,7 +30,7 @@ unit tests), or apply fixes from a review.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants.
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants.
 2. **Read `memory/ability-wip.md`** to determine:
    - Which ability you're implementing
    - Current phase (`implement` or `fix`)
@@ -171,7 +171,7 @@ When done, report:
 ## Shell Environment
 
 - Use `~/.cargo/bin/cargo` directly (not bare `cargo`)
-- All file paths are absolute from `/home/airbaggie/scutemob/`
+- All file paths are absolute from `/home/skydude/projects/scutemob/`
 - `process_command()` takes ownership of `GameState` — use `.clone()` before each call
   when testing in loops
 - `ObjectSpec::card()` creates naked objects — always call `enrich_spec_from_def()` to

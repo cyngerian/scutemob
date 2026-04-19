@@ -34,7 +34,7 @@ function. Adding a card = creating one new file. No other files need to change.
 
 ## Rules
 
-1. You **create one new file** per card at: `/home/airbaggie/scutemob/crates/engine/src/cards/defs/<slug>.rs`
+1. You **create one new file** per card at: `/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<slug>.rs`
    - Slug = kebab-case card_id with hyphens replaced by underscores (e.g., `sol_ring.rs`)
 2. You may **read** (but never edit) DSL source files to check current enum variants:
    - `crates/engine/src/cards/card_definition.rs` — Effect, AbilityDefinition, Cost, TargetRequirement, etc.
@@ -55,7 +55,7 @@ Follow these steps exactly. Do not improvise or add extra steps.
 Grep for the card name in the defs directory:
 
 ```
-Grep pattern="Card Name" path="/home/airbaggie/scutemob/crates/engine/src/cards/defs"
+Grep pattern="Card Name" path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs"
 ```
 
 **If found**: respond with ONLY "Already defined in defs/<filename>.rs." and stop.
@@ -88,7 +88,7 @@ keywords, read the relevant source file(s) to confirm the enum variants exist:
 `Replacement`), grep the defs directory for an existing usage and copy its exact syntax:
 
 ```
-Grep pattern="CreateToken" path="/home/airbaggie/scutemob/crates/engine/src/cards/defs" output_mode="content" -A=15
+Grep pattern="CreateToken" path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs" output_mode="content" -A=15
 ```
 
 Copy from existing definitions — the codebase is the source of truth.
@@ -99,7 +99,7 @@ spell effects that you already saw in step 2b context.
 ### Step 4: Write the card file
 
 Use `Write` to create a new file at:
-`/home/airbaggie/scutemob/crates/engine/src/cards/defs/<slug>.rs`
+`/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<slug>.rs`
 
 The file MUST follow this exact structure:
 
@@ -130,7 +130,7 @@ without writing it to disk is a failure. The build.rs will auto-discover the fil
 Read back the file you just wrote to confirm it exists and looks correct:
 
 ```
-Read file_path="/home/airbaggie/scutemob/crates/engine/src/cards/defs/<slug>.rs"
+Read file_path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<slug>.rs"
 ```
 
 ### Step 6: Report
@@ -241,7 +241,7 @@ The codebase is the source of truth.
 
 ## Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP `lookup_card`** for oracle text — never type from memory.
 - **Don't modify existing card files** unless explicitly asked.
 - **One card per invocation** unless asked for a batch.

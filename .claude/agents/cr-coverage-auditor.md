@@ -29,7 +29,7 @@ which CR rules have corresponding tests and game scripts, and which are gaps.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for current project state
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for current project state
    and what milestones are complete.
 2. **Determine scope** — the user specifies a CR section or range:
    - Single section: "614" → audit CR 614 and all children
@@ -150,7 +150,7 @@ fn test_<rule_abbrev>_<description>() {
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for rule lookups** — never guess rule text.
 - **Don't modify files** — this agent is read-only. It produces a report and optional
   test stubs for the user to review.

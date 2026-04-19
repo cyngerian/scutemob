@@ -30,7 +30,7 @@ card definitions, unit tests, and game scripts — and which are gaps.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for current project state.
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for current project state.
 2. **Read `docs/mtg-engine-ability-coverage.md`** — the tracking document you will update.
 3. **Determine scope** — the user may specify:
    - Full audit: refresh every section
@@ -137,7 +137,7 @@ to the user:
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for CR lookups** — never guess rule text or numbers.
 - **Be thorough** — check every row in scope, not just a sample.
 - **Preserve document structure** — don't reformat sections, just update cell values.

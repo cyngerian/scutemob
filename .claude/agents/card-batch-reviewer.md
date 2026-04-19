@@ -187,5 +187,5 @@ Use extra calls when verifying ETB-tapped oracle text or resolving TODO-validity
 
 - **Read-only** for card definition files — never edit them.
 - **Write findings only** to the specified output file.
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - Do not read or modify tests, CLAUDE.md, memory files, or engine source.

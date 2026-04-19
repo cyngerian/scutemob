@@ -178,7 +178,7 @@ ACTIVE (per `memory/workstream-state.md`):
 ## 9. What is NOT in scope for any cleanup pass
 
 - **Auto-memory MEMORY.md** at
-  `/home/airbaggie/.claude/projects/-home-airbaggie-scutemob/memory/MEMORY.md`
+  `/home/skydude/.claude/projects/-home-skydude-projects-scutemob/memory/MEMORY.md`
   — lives outside the repo, has its own oversize warning system and cleanup
   protocol. The cleanup pass may update *references* to it from `.claude/` or
   CLAUDE.md but does not edit the file itself.

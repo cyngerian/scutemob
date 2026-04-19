@@ -57,7 +57,7 @@ auto-discovers all files. Adding a card = creating one new file. No other files 
 
 Read the session from the authoring plan:
 ```
-Read file_path="/home/airbaggie/scutemob/test-data/test-cards/_authoring_plan.json"
+Read file_path="/home/skydude/projects/scutemob/test-data/test-cards/_authoring_plan.json"
 ```
 
 Find the session by ID. Note the `group_id`, `group_label`, and the list of cards
@@ -508,7 +508,7 @@ through PB-22. Many previously impossible patterns are now supported.
 
 ## Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Import**: Always `use crate::cards::helpers::*;` — no qualified paths.
 - **Cargo**: Use `~/.cargo/bin/cargo` (not just `cargo`).
 - **MCP budget**: Up to 30 `lookup_card` calls per session.

@@ -30,7 +30,7 @@ sequenced sessions that a developer can execute one at a time.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants
    and current project state.
 2. **Read `memory/conventions.md`** for coding standards.
 3. **Read `memory/decisions.md`** for past design decisions (avoid contradicting them).
@@ -218,7 +218,7 @@ Write the plan to `memory/m<N>-session-plan.md` using this structure
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use `~/.cargo/bin/cargo`** for any cargo commands.
 - **Use MCP tools for CR lookups** — never guess rule text.
 - **Don't implement anything** — your job is to plan, not to code.

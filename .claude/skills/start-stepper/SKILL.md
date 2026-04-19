@@ -3,7 +3,7 @@
 Manage the axum replay viewer HTTP server at `tools/replay-viewer/`.
 
 **IMPORTANT**: The binary must be run from the **workspace root**
-(`/home/airbaggie/scutemob/`), not from `tools/replay-viewer/`. The
+(`/home/skydude/projects/scutemob/`), not from `tools/replay-viewer/`. The
 default `--scripts-dir` is `test-data/generated-scripts`, which is
 relative to the working directory — running from the wrong directory
 means no scripts are found.
@@ -38,12 +38,12 @@ If the user only wanted to stop, confirm it's stopped and exit.
 
 1. **Check for the binary:**
 ```bash
-ls /home/airbaggie/scutemob/target/release/replay-viewer 2>/dev/null && echo "exists" || echo "missing"
+ls /home/skydude/projects/scutemob/target/release/replay-viewer 2>/dev/null && echo "exists" || echo "missing"
 ```
 
 2. **If missing, build it:**
 ```bash
-cd /home/airbaggie/scutemob/tools/replay-viewer && ~/.cargo/bin/cargo build --release 2>&1 | tail -5
+cd /home/skydude/projects/scutemob/tools/replay-viewer && ~/.cargo/bin/cargo build --release 2>&1 | tail -5
 ```
 
 3. **Kill any existing instance on port 3030:**
@@ -53,7 +53,7 @@ fuser -k 3030/tcp 2>/dev/null; sleep 0.3; echo "cleared"
 
 4. **Start from workspace root with `run_in_background: true`:**
 ```bash
-/home/airbaggie/scutemob/target/release/replay-viewer --host 0.0.0.0
+/home/skydude/projects/scutemob/target/release/replay-viewer --host 0.0.0.0
 ```
 Use `run_in_background: true` on the Bash call.
 

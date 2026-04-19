@@ -30,7 +30,7 @@ that the `ability-impl-runner` agent will execute.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants
    and current project state.
 2. **Read `memory/ability-wip.md`** to determine which ability you're planning and what
    steps are already done.
@@ -200,7 +200,7 @@ structure:
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for CR lookups** — never guess rule text or numbers.
 - **Don't implement anything** — your job is to plan, not to code.
 - **Check existing code before proposing new code** — the type might already exist.

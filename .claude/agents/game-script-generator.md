@@ -107,7 +107,7 @@ Cards not on this list will cause `InvalidTarget` or missing-definition errors.
 ## First Steps
 
 1. **Read an existing approved script** for format reference:
-   `/home/airbaggie/scutemob/test-data/generated-scripts/stack/001_lightning_bolt_resolves.json`
+   `/home/skydude/projects/scutemob/test-data/generated-scripts/stack/001_lightning_bolt_resolves.json`
 2. **Use MCP `lookup_card`** only for cards NOT in the Available Cards list above.
    Use the Common CR Citations table before reaching for MCP rule lookups.
 
@@ -446,7 +446,7 @@ wrong engine behavior. The script is the ground truth for correct rules behavior
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use the Available Cards list and Common CR Citations first.** Only call MCP for cards/rules
   NOT already listed in this prompt. Never guess oracle text or rule numbers.
 - **Don't modify existing scripts** unless the user explicitly asks.

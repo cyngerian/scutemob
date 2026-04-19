@@ -185,7 +185,7 @@ AbilityDefinition::Activated {
 
 ## Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Import**: Always `use crate::cards::helpers::*;` — no qualified paths.
 - **Cargo**: Use `~/.cargo/bin/cargo` (not just `cargo`).
 - **No tests, no docs, no engine changes** — only edit files in `defs/`.

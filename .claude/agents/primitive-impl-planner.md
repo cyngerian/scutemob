@@ -35,7 +35,7 @@ add a keyword), primitives add DSL expressiveness.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants
    and current project state.
 2. **Read `memory/primitive-wip.md`** to determine which PB batch you're planning.
 3. **Read the PB-N section of `docs/primitive-card-plan.md`** for the batch specification:
@@ -254,7 +254,7 @@ Write the plan to `memory/primitives/pb-plan-<N>.md` with this structure:
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for CR lookups** — never guess rule text or numbers.
 - **Don't implement anything** — your job is to plan, not to code.
 - **Check existing code before proposing new code** — the type might already exist.

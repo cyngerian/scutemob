@@ -29,7 +29,7 @@ resolves 5-8 issues identified during a milestone code review.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for the current active
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for the current active
    milestone and architecture invariants.
 2. **Determine the milestone number** — user specifies it, or infer from CLAUDE.md's
    "Active Milestone" field.
@@ -126,7 +126,7 @@ The summary should mention the count and highest severity:
 ## Shell Environment
 
 - Use `~/.cargo/bin/cargo` directly (not bare `cargo` or `source $HOME/.cargo/env`)
-- All file paths are absolute from `/home/airbaggie/scutemob/`
+- All file paths are absolute from `/home/skydude/projects/scutemob/`
 - `process_command()` takes ownership of `GameState` — use `.clone()` before each call
   when testing in loops
 - `ObjectSpec::card()` creates naked objects — always call `enrich_spec_from_def()` to

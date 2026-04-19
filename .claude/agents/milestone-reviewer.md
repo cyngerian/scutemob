@@ -29,7 +29,7 @@ following the exact output format established in `docs/mtg-engine-milestone-revi
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants,
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants,
    current state, and the milestone completion checklist.
 2. **Read `docs/mtg-engine-milestone-reviews.md`** to understand the output format, severity
    key, existing findings, and cross-milestone issue index.
@@ -250,7 +250,7 @@ reviews document. Add entries for each new finding:
 - **Read every file completely.** Do not skim or skip sections.
 - **Use MCP tools for CR lookups.** If a finding references a CR rule, verify the rule
   text with `get_rule` or `search_rules` before citing it.
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use `~/.cargo/bin/cargo`** for any cargo commands (not bare `cargo`).
 - **Do not fix issues.** Your job is to find and document them. The fix-session-runner
   agent handles fixes.

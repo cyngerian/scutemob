@@ -250,7 +250,7 @@ Task tool:
    - Update `Last Updated:` to today's date
 
 4. **Update MEMORY.md** (inline — no agent needed):
-   - Read the `## Milestone Review Tracking` section of `memory/MEMORY.md` (the auto-memory file at `/home/airbaggie/.claude/projects/-home-airbaggie-scutemob/memory/MEMORY.md`)
+   - Read the `## Milestone Review Tracking` section of `memory/MEMORY.md` (the auto-memory file at `/home/skydude/.claude/projects/-home-skydude-projects-scutemob/memory/MEMORY.md`)
    - Find the most recent "Batch N complete" line
    - If this ability belongs to the same batch: update the test count, validated count, and P4 count in that line
    - If this ability closes a new batch: prepend a new "Batch N complete" line with current stats

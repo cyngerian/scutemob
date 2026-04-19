@@ -30,7 +30,7 @@ and write findings to a review file.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants.
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants.
 2. **Read `memory/ability-wip.md`** to determine which ability you're reviewing and see
    the step checklist with file:line references.
 3. **Read the plan file**: `memory/abilities/ability-plan-<name>.md` — this tells you what was
@@ -181,7 +181,7 @@ If this is a re-review (after a fix phase):
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for CR lookups** — verify rule text independently.
 - **Do not edit engine code.** You are read-only for source files. Write-only for the
   review file.

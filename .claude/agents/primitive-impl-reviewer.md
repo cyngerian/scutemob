@@ -30,7 +30,7 @@ correctly, and tests are adequate. You write findings to a review file.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants.
+1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants.
 2. **Read `memory/primitive-wip.md`** to determine which PB batch you're reviewing and see
    the step checklist with details.
 3. **Read the plan file**: `memory/primitives/pb-plan-<N>.md` — this tells you what was
@@ -212,7 +212,7 @@ If this is a re-review (after a fix phase):
 
 ## Important Constraints
 
-- **All file paths are absolute** from `/home/airbaggie/scutemob/`.
+- **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for CR lookups AND card lookups** — verify independently.
 - **Do not edit engine code or card defs.** You are read-only for source files.
   Write-only for the review file.
