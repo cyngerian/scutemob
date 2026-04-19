@@ -84,6 +84,20 @@ esm task unlock <task_id> --agent primary
 
 ### Launch the worker
   cd .worktrees/{task_id} && claude
+
+When launching, tell the worker to — BEFORE implementing — use TaskCreate to
+build a visible task list from the acceptance criteria and any referenced plan
+file (one item per concrete step), and to update each item's state live as it
+progresses. The coordinator follows this list to track progress.
+
+Also tell the worker to delegate the heavy lifting to specialized project
+agents via the Agent tool rather than implementing inline: primitive batches
+(PB-*) use `primitive-impl-runner` for implementation and
+`primitive-impl-reviewer` for review; keyword abilities use
+`ability-impl-runner` + `ability-impl-reviewer`; card authoring uses
+`bulk-card-author` + `card-batch-reviewer`; LOW fix sessions use
+`fix-session-runner`; game scripts use `game-script-generator`. See the Agents
+table in CLAUDE.md. Only implement directly when no specialized agent fits.
 ```
 
 ## Notes
