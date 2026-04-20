@@ -72,6 +72,7 @@ fn alliance_gain_life_trigger() -> TriggeredAbilityDef {
             controller_you: true,
             exclude_self: true,
             color_filter: None,
+            card_type_filter: None,
         }),
         death_filter: None,
         combat_damage_filter: None,

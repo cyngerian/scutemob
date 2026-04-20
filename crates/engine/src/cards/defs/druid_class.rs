@@ -3,7 +3,9 @@
 // Level 1 (always active): Landfall — Whenever a land you control enters, you gain 1 life.
 // Level 2 ({2}{G}): You may play an additional land on each of your turns.
 // Level 3 ({4}{G}): When this Class becomes level 3, target land becomes a creature.
-// TODO: Level 1 Landfall trigger needs LandEntersBattlefield trigger condition
+// Level 1 Landfall trigger: CR 207.2c — ability word, no dedicated CR rule.
+// Implemented via TriggerCondition::WheneverPermanentEntersBattlefield { Land + You }.
+// See jaddi_offshoot.rs for the canonical template.
 // TODO: Level 3 needs land-animation continuous effect + ETB trigger on level-up
 use crate::cards::helpers::*;
 
@@ -21,9 +23,15 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Level 1 ability (always active, not a ClassLevel bar):
             // Landfall — Whenever a land you control enters, you gain 1 life.
-            // TODO: Needs LandEntersBattlefield trigger condition for proper Landfall
+            // CR 207.2c: Landfall is an ability word; uses WheneverPermanentEntersBattlefield.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(1),

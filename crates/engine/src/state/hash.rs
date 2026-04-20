@@ -33,7 +33,12 @@
 ///   AdditionalCost::Sacrifice changed from tuple to struct variant { ids, lki_powers };
 ///   StackObject.sacrificed_creature_powers field added; EffectContext gains
 ///   sacrificed_creature_powers (not hashed — runtime resolution scratch only).
-pub const HASH_SCHEMA_VERSION: u8 = 6;
+/// - 7: PB-L (2026-04-20) — ETBTriggerFilter.card_type_filter added; Landfall
+///   TriggerCondition::WheneverPermanentEntersBattlefield now converts to a
+///   runtime TriggeredAbilityDef in enrich_spec_from_def, enabling battlefield-
+///   side dispatch for all CR 207.2c "permanent you control enters" triggers
+///   (Landfall, Horn of Greed, Warstorm Surge, Puresteel Paladin, etc.).
+pub const HASH_SCHEMA_VERSION: u8 = 7;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2259,6 +2264,8 @@ impl HashInto for ETBTriggerFilter {
         self.controller_you.hash_into(hasher);
         self.exclude_self.hash_into(hasher);
         self.color_filter.hash_into(hasher);
+        // PB-L: card_type_filter for Landfall ("land you control") — CR 207.2c.
+        self.card_type_filter.hash_into(hasher);
     }
 }
 impl HashInto for DeathTriggerFilter {

@@ -5967,6 +5967,15 @@ fn collect_triggers_for_event(
                                 continue;
                             }
                         }
+                        // PB-L (CR 207.2c / CR 603.2): card_type_filter — entering
+                        // permanent must have this card type (layer-resolved).
+                        // Used by Landfall ("land"), Horn of Greed ("land"), and other
+                        // non-creature type-filtered "whenever a [type] enters" triggers.
+                        if let Some(ref ct) = etb_filter.card_type_filter {
+                            if !entering_chars.card_types.contains(ct) {
+                                continue;
+                            }
+                        }
                     } else {
                         // Entering object not found -- skip conservatively.
                         continue;

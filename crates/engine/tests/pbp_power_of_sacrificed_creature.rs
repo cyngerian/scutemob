@@ -776,10 +776,11 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // Assert hash sentinel is exactly 6 (PB-P bump from 5).
+    // Assert hash sentinel is exactly 7 (PB-L bump from PB-P's 6 for
+    // ETBTriggerFilter.card_type_filter field addition).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 6u8,
-        "PB-P M7: HASH_SCHEMA_VERSION must be 6 (PB-P bump). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 7u8,
+        "PB-L: HASH_SCHEMA_VERSION must be 7 (PB-L bump from PB-P's 6 for ETBTriggerFilter.card_type_filter). If you bumped the sentinel, update this test."
     );
 
     // Hash five EffectAmount variants; all must be distinct.

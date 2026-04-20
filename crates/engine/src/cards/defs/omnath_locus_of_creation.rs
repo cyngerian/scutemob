@@ -33,10 +33,13 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: Landfall with resolution-count tracking (1st/2nd/3rd time this turn).
-            // Requires per-object ability resolution counter per turn — not in DSL.
-            // 1st: gain 4 life. 2nd: add {R}{G}{W}{U}. 3rd: deal 4 to each opponent + each
-            // planeswalker you don't control.
+            // TODO: Blocker — per-ability "this is the Nth time this ability has resolved
+            // this turn" tracking. Landfall trigger is covered
+            // (TriggerCondition::WheneverPermanentEntersBattlefield + Land + You, CR 207.2c).
+            // The gap is a per-ability-per-turn resolution counter primitive — affects Omnath,
+            // Locus of Creation (1st/2nd/3rd time branches) and similar cards. Until this
+            // primitive exists the three-branch Landfall ability cannot be expressed without
+            // producing wrong game state.
         ],
         ..Default::default()
     }

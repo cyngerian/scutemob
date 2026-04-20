@@ -2372,6 +2372,9 @@ pub fn enrich_spec_from_def(
                             None
                         }
                     }),
+                // Alliance filter is always creature (the creature_only flag handles it);
+                // the explicit card_type_filter is not needed for this conversion.
+                card_type_filter: None,
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
@@ -2380,6 +2383,100 @@ pub fn enrich_spec_from_def(
                 // for all known Alliance cards.
                 intervening_if: None,
                 description: "Alliance -- Whenever another creature you control enters (CR 207.2c)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: Some(etb_filter),
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: vec![],
+            });
+        }
+    }
+    // PB-L (CR 207.2c / CR 603.2): Convert "Whenever a permanent enters the battlefield"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers
+    // can dispatch them via AnyPermanentEntersBattlefield events.
+    //
+    // This is the battlefield-side counterpart to collect_graveyard_carddef_triggers
+    // (which handles the same TriggerCondition while the source is in the graveyard,
+    // e.g. Bloodghast).
+    //
+    // Covers Landfall (ability word, CR 207.2c) and all other
+    // "Whenever a [permanent type] [you control] enters" triggers:
+    //   - Lotus Cobra, Evolution Sage, Jaddi Offshoot (Land + You)
+    //   - Horn of Greed (Land, any controller)
+    //   - Warstorm Surge, Puresteel Paladin (non-Land filters)
+    //
+    // Unlike Alliance (WheneverCreatureEntersBattlefield) which hardcodes
+    // `exclude_self: true` and `creature_only: true`, this variant mirrors the
+    // TargetFilter faithfully:
+    //   - `exclude_self: false` (a land you just played can satisfy your own
+    //     "whenever a land enters" trigger)
+    //   - `creature_only: false` unless the filter specifies Creature
+    //   - `card_type_filter: filter.has_card_type` (the new PB-L field)
+    //
+    // Skips abilities with `trigger_zone: Some(TriggerZone::Graveyard)` — those are
+    // handled by collect_graveyard_carddef_triggers at dispatch time and must NOT
+    // be added to the battlefield spec (the spec lives on the battlefield object,
+    // but these triggers fire only from the graveyard).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield { filter },
+            effect,
+            trigger_zone,
+            ..
+        } = ability
+        {
+            // Graveyard-zone triggers (Bloodghast) are dispatched separately.
+            if trigger_zone.is_some() {
+                continue;
+            }
+            let (creature_only, card_type_filter, controller_you, color_filter) = match filter {
+                Some(f) => {
+                    let creature_only = matches!(f.has_card_type, Some(CardType::Creature));
+                    // If the filter specifies a non-Creature card type, carry it in
+                    // card_type_filter. For Creature, the creature_only flag handles it.
+                    let card_type_filter = match f.has_card_type {
+                        Some(CardType::Creature) => None,
+                        other => other,
+                    };
+                    let controller_you = matches!(f.controller, TargetController::You);
+                    let color_filter = f.colors.as_ref().and_then(|colors| {
+                        if colors.len() == 1 {
+                            colors.iter().next().copied()
+                        } else {
+                            None
+                        }
+                    });
+                    (
+                        creature_only,
+                        card_type_filter,
+                        controller_you,
+                        color_filter,
+                    )
+                }
+                None => (false, None, false, None),
+            };
+            let etb_filter = ETBTriggerFilter {
+                creature_only,
+                controller_you,
+                // "Whenever a permanent you control enters" — the trigger fires for
+                // the entering permanent itself when controlled by the same player.
+                // Unlike Alliance ("another creature"), this variant does NOT
+                // exclude self — a land a player just played should trigger their
+                // own Landfall-source creature (which is not the land itself anyway).
+                exclude_self: false,
+                color_filter,
+                card_type_filter,
+            };
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
+                // card_definition::Condition ↔ runtime InterveningIf conversion is
+                // deferred (same rationale as Alliance). None is safe for all
+                // known simple Landfall cards; compound-conditional cases
+                // (Moraug, Omnath Locus of Creation) remain TODO-blocked.
+                intervening_if: None,
+                description: "Whenever a permanent enters the battlefield (CR 207.2c / CR 603.2)"
                     .to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: Some(etb_filter),

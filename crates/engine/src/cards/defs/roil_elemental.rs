@@ -5,13 +5,12 @@
 //
 // Flying is implemented.
 //
-// TODO: DSL gap — the Landfall triggered ability requires:
-// 1. TriggerCondition for "whenever a land you control enters" (Landfall).
-// 2. A conditional Control-change effect (SetController) with duration
-//    "for as long as you control this creature" — EffectDuration has no
-//    "WhileYouControlSource" variant. Both permanent and conditional controller-change
-//    effects with a dynamic duration are not expressible in the current DSL.
-// The Landfall ability is omitted.
+// TODO: Blocker — EffectDuration::WhileYouControlSource variant for "for as long as you
+// control this creature" on a control-change effect. Landfall trigger itself is covered by
+// TriggerCondition::WheneverPermanentEntersBattlefield { Land + You } + Effect::GainControl
+// (CR 207.2c). The dynamic-duration control change is the real gap; a permanent GainControl
+// without a restoration condition would produce wrong game state. The Landfall ability is
+// omitted until EffectDuration::WhileYouControlSource is added.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

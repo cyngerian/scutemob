@@ -20,10 +20,14 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             // TODO: DSL gap — dynamic +1/+0 per attack count per creature this turn.
-            // Needs per-creature attack tracking + dynamic LayerModification.
-            // TODO: DSL gap — landfall trigger with main phase intervening-if that creates
-            // additional combat phase. AdditionalCombatPhase effect exists but landfall +
-            // main-phase condition combo not easily expressible.
+            // Needs per-creature attack tracking + dynamic LayerModification (continuous
+            // effect scaled by a per-object counter). Separate from the Landfall ability.
+            // TODO: Blocker — main-phase intervening-if + additional combat phase + "untap all
+            // creatures at the beginning of that combat" chaining. Landfall trigger itself is
+            // covered (TriggerCondition::WheneverPermanentEntersBattlefield + Land + You +
+            // intervening_if: Condition::MainPhase, CR 207.2c). The additional-combat-phase-
+            // plus-chained-delayed-trigger combo is the gap (no Effect::AdditionalCombatPhase
+            // with a nested delayed "untap all" trigger in the DSL).
         ],
         ..Default::default()
     }

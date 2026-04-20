@@ -557,6 +557,12 @@ pub struct ETBTriggerFilter {
     /// Used by Shadow Alley Denizen ("Whenever another black creature enters").
     #[serde(default)]
     pub color_filter: Option<crate::state::Color>,
+    /// If set, the entering permanent must have this card type (layer-resolved).
+    /// Used by Landfall ("land you control") — CR 207.2c.
+    /// Evaluated after `creature_only` (both can apply; creature_only is kept
+    /// separate for historical compatibility with the Alliance ability word).
+    #[serde(default)]
+    pub card_type_filter: Option<crate::state::types::CardType>,
 }
 /// A triggered ability definition on a game object (CR 603).
 ///

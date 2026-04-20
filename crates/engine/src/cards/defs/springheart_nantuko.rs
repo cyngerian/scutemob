@@ -15,9 +15,13 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: Bestow {1}{G} — Bestow keyword not in DSL
-            // TODO: Enchanted creature gets +1/+1 — Aura static grant
-            // TODO: Landfall trigger — conditional copy-or-Insect branch not in DSL
+            // TODO: Blockers (NOT Landfall — that trigger exists via
+            // TriggerCondition::WheneverPermanentEntersBattlefield + Land + You filter,
+            // CR 207.2c):
+            //   1. Bestow keyword (AltCostKind::Bestow not in DSL).
+            //   2. Aura static grant (+1/+1 to enchanted creature).
+            //   3. Conditional copy-or-Insect-fallback branch within a single triggered effect
+            //      (pay {1}{G} if attached → copy token, else 1/1 Insect fallback).
         ],
         ..Default::default()
     }

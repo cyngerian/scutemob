@@ -5,8 +5,11 @@
 //
 // Trample and enters-with-counter ETB are implemented.
 //
-// TODO: DSL gap — Landfall trigger "whenever a land you control enters" has no
-// TriggerCondition variant. The doubling of counters ability is omitted.
+// TODO: DSL gap — Effect::AddCounter with amount equal to current +1/+1 counters on source
+// (self-doubling). Landfall trigger itself is covered by
+// TriggerCondition::WheneverPermanentEntersBattlefield { Land + You } (CR 207.2c), but the
+// "double the number of +1/+1 counters on this creature" effect is not expressible — no
+// EffectAmount::CurrentCountersOnSource variant exists. The Landfall ability is omitted.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

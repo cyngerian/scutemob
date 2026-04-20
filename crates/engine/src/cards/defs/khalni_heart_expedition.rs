@@ -3,10 +3,9 @@
 // Remove three quest counters from this and sacrifice it: Search your library for up to
 // two basic land cards, put them onto the battlefield tapped, then shuffle.
 //
-// TODO: Landfall trigger — TriggerCondition::WheneverLandEntersBattlefield does not exist.
-// When this trigger is added, implement:
-//   TriggerCondition::WheneverLandEntersBattlefield { controller: TargetController::You }
-//   → Effect::AddCounter { target: EffectTarget::Source, counter: CounterType::Quest, count: 1 }
+// CR 207.2c: Landfall is an ability word with no dedicated CR rule; the trigger is
+// encoded as TriggerCondition::WheneverPermanentEntersBattlefield { Land + You }.
+// See jaddi_offshoot.rs for the canonical simple Landfall template.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,19 +16,27 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Landfall — Whenever a land you control enters, you may put a quest counter on this enchantment.\nRemove three quest counters from this enchantment and sacrifice it: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
         abilities: vec![
-            // TODO: Landfall trigger — TriggerCondition::WheneverLandEntersBattlefield not yet
-            // implemented. Once it exists, add:
-            //   AbilityDefinition::Triggered {
-            //       trigger_condition: TriggerCondition::WheneverLandEntersBattlefield {
-            //           controller: TargetController::You,
-            //       },
-            //       effect: Effect::AddCounter {
-            //           target: EffectTarget::Source,
-            //           counter: CounterType::Quest,
-            //           count: 1,
-            //       },
-            //       intervening_if: None, targets: vec![], modes: None, trigger_zone: None,
-            //   }
+            // Landfall — Whenever a land you control enters, put a quest counter on this.
+            // CR 207.2c: "Landfall" is an ability word; trigger uses WheneverPermanentEntersBattlefield.
+            // Note: "you may" — bot always takes counter; harmless optimization.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::AddCounter {
+                    target: EffectTarget::Source,
+                    counter: CounterType::Quest,
+                    count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
 
             // Remove three quest counters from this enchantment and sacrifice it: search for
             // up to two basic lands, put them onto battlefield tapped, then shuffle.
