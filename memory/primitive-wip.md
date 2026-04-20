@@ -5,9 +5,9 @@ title: TargetRequirement::UpToN — optional target slots (CR 601.2c "up to N ta
 cards_unblocked_estimated: 22 raw candidates from classification report; filter-PB calibration 40-65% → ~9-14 BEFORE compound-blocker discount. Spot-sample already shows compound blockers (Tamiyo emblem grants, Endurance graveyard-to-library, Tyvar mana-ability grant) — expect aggressive discount. Worker/planner must run mandatory 22-card MCP sweep before finalizing roster.
 cards_unblocked_confirmed_post_plan: 8-14 cards (8 core-CONFIRMED + 6 bonus via TODO sweep). 14 candidates DEFERRED for compound blockers (non-targeted untap-lands, SearchLibrary-N, delayed trigger riders, dynamic MV filters, etc.). See pb-plan-T.md Step 0 table for full breakdown.
 started: 2026-04-20
-phase: fix-complete
+phase: review-complete
 plan_file: memory/primitives/pb-plan-T.md (written 2026-04-19 by planner)
-review_file: memory/primitives/pb-review-T.md (written 2026-04-20 by reviewer; verdict needs-fix — 1 HIGH, 5 MEDIUM, ~11 LOW)
+review_file: memory/primitives/pb-review-T.md (written 2026-04-20 by reviewer; re-reviewed 2026-04-20; verdict PASS after fix phase)
 
 ## Task reference
 - ESM task: scutemob-5
@@ -217,4 +217,22 @@ OPTIONAL tests (O1-Ox) planner may add.
 
 ## Review verdict
 
-**needs-fix** — 1 HIGH, 5 MEDIUM, ~11 LOW. See `memory/primitives/pb-review-T.md` for findings. HIGH (E1) must be addressed before merge: greedy-consume validator rejects CR-legal target declarations when the player declares targets out of slot order. MEDIUM set: T1 test-validity (M5 doesn't test what its name claims), D1 PB-T-L01 description is factually wrong, E2/E3 latent auto-target issues for UpToN{player} and nested UpToN, E4 aspirationally-wrong doc comment, T2 no card-integration test.
+**needs-fix** (first review) — 1 HIGH, 5 MEDIUM, ~11 LOW. See `memory/primitives/pb-review-T.md` for findings. HIGH (E1) must be addressed before merge: greedy-consume validator rejects CR-legal target declarations when the player declares targets out of slot order. MEDIUM set: T1 test-validity (M5 doesn't test what its name claims), D1 PB-T-L01 description is factually wrong, E2/E3 latent auto-target issues for UpToN{player} and nested UpToN, E4 aspirationally-wrong doc comment, T2 no card-integration test.
+
+## Re-review verdict (2026-04-20)
+
+**PASS** — All HIGH + MEDIUM findings resolved correctly in fix commits `fd1f2f0c`, `a9b4df6e`, `83b187b9`.
+
+- **E1 (HIGH)**: RESOLVED — two-pass best-fit algorithm at `casting.rs:5362-5447`; M10 regression test exercises reverse-order declaration; M6 mandatory regression preserved.
+- **E2 (MEDIUM)**: RESOLVED — UpToN outer match arm in `abilities.rs:6463-6499` routes player-inner to player-picker, permanent-inner returns None.
+- **E3 (MEDIUM)**: RESOLVED (with caveat) — author invariant in `card_definition.rs:2319-2322` is doc-comment-only. Reviewer accepts invariant-only for author-facing constraint with no real-card trigger; runner chose doc over debug_assert is acceptable precedent-wise.
+- **E4 (MEDIUM)**: RESOLVED — `validate_targets` doc comment at `casting.rs:5269-5288` rewritten with two-pass semantics, cites CR 601.2c, no parallel-indexing claim.
+- **T1 (MEDIUM, test-validity HIGH)**: RESOLVED — M5 renamed to honest name; new M9 at `tests/pbt_up_to_n_targets.rs:1025-1134` genuinely exercises zone-change mid-resolution with discriminating assertions.
+- **T2 (MEDIUM)**: RESOLVED — new O3 at `tests/pbt_up_to_n_targets.rs:1254-1312` uses real Force of Vigor card def from registry end-to-end.
+- **D1 (MEDIUM)**: RESOLVED — `docs/mtg-engine-low-issues-remediation.md:417` rewritten accurately; all 6 affected cards named; fix location cited.
+
+LOW findings (~11) remain open per standing rules and are tracked in the remediation doc.
+
+**Gate verification**: code inspection only (Bash not available in reviewer session). Runner reported 0 failures / 269 suites passing. Code inspection finds no obvious compile/clippy blockers. Recommend coordinator run full gate suite before collection.
+
+Ready for coordinator collection.
