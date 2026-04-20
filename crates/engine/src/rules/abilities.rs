@@ -6560,6 +6560,53 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                             TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
                                                 false
                                             }
+                                            // CR 601.2c / 115.1b: UpToN delegates to inner.
+                                            TargetRequirement::UpToN { inner, .. } => {
+                                                let is_creature =
+                                                    chars.card_types.contains(&CT::Creature);
+                                                let is_artifact =
+                                                    chars.card_types.contains(&CT::Artifact);
+                                                let is_enchantment =
+                                                    chars.card_types.contains(&CT::Enchantment);
+                                                let is_land = chars.card_types.contains(&CT::Land);
+                                                let is_planeswalker =
+                                                    chars.card_types.contains(&CT::Planeswalker);
+                                                match inner.as_ref() {
+                                                    TargetRequirement::TargetCreature => is_creature,
+                                                    TargetRequirement::TargetPermanent => true,
+                                                    TargetRequirement::TargetArtifact => is_artifact,
+                                                    TargetRequirement::TargetEnchantment => is_enchantment,
+                                                    TargetRequirement::TargetLand => is_land,
+                                                    TargetRequirement::TargetPlaneswalker => is_planeswalker,
+                                                    TargetRequirement::TargetCreatureOrPlayer => is_creature,
+                                                    TargetRequirement::TargetAny => is_creature || is_planeswalker,
+                                                    TargetRequirement::TargetPlayerOrPlaneswalker => is_planeswalker,
+                                                    TargetRequirement::TargetCreatureWithFilter(f) => {
+                                                        if !is_creature { false } else {
+                                                            let passes = crate::effects::matches_filter(&chars, f);
+                                                            let ctrl_ok = match f.controller {
+                                                                crate::cards::card_definition::TargetController::Any => true,
+                                                                crate::cards::card_definition::TargetController::You => obj.controller == trigger.controller,
+                                                                crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
+                                                                crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
+                                                            };
+                                                            passes && ctrl_ok
+                                                        }
+                                                    }
+                                                    TargetRequirement::TargetPermanentWithFilter(f) => {
+                                                        let passes = crate::effects::matches_filter(&chars, f);
+                                                        let ctrl_ok = match f.controller {
+                                                            crate::cards::card_definition::TargetController::Any => true,
+                                                            crate::cards::card_definition::TargetController::You => obj.controller == trigger.controller,
+                                                            crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
+                                                            crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
+                                                        };
+                                                        passes && ctrl_ok
+                                                    }
+                                                    // Nested UpToN, graveyard targets, spell targets: not applicable for auto-target on triggers.
+                                                    _ => false,
+                                                }
+                                            }
                                         }
                                     })
                                     .map(|(id, obj)| SpellTarget {

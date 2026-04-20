@@ -5307,6 +5307,27 @@ pub(crate) fn validate_targets_with_source(
     )
 }
 
+/// Compute (min_targets, max_targets) for a TargetRequirement list.
+///
+/// Mandatory requirements contribute 1 to both min and max.
+/// UpToN requirements contribute 0 to min and `count` to max (CR 601.2c / 115.1b).
+pub(crate) fn target_count_range(requirements: &[TargetRequirement]) -> (usize, usize) {
+    let mut min_total = 0usize;
+    let mut max_total = 0usize;
+    for req in requirements {
+        match req {
+            TargetRequirement::UpToN { count, .. } => {
+                max_total += *count as usize; // min contribution is 0
+            }
+            _ => {
+                min_total += 1;
+                max_total += 1;
+            }
+        }
+    }
+    (min_total, max_total)
+}
+
 fn validate_targets_inner(
     state: &GameState,
     targets: &[Target],
@@ -5315,19 +5336,78 @@ fn validate_targets_inner(
     source_chars: Option<&Characteristics>,
     self_id: Option<ObjectId>,
 ) -> Result<Vec<SpellTarget>, GameStateError> {
-    // CR 601.2c: When requirements are specified, the number of targets must match.
-    // When requirements is empty, targets are validated individually (used by auras/bestow
-    // which validate via a separate enchant path, not via TargetRequirement).
-    if !requirements.is_empty() && targets.len() != requirements.len() {
-        return Err(GameStateError::InvalidTarget(format!(
-            "expected {} target(s) but got {}",
-            requirements.len(),
-            targets.len()
-        )));
+    // CR 601.2c: When requirements are specified, the number of targets must be within the
+    // valid range. UpToN requirements contribute 0 to min and count to max, while mandatory
+    // requirements contribute 1 to both. When requirements is empty, targets are validated
+    // individually (used by auras/bestow which validate via a separate enchant path).
+    if !requirements.is_empty() {
+        let (min_t, max_t) = target_count_range(requirements);
+        if targets.len() < min_t || targets.len() > max_t {
+            return Err(GameStateError::InvalidTarget(format!(
+                "expected {}..={} target(s) but got {}",
+                min_t,
+                max_t,
+                targets.len()
+            )));
+        }
     }
+
+    // Build a mapping from target index → TargetRequirement using a greedy-consume algorithm.
+    // For each requirement slot:
+    //   - UpToN { count, inner }: consume up to `count` targets that match inner, greedily.
+    //   - Mandatory: consume exactly 1 target (any type accepted for the non-requirement case).
+    // This preserves the per-target requirement mapping used by validate_player/object functions.
+    let req_for_target: Vec<Option<&TargetRequirement>> = if requirements.is_empty() {
+        // No requirements: each target has no requirement (existence-only validation).
+        targets.iter().map(|_| None).collect()
+    } else {
+        let mut mapping: Vec<Option<&TargetRequirement>> = Vec::with_capacity(targets.len());
+        let mut target_idx = 0usize;
+        for req in requirements.iter() {
+            match req {
+                TargetRequirement::UpToN { count, inner } => {
+                    // Consume up to `count` targets greedily, each validated against inner.
+                    let mut consumed = 0u32;
+                    while target_idx < targets.len() && consumed < *count {
+                        // Peek-validate: does this target satisfy inner?
+                        let satisfies = match &targets[target_idx] {
+                            Target::Player(id) => {
+                                validate_player_satisfies_requirement(*id, inner).is_ok()
+                            }
+                            Target::Object(id) => {
+                                validate_object_satisfies_requirement(
+                                    state, *id, inner, caster, self_id,
+                                )
+                                .is_ok()
+                            }
+                        };
+                        if satisfies {
+                            // Map this target index to the UpToN requirement (inner will be
+                            // used for validation below via the requirement arm in the loop).
+                            mapping.push(Some(req));
+                            target_idx += 1;
+                            consumed += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    // Mandatory: consume exactly one target and map it to this requirement.
+                    if target_idx < targets.len() {
+                        mapping.push(Some(req));
+                        target_idx += 1;
+                    }
+                }
+            }
+        }
+        mapping
+    };
+
+    // Now validate each target against its mapped requirement (protection, hexproof, type).
     let mut spell_targets = Vec::with_capacity(targets.len());
     for (i, target) in targets.iter().enumerate() {
-        let req = requirements.get(i);
+        let req = req_for_target.get(i).and_then(|r| *r);
         let spell_target = match target {
             Target::Player(id) => {
                 let player = state
@@ -5381,8 +5461,10 @@ fn validate_targets_inner(
                     }
                 }
                 // CR 601.2c: Validate the target satisfies the declared requirement.
-                if let Some(req) = req {
-                    validate_player_satisfies_requirement(*id, req)?;
+                // For UpToN, req points to the UpToN variant; validate_player_satisfies_requirement
+                // delegates to inner via its UpToN arm.
+                if let Some(r) = req {
+                    validate_player_satisfies_requirement(*id, r)?;
                 }
                 SpellTarget {
                     target: Target::Player(*id),
@@ -5419,8 +5501,10 @@ fn validate_targets_inner(
                     )?;
                 }
                 // CR 601.2c: Validate the target satisfies the declared requirement.
-                if let Some(req) = req {
-                    validate_object_satisfies_requirement(state, *id, req, caster, self_id)?;
+                // For UpToN, req points to the UpToN variant; validate_object_satisfies_requirement
+                // delegates to inner via its UpToN arm.
+                if let Some(r) = req {
+                    validate_object_satisfies_requirement(state, *id, r, caster, self_id)?;
                 }
                 SpellTarget {
                     target: Target::Object(*id),
@@ -5446,6 +5530,10 @@ fn validate_player_satisfies_requirement(
         | TargetRequirement::TargetCreatureOrPlayer
         | TargetRequirement::TargetAny
         | TargetRequirement::TargetPlayerOrPlaneswalker => Ok(()),
+        // CR 601.2c / 115.1b: UpToN delegates to inner requirement.
+        TargetRequirement::UpToN { inner, .. } => {
+            validate_player_satisfies_requirement(id, inner)
+        }
         _ => Err(GameStateError::InvalidTarget(format!(
             "player {:?} does not satisfy requirement {:?} (expected an object)",
             id, req
@@ -5597,6 +5685,12 @@ fn validate_object_satisfies_requirement(
         TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_) => false,
         // TargetSpellOrAbilityWithSingleTarget handled above via early return.
         TargetRequirement::TargetSpellOrAbilityWithSingleTarget => false,
+        // CR 601.2c / 115.1b: UpToN delegates validation to inner requirement.
+        // This arm is reached during the greedy-consume peek-validate in validate_targets_inner
+        // and when the UpToN requirement is mapped to a target for full validation.
+        TargetRequirement::UpToN { inner, .. } => {
+            return validate_object_satisfies_requirement(state, id, inner, caster, self_id);
+        }
     };
     if valid {
         Ok(())
