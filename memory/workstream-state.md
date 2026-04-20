@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-D merged 2026-04-19 via ESM dispatch A/B. Workstream coordination migrating to ESM tasks; this file kept for history. |
+| W6: Primitive + Card Authoring | — | available | — | PB-P + PB-L merged 2026-04-19 via ESM chain-dispatch. 2673 tests. Workstream coordination ESM-managed; this file kept for history. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,38 +23,35 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-19 (post-migration session — first ESM dispatch A/B on scutemob, PB-D shipped)
-**Workstream**: W6: Primitive + Card Authoring + coordination migration
-**Task**: commit ESM install, A/B PB-D via /dispatch, merge winning run, validate new dispatch skill
+**Date**: 2026-04-19 ~20:45 EDT (chain-dispatch session — PB-P + PB-L shipped sequentially via ESM)
+**Workstream**: W6: Primitive + Card Authoring (ESM-managed)
+**Task**: push prior commits; chain-dispatch PB-P → collect → PB-L → collect
 
 **Completed**:
-- **ESM install committed** (`aca3035e`, `a253c24f`): `.claude/settings.json` hook, CLAUDE.md ESM section, 10 new ESM slash-command skills, `CLAUDE.md.pre-esm` → gitignored, stray `package-lock.json` separated.
-- **PB-D A/B experiment via /dispatch**: two worker tasks (scutemob-1 inline, scutemob-2 agent-delegated) against identical acceptance criteria + plan. scutemob-2 used `primitive-impl-runner` + `primitive-impl-reviewer`, landed 14 files / 4 clean commits / PASS-WITH-NOTES. scutemob-1 ran inline, landed 68 files (54 out-of-scope, including simulator + replay-viewer + TUI drift). scutemob-2 merged at `72cddb62`. scutemob-1 worktree + branch torn down, task marked done with supersession comment.
-- **Dispatch skill hardened** (`7d255645`): `.claude/skills/dispatch/SKILL.md` + `.claude/skills/spawn/SKILL.md` now instruct workers to (1) TaskCreate a granular live-updated task list before implementing, and (2) delegate to specialized agents (primitive-impl-runner, ability-impl-runner, bulk-card-author, etc.) rather than grinding inline. Validated by the A/B: inline produced drift; delegated produced tight, reviewed work.
-- **Two feedback memory files added**: `feedback_worker_task_list.md`, `feedback_worker_delegate_to_agents.md` (+ MEMORY.md pointers).
-- **PB-D shipped**: `TargetController::DamagedPlayer` variant + 10 dispatch sites + 6 card defs (Throat Slitter, Sigil of Sleep, Mistblade Shinobi, Alela, Nature's Will, Balefire Dragon) + 7 MANDATORY tests. Hash sentinel 4→5. Tests 2648 → 2655.
-- **1 LOW finding open**: stale TODO in `marisi_breaker_of_the_coil.rs` per `memory/primitives/pb-review-D.md`.
+- **Push** (`52e2c9dc..872ea5d2`): 11 commits pushed to `origin/main` in two pushes (one pre-dispatch, one post-PB-L).
+- **PB-P shipped** (`scutemob-3`, merged `8ba9c5b7`, fast-forward): new `EffectAmount::PowerOfSacrificedCreature` + reshape `AdditionalCost::Sacrifice(Vec<ObjectId>)` → `{ ids, lki_powers }` for CR 608.2b LKI capture-by-value. 23 existing test files touched mechanically. 3 card defs: altar_of_dementia, greater_good, lifes_legacy. 8 mandatory + 3 optional tests in `pbp_power_of_sacrificed_creature.rs` (1168 LOC). HASH_SCHEMA_VERSION 5→6. Review PASS-WITH-NOTES (0 HIGH/MEDIUM, 5 LOW). Wall clock ~92 min (planner + runner + reviewer, all Opus-backed agents).
+- **PB-L shipped** (`scutemob-4`, merged `872ea5d2`, fast-forward): Step 0 verdict reversed mid-task — first pass said "EXISTS, collapse to stale-TODO sweep," but writing tests surfaced a real dispatch gap in `enrich_spec_from_def` (no battlefield-conversion block for `WheneverPermanentEntersBattlefield`). Minimal engine primitive added: `ETBTriggerFilter.card_type_filter: Option<CardType>` + new conversion block in `replay_harness.rs:2396-2488` parallel to the Alliance block. No new `TriggerCondition` variant (Landfall is an ability word, CR 207.2c). HASH_SCHEMA_VERSION 6→7. 3 card defs authored (khalni_heart_expedition, druid_class, omnath_locus_of_rage) + 5 TODO rewrites on compound-blocked cards. 9 tests in `pb_l_landfall.rs` (528 LOC). Memo at `memory/primitives/pb-note-L-collapsed.md` documents both passes transparently. Wall clock ~37 min (no planner/runner/reviewer chain; card-fix-applicator agent + inline engine work).
+- **Chain-dispatch pattern validated**: single coordinator-driven sequence of two `/dispatch` cycles, each followed by background poll + `/collect`, no user intervention mid-chain. ESM outage mid-session was absorbed by user pausing.
 
-**Not done (deferred to next session)**:
-- Update CLAUDE.md "Active Plan" to reflect PB-D merged + queue next PB (PB-P narrow-gap triage, PB-L rank 3).
-- Retire workstream-state.md `/start-work`-based claim sections in CLAUDE.md (kept for history but the protocol is now ESM-managed).
-- Apply the marisi_breaker stale-TODO LOW fix opportunistically.
+**Not done / deferred**:
+- `marisi_breaker_of_the_coil.rs` stale-TODO LOW (carried forward from PB-D review).
+- Retire `memory/workstream-state.md` `/start-work` sections in CLAUDE.md (ESM-managed now; file kept for history).
 
 **Next session**:
-- Plan more ESM tasks (per-PB, following the v2 pattern). Likely candidates: PB-P re-triage (narrow gap: `EffectAmount::PowerOf(SacrificedCreature)` LKI only), PB-L (~3-4 card yield). Oversight makes the call.
-- Consider wiring `CARGO_TARGET_DIR` per-worktree to avoid another disk-pressure incident during concurrent dispatches.
+- Queue is thin. Old-queue demoted PBs (PB-R, PB-Q3, PB-T, PB-U, PB-V, PB-W, PB-Y, PB-Q2/Q5) remain opportunistic. Re-triage the W6 backlog or pivot to LOW cleanup (~47 open).
 
 **Hazards**:
-- **Disk pressure during parallel dispatches**: two concurrent worker builds consumed ~54G of `target/` at peak. Budget: single worker ≈ 15-18G; two parallel ≈ 30-35G; free space should be >50G before dispatching two. Consider shared-but-isolated `CARGO_TARGET_DIR` pattern.
-- **ESM advisory-mode attestation noise**: `esm task transition` interprets `--attest branch_exists=true` as a literal branch-name lookup ("Branch 'true' not found"). Cosmetic; transitions still accepted.
-- **BASELINE-LKI-01** carried forward: graveyard re-filter dispatch gap. Dedicated audit session still pending.
-- **BASELINE-CLIPPY-01..06** carried forward.
-- **PB-Q4-M01**: `EnchantFilter` vs `TargetFilter` divergence still open.
-- **PB-S residuals L02-L06**: open in `abilities.rs`.
+- **Worker-worktree `.claude/skills/` deletion artifact**: PB-P worktree showed all `.claude/skills/*/SKILL.md` as uncommitted `D` entries before merge. Tree hashes on both main and HEAD matched; deletions were working-copy-only and `esm worktree merge` correctly discarded them. **Always use `git diff main..HEAD --stat` (branch vs branch), not `git diff main --stat` (working-tree vs branch), when pre-merge-checking a worker's scope.** Cosmetic but easy to misread as scope creep.
+- **Test count drift during cost-shape reshapes**: PB-P touched 23 existing test files mechanically (old `AdditionalCost::Sacrifice(vec![id])` → struct form). Always audit such mass changes against scope-creep but expect mechanical touch-ups to dominate.
+- **BASELINE-LKI-01**, **BASELINE-CLIPPY-01..06**, **PB-Q4-M01**, **PB-S residuals L02-L06**: all carried forward.
 
-**Commit prefix used**: mostly `chore:` (infra migration work + skill hardening). The worker-delegated PB-D commits used `scutemob-2:` prefix naturally from the worker agent; that's the emerging convention for ESM-dispatched work (`<task_id>:` prefix on worker commits, `chore:`/`W6-prim:` for coordinator commits).
+**Commit prefix used**: worker-agent-generated (`scutemob-3:` / `scutemob-4:`) as the emerging ESM convention. No coordinator commits this session — all work landed inside dispatched tasks.
 
 ## Handoff History
+
+### 2026-04-19 (A/B session) — W6: ESM install, PB-D A/B, dispatch skill hardening
+
+- ESM install committed (`aca3035e`, `a253c24f`); PB-D A/B via `/dispatch` (scutemob-1 inline 68 files w/ scope creep, scutemob-2 agent-delegated 14 files PASS-WITH-NOTES, scutemob-2 merged at `72cddb62`); dispatch skill hardened (`7d255645`) to require granular TaskCreate list + specialized-agent delegation; two feedback memory files added. PB-D shipped: `TargetController::DamagedPlayer` + 10 dispatch sites + 6 card defs + 7 MANDATORY tests. Hash 4→5. Tests 2648→2655. 1 LOW carried (marisi_breaker TODO).
 
 ### 2026-04-13 (PB-D planner session) — W6: PB-D plan phase
 
@@ -76,6 +73,4 @@
 - PB-Q4 yield audit (SQLite, not grep): direct LandSubtype yield 10 cards; bundled scope ~20 cards. Verdict: PB-Q4 #1 priority.
 - Three verification gates queued for next session (Genju animate-land make-or-break; Chained controller filter; Corrupted Roots disjunction).
 
-### 2026-04-11 (fourth session) — W6: PB-X close + PB-Q plan + implement
-- PB-X close (`c502f8fc`). PB-Q plan caught 2 oversight roster errors via MCP. PB-Q implement (`880b7797`): `GameObject.chosen_color`, `ReplacementModification::ChooseColor` + `AddOneManaOfChosenColor`, `ChosenColorRef`, `ReplacementManaSourceFilter`, 2 EffectFilter variants, `Effect::AddManaOfChosenColor`, `apply_mana_production_replacements` refactor, hash sentinel 2→3. 6 cards, 11 tests, 2616→2627. Review deferred per context pressure.
 
