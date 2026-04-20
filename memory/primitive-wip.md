@@ -5,8 +5,9 @@ title: TargetRequirement::UpToN — optional target slots (CR 601.2c "up to N ta
 cards_unblocked_estimated: 22 raw candidates from classification report; filter-PB calibration 40-65% → ~9-14 BEFORE compound-blocker discount. Spot-sample already shows compound blockers (Tamiyo emblem grants, Endurance graveyard-to-library, Tyvar mana-ability grant) — expect aggressive discount. Worker/planner must run mandatory 22-card MCP sweep before finalizing roster.
 cards_unblocked_confirmed_post_plan: 8-14 cards (8 core-CONFIRMED + 6 bonus via TODO sweep). 14 candidates DEFERRED for compound blockers (non-targeted untap-lands, SearchLibrary-N, delayed trigger riders, dynamic MV filters, etc.). See pb-plan-T.md Step 0 table for full breakdown.
 started: 2026-04-20
-phase: implement-complete
+phase: fix-complete
 plan_file: memory/primitives/pb-plan-T.md (written 2026-04-19 by planner)
+review_file: memory/primitives/pb-review-T.md (written 2026-04-20 by reviewer; verdict needs-fix — 1 HIGH, 5 MEDIUM, ~11 LOW)
 
 ## Task reference
 - ESM task: scutemob-5
@@ -178,21 +179,42 @@ OPTIONAL tests (O1-Ox) planner may add.
 - [x] Clippy: 0 warnings — pre-existing collapsible_match in abilities.rs/casting.rs/mana.rs/replacement.rs/simulator/tui fixed with `#[allow]` at match or function level
 - [x] HASH_SCHEMA_VERSION sentinel assertions updated in all 3 test files that reference it
 - [x] TODOs resolved in card def files for all 14 confirmed cards; compound-blocker TODOs (Sorin reanimate L02, Tamiyo PreventUntap L03) retained with clear markers
-- [ ] PB-T-L01 (loyalty target validation), PB-T-L02 (Sorin reanimate rider), PB-T-L03 (Tamiyo PreventUntap if applicable) logged in `docs/mtg-engine-low-issues-remediation.md` — deferred to post-commit
+- [x] PB-T-L01 (loyalty target validation), PB-T-L02 (Sorin reanimate rider), PB-T-L03 (Tamiyo PreventUntap if applicable) logged in `docs/mtg-engine-low-issues-remediation.md` — logged but PB-T-L01 description is factually wrong per reviewer D1
+
+## Implementation Notes (runner)
+
+- **Bug found + fixed mid-implement**: M8/O2c tests caught a gap in the greedy-consume algorithm — if a declared target didn't match any requirement slot, the validator would silently accept it. Added a post-mapping length check (`mapping.len() < targets.len()` → reject with "declared N targets but only M could be matched"). This fixed M8 and O2c. Captured in `validate_targets_inner` at casting.rs:5404-5410.
+- **Collapsible-match clippy sweep**: the impl changes triggered newly-visible clippy warnings at existing sites (abilities.rs, casting.rs, mana.rs, replacement.rs, plus simulator + tui). All fixed with `#[allow(clippy::collapsible_match)]` attributes — NOT by restructuring the matches (out of scope per implement-phase-default-to-defer rule).
+
+## Fix Phase Notes (fix runner)
+
+- **E1 (HIGH)**: Replaced greedy-consume in `validate_targets_inner` (casting.rs) with two-pass best-fit algorithm. Pass 1 assigns each declared target to the first unmatched mandatory slot it satisfies (in slot order). Pass 2 assigns remaining targets to UpToN slots with remaining capacity. This correctly handles reverse-order declarations per CR 601.2c. Added M10 test (`test_pbt_up_to_n_reverse_order_declaration_succeeds`) for [artifact, planeswalker] against [UpToN{PW}, UpToN{Artifact}] shape.
+- **E4 (MEDIUM)**: Rewrote `validate_targets` doc comment to describe two-pass best-fit semantics. Removed aspirationally-wrong "parallel indexing" claim. Also removed incorrect 115.1b citation from `target_count_range` helper comment.
+- **T1 (MEDIUM, test-validity HIGH per conventions.md)**: Renamed M5 from `test_pbt_up_to_n_partial_fizzle_on_zone_change` to `test_pbt_up_to_n_partial_target_declaration_resolves` with accurate doc comment. Added new M9 test `test_pbt_up_to_n_partial_fizzle_on_zone_change` that genuinely exercises CR 608.2b zone-change partial fizzle: P1 casts UpToN{2} targeting A+B; P2 destroys A in response (Destroy Creature spell with `.with_types(vec![CardType::Instant])`); UpToN resolves — A illegal (graveyard) → skipped, B → tapped.
+- **T2 (MEDIUM)**: Added O3 test `test_pbt_force_of_vigor_card_integration` using the real Force of Vigor card def loaded from registry. Partial (1-of-2) UpToN cast via `colorless: 2, green: 2` mana pool.
+- **E2 (MEDIUM)**: Added UpToN arm in `check_triggers` auto-target outer match in abilities.rs. For player-inner UpToN, routes to player-picker. For permanent-inner UpToN, returns None (skip optional slot — 0 targets for triggers with optional targeting).
+- **E3 (MEDIUM)**: Added doc comment on `TargetRequirement::UpToN` in card_definition.rs stating that `inner` MUST NOT itself be UpToN.
+- **D1 (MEDIUM)**: Rewrote PB-T-L01 entry in docs/mtg-engine-low-issues-remediation.md to accurately describe the gap (zero target validation in `handle_activate_loyalty_ability` in engine.rs), naming all 6 affected PB-T cards and pointing to the fix approach.
+- **LOW findings not fixed**: E5 (115.1b citation sweep — ~20 sites), E6 (pre-existing loyalty gap), C1-C4, D2-D6, T3-T4. These remain in docs/mtg-engine-low-issues-remediation.md for opportunistic cleanup.
+- **All gates passed**: `cargo test --all` 0 failures (13/13 PB-T tests pass); `cargo build --workspace` clean; `cargo fmt --check` clean; clippy: 0 new lints introduced in modified files.
 
 ## Reviewer checklist
 
-- [ ] CR rules independently verified (601.2c, 115.1b, 115, 400.7)
-- [ ] Card oracle text verified via MCP for all confirmed cards
-- [ ] All 10 dispatch sites independently walked and confirmed UpToN-safe (especially sites 4, 6-10 that planner claims "no change required")
-- [ ] Hash sentinel 7→8 verified in `state/hash.rs`; assertion updates verified in all 3 test files
-- [ ] Zero-target (M1) and partial-target (M2) tests genuinely exercise the new shape (not silent-skip pattern)
-- [ ] Hash-schema test (M4) asserts `HASH_SCHEMA_VERSION == 8u8` AND exercises 3+ distinct UpToN variants producing distinct hashes
-- [ ] Regression sweep: existing mandatory-target cards still resolve correctly (M6 passes, plus broader `cargo test --all` green)
-- [ ] Greedy-consume validator algorithm doesn't over-consume (test M7 exercises mixed mandatory+UpToN layout; test M8 exercises wrong-type rejection)
-- [ ] Card defs match oracle text verbatim (via MCP re-lookup; no drift)
-- [ ] Tools (TUI, replay-viewer) exhaustive matches updated if necessary (expected: no change needed; verify anyway)
-- [ ] No scope creep: Sorin reanimate rider, Force of Vigor pitch cost, Tamiyo PreventUntap (if missing) all stayed out of PB-T
-- [ ] PB-T-L01/L02/L03 LOWs logged
-- [ ] Review file written: `memory/primitives/pb-review-T.md`
-- [ ] Wip phase advanced to `review-complete`
+- [x] CR rules independently verified (601.2c, 115.1b, 115, 400.7) — verified via MCP; 115.1b is about Auras, NOT "up to N" semantics. See review finding E5 (pervasive misattribution).
+- [x] Card oracle text verified via MCP for all confirmed cards — 14 cards MCP-verified; Sorin/Marang "other" filter gaps noted as LOW (C1/C2).
+- [x] All 10 dispatch sites independently walked and confirmed UpToN-safe (especially sites 4, 6-10 that planner claims "no change required") — 9 of 10 confirmed; site 9 (loyalty activate) NOT UpToN-safe — see E6/D1.
+- [x] Hash sentinel 7→8 verified in `state/hash.rs`; assertion updates verified in all 3 test files — confirmed; stale docstrings in pbp/pbd noted as LOWs (D2/D3).
+- [x] Zero-target (M1) and partial-target (M2) tests genuinely exercise the new shape (not silent-skip pattern) — M1 confirms artifact survives; M2 confirms exactly 1 destroyed. Solid.
+- [x] Hash-schema test (M4) asserts `HASH_SCHEMA_VERSION == 8u8` AND exercises 3+ distinct UpToN variants producing distinct hashes — confirmed 3 variants + 2 neighbor-disc comparisons.
+- [x] Regression sweep: existing mandatory-target cards still resolve correctly (M6 passes, plus broader `cargo test --all` green) — M6 exercises 3 cases (0/2/1 targets); mandatory-1-target still enforced.
+- [x] Greedy-consume validator algorithm doesn't over-consume (test M7 exercises mixed mandatory+UpToN layout; test M8 exercises wrong-type rejection) — M7/M8 good; BUT reverse-order declaration is silently rejected by greedy algo (HIGH E1).
+- [x] Card defs match oracle text verbatim (via MCP re-lookup; no drift) — 14/14 match; "other" filter gaps on Sorin/Marang are LOW.
+- [x] Tools (TUI, replay-viewer) exhaustive matches updated if necessary (expected: no change needed; verify anyway) — CONFIRMED zero TargetRequirement references in tools/ and simulator/.
+- [x] No scope creep: Sorin reanimate rider, Force of Vigor pitch cost, Tamiyo PreventUntap (if missing) all stayed out of PB-T — confirmed; all retained as TODOs.
+- [x] PB-T-L01/L02/L03 LOWs logged — PB-T-L02/L03 accurate; PB-T-L01 description is factually wrong (D1 MEDIUM).
+- [x] Review file written: `memory/primitives/pb-review-T.md`
+- [x] Wip phase advanced to `review-complete`
+
+## Review verdict
+
+**needs-fix** — 1 HIGH, 5 MEDIUM, ~11 LOW. See `memory/primitives/pb-review-T.md` for findings. HIGH (E1) must be addressed before merge: greedy-consume validator rejects CR-legal target declarations when the player declares targets out of slot order. MEDIUM set: T1 test-validity (M5 doesn't test what its name claims), D1 PB-T-L01 description is factually wrong, E2/E3 latent auto-target issues for UpToN{player} and nested UpToN, E4 aspirationally-wrong doc comment, T2 no card-integration test.
