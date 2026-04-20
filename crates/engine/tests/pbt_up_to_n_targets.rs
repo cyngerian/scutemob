@@ -465,20 +465,21 @@ fn test_pbt_hash_schema_version_is_8() {
     );
 }
 
-// ── M5: Partial fizzle (one target becomes illegal) ───────────────────────────
+// ── M5: Partial target declaration resolves for declared targets ───────────────
 
-/// CR 608.2b / CR 400.7 — PB-T M5: A spell declared with fewer than max UpToN
-/// targets resolves for the declared targets without fizzling. This verifies the
-/// foundational partial-fizzle semantics (a spell with some illegal targets resolves
-/// for the remaining legal ones).
+/// CR 601.2c — PB-T M5: A spell declared with fewer than max UpToN targets
+/// (partial declaration at cast time) resolves for the declared targets without
+/// fizzling. This verifies the foundational partial-declaration semantics:
+/// declaring 1 of up-to-2 targets is legal and the declared target is affected.
 ///
 /// Setup: "Tap up to 2 permanents" cast with 1 target. The 1 declared target is tapped.
-/// The spell does not fizzle (CR 608.2b: fizzle only if ALL targets illegal).
+/// The spell does not fizzle (CR 608.2b: fizzle only if ALL targets become illegal).
 ///
-/// CR 608.2b: "Illegal targets, if any, won't be affected by parts of a resolving
-/// spell's effect for which they're illegal."
+/// Note: this test exercises partial *declaration at cast time* (player chose 1 of 2),
+/// NOT zone-change partial fizzle (one target leaves mid-stack). See M9 for the
+/// genuine zone-change partial-fizzle scenario.
 #[test]
-fn test_pbt_up_to_n_partial_fizzle_on_zone_change() {
+fn test_pbt_up_to_n_partial_target_declaration_resolves() {
     let p1 = p(1);
     let p2 = p(2);
     let p3 = p(3);
@@ -515,7 +516,7 @@ fn test_pbt_up_to_n_partial_fizzle_on_zone_change() {
     let spell_id = find_obj(&state, "Tap Up To Two");
     let bear_id = find_obj(&state, "Grizzly Bears");
 
-    // CR 601.2c / 115.1b: Declare 1 of up-to-2 targets (partial, legal).
+    // CR 601.2c: Declare 1 of up-to-2 targets (partial, legal).
     let (state, _) = process_command(
         state,
         cast_spell(p1, spell_id, vec![Target::Object(bear_id)]),
@@ -995,4 +996,317 @@ fn test_pbt_two_parallel_up_to_n_slots() {
             "O2c: creature target for two-parallel-UpToN(PW+Artifact) must be rejected"
         );
     }
+}
+
+// ── M9: Zone-change partial fizzle (CR 608.2b) ────────────────────────────────
+
+/// CR 608.2b / CR 400.7 — PB-T M9: When an UpToN spell is declared with N targets and
+/// one target becomes illegal between cast time and resolution (zone change), only the
+/// illegal target is dropped; the surviving legal target is still affected.
+///
+/// This is the genuine zone-change partial-fizzle test required by CR 608.2b:
+/// "If some targets are no longer legal when the spell tries to resolve, the illegal
+/// targets are simply ignored. Remaining legal targets are still affected."
+///
+/// Setup:
+/// - P1 has "Tap Up To Two" (UpToN{2, Creature}) in hand.
+/// - P2 has "Destroy Creature" (mandatory 1 creature target) in hand.
+/// - Creature A (P2's) and Creature B (P2's) are on the battlefield.
+///
+/// Sequence:
+/// 1. P1 casts "Tap Up To Two" targeting Creature A AND Creature B.
+/// 2. P1 passes → P2 casts "Destroy Creature" targeting Creature A (stack: [Destroy, TapTwo]).
+/// 3. All pass → Destroy resolves; Creature A → graveyard (zone change, new object CR 400.7).
+/// 4. All pass → "Tap Up To Two" resolves; A is no longer on battlefield (illegal) — dropped;
+///    Creature B is still legal — gets tapped.
+///
+/// Assert: Creature A is in graveyard; Creature B is tapped on the battlefield.
+#[test]
+fn test_pbt_up_to_n_partial_fizzle_on_zone_change() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+    let players = [p1, p2, p3, p4];
+
+    let tap_spell_def = up_to_n_tap_permanent_spell("Tap Up To Two", 2);
+    let destroy_spell_def = mandatory_target_destroy_creature_spell("Destroy Creature");
+    let registry: Arc<CardRegistry> =
+        CardRegistry::new(vec![tap_spell_def.clone(), destroy_spell_def.clone()]);
+
+    let tap_spell = ObjectSpec::card(p1, "Tap Up To Two")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(tap_spell_def.card_id.clone());
+
+    let destroy_spell = ObjectSpec::card(p2, "Destroy Creature")
+        .in_zone(ZoneId::Hand(p2))
+        .with_card_id(destroy_spell_def.card_id.clone())
+        .with_types(vec![CardType::Instant]);
+
+    let creature_a = ObjectSpec::creature(p2, "Creature A", 2, 2).in_zone(ZoneId::Battlefield);
+    let creature_b = ObjectSpec::creature(p2, "Creature B", 3, 3).in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                blue: 2,
+                ..ManaPool::default()
+            },
+        )
+        .player_mana(
+            p2,
+            ManaPool {
+                red: 1,
+                ..ManaPool::default()
+            },
+        )
+        .object(tap_spell)
+        .object(destroy_spell)
+        .object(creature_a)
+        .object(creature_b)
+        .build()
+        .expect("M9: GameStateBuilder::build must succeed");
+
+    let tap_id = find_obj(&state, "Tap Up To Two");
+    let destroy_id = find_obj(&state, "Destroy Creature");
+    let crea_a_id = find_obj(&state, "Creature A");
+    let crea_b_id = find_obj(&state, "Creature B");
+
+    // Step 1: P1 casts "Tap Up To Two" targeting BOTH Creature A and Creature B.
+    let (state, _) = process_command(
+        state,
+        cast_spell(
+            p1,
+            tap_id,
+            vec![Target::Object(crea_a_id), Target::Object(crea_b_id)],
+        ),
+    )
+    .expect("M9: P1 casts Tap Up To Two targeting 2 creatures");
+
+    // Step 2: P1 passes priority; P2 casts "Destroy Creature" targeting A in response.
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 })
+        .expect("M9: P1 passes priority after casting");
+    let (state, _) = process_command(
+        state,
+        cast_spell(p2, destroy_id, vec![Target::Object(crea_a_id)]),
+    )
+    .expect("M9: P2 casts Destroy Creature targeting Creature A");
+
+    // Step 3: All players pass priority → "Destroy Creature" resolves; Creature A dies.
+    let (state, _) = pass_all(state, &players);
+
+    // Verify Creature A is dead after Destroy resolves (zone change per CR 400.7).
+    assert!(
+        obj_in_graveyard(&state, "Creature A", p2),
+        "M9: Creature A must be in graveyard after Destroy Creature resolves"
+    );
+    assert!(
+        obj_on_battlefield(&state, "Creature B"),
+        "M9: Creature B must still be on battlefield"
+    );
+
+    // Step 4: All players pass priority → "Tap Up To Two" resolves.
+    // CR 608.2b: Creature A is no longer on battlefield → illegal target → dropped.
+    // Creature B is still legal → tapped.
+    let (state, _) = pass_all(state, &players);
+
+    // Creature A remains in the graveyard (UpToN skipped the illegal target).
+    assert!(
+        obj_in_graveyard(&state, "Creature A", p2),
+        "M9: Creature A must remain in graveyard after Tap Up To Two resolves (partial fizzle)"
+    );
+    // Creature B must be tapped (surviving legal target per CR 608.2b).
+    let creature_b_obj = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Creature B")
+        .expect("M9: Creature B must still exist on battlefield after partial fizzle");
+    assert!(
+        creature_b_obj.status.tapped,
+        "M9: surviving legal target (Creature B) must be tapped per CR 608.2b"
+    );
+}
+
+// ── M10: Out-of-slot-order declaration succeeds (E1 regression guard) ─────────
+
+/// CR 601.2c — PB-T M10: When an UpToN spell has two parallel UpToN slots
+/// `[UpToN{1, Planeswalker}, UpToN{1, Artifact}]` and the player declares targets
+/// in reverse slot order (`[artifact, planeswalker]`), the two-pass best-fit
+/// validator correctly assigns each target to its matching slot and accepts the cast.
+///
+/// This is the regression test for E1 (greedy-consume rejected out-of-order declarations).
+/// Per CR 601.2c, target declaration order is NOT required to match slot order.
+#[test]
+fn test_pbt_up_to_n_reverse_order_declaration_succeeds() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+
+    let spell_def = CardDefinition {
+        name: "Reverse Order Spell".to_string(),
+        card_id: CardId("test-reverse-order-spell".to_string()),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            black: 1,
+            ..ManaCost::default()
+        }),
+        types: TypeLine {
+            card_types: im::ordset![CardType::Instant],
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::Sequence(vec![
+                Effect::DestroyPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    cant_be_regenerated: false,
+                },
+                Effect::DestroyPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 1 },
+                    cant_be_regenerated: false,
+                },
+            ]),
+            // Slot order: [UpToN{Planeswalker}, UpToN{Artifact}]
+            targets: vec![
+                TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetPlaneswalker),
+                },
+                TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetArtifact),
+                },
+            ],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let registry: Arc<CardRegistry> = CardRegistry::new(vec![spell_def.clone()]);
+
+    let spell = ObjectSpec::card(p1, "Reverse Order Spell")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(spell_def.card_id.clone());
+
+    let artifact_obj = ObjectSpec::artifact(p2, "Gold Token").in_zone(ZoneId::Battlefield);
+    // Planeswalker: a permanent with Planeswalker card type.
+    let planeswalker_obj = ObjectSpec::card(p2, "Test Walker")
+        .in_zone(ZoneId::Battlefield)
+        .with_types(vec![CardType::Planeswalker]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                white: 1,
+                black: 1,
+                ..ManaPool::default()
+            },
+        )
+        .object(spell)
+        .object(artifact_obj)
+        .object(planeswalker_obj)
+        .build()
+        .expect("M10: GameStateBuilder::build must succeed");
+
+    let spell_id = find_obj(&state, "Reverse Order Spell");
+    let artifact_id = find_obj(&state, "Gold Token");
+    let pw_id = find_obj(&state, "Test Walker");
+
+    // CR 601.2c: declare [artifact, planeswalker] — REVERSE of slot order [PW, Artifact].
+    // Two-pass best-fit: Pass 2 assigns artifact → UpToN{Artifact} slot, PW → UpToN{PW} slot.
+    let result = process_command(
+        state,
+        cast_spell(
+            p1,
+            spell_id,
+            vec![Target::Object(artifact_id), Target::Object(pw_id)],
+        ),
+    );
+    assert!(
+        result.is_ok(),
+        "M10: reverse-order declaration [artifact, planeswalker] for [UpToN{{PW}}, UpToN{{Artifact}}] must succeed per CR 601.2c"
+    );
+}
+
+// ── O3: Card integration test (Force of Vigor) ────────────────────────────────
+
+/// CR 601.2c — PB-T O3: Integration test using the real Force of Vigor card
+/// definition from the registry. "Destroy up to two target artifacts and/or
+/// enchantments." Verifies that the real card def's UpToN targeting validates
+/// and resolves correctly with 1 of 2 targets (partial declaration).
+///
+/// This is a smoke test for PB-T card def regressions: ensures at least one real
+/// card def exercises the UpToN path end-to-end (cast → validate → resolve).
+#[test]
+fn test_pbt_force_of_vigor_card_integration() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+    let players = [p1, p2, p3, p4];
+
+    let registry: Arc<CardRegistry> =
+        CardRegistry::new(vec![mtg_engine::cards::defs::force_of_vigor::card()]);
+
+    let fov_spell = ObjectSpec::card(p1, "Force of Vigor")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("force-of-vigor".to_string()));
+
+    let artifact_a = ObjectSpec::artifact(p2, "Artifact Alpha").in_zone(ZoneId::Battlefield);
+    let artifact_b = ObjectSpec::artifact(p2, "Artifact Beta").in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 2,
+                green: 2,
+                ..ManaPool::default()
+            },
+        )
+        .object(fov_spell)
+        .object(artifact_a)
+        .object(artifact_b)
+        .build()
+        .expect("O3: GameStateBuilder::build must succeed");
+
+    let fov_id = find_obj(&state, "Force of Vigor");
+    let art_a_id = find_obj(&state, "Artifact Alpha");
+
+    // CR 601.2c: Cast Force of Vigor with 1 of up-to-2 targets (partial declaration).
+    let (state, _) = process_command(
+        state,
+        cast_spell(p1, fov_id, vec![Target::Object(art_a_id)]),
+    )
+    .expect("O3: Force of Vigor with 1 target must be accepted by UpToN{2, artifact/enchantment}");
+
+    let (state, _) = pass_all(state, &players);
+
+    // CR 608.2b: only the declared target A is destroyed; B is untouched.
+    assert!(
+        obj_in_graveyard(&state, "Artifact Alpha", p2),
+        "O3: declared target (Artifact Alpha) must be destroyed by Force of Vigor"
+    );
+    assert!(
+        obj_on_battlefield(&state, "Artifact Beta"),
+        "O3: undeclared target (Artifact Beta) must remain on battlefield"
+    );
 }

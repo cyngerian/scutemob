@@ -5272,10 +5272,17 @@ fn apply_delve_reduction(
 /// - Player: must be an active (non-eliminated) player matching the requirement
 /// - Object: must exist, pass hexproof/shroud/protection checks, and satisfy the TargetRequirement
 ///
-/// `requirements` is indexed in parallel with `targets` (requirements[i] applies to
-/// targets[i]). If there are fewer requirements than targets, extra targets are
-/// existence-only validated (no type restriction). This handles cards without
-/// definitions registered at cast time.
+/// Targets are mapped to requirement slots via a two-pass best-fit algorithm
+/// (not parallel indexing). Per CR 601.2c, the player announces targets collectively —
+/// declaration order is NOT required to match slot order. The algorithm:
+/// 1. Pass 1 (mandatory-first): assign each declared target to an unmatched mandatory
+///    slot whose requirement it satisfies, in slot order.
+/// 2. Pass 2 (UpToN): for each still-unmapped declared target, assign to the first
+///    UpToN slot that (a) still has remaining capacity and (b) satisfies inner.
+/// 3. Any unmapped declared target after both passes → reject.
+///
+/// For cards without definitions registered at cast time (empty requirements), targets
+/// receive existence-only validation (no type restriction).
 ///
 /// `source_chars` is the characteristics of the spell being cast, used for protection-from
 /// checks (CR 702.16b). Pass `None` when unavailable (protection check is skipped).
@@ -5310,7 +5317,7 @@ pub(crate) fn validate_targets_with_source(
 /// Compute (min_targets, max_targets) for a TargetRequirement list.
 ///
 /// Mandatory requirements contribute 1 to both min and max.
-/// UpToN requirements contribute 0 to min and `count` to max (CR 601.2c / 115.1b).
+/// UpToN requirements contribute 0 to min and `count` to max (CR 601.2c).
 pub(crate) fn target_count_range(requirements: &[TargetRequirement]) -> (usize, usize) {
     let mut min_total = 0usize;
     let mut max_total = 0usize;
@@ -5352,63 +5359,91 @@ fn validate_targets_inner(
         }
     }
 
-    // Build a mapping from target index → TargetRequirement using a greedy-consume algorithm.
-    // For each requirement slot:
-    //   - UpToN { count, inner }: consume up to `count` targets that match inner, greedily.
-    //   - Mandatory: consume exactly 1 target (any type accepted for the non-requirement case).
-    // This preserves the per-target requirement mapping used by validate_player/object functions.
+    // Build a mapping from target index → TargetRequirement using a two-pass best-fit
+    // algorithm. CR 601.2c: the player announces targets collectively — declaration order
+    // is NOT required to match slot order. Each target is assigned to the first compatible
+    // requirement slot with remaining capacity.
+    //
+    // Pass 1 (mandatory-first): for each declared target (in declaration order), try to
+    // assign it to an unmatched mandatory slot that accepts it. Mandatory slots each accept
+    // exactly one target.
+    // Pass 2 (UpToN): for each still-unassigned target, assign it to the first UpToN slot
+    // with remaining capacity (consumed < count) whose inner requirement accepts it.
+    // After both passes: any unassigned declared target → reject.
     let req_for_target: Vec<Option<&TargetRequirement>> = if requirements.is_empty() {
         // No requirements: each target has no requirement (existence-only validation).
         targets.iter().map(|_| None).collect()
     } else {
-        let mut mapping: Vec<Option<&TargetRequirement>> = Vec::with_capacity(targets.len());
-        let mut target_idx = 0usize;
-        for req in requirements.iter() {
-            match req {
-                TargetRequirement::UpToN { count, inner } => {
-                    // Consume up to `count` targets greedily, each validated against inner.
-                    let mut consumed = 0u32;
-                    while target_idx < targets.len() && consumed < *count {
-                        // Peek-validate: does this target satisfy inner?
-                        let satisfies = match &targets[target_idx] {
-                            Target::Player(id) => {
-                                validate_player_satisfies_requirement(*id, inner).is_ok()
-                            }
-                            Target::Object(id) => validate_object_satisfies_requirement(
-                                state, *id, inner, caster, self_id,
-                            )
-                            .is_ok(),
-                        };
-                        if satisfies {
-                            // Map this target index to the UpToN requirement (inner will be
-                            // used for validation below via the requirement arm in the loop).
-                            mapping.push(Some(req));
-                            target_idx += 1;
-                            consumed += 1;
-                        } else {
-                            break;
-                        }
-                    }
+        // target_slot[i] = index into requirements that target i is assigned to, or None.
+        let mut target_slot: Vec<Option<usize>> = vec![None; targets.len()];
+        // mandatory_matched[slot_idx] = true if a mandatory slot has been claimed.
+        let mut mandatory_matched: Vec<bool> = vec![false; requirements.len()];
+        // upto_n_consumed[slot_idx] = how many targets have been assigned to this UpToN slot.
+        let mut upto_n_consumed: Vec<u32> = vec![0u32; requirements.len()];
+
+        // Helper: does the given target satisfy the given requirement (inner for UpToN)?
+        let target_satisfies = |target: &Target, req: &TargetRequirement| -> bool {
+            match target {
+                Target::Player(id) => validate_player_satisfies_requirement(*id, req).is_ok(),
+                Target::Object(id) => {
+                    validate_object_satisfies_requirement(state, *id, req, caster, self_id).is_ok()
                 }
-                _ => {
-                    // Mandatory: consume exactly one target and map it to this requirement.
-                    if target_idx < targets.len() {
-                        mapping.push(Some(req));
-                        target_idx += 1;
+            }
+        };
+
+        // Pass 1: assign each declared target to the first unmatched mandatory slot it satisfies.
+        for (ti, target) in targets.iter().enumerate() {
+            for (si, req) in requirements.iter().enumerate() {
+                if matches!(req, TargetRequirement::UpToN { .. }) {
+                    continue; // Skip UpToN slots in pass 1.
+                }
+                if mandatory_matched[si] {
+                    continue; // Already claimed.
+                }
+                if target_satisfies(target, req) {
+                    target_slot[ti] = Some(si);
+                    mandatory_matched[si] = true;
+                    break;
+                }
+            }
+        }
+
+        // Pass 2: assign remaining unassigned targets to UpToN slots with capacity.
+        for (ti, target) in targets.iter().enumerate() {
+            if target_slot[ti].is_some() {
+                continue; // Already assigned in pass 1.
+            }
+            for (si, req) in requirements.iter().enumerate() {
+                if let TargetRequirement::UpToN { count, inner } = req {
+                    if upto_n_consumed[si] >= *count {
+                        continue; // Capacity exhausted.
+                    }
+                    if target_satisfies(target, inner.as_ref()) {
+                        target_slot[ti] = Some(si);
+                        upto_n_consumed[si] += 1;
+                        break;
                     }
                 }
             }
         }
-        // CR 601.2c: If any declared targets were not consumed by a requirement slot
-        // (mapping is shorter than targets), those targets have no legal slot — reject.
-        if mapping.len() < targets.len() {
+
+        // CR 601.2c: If any declared target has no slot assignment, reject.
+        let unassigned = target_slot.iter().filter(|s| s.is_none()).count();
+        if unassigned > 0 {
             return Err(GameStateError::InvalidTarget(format!(
-                "declared {} target(s) but only {} could be matched to a requirement slot",
+                "declared {} target(s) but {} could not be matched to a requirement slot",
                 targets.len(),
-                mapping.len()
+                unassigned
             )));
         }
-        mapping
+
+        // Build the req_for_target vec: for each target, return the requirement at its slot.
+        // For UpToN slots, return the UpToN requirement (not the inner) so that validation
+        // below uses the UpToN arm which delegates to inner correctly.
+        target_slot
+            .into_iter()
+            .map(|slot_opt| slot_opt.map(|si| &requirements[si]))
+            .collect()
     };
 
     // Now validate each target against its mapped requirement (protection, hexproof, type).
