@@ -75,6 +75,7 @@ fn check_activate_restrictions(
             continue;
         }
         let controller = restriction.controller;
+        #[allow(clippy::collapsible_match)]
         match &restriction.restriction {
             // Collector Ouphe / Stony Silence:
             // "Activated abilities of artifacts can't be activated."
@@ -5272,6 +5273,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             // CR 207.2c / CR 120.3: Enrage -- "Whenever this creature is dealt damage."
             // Non-combat damage to a creature fires SelfIsDealtDamage on that creature.
             // CR 603.2g: amount == 0 (fully prevented) does not trigger.
+            #[allow(clippy::collapsible_match)]
             GameEvent::DamageDealt { target, amount, .. } => {
                 if *amount > 0 {
                     if let CombatDamageTarget::Creature(creature_id) = target {

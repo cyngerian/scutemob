@@ -26,6 +26,7 @@ pub fn handle_key(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     }
 }
 
+#[allow(clippy::collapsible_match)]
 fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     let legal = app.legal_actions();
 
@@ -378,6 +379,7 @@ fn handle_card_detail_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<(
     Ok(())
 }
 
+#[allow(clippy::collapsible_match)]
 fn handle_zone_browser_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     // Extract current state
     let (zone, player, cards, selected, scroll_offset) = match &app.mode {

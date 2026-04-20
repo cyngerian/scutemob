@@ -5374,12 +5374,10 @@ fn validate_targets_inner(
                             Target::Player(id) => {
                                 validate_player_satisfies_requirement(*id, inner).is_ok()
                             }
-                            Target::Object(id) => {
-                                validate_object_satisfies_requirement(
-                                    state, *id, inner, caster, self_id,
-                                )
-                                .is_ok()
-                            }
+                            Target::Object(id) => validate_object_satisfies_requirement(
+                                state, *id, inner, caster, self_id,
+                            )
+                            .is_ok(),
                         };
                         if satisfies {
                             // Map this target index to the UpToN requirement (inner will be
@@ -5400,6 +5398,15 @@ fn validate_targets_inner(
                     }
                 }
             }
+        }
+        // CR 601.2c: If any declared targets were not consumed by a requirement slot
+        // (mapping is shorter than targets), those targets have no legal slot — reject.
+        if mapping.len() < targets.len() {
+            return Err(GameStateError::InvalidTarget(format!(
+                "declared {} target(s) but only {} could be matched to a requirement slot",
+                targets.len(),
+                mapping.len()
+            )));
         }
         mapping
     };
@@ -5531,9 +5538,7 @@ fn validate_player_satisfies_requirement(
         | TargetRequirement::TargetAny
         | TargetRequirement::TargetPlayerOrPlaneswalker => Ok(()),
         // CR 601.2c / 115.1b: UpToN delegates to inner requirement.
-        TargetRequirement::UpToN { inner, .. } => {
-            validate_player_satisfies_requirement(id, inner)
-        }
+        TargetRequirement::UpToN { inner, .. } => validate_player_satisfies_requirement(id, inner),
         _ => Err(GameStateError::InvalidTarget(format!(
             "player {:?} does not satisfy requirement {:?} (expected an object)",
             id, req
@@ -6967,6 +6972,7 @@ fn count_permanents_matching(
                 return false;
             }
             // Controller check.
+            #[allow(clippy::collapsible_match)]
             match controller {
                 PlayerTarget::Controller => {
                     if obj.controller != caster {

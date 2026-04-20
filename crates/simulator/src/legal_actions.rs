@@ -926,6 +926,7 @@ fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: Ob
 
         let controller = restriction.controller;
 
+        #[allow(clippy::collapsible_match)]
         match &restriction.restriction {
             GameRestriction::ArtifactAbilitiesCantBeActivated => {
                 if source_is_artifact {
@@ -969,6 +970,7 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
 
         let controller = restriction.controller;
 
+        #[allow(clippy::collapsible_match)]
         match &restriction.restriction {
             GameRestriction::MaxSpellsPerTurn { max } => {
                 let spells_cast = state

@@ -158,11 +158,7 @@ fn render_card_health(f: &mut Frame, area: Rect, app: &App) {
         Color::Cyan,
     );
 
-    let todo_pct = if authored > 0 {
-        h.has_todos * 100 / authored
-    } else {
-        0
-    };
+    let todo_pct = (h.has_todos * 100).checked_div(authored).unwrap_or(0);
 
     let lines = vec![
         bar,
