@@ -2303,6 +2303,34 @@ pub enum TargetRequirement {
     /// Bolt Bend and Untimely Malfunction mode 1. The targeting spell itself is
     /// excluded as a valid target (prevents self-targeting loops).
     TargetSpellOrAbilityWithSingleTarget,
+    /// "up to N target [inner]" (CR 601.2c).
+    ///
+    /// The player chooses how many targets to declare (0 to `count`, inclusive). Each
+    /// declared target must satisfy `inner`. Target declaration consumes 0..=count
+    /// slots in the flat `Command::CastSpell.targets` vec (or `Command::ActivateAbility.targets`).
+    /// At resolution, existing `DeclaredTarget { index }` effects see the declared-count
+    /// positions at consecutive indices; missing indices (beyond declared-count) resolve to
+    /// no-op via `resolve_effect_target_list` returning empty (CR 608.2b).
+    ///
+    /// **Declaration order**: per CR 601.2c, the player announces targets collectively —
+    /// declaration order is NOT required to match slot order. The validator uses a two-pass
+    /// best-fit algorithm to assign declared targets to requirement slots.
+    ///
+    /// **Author invariant**: `inner` MUST NOT itself be `UpToN`. Nested UpToN has no CR
+    /// meaning ("up to N target (up to M target X)" is not a real MTG phrase), and
+    /// auto-target enumeration does not recurse into nested UpToN. Use a flat single UpToN
+    /// with a larger `count` instead.
+    ///
+    /// Example: "Destroy up to two target creatures" →
+    /// `UpToN { count: 2, inner: Box::new(TargetCreature) }`.
+    ///
+    /// **Important**: a TargetRequirement slot of UpToN contributes a `count`-size range to
+    /// the total target count. Validation allows total declared targets >= sum of
+    /// non-UpToN requirements AND <= sum of non-UpToN (1 each) + sum of UpToN counts.
+    UpToN {
+        count: u32,
+        inner: Box<TargetRequirement>,
+    },
 }
 /// A filter on game objects, used for target requirements and `SearchLibrary`.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

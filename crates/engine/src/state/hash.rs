@@ -38,7 +38,9 @@
 ///   runtime TriggeredAbilityDef in enrich_spec_from_def, enabling battlefield-
 ///   side dispatch for all CR 207.2c "permanent you control enters" triggers
 ///   (Landfall, Horn of Greed, Warstorm Surge, Puresteel Paladin, etc.).
-pub const HASH_SCHEMA_VERSION: u8 = 7;
+/// - 8: PB-T (2026-04-20) — TargetRequirement::UpToN added (discriminant 17);
+///   enables "up to N target" optional-target-slot spells (CR 601.2c / 115.1b).
+pub const HASH_SCHEMA_VERSION: u8 = 8;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4235,6 +4237,12 @@ impl HashInto for TargetRequirement {
             // PB-J: TargetSpellOrAbilityWithSingleTarget -- CR 115.7a (discriminant 16)
             TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
                 16u8.hash_into(hasher);
+            }
+            // PB-T: UpToN -- CR 601.2c / 115.1b (discriminant 17)
+            TargetRequirement::UpToN { count, inner } => {
+                17u8.hash_into(hasher);
+                count.hash_into(hasher);
+                inner.hash_into(hasher);
             }
         }
     }

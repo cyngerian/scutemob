@@ -591,11 +591,11 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 /// Any two variants colliding would indicate a hash implementation bug.
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
-    // Hash sentinel is bumped to 7 (PB-L added ETBTriggerFilter.card_type_filter for
-    // battlefield-side Landfall dispatch, following PB-P's 6).
+    // Hash sentinel is bumped to 8 (PB-T added TargetRequirement::UpToN discriminant 17,
+    // following PB-L's 7 for ETBTriggerFilter.card_type_filter).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 7u8,
-        "HASH_SCHEMA_VERSION must be 7 (PB-L bump from PB-P's 6). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 8u8,
+        "HASH_SCHEMA_VERSION must be 8 (PB-T bump from PB-L's 7 for TargetRequirement::UpToN). If you bumped the sentinel, update this test."
     );
 
     let p1 = PlayerId(1);

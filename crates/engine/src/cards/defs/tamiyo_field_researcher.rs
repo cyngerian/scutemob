@@ -26,12 +26,24 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Nothing,
                 targets: vec![],
             },
-            // −2: Tap up to two nonland permanents + freeze
-            // TODO: "Up to two targets" + "don't untap" not fully expressible.
+            // −2: Tap up to two target nonland permanents. (CR 601.2c / 115.1b)
+            // They don't untap during their controller's next untap step. (CR 613.6)
+            // TODO(PB-T-L03): "Don't untap during controller's next untap step" —
+            // LayerModification::PreventUntap / EffectDuration::UntilControllersNextUntapStep
+            // not yet in DSL. Tap effect implemented; freeze rider deferred.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
-                effect: Effect::Nothing,
-                targets: vec![],
+                effect: Effect::Sequence(vec![
+                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
+                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 1 } },
+                ]),
+                targets: vec![TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                        non_land: true,
+                        ..Default::default()
+                    })),
+                }],
             },
             // −7: Draw 3 + emblem
             AbilityDefinition::LoyaltyAbility {

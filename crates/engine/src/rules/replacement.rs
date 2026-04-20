@@ -1205,6 +1205,7 @@ pub fn queue_carddef_etb_triggers(
                     data: None,
                 });
             }
+            #[allow(clippy::collapsible_match)]
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::TributeNotPaid,
                 ..

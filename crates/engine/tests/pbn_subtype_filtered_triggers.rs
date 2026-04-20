@@ -543,10 +543,11 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // so the test must be updated when the sentinel is bumped.
     // PB-P bumped the sentinel from 5 → 6 (EffectAmount::PowerOfSacrificedCreature + AdditionalCost::Sacrifice struct + StackObject field).
     // PB-L bumped the sentinel from 6 → 7 (ETBTriggerFilter.card_type_filter for Landfall dispatch).
+    // PB-T bumped the sentinel from 7 → 8 (TargetRequirement::UpToN added, CR 601.2c / 115.1b).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 7u8,
-        "HASH_SCHEMA_VERSION must be 7 (PB-L bump from PB-P's 6). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 8u8,
+        "HASH_SCHEMA_VERSION must be 8 (PB-T bump from PB-L's 7 for TargetRequirement::UpToN). If you bumped the sentinel, update this test."
     );
 }
 

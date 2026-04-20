@@ -112,6 +112,7 @@ impl Bot for HeuristicBot {
             .collect();
 
         // Sort by score descending, then random tiebreak
+        #[allow(clippy::unnecessary_sort_by)]
         scored.sort_by(|a, b| b.0.cmp(&a.0));
 
         // Among top-scored actions (same score), pick randomly

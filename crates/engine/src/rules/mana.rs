@@ -77,6 +77,7 @@ pub fn handle_tap_for_mana(
                 continue;
             }
             let controller = restriction.controller;
+            #[allow(clippy::collapsible_match)]
             match &restriction.restriction {
                 // Collector Ouphe / Stony Silence: blocks ALL activated abilities of artifacts
                 // including mana abilities (CR 605.3 + ruling).

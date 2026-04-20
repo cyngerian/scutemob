@@ -74,6 +74,7 @@ fn main_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut Ap
     Ok(())
 }
 
+#[allow(clippy::collapsible_match)]
 fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     use crossterm::event::KeyCode;
 

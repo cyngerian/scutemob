@@ -12,10 +12,10 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "If it's not your turn, you may exile a green card from your hand rather than pay this spell's mana cost.\nDestroy up to two target artifacts and/or enchantments.".to_string(),
         abilities: vec![
-            // TODO: Pitch alt cost (exile green card from hand) not in DSL.
+            // TODO: Pitch alt cost (exile green card from hand not in DSL — AltCostKind gap).
             AbilityDefinition::Spell {
-                // TODO: "up to two" targets — DSL declares fixed targets.
-                // Using two declared targets as approximation.
+                // CR 601.2c / 115.1b: "Destroy up to two target artifacts and/or enchantments."
+                // UpToN fixed; pitch-cost TODO retained separately.
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
@@ -26,16 +26,13 @@ pub fn card() -> CardDefinition {
                         cant_be_regenerated: false,
                     },
                 ]),
-                targets: vec![
-                    TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                targets: vec![TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                         has_card_types: vec![CardType::Artifact, CardType::Enchantment],
                         ..Default::default()
-                    }),
-                    TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                        has_card_types: vec![CardType::Artifact, CardType::Enchantment],
-                        ..Default::default()
-                    }),
-                ],
+                    })),
+                }],
                 modes: None,
                 cant_be_countered: false,
             },

@@ -40,8 +40,9 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
-            // destroy up to one target planeswalker and up to one target artifact."
+            // CR 510.3a / CR 601.2c / 115.1b: "Whenever equipped creature deals combat
+            // damage to a player, destroy up to one target planeswalker and up to one
+            // target artifact." Two parallel UpToN slots (different inner types).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
@@ -56,10 +57,15 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![
-                    TargetRequirement::TargetPlaneswalker,
-                    TargetRequirement::TargetArtifact,
+                    TargetRequirement::UpToN {
+                        count: 1,
+                        inner: Box::new(TargetRequirement::TargetPlaneswalker),
+                    },
+                    TargetRequirement::UpToN {
+                        count: 1,
+                        inner: Box::new(TargetRequirement::TargetArtifact),
+                    },
                 ],
-
                 modes: None,
                 trigger_zone: None,
             },

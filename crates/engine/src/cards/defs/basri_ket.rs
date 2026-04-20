@@ -24,15 +24,28 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                // +1: Put a +1/+1 counter on up to one target creature. Gains indestructible until EOT.
-                // NOTE: Indestructible grant until EOT is a continuous effect not yet fully
-                // supported as a loyalty ability DSL effect. Counter placement is implemented.
-                effect: Effect::AddCounter {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                    counter: CounterType::PlusOnePlusOne,
+                // +1: Put a +1/+1 counter on up to one target creature.
+                // It gains indestructible until end of turn. (CR 601.2c / 115.1b)
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Indestructible),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                targets: vec![TargetRequirement::UpToN {
                     count: 1,
-                },
-                targets: vec![TargetRequirement::TargetCreature],
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                }],
             },
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),

@@ -15,9 +15,40 @@ pub fn card() -> CardDefinition {
         toughness: Some(7),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: ETB trigger — return up to two other target nonland permanents to
-            // owners' hands. Bounce effect + nonland filter ARE expressible; DSL gap is
-            // "up to N" optional targeting (mandatory 2-target would fizzle with <2 targets).
+            // CR 601.2c / 115.1b: "When this creature enters, return up to two other target
+            // nonland permanents to their owners' hands." UpToN fixed.
+            // Note: "other" (exclude_self) not in TargetFilter; omitted (minor over-permissive:
+            // Regent could target itself, which is cosmetically wrong but resolved correctly by
+            // MoveZone to own hand). Tracked as LOW.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Sequence(vec![
+                    Effect::MoveZone {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        to: ZoneTarget::Hand {
+                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                        },
+                        controller_override: None,
+                    },
+                    Effect::MoveZone {
+                        target: EffectTarget::DeclaredTarget { index: 1 },
+                        to: ZoneTarget::Hand {
+                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 1 })),
+                        },
+                        controller_override: None,
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                        non_land: true,
+                        ..Default::default()
+                    })),
+                }],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }
