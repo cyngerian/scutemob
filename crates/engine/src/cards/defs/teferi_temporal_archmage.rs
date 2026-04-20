@@ -31,14 +31,19 @@ pub fn card() -> CardDefinition {
                 },
                 targets: vec![],
             },
-            // -1: Untap up to 4 permanents.
-            // TODO: "up to four" variable targets. Using one target as approximation.
+            // -1: Untap up to four target permanents. (CR 601.2c / 115.1b)
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(1),
-                effect: Effect::UntapPermanent {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                },
-                targets: vec![TargetRequirement::TargetPermanent],
+                effect: Effect::Sequence(vec![
+                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
+                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 1 } },
+                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 2 } },
+                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 3 } },
+                ]),
+                targets: vec![TargetRequirement::UpToN {
+                    count: 4,
+                    inner: Box::new(TargetRequirement::TargetPermanent),
+                }],
             },
             // -10: Emblem (instant-speed loyalty abilities).
             // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.

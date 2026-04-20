@@ -18,17 +18,22 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Ninjutsu {
                 cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
             },
-            // CR 603.1: ETB trigger — return up to one target creature to hand.
-            // "Up to one" means optional targeting; opponent may decline.
+            // CR 603.1 / CR 601.2c / 115.1b: ETB trigger — return up to one target creature
+            // to its owner's hand. "Up to one" means the target is optional.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                    },
                     controller_override: None,
                 },
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                }],
                 modes: None,
                 trigger_zone: None,
             },

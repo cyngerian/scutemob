@@ -32,7 +32,8 @@ pub fn card() -> CardDefinition {
                 },
                 targets: vec![],
             },
-            // −3: Bounce + draw
+            // −3: Return up to one target artifact, creature, or enchantment to its owner's
+            // hand. Draw a card. (CR 601.2c / 115.1b — draw happens regardless of target count)
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(3),
                 effect: Effect::Sequence(vec![
@@ -50,7 +51,17 @@ pub fn card() -> CardDefinition {
                         count: EffectAmount::Fixed(1),
                     },
                 ]),
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                        has_card_types: vec![
+                            CardType::Artifact,
+                            CardType::Creature,
+                            CardType::Enchantment,
+                        ],
+                        ..Default::default()
+                    })),
+                }],
             },
         ],
         ..Default::default()

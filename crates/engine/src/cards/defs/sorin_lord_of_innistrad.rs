@@ -51,15 +51,23 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Nothing,
                 targets: vec![],
             },
-            // −6: Destroy up to three target creatures and/or other planeswalkers. Return
-            // each to the battlefield under your control.
-            // TODO: "Destroy up to three targets" — multi-target destroy with up-to-N
-            // semantics not expressible; "return each card put into graveyard this way
-            // to battlefield under your control" — triggered rider not in DSL.
+            // −6: Destroy up to three target creatures and/or other planeswalkers. (CR 601.2c)
+            // TODO(PB-T-L02): "Return each card put into a graveyard this way to the battlefield
+            // under your control" — delayed reanimate rider not yet in DSL.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(6),
-                effect: Effect::Nothing,
-                targets: vec![],
+                effect: Effect::Sequence(vec![
+                    Effect::DestroyPermanent { target: EffectTarget::DeclaredTarget { index: 0 }, cant_be_regenerated: false },
+                    Effect::DestroyPermanent { target: EffectTarget::DeclaredTarget { index: 1 }, cant_be_regenerated: false },
+                    Effect::DestroyPermanent { target: EffectTarget::DeclaredTarget { index: 2 }, cant_be_regenerated: false },
+                ]),
+                targets: vec![TargetRequirement::UpToN {
+                    count: 3,
+                    inner: Box::new(TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                        has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                        ..Default::default()
+                    })),
+                }],
             },
         ],
         ..Default::default()

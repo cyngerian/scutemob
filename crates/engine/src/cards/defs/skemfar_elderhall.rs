@@ -69,11 +69,15 @@ pub fn card() -> CardDefinition {
                         },
                     },
                 ]),
+                // CR 601.2c / 115.1b: "Up to one target creature you don't control"
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
-                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::Opponent,
-                    ..Default::default()
-                })],
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::Opponent,
+                        ..Default::default()
+                    })),
+                }],
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,

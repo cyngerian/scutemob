@@ -20,8 +20,8 @@ pub fn card() -> CardDefinition {
         power: Some(7),
         toughness: Some(6),
         abilities: vec![
-            // CR 603.1: ETB trigger — fight up to one target creature you don't control.
-            // "up to one" means the target is optional (can choose 0 targets).
+            // CR 603.1 / CR 601.2c / 115.1b: ETB trigger — fight up to one target creature
+            // you don't control. "Up to one" means the target is optional (0 targets = no fight).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Fight {
@@ -29,11 +29,13 @@ pub fn card() -> CardDefinition {
                     defender: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::Opponent,
-                    ..Default::default()
-                })],
-
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::Opponent,
+                        ..Default::default()
+                    })),
+                }],
                 modes: None,
                 trigger_zone: None,
             },

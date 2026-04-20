@@ -27,20 +27,34 @@ pub fn card() -> CardDefinition {
             // (requires a continuous effect that adds a mana ability to Elf creatures).
             // This is a known DSL gap.
 
-            // +1: Put a +1/+1 counter on up to one target Elf. Untap it. Gains deathtouch until EOT.
-            // TODO: Untap target and grant deathtouch until EOT are additional effects
-            // beyond AddCounter. Partial implementation: counter placement only.
+            // +1: Put a +1/+1 counter on up to one target Elf. Untap it.
+            // It gains deathtouch until end of turn. (CR 601.2c / 115.1b)
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::AddCounter {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                    counter: CounterType::PlusOnePlusOne,
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                targets: vec![TargetRequirement::UpToN {
                     count: 1,
-                },
-                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    has_subtype: Some(SubType("Elf".to_string())),
-                    ..Default::default()
-                })],
+                    inner: Box::new(TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        has_subtype: Some(SubType("Elf".to_string())),
+                        ..Default::default()
+                    })),
+                }],
             },
             // 0: Create a 1/1 green Elf Warrior creature token.
             AbilityDefinition::LoyaltyAbility {

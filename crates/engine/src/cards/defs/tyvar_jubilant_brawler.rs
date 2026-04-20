@@ -21,11 +21,12 @@ pub fn card() -> CardDefinition {
             // DSL gap: no ActivateAsIfHaste static continuous effect.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                // +1: Untap up to one target creature.
-                // TODO: "up to one" targeting is optional — needs TargetRequirement::UpToOne variant.
-                // For now, uses a simple untap effect with no target.
-                effect: Effect::Sequence(vec![]),
-                targets: vec![],
+                // +1: Untap up to one target creature. (CR 601.2c / 115.1b)
+                effect: Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                }],
             },
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
