@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + PB-N (2026-04-13)
+# Rules Gotchas — Last verified: M9.5 + PB-T (2026-04-20)
 
 ## MTG Rules Gotchas
 
@@ -43,6 +43,13 @@
   must have an explicit arm for `AuraFellOff` — the `CreatureDied` arm does NOT cover it.
   Missing this arm causes WhenDies triggers on Auras (e.g., Rancor's return-to-hand trigger)
   to silently never fire.
+- **Multi-target validators cannot greedily match slots in declaration order (CR 601.2c).**
+  "Up to N target X" and any `Vec<TargetRequirement>` validator must accept a legal target
+  in *any* declared slot, not just the first one it syntactically fits. The correct shape is
+  two-pass best-fit: pass 1 collects candidates per slot, pass 2 does a bipartite match.
+  Greedy-consume-in-order wrongly rejects CR-legal declarations (e.g., player picks target A
+  for slot 2 and skips slot 1 — a greedy validator sees slot 1 as "no target, fail" before
+  it reaches slot 2). Discovered during PB-T review; fixed in `casting.rs` validator.
 - **Enchant is enforced at TWO checkpoints (CR 702.5b, 303.4a, 303.4c, 303.4d, 704.5m):**
   (1) **Cast-time** (`casting.rs`): the named target must already be on the battlefield AND
   match the `EnchantTarget` type. (2) **SBA** (`sba.rs`): if the Aura's target is no longer

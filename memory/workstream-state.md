@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | **W3 LOW sprint DONE** (S1-S6): 83→29 open (119 closed total). TC-21 done. 2233 tests. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-P + PB-L merged 2026-04-19 via ESM chain-dispatch. 2673 tests. Workstream coordination ESM-managed; this file kept for history. |
+| W6: Primitive + Card Authoring | — | available | — | PB-T merged 2026-04-20. 2686 tests. W6 old-queue exhausted. Workstream coordination ESM-managed; this file kept for history. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,31 +23,36 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-19 ~20:45 EDT (chain-dispatch session — PB-P + PB-L shipped sequentially via ESM)
+**Date**: 2026-04-20 ~01:10–03:10 EDT (PB-T single-worker dispatch)
 **Workstream**: W6: Primitive + Card Authoring (ESM-managed)
-**Task**: push prior commits; chain-dispatch PB-P → collect → PB-L → collect
+**Task**: re-triage W6 backlog → /dispatch PB-T → /collect → update CLAUDE.md
 
 **Completed**:
-- **Push** (`52e2c9dc..872ea5d2`): 11 commits pushed to `origin/main` in two pushes (one pre-dispatch, one post-PB-L).
-- **PB-P shipped** (`scutemob-3`, merged `8ba9c5b7`, fast-forward): new `EffectAmount::PowerOfSacrificedCreature` + reshape `AdditionalCost::Sacrifice(Vec<ObjectId>)` → `{ ids, lki_powers }` for CR 608.2b LKI capture-by-value. 23 existing test files touched mechanically. 3 card defs: altar_of_dementia, greater_good, lifes_legacy. 8 mandatory + 3 optional tests in `pbp_power_of_sacrificed_creature.rs` (1168 LOC). HASH_SCHEMA_VERSION 5→6. Review PASS-WITH-NOTES (0 HIGH/MEDIUM, 5 LOW). Wall clock ~92 min (planner + runner + reviewer, all Opus-backed agents).
-- **PB-L shipped** (`scutemob-4`, merged `872ea5d2`, fast-forward): Step 0 verdict reversed mid-task — first pass said "EXISTS, collapse to stale-TODO sweep," but writing tests surfaced a real dispatch gap in `enrich_spec_from_def` (no battlefield-conversion block for `WheneverPermanentEntersBattlefield`). Minimal engine primitive added: `ETBTriggerFilter.card_type_filter: Option<CardType>` + new conversion block in `replay_harness.rs:2396-2488` parallel to the Alliance block. No new `TriggerCondition` variant (Landfall is an ability word, CR 207.2c). HASH_SCHEMA_VERSION 6→7. 3 card defs authored (khalni_heart_expedition, druid_class, omnath_locus_of_rage) + 5 TODO rewrites on compound-blocked cards. 9 tests in `pb_l_landfall.rs` (528 LOC). Memo at `memory/primitives/pb-note-L-collapsed.md` documents both passes transparently. Wall clock ~37 min (no planner/runner/reviewer chain; card-fix-applicator agent + inline engine work).
-- **Chain-dispatch pattern validated**: single coordinator-driven sequence of two `/dispatch` cycles, each followed by background poll + `/collect`, no user intervention mid-chain. ESM outage mid-session was absorbed by user pausing.
+- **W6 re-triage** (pre-dispatch): old queue (PB-R/Q3/U/V/W/Y/Q2/Q5) verified 0-1 live TODOs each; new-rank candidates identified (Cost::SacrificeFilteredType rank 3 ~12 live, EffectAmount::CounterCount rank 6 ~10 live). PB-T picked for dispatch per user selection.
+- **PB-T shipped** (`scutemob-5`, merged `2d447e93`, --no-ff): new `TargetRequirement::UpToN { count, inner }` per CR 601.2c. Two-pass best-fit validator handles out-of-slot-order legal targets (CR 601.2c requires accepting legal target in any declared slot). Auto-target routing for `UpToN{Player}` + nested `UpToN`. HASH_SCHEMA_VERSION 7→8. 22-card oracle sweep → 14 CONFIRMED (64% yield, above filter-PB 50-65% midpoint — re-calibration data point). 14 card defs unblocked: elder_deep_fiend, force_of_vigor, marang_river_regent, sorin_lord_of_innistrad, basri_ket, tamiyo_field_researcher, teferi_temporal_archmage, tyvar_jubilant_brawler, tyvar_kell, teferi_time_raveler, kogla_the_titan_ape, moonsnare_specialist, skemfar_elderhall, sword_of_sinew_and_steel. 13 tests in `pbt_up_to_n_targets.rs` (M1 zero-target, M2 partial 1-of-2, M3-M10, O1-O3). Review cycle: needs-fix (1 HIGH E1 greedy-consume validator + 5 MEDIUM) → fix → re-review PASS. 11 new non-blocking LOWs filed. Tests 2673→2686. Wall clock ~113 min (planner + runner + reviewer + fix-runner + re-reviewer).
+- **CLAUDE.md updated** (`160200c9`): test count 2673→2686, PB-T added to DONE list, LOW count 47→58, Last Updated 2026-04-20.
 
 **Not done / deferred**:
-- `marisi_breaker_of_the_coil.rs` stale-TODO LOW (carried forward from PB-D review).
-- Retire `memory/workstream-state.md` `/start-work` sections in CLAUDE.md (ESM-managed now; file kept for history).
+- `marisi_breaker_of_the_coil.rs` stale-TODO LOW (carried forward from PB-D review, still open).
+- 11 PB-T LOWs logged; none blocking.
+- 9 commits ahead of `origin/main` (`a21ec971..160200c9`) — unpushed.
 
 **Next session**:
-- Queue is thin. Old-queue demoted PBs (PB-R, PB-Q3, PB-T, PB-U, PB-V, PB-W, PB-Y, PB-Q2/Q5) remain opportunistic. Re-triage the W6 backlog or pivot to LOW cleanup (~47 open).
+- **Two candidates**: (a) LOW cleanup sprint (~58 open, `W3:` prefix) or (b) re-triage to spin up PB-SFT (Cost::SacrificeFilteredType, rank 3, ~12 live TODOs, no queue entry yet).
+- Push first (`git push`) to sync origin.
 
 **Hazards**:
-- **Worker-worktree `.claude/skills/` deletion artifact**: PB-P worktree showed all `.claude/skills/*/SKILL.md` as uncommitted `D` entries before merge. Tree hashes on both main and HEAD matched; deletions were working-copy-only and `esm worktree merge` correctly discarded them. **Always use `git diff main..HEAD --stat` (branch vs branch), not `git diff main --stat` (working-tree vs branch), when pre-merge-checking a worker's scope.** Cosmetic but easy to misread as scope creep.
-- **Test count drift during cost-shape reshapes**: PB-P touched 23 existing test files mechanically (old `AdditionalCost::Sacrifice(vec![id])` → struct form). Always audit such mass changes against scope-creep but expect mechanical touch-ups to dominate.
-- **BASELINE-LKI-01**, **BASELINE-CLIPPY-01..06**, **PB-Q4-M01**, **PB-S residuals L02-L06**: all carried forward.
+- **Worker-worktree `.claude/skills/` deletion artifact (still relevant)**: `esm worktree create` (esm-cli:565-577) intentionally `rmtree`s worker's `.claude/skills/` and replaces with review-only set from `$ESM/client/worker-skills/`. Workers will correctly report these as pre-existing `D` entries in `git status`. Main branch untouched. **Pre-merge scope check: use `git diff main..HEAD --stat`, not `git diff main --stat`.**
+- **Validator greedy-consume bug class**: PB-T's E1 finding (first-pass validator rejected CR-legal out-of-slot-order targets) suggests any Vec-of-target validator can have this failure mode. Two-pass best-fit pattern (collect candidates per slot → bipartite match) is the fix. Watch for this in future target-validation work.
+- **BASELINE-LKI-01**, **BASELINE-CLIPPY-01..06**, **PB-Q4-M01**, **PB-S residuals L02-L06**, **PB-D marisi stale-TODO**: all carried forward.
 
-**Commit prefix used**: worker-agent-generated (`scutemob-3:` / `scutemob-4:`) as the emerging ESM convention. No coordinator commits this session — all work landed inside dispatched tasks.
+**Commit prefix used**: worker-agent-generated (`scutemob-5:` / `task scutemob-5:`) + coordinator `chore:` for CLAUDE.md bump. No W6-prim/cards prefixes this session — ESM convention dominant.
 
 ## Handoff History
+
+### 2026-04-19 (chain-dispatch session) — W6: PB-P + PB-L shipped sequentially via ESM
+
+- **Push** (`52e2c9dc..872ea5d2`): 11 commits pushed to `origin/main` in two pushes. **PB-P shipped** (`scutemob-3`, merged `8ba9c5b7`): `EffectAmount::PowerOfSacrificedCreature` + `AdditionalCost::Sacrifice` reshape to `{ ids, lki_powers }` for CR 608.2b LKI capture-by-value. 3 cards (altar_of_dementia, greater_good, lifes_legacy). HASH 5→6. Review PASS-WITH-NOTES (5 LOW). **PB-L shipped** (`scutemob-4`, merged `872ea5d2`): Step 0 verdict reversed mid-task (EXISTS → PARTIAL-GAP). No new `TriggerCondition` variant (Landfall = ability word CR 207.2c). Minimal primitive: `ETBTriggerFilter.card_type_filter` + battlefield conversion block in `replay_harness.rs`. 3 cards + 5 TODO rewrites. HASH 6→7. Memo `memory/primitives/pb-note-L-collapsed.md`. **Chain-dispatch pattern validated**: single coordinator ran two `/dispatch` → poll → `/collect` cycles, no user intervention mid-chain. Tests 2655→2673.
 
 ### 2026-04-19 (A/B session) — W6: ESM install, PB-D A/B, dispatch skill hardening
 
@@ -64,13 +69,5 @@
 ### 2026-04-12 (third session) — W6: PB-Q4 full pipeline
 
 - PB-Q4 plan (Opus) + implement (`9c347754`) + review (0 HIGH / 1 MEDIUM / 3 LOW) + fix (`0dd7288a`). New `EnchantFilter` struct (resolves circular dep vs plan's `Box<TargetFilter>`), `EnchantControllerConstraint` enum. 4 cards: Awaken the Ancient, Chained to the Rocks, Ossification, Dimensional Exile. Tests 2625 → 2639. Genju cycle + Corrupted Roots/Spreading Algae deferred — missing trigger types. PB-Q4-M01 + L01 logged.
-
-### 2026-04-12 (second session) — W6: PB-Q close + PB-Q4 yield audit
-- PB-Q close (`464d9e79`): deleted gauntlet_of_power.rs + utopia_sprawl.rs, reverted throne_of_eldraine.rs. Removed parked-only engine variants (`ReplacementManaSourceFilter::{BasicLand, EnchantedLand}`, `EffectFilter::AllCreaturesOfChosenColor`). 2627→2625. Fixed CR citation LOWs.
-- Reviewer agent hardened: added oracle-vs-filter semantic gate as step 3 in `.claude/agents/primitive-impl-reviewer.md` (5th appearance of verify-existence-not-completeness failure mode).
-- Reservations written: PB-Q2/Q3/Q4/Q5 in `docs/primitive-card-plan.md` Phase 1.7 + `docs/project-status.md`.
-- Auto-memory: `feedback_pb_yield_calibration.md` — PB planners overcount in-scope cards by 2-3x; discount 40-50%.
-- PB-Q4 yield audit (SQLite, not grep): direct LandSubtype yield 10 cards; bundled scope ~20 cards. Verdict: PB-Q4 #1 priority.
-- Three verification gates queued for next session (Genju animate-land make-or-break; Chained controller filter; Corrupted Roots disjunction).
 
 
