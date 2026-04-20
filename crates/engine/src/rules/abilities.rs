@@ -6454,6 +6454,49 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                 target: Target::Object(*id),
                                 zone_at_cast: Some(obj.zone),
                             }),
+                        // UpToN: auto-target is optional (contribute 0 targets by returning None).
+                        // If inner is a player-targeting requirement, route to player-picker so
+                        // that UpToN{inner=TargetPlayer} finds players rather than battlefield
+                        // objects (E2 fix — CR 601.2c; player-target lookup is independent of
+                        // battlefield scan). For permanent-inner UpToN, None is correct:
+                        // triggers with optional targeting auto-target 0 (skip optional slots).
+                        TargetRequirement::UpToN { inner, .. } => {
+                            match inner.as_ref() {
+                                TargetRequirement::TargetPlayer
+                                | TargetRequirement::TargetCreatureOrPlayer
+                                | TargetRequirement::TargetAny
+                                | TargetRequirement::TargetPlayerOrPlaneswalker => {
+                                    // Route to player-picker for player-inner UpToN.
+                                    let pid = state
+                                        .turn
+                                        .turn_order
+                                        .iter()
+                                        .find(|&&p| {
+                                            p != trigger.controller
+                                                && state
+                                                    .players
+                                                    .get(&p)
+                                                    .map(|pl| !pl.has_lost && !pl.has_conceded)
+                                                    .unwrap_or(false)
+                                        })
+                                        .copied()
+                                        .or_else(|| {
+                                            state
+                                                .players
+                                                .get(&trigger.controller)
+                                                .filter(|pl| !pl.has_lost && !pl.has_conceded)
+                                                .map(|_| trigger.controller)
+                                        });
+                                    pid.map(|p| SpellTarget {
+                                        target: Target::Player(p),
+                                        zone_at_cast: None,
+                                    })
+                                }
+                                // For permanent-inner UpToN, skip (contribute 0 targets).
+                                // Triggers with optional targeting auto-select 0 for UpToN slots.
+                                _ => None,
+                            }
+                        }
                         // Battlefield object targets: scan battlefield objects.
                         _ => {
                             let src_chars_ref = source_chars.as_ref();
