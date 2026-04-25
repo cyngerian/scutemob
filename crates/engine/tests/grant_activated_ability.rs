@@ -823,11 +823,11 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
 
 // ---------------------------------------------------------------------------
 // Test 12: Humility (earlier timestamp) then Cryptolith Rite grant (later timestamp)
-//          → grant survives (CR 613.1f / 613.3)
+//          → grant survives (CR 613.1f / 613.7)
 // PB-S-L06
 // ---------------------------------------------------------------------------
 
-/// CR 613.1f + CR 613.3: Layer 6 effects apply in timestamp order. When Humility
+/// CR 613.1f + CR 613.7: Layer 6 effects apply in timestamp order (earlier first). When Humility
 /// (RemoveAllAbilities, timestamp 10) has an EARLIER timestamp than Cryptolith Rite's
 /// grant (AddManaAbility, timestamp 20), the effects resolve in that order within Layer 6:
 ///
@@ -862,14 +862,14 @@ fn test_humility_before_grant_preserves_grant() {
 
     let chars = calculate_characteristics(&state, bear_id).unwrap();
 
-    // CR 613.3 timestamp ordering in Layer 6:
+    // CR 613.7 timestamp ordering in Layer 6:
     // Humility (ts=10) runs first → strips printed abilities.
     // Rite grant (ts=20) runs after → adds the tap-for-any-color ability on top.
     // Net result: the grant is present on the creature.
     assert!(
         !chars.mana_abilities.is_empty(),
         "Cryptolith Rite grant (later timestamp) should survive Humility (earlier timestamp) \
-         in Layer 6 timestamp ordering (CR 613.3)"
+         in Layer 6 timestamp ordering (CR 613.7)"
     );
     assert!(
         chars.mana_abilities.iter().any(|a| a.any_color),

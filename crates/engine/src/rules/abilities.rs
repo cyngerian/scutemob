@@ -542,8 +542,8 @@ pub fn handle_activate_ability(
         // returns None — correct by definition (granted abilities have no card-def-specific
         // cost reductions). A debug_assert is not feasible here because the native range is
         // determined by both AbilityDefinition::Activated entries AND ObjectSpec-level
-        // with_activated_ability() entries, which cannot be distinguished from the card def alone
-        // (channel lands use the ObjectSpec path, not AbilityDefinition::Activated).
+        // with_activated_ability() entries (the latter is used by some token specs and tests),
+        // which cannot be distinguished from the card def alone.
         // Refactoring to a stable ability identifier is deferred until a card def collides
         // (see get_self_activated_reduction doc comment for details).
         if let Some(card_id) = state.objects.get(&source).and_then(|o| o.card_id.clone()) {
@@ -8261,9 +8261,9 @@ fn get_scavenge_cost(
 ///
 /// A runtime debug_assert is not feasible to verify this invariant: the native ability count
 /// includes both `AbilityDefinition::Activated` entries in `card_def.abilities` AND
-/// `ObjectSpec::with_activated_ability()` entries on the game object directly. Channel lands
-/// (Boseiju, Otawara, etc.) use the ObjectSpec path, so `card_def.abilities` alone does not
-/// reflect the full native count.
+/// `ObjectSpec::with_activated_ability()` entries installed at object-creation time (used by
+/// some token specs and tests), so `card_def.abilities` alone does not reflect the full
+/// native count.
 ///
 /// Deferred: if a future card def adds an `activated_ability_cost_reductions` entry at an
 /// index that collides with a Layer 6 grant's index, refactor to use a stable ability
