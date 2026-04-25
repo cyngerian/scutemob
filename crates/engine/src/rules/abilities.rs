@@ -588,8 +588,19 @@ pub fn handle_activate_ability(
     if ability_cost.sacrifice_self {
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(source)?;
+            // CR 613.1f + CR 603.10a + CR 613.1e: Use layer-resolved card types to determine
+            // whether the sacrificed permanent is a creature at the time of sacrifice. A
+            // permanent can become a creature via Layer 4 type-change effects (e.g. "animate"
+            // enchantments). Reading base obj.characteristics.card_types would return the
+            // printed type, causing an animated artifact dying via sacrifice-self to emit
+            // PermanentDestroyed instead of CreatureDied — "whenever a creature dies" triggers
+            // would fail to fire. unwrap_or_else fallback handles graveyard/exile objects
+            // (LKI path) where calculate_characteristics may return None.
+            let resolved_types =
+                crate::rules::layers::calculate_characteristics(state, source)
+                    .unwrap_or_else(|| obj.characteristics.clone());
             (
-                obj.characteristics
+                resolved_types
                     .card_types
                     .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
@@ -710,8 +721,16 @@ pub fn handle_activate_ability(
         // Sacrifice the permanent (move to graveyard).
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(sac_id)?;
+            // CR 613.1f + CR 603.10a + CR 613.1e: Use layer-resolved card types for the
+            // sacrificed permanent. Same reasoning as the sacrifice_self path above: a
+            // permanent animated into a creature via Layer 4 must emit CreatureDied when
+            // it is sacrificed as a cost, so "whenever a creature dies" triggers fire.
+            // unwrap_or_else fallback handles LKI path (object not on battlefield).
+            let resolved_types =
+                crate::rules::layers::calculate_characteristics(state, sac_id)
+                    .unwrap_or_else(|| obj.characteristics.clone());
             (
-                obj.characteristics
+                resolved_types
                     .card_types
                     .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
