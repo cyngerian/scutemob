@@ -158,8 +158,19 @@ pub fn handle_activate_ability(
     // or in graveyard for graveyard-activated abilities like Reassembling Skeleton).
     {
         let obj = state.object(source)?;
-        let (is_channel, activation_zone) = obj
-            .characteristics
+        // CR 702.34 + CR 613.1f: Use layer-resolved activated abilities to determine whether
+        // the ability at `ability_index` is a Channel/graveyard-zone ability. Base
+        // characteristics only expose natively printed abilities; Layer 6 grants
+        // (LayerModification::AddActivatedAbility) append past the native range.
+        // For current grants none are Channel/graveyard-zone, so this is correct-by-accident
+        // with base reads today — but reading from calculate_characteristics ensures the
+        // dispatch is correct for future "grant a Channel ability" or "grant a
+        // graveyard-activated ability" patterns. unwrap_or_else falls back to base
+        // characteristics for objects not on the battlefield (LKI path).
+        let resolved_ab_chars =
+            crate::rules::layers::calculate_characteristics(state, source)
+                .unwrap_or_else(|| obj.characteristics.clone());
+        let (is_channel, activation_zone) = resolved_ab_chars
             .activated_abilities
             .get(ability_index)
             .map(|ab| (ab.cost.discard_self, ab.activation_zone.clone()))
