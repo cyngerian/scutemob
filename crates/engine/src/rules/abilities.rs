@@ -534,9 +534,46 @@ pub fn handle_activate_ability(
         // CR 602.2b + 601.2f: Apply self-activated-cost-reduction from CardDefinition.
         // Uses index-keyed `activated_ability_cost_reductions` field (alternative design to
         // avoid adding a field to AbilityDefinition::Activated which has 400+ match sites).
+        //
+        // CR 601.2f + CR 613.1f — PB-S-L05 invariant (option b, deferred refactor):
+        // Granted activated abilities (Layer 6 LayerModification::AddActivatedAbility) are
+        // appended to the ability list PAST the native printed range. For a native card def with
+        // N printed activated_abilities, indices 0..N-1 are native; any index >= N is a grant.
+        // `activated_ability_cost_reductions` is keyed by the NATIVE index (printed in the def),
+        // so `get_self_activated_reduction` for a granted-ability index (>= N) will always
+        // return None — correct by definition (granted abilities don't have card-def-specific
+        // cost reductions). Refactoring to a stable ability identifier is deferred until a
+        // card def author adds a cost reduction that collides with a granted ability index.
         if let Some(card_id) = state.objects.get(&source).and_then(|o| o.card_id.clone()) {
             if let Some(card_def) = state.card_registry.get(card_id) {
-                let amount = get_self_activated_reduction(card_def, ability_index)
+                let reduction_opt = get_self_activated_reduction(card_def, ability_index);
+                // CR 601.2f + CR 613.1f: PB-S-L05 debug_assert: if a cost reduction was found
+                // for this index, the index must be in the native printed range (not a grant).
+                // `card_def.abilities` lists AbilityDefinition entries in oracle order; the
+                // native activated-ability count is the number of AbilityDefinition::Activated
+                // variants. Layer 6 grants append past that count.
+                // If this fires, a card def has added a cost reduction at an index that could
+                // collide with a Layer 6 grant — refactor to stable identifier before shipping.
+                #[cfg(debug_assertions)]
+                let native_activated_count = card_def
+                    .abilities
+                    .iter()
+                    .filter(|a| {
+                        matches!(
+                            a,
+                            crate::cards::card_definition::AbilityDefinition::Activated { .. }
+                        )
+                    })
+                    .count();
+                debug_assert!(
+                    reduction_opt.is_none() || ability_index < native_activated_count,
+                    "PB-S-L05: cost reduction found at ability_index={ability_index} which is \
+                     outside the native printed range (native_activated_count={native_activated_count}); \
+                     this index may alias a Layer 6 granted ability. Refactor \
+                     get_self_activated_reduction to use a stable identifier \
+                     (CR 601.2f + CR 613.1f).",
+                );
+                let amount = reduction_opt
                     .map(|r| evaluate_self_activated_reduction(state, player, &r))
                     .unwrap_or(0);
                 if amount > 0 {
@@ -8241,6 +8278,19 @@ fn get_scavenge_cost(
 /// Channel lands: mana tap abilities go into `mana_abilities`, not `activated_abilities`,
 /// so the channel ability at activated_ability index 0 maps to the first (and only) entry
 /// with key 0 in `activated_ability_cost_reductions`.
+///
+/// # PB-S-L05 invariant (CR 601.2f + CR 613.1f)
+///
+/// This function is keyed by the NATIVE printed ability index. Layer 6 grants
+/// (`LayerModification::AddActivatedAbility`) append abilities past the native range, so
+/// any `ability_index >= card_def.activated_abilities.len()` corresponds to a granted
+/// ability for which no native cost reduction applies — this function correctly returns
+/// `None` for those indices. A `debug_assert!` at the callsite enforces this invariant.
+///
+/// Deferred: if a future card def adds an `activated_ability_cost_reductions` entry at an
+/// index that collides with a granted ability's index, refactor to use a stable ability
+/// identifier instead of a numeric index (see `docs/mtg-engine-low-issues-remediation.md`
+/// PB-S-L05). The `debug_assert!` at the callsite will fire to catch this case.
 fn get_self_activated_reduction(
     card_def: &crate::cards::card_definition::CardDefinition,
     ability_index: usize,
