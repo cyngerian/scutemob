@@ -26,11 +26,7 @@ fn cid(s: &str) -> CardId {
 /// Pass priority until the step or turn advances (handles variable player counts).
 fn pass_until_advance(mut state: GameState) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    loop {
-        let holder = match state.turn.priority_holder {
-            Some(h) => h,
-            None => break,
-        };
+    while let Some(holder) = state.turn.priority_holder {
         let (new_state, events) = process_command(state, Command::PassPriority { player: holder })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", holder, e));
         let advanced = events.iter().any(|e| {

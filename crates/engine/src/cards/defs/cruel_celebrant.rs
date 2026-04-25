@@ -22,8 +22,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::DrainLife {
                     amount: EffectAmount::Fixed(1),
                 },

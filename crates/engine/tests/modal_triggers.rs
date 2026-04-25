@@ -11,12 +11,8 @@
 //! - PB-35: modes field on AbilityDefinition::Triggered enables modal dispatch.
 
 use mtg_engine::cards::card_definition::{AbilityDefinition, TriggerCondition};
-use mtg_engine::{all_cards, CardDefinition, ModeSelection, PlayerId};
+use mtg_engine::{all_cards, CardDefinition};
 use std::collections::HashMap;
-
-fn p(n: u64) -> PlayerId {
-    PlayerId(n)
-}
 
 /// CR 700.2b: Modal triggered ability structure check (Retreat to Kazandu).
 /// Verifies the card def has modes: Some(ModeSelection) with correct structure.

@@ -423,8 +423,10 @@ fn test_multiple_emblems_stack() {
     // Manually add a second emblem to simulate a second -6 on a later turn.
     // This tests that two emblems coexist correctly (CR 113.2c).
     use mtg_engine::state::game_object::{Characteristics, Designations, ObjectStatus};
-    let mut second_chars = Characteristics::default();
-    second_chars.triggered_abilities = vec![draw_trigger];
+    let second_chars = Characteristics {
+        triggered_abilities: vec![draw_trigger],
+        ..Characteristics::default()
+    };
 
     let second_emblem = mtg_engine::state::game_object::GameObject {
         id: mtg_engine::ObjectId(0), // replaced by add_object

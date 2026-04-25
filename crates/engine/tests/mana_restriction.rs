@@ -4,7 +4,7 @@
 //! chosen_creature_type on GameObject, ChooseCreatureType effect.
 
 use mtg_engine::cards::card_definition::{
-    AbilityDefinition, CardDefinition, Cost, Effect, ManaRestriction, PlayerTarget, TypeLine,
+    AbilityDefinition, CardDefinition, Effect, ManaRestriction, PlayerTarget, TypeLine,
 };
 use mtg_engine::rules::{process_command, Command};
 use mtg_engine::state::game_object::ManaCost;

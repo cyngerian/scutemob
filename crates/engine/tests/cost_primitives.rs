@@ -7,7 +7,7 @@ use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     enrich_spec_from_def, process_command, AdditionalCost, CardDefinition, CardId, CardRegistry,
     Command, CounterType, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaColor,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, SpellAdditionalCost, Step, SubType, ZoneId,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, SpellAdditionalCost, Step, ZoneId,
 };
 use std::collections::HashMap;
 

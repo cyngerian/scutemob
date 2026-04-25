@@ -367,13 +367,16 @@ proptest! {
     #[test]
     fn prop_mp_01_mana_pool_components_nonneg(num_passes in 1usize..100) {
         let state = pass_n(num_passes);
+        // u32 is non-negative by type; this test now bounds against a sane upper limit
+        // to catch overflow / corruption (no realistic mana pool exceeds 1M).
+        const SANE_MAX: u32 = 1_000_000;
         for (_, player) in state.players.iter() {
-            prop_assert!(player.mana_pool.white    <= u32::MAX);
-            prop_assert!(player.mana_pool.blue     <= u32::MAX);
-            prop_assert!(player.mana_pool.black    <= u32::MAX);
-            prop_assert!(player.mana_pool.red      <= u32::MAX);
-            prop_assert!(player.mana_pool.green    <= u32::MAX);
-            prop_assert!(player.mana_pool.colorless <= u32::MAX);
+            prop_assert!(player.mana_pool.white    <= SANE_MAX);
+            prop_assert!(player.mana_pool.blue     <= SANE_MAX);
+            prop_assert!(player.mana_pool.black    <= SANE_MAX);
+            prop_assert!(player.mana_pool.red      <= SANE_MAX);
+            prop_assert!(player.mana_pool.green    <= SANE_MAX);
+            prop_assert!(player.mana_pool.colorless <= SANE_MAX);
         }
     }
 
@@ -805,7 +808,7 @@ proptest! {
     fn prop_pp_02_always_active_player_or_game_over(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
         let active = state.active_players();
-        prop_assert!(active.len() >= 1 || state.turn.priority_holder.is_none(),
+        prop_assert!(!active.is_empty() || state.turn.priority_holder.is_none(),
             "no active players and game not ended");
     }
 

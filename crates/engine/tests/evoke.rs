@@ -501,7 +501,7 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
     // The sacrifice trigger was pushed first (during flush_pending_triggers);
     // the draw trigger is also from the same flush. Two triggers total.
     assert!(
-        state.stack_objects.len() >= 1,
+        !state.stack_objects.is_empty(),
         "CR 702.74a: at least the evoke sacrifice trigger should be on the stack after ETB; \
          stack len: {}",
         state.stack_objects.len()

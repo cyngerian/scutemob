@@ -19,7 +19,7 @@ use mtg_engine::{
     calculate_characteristics, process_command, CardId, CardRegistry, CardType, Color, Command,
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState,
     GameStateBuilder, LayerModification, ManaAbility, ManaColor, ManaPool, ObjectId, ObjectSpec,
-    PlayerId, Step, SuperType, ZoneId,
+    PlayerId, Step, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {

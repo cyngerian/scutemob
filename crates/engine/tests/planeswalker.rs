@@ -276,7 +276,7 @@ fn test_loyalty_sorcery_speed_cr606_3() {
 /// CR 606.6: Can't activate -N if not enough loyalty.
 #[test]
 fn test_loyalty_insufficient_counters_cr606_6() {
-    let (state, pw_id, p1) = build_pw_state(); // 4 loyalty
+    let (_state, _pw_id, p1) = build_pw_state(); // 4 loyalty
 
     // -3 costs 3 which is fine, but try ability_index 1 with only 4 loyalty
     // and it should work since 4 >= 3. Let me test with a custom setup instead.

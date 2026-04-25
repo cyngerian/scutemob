@@ -15,7 +15,7 @@
 use mtg_engine::cards::card_definition::{AbilityDefinition, ActivationZone, TriggerZone};
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, CardDefinition, CardRegistry, Command,
-    GameEvent, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -216,7 +216,7 @@ fn test_graveyard_activated_sacrifice_cost() {
 
     let dragon_def = defs.get("Earthquake Dragon").unwrap();
     let gy_ability = dragon_def.abilities.iter().find(|a| {
-        use mtg_engine::cards::card_definition::{Cost, TargetFilter};
+        use mtg_engine::cards::card_definition::Cost;
         matches!(
             a,
             AbilityDefinition::Activated {

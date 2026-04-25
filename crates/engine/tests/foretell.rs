@@ -68,30 +68,6 @@ fn exile_count(state: &mtg_engine::GameState) -> usize {
         .count()
 }
 
-fn graveyard_count(state: &mtg_engine::GameState, player: PlayerId) -> usize {
-    state
-        .objects
-        .values()
-        .filter(|o| o.zone == ZoneId::Graveyard(player))
-        .count()
-}
-
-/// Pass priority for all listed players once.
-fn pass_all(
-    state: mtg_engine::GameState,
-    players: &[PlayerId],
-) -> (mtg_engine::GameState, Vec<GameEvent>) {
-    let mut all_events = Vec::new();
-    let mut current = state;
-    for &pl in players {
-        let (s, ev) = process_command(current, Command::PassPriority { player: pl })
-            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
-        current = s;
-        all_events.extend(ev);
-    }
-    (current, all_events)
-}
-
 // ── Card definitions ──────────────────────────────────────────────────────────
 
 /// Saw It Coming: Instant {1}{U}{U}. Counter target spell. Foretell {1}{U}.

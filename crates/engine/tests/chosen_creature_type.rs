@@ -361,7 +361,7 @@ fn test_chosen_type_spell_level_choice_propagates() {
     let human_id = find_object(&state2, "Doomed Human");
 
     assert_eq!(
-        state2.objects.get(&elf_id).map(|o| o.zone.clone()),
+        state2.objects.get(&elf_id).map(|o| o.zone),
         Some(ZoneId::Battlefield),
         "Elf should survive (of chosen type) — CR 205.3m"
     );
@@ -463,12 +463,12 @@ fn test_chosen_type_destroy_all_except() {
     let human_b_id = find_object(&state2, "Human B");
 
     assert_eq!(
-        state2.objects.get(&elf_a_id).map(|o| o.zone.clone()),
+        state2.objects.get(&elf_a_id).map(|o| o.zone),
         Some(ZoneId::Battlefield),
         "Elf A should survive (chosen type)"
     );
     assert_eq!(
-        state2.objects.get(&elf_b_id).map(|o| o.zone.clone()),
+        state2.objects.get(&elf_b_id).map(|o| o.zone),
         Some(ZoneId::Battlefield),
         "Elf B should survive (chosen type)"
     );

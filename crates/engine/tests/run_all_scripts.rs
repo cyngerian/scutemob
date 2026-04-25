@@ -55,14 +55,11 @@ fn discover_scripts(dir: &Path) -> Vec<(String, GameScript)> {
             scripts.extend(discover_scripts(&path));
         } else if path.extension().map(|e| e == "json").unwrap_or(false) {
             let label = path.display().to_string();
-            match fs::read_to_string(&path) {
-                Ok(content) => match serde_json::from_str::<GameScript>(&content) {
-                    Ok(script) => scripts.push((label, script)),
-                    Err(_) => {
-                        // Not a valid GameScript — skip silently.
-                    }
-                },
-                Err(_) => {}
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(script) = serde_json::from_str::<GameScript>(&content) {
+                    scripts.push((label, script));
+                }
+                // Not a valid GameScript — skip silently.
             }
         }
     }
@@ -103,11 +100,10 @@ fn run_all_approved_scripts() {
         .collect();
 
     if approved.is_empty() {
-        if filter.is_some() {
+        if let Some(f) = filter.as_ref() {
             panic!(
                 "SCRIPT_FILTER={:?} matched 0 scripts in {:?}",
-                filter.unwrap(),
-                scripts_dir
+                f, scripts_dir
             );
         }
         // No approved scripts yet — that's fine for M7 initial state.

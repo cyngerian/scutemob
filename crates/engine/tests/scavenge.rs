@@ -47,10 +47,6 @@ fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId>
         .map(|(id, _)| *id)
 }
 
-fn on_battlefield(state: &GameState, name: &str) -> bool {
-    find_in_zone(state, name, ZoneId::Battlefield).is_some()
-}
-
 fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     find_in_zone(state, name, ZoneId::Graveyard(owner)).is_some()
 }

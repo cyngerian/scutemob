@@ -25,8 +25,12 @@ pub fn card() -> CardDefinition {
             // 2. Creature card put into graveyard from non-battlefield (mill, discard) — no DSL trigger
             // 3. Creature card leaves your graveyard (exile, return) — no DSL trigger
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: true,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::DealDamage {
@@ -36,7 +40,6 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },

@@ -14,7 +14,6 @@ use mtg_engine::rules::replacement::{
     apply_damage_doubling, register_permanent_replacement_abilities,
 };
 use mtg_engine::state::continuous_effect::EffectDuration;
-use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::replacement_effect::{
     DamageTargetFilter, ReplacementModification, ReplacementTrigger,
 };
@@ -198,7 +197,7 @@ fn test_double_and_triple_stack() {
         .in_zone(ZoneId::Battlefield)
         .with_card_id(CardId("fiery-emancipation".to_string()));
     emancipation_spec.card_types = [CardType::Enchantment].into_iter().collect();
-    let mut marauders_spec = ObjectSpec::creature(p(1), "Angrath's Marauders", 4, 4)
+    let marauders_spec = ObjectSpec::creature(p(1), "Angrath's Marauders", 4, 4)
         .in_zone(ZoneId::Battlefield)
         .with_card_id(CardId("angrath-marauders".to_string()));
     let source_spec = ObjectSpec::creature(p(1), "Attacker", 5, 5).in_zone(ZoneId::Battlefield);
@@ -237,7 +236,7 @@ fn test_double_and_triple_stack() {
 #[test]
 fn test_neriv_creatures_entered_this_turn_doubled() {
     let registry = CardRegistry::new(vec![make_neriv_def()]);
-    let mut neriv_spec = ObjectSpec::creature(p(1), "Neriv, Heart of the Storm", 4, 5)
+    let neriv_spec = ObjectSpec::creature(p(1), "Neriv, Heart of the Storm", 4, 5)
         .in_zone(ZoneId::Battlefield)
         .with_card_id(CardId("neriv-heart-of-the-storm".to_string()));
     // Source creature entered this turn (entered_turn will be set by move_object_to_zone).
@@ -280,7 +279,7 @@ fn test_neriv_creatures_entered_this_turn_doubled() {
 #[test]
 fn test_neriv_creature_from_prior_turn_not_doubled() {
     let registry = CardRegistry::new(vec![make_neriv_def()]);
-    let mut neriv_spec = ObjectSpec::creature(p(1), "Neriv, Heart of the Storm", 4, 5)
+    let neriv_spec = ObjectSpec::creature(p(1), "Neriv, Heart of the Storm", 4, 5)
         .in_zone(ZoneId::Battlefield)
         .with_card_id(CardId("neriv-heart-of-the-storm".to_string()));
     let source_spec = ObjectSpec::creature(p(1), "Old Creature", 3, 3).in_zone(ZoneId::Battlefield);
@@ -317,7 +316,7 @@ fn test_neriv_creature_from_prior_turn_not_doubled() {
 #[test]
 fn test_neriv_noncreature_source_not_doubled() {
     let registry = CardRegistry::new(vec![make_neriv_def()]);
-    let mut neriv_spec = ObjectSpec::creature(p(1), "Neriv, Heart of the Storm", 4, 5)
+    let neriv_spec = ObjectSpec::creature(p(1), "Neriv, Heart of the Storm", 4, 5)
         .in_zone(ZoneId::Battlefield)
         .with_card_id(CardId("neriv-heart-of-the-storm".to_string()));
 
@@ -362,8 +361,6 @@ fn test_neriv_noncreature_source_not_doubled() {
 /// CR 614.1: ToPlayerOrTheirPermanents filter applies when target is the specific player.
 #[test]
 fn test_to_player_or_their_permanents_player_target() {
-    use mtg_engine::state::replacement_effect::{ReplacementEffect, ReplacementId};
-
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))

@@ -12,8 +12,7 @@ use std::collections::HashMap;
 
 use mtg_engine::testing::replay_harness::build_initial_state;
 use mtg_engine::testing::script_schema::{
-    AttackerDeclaration, BlockerDeclaration, Confidence, GameScript, InitialState,
-    PermanentInitState, PlayerInitState, ReviewStatus, ScriptAction, ScriptMetadata, ScriptStep,
+    AttackerDeclaration, BlockerDeclaration, InitialState, PermanentInitState, PlayerInitState,
     ZonesInitState,
 };
 
@@ -29,24 +28,6 @@ fn player_init() -> PlayerInitState {
         commander_damage_received: HashMap::new(),
         commander: None,
         partner_commander: None,
-    }
-}
-
-/// Build a minimal `ScriptMetadata`.
-fn meta(id: &str, name: &str) -> ScriptMetadata {
-    ScriptMetadata {
-        id: id.to_string(),
-        name: name.to_string(),
-        description: name.to_string(),
-        cr_sections_tested: vec!["508.1".to_string(), "509.1".to_string()],
-        corner_case_ref: None,
-        tags: vec!["combat".to_string()],
-        confidence: Confidence::High,
-        review_status: ReviewStatus::Approved,
-        reviewed_by: None,
-        review_date: None,
-        generation_notes: None,
-        disputes: vec![],
     }
 }
 
@@ -128,7 +109,7 @@ fn make_initial_state(p1_permanents: Vec<&str>, p2_permanents: Vec<&str>) -> Ini
 // translate_player_action + process_command.
 
 use mtg_engine::testing::replay_harness::translate_player_action;
-use mtg_engine::{process_command, AttackTarget, Command, PlayerId, Step};
+use mtg_engine::{process_command, AttackTarget, Command, Step};
 
 /// CR 508.1 — Declare attackers harness action: resolve creature name to ObjectId
 /// and build Command::DeclareAttackers. Verify the attacker is tapped after.

@@ -887,9 +887,7 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
-        .iter()
-        .copied()
-        .collect();
+        .to_vec();
     let raise_id = hand_ids
         .iter()
         .find(|id| state.objects.get(id).unwrap().characteristics.name == "Raise Dead")

@@ -2812,7 +2812,7 @@ fn test_zone_change_events_enchantment_emits_permanent_destroyed() {
 
     // The enchantment should now be in exile, not graveyard.
     assert!(
-        state.objects_in_zone(&ZoneId::Exile).len() >= 1,
+        !state.objects_in_zone(&ZoneId::Exile).is_empty(),
         "enchantment should be in exile after redirect"
     );
 
@@ -3182,7 +3182,7 @@ fn test_cc33_sylvan_library_draw_tracking() {
 /// Setup:
 /// - Card definition with AbilityDefinition::Replacement { is_self: true, EntersTapped }.
 /// - Global ETB replacement in state.replacement_effects (EntersWithCounters).
-/// Both modifications must be present on the creature after both functions fire.
+///   Both modifications must be present on the creature after both functions fire.
 fn test_etb_self_and_global_replacement_both_apply() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);

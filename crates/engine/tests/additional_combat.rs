@@ -249,7 +249,7 @@ fn test_is_first_combat_phase_condition_flag() {
     // IsFirstCombatPhase = !state.turn.in_extra_combat
     // When in_extra_combat = true: IsFirstCombatPhase = false.
     // When in_extra_combat = false: IsFirstCombatPhase = true.
-    assert!(!state.turn.in_extra_combat == false); // sanity check
+    assert!(state.turn.in_extra_combat); // sanity check
     state.turn.in_extra_combat = false;
     assert!(!state.turn.in_extra_combat); // IsFirstCombatPhase would be true
 }

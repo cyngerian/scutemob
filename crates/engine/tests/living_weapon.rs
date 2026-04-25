@@ -311,11 +311,9 @@ fn test_living_weapon_germ_has_correct_characteristics() {
     // from the object if it's still in state (may have moved to graveyard), OR from the events.
     //
     // Look in graveyard (if SBA killed it) OR battlefield (if it somehow survived).
-    let germ_obj = state.objects.get(&germ_created_event).or_else(|| {
-        // Token ceases to exist after leaving battlefield (CR 704.5d).
-        // Check if it's still accessible by id (it may have been removed).
-        None
-    });
+    // Token ceases to exist after leaving battlefield (CR 704.5d).
+    // Check if it's still accessible by id (it may have been removed).
+    let germ_obj = state.objects.get(&germ_created_event);
 
     // Even if object is gone, we can find it by name in any zone for a brief window,
     // OR verify via the events. Let's use the events to verify characteristics.

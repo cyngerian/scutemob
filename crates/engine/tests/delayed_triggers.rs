@@ -105,11 +105,13 @@ fn make_test_creature(
     use mtg_engine::state::game_object::{Characteristics, GameObject, ObjectStatus};
     use mtg_engine::state::types::CardType as CT;
 
-    let mut chars = Characteristics::default();
-    chars.name = name.to_string();
+    let mut chars = Characteristics {
+        name: name.to_string(),
+        power: Some(2),
+        toughness: Some(2),
+        ..Characteristics::default()
+    };
     chars.card_types.insert(CT::Creature);
-    chars.power = Some(2);
-    chars.toughness = Some(2);
 
     GameObject {
         id: ObjectId(0),

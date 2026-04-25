@@ -125,9 +125,8 @@ fn test_was_cast_condition_false_when_not_cast() {
     let creature_id = find_object(&state, "Reanimated Creature");
 
     // was_cast defaults to false — objects placed via builder were not cast from the stack.
-    assert_eq!(
-        state.objects.get(&creature_id).unwrap().was_cast,
-        false,
+    assert!(
+        !state.objects.get(&creature_id).unwrap().was_cast,
         "Objects placed via builder should have was_cast == false"
     );
 

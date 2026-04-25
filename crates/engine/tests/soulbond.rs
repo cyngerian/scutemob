@@ -269,7 +269,7 @@ fn test_soulbond_self_etb_pairs_with_unpaired_creature() {
         .with_card_id(CardId("mock-vanilla-2-2".to_string()))
         .with_types(vec![CardType::Creature]);
 
-    let mut state = build_state(
+    let state = build_state(
         p1,
         p2,
         vec![vanilla_2_2_def()],
@@ -400,7 +400,7 @@ fn test_soulbond_grants_apply_while_paired() {
         .with_card_id(CardId("mock-vanilla-2-2".to_string()))
         .with_types(vec![CardType::Creature]);
 
-    let mut state = build_state(
+    let state = build_state(
         p1,
         p2,
         vec![vanilla_2_2_def()],
@@ -483,7 +483,7 @@ fn test_soulbond_unpair_on_zone_change() {
         .with_card_id(CardId("mock-vanilla-2-2".to_string()))
         .with_types(vec![CardType::Creature]);
 
-    let mut state = build_state(
+    let state = build_state(
         p1,
         p2,
         vec![vanilla_2_2_def()],
@@ -531,7 +531,7 @@ fn test_soulbond_no_trigger_if_no_unpaired_partner() {
     let p2 = p(2);
 
     // No other creatures for p1 on the battlefield.
-    let mut state = build_state(p1, p2, vec![], vec![], true, soulbond_4_4_grant_def());
+    let state = build_state(p1, p2, vec![], vec![], true, soulbond_4_4_grant_def());
 
     // Cast Silverheart and resolve.
     let (state, _) = cast_and_resolve(state, p1, "Mock Silverheart", p2);
@@ -624,7 +624,7 @@ fn test_soulbond_resolution_fizzle_target_leaves() {
         .with_card_id(CardId("mock-vanilla-2-2".to_string()))
         .with_types(vec![CardType::Creature]);
 
-    let mut state = build_state(
+    let state = build_state(
         p1,
         p2,
         vec![vanilla_2_2_def()],
@@ -672,7 +672,7 @@ fn test_soulbond_unpair_on_controller_change() {
         .with_card_id(CardId("mock-vanilla-2-2".to_string()))
         .with_types(vec![CardType::Creature]);
 
-    let mut state = build_state(
+    let state = build_state(
         p1,
         p2,
         vec![vanilla_2_2_def()],
@@ -728,7 +728,7 @@ fn test_soulbond_grants_removed_when_unpaired() {
         .with_card_id(CardId("mock-vanilla-2-2".to_string()))
         .with_types(vec![CardType::Creature]);
 
-    let mut state = build_state(
+    let state = build_state(
         p1,
         p2,
         vec![vanilla_2_2_def()],

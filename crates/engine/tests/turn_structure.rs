@@ -117,7 +117,7 @@ fn test_four_player_turn_rotation() {
     let state = four_player_with_libraries(5);
     let (mut state, _) = start_game(state).unwrap();
 
-    let expected_active = vec![
+    let expected_active = [
         PlayerId(1),
         PlayerId(2),
         PlayerId(3),

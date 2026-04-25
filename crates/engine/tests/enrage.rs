@@ -697,11 +697,11 @@ fn test_enrage_lethal_damage_still_triggers() {
 
     // The creature should now be dead (in graveyard — SBAs fire after damage).
     assert!(
-        find_object_opt(&state, "Doomed Raptor").map_or(true, |id| {
+        find_object_opt(&state, "Doomed Raptor").is_none_or(|id| {
             state
                 .objects
                 .get(&id)
-                .map_or(true, |obj| matches!(obj.zone, ZoneId::Graveyard(_)))
+                .is_none_or(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
         }),
         "Ruling 2018-01-19: Enrage creature should be dead (in graveyard) after lethal damage"
     );

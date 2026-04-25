@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
     PlayerId(n)
 }
 
-fn find_objects_on_battlefield<'a>(state: &'a mtg_engine::GameState, name: &str) -> Vec<ObjectId> {
+fn find_objects_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Vec<ObjectId> {
     state
         .objects
         .iter()

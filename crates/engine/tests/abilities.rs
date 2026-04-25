@@ -215,8 +215,10 @@ fn test_activate_ability_tap_cost_taps_source() {
 /// CR 602.2a — mana cost is paid when activating ability with a mana cost component
 fn test_activate_ability_pays_mana_cost() {
     let p1 = p(1);
-    let mut mana_cost = ManaCost::default();
-    mana_cost.blue = 1; // {U} tap ability
+    let mana_cost = ManaCost {
+        blue: 1, // {U} tap ability
+        ..Default::default()
+    };
     let creature = ObjectSpec::creature(p1, "Venser", 2, 2)
         .with_activated_ability(tap_and_pay_ability("{U}{T}: Blink target", mana_cost))
         .in_zone(ZoneId::Battlefield);
@@ -442,8 +444,10 @@ fn test_activate_ability_already_tapped_fails() {
 /// CR 602.2a — activating with insufficient mana fails
 fn test_activate_ability_insufficient_mana_fails() {
     let p1 = p(1);
-    let mut mana_cost = ManaCost::default();
-    mana_cost.blue = 2; // {U}{U}
+    let mana_cost = ManaCost {
+        blue: 2, // {U}{U}
+        ..Default::default()
+    };
     let creature = ObjectSpec::creature(p1, "Venser", 2, 2)
         .with_activated_ability(tap_and_pay_ability("{U}{U}{T}: Something", mana_cost))
         .in_zone(ZoneId::Battlefield);

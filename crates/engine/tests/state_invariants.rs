@@ -155,7 +155,7 @@ proptest! {
             .object(ObjectSpec::creature(p1, "Nomad", 2, 2))
             .build().unwrap();
 
-        let zones = vec![
+        let zones = [
             ZoneId::Graveyard(p1),
             ZoneId::Exile,
             ZoneId::Hand(p1),
