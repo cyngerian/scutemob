@@ -158,8 +158,18 @@ pub fn handle_activate_ability(
     // or in graveyard for graveyard-activated abilities like Reassembling Skeleton).
     {
         let obj = state.object(source)?;
-        let (is_channel, activation_zone) = obj
-            .characteristics
+        // CR 702.34 + CR 613.1f: Use layer-resolved activated abilities to determine whether
+        // the ability at `ability_index` is a Channel/graveyard-zone ability. Base
+        // characteristics only expose natively printed abilities; Layer 6 grants
+        // (LayerModification::AddActivatedAbility) append past the native range.
+        // For current grants none are Channel/graveyard-zone, so this is correct-by-accident
+        // with base reads today — but reading from calculate_characteristics ensures the
+        // dispatch is correct for future "grant a Channel ability" or "grant a
+        // graveyard-activated ability" patterns. unwrap_or_else falls back to base
+        // characteristics for objects not on the battlefield (LKI path).
+        let resolved_ab_chars = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        let (is_channel, activation_zone) = resolved_ab_chars
             .activated_abilities
             .get(ability_index)
             .map(|ab| (ab.cost.discard_self, ab.activation_zone.clone()))
@@ -523,6 +533,19 @@ pub fn handle_activate_ability(
         // CR 602.2b + 601.2f: Apply self-activated-cost-reduction from CardDefinition.
         // Uses index-keyed `activated_ability_cost_reductions` field (alternative design to
         // avoid adding a field to AbilityDefinition::Activated which has 400+ match sites).
+        //
+        // CR 601.2f + CR 613.1f — PB-S-L05 invariant (option b, documented-only):
+        // Granted activated abilities (Layer 6 LayerModification::AddActivatedAbility) are
+        // appended to the ability list PAST the native printed range. Card defs with
+        // `activated_ability_cost_reductions` only reference native ability indices, so
+        // `get_self_activated_reduction` for a granted-ability index (beyond the native range)
+        // returns None — correct by definition (granted abilities have no card-def-specific
+        // cost reductions). A debug_assert is not feasible here because the native range is
+        // determined by both AbilityDefinition::Activated entries AND ObjectSpec-level
+        // with_activated_ability() entries (the latter is used by some token specs and tests),
+        // which cannot be distinguished from the card def alone.
+        // Refactoring to a stable ability identifier is deferred until a card def collides
+        // (see get_self_activated_reduction doc comment for details).
         if let Some(card_id) = state.objects.get(&source).and_then(|o| o.card_id.clone()) {
             if let Some(card_def) = state.card_registry.get(card_id) {
                 let amount = get_self_activated_reduction(card_def, ability_index)
@@ -588,8 +611,18 @@ pub fn handle_activate_ability(
     if ability_cost.sacrifice_self {
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(source)?;
+            // CR 613.1f + CR 603.10a + CR 613.1e: Use layer-resolved card types to determine
+            // whether the sacrificed permanent is a creature at the time of sacrifice. A
+            // permanent can become a creature via Layer 4 type-change effects (e.g. "animate"
+            // enchantments). Reading base obj.characteristics.card_types would return the
+            // printed type, causing an animated artifact dying via sacrifice-self to emit
+            // PermanentDestroyed instead of CreatureDied — "whenever a creature dies" triggers
+            // would fail to fire. unwrap_or_else fallback handles graveyard/exile objects
+            // (LKI path) where calculate_characteristics may return None.
+            let resolved_types = crate::rules::layers::calculate_characteristics(state, source)
+                .unwrap_or_else(|| obj.characteristics.clone());
             (
-                obj.characteristics
+                resolved_types
                     .card_types
                     .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
@@ -710,8 +743,15 @@ pub fn handle_activate_ability(
         // Sacrifice the permanent (move to graveyard).
         let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(sac_id)?;
+            // CR 613.1f + CR 603.10a + CR 613.1e: Use layer-resolved card types for the
+            // sacrificed permanent. Same reasoning as the sacrifice_self path above: a
+            // permanent animated into a creature via Layer 4 must emit CreatureDied when
+            // it is sacrificed as a cost, so "whenever a creature dies" triggers fire.
+            // unwrap_or_else fallback handles LKI path (object not on battlefield).
+            let resolved_types = crate::rules::layers::calculate_characteristics(state, sac_id)
+                .unwrap_or_else(|| obj.characteristics.clone());
             (
-                obj.characteristics
+                resolved_types
                     .card_types
                     .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
@@ -8211,6 +8251,24 @@ fn get_scavenge_cost(
 /// Channel lands: mana tap abilities go into `mana_abilities`, not `activated_abilities`,
 /// so the channel ability at activated_ability index 0 maps to the first (and only) entry
 /// with key 0 in `activated_ability_cost_reductions`.
+///
+/// # PB-S-L05 invariant (CR 601.2f + CR 613.1f)
+///
+/// This function is keyed by the NATIVE printed ability index. Layer 6 grants
+/// (`LayerModification::AddActivatedAbility`) append abilities past the native range, so
+/// any `ability_index >= <native count>` corresponds to a granted ability for which no
+/// native cost reduction applies — this function correctly returns `None` for those indices.
+///
+/// A runtime debug_assert is not feasible to verify this invariant: the native ability count
+/// includes both `AbilityDefinition::Activated` entries in `card_def.abilities` AND
+/// `ObjectSpec::with_activated_ability()` entries installed at object-creation time (used by
+/// some token specs and tests), so `card_def.abilities` alone does not reflect the full
+/// native count.
+///
+/// Deferred: if a future card def adds an `activated_ability_cost_reductions` entry at an
+/// index that collides with a Layer 6 grant's index, refactor to use a stable ability
+/// identifier instead of a numeric index (see `docs/mtg-engine-low-issues-remediation.md`
+/// PB-S-L05).
 fn get_self_activated_reduction(
     card_def: &crate::cards::card_definition::CardDefinition,
     ability_index: usize,

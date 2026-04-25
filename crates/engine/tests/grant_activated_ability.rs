@@ -820,3 +820,59 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
         err_msg
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test 12: Humility (earlier timestamp) then Cryptolith Rite grant (later timestamp)
+//          → grant survives (CR 613.1f / 613.7)
+// PB-S-L06
+// ---------------------------------------------------------------------------
+
+/// CR 613.1f + CR 613.7: Layer 6 effects apply in timestamp order (earlier first). When Humility
+/// (RemoveAllAbilities, timestamp 10) has an EARLIER timestamp than Cryptolith Rite's
+/// grant (AddManaAbility, timestamp 20), the effects resolve in that order within Layer 6:
+///
+/// 1. Humility (ts=10) strips all existing abilities (including printed ones).
+/// 2. Cryptolith Rite grant (ts=20) adds the tap-for-any-color mana ability on top.
+///
+/// Result: the creature ends up WITH the granted mana ability (it was added after
+/// Humility stripped). This is the inverse of test 9 (test_humility_removes_granted_mana_ability)
+/// which has Humility at ts=20 and grant at ts=10.
+///
+/// Regression coverage for PB-S-L06: the PB-S test suite had only the "Humility wins"
+/// case; this test covers the "grant wins" case, ensuring timestamp ordering is symmetric.
+#[test]
+fn test_humility_before_grant_preserves_grant() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(ObjectSpec::artifact(p1(), "Rite Source"))
+        .object(ObjectSpec::creature(p1(), "Bear Under Humility", 2, 2))
+        .build()
+        .unwrap();
+
+    let source_id = find_obj_by_name(&state, "Rite Source");
+    let bear_id = find_obj_by_name(&state, "Bear Under Humility");
+
+    // Humility at timestamp 10 (EARLIER) — wipes all abilities first.
+    state.continuous_effects.push_back(humility_effect(1, 10));
+    // Cryptolith Rite grant at timestamp 20 (LATER) — adds grant after Humility.
+    state
+        .continuous_effects
+        .push_back(cryptolith_grant(2, source_id, 20));
+
+    let chars = calculate_characteristics(&state, bear_id).unwrap();
+
+    // CR 613.7 timestamp ordering in Layer 6:
+    // Humility (ts=10) runs first → strips printed abilities.
+    // Rite grant (ts=20) runs after → adds the tap-for-any-color ability on top.
+    // Net result: the grant is present on the creature.
+    assert!(
+        !chars.mana_abilities.is_empty(),
+        "Cryptolith Rite grant (later timestamp) should survive Humility (earlier timestamp) \
+         in Layer 6 timestamp ordering (CR 613.7)"
+    );
+    assert!(
+        chars.mana_abilities.iter().any(|a| a.any_color),
+        "the surviving grant should be the tap-for-any-color mana ability from Cryptolith Rite"
+    );
+}
