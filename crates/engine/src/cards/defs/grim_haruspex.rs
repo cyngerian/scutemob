@@ -24,15 +24,14 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: true,
                     nontoken_only: true,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
