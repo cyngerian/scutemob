@@ -2,7 +2,6 @@
 //! search-restriction replacement effects (CR 614.1, PB-12).
 
 use mtg_engine::cards::card_definition::{AbilityDefinition, CardDefinition, TypeLine};
-use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::replacement_effect::{
     DamageTargetFilter, PlayerFilter, ReplacementModification, ReplacementTrigger,
 };

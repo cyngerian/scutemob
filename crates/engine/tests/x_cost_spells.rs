@@ -56,19 +56,18 @@ fn pass_all(
     (current, all_events)
 }
 
+/// Mana to add to the caster's pool before casting (generic/colorless, blue, green, red, white, black).
+type ManaSpec = (u32, u32, u32, u32, u32, u32);
+
 /// Cast a spell from hand with the given x_value.
 fn cast_x_spell(
     state: mtg_engine::GameState,
     caster: PlayerId,
     card_id: ObjectId,
-    mana_generic: u32,
-    mana_blue: u32,
-    mana_green: u32,
-    mana_red: u32,
-    mana_white: u32,
-    mana_black: u32,
+    mana: ManaSpec,
     x_value: u32,
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
+    let (mana_generic, mana_blue, mana_green, mana_red, mana_white, mana_black) = mana;
     let mut state = state;
     let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
     if mana_generic > 0 {
@@ -163,7 +162,7 @@ fn test_x_cost_spell_basic_mana_payment() {
     let card_obj_id = find_object(&state, "Pull from Tomorrow");
 
     // X=3: should pay 3 generic + 2 blue total. Add {3}{U}{U}.
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 3, 2, 0, 0, 0, 0, 3);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (3, 2, 0, 0, 0, 0), 3);
 
     // The spell should be on the stack.
     assert_eq!(
@@ -236,7 +235,7 @@ fn test_x_cost_effect_amount_xvalue_draw() {
         .count();
 
     // Cast with X=3 (draw 3, discard 1 → net +2 cards in hand, minus 1 for the spell cast = net +1).
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 3, 2, 0, 0, 0, 0, 3);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (3, 2, 0, 0, 0, 0), 3);
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Count CardDrawn events in the resolve batch.
@@ -302,7 +301,7 @@ fn test_x_cost_etb_counters_ingenious_prodigy() {
     let card_obj_id = find_object(&state, "Ingenious Prodigy");
 
     // Cast with X=4 (pay 4 generic + 1 blue).
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 4, 1, 0, 0, 0, 0, 4);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (4, 1, 0, 0, 0, 0), 4);
 
     // Resolve spell (creatures go on stack → battlefield on resolution).
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
@@ -388,7 +387,7 @@ fn test_x_cost_repeat_creates_x_tokens() {
     assert_eq!(tokens_before, 0);
 
     // Cast with X=3 (pay 3 generic + 2 green).
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 3, 0, 2, 0, 0, 0, 3);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (3, 0, 2, 0, 0, 0), 3);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let tokens_after = state
@@ -478,7 +477,7 @@ fn test_x_cost_conditional_xvalue_at_least_martial_coup_x5() {
     );
 
     // Cast with X=5 (5 generic + 2 white).
-    let (state, resolve_events) = cast_x_spell(state, p1, card_obj_id, 5, 0, 0, 0, 2, 0, 5);
+    let (state, resolve_events) = cast_x_spell(state, p1, card_obj_id, (5, 0, 0, 0, 2, 0), 5);
     let (state, more_events) = pass_all(state, &[p1, p2]);
     let all_events: Vec<_> = resolve_events.into_iter().chain(more_events).collect();
 
@@ -570,7 +569,7 @@ fn test_x_cost_conditional_xvalue_at_least_martial_coup_x4_no_wipe() {
     let card_obj_id = find_object(&state, "Martial Coup");
 
     // Cast with X=4 (4 generic + 2 white). X < 5 → no wipe.
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 4, 0, 0, 0, 2, 0, 4);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (4, 0, 0, 0, 2, 0), 4);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // 4 Soldier tokens.
@@ -715,7 +714,7 @@ fn test_x_cost_permanent_retains_x_value_for_etb() {
     let card_obj_id = find_object(&state, "Ingenious Prodigy");
 
     // Cast with X=6 (pay 6 generic + 1 blue).
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 6, 1, 0, 0, 0, 0, 6);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (6, 1, 0, 0, 0, 0), 6);
 
     // After cast, the stack object should carry x_value=6.
     let so = state.stack_objects.front().unwrap();
@@ -793,7 +792,7 @@ fn test_x_cost_repeat_zero_creates_no_tokens() {
     let card_obj_id = find_object(&state, "Awaken the Woods");
 
     // Cast with X=0 (pay 0 generic + 2 green). Only colored pips needed.
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 0, 0, 2, 0, 0, 0, 0);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (0, 0, 2, 0, 0, 0), 0);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let tokens = state
@@ -876,7 +875,7 @@ fn test_x_cost_condition_xvalue_at_least_below_threshold() {
     let card_obj_id = find_object(&state, "White Sun's Twilight");
 
     // Cast with X=4 (4 generic + 2 white).
-    let (state, _) = cast_x_spell(state, p1, card_obj_id, 4, 0, 0, 0, 2, 0, 4);
+    let (state, _) = cast_x_spell(state, p1, card_obj_id, (4, 0, 0, 0, 2, 0), 4);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Gained 4 life.

@@ -9,7 +9,6 @@
 //! These filters resolve the source's controller dynamically at layer-application
 //! time, enabling CardDef static abilities like "Creatures you control have haste."
 
-use im;
 use mtg_engine::{
     calculate_characteristics, AttackTarget, Color, CombatState, ContinuousEffect, EffectDuration,
     EffectFilter, EffectId, EffectLayer, GameStateBuilder, KeywordAbility, LayerModification,

@@ -65,11 +65,7 @@ fn build_sba_state() -> GameState {
 ///
 /// Returns the new GameState after the step (or turn) advances.
 fn pass_until_advance(mut state: GameState) -> GameState {
-    loop {
-        let holder = match state.turn.priority_holder {
-            Some(h) => h,
-            None => break,
-        };
+    while let Some(holder) = state.turn.priority_holder {
         let (new_state, events) = process_command(state, Command::PassPriority { player: holder })
             .expect("PassPriority failed");
         let advanced = events.iter().any(|e| {
@@ -126,13 +122,10 @@ fn bench_priority_cycle_6p(c: &mut Criterion) {
 /// Target: well under 1ms.
 fn bench_sba_check(c: &mut Criterion) {
     c.bench_function("sba_check", |b| {
-        b.iter_with_setup(
-            || build_sba_state(),
-            |mut state| {
-                let events = check_and_apply_sbas(black_box(&mut state));
-                black_box(events)
-            },
-        )
+        b.iter_with_setup(build_sba_state, |mut state| {
+            let events = check_and_apply_sbas(black_box(&mut state));
+            black_box(events)
+        })
     });
 }
 

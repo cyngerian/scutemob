@@ -15,7 +15,7 @@
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, AttackTarget, CardDefinition,
     CardId, CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder,
-    KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
+    KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, TypeLine,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -567,7 +567,7 @@ fn test_702_45a_bushido_attacker_blocked_by_multiple() {
 
     // P2 blocks with TWO creatures (Menace requires >= 2 blockers).
     // The attacker should trigger only ONCE (it becomes blocked once).
-    let (state, declare_events) = process_command(
+    let (_state, declare_events) = process_command(
         state,
         Command::DeclareBlockers {
             player: p2,

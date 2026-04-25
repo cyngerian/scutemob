@@ -52,15 +52,11 @@ fn test_concede_player_turn_skipped() {
 
     // Complete P1's turn by passing for remaining active players
     let mut state = state;
-    loop {
-        if let Some(holder) = state.turn.priority_holder {
-            let old_turn = state.turn.turn_number;
-            let (new_state, _) = pass(state, holder);
-            state = new_state;
-            if state.turn.turn_number > old_turn {
-                break;
-            }
-        } else {
+    while let Some(holder) = state.turn.priority_holder {
+        let old_turn = state.turn.turn_number;
+        let (new_state, _) = pass(state, holder);
+        state = new_state;
+        if state.turn.turn_number > old_turn {
             break;
         }
     }

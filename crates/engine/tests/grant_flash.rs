@@ -41,14 +41,6 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
         .unwrap_or_else(|| panic!("object '{}' not found", name))
 }
 
-fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state
-        .objects
-        .iter()
-        .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
-        .map(|(id, _)| *id)
-}
-
 /// Pass priority for all players once.
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();

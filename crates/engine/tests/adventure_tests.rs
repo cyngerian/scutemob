@@ -41,7 +41,7 @@ fn find_any_zone(state: &GameState, name: &str) -> Option<(ObjectId, ZoneId)> {
         .objects
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
-        .map(|(id, obj)| (*id, obj.zone.clone()))
+        .map(|(id, obj)| (*id, obj.zone))
 }
 
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {

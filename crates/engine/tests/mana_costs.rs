@@ -5,9 +5,8 @@
 
 use mtg_engine::rules::casting::flatten_hybrid_phyrexian;
 use mtg_engine::{
-    compute_color_identity, process_command, CardDefinition, CardId, CardType, Command, GameEvent,
-    GameStateBuilder, HybridMana, HybridManaPayment, ManaColor, ManaCost, ObjectSpec,
-    PhyrexianMana, PlayerId, Step, ZoneId,
+    compute_color_identity, CardDefinition, CardId, HybridMana, HybridManaPayment, ManaColor,
+    ManaCost, PhyrexianMana,
 };
 
 // ── Mana Value Tests ─────────────────────────────────────────────────────────
@@ -110,10 +109,6 @@ fn test_hybrid_phyrexian_mana_value() {
 }
 
 // ── Payment Tests ────────────────────────────────────────────────────────────
-
-fn p1() -> PlayerId {
-    PlayerId(0)
-}
 
 /// CR 107.4e: Hybrid {G/W} can be paid with green.
 #[test]

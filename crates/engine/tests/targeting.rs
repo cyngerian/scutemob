@@ -16,21 +16,6 @@ fn p(n: u64) -> PlayerId {
     PlayerId(n)
 }
 
-/// Helper: pass priority for all four players in order.
-fn pass_all_four(
-    state: mtg_engine::GameState,
-    turn_order: [PlayerId; 4],
-) -> (mtg_engine::GameState, Vec<GameEvent>) {
-    let mut s = state;
-    let mut all_events = Vec::new();
-    for player in &turn_order {
-        let (ns, evs) = process_command(s, Command::PassPriority { player: *player }).unwrap();
-        all_events.extend(evs);
-        s = ns;
-    }
-    (s, all_events)
-}
-
 // ---------------------------------------------------------------------------
 // CR 601.2c: Target validation at cast time
 // ---------------------------------------------------------------------------

@@ -70,11 +70,6 @@ fn eot_effect(
 /// Adding "Creature" type makes a land into a creature.
 #[test]
 fn test_613_layer4_add_creature_type() {
-    let state = GameStateBuilder::new()
-        .add_player(p1())
-        .object(ObjectSpec::land(p1(), "Test Land"))
-        .build()
-        .unwrap();
     let land_effect = effect(
         1,
         None,

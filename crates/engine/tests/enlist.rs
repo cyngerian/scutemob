@@ -97,7 +97,7 @@ fn test_702_154a_enlist_basic_power_addition() {
 
     // Enlist trigger is on the stack.
     assert!(
-        state.stack_objects.len() >= 1,
+        !state.stack_objects.is_empty(),
         "CR 702.154a: EnlistTrigger should be on the stack"
     );
 

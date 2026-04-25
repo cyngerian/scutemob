@@ -78,7 +78,7 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
 #[test]
 fn test_whenever_you_cast_creature_spell_filter_stored() {
     // Verify that the creature spell filter is correctly stored in the CardDef.
-    let mut def = CardDefinition {
+    let def = CardDefinition {
         card_id: CardId("beast-whisperer-test".to_string()),
         name: "Beast Whisperer Test".to_string(),
         mana_cost: None,

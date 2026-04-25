@@ -30,30 +30,6 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
         .unwrap_or_else(|| panic!("object '{}' not found", name))
 }
 
-fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state
-        .objects
-        .iter()
-        .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
-        .map(|(id, _)| *id)
-}
-
-fn on_battlefield(state: &GameState, name: &str) -> bool {
-    find_in_zone(state, name, ZoneId::Battlefield).is_some()
-}
-
-fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
-    let mut all_events = Vec::new();
-    let mut current = state;
-    for &pl in players {
-        let (s, ev) = process_command(current, Command::PassPriority { player: pl })
-            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
-        current = s;
-        all_events.extend(ev);
-    }
-    (current, all_events)
-}
-
 /// A mock DFC: "Delver" (1/1 Wizard) / "Insectile Aberration" (3/2 flying Insect).
 /// Front: {U} Human Wizard 1/1.
 /// Back: Blue (via color_indicator) Insect 3/2, Flying.

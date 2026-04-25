@@ -362,97 +362,6 @@ impl ReplaySession {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use mtg_engine::testing::script_schema::GameScript;
-
-    /// Load a game script from test-data relative to the workspace root.
-    /// Tests run from the package directory (tools/replay-viewer/), so we
-    /// walk up two levels to reach the workspace root.
-    fn load_baseline_script(filename: &str) -> GameScript {
-        let path = format!("../../test-data/generated-scripts/baseline/{}", filename);
-        let json = std::fs::read_to_string(&path)
-            .unwrap_or_else(|_| panic!("Failed to read script at {path}"));
-        serde_json::from_str(&json).unwrap_or_else(|e| panic!("Failed to parse {filename}: {e}"))
-    }
-
-    #[test]
-    fn test_from_script_produces_steps() {
-        // 001: 2-player priority pass — 1 initial state + 4 priority passes = 5 steps.
-        let script = load_baseline_script("001_priority_pass_empty_stack.json");
-        let session = ReplaySession::from_script(&script).unwrap();
-        assert_eq!(
-            session.step_count(),
-            5,
-            "expected 5 steps (1 initial + 4 priority passes)"
-        );
-    }
-
-    #[test]
-    fn test_step_zero_is_initial_state() {
-        let script = load_baseline_script("001_priority_pass_empty_stack.json");
-        let session = ReplaySession::from_script(&script).unwrap();
-        let step0 = &session.steps[0];
-        assert_eq!(step0.index, 0);
-        assert!(step0.command.is_none(), "step 0 must have no command");
-        assert!(step0.events.is_empty(), "step 0 must have no events");
-        assert!(step0.assertions.is_none(), "step 0 must have no assertions");
-    }
-
-    #[test]
-    fn test_initial_life_totals_are_40() {
-        // Commander starts at 40 life.
-        let script = load_baseline_script("001_priority_pass_empty_stack.json");
-        let session = ReplaySession::from_script(&script).unwrap();
-        for (_pid, player) in &session.steps[0].state_after.players {
-            assert_eq!(
-                player.life_total, 40,
-                "all players start at 40 life in Commander"
-            );
-        }
-    }
-
-    #[test]
-    fn test_player_map_reverse_map_match() {
-        let script = load_baseline_script("001_priority_pass_empty_stack.json");
-        let session = ReplaySession::from_script(&script).unwrap();
-        assert!(
-            !session.player_map.is_empty(),
-            "player_map must be populated"
-        );
-        assert_eq!(
-            session.player_map.len(),
-            session.player_names.len(),
-            "player_map and player_names must have the same cardinality"
-        );
-        // Every entry in player_map must round-trip through player_names.
-        for (name, pid) in &session.player_map {
-            assert_eq!(
-                session.player_names.get(pid),
-                Some(name),
-                "player_names[{pid:?}] must equal '{name}'"
-            );
-        }
-    }
-
-    #[test]
-    fn test_some_steps_have_commands() {
-        let script = load_baseline_script("001_priority_pass_empty_stack.json");
-        let session = ReplaySession::from_script(&script).unwrap();
-        // Not every step has a command (informational actions like PhaseTransition
-        // also produce steps with command: None), but at least one step after the
-        // initial state must carry a command (a priority pass).
-        let command_count = session.steps.iter().filter(|s| s.command.is_some()).count();
-        assert!(
-            command_count >= 1,
-            "must have at least one step with a command"
-        );
-    }
-}
-
 // ── Assertion evaluation ──────────────────────────────────────────────────────
 
 /// Evaluate dot-notation assertion paths against the current game state.
@@ -675,4 +584,95 @@ fn check_list_assertion(names: &[String], expected: &serde_json::Value) -> bool 
         .unwrap_or(true);
 
     includes_ok && excludes_ok
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::testing::script_schema::GameScript;
+
+    /// Load a game script from test-data relative to the workspace root.
+    /// Tests run from the package directory (tools/replay-viewer/), so we
+    /// walk up two levels to reach the workspace root.
+    fn load_baseline_script(filename: &str) -> GameScript {
+        let path = format!("../../test-data/generated-scripts/baseline/{}", filename);
+        let json = std::fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("Failed to read script at {path}"));
+        serde_json::from_str(&json).unwrap_or_else(|e| panic!("Failed to parse {filename}: {e}"))
+    }
+
+    #[test]
+    fn test_from_script_produces_steps() {
+        // 001: 2-player priority pass — 1 initial state + 4 priority passes = 5 steps.
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        assert_eq!(
+            session.step_count(),
+            5,
+            "expected 5 steps (1 initial + 4 priority passes)"
+        );
+    }
+
+    #[test]
+    fn test_step_zero_is_initial_state() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        let step0 = &session.steps[0];
+        assert_eq!(step0.index, 0);
+        assert!(step0.command.is_none(), "step 0 must have no command");
+        assert!(step0.events.is_empty(), "step 0 must have no events");
+        assert!(step0.assertions.is_none(), "step 0 must have no assertions");
+    }
+
+    #[test]
+    fn test_initial_life_totals_are_40() {
+        // Commander starts at 40 life.
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        for (_pid, player) in &session.steps[0].state_after.players {
+            assert_eq!(
+                player.life_total, 40,
+                "all players start at 40 life in Commander"
+            );
+        }
+    }
+
+    #[test]
+    fn test_player_map_reverse_map_match() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        assert!(
+            !session.player_map.is_empty(),
+            "player_map must be populated"
+        );
+        assert_eq!(
+            session.player_map.len(),
+            session.player_names.len(),
+            "player_map and player_names must have the same cardinality"
+        );
+        // Every entry in player_map must round-trip through player_names.
+        for (name, pid) in &session.player_map {
+            assert_eq!(
+                session.player_names.get(pid),
+                Some(name),
+                "player_names[{pid:?}] must equal '{name}'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_some_steps_have_commands() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        // Not every step has a command (informational actions like PhaseTransition
+        // also produce steps with command: None), but at least one step after the
+        // initial state must carry a command (a priority pass).
+        let command_count = session.steps.iter().filter(|s| s.command.is_some()).count();
+        assert!(
+            command_count >= 1,
+            "must have at least one step with a command"
+        );
+    }
 }

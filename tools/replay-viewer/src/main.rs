@@ -176,6 +176,24 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
     }
 }
 
+/// Find the first JSON script in a directory tree (deterministic: sorted order).
+fn find_first_script(dir: &PathBuf) -> Option<PathBuf> {
+    let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+    entries.sort_by_key(|e| e.path());
+
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(found) = find_first_script(&path) {
+                return Some(found);
+            }
+        } else if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            return Some(path);
+        }
+    }
+    None
+}
+
 // ── Integration tests ─────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -394,22 +412,4 @@ mod tests {
         let json = body_json(resp.into_body()).await;
         assert_eq!(json["loaded"], true);
     }
-}
-
-/// Find the first JSON script in a directory tree (deterministic: sorted order).
-fn find_first_script(dir: &PathBuf) -> Option<PathBuf> {
-    let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
-    entries.sort_by_key(|e| e.path());
-
-    for entry in entries {
-        let path = entry.path();
-        if path.is_dir() {
-            if let Some(found) = find_first_script(&path) {
-                return Some(found);
-            }
-        } else if path.extension().and_then(|e| e.to_str()) == Some("json") {
-            return Some(path);
-        }
-    }
-    None
 }

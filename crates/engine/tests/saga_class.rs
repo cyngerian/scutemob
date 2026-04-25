@@ -217,7 +217,7 @@ fn saga_multiple_chapters_can_trigger_cr714_2c() {
     let registry = state.card_registry.clone();
     let def = registry.get(CardId("test-saga".to_string())).unwrap();
     let _events = mtg_engine::rules::replacement::fire_saga_chapter_triggers(
-        &mut state, saga_id, p1, 0, 2, &def,
+        &mut state, saga_id, p1, 0, 2, def,
     );
 
     // Both chapter 1 (was < 1, now >= 1) and chapter 2 (was < 2, now >= 2) should trigger.

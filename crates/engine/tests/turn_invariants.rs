@@ -44,7 +44,7 @@ proptest! {
         // State should always be valid
         let active = state.active_players();
         // Either game is ongoing with active players or it ended
-        prop_assert!(active.len() >= 1 || state.turn.priority_holder.is_none());
+        prop_assert!(!active.is_empty() || state.turn.priority_holder.is_none());
     }
 
     #[test]

@@ -1075,7 +1075,6 @@ fn test_bite_negative_power() {
     let source = ObjectSpec::creature(p1, "Weakened Biter", 2, 2).in_zone(ZoneId::Battlefield);
     let target = ObjectSpec::creature(p2, "Sturdy Target", 3, 3).in_zone(ZoneId::Battlefield);
 
-    let src_id_pre;
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
@@ -1089,7 +1088,7 @@ fn test_bite_negative_power() {
         .unwrap();
 
     // Find IDs before adding the continuous effect.
-    src_id_pre = find_object(&state, "Weakened Biter");
+    let src_id_pre = find_object(&state, "Weakened Biter");
     let spell_id = find_object(&state, "Test Bite Spell");
     let tgt_id = find_object(&state, "Sturdy Target");
 
