@@ -167,9 +167,8 @@ pub fn handle_activate_ability(
         // dispatch is correct for future "grant a Channel ability" or "grant a
         // graveyard-activated ability" patterns. unwrap_or_else falls back to base
         // characteristics for objects not on the battlefield (LKI path).
-        let resolved_ab_chars =
-            crate::rules::layers::calculate_characteristics(state, source)
-                .unwrap_or_else(|| obj.characteristics.clone());
+        let resolved_ab_chars = crate::rules::layers::calculate_characteristics(state, source)
+            .unwrap_or_else(|| obj.characteristics.clone());
         let (is_channel, activation_zone) = resolved_ab_chars
             .activated_abilities
             .get(ability_index)
@@ -620,9 +619,8 @@ pub fn handle_activate_ability(
             // PermanentDestroyed instead of CreatureDied — "whenever a creature dies" triggers
             // would fail to fire. unwrap_or_else fallback handles graveyard/exile objects
             // (LKI path) where calculate_characteristics may return None.
-            let resolved_types =
-                crate::rules::layers::calculate_characteristics(state, source)
-                    .unwrap_or_else(|| obj.characteristics.clone());
+            let resolved_types = crate::rules::layers::calculate_characteristics(state, source)
+                .unwrap_or_else(|| obj.characteristics.clone());
             (
                 resolved_types
                     .card_types
@@ -750,9 +748,8 @@ pub fn handle_activate_ability(
             // permanent animated into a creature via Layer 4 must emit CreatureDied when
             // it is sacrificed as a cost, so "whenever a creature dies" triggers fire.
             // unwrap_or_else fallback handles LKI path (object not on battlefield).
-            let resolved_types =
-                crate::rules::layers::calculate_characteristics(state, sac_id)
-                    .unwrap_or_else(|| obj.characteristics.clone());
+            let resolved_types = crate::rules::layers::calculate_characteristics(state, sac_id)
+                .unwrap_or_else(|| obj.characteristics.clone());
             (
                 resolved_types
                     .card_types

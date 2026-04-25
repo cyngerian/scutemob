@@ -13,13 +13,13 @@
 //! all applied Layer 4 effects.
 
 use im::ordset;
+use mtg_engine::state::{ActivatedAbility, ActivationCost, SacrificeFilter};
 use mtg_engine::{
     calculate_characteristics, process_command, CardEffectTarget, CardType, Command,
     ContinuousEffect, Effect, EffectAmount, EffectDuration, EffectFilter, EffectId, EffectLayer,
-    GameEvent, GameStateBuilder, LayerModification, ObjectSpec, PlayerId, Step, TriggeredAbilityDef,
-    TriggerEvent,
+    GameEvent, GameStateBuilder, LayerModification, ObjectSpec, PlayerId, Step, TriggerEvent,
+    TriggeredAbilityDef,
 };
-use mtg_engine::state::{ActivatedAbility, ActivationCost, SacrificeFilter};
 
 fn p1() -> PlayerId {
     PlayerId(1)
@@ -233,8 +233,8 @@ fn test_animated_artifact_sacrifice_filter_emits_creature_died() {
 
     // Activating permanent: an artifact with "Sacrifice a creature: deal 1 damage to each opponent."
     // sacrifice_filter=Some(SacrificeFilter::Creature) triggers the L04 code path.
-    let activating_artifact = ObjectSpec::artifact(p1(), "Carnage Altar")
-        .with_activated_ability(ActivatedAbility {
+    let activating_artifact =
+        ObjectSpec::artifact(p1(), "Carnage Altar").with_activated_ability(ActivatedAbility {
             cost: ActivationCost {
                 sacrifice_filter: Some(SacrificeFilter::Creature),
                 ..Default::default()
