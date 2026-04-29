@@ -11,7 +11,7 @@
 **Card defs reviewed**: `armorcraft_judge.rs` (1 card)
 **Tests reviewed**: `crates/engine/tests/armorcraft_judge_etb.rs` (4 tests)
 
-## Verdict: **NEEDS FIXES**
+## Verdict: **PASS post-fix** (2026-04-29 re-review)
 
 The engine implementation is mechanically correct and well-scoped: the new
 `has_counter_type: Option<CounterType>` field is added to `TargetFilter` with
@@ -245,3 +245,130 @@ behavior. The two HIGH findings are entirely in documentation and test design.
 
 **Final verdict**: NEEDS FIXES — 2 HIGH (E1, T1), 2 LOW (E2, E3 — both subsumed
 by E1 fix). Engine behavior is correct; documentation and tests need surgery.
+
+---
+
+## Re-review (2026-04-29)
+
+**Reviewer**: primitive-impl-reviewer (Opus)
+**Fix commit**: `f864bc25 scutemob-12: PB-CC-B review fixes — CR 121→122 citations and test library discriminators`
+**Branch state**: `b990b867` (initial impl) + `f864bc25` (review fix)
+**Gates** (verified by coordinator, not re-run by reviewer):
+- `cargo test -p mtg-engine`: 2675 passed, 0 failed.
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --check`: clean.
+
+### Verdict: **PASS**
+
+Both prior HIGH findings (E1 CR-citation; T1 test discriminators) are fully
+resolved. No new findings. The two LOW findings (E2 helper doc-comment; E3
+library/graveyard sites cite CR 121) are subsumed by the E1 sweep and are also
+resolved. All 7 ESM acceptance criteria (3691-3697) are now MET. Ready for
+merge.
+
+### E1 status: **RESOLVED**
+
+Verified all 27 sites flagged in the original review:
+
+| Site | File:line | Pre-fix | Post-fix | Status |
+|------|-----------|---------|----------|--------|
+| Field doc-comment | `card_definition.rs:2455` | "Per CR 121:" | "Per CR 122.1:" | ✓ resolved |
+| Hash history entry | `state/hash.rs:47` | "PB-CC-B (...) `has_counter_type` added (CR 121..." | "PB-CC-B (...) `has_counter_type` added (CR 122.1..." | ✓ resolved |
+| Helper doc-comment | `effects/mod.rs:6588-6597` | "CR 121:" / "CR 121.6" | "CR 121: counters live on `GameObject`..." → "CR 122.1: counters live on `GameObject`..." and "CR 122.6" trailing | ✓ resolved |
+| Call-site (DestroyAll) | `effects/mod.rs:875` | "CR 121: counter check..." | "CR 122.1: counter check..." | ✓ resolved |
+| Call-site (ExileAll sweep) | `effects/mod.rs:1062` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (BounceAll) | `effects/mod.rs:1193` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (SearchLibrary lib/gy) | `effects/mod.rs:2128-2129` | "CR 121: library/graveyard cards have no counters" | "CR 122.2: library/graveyard cards have no counters (counters cease on zone change)" | ✓ resolved (correctly upgraded to 122.2) |
+| Call-site (SacrificePermanents) | `effects/mod.rs:2532` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (RevealAndRoute) | `effects/mod.rs:3963-3964` | "CR 121: library cards have no counters" | "CR 122.2: library cards have no counters (counters cease on zone change)" | ✓ resolved (correctly 122.2) |
+| Call-site (Graveyard search) | `effects/mod.rs:4864-4865` | "CR 121: graveyard cards have no counters" | "CR 122.2: graveyard cards have no counters (counters cease on zone change)" | ✓ resolved (correctly 122.2) |
+| Call-site (AllPermanentsMatching) | `effects/mod.rs:5501` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (CardCount lib branch) | `effects/mod.rs:5978-5979` | "CR 121: counter check is uniform" | "CR 122.2: counter check is uniform — non-battlefield objects have empty counters maps (counters cease on zone change)" | ✓ resolved (correctly 122.2) |
+| Call-site (PermanentCount primary) | `effects/mod.rs:6013` | "CR 121:" | "CR 122.1:" + "Primary callsite for Armorcraft Judge ETB and similar filters." | ✓ resolved |
+| Call-site (YouControlPermanent) | `effects/mod.rs:6761` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (OpponentControlsPermanent) | `effects/mod.rs:6773` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (YouControlNOrMoreWithFilter) | `effects/mod.rs:7148` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Call-site (ForEachTarget) | `effects/mod.rs:7343` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| CDA call-site (PermanentCount) | `rules/layers.rs:1442` | "CR 121: counter check..." | "CR 122.1: counter check against GameObject (not Characteristics)." | ✓ resolved |
+| CDA call-site (CardCount) | `rules/layers.rs:1463` | "CR 121:" | "CR 122.1:" | ✓ resolved |
+| Card def header | `defs/armorcraft_judge.rs:5-7` | "CR 121.1" / "CR 121.6" | "CR 122.1: Counters are artifacts..." / "CR 122.6: Counters on permanents..." | ✓ resolved |
+| Card def inline counter comment | `defs/armorcraft_judge.rs:29` | "CR 121.6 + Ruling 2020-11-10..." | "CR 122.6 + Ruling 2020-11-10..." | ✓ resolved |
+| Test header | `armorcraft_judge_etb.rs:7-11` | "CR 121.1" / "CR 121.6" | "CR 122.1: Counters modify the objects they are on." / "CR 122.6: Counters are tracked in `GameObject.counters`" | ✓ resolved |
+| Test 1 docstring | `armorcraft_judge_etb.rs:55, 64` | "CR 121.1 / Ruling 2020-11-10" | "CR 122.1 / Ruling 2020-11-10" | ✓ resolved |
+| Test 2 docstring | `armorcraft_judge_etb.rs:102, 111` | "CR 121.1" / "CR 121.6" | "CR 122.1" / "CR 122.6" | ✓ resolved |
+| Test 4 docstring | `armorcraft_judge_etb.rs:206, 215` | "CR 121.6" | "CR 122.6" | ✓ resolved |
+| Sentinel comment (pbn_subtype_filtered_triggers) | `tests/pbn_subtype_filtered_triggers.rs:548` | "(TargetFilter.has_counter_type, CR 121)" | "(TargetFilter.has_counter_type, CR 122.1)" | ✓ resolved |
+| Sentinel comment (effect_sacrifice_permanents_filter) | `tests/effect_sacrifice_permanents_filter.rs:130-132` | "CR 121 counter presence predicate" | "CR 122.1 counter presence predicate" | ✓ resolved |
+
+Spot-check confirmed pre-existing CR 121 references were not corrupted:
+`effects/mod.rs:6416` still reads `/// Draw one card for a player (CR 121.1).
+Returns events.` — this is the correct CR for drawing, untouched by the sweep.
+
+Total sites updated: **27** (matches the runner's report). Runner correctly
+distinguished CR 122.1 (counters live on objects) from CR 122.2 (counters
+cease on zone change) from CR 122.6 (counters on the battlefield) and applied
+the right subrule at each site. The library/graveyard sites are now
+specifically cited as CR 122.2, which is the technically correct subrule
+(counters cease on zone change), an upgrade beyond the original review
+suggestion of "CR 122" generic.
+
+### T1 status: **RESOLVED**
+
+All 4 tests now have library setups large enough to discriminate working from
+broken filters, and assertion messages explicitly name the broken-case value.
+Per-test analysis:
+
+| Test | Library size now | Correct hand_count | Broken-filter hand_count | Discriminator visible in assert message? |
+|------|------------------|--------------------|--------------------------|------------------------------------------|
+| `armorcraft_judge_no_counters_zero_draw` | **4** | 0 | 4 (counts all 4 creatures incl. Judge — Servo, Hill Giant, Llanowar Elves, Judge) | YES — `"must be 0 not 4 (broken filter would count all 4 creatures)"` (line 96-97) |
+| `armorcraft_judge_one_creature_with_counter_draws_one` | **4** | 1 | 3 (counts all 3 P1 creatures: Servo, Construct, Judge) | YES — `"must be 1 not 3 (broken filter would count all 3 P1 creatures)"` (line 148-150) |
+| `armorcraft_judge_multiple_counters_one_creature_still_one` | **4** | 1 | 3 (sum-counters: Pumped Creature has 3 counters) | YES — `"Ruling 2020-11-10: counts CREATURES not counters; broken sum-counters would give 3"` (line 198-201) |
+| `armorcraft_judge_filters_other_players_creatures` | **2** | 0 | 1 (controller-blind: counts P2's Opponent Pumped Creature) | YES — `"controller filter rules out opponent's counter-bearing creature; broken filter would give 1"` (line 247-251) |
+
+**Test 3 is now load-bearing.** It is the most critical test per Ruling
+2020-11-10 — "draw a card for each creature you control with a +1/+1 counter
+on it" counts creatures, not counter quantity. The setup (1 Pumped Creature
+with 3 +1/+1 counters + Judge with no counters + 4 library cards) means:
+- Correct filter (creatures with ≥1 counter): n=1 → hand=1.
+- Broken sum-counters filter: n=3 → hand=3.
+- Broken count-all-creatures filter: n=2 → hand=2 (Pumped + Judge both creatures).
+The library size 4 means the bottleneck no longer masks any of these counts.
+The assertion message specifically names "broken sum-counters would give 3",
+making the test's purpose explicit.
+
+All 4 test names unchanged:
+- `armorcraft_judge_no_counters_zero_draw` (line 63) ✓
+- `armorcraft_judge_one_creature_with_counter_draws_one` (line 110) ✓
+- `armorcraft_judge_multiple_counters_one_creature_still_one` (line 163) ✓
+- `armorcraft_judge_filters_other_players_creatures` (line 214) ✓
+
+### New findings: **None**
+
+No new issues introduced by the fix. CR-122 distinctions (122.1 vs 122.2 vs
+122.6) are applied appropriately at each site type (battlefield filter vs
+zone-change loss vs battlefield-add semantics). The runner's claim of "27
+sites fixed" is accurate; the runner's claim of "per-test discriminators
+added with explicit assert messages" is also accurate.
+
+### Final per-criterion mapping (post-fix)
+
+| Criterion | Status | Notes |
+|-----------|--------|-------|
+| 3691 — `pub has_counter_type: Option<CounterType>` field added with `#[serde(default)]`         | **MET** | `card_definition.rs:2461`. ✓ |
+| 3692 — `check_has_counter_type` helper added; checked at every battlefield callsite             | **MET** | 14 + 2 = 16 callsites verified. ✓ |
+| 3693 — Armorcraft Judge ETB uses the new field with `Some(CounterType::PlusOnePlusOne)`        | **MET** | `armorcraft_judge.rs:34`. ✓ |
+| 3694 — `HASH_SCHEMA_VERSION` bumped 9 → 10; hash impl extended for `TargetFilter`              | **MET** | `state/hash.rs:51, 4210`. ✓ |
+| 3695 — 4 tests as named, all pass; tests cite CR rules                                          | **MET** (post-fix): all 4 tests now have library discriminators distinguishing working from broken filters; CR citations corrected to CR 122.1 / 122.6. |
+| 3696 — `cargo test -p mtg-engine` passes (2675); clippy clean; fmt clean; build clean         | **MET** | Confirmed by coordinator. |
+| 3697 — Doc-comments cite CR rules accurately                                                    | **MET** (post-fix): 27 sites swept from CR 121 → CR 122.{1,2,6} with appropriate subrule selection. Pre-existing CR 121 draw-card references correctly preserved. |
+
+### Previous findings tracking
+
+| # | Severity | Previous Status | Current Status | Notes |
+|---|----------|-----------------|----------------|-------|
+| E1 | HIGH | OPEN | RESOLVED | 27 sites fixed; runner correctly distinguished CR 122.1/122.2/122.6 subrules; pre-existing CR 121 draw references preserved at `effects/mod.rs:6416`. |
+| E2 | LOW | OPEN | RESOLVED | Helper doc-comment at `effects/mod.rs:6588-6597` now cites CR 122.1 (primary) and CR 122.6 (trailing). |
+| E3 | LOW | OPEN | RESOLVED | All 4 library/graveyard "naturally fails" sites now cite CR 122.2 specifically. |
+| T1 | HIGH | OPEN | RESOLVED | All 4 tests now use 2-4 library cards; assert messages explicitly name broken-case values; test 3 (the critical Ruling 2020-11-10 test) is now genuinely load-bearing. |
+
+**Re-review verdict**: PASS post-fix. Ready for coordinator collection / merge.
