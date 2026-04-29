@@ -397,20 +397,21 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 
 // ── M4: Hash determinism + schema bump ────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 10 (PB-CC-B bump). Three
+/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 11 (PB-CC-C bump). Three
 /// distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_10() {
+fn test_pbt_hash_schema_version_is_11() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 10 (PB-CC-B bump from PB-SFT's 9 for
-    // TargetFilter.has_counter_type field (CR 122.1 counter presence predicate)).
+    // CR N/A — sentinel must be 11 (PB-CC-C bump from PB-CC-B's 10 for
+    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic variants
+    // (CR 613.1c single-axis dynamic P/T modification)).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 10u8,
-        "PB-CC-B: HASH_SCHEMA_VERSION must be 10 (bump from PB-SFT's 9 for \
-         TargetFilter.has_counter_type counter presence predicate)"
+        HASH_SCHEMA_VERSION, 11u8,
+        "PB-CC-C: HASH_SCHEMA_VERSION must be 11 (bump from PB-CC-B's 10 for \
+         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic)"
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -858,15 +859,16 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 10.
+/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 11.
 /// Regression guard against accidental rollback to a prior value.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_10_regression() {
-    // Must be exactly 10 (PB-CC-B bump from PB-SFT's 9 for TargetFilter.has_counter_type).
+fn test_pbt_hash_schema_version_sentinel_is_11_regression() {
+    // Must be exactly 11 (PB-CC-C bump from PB-CC-B's 10 for
+    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 10u8,
-        "PB-CC-B: Sentinel must be 10; bumped from PB-SFT's 9 for \
-         TargetFilter.has_counter_type (CR 122.1 counter presence predicate)"
+        HASH_SCHEMA_VERSION, 11u8,
+        "PB-CC-C: Sentinel must be 11; bumped from PB-CC-B's 10 for \
+         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic (CR 613.1c)"
     );
 }
 

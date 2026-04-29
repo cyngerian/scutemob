@@ -127,15 +127,15 @@ fn cast_test_sorcery(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B: HASH_SCHEMA_VERSION is 10.
-/// Bumped from 9 (PB-CC-B) to account for TargetFilter gaining
-/// `has_counter_type: Option<CounterType>` (CR 122.1 counter presence predicate).
+/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C: HASH_SCHEMA_VERSION is 11.
+/// Bumped from 10 (PB-CC-C) to account for LayerModification gaining
+/// `ModifyPowerDynamic` and `ModifyToughnessDynamic` variants (CR 613.1c).
 #[test]
-fn test_sft_hash_schema_version_is_10() {
+fn test_sft_hash_schema_version_is_11() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 10u8,
-        "PB-CC-B: HASH_SCHEMA_VERSION must be 10 (bump from PB-SFT's 9 for \
-         TargetFilter.has_counter_type counter presence predicate)"
+        HASH_SCHEMA_VERSION, 11u8,
+        "PB-CC-C: HASH_SCHEMA_VERSION must be 11 (bump from PB-CC-B's 10 for \
+         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic)"
     );
 }
 

@@ -48,7 +48,10 @@
 ///   counter presence predicate); enables Armorcraft Judge ETB and the
 ///   "creature with a +1/+1 counter on it" filter family. Backward compat
 ///   via `#[serde(default)] None`.
-pub const HASH_SCHEMA_VERSION: u8 = 10;
+/// - 11: PB-CC-C (2026-04-29) — `LayerModification::ModifyPowerDynamic` +
+///   `ModifyToughnessDynamic` (CR 608.2h, CR 613.4c); DSL placeholders for
+///   one-shot spell X-locked single-axis P/T modification.
+pub const HASH_SCHEMA_VERSION: u8 = 11;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1473,6 +1476,20 @@ impl HashInto for LayerModification {
             // resolved at Effect::ApplyContinuousEffect time (CR 608.2h).
             LayerModification::ModifyBothDynamic { amount, negate } => {
                 25u8.hash_into(hasher);
+                amount.hash_into(hasher);
+                negate.hash_into(hasher);
+            }
+            // ModifyPowerDynamic (discriminant 26) -- PB-CC-C: dynamic +X/+0 resolved at
+            // Effect::ApplyContinuousEffect time (CR 608.2h, CR 613.4c).
+            LayerModification::ModifyPowerDynamic { amount, negate } => {
+                26u8.hash_into(hasher);
+                amount.hash_into(hasher);
+                negate.hash_into(hasher);
+            }
+            // ModifyToughnessDynamic (discriminant 27) -- PB-CC-C: dynamic +0/+X resolved at
+            // Effect::ApplyContinuousEffect time (CR 608.2h, CR 613.4c).
+            LayerModification::ModifyToughnessDynamic { amount, negate } => {
+                27u8.hash_into(hasher);
                 amount.hash_into(hasher);
                 negate.hash_into(hasher);
             }

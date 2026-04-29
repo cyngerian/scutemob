@@ -546,11 +546,13 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // PB-T bumped the sentinel from 7 → 8 (TargetRequirement::UpToN added, CR 601.2c / 115.1b).
     // PB-SFT bumped the sentinel from 8 → 9 (Effect::SacrificePermanents.filter + TargetFilter.is_nontoken).
     // PB-CC-B bumped the sentinel from 9 → 10 (TargetFilter.has_counter_type, CR 122.1).
+    // PB-CC-C bumped the sentinel from 10 → 11 (LayerModification::ModifyPowerDynamic +
+    //   ModifyToughnessDynamic, CR 613.4c single-axis dynamic P/T modification).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 10u8,
-        "HASH_SCHEMA_VERSION must be 10 (PB-CC-B bump from PB-SFT's 9 for \
-         TargetFilter.has_counter_type counter presence predicate). \
+        HASH_SCHEMA_VERSION, 11u8,
+        "HASH_SCHEMA_VERSION must be 11 (PB-CC-C bump from PB-CC-B's 10 for \
+         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic). \
          If you bumped the sentinel, update this test."
     );
 }

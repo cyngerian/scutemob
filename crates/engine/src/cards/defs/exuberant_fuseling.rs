@@ -16,10 +16,18 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: "This creature gets +1/+0 for each oil counter on it" — CDA requiring
-            // EffectFilter::Self + dynamic count based on counters. DSL lacks
-            // ModifyPower(EffectAmount::CounterCountOnSelf) or equivalent CDA expression.
-            // Static ability omitted per W5 policy.
+            // TODO: "This creature gets +1/+0 for each oil counter on it." — CR 613.4c Layer 7c
+            // modify (CR 611.3a: static ability, NOT locked-in; must re-evaluate continuously).
+            //
+            // Blocked by: dynamic-static Layer-7c modify primitive (PB-CC-C-followup or similar).
+            // PB-CC-C added LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic for
+            // one-shot spell use cases (CR 608.2h substitution-at-resolution, e.g. Olivia's
+            // Wrath pattern). Fuseling needs CR 611.3a continuous re-evaluation, which requires
+            // a separate `AbilityDefinition::CdaModifyPowerToughness` variant analogous to
+            // `CdaPowerToughness` (Layer 7a). Routing this through ApplyContinuousEffect would
+            // produce a stale-snapshot bug: the oil counter count freezes at ETB time, so
+            // subsequent counter changes do not update power, violating oracle text.
+            // See `memory/primitives/pb-review-CC-C.md` C1/E4 for full analysis.
 
             // ETB: put an oil counter on this creature.
             AbilityDefinition::Triggered {
@@ -39,7 +47,9 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureDies covers the creature half (with exclude_self=true, controller=You)
             // but there is no "or artifact" variant in WheneverCreatureDies, and no separate
             // WheneverArtifactDies trigger condition exists. Implementing only the creature
-            // half would produce wrong game state (misses artifact deaths). Omitted per W5 policy.
+            // half would produce wrong game state (misses artifact deaths).
+            // Blocked by: WheneverCreatureOrArtifactDies trigger condition (multi-blocker).
+            // Out of PB-CC-C scope per memory/primitives/pb-retriage-CC.md.
         ],
         ..Default::default()
     }
