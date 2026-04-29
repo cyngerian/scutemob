@@ -2240,6 +2240,16 @@ pub enum EffectAmount {
     /// (CR 122 / 613). Reading them from `state.players[id].poison_counters`
     /// during `resolve_cda_amount` does not introduce layer recursion.
     ///
+    /// **CRITICAL INVARIANT**: when adding support for a new counter kind
+    /// (e.g. energy, experience, rad, ticket), the new arm MUST be added in
+    /// BOTH `resolve_amount` (effects/mod.rs) AND `resolve_cda_amount`
+    /// (rules/layers.rs). Adding it in only the spell-effect path silently
+    /// produces wrong CDA values; adding it in only the CDA path silently
+    /// produces wrong spell-effect values. The two arms must stay in lockstep
+    /// because there is no shared private helper between them (different
+    /// `PlayerTarget` resolution semantics — effects/mod.rs filters
+    /// `has_lost`, layers.rs does not).
+    ///
     /// Discriminant 16 (state/hash.rs).
     PlayerCounterCount {
         player: PlayerTarget,

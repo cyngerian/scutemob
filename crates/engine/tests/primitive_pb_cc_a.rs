@@ -291,18 +291,31 @@ fn test_player_counter_count_unsupported_kind_returns_zero() {
     let src = find_object(&state, "Source");
 
     // Try a non-Poison counter type; should resolve to 0 without panicking.
-    let n = resolve_via_apply(
+    // We use Energy (a real player-counter kind in MTG, but not yet wired to
+    // a flat field on PlayerState) AND a Custom kind to exercise both the
+    // enum-variant branch and the wildcard fallback.
+    let n_energy = resolve_via_apply(
         &mut state,
         src,
         p1,
         PlayerTarget::EachOpponent,
-        // Energy / experience / rad / ticket — none have flat fields on
-        // PlayerState today. Pick one that compiles.
-        CounterType::PlusOnePlusOne,
+        CounterType::Energy,
     );
     assert_eq!(
-        n, 0,
-        "non-Poison kinds resolve to 0 (defensive future-proof contract)"
+        n_energy, 0,
+        "Energy resolves to 0 (no PlayerState::energy_counters today; defensive future-proof contract)"
+    );
+
+    let n_custom = resolve_via_apply(
+        &mut state,
+        src,
+        p1,
+        PlayerTarget::EachOpponent,
+        CounterType::Custom("rad".to_string()),
+    );
+    assert_eq!(
+        n_custom, 0,
+        "Custom counter kinds resolve to 0 (no panic for unknown kinds)"
     );
 }
 

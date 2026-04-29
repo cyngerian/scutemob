@@ -401,7 +401,7 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 /// distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_11() {
+fn test_pbt_hash_schema_version_is_12() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 

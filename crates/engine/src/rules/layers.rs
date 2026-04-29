@@ -1593,6 +1593,21 @@ pub(crate) fn resolve_cda_amount(
 }
 
 /// Resolve a `PlayerTarget` in CDA context (no `EffectContext`).
+///
+/// CR 800.4i: when a player leaves a multiplayer game, their permanents are
+/// removed from the game (including this CDA's source). However, the layer
+/// system processes objects regardless of zone (CR 604.3), so a CDA evaluation
+/// can still observe `state.turn.turn_order` entries for already-lost players
+/// (the turn order is updated independently of CDA evaluation timing).
+///
+/// Divergence from `resolve_player_target_list` (effects/mod.rs): that function
+/// filters out `PlayerState::has_lost` players because spell-effect target
+/// resolution is illegal for lost players (CR 800.4i: "any objects targeted
+/// or chosen by a controlled spell or ability ... that became illegal targets
+/// are no longer chosen"). CDA evaluation does NOT target — it reads source
+/// characteristics — so filtering is unnecessary at this layer. A future
+/// primitive that needs lost-player filtering during CDA evaluation should
+/// add it explicitly here with a CR citation.
 fn resolve_cda_player_target(
     state: &GameState,
     target: &PlayerTarget,
