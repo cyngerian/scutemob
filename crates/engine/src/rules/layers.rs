@@ -1525,6 +1525,25 @@ pub(crate) fn resolve_cda_amount(
                 0
             }
         }
+        // PB-CC-A: CDA evaluation for counters on a player (poison-counter scaling).
+        // Mirrors `resolve_amount` PlayerCounterCount arm. Reads `PlayerState`
+        // fields, which are NOT layer-derived characteristics (CR 122 / 613) — no
+        // layer recursion concern.
+        //
+        // Sum semantic: `PlayerTarget::EachOpponent` sums over every non-controller
+        // (CR 122.1, Vishgraz ruling 2023-02-04). `Poison` reads
+        // `PlayerState::poison_counters`; other kinds return 0 (no panic).
+        EffectAmount::PlayerCounterCount { player, counter } => {
+            let players = resolve_cda_player_target(state, player, controller);
+            match counter {
+                crate::state::types::CounterType::Poison => players
+                    .iter()
+                    .filter_map(|pid| state.players.get(pid))
+                    .map(|ps| ps.poison_counters as i32)
+                    .sum(),
+                _ => 0,
+            }
+        }
         // PB-28: Sum of two amounts (e.g. "Elves you control plus Elf cards in graveyard").
         EffectAmount::Sum(a, b) => {
             resolve_cda_amount(state, a, object_id, controller)

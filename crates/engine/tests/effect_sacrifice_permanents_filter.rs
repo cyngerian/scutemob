@@ -127,15 +127,15 @@ fn cast_test_sorcery(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C: HASH_SCHEMA_VERSION is 11.
-/// Bumped from 10 (PB-CC-C) to account for LayerModification gaining
-/// `ModifyPowerDynamic` and `ModifyToughnessDynamic` variants (CR 613.1c).
+/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C/PB-CC-A: HASH_SCHEMA_VERSION is 12.
+/// Bumped from 11 (PB-CC-C) to account for EffectAmount gaining
+/// `PlayerCounterCount` variant (CR 122.1).
 #[test]
-fn test_sft_hash_schema_version_is_11() {
+fn test_sft_hash_schema_version_is_12() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 11u8,
-        "PB-CC-C: HASH_SCHEMA_VERSION must be 11 (bump from PB-CC-B's 10 for \
-         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic)"
+        HASH_SCHEMA_VERSION, 12u8,
+        "PB-CC-A: HASH_SCHEMA_VERSION must be 12 (bump from PB-CC-C's 11 for \
+         EffectAmount::PlayerCounterCount)"
     );
 }
 

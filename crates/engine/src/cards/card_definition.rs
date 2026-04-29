@@ -2214,6 +2214,37 @@ pub enum EffectAmount {
         target: EffectTarget,
         counter: CounterType,
     },
+    /// Count counters of a given type on a target player.
+    ///
+    /// PB-CC-A: Used for "for each poison counter your opponents have" patterns
+    /// (Vishgraz the Doomhive, Phyrexian Swarmlord — the latter blocked on PB-TS).
+    ///
+    /// **Sum semantic**: when `player` resolves to multiple players (e.g.
+    /// `PlayerTarget::EachOpponent` in a 4-player game with 3 opponents), the result
+    /// is the SUM of the named counter across all resolved players. Oracle text
+    /// "each poison counter your opponents have" is unambiguously a sum (every
+    /// poison counter on any opponent counts once); CR 122.1 + Vishgraz ruling
+    /// 2023-02-04. The `EachOpponent` reading is NOT "for each opponent who has
+    /// at least one counter" — it is "the total number of poison counters across
+    /// opponents."
+    ///
+    /// **Counter-kind support**: today only `CounterType::Poison` reads from
+    /// `PlayerState::poison_counters`. Other counter kinds (energy, experience,
+    /// rad, ticket, etc.) return 0 — the variant is intentionally future-proof
+    /// against a flat-field layout while non-poison player counters are unused.
+    /// Returning 0 (rather than panicking) keeps card defs that target unsupported
+    /// kinds from corrupting state; a defensive contract in line with other
+    /// "soft-fallback" amount resolvers.
+    ///
+    /// **CDA safety**: player counters are NOT layer-derived characteristics
+    /// (CR 122 / 613). Reading them from `state.players[id].poison_counters`
+    /// during `resolve_cda_amount` does not introduce layer recursion.
+    ///
+    /// Discriminant 16 (state/hash.rs).
+    PlayerCounterCount {
+        player: PlayerTarget,
+        counter: CounterType,
+    },
     /// The count of permanents affected by the preceding DestroyAll/ExileAll (stored in ctx).
     /// Used for "gain 1 life for each creature destroyed this way" (Fumigate),
     /// "put a +1/+1 counter for each permanent destroyed" (Bane of Progress), etc.
