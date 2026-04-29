@@ -127,16 +127,15 @@ fn cast_test_sorcery(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-SFT: HASH_SCHEMA_VERSION is 9.
-/// Bumped from 8 (PB-T) to account for Effect::SacrificePermanents gaining
-/// `filter: Option<TargetFilter>` (CR 701.21a + CR 109.1) and
-/// TargetFilter gaining `is_nontoken: bool`.
+/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B: HASH_SCHEMA_VERSION is 10.
+/// Bumped from 9 (PB-CC-B) to account for TargetFilter gaining
+/// `has_counter_type: Option<CounterType>` (CR 121 counter presence predicate).
 #[test]
-fn test_sft_hash_schema_version_is_9() {
+fn test_sft_hash_schema_version_is_10() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 9u8,
-        "PB-SFT: HASH_SCHEMA_VERSION must be 9 (bump from PB-T's 8 for \
-         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken)"
+        HASH_SCHEMA_VERSION, 10u8,
+        "PB-CC-B: HASH_SCHEMA_VERSION must be 10 (bump from PB-SFT's 9 for \
+         TargetFilter.has_counter_type counter presence predicate)"
     );
 }
 

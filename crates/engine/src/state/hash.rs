@@ -44,7 +44,11 @@
 ///   `filter: Option<TargetFilter>` field (CR 701.21a + CR 109.1); existing
 ///   serialized states without the field deserialize as `filter: None` (backward
 ///   compatible via `#[serde(default)]`).
-pub const HASH_SCHEMA_VERSION: u8 = 9;
+/// - 10: PB-CC-B (2026-04-29) — TargetFilter.has_counter_type added (CR 121
+///   counter presence predicate); enables Armorcraft Judge ETB and the
+///   "creature with a +1/+1 counter on it" filter family. Backward compat
+///   via `#[serde(default)] None`.
+pub const HASH_SCHEMA_VERSION: u8 = 10;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4203,6 +4207,7 @@ impl HashInto for TargetFilter {
         self.is_attacking.hash_into(hasher);
         self.has_chosen_subtype.hash_into(hasher);
         self.exclude_chosen_subtype.hash_into(hasher);
+        self.has_counter_type.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {

@@ -2450,6 +2450,15 @@ pub struct TargetFilter {
     /// `check_chosen_subtype_filter()` at each effect call site that supports it.
     #[serde(default)]
     pub exclude_chosen_subtype: bool,
+    /// Must have at least one counter of this kind. None = no restriction.
+    /// Used for "creature you control with a +1/+1 counter on it" filters
+    /// (Armorcraft Judge ETB, Inspiring Call). Per CR 121: counters are tracked
+    /// in `GameObject.counters`, NOT in `Characteristics` — so this is a
+    /// runtime GameObject field. Like `is_token` / `is_attacking`, it MUST be
+    /// checked explicitly at each call site that uses TargetFilter; it will
+    /// be silently ignored by `matches_filter()`.
+    #[serde(default)]
+    pub has_counter_type: Option<CounterType>,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

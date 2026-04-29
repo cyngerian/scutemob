@@ -397,20 +397,20 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 
 // ── M4: Hash determinism + schema bump ────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 9 (PB-SFT bump). Three
+/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 10 (PB-CC-B bump). Three
 /// distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_9() {
+fn test_pbt_hash_schema_version_is_10() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 9 (PB-SFT bump from PB-T's 8 for
-    // Effect::SacrificePermanents filter field + TargetFilter.is_nontoken).
+    // CR N/A — sentinel must be 10 (PB-CC-B bump from PB-SFT's 9 for
+    // TargetFilter.has_counter_type field (CR 121 counter presence predicate)).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 9u8,
-        "PB-SFT: HASH_SCHEMA_VERSION must be 9 (bump from PB-T's 8 for \
-         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken)"
+        HASH_SCHEMA_VERSION, 10u8,
+        "PB-CC-B: HASH_SCHEMA_VERSION must be 10 (bump from PB-SFT's 9 for \
+         TargetFilter.has_counter_type counter presence predicate)"
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -858,16 +858,15 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 9.
+/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 10.
 /// Regression guard against accidental rollback to a prior value.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_9_regression() {
-    // Must be exactly 9 (PB-SFT bump from PB-T's 8 for Effect::SacrificePermanents
-    // filter field + TargetFilter.is_nontoken).
+fn test_pbt_hash_schema_version_sentinel_is_10_regression() {
+    // Must be exactly 10 (PB-CC-B bump from PB-SFT's 9 for TargetFilter.has_counter_type).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 9u8,
-        "PB-SFT: Sentinel must be 9; bumped from PB-T's 8 for Effect::SacrificePermanents \
-         filter field + TargetFilter.is_nontoken (CR 701.21a + CR 109.1)"
+        HASH_SCHEMA_VERSION, 10u8,
+        "PB-CC-B: Sentinel must be 10; bumped from PB-SFT's 9 for \
+         TargetFilter.has_counter_type (CR 121 counter presence predicate)"
     );
 }
 
