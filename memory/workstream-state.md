@@ -12,10 +12,10 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed (SR-FS-01, PB-N-L01, BASELINE-CLIPPY-01..06, PB-S-L02..L06). ~50→~45 open. Tests 2686→2689. Clippy baseline actually clean. |
+| W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed. ~45 open. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | PB-T merged 2026-04-20. 2686 tests. W6 old-queue exhausted. Workstream coordination ESM-managed; this file kept for history. |
+| W6: Primitive + Card Authoring | — | available | — | PB-SFT + PB-CC umbrella shipped 2026-04-29 via 5-PB autonomous chain (scutemob-10..14). Tests 2689→2716. ~10 cards unblocked (PB-SFT 7+; PB-CC-W Mossborn; PB-CC-B Armorcraft Judge; PB-CC-C/PB-CC-A engine machinery shipped, target CDA cards Vishgraz + Exuberant Fuseling deferred to **PB-CC-C-followup** seed = "Layer 7c dynamic CDA with continuous re-evaluation per CR 611.3a"). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,36 +23,43 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-25 ~16:00–19:00 EDT (W3-LOW sprint-1 + sprint-2 chain dispatch)
-**Workstream**: W3: LOW Remediation (ESM-managed)
-**Task**: pick LOW cleanup over PB-SFT re-triage → /dispatch sprint-1 (T1 mechanical) → /collect → /dispatch sprint-2 (T3 PB-S base-char sweep) → /collect+fixup → push
+**Date**: 2026-04-29 ~01:00–05:00 EDT (5-PB autonomous chain — PB-SFT + PB-CC umbrella)
+**Workstream**: W6: Primitive (ESM-managed)
+**Task**: pre-impl re-triage of PB-SFT + PB-CC (parallel) → 5-PB autonomous impl chain (1 parallel + 3 sequential) → push → end-session
 
 **Completed**:
-- **W3-LOW sprint-1 shipped** (`scutemob-6`, merged `c6c3592b`, --no-ff): T1 mechanical cleanup, ~14 min wall clock. SR-FS-01 closed (`first_strike_damage_resolved` confirmed already-removed by grep). PB-N-L01 indentation reflowed in 5 card defs (grim_haruspex, cruel_celebrant, blood_artist, marionette_apprentice, syr_konrad_the_grim). BASELINE-CLIPPY-04 (`fn on_battlefield` in scavenge.rs) deleted + 27 additional clippy warnings fixed (len_zero, manual_while_let_loop, field_reassign_with_default, items_after_test_module, too_many_arguments, etc.). `cargo clippy --all-targets -- -D warnings` now ACTUALLY exits 0 (PB-T's prior claim was wrong/regressed). 4 W3: commits, 54 files, net −117 LOC, zero new `#[allow]`. Tests still 2686. Audit trail: `~~strikethrough~~` + `**Status: CLOSED 2026-04-25**` annotations preserve history in remediation doc.
-- **W3-LOW sprint-2 shipped** (`scutemob-7`, merged `c7a93c5e` + `afd7c34d` artifact-fixup, --no-ff): T3 behavioral, ~38 min wall clock. PB-S-L02 Channel/graveyard activation_zone, PB-S-L03 sacrifice-self cost path, PB-S-L04 sacrifice-filter cost path → all read `calculate_characteristics(state, id)` (CR 613.1f). PB-S-L05 granted-index invariant documented at callsite (option-b: debug_assert attempted then removed as false-positive). PB-S-L06 `test_humility_before_grant_preserves_grant` added (CR 613.1f layer ordering). +3 regression tests in `crates/engine/tests/animated_creature_sacrifice_cost.rs` (sac-self + sac-filter) + `grant_activated_ability.rs` (Humility-before-Rite). Tests 2686→2689. Worker delegation chain: primitive-impl-runner → primitive-impl-reviewer → /review Opus PASS. 9 W3: commits.
-- **Worker-worktree contamination caught + fixed**: sprint-2 worker's fmt commit `4c77bf50` broadly `git add`-ed and bundled the .claude/skills/ deletion artifact (27 deleted) + .esm/worker.md (tracked addition). Caught at post-merge `git diff main..HEAD --stat`. Applied fix recipe: `git checkout HEAD^1 -- .claude/skills/` + `git rm .esm/worker.md`. Kept the worker's intentional `.claude/skills/review/SKILL.md` add (useful /review slash command). Recipe now documented in workstream-state.md hazards.
-- **Pushed**: `f36f0792`, `65b3a492` to `origin/main`. Branch up to date.
-- **CLAUDE.md updated** twice (`f36f0792`, `65b3a492`): test count 2686→2689, LOW count ~58→~45, Last Updated 2026-04-25.
+- **Phase A re-triage** (`scutemob-8` `700f13c8` + `scutemob-9` `037c3547`): two parallel re-triage memos. PB-SFT verdict PROCEED — FIELD-ADDITION (planner mis-named; gap is on Effect, not Cost). PB-CC verdict UMBRELLA-OF-MICRO-PRIMITIVES (4 micro-PBs: W/B/C/A).
+- **Wave 1 parallel** (`scutemob-10` `da566418` + `scutemob-11` `0a46e1b4`): PB-SFT (`Effect::SacrificePermanents.filter: Option<TargetFilter>`, 7+ cards re-authored: Fleshbag Marauder, Merciless Executioner, Butcher of Malakir, Dictate of Erebos, Grave Pact, Liliana DH-4, Blasphemous Edict, Roiling Regrowth, etc.) + PB-CC-W (Mossborn Hydra Landfall stale-TODO wire-up, no engine).
+- **Wave 2 sequential** (`scutemob-12` `06d02990`, `scutemob-13` `e2d75672`, `scutemob-14` `fd6c8e6a`): PB-CC-B (`TargetFilter.has_counter_type` field + Armorcraft Judge ETB), PB-CC-C (`LayerModification::ModifyPower/ToughnessDynamic` engine variants — Exuberant Fuseling **deferred** Option B per reviewer), PB-CC-A (`EffectAmount::PlayerCounterCount` engine variant — Vishgraz CDA **deferred** Option B per reviewer, same trap as PB-CC-C).
+- **Tests 2689→2716** (+27 net). HASH bumped 4×. All clippy clean. Pushed `051442bd..fd6c8e6a` to origin/main.
+- **Discoveries**: (1) two CDA target cards (Exuberant Fuseling, Vishgraz) hit a deeper architectural gap — `ModifyBothDynamic`-style substitution **locks the value at registration**, but CR 611.3a requires CDAs to be **continuously re-evaluated** ("static ability, NOT locked-in"). Engine machinery shipped is useful for spell-instant pump effects; CDAs need new primitive **PB-CC-C-followup**: "Layer 7c dynamic CDA with continuous re-evaluation". TODOs documented in vishgraz_the_doomhive.rs and exuberant_fuseling.rs with full citation. (2) Yield calibration tracked: planner estimated 12-16, actual ~10 unblocked — matches `feedback_pb_yield_calibration.md` 2-3x discount.
 
 **Not done / deferred**:
-- 4 SR-PRO-03/04 + SR-FS-02/03 additive coverage tests (Option B from session menu).
-- Marisi authoring — DamagedPlayer goad ForEach now shippable, but "opponents can't cast spells during combat" remains a real DSL gap (would need a phase-scoped CantCast primitive).
-- PB-SFT re-triage (Cost::SacrificeFilteredType, rank 3, ~12 live TODOs) and PB-CC re-triage (EffectAmount::CounterCount, rank 6, ~10 live TODOs) — neither has a queue entry.
-- ~45 LOWs open (carried: BASELINE-LKI-01, PB-Q4-M01, marisi stale TODO, 11 PB-T LOWs, 5 PB-P LOWs, 1 PB-D LOW).
+- **PB-CC-C-followup** (new primitive seed): Layer 7c dynamic CDA with continuous re-evaluation. Cards: Vishgraz the Doomhive, Exuberant Fuseling (and likely all "+X/+0 for each counter" CDAs). Architecturally distinct from PB-CC-A/C — needs Layer 7c CDA path that re-resolves the EffectAmount on every layer recomputation, not at registration time.
+- Marisi authoring — DamagedPlayer goad ForEach shippable; "opponents can't cast spells during combat" remains DSL gap.
+- ~45 LOWs open (unchanged this session).
+- Re-triage candidates from previous handoff still untouched: 9 named seeds in pb-retriage-CC.md stop-and-flag log (PB-TS token-count, per-target dynamic, counter-doubling replacement, library-empty draw replacement, counter-threshold trigger gate, exclude-self filter, multi-target grant over filter set, replacement-effect counter substitution, kicker-driven ETB counters).
 
 **Next session**:
-- Three candidates: (a) Option B test-coverage fill (4 additive tests, T1 risk), (b) marisi authoring + PB-CC-Combat (Cant Cast During Combat) primitive, (c) PB-SFT re-triage + dispatch.
-- Worker-worktree contamination protocol: include the fix recipe call in /collect skill OR have workers explicitly avoid `git add -A` in worktree commits.
+- Two natural candidates: (a) **PB-CC-C-followup** — design + ship the Layer 7c continuous CDA primitive (unblocks Vishgraz + Exuberant Fuseling that this session deferred); (b) re-triage of any of the 9 named seeds from the PB-CC stop-and-flag log (PB-TS token-count is biggest umbrella — 5+ cards: Phyrexian Swarmlord, Chasm Skulker, Anim Pakal, Krenko/Izoni token scaling).
 
 **Hazards**:
-- **Worker-worktree `.claude/skills/` deletion artifact (still relevant; recipe documented)** — see hazards section above. `git diff main..HEAD --stat` is the must-do post-merge check.
-- **Validator greedy-consume bug class**: PB-T's E1 finding (first-pass validator rejected CR-legal out-of-slot-order targets) — any Vec-of-target validator can have this failure mode. Two-pass best-fit pattern (collect candidates per slot → bipartite match) is the fix.
-- **Handoff "clippy clean" claims can be wrong**: PB-T claimed BASELINE-CLIPPY-01..06 resolved; sprint-1 found they regressed (or never were). Always run `cargo clippy --all-targets -- -D warnings` independently before claiming clean state in handoff notes.
-- **Carried-forward LOWs**: BASELINE-LKI-01, PB-Q4-M01, PB-D marisi stale-TODO (now reclassified as authorable not stale), 11 PB-T LOWs, 5 PB-P LOWs.
+- **CWD-stickiness in Bash tool**: `cd .worktrees/scutemob-N` keeps the cwd across subsequent bash calls in the same session. `esm worktree merge scutemob-N` then fails with double-pathed error. Fix: always use absolute paths with `esm` commands, or `cd /home/skydude/projects/scutemob` to reset before merge.
+- **`esm task transition --attest working_branch=<short>` poisons the merge**: ESM uses the attested branch name as the merge target. `esm worktree create` returns the FULL long-form branch name — pass it verbatim. If the short form was attested, fall back to manual `git merge --no-ff <full-branch-name>` + `git worktree remove --force .worktrees/scutemob-N` + `git branch -D <full-branch>`. Recipe used at scutemob-13.
+- **`bash -c '...'` apostrophe parse error**: long claude prompts inside single-quoted bash break on `don't`/`won't`/etc. Fix: write prompt to `/tmp/<task>-prompt.txt` then `PROMPT=$(cat /tmp/<task>-prompt.txt)` and `claude "$PROMPT"`. Used at scutemob-14.
+- **Worker-worktree `.claude/skills/` deletion artifact** (still relevant; same recipe). `git diff main..HEAD --stat` post-merge check.
+- **Carried-forward LOWs**: BASELINE-LKI-01, PB-Q4-M01, marisi stale-TODO (authorable), 11 PB-T LOWs, 5 PB-P LOWs, 1 PB-D LOW. Plus new LOWs from this session: PB-SFT, PB-CC-B, PB-CC-C, PB-CC-A review memos each carry 2-5 LOWs (see memory/primitives/pb-review-*.md).
 
-**Commit prefix used**: worker-agent-generated (`W3:` / `task scutemob-N:`) + coordinator `chore:` for CLAUDE.md/workstream-state.md updates. Followed convention.
+**Commit prefix used**: worker-agent-generated (`scutemob-N:` / `W3:` style) + coordinator `chore:` for end-session updates.
 
 ## Handoff History
+
+### 2026-04-25 (W3-LOW sprint-1 + sprint-2 chain dispatch)
+
+- W3-LOW sprint-1 (`scutemob-6`, merged `c6c3592b`): T1 mechanical cleanup, ~14min. SR-FS-01 closed (verified absent), PB-N-L01 indentation reflowed in 5 card defs, BASELINE-CLIPPY-04 deleted + 27 clippy warnings fixed. `cargo clippy --all-targets -- -D warnings` actually exits 0 (PB-T's prior claim was wrong). 4 commits, 54 files, net −117 LOC. Tests still 2686.
+- W3-LOW sprint-2 (`scutemob-7`, merged `c7a93c5e` + `afd7c34d` artifact-fixup): T3 behavioral, ~38min. PB-S-L02/L03/L04 base-char→`calculate_characteristics(state, id)` (CR 613.1f), L05 granted-index invariant documented, L06 Humility-before-grant test added. +3 regression tests. Tests 2686→2689. 9 commits.
+- Worker-worktree contamination caught + fixed: sprint-2 worker bundled `.claude/skills/` deletion (27 files) + `.esm/worker.md` add. Caught at post-merge `git diff main..HEAD --stat`. Recipe: `git checkout HEAD^1 -- .claude/skills/` + `git rm .esm/worker.md`.
+- 13 LOWs closed total. ~45 open. Pushed to origin.
 
 ### 2026-04-20 (PB-T single-worker dispatch) — W6: TargetRequirement::UpToN
 
@@ -69,10 +76,4 @@
 ### 2026-04-13 (PB-D planner session) — W6: PB-D plan phase
 
 - Opus planner run (`b9f43bf1`): `memory/primitives/pb-plan-D.md` written. Verdict PASS-AS-NEW-VARIANT (`TargetController::DamagedPlayer`), 6 confirmed cards of 15 classified (~40% yield), ~10 dispatch sites across casting/abilities/effects/hash, hash bump 4→5, 7 mandatory + 2 optional tests. Step 0 stale-TODO sweep returned positive null; Step 1 PB-P pre-check found PB-P is real-but-narrow (real gap is `EffectAmount::PowerOf(SacrificedCreature)` LKI read — Altar of Dementia / Greater Good). BASELINE-LKI-01 verified structurally NOT reaching PB-D. 0 stop-and-flags. `memory/primitive-wip.md` halted at phase=plan-complete pending oversight greenlight.
-
-### 2026-04-13 (PB-N close session) — W6: PB-N full pipeline
-
-- Full pipeline (plan → implement → review → fix → re-review → close) under coordinator oversight. Step 0 stale-TODO sweep (`fc83d9d0`) shipped bootleggers_stash as first filtered `LayerModification::AddActivatedAbility` grant on `LandsYouControl`. PB-N plan verdict PASS-AS-FIELD-ADDITION (`filter: Option<TargetFilter>` + `triggering_creature_filter` mirroring `combat_damage_filter`). Implement (`d343e1ba`, `7e7d426a`): 7 engine files, hash sentinel 3→4 promoted to `pub const HASH_SCHEMA_VERSION`, `combat_damage_filter` tightened to damage-only (latent bug fix), 56 mechanical card-def backfills, 4 cards + 9 tests (2637 → 2646). Review found 2 HIGH + 3 MEDIUM + 1 LOW; fix phase (`0e5d7cf1`) rewrote Sanctum Seeker drain (no new engine surface), added Utvara Hellkite catch via TODO sweep (yield 4→5), tightened hash assertion, fixed combat_damage_filter regression test. F3 LKI test wedge stop-and-flagged as structurally unreachable — 30-min aura wedge experiment confirmed BASELINE-LKI-01 (death-trigger dispatch re-runs layer filters against graveyard objects, dropping battlefield-gated filters). Close commit logged BASELINE-LKI-01 + BASELINE-CLIPPY-01..06 + PB-N-L01 in remediation doc, added gotcha #39, created 2 new feedback memory files, updated primitive-impl-planner agent with mandatory step 3a (pre-existing TODO sweep). Tests 2637 → 2648. Clippy baseline correction: every prior "clippy clean" handoff was wrong with `--all-targets`; ≥6 pre-existing errors now logged.
-
-
 

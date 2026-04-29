@@ -431,3 +431,47 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
   issue affects the HTTP harness only — `cargo test` uses regular threads (8 MB) and passes.
   The `api.rs` `post_run_script` and `post_load` handlers also use `spawn_blocking` to further
   insulate against deep call chains in async handlers.
+
+## ESM Dispatch / Worker Coordination Gotchas (2026-04-29)
+
+- **CWD-stickiness in Bash tool**: A `cd` in one Bash call persists to subsequent calls in
+  the same conversation. After `cd .worktrees/scutemob-N` to inspect worktree state,
+  `esm worktree merge scutemob-N` from the next bash call will fail with
+  `"No worktree found at /home/skydude/projects/scutemob/.worktrees/scutemob-N/.worktrees/scutemob-N"`
+  (double-pathed). Fix: always invoke `esm` commands from the main repo root, either by
+  using absolute paths or starting the command with `cd /home/skydude/projects/scutemob`.
+- **`esm task transition --attest working_branch=<short>` poisons the merge**: ESM stores
+  whatever you attest as the task's branch, and later uses that exact string in
+  `esm worktree merge`. `esm worktree create` returns the FULL long-form branch name
+  (e.g. `feat/pb-cc-c-layermodificationmodifypowerdynamic-modifytoughnessd`); pass it
+  verbatim. If the short form was attested, `esm worktree merge` fails with
+  `"merge: <short> - not something we can merge"`. Recovery recipe (used at scutemob-13):
+  ```bash
+  git merge --no-ff <full-branch-name> -m "merge: scutemob-N — <title>"
+  git worktree remove --force /home/skydude/projects/scutemob/.worktrees/scutemob-N
+  git branch -D <full-branch-name>
+  esm task transition scutemob-N done --agent primary --attest review_complete=true \
+    --attest merged_to_main=true --attest merge_commit=<sha>
+  ```
+  Best practice: capture branch from `esm worktree create` JSON via
+  `WT=$(... | python3 -c "import sys,json; print(json.load(sys.stdin)['branch'])")` then
+  attest `working_branch="$WT"`.
+- **`bash -c '...'` apostrophe parse error on long claude prompts**: dispatched workers
+  receive their prompt as an argument to `claude` inside `bash -c '...'`. Single-quoted
+  strings in bash cannot contain literal apostrophes — `don't` / `won't` / etc. break
+  the shell parse with `unexpected EOF while looking for matching '"'`. Fix: write the
+  prompt to a tmp file and read it back inside the bash -c block:
+  ```bash
+  cat > /tmp/scutemob-N-prompt.txt <<'PROMPT_EOF'
+  Read .esm/worker.md... (apostrophes fine inside heredoc)
+  PROMPT_EOF
+  kitty @ launch ... -- bash -c '... PROMPT=$(cat /tmp/scutemob-N-prompt.txt); claude "$PROMPT"; exec bash'
+  ```
+  Used at scutemob-14.
+- **Background polling loop pattern for autonomous chains**: 10-min Bash timeout means
+  loops watching workers will time out. Pattern: poll until any of `in_review|done|blocked`,
+  use `--run_in_background: true --timeout: 600000`, accept the timeout as expected and
+  restart with the same task IDs. State file at `/tmp/esm-dispatch-$$.ready` survives
+  timeouts (loop skips already-completed entries). Workers typically signal `in_review`
+  in 5-30 minutes (PB-CC-W ~30s, PB-CC-B ~9 min, PB-SFT ~28 min, PB-CC-C ~3 min,
+  PB-CC-A ~8 min observed in the 2026-04-29 chain).
