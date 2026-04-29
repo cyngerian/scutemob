@@ -776,12 +776,12 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // Assert hash sentinel is exactly 9 (PB-SFT bump from PB-T's 8 for
-    // Effect::SacrificePermanents.filter and TargetFilter.is_nontoken).
+    // Assert hash sentinel is exactly 10 (PB-CC-B bump from PB-SFT's 9 for
+    // TargetFilter.has_counter_type counter presence predicate).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 9u8,
-        "PB-SFT: HASH_SCHEMA_VERSION must be 9 (PB-SFT bump from PB-T's 8 for \
-         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken). \
+        HASH_SCHEMA_VERSION, 10u8,
+        "PB-CC-B: HASH_SCHEMA_VERSION must be 10 (bump from PB-SFT's 9 for \
+         TargetFilter.has_counter_type counter presence predicate). \
          If you bumped the sentinel, update this test."
     );
 

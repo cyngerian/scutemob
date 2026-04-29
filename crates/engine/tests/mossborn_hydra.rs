@@ -253,4 +253,3 @@ fn test_mossborn_hydra_landfall_with_zero_counters_is_noop() {
         counters
     );
 }
-
