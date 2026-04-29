@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             // EffectAmount::CounterCount and add N more, yielding 2N total. Ruling
             // 2024-11-08 confirms semantics ("put a number of +1/+1 counters on it equal
             // to the number it already has"). CR 207.2c (Landfall) +
-            // CR 121.2 (counters added by an effect).
+            // CR 122.1/122.6 (counters; counters being put on an object).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {

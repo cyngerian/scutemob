@@ -15,14 +15,14 @@
 //!    Hydra's Landfall ability (CR 207.2c + CR 603.2 + TargetController::You).
 //! 2. Doubling math: `Effect::AddCounterAmount { count: CounterCount(Source) }`
 //!    on a creature with N +1/+1 counters yields 2N counters total
-//!    (CR 121.2 — counters added by an effect are added to the existing
-//!    pool, not replacing them).
+//!    (CR 122.6 — counters being put on an object are added to existing
+//!    counters, not replacing them).
 //! 3. Non-you-control negative: an opponent's land does NOT trigger Mossborn
 //!    Hydra's Landfall (TargetController::You filter).
 //!
 //! CR references:
-//!   - CR 121.2  — counters are placed on permanents and players; effects can
-//!     add or remove them
+//!   - CR 122.1  — definition of a counter
+//!   - CR 122.6  — counters being put on an object
 //!   - CR 207.2c — "Landfall" is an ability word
 //!   - CR 603.2  — triggered abilities check once per event
 //!   - CR 603.6  — zone-change triggers (for "enters the battlefield")
@@ -151,10 +151,10 @@ fn test_mossborn_hydra_landfall_does_not_trigger_on_opponent_land() {
 
 // ── 3. Doubling math: N → 2N via AddCounterAmount + CounterCount(Source) ─────
 
-/// CR 121.2 — when an effect adds counters, those counters are added to any
-/// existing counters on the permanent, not replacing them. Mossborn Hydra's
-/// Landfall reads its current N +1/+1 counters via `EffectAmount::CounterCount`
-/// and adds N more via `Effect::AddCounterAmount`, yielding 2N counters total.
+/// CR 122.6 — counters being put on an object are added to the existing
+/// counters on the permanent, not replacing them. Mossborn Hydra's Landfall
+/// reads its current N +1/+1 counters via `EffectAmount::CounterCount` and
+/// adds N more via `Effect::AddCounterAmount`, yielding 2N counters total.
 ///
 /// This test executes the exact effect expression embedded in
 /// `mossborn_hydra.rs` against a Hydra placeholder pre-loaded with N counters
@@ -203,7 +203,7 @@ fn test_mossborn_hydra_landfall_doubles_counters() {
 
         assert_eq!(
             actual, expected,
-            "CR 121.2 + ruling 2024-11-08: Mossborn Hydra Landfall must double \
+            "CR 122.6 + ruling 2024-11-08: Mossborn Hydra Landfall must double \
              N={} +1/+1 counters to {}; got {}",
             initial, expected, actual
         );
