@@ -2,14 +2,6 @@
 // Trample
 // This creature enters with a +1/+1 counter on it.
 // Landfall — Whenever a land you control enters, double the number of +1/+1 counters on this creature.
-//
-// Trample and enters-with-counter ETB are implemented.
-//
-// TODO: DSL gap — Effect::AddCounter with amount equal to current +1/+1 counters on source
-// (self-doubling). Landfall trigger itself is covered by
-// TriggerCondition::WheneverPermanentEntersBattlefield { Land + You } (CR 207.2c), but the
-// "double the number of +1/+1 counters on this creature" effect is not expressible — no
-// EffectAmount::CurrentCountersOnSource variant exists. The Landfall ability is omitted.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -30,6 +22,34 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::Source,
                     counter: CounterType::PlusOnePlusOne,
                     count: 1,
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
+            // Landfall — Whenever a land you control enters, double the number of +1/+1
+            // counters on this creature. Implementation: read current N counters via
+            // EffectAmount::CounterCount and add N more, yielding 2N total. Ruling
+            // 2024-11-08 confirms semantics ("put a number of +1/+1 counters on it equal
+            // to the number it already has"). CR 207.2c (Landfall) +
+            // CR 121.2 (counters added by an effect).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::AddCounterAmount {
+                    target: EffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: EffectAmount::CounterCount {
+                        target: EffectTarget::Source,
+                        counter: CounterType::PlusOnePlusOne,
+                    },
                 },
                 intervening_if: None,
                 targets: vec![],
