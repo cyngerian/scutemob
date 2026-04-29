@@ -2315,11 +2315,23 @@ fn execute_effect_inner(
             // CR 608.2h / PB-X: Resolve ModifyBothDynamic at execution time so the stored
             // ContinuousEffect always carries a concrete ModifyBoth(i32) value. This ensures
             // X is locked in at resolution (not re-evaluated later when creatures enter/leave).
+            // CR 608.2h / PB-CC-C: Same substitution for ModifyPowerDynamic → ModifyPower(v)
+            // and ModifyToughnessDynamic → ModifyToughness(v).
             let resolved_modification = match &effect_def.modification {
                 LM::ModifyBothDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
                     let v = if *negate { -raw } else { raw };
                     LM::ModifyBoth(v)
+                }
+                LM::ModifyPowerDynamic { amount, negate } => {
+                    let raw = resolve_amount(state, amount, ctx);
+                    let v = if *negate { -raw } else { raw };
+                    LM::ModifyPower(v)
+                }
+                LM::ModifyToughnessDynamic { amount, negate } => {
+                    let raw = resolve_amount(state, amount, ctx);
+                    let v = if *negate { -raw } else { raw };
+                    LM::ModifyToughness(v)
                 }
                 other => other.clone(),
             };

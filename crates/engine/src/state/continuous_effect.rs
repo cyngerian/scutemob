@@ -392,6 +392,37 @@ pub enum LayerModification {
         amount: Box<crate::cards::card_definition::EffectAmount>,
         negate: bool,
     },
+    /// DSL placeholder: dynamic +X/+0 where X is an `EffectAmount` resolved at
+    /// `Effect::ApplyContinuousEffect` execution time (CR 608.2h, CR 613.1c).
+    ///
+    /// Mirrors `ModifyBothDynamic` exactly, but modifies power only. Must be
+    /// substituted into a concrete `ModifyPower(resolved_value)` at
+    /// `Effect::ApplyContinuousEffect` execution time — it must NEVER appear in a
+    /// stored `ContinuousEffect`. If this variant is seen by layer-application code
+    /// the substitution was skipped (a bug).
+    ///
+    /// Used for "this creature gets +1/+0 for each oil counter on it" (Exuberant
+    /// Fuseling). `negate=true` produces `-X`; `negate=false` produces `+X`.
+    /// Boxed to avoid `large_enum_variant` clippy warnings.
+    ModifyPowerDynamic {
+        amount: Box<crate::cards::card_definition::EffectAmount>,
+        negate: bool,
+    },
+    /// DSL placeholder: dynamic +0/+X where X is an `EffectAmount` resolved at
+    /// `Effect::ApplyContinuousEffect` execution time (CR 608.2h, CR 613.1c).
+    ///
+    /// Mirrors `ModifyBothDynamic` exactly, but modifies toughness only. Must be
+    /// substituted into a concrete `ModifyToughness(resolved_value)` at
+    /// `Effect::ApplyContinuousEffect` execution time — it must NEVER appear in a
+    /// stored `ContinuousEffect`. If this variant is seen by layer-application code
+    /// the substitution was skipped (a bug).
+    ///
+    /// `negate=true` produces `-X`; `negate=false` produces `+X`.
+    /// Boxed to avoid `large_enum_variant` clippy warnings.
+    ModifyToughnessDynamic {
+        amount: Box<crate::cards::card_definition::EffectAmount>,
+        negate: bool,
+    },
     // --- Layer 7d: P/T-switching ---
     /// Switches power and toughness values (e.g., Inside Out, Behind the Scenes).
     SwitchPowerToughness,
