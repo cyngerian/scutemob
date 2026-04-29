@@ -1439,7 +1439,7 @@ pub(crate) fn resolve_cda_amount(
                             // is included in the count (e.g., "*/* = creatures you control"
                             // counts the creature with the CDA).
                             crate::effects::matches_filter(&obj.characteristics, filter)
-                                // CR 121: counter check against GameObject (not Characteristics).
+                                // CR 122.1: counter check against GameObject (not Characteristics).
                                 && crate::effects::check_has_counter_type(obj, filter)
                         }
                 })
@@ -1460,7 +1460,7 @@ pub(crate) fn resolve_cda_amount(
                             .as_ref()
                             .map(|f| {
                                 crate::effects::matches_filter(&obj.characteristics, f)
-                                    // CR 121: counter check against GameObject (not Characteristics).
+                                    // CR 122.1: counter check against GameObject (not Characteristics).
                                     && crate::effects::check_has_counter_type(obj, f)
                             })
                             .unwrap_or(true)

@@ -5,8 +5,8 @@
 //! counts creatures you control with a +1/+1 counter on them.
 //!
 //! CR Rules covered:
-//! - CR 121.1: Counters modify the objects they are on.
-//! - CR 121.6: Counters are tracked in `GameObject.counters` (NOT in Characteristics).
+//! - CR 122.1: Counters modify the objects they are on.
+//! - CR 122.6: Counters are tracked in `GameObject.counters` (NOT in Characteristics).
 //! - Ruling 2020-11-10 (Armorcraft Judge): counts CREATURES with one or more
 //!   +1/+1 counters (not the total number of counters); threshold is >= 1 counter.
 
@@ -52,15 +52,19 @@ fn armorcraft_judge_effect() -> Effect {
 
 // ── Test 1 ─────────────────────────────────────────────────────────────────────
 
-/// CR 121.1 / Ruling 2020-11-10 (Armorcraft Judge) — Armorcraft Judge ETB draws
+/// CR 122.1 / Ruling 2020-11-10 (Armorcraft Judge) — Armorcraft Judge ETB draws
 /// zero cards when no creatures you control have +1/+1 counters.
 ///
-/// Setup: P1 controls three creatures, none with +1/+1 counters.
+/// Setup: P1 controls three creatures (none with counters) + Armorcraft Judge.
+/// Library: 4 cards available so a broken filter that counted all 4 creatures
+/// would yield hand_count=4, distinguishable from the correct hand_count=0.
 /// Expected: zero cards drawn (hand stays at 0).
 #[test]
 fn armorcraft_judge_no_counters_zero_draw() {
-    // CR 121.1: counters modify objects; without counters, has_counter_type predicate fails.
+    // CR 122.1: counters modify objects; without counters, has_counter_type predicate fails.
     // Ruling 2020-11-10: only creatures WITH a +1/+1 counter count.
+    // Library discriminator: 4 cards present so broken-filter (counts all 4 creatures) would
+    // produce hand_count=4, but correct behavior yields hand_count=0.
     let mut state = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
@@ -69,6 +73,11 @@ fn armorcraft_judge_no_counters_zero_draw() {
         .object(ObjectSpec::creature(p1(), "Llanowar Elves", 1, 1).in_zone(ZoneId::Battlefield))
         // Judge itself (no counters)
         .object(ObjectSpec::creature(p1(), "Armorcraft Judge", 3, 3).in_zone(ZoneId::Battlefield))
+        // 4 library cards — enough to distinguish broken filter (draws 4) from correct (draws 0)
+        .object(ObjectSpec::card(p1(), "Library Card 1").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 2").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 3").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 4").in_zone(ZoneId::Library(p1())))
         .build()
         .unwrap();
 
@@ -84,23 +93,26 @@ fn armorcraft_judge_no_counters_zero_draw() {
         .unwrap_or(0);
     assert_eq!(
         hand_count, 0,
-        "CR 121.1 / Ruling 2020-11-10: no creatures have +1/+1 counters → 0 cards drawn"
+        "must be 0 not 4 (broken filter would count all 4 creatures)"
     );
 }
 
 // ── Test 2 ─────────────────────────────────────────────────────────────────────
 
-/// CR 121.1 / Ruling 2020-11-10 (Armorcraft Judge) — Armorcraft Judge ETB draws
+/// CR 122.1 / Ruling 2020-11-10 (Armorcraft Judge) — Armorcraft Judge ETB draws
 /// one card when exactly one creature you control has a +1/+1 counter.
 ///
-/// Setup: P1 controls two creatures; one has a +1/+1 counter, the other does not.
-/// Armorcraft Judge itself enters without counters (should not count itself).
+/// Setup: P1 controls Servo (with counter) + Construct (no counter) + Armorcraft
+/// Judge (no counter). Library: 4 cards so that a broken filter counting all 3
+/// P1 creatures (incl. Judge) would yield hand_count=3, not 1.
 /// Expected: exactly 1 card drawn.
 #[test]
 fn armorcraft_judge_one_creature_with_counter_draws_one() {
-    // CR 121.6: counters live on GameObject, not Characteristics.
+    // CR 122.6: counters live on GameObject, not Characteristics.
     // Ruling 2020-11-10: Armorcraft Judge itself enters without counters and should
     // not count itself even though it is a creature you control.
+    // Library discriminator: 4 cards so broken filter (counts all 3 P1 creatures) gives
+    // hand_count=3, distinguishable from correct hand_count=1.
     let mut state = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
@@ -114,8 +126,11 @@ fn armorcraft_judge_one_creature_with_counter_draws_one() {
         .object(ObjectSpec::creature(p1(), "Construct", 2, 2).in_zone(ZoneId::Battlefield))
         // Armorcraft Judge itself (no counters — enters fresh).
         .object(ObjectSpec::creature(p1(), "Armorcraft Judge", 3, 3).in_zone(ZoneId::Battlefield))
-        // One library card so DrawCards has somewhere to draw from.
+        // 4 library cards so broken filter (n=3) would give hand_count=3 not 1.
         .object(ObjectSpec::card(p1(), "Library Card 1").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 2").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 3").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 4").in_zone(ZoneId::Library(p1())))
         .build()
         .unwrap();
 
@@ -131,7 +146,7 @@ fn armorcraft_judge_one_creature_with_counter_draws_one() {
         .unwrap_or(0);
     assert_eq!(
         hand_count, 1,
-        "CR 121.6 / Ruling 2020-11-10: one creature with a +1/+1 counter → draw 1"
+        "must be 1 not 3 (broken filter would count all 3 P1 creatures)"
     );
 }
 
@@ -140,13 +155,17 @@ fn armorcraft_judge_one_creature_with_counter_draws_one() {
 /// Ruling 2020-11-10 (Armorcraft Judge) — a creature with THREE +1/+1 counters
 /// still counts as only one creature, so Armorcraft Judge draws exactly 1 card.
 ///
-/// Setup: P1 controls one creature with three +1/+1 counters.
+/// Setup: P1 controls one creature with three +1/+1 counters + Armorcraft Judge.
+/// Library: 4 cards so that a broken "sum counters" filter would yield hand_count=3,
+/// distinguishable from the correct hand_count=1.
 /// Expected: exactly 1 card drawn (counts creatures, not counters).
 #[test]
 fn armorcraft_judge_multiple_counters_one_creature_still_one() {
     // Ruling 2020-11-10: "draw a card for each creature you control with a +1/+1 counter
     // on it" — the count is creatures, not counter quantity. Three +1/+1 counters on one
     // creature still makes it count as one creature.
+    // Library discriminator: 4 cards so broken "sum counters" filter (n=3) gives
+    // hand_count=3, while correct behavior gives hand_count=1.
     let mut state = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
@@ -158,8 +177,11 @@ fn armorcraft_judge_multiple_counters_one_creature_still_one() {
         )
         // Judge itself (no counters).
         .object(ObjectSpec::creature(p1(), "Armorcraft Judge", 3, 3).in_zone(ZoneId::Battlefield))
-        // Library card to draw.
+        // 4 library cards so broken sum-counters filter (n=3) gives hand_count=3 not 1.
         .object(ObjectSpec::card(p1(), "Library Card 1").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 2").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 3").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 4").in_zone(ZoneId::Library(p1())))
         .build()
         .unwrap();
 
@@ -175,25 +197,26 @@ fn armorcraft_judge_multiple_counters_one_creature_still_one() {
         .unwrap_or(0);
     assert_eq!(
         hand_count, 1,
-        "Ruling 2020-11-10: three counters on one creature → still draws 1 (counts creatures)"
+        "Ruling 2020-11-10: counts CREATURES not counters; broken sum-counters would give 3"
     );
 }
 
 // ── Test 4 ─────────────────────────────────────────────────────────────────────
 
-/// CR 121.6 + Armorcraft Judge — `controller: TargetController::You` filter ensures
+/// CR 122.6 + Armorcraft Judge — `controller: TargetController::You` filter ensures
 /// that an opponent's creature with a +1/+1 counter does NOT count for the draw.
 ///
-/// Setup: P2 controls a creature with a +1/+1 counter. P1 controls no creatures
-/// with +1/+1 counters (other than the Judge itself, which has none).
+/// Setup: P2 controls a creature with a +1/+1 counter. P1 controls no other
+/// counter-bearing creatures (Judge itself has none). Library: 2 cards so a broken
+/// filter ignoring controller would yield hand_count=1, distinguishable from 0.
 /// Expected: P1 draws 0 cards — the opponent's countered creature is excluded.
 #[test]
 fn armorcraft_judge_filters_other_players_creatures() {
-    // CR 121.6: counter check uses has_counter_type against GameObject.counters.
+    // CR 122.6: counter check uses has_counter_type against GameObject.counters.
     // The TargetController::You filter (pre-existing in PermanentCount) ensures
     // only permanents controlled by the ability's controller are counted.
-    // This test is a regression guard that the controller filter still works correctly
-    // alongside the new has_counter_type field.
+    // Library discriminator: 2 cards so broken filter (ignores controller, n=1) gives
+    // hand_count=1, distinguishable from correct hand_count=0.
     let mut state = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
@@ -205,6 +228,9 @@ fn armorcraft_judge_filters_other_players_creatures() {
         )
         // Judge itself (no counters, controlled by P1).
         .object(ObjectSpec::creature(p1(), "Armorcraft Judge", 3, 3).in_zone(ZoneId::Battlefield))
+        // 2 library cards so broken controller-blind filter (n=1) gives hand_count=1 not 0.
+        .object(ObjectSpec::card(p1(), "Library Card 1").in_zone(ZoneId::Library(p1())))
+        .object(ObjectSpec::card(p1(), "Library Card 2").in_zone(ZoneId::Library(p1())))
         .build()
         .unwrap();
 
@@ -219,7 +245,8 @@ fn armorcraft_judge_filters_other_players_creatures() {
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
     assert_eq!(
-        hand_count, 0,
-        "CR 121.6: opponent's creature with +1/+1 counter must not count for controller's draw"
+        hand_count,
+        0,
+        "controller filter rules out opponent's counter-bearing creature; broken filter would give 1"
     );
 }

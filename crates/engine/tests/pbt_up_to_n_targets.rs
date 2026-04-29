@@ -406,7 +406,7 @@ fn test_pbt_hash_schema_version_is_10() {
     use mtg_engine::state::hash::HashInto;
 
     // CR N/A — sentinel must be 10 (PB-CC-B bump from PB-SFT's 9 for
-    // TargetFilter.has_counter_type field (CR 121 counter presence predicate)).
+    // TargetFilter.has_counter_type field (CR 122.1 counter presence predicate)).
     assert_eq!(
         HASH_SCHEMA_VERSION, 10u8,
         "PB-CC-B: HASH_SCHEMA_VERSION must be 10 (bump from PB-SFT's 9 for \
@@ -866,7 +866,7 @@ fn test_pbt_hash_schema_version_sentinel_is_10_regression() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 10u8,
         "PB-CC-B: Sentinel must be 10; bumped from PB-SFT's 9 for \
-         TargetFilter.has_counter_type (CR 121 counter presence predicate)"
+         TargetFilter.has_counter_type (CR 122.1 counter presence predicate)"
     );
 }
 

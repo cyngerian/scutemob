@@ -2,8 +2,8 @@
 // When this creature enters, draw a card for each creature you control with a
 // +1/+1 counter on it.
 //
-// CR 121.1: Counters are artifacts of game state tracked on the object.
-// CR 121.6: Counters on permanents are tracked in GameObject.counters.
+// CR 122.1: Counters are artifacts of game state tracked on the object.
+// CR 122.6: Counters on permanents are tracked in GameObject.counters.
 // Ruling 2020-11-10 (Armorcraft Judge): counts CREATURES with one or more
 // +1/+1 counters (not the total number of counters); threshold is >= 1 counter.
 use crate::cards::helpers::*;
@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
                         filter: TargetFilter {
                             has_card_type: Some(CardType::Creature),
                             controller: TargetController::You,
-                            // CR 121.6 + Ruling 2020-11-10: count creatures that have at least
+                            // CR 122.6 + Ruling 2020-11-10: count creatures that have at least
                             // one +1/+1 counter on them (not total counters). The
                             // has_counter_type field is checked at runtime against
                             // GameObject.counters by check_has_counter_type(), NOT via

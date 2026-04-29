@@ -545,7 +545,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // PB-L bumped the sentinel from 6 → 7 (ETBTriggerFilter.card_type_filter for Landfall dispatch).
     // PB-T bumped the sentinel from 7 → 8 (TargetRequirement::UpToN added, CR 601.2c / 115.1b).
     // PB-SFT bumped the sentinel from 8 → 9 (Effect::SacrificePermanents.filter + TargetFilter.is_nontoken).
-    // PB-CC-B bumped the sentinel from 9 → 10 (TargetFilter.has_counter_type, CR 121).
+    // PB-CC-B bumped the sentinel from 9 → 10 (TargetFilter.has_counter_type, CR 122.1).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
         HASH_SCHEMA_VERSION, 10u8,

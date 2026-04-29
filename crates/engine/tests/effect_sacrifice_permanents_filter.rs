@@ -129,7 +129,7 @@ fn cast_test_sorcery(
 
 /// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B: HASH_SCHEMA_VERSION is 10.
 /// Bumped from 9 (PB-CC-B) to account for TargetFilter gaining
-/// `has_counter_type: Option<CounterType>` (CR 121 counter presence predicate).
+/// `has_counter_type: Option<CounterType>` (CR 122.1 counter presence predicate).
 #[test]
 fn test_sft_hash_schema_version_is_10() {
     assert_eq!(

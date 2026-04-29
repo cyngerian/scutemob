@@ -2452,7 +2452,7 @@ pub struct TargetFilter {
     pub exclude_chosen_subtype: bool,
     /// Must have at least one counter of this kind. None = no restriction.
     /// Used for "creature you control with a +1/+1 counter on it" filters
-    /// (Armorcraft Judge ETB, Inspiring Call). Per CR 121: counters are tracked
+    /// (Armorcraft Judge ETB, Inspiring Call). Per CR 122.1: counters are tracked
     /// in `GameObject.counters`, NOT in `Characteristics` — so this is a
     /// runtime GameObject field. Like `is_token` / `is_attacking`, it MUST be
     /// checked explicitly at each call site that uses TargetFilter; it will

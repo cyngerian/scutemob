@@ -872,7 +872,7 @@ fn execute_effect_inner(
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
-                                // CR 121: counter check must be against GameObject (not Characteristics).
+                                // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
                         }
                         && match filter.controller {
@@ -1059,7 +1059,7 @@ fn execute_effect_inner(
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
-                                // CR 121: counter check must be against GameObject (not Characteristics).
+                                // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
                         }
                         && match filter.controller {
@@ -1190,7 +1190,7 @@ fn execute_effect_inner(
                                 .is_some_and(|c| c.attackers.contains_key(id)))
                         // is_token: runtime check (not in matches_filter)
                         && (!effective_filter.is_token || obj.is_token)
-                        // CR 121: counter check must be against GameObject (not Characteristics).
+                        // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, &effective_filter)
                 })
                 .map(|(&id, _)| id)
@@ -2125,8 +2125,8 @@ fn execute_effect_inner(
                         // CR 701.23: also_search_graveyard: search "library and/or graveyard"
                         // pattern. Graveyard cards are included when the flag is set.
                         let in_gy = *also_search_graveyard && obj.zone == gy_id;
-                        // CR 121: library/graveyard cards have no counters; has_counter_type
-                        // naturally fails for them — applied uniformly for invariant correctness.
+                        // CR 122.2: library/graveyard cards have no counters (counters cease on
+                        // zone change); has_counter_type naturally fails for them — applied uniformly for invariant correctness.
                         (in_lib || in_gy)
                             && matches_filter(&obj.characteristics, filter)
                             && check_has_counter_type(obj, filter)
@@ -2529,7 +2529,7 @@ fn execute_effect_inner(
                                     return false;
                                 }
                             }
-                            // CR 121: counter check must be against GameObject (not Characteristics).
+                            // CR 122.1: counter check must be against GameObject (not Characteristics).
                             if !check_has_counter_type(obj, tf) {
                                 return false;
                             }
@@ -3960,8 +3960,8 @@ fn execute_effect_inner(
                 }
                 // Partition into matched and unmatched based on the filter.
                 // Use base characteristics (library cards have no layer modifications).
-                // CR 121: library cards have no counters, so has_counter_type naturally
-                // fails for them — the check is applied uniformly for invariant correctness.
+                // CR 122.2: library cards have no counters (counters cease on zone change),
+                // so has_counter_type naturally fails for them — the check is applied uniformly for invariant correctness.
                 let mut matched_ids = Vec::new();
                 let mut unmatched_ids = Vec::new();
                 for &id in &top_ids {
@@ -4861,8 +4861,8 @@ fn execute_effect_inner(
                         if !matches_filter(chars, filter) {
                             return false;
                         }
-                        // CR 121: graveyard cards have no counters; has_counter_type naturally fails.
-                        // Applied uniformly for invariant correctness.
+                        // CR 122.2: graveyard cards have no counters (counters cease on zone change);
+                        // has_counter_type naturally fails. Applied uniformly for invariant correctness.
                         if !check_has_counter_type(obj, filter) {
                             return false;
                         }
@@ -5498,7 +5498,7 @@ fn resolve_effect_target_list_indexed(
                         let chars = crate::rules::layers::calculate_characteristics(state, **id)
                             .unwrap_or_else(|| obj.characteristics.clone());
                         matches_filter(&chars, filter)
-                            // CR 121: counter check must be against GameObject (not Characteristics).
+                            // CR 122.1: counter check must be against GameObject (not Characteristics).
                             && check_has_counter_type(obj, filter)
                     }
                     && match filter.controller {
@@ -5975,8 +5975,8 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                         && filter
                             .as_ref()
                             .map(|f| {
-                                // CR 121: counter check is uniform — non-battlefield objects have
-                                // empty counters maps so has_counter_type naturally fails for them.
+                                // CR 122.2: counter check is uniform — non-battlefield objects have
+                                // empty counters maps (counters cease on zone change) so has_counter_type naturally fails for them.
                                 let chars_match = if zone_id == ZoneId::Battlefield {
                                     let chars = crate::rules::layers::calculate_characteristics(
                                         state, obj.id,
@@ -6010,7 +6010,7 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
-                                // CR 121: counter check must be against GameObject (not Characteristics).
+                                // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 // Primary callsite for Armorcraft Judge ETB and similar filters.
                                 && check_has_counter_type(obj, filter)
                         }
@@ -6585,7 +6585,7 @@ fn check_chosen_subtype_filter(
         !filter.has_chosen_subtype
     }
 }
-/// CR 121: counters live on `GameObject`, not `Characteristics`. When a
+/// CR 122.1: counters live on `GameObject`, not `Characteristics`. When a
 /// TargetFilter specifies `has_counter_type: Some(kind)`, the object must
 /// have at least one counter of that kind. Returns `true` when no counter
 /// restriction is set (default no-op).
@@ -6594,7 +6594,7 @@ fn check_chosen_subtype_filter(
 /// reference. Each battlefield call site must call this explicitly alongside
 /// `matches_filter()`. Non-battlefield objects (library, graveyard) typically
 /// have empty counters maps, so a counter-filter against them naturally fails —
-/// which is correct (counters only exist on permanents; CR 121.6).
+/// which is correct (counters only exist on permanents; CR 122.6).
 pub(crate) fn check_has_counter_type(
     obj: &crate::state::game_object::GameObject,
     filter: &TargetFilter,
@@ -6758,7 +6758,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                     let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
                         .unwrap_or_else(|| obj.characteristics.clone());
                     matches_filter(&chars, filter)
-                        // CR 121: counter check must be against GameObject (not Characteristics).
+                        // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
                 }
         }),
@@ -6770,7 +6770,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                     let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
                         .unwrap_or_else(|| obj.characteristics.clone());
                     matches_filter(&chars, filter)
-                        // CR 121: counter check must be against GameObject (not Characteristics).
+                        // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
                 }
         }),
@@ -7145,7 +7145,7 @@ pub fn check_static_condition(
                                 crate::rules::layers::calculate_characteristics(state, obj.id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
                             matches_filter(&chars, filter)
-                                // CR 121: counter check must be against GameObject (not Characteristics).
+                                // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
                         }
                 })
@@ -7340,7 +7340,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                 if !matches_filter(&chars, filter) {
                     return false;
                 }
-                // CR 121: counter check must be against GameObject (not Characteristics).
+                // CR 122.1: counter check must be against GameObject (not Characteristics).
                 if !check_has_counter_type(obj, filter) {
                     return false;
                 }

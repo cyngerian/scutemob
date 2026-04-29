@@ -44,7 +44,7 @@
 ///   `filter: Option<TargetFilter>` field (CR 701.21a + CR 109.1); existing
 ///   serialized states without the field deserialize as `filter: None` (backward
 ///   compatible via `#[serde(default)]`).
-/// - 10: PB-CC-B (2026-04-29) — TargetFilter.has_counter_type added (CR 121
+/// - 10: PB-CC-B (2026-04-29) — TargetFilter.has_counter_type added (CR 122.1
 ///   counter presence predicate); enables Armorcraft Judge ETB and the
 ///   "creature with a +1/+1 counter on it" filter family. Backward compat
 ///   via `#[serde(default)] None`.
