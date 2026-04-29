@@ -1159,31 +1159,56 @@ fn apply_layer_modification(
                 *t += delta;
             }
         }
-        // CR 608.2h: ModifyBothDynamic must be substituted at Effect::ApplyContinuousEffect
-        // execution time. If it reaches here, substitution was skipped — this is a bug.
-        LayerModification::ModifyBothDynamic { .. } => {
-            debug_assert!(
-                false,
-                "ModifyBothDynamic must be substituted into ModifyBoth at Effect::ApplyContinuousEffect time"
-            );
-            // Production behavior: silently no-op rather than panic.
+        // CR 611.3a / PB-CC-C-followup: ModifyBothDynamic stored with `is_cda: true` by
+        // `AbilityDefinition::CdaModifyPowerToughness` — re-evaluate live at every
+        // `calculate_characteristics` call so the modifier is never locked in.
+        //
+        // If `ModifyBothDynamic` is reached via the spell-effect path (CR 608.2h), the
+        // substitution arm in `effects/mod.rs` should have already replaced it with a
+        // concrete `ModifyBoth(N)`. Reaching here from the spell path is still a bug;
+        // reaching here from the static-ability path (is_cda=true) is correct.
+        LayerModification::ModifyBothDynamic { amount, negate } => {
+            let controller = state
+                .objects
+                .get(&object_id)
+                .map(|o| o.controller)
+                .unwrap_or(crate::state::player::PlayerId(0));
+            let raw = resolve_cda_amount(state, amount, object_id, controller);
+            let delta = if *negate { -raw } else { raw };
+            if let Some(p) = &mut chars.power {
+                *p += delta;
+            }
+            if let Some(t) = &mut chars.toughness {
+                *t += delta;
+            }
         }
-        // CR 608.2h / CR 613.4c / PB-CC-C: ModifyPowerDynamic and ModifyToughnessDynamic
-        // must be substituted at Effect::ApplyContinuousEffect time. If either reaches here,
-        // substitution was skipped — this is a bug that would produce silent state corruption.
-        LayerModification::ModifyPowerDynamic { .. } => {
-            debug_assert!(
-                false,
-                "ModifyPowerDynamic must be substituted into ModifyPower at Effect::ApplyContinuousEffect time (CR 608.2h / CR 613.4c)"
-            );
-            // Production behavior: silently no-op rather than panic.
+        // CR 611.3a / PB-CC-C-followup: ModifyPowerDynamic stored with `is_cda: true` —
+        // re-evaluate live so power modifier tracks the dynamic quantity continuously.
+        LayerModification::ModifyPowerDynamic { amount, negate } => {
+            let controller = state
+                .objects
+                .get(&object_id)
+                .map(|o| o.controller)
+                .unwrap_or(crate::state::player::PlayerId(0));
+            let raw = resolve_cda_amount(state, amount, object_id, controller);
+            let delta = if *negate { -raw } else { raw };
+            if let Some(p) = &mut chars.power {
+                *p += delta;
+            }
         }
-        LayerModification::ModifyToughnessDynamic { .. } => {
-            debug_assert!(
-                false,
-                "ModifyToughnessDynamic must be substituted into ModifyToughness at Effect::ApplyContinuousEffect time (CR 608.2h / CR 613.4c)"
-            );
-            // Production behavior: silently no-op rather than panic.
+        // CR 611.3a / PB-CC-C-followup: ModifyToughnessDynamic stored with `is_cda: true` —
+        // re-evaluate live so toughness modifier tracks the dynamic quantity continuously.
+        LayerModification::ModifyToughnessDynamic { amount, negate } => {
+            let controller = state
+                .objects
+                .get(&object_id)
+                .map(|o| o.controller)
+                .unwrap_or(crate::state::player::PlayerId(0));
+            let raw = resolve_cda_amount(state, amount, object_id, controller);
+            let delta = if *negate { -raw } else { raw };
+            if let Some(t) = &mut chars.toughness {
+                *t += delta;
+            }
         }
         // Layer 7d: P/T-switching
         LayerModification::SwitchPowerToughness => {
