@@ -18,13 +18,14 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             // TODO: "each player's upkeep" needs AtBeginningOfEachPlayersUpkeep trigger.
-            // TODO: "non-Elf creature" sacrifice filter.
-            // Approximated as your upkeep, each player sacrifices a permanent.
+            // Creature filter + non-Elf exclusion expressible but trigger gap remains;
+            // keeping unfiltered until the trigger primitive is shipped.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
+                    filter: None,
                 },
                 intervening_if: None,
                 targets: vec![],

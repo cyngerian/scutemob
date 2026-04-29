@@ -480,6 +480,7 @@ impl GameStateBuilder {
                         effect: Some(Effect::SacrificePermanents {
                             player: PlayerTarget::DeclaredTarget { index: 0 },
                             count: EffectAmount::Fixed(*n as i32),
+                            filter: None,
                         }),
                     });
                 }

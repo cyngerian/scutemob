@@ -1,14 +1,6 @@
 // Vraska's Fall — {2}{B}, Instant
 // Each opponent sacrifices a creature or planeswalker of their choice and gets a
 // poison counter.
-//
-// The "creature or planeswalker" choice in SacrificePermanents covers both types.
-// Poison counter via ForEach over EachOpponent.
-//
-// Note: SacrificePermanents does not filter creature-or-planeswalker specifically;
-// it picks the player's lowest-ID permanent. This is a DSL gap (W5-acceptable partial
-// since the sacrifice type filter is not available, but the structure is correct).
-// TODO: SacrificePermanents lacks creature-or-planeswalker filter; opponent picks any permanent.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,12 +13,16 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // "Each opponent sacrifices a creature or planeswalker of their choice."
-                // TODO: SacrificePermanents doesn't filter to creature/planeswalker only.
+                // PB-SFT (CR 701.17a + CR 109.1c): OR-type filter via has_card_types.
                 Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::SacrificePermanents {
                         player: PlayerTarget::DeclaredTarget { index: 0 },
                         count: EffectAmount::Fixed(1),
+                        filter: Some(TargetFilter {
+                            has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                            ..Default::default()
+                        }),
                     }),
                 },
                 // "Each opponent gets a poison counter."

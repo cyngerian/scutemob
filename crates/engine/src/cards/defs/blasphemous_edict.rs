@@ -12,13 +12,17 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "This spell costs {B}{B} less to cast if there are thirteen or more creatures on the battlefield.\nEach opponent sacrifices a creature.".to_string(),
         abilities: vec![
-            // TODO: Conditional cost reduction (13+ creatures) not expressible.
+            // TODO: Conditional cost reduction (13+ creatures) not expressible in current DSL.
             AbilityDefinition::Spell {
-                // TODO: SacrificePermanents has no creature-only filter — opponent
-                // sacrifices any permanent, not specifically a creature.
+                // PB-SFT (CR 701.17a + CR 109.1c): creature-only filter applied.
+                // Each opponent sacrifices a creature of their choice.
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachOpponent,
                     count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
                 },
                 targets: vec![],
                 modes: None,

@@ -1500,9 +1500,22 @@ pub enum Effect {
     /// (deterministic fallback: sacrifice in ObjectId ascending order). Sacrifice
     /// ignores indestructible (CR 701.17a). Used by Annihilator (CR 702.86a) and
     /// other "target player sacrifices N permanents" effects.
+    ///
+    /// PB-SFT (CR 701.17a + CR 109.1c): optional filter on which permanents the player
+    /// must sacrifice. `None` = any permanent (existing behavior). When `Some`, only
+    /// permanents whose layer-resolved characteristics satisfy the filter are eligible.
+    /// If zero eligible permanents exist, no sacrifice occurs (not an error).
+    ///
+    /// IMPORTANT: `is_attacking` and `is_token` in `TargetFilter` are runtime `GameObject`
+    /// fields, NOT `Characteristics` fields. They MUST be checked explicitly at the
+    /// resolution site; `matches_filter()` does NOT check them.
     SacrificePermanents {
         player: PlayerTarget,
         count: EffectAmount,
+        /// PB-SFT: filter restricting which permanents are eligible for sacrifice.
+        /// Uses layer-resolved characteristics (CR 613.1f). `None` = no restriction.
+        #[serde(default)]
+        filter: Option<TargetFilter>,
     },
     /// CR 701.38: Goad — target creature must attack each combat if able, and
     /// must attack a player other than the goading player if able.
@@ -2398,6 +2411,16 @@ pub struct TargetFilter {
     /// explicitly at those call sites — it will be silently ignored by `matches_filter`.
     #[serde(default)]
     pub is_token: bool,
+    /// Must NOT be a token. Default: false (no restriction).
+    /// Mirrors `is_token` but expresses the opposite constraint — "nontoken permanent."
+    /// Used for "nontoken creature" filters (Accursed Marauder: "each player sacrifices
+    /// a nontoken creature of their choice").
+    ///
+    /// NOTE: Like `is_token`, this is a `GameObject` runtime field (not `Characteristics`).
+    /// It MUST be checked explicitly at each call site that uses it — it will be silently
+    /// ignored by `matches_filter()`.
+    #[serde(default)]
+    pub is_nontoken: bool,
     /// Max toughness (inclusive). None = no restriction.
     /// Used for "creature with toughness N or less" (Scourge of Fleets, Recruiter of the Guard).
     #[serde(default)]

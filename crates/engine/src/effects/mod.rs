@@ -2461,20 +2461,66 @@ fn execute_effect_inner(
         // (M10+ will support interactive choice): sacrifice in ObjectId ascending order.
         // If the player controls fewer than N permanents, they sacrifice all they control.
         // Sacrifice is a zone change to the owner's graveyard; "dies" triggers fire normally.
-        Effect::SacrificePermanents { player, count } => {
+        //
+        // PB-SFT (CR 701.17a + CR 109.1c): when `filter` is Some, only permanents whose
+        // layer-resolved characteristics (CR 613.1f) satisfy the filter are eligible.
+        // `is_attacking` and `is_token` are runtime GameObject fields — they are checked
+        // explicitly here and NOT delegated to `matches_filter()`.
+        Effect::SacrificePermanents {
+            player,
+            count,
+            filter,
+        } => {
             let player_ids = resolve_player_target_list(state, player, ctx);
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             for pid in player_ids {
                 // Collect the player's battlefield permanents sorted by ObjectId ascending
                 // for deterministic ordering (interactive choice deferred to M10+).
                 // CR 702.26b: phased-out permanents are treated as nonexistent.
+                // PB-SFT: apply filter using layer-resolved characteristics (CR 613.1f).
                 let mut controlled: Vec<ObjectId> = state
                     .objects
                     .iter()
-                    .filter(|(_, obj)| {
-                        obj.zone == ZoneId::Battlefield
-                            && obj.is_phased_in()
-                            && obj.controller == pid
+                    .filter(|(id, obj)| {
+                        if obj.zone != ZoneId::Battlefield
+                            || !obj.is_phased_in()
+                            || obj.controller != pid
+                        {
+                            return false;
+                        }
+                        if let Some(tf) = filter {
+                            // CR 613.1f: use layer-resolved characteristics for filter check.
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, **id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            // Check Characteristics-based fields via matches_filter.
+                            if !matches_filter(&chars, tf) {
+                                return false;
+                            }
+                            // Runtime GameObject fields: is_token / is_nontoken (not in Characteristics).
+                            // `is_token: true` means "must be a token"; default false = no restriction.
+                            if tf.is_token && !obj.is_token {
+                                return false;
+                            }
+                            // `is_nontoken: true` means "must NOT be a token" (nontoken permanent).
+                            if tf.is_nontoken && obj.is_token {
+                                return false;
+                            }
+                            // Runtime field: is_attacking (checked via CombatState.attackers).
+                            // `is_attacking: true` means "must be attacking".
+                            // If no active combat phase, no permanent is attacking.
+                            if tf.is_attacking {
+                                let is_attacking = state
+                                    .combat
+                                    .as_ref()
+                                    .map(|c| c.attackers.contains_key(id))
+                                    .unwrap_or(false);
+                                if !is_attacking {
+                                    return false;
+                                }
+                            }
+                        }
+                        true
                     })
                     .map(|(id, _)| *id)
                     .collect();

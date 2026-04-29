@@ -40,7 +40,11 @@
 ///   (Landfall, Horn of Greed, Warstorm Surge, Puresteel Paladin, etc.).
 /// - 8: PB-T (2026-04-20) — TargetRequirement::UpToN added (discriminant 17);
 ///   enables "up to N target" optional-target-slot spells (CR 601.2c / 115.1b).
-pub const HASH_SCHEMA_VERSION: u8 = 8;
+/// - 9: PB-SFT (2026-04-28) — Effect::SacrificePermanents gains
+///   `filter: Option<TargetFilter>` field (CR 701.17a + CR 109.1c); existing
+///   serialized states without the field deserialize as `filter: None` (backward
+///   compatible via `#[serde(default)]`).
+pub const HASH_SCHEMA_VERSION: u8 = 9;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4193,6 +4197,7 @@ impl HashInto for TargetFilter {
         self.has_card_types.hash_into(hasher);
         self.legendary.hash_into(hasher);
         self.is_token.hash_into(hasher);
+        self.is_nontoken.hash_into(hasher);
         self.max_toughness.hash_into(hasher);
         self.exclude_subtypes.hash_into(hasher);
         self.is_attacking.hash_into(hasher);
@@ -5094,10 +5099,16 @@ impl HashInto for Effect {
                 target.hash_into(hasher);
             }
             // CR 701.17a: SacrificePermanents (discriminant 31) — used by Annihilator
-            Effect::SacrificePermanents { player, count } => {
+            // PB-SFT: filter field added; hashed after count for backward compat ordering.
+            Effect::SacrificePermanents {
+                player,
+                count,
+                filter,
+            } => {
                 31u8.hash_into(hasher);
                 player.hash_into(hasher);
                 count.hash_into(hasher);
+                filter.hash_into(hasher);
             }
             // CR 702.6a / CR 701.3a: AttachEquipment (discriminant 30)
             Effect::AttachEquipment { equipment, target } => {

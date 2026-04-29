@@ -1,8 +1,8 @@
 // Merciless Executioner — {2}{B}, Creature — Orc Warrior 3/1
 // When this enters, each player sacrifices a creature.
 //
-// Note: Functionally identical to Fleshbag Marauder. Different creature types (Orc Warrior vs
-// Zombie Warrior). SacrificePermanents has no creature-only filter — picks lowest-ID permanent.
+// Functionally identical to Fleshbag Marauder (different creature types: Orc Warrior vs
+// Zombie Warrior).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,12 +16,16 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // CR 603.3: ETB trigger — each player sacrifices a creature.
-            // TODO: SacrificePermanents lacks creature-only filter — picks any permanent.
+            // PB-SFT (CR 701.17a + CR 109.1c): creature-only filter via TargetFilter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
                 },
                 intervening_if: None,
                 targets: vec![],

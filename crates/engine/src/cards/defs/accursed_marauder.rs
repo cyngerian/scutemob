@@ -1,7 +1,5 @@
 // Accursed Marauder — {1}{B}, Creature — Zombie 2/1
 // When this enters, each player sacrifices a nontoken creature.
-// TODO: SacrificePermanents has no nontoken filter — each player sacrifices any permanent,
-// not specifically a nontoken creature. Stronger than intended for token-heavy boards.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,13 +12,20 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
-            // When this enters, each player sacrifices a nontoken creature.
+            // CR 603.3: ETB trigger — each player sacrifices a nontoken creature.
+            // PB-SFT (CR 701.17a + CR 109.1c): nontoken creature filter.
+            // `is_nontoken` is a runtime GameObject field checked explicitly at the
+            // SacrificePermanents resolution site (not in matches_filter).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                // TODO: no nontoken filter available; sacrifices any permanent.
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        is_nontoken: true,
+                        ..Default::default()
+                    }),
                 },
                 intervening_if: None,
                 targets: vec![],

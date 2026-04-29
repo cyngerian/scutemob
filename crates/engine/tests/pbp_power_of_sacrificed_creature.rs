@@ -776,11 +776,13 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // Assert hash sentinel is exactly 8 (PB-T bump from PB-L's 7 for
-    // TargetRequirement::UpToN added (discriminant 17), CR 601.2c / 115.1b).
+    // Assert hash sentinel is exactly 9 (PB-SFT bump from PB-T's 8 for
+    // Effect::SacrificePermanents.filter and TargetFilter.is_nontoken).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 8u8,
-        "PB-T: HASH_SCHEMA_VERSION must be 8 (PB-T bump from PB-L's 7 for TargetRequirement::UpToN). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 9u8,
+        "PB-SFT: HASH_SCHEMA_VERSION must be 9 (PB-SFT bump from PB-T's 8 for \
+         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken). \
+         If you bumped the sentinel, update this test."
     );
 
     // Hash five EffectAmount variants; all must be distinct.

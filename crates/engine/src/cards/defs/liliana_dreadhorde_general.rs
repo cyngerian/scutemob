@@ -53,7 +53,25 @@ pub fn card() -> CardDefinition {
                 },
                 targets: vec![],
             },
-            // TODO: −4 and −9 each player sacrifice not expressible.
+            // −4: Each player sacrifices two creatures.
+            // PB-SFT (CR 701.17a + CR 109.1c): creature filter, count = 2.
+            // Deterministic fallback: sacrifices the 2 lowest-ObjectId creatures the
+            // player controls. If a player controls fewer than 2 creatures, they sacrifice all.
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::Minus(4),
+                effect: Effect::SacrificePermanents {
+                    player: PlayerTarget::EachPlayer,
+                    count: EffectAmount::Fixed(2),
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                },
+                targets: vec![],
+            },
+            // TODO: −9: Each opponent chooses a permanent they control of each permanent type
+            // and sacrifices the rest. Requires "choose one of each type" selection rule
+            // not yet expressible in DSL.
         ],
         ..Default::default()
     }

@@ -397,19 +397,20 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 
 // ── M4: Hash determinism + schema bump ────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 8. Three distinct
-/// UpToN variants hash to distinct values, confirming the new discriminant-17 arm
+/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 9 (PB-SFT bump). Three
+/// distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_8() {
+fn test_pbt_hash_schema_version_is_9() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 8 (PB-T bump from PB-L's 7).
+    // CR N/A — sentinel must be 9 (PB-SFT bump from PB-T's 8 for
+    // Effect::SacrificePermanents filter field + TargetFilter.is_nontoken).
     assert_eq!(
-        HASH_SCHEMA_VERSION,
-        8u8,
-        "PB-T: HASH_SCHEMA_VERSION must be 8 (bump from PB-L's 7 for TargetRequirement::UpToN, CR 601.2c / 115.1b)"
+        HASH_SCHEMA_VERSION, 9u8,
+        "PB-SFT: HASH_SCHEMA_VERSION must be 9 (bump from PB-T's 8 for \
+         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken)"
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -857,15 +858,16 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 8.
+/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 9.
 /// Regression guard against accidental rollback to a prior value.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_8_regression() {
-    // Must be exactly 8 — not 7 (PB-L), not 6 (PB-P), not less.
+fn test_pbt_hash_schema_version_sentinel_is_9_regression() {
+    // Must be exactly 9 (PB-SFT bump from PB-T's 8 for Effect::SacrificePermanents
+    // filter field + TargetFilter.is_nontoken).
     assert_eq!(
-        HASH_SCHEMA_VERSION,
-        8u8,
-        "PB-T O1: Sentinel must be 8; bumped from PB-L's 7 for TargetRequirement::UpToN (CR 601.2c / 115.1b)"
+        HASH_SCHEMA_VERSION, 9u8,
+        "PB-SFT: Sentinel must be 9; bumped from PB-T's 8 for Effect::SacrificePermanents \
+         filter field + TargetFilter.is_nontoken (CR 701.17a + CR 109.1c)"
     );
 }
 
