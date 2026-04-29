@@ -1493,15 +1493,15 @@ pub enum Effect {
         payer: PlayerTarget,
         or_else: Box<Effect>,
     },
-    /// CR 701.17a: The specified player sacrifices `count` permanents they control.
+    /// CR 701.21a: The specified player sacrifices `count` permanents they control.
     ///
     /// If the player controls fewer than `count` permanents, they sacrifice all
     /// permanents they control. The player chooses which permanents to sacrifice
     /// (deterministic fallback: sacrifice in ObjectId ascending order). Sacrifice
-    /// ignores indestructible (CR 701.17a). Used by Annihilator (CR 702.86a) and
+    /// ignores indestructible (CR 701.21a). Used by Annihilator (CR 702.86a) and
     /// other "target player sacrifices N permanents" effects.
     ///
-    /// PB-SFT (CR 701.17a + CR 109.1c): optional filter on which permanents the player
+    /// PB-SFT (CR 701.21a + CR 109.1): optional filter on which permanents the player
     /// must sacrifice. `None` = any permanent (existing behavior). When `Some`, only
     /// permanents whose layer-resolved characteristics satisfy the filter are eligible.
     /// If zero eligible permanents exist, no sacrifice occurs (not an error).
@@ -1513,7 +1513,7 @@ pub enum Effect {
         player: PlayerTarget,
         count: EffectAmount,
         /// PB-SFT: filter restricting which permanents are eligible for sacrifice.
-        /// Uses layer-resolved characteristics (CR 613.1f). `None` = no restriction.
+        /// Uses layer-resolved characteristics (CR 613.1d). `None` = no restriction.
         #[serde(default)]
         filter: Option<TargetFilter>,
     },
@@ -2105,7 +2105,7 @@ pub enum Effect {
     /// Step 2: Each player sacrifices all creatures they control simultaneously.
     /// Step 3: Each player puts all cards they exiled in step 1 onto the battlefield simultaneously.
     /// Cards exiled by replacement effects during step 2 are NOT returned in step 3
-    /// (only step-1 exiled cards are returned). CR 101.4, 701.17a.
+    /// (only step-1 exiled cards are returned). CR 101.4, 701.21a.
     LivingDeath,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────

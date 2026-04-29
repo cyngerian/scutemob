@@ -559,7 +559,7 @@ pub fn process_command(
 /// If `pay` is true, deducts the echo cost from the player's mana pool and
 /// clears `echo_pending` on the permanent. If `pay` is false (or the player
 /// cannot afford it), the permanent is sacrificed (bypassing indestructible,
-/// CR 701.17a) and `echo_pending` is cleared.
+/// CR 701.21a) and `echo_pending` is cleared.
 ///
 /// In both cases, the pending echo payment entry is removed.
 fn handle_pay_echo(
@@ -622,7 +622,7 @@ fn handle_pay_echo(
         }
         events.push(GameEvent::EchoPaid { player, permanent });
     } else {
-        // CR 702.30a: Player declines -- sacrifice the permanent (CR 701.17a: bypasses indestructible).
+        // CR 702.30a: Player declines -- sacrifice the permanent (CR 701.21a: bypasses indestructible).
         let action = crate::rules::replacement::check_zone_change_replacement(
             state,
             permanent,
@@ -710,7 +710,7 @@ fn handle_pay_echo(
 /// If `pay` is true, deducts the total cost (per_counter_cost x age_count) from
 /// the player's mana pool (mana variant) or life total (life variant) and the
 /// permanent stays. If `pay` is false, the permanent is sacrificed (bypassing
-/// indestructible, CR 701.17a).
+/// indestructible, CR 701.21a).
 ///
 /// In both cases, the pending payment entry is removed.
 fn handle_pay_cumulative_upkeep(
@@ -798,7 +798,7 @@ fn handle_pay_cumulative_upkeep(
             age_counter_count: age_count,
         });
     } else {
-        // CR 702.24a: Player declines -- sacrifice the permanent (CR 701.17a: bypasses indestructible).
+        // CR 702.24a: Player declines -- sacrifice the permanent (CR 701.21a: bypasses indestructible).
         let action = crate::rules::replacement::check_zone_change_replacement(
             state,
             permanent,

@@ -11,7 +11,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.10a: "Whenever a creature you control dies, each other player
             // sacrifices a creature."
-            // PB-SFT (CR 701.17a + CR 109.1c): creature-only filter applied.
+            // PB-SFT (CR 701.21a + CR 109.1): creature-only filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),

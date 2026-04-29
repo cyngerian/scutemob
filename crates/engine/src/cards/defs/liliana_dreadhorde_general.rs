@@ -54,7 +54,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // −4: Each player sacrifices two creatures.
-            // PB-SFT (CR 701.17a + CR 109.1c): creature filter, count = 2.
+            // PB-SFT (CR 701.21a + CR 109.1): creature filter, count = 2.
             // Deterministic fallback: sacrifices the 2 lowest-ObjectId creatures the
             // player controls. If a player controls fewer than 2 creatures, they sacrifice all.
             AbilityDefinition::LoyaltyAbility {

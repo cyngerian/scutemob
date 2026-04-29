@@ -6,8 +6,8 @@
 //! Key rules verified:
 //! - Trigger fires on attacker declared (CR 702.86a, CR 508.1m).
 //! - The DEFENDING player sacrifices (not the attacker's controller) (CR 702.86a).
-//! - Sacrifice ignores indestructible (CR 701.17a).
-//! - Fewer permanents than N: sacrifice all controlled (CR 701.17a).
+//! - Sacrifice ignores indestructible (CR 701.21a).
+//! - Fewer permanents than N: sacrifice all controlled (CR 701.21a).
 //! - Multiple instances trigger separately (CR 702.86b).
 //! - Multiplayer: each annihilator trigger targets its own defending player (CR 508.5a).
 //! - Attacking a planeswalker: defending player is the planeswalker's controller (CR 508.5).
@@ -205,7 +205,7 @@ fn test_annihilator_defending_player_sacrifices_not_attacker_controller() {
 // ── Test 3: Fewer permanents than N — sacrifice all ───────────────────────────
 
 #[test]
-/// CR 701.17a edge case: If the defending player controls fewer permanents than N,
+/// CR 701.21a edge case: If the defending player controls fewer permanents than N,
 /// they sacrifice all permanents they control (not an error).
 fn test_annihilator_fewer_permanents_than_n() {
     let p1 = PlayerId(1);
@@ -248,7 +248,7 @@ fn test_annihilator_fewer_permanents_than_n() {
     assert_eq!(
         battlefield_count(&state, p2),
         0,
-        "CR 701.17a: P2 should sacrifice all permanents when they control fewer than N"
+        "CR 701.21a: P2 should sacrifice all permanents when they control fewer than N"
     );
 
     // No error — engine handles fewer-than-N gracefully.
@@ -432,7 +432,7 @@ fn test_annihilator_multiplayer_correct_defending_player() {
 // ── Test 6: Sacrifice ignores indestructible ──────────────────────────────────
 
 #[test]
-/// CR 701.17a — "To sacrifice a permanent, its controller moves it from the
+/// CR 701.21a — "To sacrifice a permanent, its controller moves it from the
 /// battlefield directly to its owner's graveyard." Sacrifice bypasses indestructible.
 fn test_annihilator_sacrifice_ignores_indestructible() {
     let p1 = PlayerId(1);
@@ -477,7 +477,7 @@ fn test_annihilator_sacrifice_ignores_indestructible() {
     assert_eq!(
         battlefield_count(&state, p2),
         0,
-        "CR 701.17a: sacrifice should bypass indestructible — P2 should have 0 permanents"
+        "CR 701.21a: sacrifice should bypass indestructible — P2 should have 0 permanents"
     );
 
     // The permanent should be in P2's graveyard.
@@ -486,7 +486,7 @@ fn test_annihilator_sacrifice_ignores_indestructible() {
     });
     assert!(
         in_graveyard,
-        "CR 701.17a: the indestructible permanent should be in P2's graveyard after sacrifice"
+        "CR 701.21a: the indestructible permanent should be in P2's graveyard after sacrifice"
     );
 }
 

@@ -4,12 +4,12 @@
 //! restricts which permanents a player may sacrifice at resolution time.
 //!
 //! CR Rules covered:
-//! - CR 701.17a: "Sacrifice" — the player chooses permanents they control to
+//! - CR 701.21a: "Sacrifice" — the player chooses permanents they control to
 //!   sacrifice. If the player controls fewer than N matching permanents, they
 //!   sacrifice all matching permanents they control. Sacrifice bypasses indestructible.
-//! - CR 109.1c: Permanents are objects on the battlefield. Filter conditions
+//! - CR 109.1: Permanents are objects on the battlefield. Filter conditions
 //!   constrain which subset of those permanents are eligible.
-//! - CR 613.1f: Use layer-resolved characteristics (not raw base values) when
+//! - CR 613.1d: Use layer-resolved characteristics (not raw base values) when
 //!   evaluating filter conditions on permanents.
 
 use mtg_engine::cards::card_definition::{
@@ -129,7 +129,7 @@ fn cast_test_sorcery(
 
 /// CR N/A (hash infrastructure) — PB-SFT: HASH_SCHEMA_VERSION is 9.
 /// Bumped from 8 (PB-T) to account for Effect::SacrificePermanents gaining
-/// `filter: Option<TargetFilter>` (CR 701.17a + CR 109.1c) and
+/// `filter: Option<TargetFilter>` (CR 701.21a + CR 109.1) and
 /// TargetFilter gaining `is_nontoken: bool`.
 #[test]
 fn test_sft_hash_schema_version_is_9() {
@@ -140,7 +140,7 @@ fn test_sft_hash_schema_version_is_9() {
     );
 }
 
-/// CR 701.17a + CR 109.1c — PB-SFT test 1: each-player-sacrifices-creature filter.
+/// CR 701.21a + CR 109.1 — PB-SFT test 1: each-player-sacrifices-creature filter.
 ///
 /// Fleshbag Marauder pattern: each player sacrifices a creature.
 /// P1 controls a creature and an enchantment; P2 controls a creature and a land.
@@ -198,7 +198,7 @@ fn each_player_sacrifices_creature_filter() {
     // Both players pass — sorcery resolves.
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    // CR 701.17a: creatures were sacrificed.
+    // CR 701.21a: creatures were sacrificed.
     assert!(
         in_graveyard(&state, "P1 Creature", p1),
         "P1's creature must be in their graveyard after creature-filter sacrifice"
@@ -218,7 +218,7 @@ fn each_player_sacrifices_creature_filter() {
     );
 }
 
-/// CR 701.17a + CR 109.1c — PB-SFT test 2: land-filter sacrifice.
+/// CR 701.21a + CR 109.1 — PB-SFT test 2: land-filter sacrifice.
 ///
 /// Roiling Regrowth pattern: the caster sacrifices a land at resolution.
 /// P1 controls a land and a creature. With `has_card_type: Some(CardType::Land)` filter:
@@ -268,7 +268,7 @@ fn each_player_sacrifices_land_filter() {
     let (state, _) = cast_test_sorcery(state, p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    // CR 701.17a: P1's land was sacrificed.
+    // CR 701.21a: P1's land was sacrificed.
     assert!(
         in_graveyard(&state, "Forest", p1),
         "P1's Forest must be in graveyard after land-filter sacrifice"
@@ -285,7 +285,7 @@ fn each_player_sacrifices_land_filter() {
     );
 }
 
-/// CR 701.17a + CR 109.1c — PB-SFT test 3: count-2 creature filter.
+/// CR 701.21a + CR 109.1 — PB-SFT test 3: count-2 creature filter.
 ///
 /// Liliana Dreadhorde General -4 pattern: each player sacrifices 2 creatures.
 /// P1 controls 3 creatures and 1 artifact. With creature filter and count = 2:
@@ -352,7 +352,7 @@ fn multi_count_sacrifice_with_filter() {
         .count();
     assert_eq!(
         p1_creatures_on_bf, 1,
-        "CR 701.17a: P1 should have exactly 1 creature remaining after count-2 sacrifice"
+        "CR 701.21a: P1 should have exactly 1 creature remaining after count-2 sacrifice"
     );
 
     // Artifact was not sacrificed.
@@ -367,10 +367,10 @@ fn multi_count_sacrifice_with_filter() {
     );
 }
 
-/// CR 701.17a — PB-SFT test 4: filter excludes all permanents (zero match).
+/// CR 701.21a — PB-SFT test 4: filter excludes all permanents (zero match).
 ///
 /// When a player controls no permanents matching the filter, no sacrifice occurs and
-/// no error is raised. CR 701.17a: "If the player controls fewer ... they sacrifice
+/// no error is raised. CR 701.21a: "If the player controls fewer ... they sacrifice
 /// all [matching] permanents they control." Zero matching permanents → zero sacrificed.
 #[test]
 fn filter_excludes_all_player_has_nothing_to_sacrifice() {
@@ -428,7 +428,7 @@ fn filter_excludes_all_player_has_nothing_to_sacrifice() {
     );
 }
 
-/// CR 701.17a + CR 109.1c — PB-SFT test 5: multi-type OR filter (creature or planeswalker).
+/// CR 701.21a + CR 109.1 — PB-SFT test 5: multi-type OR filter (creature or planeswalker).
 ///
 /// Vraska's Fall / Demon's Disciple pattern: player sacrifices a creature or planeswalker.
 /// P2 controls an artifact + a creature + a planeswalker. With

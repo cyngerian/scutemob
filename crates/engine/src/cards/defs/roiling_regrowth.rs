@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![
                     // "Sacrifice a land." — at resolution, the caster sacrifices one land
-                    // they control. PB-SFT (CR 701.17a + CR 109.1c): land filter applied.
+                    // they control. PB-SFT (CR 701.21a + CR 109.1): land filter applied.
                     Effect::SacrificePermanents {
                         player: PlayerTarget::Controller,
                         count: EffectAmount::Fixed(1),

@@ -41,7 +41,7 @@
 /// - 8: PB-T (2026-04-20) — TargetRequirement::UpToN added (discriminant 17);
 ///   enables "up to N target" optional-target-slot spells (CR 601.2c / 115.1b).
 /// - 9: PB-SFT (2026-04-28) — Effect::SacrificePermanents gains
-///   `filter: Option<TargetFilter>` field (CR 701.17a + CR 109.1c); existing
+///   `filter: Option<TargetFilter>` field (CR 701.21a + CR 109.1); existing
 ///   serialized states without the field deserialize as `filter: None` (backward
 ///   compatible via `#[serde(default)]`).
 pub const HASH_SCHEMA_VERSION: u8 = 9;
@@ -5098,7 +5098,7 @@ impl HashInto for Effect {
                 29u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
-            // CR 701.17a: SacrificePermanents (discriminant 31) — used by Annihilator
+            // CR 701.21a: SacrificePermanents (discriminant 31) — used by Annihilator
             // PB-SFT: filter field added; hashed after count for backward compat ordering.
             Effect::SacrificePermanents {
                 player,

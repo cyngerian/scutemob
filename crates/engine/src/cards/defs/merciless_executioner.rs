@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // CR 603.3: ETB trigger — each player sacrifices a creature.
-            // PB-SFT (CR 701.17a + CR 109.1c): creature-only filter via TargetFilter.
+            // PB-SFT (CR 701.21a + CR 109.1): creature-only filter via TargetFilter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SacrificePermanents {

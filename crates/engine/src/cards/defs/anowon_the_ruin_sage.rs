@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             // CR 603.6d: "At the beginning of your upkeep, each player sacrifices a non-Vampire creature."
-            // PB-SFT (CR 701.17a + CR 109.1c): creature filter with Vampire subtype exclusion.
+            // PB-SFT (CR 701.21a + CR 109.1): creature filter with Vampire subtype exclusion.
             // Note: trigger fires on controller's upkeep only (AtBeginningOfYourUpkeep fires for
             // the controller). "Each player" via EachPlayer still applies to all players' choices.
             AbilityDefinition::Triggered {

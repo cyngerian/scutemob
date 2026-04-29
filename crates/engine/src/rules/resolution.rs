@@ -2382,7 +2382,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             });
             if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
-                // CR 701.17a: Sacrifice bypasses indestructible.
+                // CR 701.21a: Sacrifice bypasses indestructible.
                 // CR 614: Replacement effects (e.g., Rest in Peace) still apply.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -2516,7 +2516,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     });
                 } else {
                     // CR 702.32a: Can't remove a fade counter -- sacrifice the permanent.
-                    // CR 701.17a: Sacrifice bypasses indestructible.
+                    // CR 701.21a: Sacrifice bypasses indestructible.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,
                         fading_permanent,
@@ -2768,7 +2768,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             });
             if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info {
-                // CR 701.17a: Sacrifice is NOT destruction — no indestructible check.
+                // CR 701.21a: Sacrifice is NOT destruction — no indestructible check.
                 // CR 614: Check replacement effects before moving to graveyard.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -3090,7 +3090,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
             if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
                 // Sacrifice: move to owner's graveyard.
-                // Sacrifice bypasses indestructible (CR 701.17a).
+                // Sacrifice bypasses indestructible (CR 701.21a).
                 // Replacement effects (e.g., Rest in Peace) still apply.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -3937,7 +3937,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     });
                     if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info
                     {
-                        // CR 701.17a: Sacrifice is NOT destruction — no indestructible check.
+                        // CR 701.21a: Sacrifice is NOT destruction — no indestructible check.
                         let action = crate::rules::replacement::check_zone_change_replacement(
                             state,
                             source_object,

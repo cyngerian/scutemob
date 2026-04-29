@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 603.10a: "Whenever Butcher of Malakir or another creature you control dies,
             // each opponent sacrifices a creature."
-            // PB-SFT (CR 701.17a + CR 109.1c): creature-only filter applied.
+            // PB-SFT (CR 701.21a + CR 109.1): creature-only filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),

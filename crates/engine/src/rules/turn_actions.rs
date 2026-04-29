@@ -1904,7 +1904,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
     // Ruling 2021-09-24: "Once a creature with decayed attacks, it will be
     // sacrificed at end of combat, even if it no longer has decayed at that time."
     //
-    // CR 701.17a: Sacrifice is NOT destruction — indestructible does not prevent it.
+    // CR 701.21a: Sacrifice is NOT destruction — indestructible does not prevent it.
     //
     // TODO(M10+): Per CR 702.147a / CR 603.7, the EOC sacrifice is technically a
     // delayed triggered ability ("sacrifice it at end of combat"). The current TBA
@@ -1997,7 +1997,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
     //
     // CR 701.54c: "that creature's controller sacrifices it at end of combat."
     // We sacrifice the specific tagged creature (not a generic SacrificePermanents choice).
-    // CR 701.17a: Sacrifice is NOT destruction — indestructible does not prevent it.
+    // CR 701.21a: Sacrifice is NOT destruction — indestructible does not prevent it.
     //
     // TODO(M10+): Per CR 603.7, this is technically a delayed triggered ability. The current
     // TBA implementation sacrifices with no interaction window (can't Stifle the sacrifice).

@@ -2454,16 +2454,16 @@ fn execute_effect_inner(
             // M9+: interactive choice to pay or not. For M7, don't pay → apply or_else.
             execute_effect_inner(state, or_else, ctx, events);
         }
-        // CR 701.17a: Sacrifice permanents — the specified player sacrifices N permanents.
+        // CR 701.21a: Sacrifice permanents — the specified player sacrifices N permanents.
         //
-        // Sacrifice is NOT destruction: it bypasses indestructible (CR 701.17a).
+        // Sacrifice is NOT destruction: it bypasses indestructible (CR 701.21a).
         // The player chooses which permanents to sacrifice; deterministic fallback
         // (M10+ will support interactive choice): sacrifice in ObjectId ascending order.
         // If the player controls fewer than N permanents, they sacrifice all they control.
         // Sacrifice is a zone change to the owner's graveyard; "dies" triggers fire normally.
         //
-        // PB-SFT (CR 701.17a + CR 109.1c): when `filter` is Some, only permanents whose
-        // layer-resolved characteristics (CR 613.1f) satisfy the filter are eligible.
+        // PB-SFT (CR 701.21a + CR 109.1): when `filter` is Some, only permanents whose
+        // layer-resolved characteristics (CR 613.1d) satisfy the filter are eligible.
         // `is_attacking` and `is_token` are runtime GameObject fields — they are checked
         // explicitly here and NOT delegated to `matches_filter()`.
         Effect::SacrificePermanents {
@@ -2477,7 +2477,7 @@ fn execute_effect_inner(
                 // Collect the player's battlefield permanents sorted by ObjectId ascending
                 // for deterministic ordering (interactive choice deferred to M10+).
                 // CR 702.26b: phased-out permanents are treated as nonexistent.
-                // PB-SFT: apply filter using layer-resolved characteristics (CR 613.1f).
+                // PB-SFT: apply filter using layer-resolved characteristics (CR 613.1d).
                 let mut controlled: Vec<ObjectId> = state
                     .objects
                     .iter()
@@ -2489,7 +2489,7 @@ fn execute_effect_inner(
                             return false;
                         }
                         if let Some(tf) = filter {
-                            // CR 613.1f: use layer-resolved characteristics for filter check.
+                            // CR 613.1d: use layer-resolved characteristics for filter check.
                             let chars =
                                 crate::rules::layers::calculate_characteristics(state, **id)
                                     .unwrap_or_else(|| obj.characteristics.clone());
@@ -2528,7 +2528,7 @@ fn execute_effect_inner(
                 // Sacrifice min(n, count) permanents.
                 let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
                 for id in to_sacrifice {
-                    // CR 701.17a: sacrifice is NOT destruction — no indestructible check.
+                    // CR 701.21a: sacrifice is NOT destruction — no indestructible check.
                     // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
                     let (card_types, owner, pre_sacrifice_controller, pre_death_counters) =
                         match state.objects.get(&id) {
@@ -4943,7 +4943,7 @@ fn execute_effect_inner(
         // Step 1: Each player exiles all creature cards from their graveyard.
         // Step 2: Each player sacrifices all creatures they control.
         // Step 3: Each player puts all cards exiled in step 1 onto the battlefield.
-        // CR 101.4 (APNAP simultaneous), CR 701.17a (sacrifice semantics).
+        // CR 101.4 (APNAP simultaneous), CR 701.21a (sacrifice semantics).
         Effect::LivingDeath => {
             // Determine APNAP player order (active player first, then in turn order).
             let mut player_order: Vec<PlayerId> = state.players.keys().copied().collect();

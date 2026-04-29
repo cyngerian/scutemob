@@ -867,7 +867,7 @@ fn test_pbt_hash_schema_version_sentinel_is_9_regression() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 9u8,
         "PB-SFT: Sentinel must be 9; bumped from PB-T's 8 for Effect::SacrificePermanents \
-         filter field + TargetFilter.is_nontoken (CR 701.17a + CR 109.1c)"
+         filter field + TargetFilter.is_nontoken (CR 701.21a + CR 109.1)"
     );
 }
 

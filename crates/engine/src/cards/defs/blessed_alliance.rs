@@ -60,7 +60,7 @@ pub fn card() -> CardDefinition {
                             },
                         ]),
                         // Mode 2: Target opponent sacrifices an attacking creature of their choice.
-                        // PB-SFT (CR 701.17a + CR 109.1c): attacking creature filter.
+                        // PB-SFT (CR 701.21a + CR 109.1): attacking creature filter.
                         // `is_attacking` is a runtime GameObject field checked explicitly at the
                         // SacrificePermanents resolution site (not in matches_filter).
                         Effect::SacrificePermanents {
