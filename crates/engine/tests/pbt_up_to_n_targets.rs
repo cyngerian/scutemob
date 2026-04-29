@@ -401,17 +401,16 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 /// distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_11() {
+fn test_pbt_hash_schema_version_is_12() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 11 (PB-CC-C bump from PB-CC-B's 10 for
-    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic variants
-    // (CR 613.1c single-axis dynamic P/T modification)).
+    // CR N/A — sentinel must be 12 (PB-CC-A bump from PB-CC-C's 11 for
+    // EffectAmount::PlayerCounterCount variant (CR 122.1 player-counter count)).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 11u8,
-        "PB-CC-C: HASH_SCHEMA_VERSION must be 11 (bump from PB-CC-B's 10 for \
-         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic)"
+        HASH_SCHEMA_VERSION, 12u8,
+        "PB-CC-A: HASH_SCHEMA_VERSION must be 12 (bump from PB-CC-C's 11 for \
+         EffectAmount::PlayerCounterCount)"
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -859,16 +858,16 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 11.
+/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 12.
 /// Regression guard against accidental rollback to a prior value.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_11_regression() {
-    // Must be exactly 11 (PB-CC-C bump from PB-CC-B's 10 for
-    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic).
+fn test_pbt_hash_schema_version_sentinel_is_12_regression() {
+    // Must be exactly 12 (PB-CC-A bump from PB-CC-C's 11 for
+    // EffectAmount::PlayerCounterCount).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 11u8,
-        "PB-CC-C: Sentinel must be 11; bumped from PB-CC-B's 10 for \
-         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic (CR 613.1c)"
+        HASH_SCHEMA_VERSION, 12u8,
+        "PB-CC-A: Sentinel must be 12; bumped from PB-CC-C's 11 for \
+         EffectAmount::PlayerCounterCount (CR 122.1)"
     );
 }
 

@@ -51,7 +51,14 @@
 /// - 11: PB-CC-C (2026-04-29) — `LayerModification::ModifyPowerDynamic` +
 ///   `ModifyToughnessDynamic` (CR 608.2h, CR 613.4c); DSL placeholders for
 ///   one-shot spell X-locked single-axis P/T modification.
-pub const HASH_SCHEMA_VERSION: u8 = 11;
+/// - 12: PB-CC-A (2026-04-29) — `EffectAmount::PlayerCounterCount` (disc 16)
+///   reads counters on a player; sums across players for `EachOpponent` /
+///   `EachPlayer`. Currently supports `Poison` (reads `PlayerState::poison_counters`);
+///   other counter kinds return 0 (no panic). Wired through `resolve_amount`
+///   (effects/mod.rs) and `resolve_cda_amount` (rules/layers.rs). Future-proof
+///   for energy/experience/rad/ticket if/when those become flat fields on
+///   `PlayerState`.
+pub const HASH_SCHEMA_VERSION: u8 = 12;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4446,6 +4453,13 @@ impl HashInto for EffectAmount {
             }
             // CR 608.2b: PowerOfSacrificedCreature (discriminant 15) — LKI power of cost-sacrificed creature
             EffectAmount::PowerOfSacrificedCreature => 15u8.hash_into(hasher),
+            // PB-CC-A (discriminant 16) — counters on a player; sums across players
+            // for `EachOpponent` / `EachPlayer`. CR 122.1 + Vishgraz ruling 2023-02-04.
+            EffectAmount::PlayerCounterCount { player, counter } => {
+                16u8.hash_into(hasher);
+                player.hash_into(hasher);
+                counter.hash_into(hasher);
+            }
         }
     }
 }

@@ -776,12 +776,12 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // Assert hash sentinel is exactly 11 (PB-CC-C bump from PB-CC-B's 10 for
-    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic, CR 613.4c).
+    // Assert hash sentinel is exactly 12 (PB-CC-A bump from PB-CC-C's 11 for
+    // EffectAmount::PlayerCounterCount, CR 122.1).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 11u8,
-        "PB-CC-C: HASH_SCHEMA_VERSION must be 11 (bump from PB-CC-B's 10 for \
-         LayerModification::ModifyPowerDynamic/ModifyToughnessDynamic). \
+        HASH_SCHEMA_VERSION, 12u8,
+        "PB-CC-A: HASH_SCHEMA_VERSION must be 12 (bump from PB-CC-C's 11 for \
+         EffectAmount::PlayerCounterCount). \
          If you bumped the sentinel, update this test."
     );
 

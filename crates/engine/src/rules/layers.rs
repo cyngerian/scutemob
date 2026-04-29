@@ -1525,6 +1525,25 @@ pub(crate) fn resolve_cda_amount(
                 0
             }
         }
+        // PB-CC-A: CDA evaluation for counters on a player (poison-counter scaling).
+        // Mirrors `resolve_amount` PlayerCounterCount arm. Reads `PlayerState`
+        // fields, which are NOT layer-derived characteristics (CR 122 / 613) — no
+        // layer recursion concern.
+        //
+        // Sum semantic: `PlayerTarget::EachOpponent` sums over every non-controller
+        // (CR 122.1, Vishgraz ruling 2023-02-04). `Poison` reads
+        // `PlayerState::poison_counters`; other kinds return 0 (no panic).
+        EffectAmount::PlayerCounterCount { player, counter } => {
+            let players = resolve_cda_player_target(state, player, controller);
+            match counter {
+                crate::state::types::CounterType::Poison => players
+                    .iter()
+                    .filter_map(|pid| state.players.get(pid))
+                    .map(|ps| ps.poison_counters as i32)
+                    .sum(),
+                _ => 0,
+            }
+        }
         // PB-28: Sum of two amounts (e.g. "Elves you control plus Elf cards in graveyard").
         EffectAmount::Sum(a, b) => {
             resolve_cda_amount(state, a, object_id, controller)
@@ -1574,6 +1593,21 @@ pub(crate) fn resolve_cda_amount(
 }
 
 /// Resolve a `PlayerTarget` in CDA context (no `EffectContext`).
+///
+/// CR 800.4i: when a player leaves a multiplayer game, their permanents are
+/// removed from the game (including this CDA's source). However, the layer
+/// system processes objects regardless of zone (CR 604.3), so a CDA evaluation
+/// can still observe `state.turn.turn_order` entries for already-lost players
+/// (the turn order is updated independently of CDA evaluation timing).
+///
+/// Divergence from `resolve_player_target_list` (effects/mod.rs): that function
+/// filters out `PlayerState::has_lost` players because spell-effect target
+/// resolution is illegal for lost players (CR 800.4i: "any objects targeted
+/// or chosen by a controlled spell or ability ... that became illegal targets
+/// are no longer chosen"). CDA evaluation does NOT target — it reads source
+/// characteristics — so filtering is unnecessary at this layer. A future
+/// primitive that needs lost-player filtering during CDA evaluation should
+/// add it explicitly here with a CR citation.
 fn resolve_cda_player_target(
     state: &GameState,
     target: &PlayerTarget,

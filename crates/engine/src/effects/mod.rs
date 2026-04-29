@@ -6153,6 +6153,29 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .next()
                 .unwrap_or(0)
         }
+        // PB-CC-A: Count counters of a given type on a player or sum across players.
+        //
+        // Sum semantic: "for each poison counter your opponents have" sums across
+        // every opponent (CR 122.1, Vishgraz ruling 2023-02-04). When the resolved
+        // player list is non-empty, the result is the sum of `counter` over every
+        // listed player.
+        //
+        // Counter-kind support: `Poison` reads `PlayerState::poison_counters`. All
+        // other kinds return 0 (no panic): see variant doc-comment for rationale.
+        EffectAmount::PlayerCounterCount { player, counter } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            match counter {
+                crate::state::types::CounterType::Poison => players
+                    .iter()
+                    .filter_map(|pid| state.players.get(pid))
+                    .map(|ps| ps.poison_counters as i32)
+                    .sum(),
+                // Future-proof: energy/experience/rad/ticket etc. live as separate
+                // PlayerState fields when implemented. Until then, return 0 rather
+                // than panic so card defs targeting unsupported kinds remain safe.
+                _ => 0,
+            }
+        }
         // Reads the count of permanents actually destroyed/exiled by the preceding
         // DestroyAll or ExileAll effect (stored in ctx.last_effect_count).
         EffectAmount::LastEffectCount => ctx.last_effect_count as i32,
