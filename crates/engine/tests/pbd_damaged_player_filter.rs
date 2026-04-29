@@ -592,7 +592,7 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel is bumped to 11 (PB-CC-C added LayerModification::ModifyPowerDynamic
-    // and ModifyToughnessDynamic, following PB-CC-B's 10 for TargetFilter.has_counter_type).
+    // and ModifyToughnessDynamic, CR 613.4c, following PB-CC-B's 10 for TargetFilter.has_counter_type).
     assert_eq!(
         HASH_SCHEMA_VERSION, 11u8,
         "HASH_SCHEMA_VERSION must be 11 (PB-CC-C bump from PB-CC-B's 10 for \

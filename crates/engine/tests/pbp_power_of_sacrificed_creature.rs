@@ -777,7 +777,7 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use mtg_engine::state::hash::HashInto;
 
     // Assert hash sentinel is exactly 11 (PB-CC-C bump from PB-CC-B's 10 for
-    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic, CR 613.1c).
+    // LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic, CR 613.4c).
     assert_eq!(
         HASH_SCHEMA_VERSION, 11u8,
         "PB-CC-C: HASH_SCHEMA_VERSION must be 11 (bump from PB-CC-B's 10 for \

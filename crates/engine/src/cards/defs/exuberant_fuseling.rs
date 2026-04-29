@@ -16,39 +16,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // CR 613.1c / Layer 7c — CDA: "This creature gets +1/+0 for each oil counter on it."
-            // ModifyPowerDynamic is a DSL placeholder resolved at Effect::ApplyContinuousEffect
-            // execution time (CR 608.2h): the oil counter count on this creature is locked in
-            // at the moment the ETB effect fires and applied for WhileSourceOnBattlefield.
-            // is_cda: true — this CDA effect applies before non-CDA Layer 7c effects
-            // (CR 613.1c ordering within the same layer).
+            // TODO: "This creature gets +1/+0 for each oil counter on it." — CR 613.4c Layer 7c
+            // modify (CR 611.3a: static ability, NOT locked-in; must re-evaluate continuously).
             //
-            // Design note: This ETB-triggered ApplyContinuousEffect pattern captures the
-            // counter count at entry time. Full dynamic re-evaluation (counter count changes
-            // after entry) would require either SetPtDynamic (Layer 7a) or a separate
-            // per-counter-add trigger, both of which are out of PB-CC-C scope.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::ApplyContinuousEffect {
-                    effect_def: Box::new(ContinuousEffectDef {
-                        layer: EffectLayer::PtModify,
-                        modification: LayerModification::ModifyPowerDynamic {
-                            amount: Box::new(EffectAmount::CounterCount {
-                                target: EffectTarget::Source,
-                                counter: CounterType::Oil,
-                            }),
-                            negate: false,
-                        },
-                        filter: EffectFilter::Source,
-                        duration: EffectDuration::WhileSourceOnBattlefield,
-                        condition: None,
-                    }),
-                },
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
-            },
+            // Blocked by: dynamic-static Layer-7c modify primitive (PB-CC-C-followup or similar).
+            // PB-CC-C added LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic for
+            // one-shot spell use cases (CR 608.2h substitution-at-resolution, e.g. Olivia's
+            // Wrath pattern). Fuseling needs CR 611.3a continuous re-evaluation, which requires
+            // a separate `AbilityDefinition::CdaModifyPowerToughness` variant analogous to
+            // `CdaPowerToughness` (Layer 7a). Routing this through ApplyContinuousEffect would
+            // produce a stale-snapshot bug: the oil counter count freezes at ETB time, so
+            // subsequent counter changes do not update power, violating oracle text.
+            // See `memory/primitives/pb-review-CC-C.md` C1/E4 for full analysis.
+
             // ETB: put an oil counter on this creature.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,

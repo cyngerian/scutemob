@@ -1168,20 +1168,20 @@ fn apply_layer_modification(
             );
             // Production behavior: silently no-op rather than panic.
         }
-        // CR 608.2h / PB-CC-C: ModifyPowerDynamic and ModifyToughnessDynamic must be
-        // substituted at Effect::ApplyContinuousEffect time. If either reaches here,
+        // CR 608.2h / CR 613.4c / PB-CC-C: ModifyPowerDynamic and ModifyToughnessDynamic
+        // must be substituted at Effect::ApplyContinuousEffect time. If either reaches here,
         // substitution was skipped — this is a bug that would produce silent state corruption.
         LayerModification::ModifyPowerDynamic { .. } => {
             debug_assert!(
                 false,
-                "ModifyPowerDynamic must be substituted into ModifyPower at Effect::ApplyContinuousEffect time"
+                "ModifyPowerDynamic must be substituted into ModifyPower at Effect::ApplyContinuousEffect time (CR 608.2h / CR 613.4c)"
             );
             // Production behavior: silently no-op rather than panic.
         }
         LayerModification::ModifyToughnessDynamic { .. } => {
             debug_assert!(
                 false,
-                "ModifyToughnessDynamic must be substituted into ModifyToughness at Effect::ApplyContinuousEffect time"
+                "ModifyToughnessDynamic must be substituted into ModifyToughness at Effect::ApplyContinuousEffect time (CR 608.2h / CR 613.4c)"
             );
             // Production behavior: silently no-op rather than panic.
         }

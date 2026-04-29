@@ -547,7 +547,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // PB-SFT bumped the sentinel from 8 → 9 (Effect::SacrificePermanents.filter + TargetFilter.is_nontoken).
     // PB-CC-B bumped the sentinel from 9 → 10 (TargetFilter.has_counter_type, CR 122.1).
     // PB-CC-C bumped the sentinel from 10 → 11 (LayerModification::ModifyPowerDynamic +
-    //   ModifyToughnessDynamic, CR 613.1c single-axis dynamic P/T modification).
+    //   ModifyToughnessDynamic, CR 613.4c single-axis dynamic P/T modification).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
         HASH_SCHEMA_VERSION, 11u8,
