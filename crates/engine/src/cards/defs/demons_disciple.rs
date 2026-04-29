@@ -1,7 +1,5 @@
 // Demon's Disciple — {2}{B}, Creature — Human Cleric 3/1
-// When this enters, each player sacrifices a creature.
-// TODO: SacrificePermanents has no creature-only filter — each player sacrifices any
-// permanent, not specifically a creature. Stronger than intended for permanents-matter boards.
+// When this enters, each player sacrifices a creature or planeswalker.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -10,16 +8,21 @@ pub fn card() -> CardDefinition {
         name: "Demon's Disciple".to_string(),
         mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
         types: creature_types(&["Human", "Cleric"]),
-        oracle_text: "When this enters, each player sacrifices a creature.".to_string(),
+        oracle_text: "When this creature enters, each player sacrifices a creature or planeswalker of their choice.".to_string(),
         power: Some(3),
         toughness: Some(1),
         abilities: vec![
+            // CR 603.3: ETB trigger — each player sacrifices a creature or planeswalker.
+            // PB-SFT (CR 701.21a + CR 109.1): creature-or-planeswalker OR-type filter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                // TODO: no creature-only filter on SacrificePermanents; sacrifices any permanent.
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                        ..Default::default()
+                    }),
                 },
                 intervening_if: None,
                 targets: vec![],

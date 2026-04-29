@@ -544,10 +544,13 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // PB-P bumped the sentinel from 5 → 6 (EffectAmount::PowerOfSacrificedCreature + AdditionalCost::Sacrifice struct + StackObject field).
     // PB-L bumped the sentinel from 6 → 7 (ETBTriggerFilter.card_type_filter for Landfall dispatch).
     // PB-T bumped the sentinel from 7 → 8 (TargetRequirement::UpToN added, CR 601.2c / 115.1b).
+    // PB-SFT bumped the sentinel from 8 → 9 (Effect::SacrificePermanents.filter + TargetFilter.is_nontoken).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 8u8,
-        "HASH_SCHEMA_VERSION must be 8 (PB-T bump from PB-L's 7 for TargetRequirement::UpToN). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 9u8,
+        "HASH_SCHEMA_VERSION must be 9 (PB-SFT bump from PB-T's 8 for \
+         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken). \
+         If you bumped the sentinel, update this test."
     );
 }
 

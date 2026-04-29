@@ -278,7 +278,7 @@ fn test_cumulative_upkeep_pay_mana_keeps_permanent() {
 
 #[test]
 /// CR 702.24a — When the CU trigger resolves and the controller declines payment,
-/// the permanent is sacrificed (bypassing indestructible, CR 701.17a).
+/// the permanent is sacrificed (bypassing indestructible, CR 701.21a).
 fn test_cumulative_upkeep_decline_payment_sacrifices() {
     let p1 = p(1);
     let p2 = p(2);

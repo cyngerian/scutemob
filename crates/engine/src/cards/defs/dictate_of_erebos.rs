@@ -14,20 +14,23 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             // CR 603.10a: "Whenever a creature you control dies, each opponent
             // sacrifices a creature."
-            // Note: SacrificePermanents has no creature-only filter; engine picks lowest-ID
-            // permanent. Creature-only sacrifice filter is a known DSL gap.
+            // PB-SFT (CR 701.21a + CR 109.1): creature-only filter applied.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::SacrificePermanents {
                         player: PlayerTarget::DeclaredTarget { index: 0 },
                         count: EffectAmount::Fixed(1),
+                        filter: Some(TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            ..Default::default()
+                        }),
                     }),
                 },
                 intervening_if: None,

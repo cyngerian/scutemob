@@ -2,7 +2,7 @@
 // Mode 0: Target player gains 4 life.
 // Mode 1: Untap up to two target creatures. (approximated: untap DeclaredTarget 0 and 1)
 // Mode 2: Target opponent sacrifices an attacking creature of their choice.
-// (approximated: SacrificePermanents — no filter for attacking-only in current DSL)
+// PB-SFT: Mode 2 now uses is_attacking filter on SacrificePermanents.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -60,12 +60,17 @@ pub fn card() -> CardDefinition {
                             },
                         ]),
                         // Mode 2: Target opponent sacrifices an attacking creature of their choice.
-                        // TODO: SacrificePermanents has no filter for attacking creatures only.
-                        // When an attacking-creature filter is added to SacrificePermanents,
-                        // replace this with the filtered variant.
+                        // PB-SFT (CR 701.21a + CR 109.1): attacking creature filter.
+                        // `is_attacking` is a runtime GameObject field checked explicitly at the
+                        // SacrificePermanents resolution site (not in matches_filter).
                         Effect::SacrificePermanents {
                             player: PlayerTarget::DeclaredTarget { index: 3 },
                             count: EffectAmount::Fixed(1),
+                            filter: Some(TargetFilter {
+                                has_card_type: Some(CardType::Creature),
+                                is_attacking: true,
+                                ..Default::default()
+                            }),
                         },
                     ],
                 }),

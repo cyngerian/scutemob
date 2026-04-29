@@ -14,11 +14,12 @@ pub fn card() -> CardDefinition {
             // TODO: Sacrifice-creature alt cost not in DSL.
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![
-                    // TODO: SacrificePermanents has no nonland filter — opponent
-                    // sacrifices any permanent, not specifically a nonland.
+                    // TODO: Flare of Malice requires greatest-MV-among selection rule —
+                    // not expressible as a static TargetFilter. OUT-OF-SCOPE for PB-SFT.
                     Effect::SacrificePermanents {
                         player: PlayerTarget::DeclaredTarget { index: 0 },
                         count: EffectAmount::Fixed(1),
+                        filter: None,
                     },
                     Effect::LoseLife {
                         player: PlayerTarget::DeclaredTarget { index: 0 },

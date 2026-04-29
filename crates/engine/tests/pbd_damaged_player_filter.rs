@@ -585,17 +585,19 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 // ── Test M6: Hash parity — all 4 TargetController variants produce distinct hashes ──
 
 /// PB-D M6: Hash parity test — all four TargetController variants hash to distinct values.
-/// Also verifies HASH_SCHEMA_VERSION is exactly 5 (the PB-D bump from 4).
+/// Also verifies HASH_SCHEMA_VERSION is exactly 9 (PB-SFT bump from PB-T's 8).
 ///
 /// Discriminator: forces the sentinel assertion to fail if the bump is not made.
 /// Any two variants colliding would indicate a hash implementation bug.
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
-    // Hash sentinel is bumped to 8 (PB-T added TargetRequirement::UpToN discriminant 17,
-    // following PB-L's 7 for ETBTriggerFilter.card_type_filter).
+    // Hash sentinel is bumped to 9 (PB-SFT added Effect::SacrificePermanents.filter and
+    // TargetFilter.is_nontoken, following PB-T's 8 for TargetRequirement::UpToN).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 8u8,
-        "HASH_SCHEMA_VERSION must be 8 (PB-T bump from PB-L's 7 for TargetRequirement::UpToN). If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 9u8,
+        "HASH_SCHEMA_VERSION must be 9 (PB-SFT bump from PB-T's 8 for \
+         Effect::SacrificePermanents filter field + TargetFilter.is_nontoken). \
+         If you bumped the sentinel, update this test."
     );
 
     let p1 = PlayerId(1);

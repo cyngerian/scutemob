@@ -1493,16 +1493,29 @@ pub enum Effect {
         payer: PlayerTarget,
         or_else: Box<Effect>,
     },
-    /// CR 701.17a: The specified player sacrifices `count` permanents they control.
+    /// CR 701.21a: The specified player sacrifices `count` permanents they control.
     ///
     /// If the player controls fewer than `count` permanents, they sacrifice all
     /// permanents they control. The player chooses which permanents to sacrifice
     /// (deterministic fallback: sacrifice in ObjectId ascending order). Sacrifice
-    /// ignores indestructible (CR 701.17a). Used by Annihilator (CR 702.86a) and
+    /// ignores indestructible (CR 701.21a). Used by Annihilator (CR 702.86a) and
     /// other "target player sacrifices N permanents" effects.
+    ///
+    /// PB-SFT (CR 701.21a + CR 109.1): optional filter on which permanents the player
+    /// must sacrifice. `None` = any permanent (existing behavior). When `Some`, only
+    /// permanents whose layer-resolved characteristics satisfy the filter are eligible.
+    /// If zero eligible permanents exist, no sacrifice occurs (not an error).
+    ///
+    /// IMPORTANT: `is_attacking` and `is_token` in `TargetFilter` are runtime `GameObject`
+    /// fields, NOT `Characteristics` fields. They MUST be checked explicitly at the
+    /// resolution site; `matches_filter()` does NOT check them.
     SacrificePermanents {
         player: PlayerTarget,
         count: EffectAmount,
+        /// PB-SFT: filter restricting which permanents are eligible for sacrifice.
+        /// Uses layer-resolved characteristics (CR 613.1d). `None` = no restriction.
+        #[serde(default)]
+        filter: Option<TargetFilter>,
     },
     /// CR 701.38: Goad — target creature must attack each combat if able, and
     /// must attack a player other than the goading player if able.
@@ -2092,7 +2105,7 @@ pub enum Effect {
     /// Step 2: Each player sacrifices all creatures they control simultaneously.
     /// Step 3: Each player puts all cards they exiled in step 1 onto the battlefield simultaneously.
     /// Cards exiled by replacement effects during step 2 are NOT returned in step 3
-    /// (only step-1 exiled cards are returned). CR 101.4, 701.17a.
+    /// (only step-1 exiled cards are returned). CR 101.4, 701.21a.
     LivingDeath,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
@@ -2398,6 +2411,16 @@ pub struct TargetFilter {
     /// explicitly at those call sites — it will be silently ignored by `matches_filter`.
     #[serde(default)]
     pub is_token: bool,
+    /// Must NOT be a token. Default: false (no restriction).
+    /// Mirrors `is_token` but expresses the opposite constraint — "nontoken permanent."
+    /// Used for "nontoken creature" filters (Accursed Marauder: "each player sacrifices
+    /// a nontoken creature of their choice").
+    ///
+    /// NOTE: Like `is_token`, this is a `GameObject` runtime field (not `Characteristics`).
+    /// It MUST be checked explicitly at each call site that uses it — it will be silently
+    /// ignored by `matches_filter()`.
+    #[serde(default)]
+    pub is_nontoken: bool,
     /// Max toughness (inclusive). None = no restriction.
     /// Used for "creature with toughness N or less" (Scourge of Fleets, Recruiter of the Guard).
     #[serde(default)]

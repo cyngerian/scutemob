@@ -3815,7 +3815,7 @@ pub fn handle_cast_spell(
         }
     }
     // CR 118.8 / CR 601.2h: Pay the mandatory spell additional sacrifice cost.
-    // The sacrifice is a real sacrifice (CR 701.17): the permanent goes from
+    // The sacrifice is a real sacrifice (CR 701.21): the permanent goes from
     // battlefield to the owner's graveyard as part of cost payment.
     // If the spell is later countered, the sacrifice still happened.
     if let Some(sac_id) = spell_sac_id {
@@ -3883,7 +3883,7 @@ pub fn handle_cast_spell(
     }
     // CR 702.166a / CR 601.2f-h: Pay the bargain additional cost -- sacrifice
     // an artifact, enchantment, or token. The sacrifice is a real sacrifice
-    // (CR 701.17): the permanent goes from battlefield to the owner's graveyard.
+    // (CR 701.21): the permanent goes from battlefield to the owner's graveyard.
     // This happens as part of cost payment (CR 601.2h), after mana payment.
     // Bargain is optional -- only execute if bargain_sacrifice_id is Some.
     if let Some(sac_id) = bargain_sacrifice_id {
@@ -3921,7 +3921,7 @@ pub fn handle_cast_spell(
         });
     }
     // CR 702.153a / CR 601.2f-h: Pay the casualty additional cost -- sacrifice a creature
-    // with power >= N. The sacrifice is a real sacrifice (CR 701.17): the permanent goes
+    // with power >= N. The sacrifice is a real sacrifice (CR 701.21): the permanent goes
     // from battlefield to the owner's graveyard.
     // This happens as part of cost payment (CR 601.2h), after mana payment.
     // Casualty is optional -- only execute if casualty_sacrifice_id is Some.

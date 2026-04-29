@@ -1,8 +1,5 @@
 // Fleshbag Marauder — {2}{B}, Creature — Zombie Warrior 3/1
 // When this enters, each player sacrifices a creature.
-//
-// Note: SacrificePermanents has no creature-only filter; engine picks lowest-ID permanent.
-// "Non-token" and "creature specifically" filters are a known DSL gap (same as Butcher of Malakir).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,13 +13,16 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // CR 603.3: ETB trigger — each player sacrifices a creature.
-            // SacrificePermanents with EachPlayer fires for all players simultaneously.
-            // TODO: SacrificePermanents lacks creature-only filter — picks any permanent.
+            // PB-SFT (CR 701.21a + CR 109.1): creature-only filter via TargetFilter.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
                 },
                 intervening_if: None,
                 targets: vec![],

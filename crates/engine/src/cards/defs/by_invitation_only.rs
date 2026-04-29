@@ -15,11 +15,12 @@ pub fn card() -> CardDefinition {
         oracle_text: "Choose a number between 0 and 13. Each player sacrifices that many creatures of their choice.".to_string(),
         abilities: vec![
             // TODO: Interactive number choice (0-13) deferred to M10.
-            // Each player sacrifices that many creatures.
+            // TODO: Creature filter applicable but count approximation (always 1) still wrong.
             AbilityDefinition::Spell {
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,
                     count: EffectAmount::Fixed(1),
+                    filter: None,
                 },
                 targets: vec![],
                 modes: None,
