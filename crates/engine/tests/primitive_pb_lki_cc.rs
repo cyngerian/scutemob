@@ -428,6 +428,10 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
 /// New discriminant:
 ///   - `EffectAmount::CounterCountAtLastKnownInformation { counter }` — discriminant 17
 ///
+/// Also verifies hash determinism: two identical states must produce the same hash,
+/// and a state after Toothy dies (with LKI counters snapshotted on the trigger) must
+/// produce a DIFFERENT hash from the initial state.
+///
 /// If you see this test fail, a subsequent batch has bumped the version again.
 /// Update the assertion and the hash.rs history comment for that batch.
 #[test]
@@ -438,5 +442,382 @@ fn test_pb_lki_cc_hash_schema_version_is_15() {
          (EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a). \
          If this fails, a subsequent PB bumped the version — update this test and \
          add a history entry in state/hash.rs."
+    );
+}
+
+/// CR N/A (hash infrastructure) — Hash determinism sub-test:
+/// identical game states must produce the same hash; different states must not.
+///
+/// Specifically: a state where Toothy just died (with LKI snapshot on PendingTrigger)
+/// must produce a different hash from the initial state with Toothy alive.
+#[test]
+fn test_pb_lki_cc_hash_determinism() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let lib_cards: Vec<ObjectSpec> = (0..5)
+        .map(|i| ObjectSpec::card(p1, &format!("Hash Det Card {i}")).in_zone(ZoneId::Library(p1)))
+        .collect();
+    let toothy_spec = enrich(p1, "Toothy, Imaginary Friend", ZoneId::Battlefield, &defs);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(toothy_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain);
+    for lib_card in lib_cards {
+        builder = builder.object(lib_card);
+    }
+    let mut state = builder.build().unwrap();
+
+    // Add 2 +1/+1 counters to Toothy.
+    let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
+    state
+        .objects
+        .get_mut(&toothy_id)
+        .unwrap()
+        .counters
+        .insert(CounterType::PlusOnePlusOne, 2);
+
+    // Hash of initial state (Toothy alive, 2 counters).
+    let hash_initial = state.public_state_hash();
+
+    // Two identical states must hash the same.
+    let hash_initial_again = state.public_state_hash();
+    assert_eq!(
+        hash_initial, hash_initial_again,
+        "CR N/A: identical states must produce identical hashes (determinism)"
+    );
+
+    // Kill Toothy — state changes.
+    state.objects.get_mut(&toothy_id).unwrap().damage_marked = 3;
+    state.turn.priority_holder = Some(p1);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let hash_after_death = state.public_state_hash();
+    assert_ne!(
+        hash_initial, hash_after_death,
+        "CR N/A: state after Toothy dies must produce a different hash from initial state"
+    );
+}
+
+// ── Fix-phase regression tests (E1): LKI on non-death leaves-battlefield ──────
+
+/// CR 603.10a — Mandatory E1 regression test.
+///
+/// Toothy with 3 +1/+1 counters is BOUNCED to its owner's hand via
+/// `Effect::BounceAll`. The `WhenLeavesBattlefield` trigger must read
+/// the LKI counter snapshot from `ObjectReturnedToHand.pre_lba_counters`
+/// (populated by the fix), not from the now-reset `counters` field on the
+/// hand object. P1 must draw exactly 3 cards.
+///
+/// Before E1 fix: `ObjectReturnedToHand` arm in `check_triggers` used
+/// `..PendingTrigger::blank(...)` which defaulted `lki_counters` to empty,
+/// producing 0 draws regardless of counter count.
+#[test]
+fn test_toothy_bounced_to_hand_draws_lki_counter_count() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
+    use mtg_engine::{CardType, Effect, ObjectId, TargetFilter};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let lib_cards: Vec<ObjectSpec> = (0..5)
+        .map(|i| ObjectSpec::card(p1, &format!("Bounce Lib {i}")).in_zone(ZoneId::Library(p1)))
+        .collect();
+    let toothy_spec = enrich(p1, "Toothy, Imaginary Friend", ZoneId::Battlefield, &defs);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(toothy_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain);
+    for lib_card in lib_cards {
+        builder = builder.object(lib_card);
+    }
+    let mut state = builder.build().unwrap();
+
+    // Add 3 +1/+1 counters to Toothy.
+    let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
+    state
+        .objects
+        .get_mut(&toothy_id)
+        .unwrap()
+        .counters
+        .insert(CounterType::PlusOnePlusOne, 3);
+
+    let hand_before = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    // Bounce all creatures — Toothy is the only creature on the battlefield.
+    let mut ctx = EffectContext::new(p1, ObjectId(0), vec![]);
+    let bounce_events = execute_effect(
+        &mut state,
+        &Effect::BounceAll {
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            },
+            max_toughness_amount: None,
+        },
+        &mut ctx,
+    );
+
+    // Verify Toothy bounced to hand.
+    assert!(
+        bounce_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ObjectReturnedToHand { .. })),
+        "BounceAll must emit ObjectReturnedToHand for Toothy"
+    );
+    assert!(
+        !on_battlefield(&state, "Toothy, Imaginary Friend"),
+        "Toothy must be off the battlefield after BounceAll"
+    );
+
+    // Fire check_triggers on the bounce events, queue resulting triggers.
+    let triggers = check_triggers(&state, &bounce_events);
+    assert!(
+        !triggers.is_empty(),
+        "WhenLeavesBattlefield trigger must be queued after Toothy bounces"
+    );
+    for t in triggers {
+        state.pending_triggers.push_back(t);
+    }
+
+    // Flush pending triggers onto the stack (sets priority).
+    let flush_events = flush_pending_triggers(&mut state);
+    assert!(
+        !flush_events.is_empty(),
+        "flush_pending_triggers must emit events (trigger pushed to stack)"
+    );
+
+    // Drain the stack — WhenLeavesBattlefield trigger resolves → draw 3 cards.
+    state.turn.priority_holder = Some(p1);
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    let hand_after = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    // Note: Toothy itself is now in hand (the bounced card), so we subtract 1 for that.
+    // hand_before + 1 (Toothy bounced) + 3 (draws) = hand_after.
+    let cards_drawn = hand_after.saturating_sub(hand_before + 1); // +1 for Toothy itself
+    assert_eq!(
+        cards_drawn, 3,
+        "CR 603.10a (E1 regression): Toothy bounced with 3 counters must draw 3 cards; \
+         drew {} cards. If 0, pre_lba_counters was not threaded from \
+         ObjectReturnedToHand through check_triggers → PendingTrigger.lki_counters.",
+        cards_drawn
+    );
+}
+
+/// CR 603.10a — Toothy with 3 +1/+1 counters is DESTROYED by a non-SBA path
+/// (direct `Effect::DestroyAll`). The `WhenLeavesBattlefield` trigger must use
+/// `PermanentDestroyed.pre_lba_counters` to draw 3 cards.
+///
+/// This tests the `PermanentDestroyed` arm in `check_triggers` (distinct from
+/// the `CreatureDied` arm tested by (b)).
+#[test]
+fn test_toothy_destroyed_draws_lki_counter_count() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
+    use mtg_engine::{CardType, Effect, ObjectId, TargetFilter};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let lib_cards: Vec<ObjectSpec> = (0..5)
+        .map(|i| ObjectSpec::card(p1, &format!("Destroy Lib {i}")).in_zone(ZoneId::Library(p1)))
+        .collect();
+    let toothy_spec = enrich(p1, "Toothy, Imaginary Friend", ZoneId::Battlefield, &defs);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(toothy_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain);
+    for lib_card in lib_cards {
+        builder = builder.object(lib_card);
+    }
+    let mut state = builder.build().unwrap();
+
+    // Add 3 +1/+1 counters to Toothy.
+    let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
+    state
+        .objects
+        .get_mut(&toothy_id)
+        .unwrap()
+        .counters
+        .insert(CounterType::PlusOnePlusOne, 3);
+
+    let hand_before = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    // Destroy all creatures — Toothy is the only creature.
+    let mut ctx = EffectContext::new(p1, ObjectId(0), vec![]);
+    let destroy_events = execute_effect(
+        &mut state,
+        &Effect::DestroyAll {
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            },
+            cant_be_regenerated: false,
+        },
+        &mut ctx,
+    );
+
+    // DestroyAll on a creature emits CreatureDied (the SBA path handled separately);
+    // via the effect path it emits PermanentDestroyed for indestructible filtering.
+    // Either event type should fire the LTB trigger.
+    let died = destroy_events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::CreatureDied { .. } | GameEvent::PermanentDestroyed { .. }
+        )
+    });
+    assert!(
+        died,
+        "DestroyAll must emit a death or destroy event for Toothy"
+    );
+    assert!(
+        !on_battlefield(&state, "Toothy, Imaginary Friend"),
+        "Toothy must be off the battlefield after DestroyAll"
+    );
+
+    // Fire check_triggers and drain stack.
+    let triggers = check_triggers(&state, &destroy_events);
+    for t in triggers {
+        state.pending_triggers.push_back(t);
+    }
+    let _ = flush_pending_triggers(&mut state);
+    state.turn.priority_holder = Some(p1);
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    let hand_after = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+    let cards_drawn = hand_after.saturating_sub(hand_before);
+    assert_eq!(
+        cards_drawn, 3,
+        "CR 603.10a: Toothy destroyed with 3 counters must draw 3 cards; drew {}. \
+         If 0, pre_lba_counters not threaded from destroy event through trigger pipeline.",
+        cards_drawn
+    );
+}
+
+/// CR 603.10a — Toothy with 3 +1/+1 counters is EXILED by `Effect::ExileAll`.
+/// The `WhenLeavesBattlefield` trigger must use `ObjectExiled.pre_lba_counters`
+/// to draw 3 cards.
+///
+/// This tests the `ObjectExiled` arm in `check_triggers` (distinct from
+/// the `CreatureDied` arm tested by (b)).
+#[test]
+fn test_toothy_exiled_draws_lki_counter_count() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
+    use mtg_engine::{CardType, Effect, ObjectId, TargetFilter};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let lib_cards: Vec<ObjectSpec> = (0..5)
+        .map(|i| ObjectSpec::card(p1, &format!("Exile Lib {i}")).in_zone(ZoneId::Library(p1)))
+        .collect();
+    let toothy_spec = enrich(p1, "Toothy, Imaginary Friend", ZoneId::Battlefield, &defs);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(toothy_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain);
+    for lib_card in lib_cards {
+        builder = builder.object(lib_card);
+    }
+    let mut state = builder.build().unwrap();
+
+    // Add 3 +1/+1 counters to Toothy.
+    let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
+    state
+        .objects
+        .get_mut(&toothy_id)
+        .unwrap()
+        .counters
+        .insert(CounterType::PlusOnePlusOne, 3);
+
+    let hand_before = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    // Exile all creatures — Toothy is the only creature.
+    let mut ctx = EffectContext::new(p1, ObjectId(0), vec![]);
+    let exile_events = execute_effect(
+        &mut state,
+        &Effect::ExileAll {
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            },
+        },
+        &mut ctx,
+    );
+
+    assert!(
+        exile_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ObjectExiled { .. })),
+        "ExileAll must emit ObjectExiled for Toothy"
+    );
+    assert!(
+        !on_battlefield(&state, "Toothy, Imaginary Friend"),
+        "Toothy must be off the battlefield after ExileAll"
+    );
+
+    // Fire check_triggers and drain stack.
+    let triggers = check_triggers(&state, &exile_events);
+    for t in triggers {
+        state.pending_triggers.push_back(t);
+    }
+    let _ = flush_pending_triggers(&mut state);
+    state.turn.priority_holder = Some(p1);
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    let hand_after = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+    let cards_drawn = hand_after.saturating_sub(hand_before);
+    assert_eq!(
+        cards_drawn, 3,
+        "CR 603.10a: Toothy exiled with 3 counters must draw 3 cards; drew {}. \
+         If 0, pre_lba_counters not threaded from ObjectExiled through trigger pipeline.",
+        cards_drawn
     );
 }

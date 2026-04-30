@@ -231,6 +231,12 @@ pub enum GameEvent {
     AuraFellOff {
         object_id: ObjectId,
         new_grave_id: ObjectId,
+        /// CR 603.10a: LKI counter snapshot captured before `move_object_to_zone`
+        /// resets counters to empty. Used by `SelfLeavesBattlefield` / `SelfDies`
+        /// triggers on the Aura itself (rare, but possible) to resolve
+        /// `EffectAmount::CounterCountAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_counters: OrdMap<CounterType, u32>,
     },
     /// CR 702.103f: A bestowed Aura became unattached and reverted to an
     /// enchantment creature. Unlike normal Auras (AuraFellOff), the permanent
@@ -355,6 +361,13 @@ pub enum GameEvent {
         object_id: ObjectId,
         /// New ObjectId of the object in the exile zone (CR 400.7).
         new_exile_id: ObjectId,
+        /// CR 603.10a: LKI counter snapshot captured before `move_object_to_zone`
+        /// resets counters to empty. Populated when the object was on the battlefield
+        /// immediately before exile; empty (`OrdMap::new()`) for non-battlefield sources.
+        /// Used by `SelfLeavesBattlefield` triggers to resolve
+        /// `EffectAmount::CounterCountAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_counters: OrdMap<CounterType, u32>,
     },
     /// A non-creature permanent was destroyed by a spell or ability (CR 701.7).
     ///
@@ -364,6 +377,11 @@ pub enum GameEvent {
         object_id: ObjectId,
         /// New ObjectId in the owner's graveyard (CR 400.7).
         new_grave_id: ObjectId,
+        /// CR 603.10a: LKI counter snapshot captured before `move_object_to_zone`
+        /// resets counters to empty. Used by `SelfLeavesBattlefield` triggers on
+        /// non-creature permanents to resolve `EffectAmount::CounterCountAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_counters: OrdMap<CounterType, u32>,
     },
     /// A permanent was untapped by a spell or ability (CR 701.17).
     PermanentUntapped {
@@ -442,6 +460,13 @@ pub enum GameEvent {
         object_id: ObjectId,
         /// New ObjectId in hand (CR 400.7).
         new_hand_id: ObjectId,
+        /// CR 603.10a: LKI counter snapshot captured before `move_object_to_zone`
+        /// resets counters to empty. Populated when the object was on the battlefield
+        /// immediately before returning to hand; empty for non-battlefield sources.
+        /// Used by `SelfLeavesBattlefield` triggers to resolve
+        /// `EffectAmount::CounterCountAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_counters: OrdMap<CounterType, u32>,
     },
     /// An object was put into a graveyard by a spell or ability, not via
     /// destruction or death (CR 400).

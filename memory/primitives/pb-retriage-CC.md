@@ -501,3 +501,48 @@ doubling replacement correctly doubles the resolved N — it is not bounded by t
 No new engine work required; the boundary is already in the right place (post-resolve, pre-create).
 **Status**: CONFIRMED-WORKING-CORRECTLY. No regression from PB-LKI-CC. Documented for future
 reviewer clarity.
+
+---
+
+## Additional OOS seeds filed by PB-LKI-CC fix-phase (scutemob-17, 2026-04-29)
+
+These are the seeds originally drafted by the planner in pb-plan-LKI-CC.md Step 4.
+The runner filed OOS-LKI-1/2 as no-interaction docs; these become OOS-LKI-3/4.
+
+### OOS-LKI-3: Cost-payment LKI counter snapshot for activated abilities
+
+**Cards**: Workhorse (`{T}, sacrifice this: add X mana, X = number of +1/+1 counters on it`), and
+any activated ability that sacrifices its source as cost and reads the source's counter count
+for the effect.
+**Oracle pattern**: "{cost incl. sacrifice this}: [effect] X = number of [counter] counters on this."
+**Gap**: PB-P (`PowerOfSacrificedCreature`) snapshots LKI power at cost-payment time
+(`EffectContext.sacrificed_creature_powers`) but does NOT snapshot LKI counters. PB-LKI-CC
+(HASH 15) ships LKI counter-snapshot for WhenDies / WhenLeavesBattlefield triggers (via
+`PendingTrigger.lki_counters`) but NOT for activated-ability cost-payment paths. The two are
+mechanically different snapshot sites: trigger-fire snapshot vs. cost-payment snapshot.
+**Dispatch chain**: `abilities.rs` pay_costs → `PermanentDestroyed`/`ObjectExiled` → resolution.
+A new `EffectAmount::CounterCountAtCostPaymentTime { counter }` variant would be needed, OR
+extending `EffectContext.sacrificed_creature_counters: OrdMap<CounterType, u32>` parallel to
+`sacrificed_creature_powers`.
+**Yield**: Workhorse confirmed + sweep `Cost::SacrificeSelf` activated abilities for
+`EffectAmount::CounterCount` references.
+**Status**: Filed by PB-LKI-CC fix-phase 2026-04-29.
+**References**: pb-plan-LKI-CC.md Step 4 OOS-LKI-1 draft; abilities.rs pay_costs sacrifice path.
+
+### OOS-LKI-4: AnyCreatureDies dying-creature LKI counter access
+
+**Cards**: Hypothetical "Whenever a creature with +1/+1 counters dies, ..." or "Whenever a
+creature dies, draw cards equal to the +1/+1 counters that were on it." None confirmed in
+current card-def universe.
+**Oracle pattern**: AnyCreatureDies trigger reading the dying creature's LKI counter count.
+**Gap**: PB-LKI-CC threads LKI counters into `PendingTrigger.lki_counters` ONLY for
+SelfDies / SelfLeavesBattlefield triggers. AnyCreatureDies triggers fire on OTHER permanents
+(Blood Artist, Zulaport Cutthroat etc.) — the dying creature is the *triggering object*, not
+the trigger source. A different snapshot field would be needed: e.g.
+`triggering_creature_lki_counters: OrdMap<CounterType, u32>` on `PendingTrigger`, populated
+in the `AnyCreatureDies` dispatch arm at `abilities.rs:4318` from the event's `pre_death_counters`.
+**Dispatch site**: `abilities.rs:4318` currently has `lki_counters: im::OrdMap::new()` —
+intentionally left empty per plan Risk #1 (separate primitive).
+**Yield**: 0 confirmed in current pool. File as preventive seed.
+**Status**: Filed by PB-LKI-CC fix-phase 2026-04-29.
+**References**: pb-plan-LKI-CC.md Step 4 OOS-LKI-2 draft; abilities.rs:4318 AnyCreatureDies arm.

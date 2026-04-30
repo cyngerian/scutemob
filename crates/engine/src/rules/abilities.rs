@@ -645,6 +645,8 @@ pub fn handle_activate_ability(
             events.push(GameEvent::PermanentDestroyed {
                 object_id: source,
                 new_grave_id: new_id,
+                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                pre_lba_counters: pre_death_counters.clone(),
             });
         }
         // CR 701.21a: PermanentSacrificed alongside death/destroy for sacrifice cost.
@@ -659,12 +661,18 @@ pub fn handle_activate_ability(
     // line ~309 (before cost payment), so resolution works after the source ID is dead.
     // Note: exile is NOT death (CR 700.4) — no CreatureDied event is emitted.
     if ability_cost.exile_self {
-        let pre_exile_controller = state.object(source)?.controller;
+        let (pre_exile_controller, pre_exile_counters) = state
+            .objects
+            .get(&source)
+            .map(|o| (o.controller, o.counters.clone()))
+            .unwrap_or((state.turn.active_player, im::OrdMap::new()));
         let (new_exile_id, _) = state.move_object_to_zone(source, ZoneId::Exile)?;
         events.push(crate::rules::events::GameEvent::ObjectExiled {
             player: pre_exile_controller,
             object_id: source,
             new_exile_id,
+            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+            pre_lba_counters: pre_exile_counters,
         });
     }
     // PB-P: CR 608.2b — LKI powers of creatures sacrificed as activated-ability cost.
@@ -786,6 +794,8 @@ pub fn handle_activate_ability(
             events.push(GameEvent::PermanentDestroyed {
                 object_id: sac_id,
                 new_grave_id: new_id,
+                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                pre_lba_counters: pre_death_counters.clone(),
             });
         }
         // CR 701.21a: PermanentSacrificed alongside death/destroy for sacrifice cost.
@@ -844,11 +854,17 @@ pub fn handle_activate_ability(
         if has_food {
             // Sacrifice a Food (deterministic: lowest ObjectId).
             let food_id = food_ids[0];
-            let owner = state.object(food_id)?.owner;
+            let (owner, food_pre_lba) = state
+                .objects
+                .get(&food_id)
+                .map(|o| (o.owner, o.counters.clone()))
+                .unwrap_or_else(|| (player, im::OrdMap::new()));
             let (new_grave_id, _) = state.move_object_to_zone(food_id, ZoneId::Graveyard(owner))?;
             events.push(GameEvent::PermanentDestroyed {
                 object_id: food_id,
                 new_grave_id,
+                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                pre_lba_counters: food_pre_lba,
             });
         } else {
             // Exile 3 cards from graveyard (deterministic: lowest ObjectId order).
@@ -859,6 +875,8 @@ pub fn handle_activate_ability(
                     player,
                     object_id: id,
                     new_exile_id,
+                    // From graveyard — no LBA trigger LKI needed.
+                    pre_lba_counters: im::OrdMap::new(),
                 });
             }
         }
@@ -1913,7 +1931,11 @@ pub fn handle_ninjutsu(
     //     "Return an unblocked attacking creature you control to its owner's hand."
     //     NOT the controller's hand -- in multiplayer theft, the attacker goes
     //     to the original owner's hand.
-    let attacker_owner = state.object(attacker_to_return)?.owner;
+    let (attacker_owner, ninja_pre_lba) = state
+        .objects
+        .get(&attacker_to_return)
+        .map(|o| (o.owner, o.counters.clone()))
+        .unwrap_or((state.turn.active_player, im::OrdMap::new()));
     let (new_hand_id, _old) =
         state.move_object_to_zone(attacker_to_return, ZoneId::Hand(attacker_owner))?;
     // Remove attacker from combat.attackers: move_object_to_zone doesn't touch
@@ -1925,6 +1947,7 @@ pub fn handle_ninjutsu(
         player: attacker_owner,
         object_id: attacker_to_return,
         new_hand_id,
+        pre_lba_counters: ninja_pre_lba,
     });
     // 12. Push ninjutsu ability onto stack as NinjutsuAbility.
     let stack_id = state.next_object_id();
@@ -2089,6 +2112,7 @@ pub fn handle_embalm_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
+        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
     });
     // 10. Push the embalm ability onto the stack as EmbalmAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
@@ -2260,6 +2284,7 @@ pub fn handle_eternalize_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
+        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
     });
     // 10. Push the eternalize ability onto the stack as EternalizeAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
@@ -2434,6 +2459,7 @@ pub fn handle_encore_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
+        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
     });
     // 10. Push the encore ability onto the stack as EncoreAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
@@ -4322,7 +4348,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
             }
-            GameEvent::AuraFellOff { new_grave_id, .. } => {
+            GameEvent::AuraFellOff {
+                new_grave_id,
+                pre_lba_counters: aura_lki_counters,
+                ..
+            } => {
                 // CR 603.6c / CR 603.10a: "When ~ is put into a graveyard from the battlefield"
                 // triggers on Auras fire when the Aura moves to the graveyard via SBA 704.5m.
                 // The Aura's characteristics (including triggered_abilities) are preserved in
@@ -4372,7 +4402,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             haunt_source_card_id: None,
                             damaged_player: None,
                             combat_damage_amount: 0,
-                            lki_counters: im::OrdMap::new(),
+                            // CR 603.10a: LKI snapshot from event — counters before zone change.
+                            lki_counters: aura_lki_counters.clone(),
                             data: None,
                         });
                     }
@@ -5187,7 +5218,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             }
             // CR 702.72a: Champion LTB trigger -- when the champion permanent is destroyed
             // (non-creature), check champion_exiled_card on the graveyard object.
-            GameEvent::PermanentDestroyed { new_grave_id, .. } => {
+            GameEvent::PermanentDestroyed {
+                new_grave_id,
+                pre_lba_counters: destroyed_lki_counters,
+                ..
+            } => {
                 if let Some(dead_obj) = state.objects.get(new_grave_id) {
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = dead_obj.controller;
@@ -5223,6 +5258,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         triggers.push(PendingTrigger {
                             ability_index: idx,
                             triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            // CR 603.10a: LKI snapshot from event — counters before zone change.
+                            lki_counters: destroyed_lki_counters.clone(),
                             ..PendingTrigger::blank(
                                 *new_grave_id,
                                 controller,
@@ -5234,7 +5271,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             }
             // CR 702.72a: Champion LTB trigger -- when the champion permanent is exiled,
             // check champion_exiled_card on the exile-zone object.
-            GameEvent::ObjectExiled { new_exile_id, .. } => {
+            GameEvent::ObjectExiled {
+                new_exile_id,
+                pre_lba_counters: exiled_lki_counters,
+                ..
+            } => {
                 if let Some(exiled_obj) = state.objects.get(new_exile_id) {
                     if let Some(exiled_card_id) = exiled_obj.champion_exiled_card {
                         let champion_controller = exiled_obj.controller;
@@ -5270,6 +5311,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         triggers.push(PendingTrigger {
                             ability_index: idx,
                             triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            // CR 603.10a: LKI snapshot from event — counters before zone change.
+                            lki_counters: exiled_lki_counters.clone(),
                             ..PendingTrigger::blank(
                                 *new_exile_id,
                                 controller,
@@ -5281,7 +5324,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             }
             // CR 702.72a: Champion LTB trigger -- when the champion permanent bounces to hand,
             // check champion_exiled_card on the hand object.
-            GameEvent::ObjectReturnedToHand { new_hand_id, .. } => {
+            GameEvent::ObjectReturnedToHand {
+                new_hand_id,
+                pre_lba_counters: bounced_lki_counters,
+                ..
+            } => {
                 if let Some(hand_obj) = state.objects.get(new_hand_id) {
                     if let Some(exiled_id) = hand_obj.champion_exiled_card {
                         let champion_controller = hand_obj.controller;
@@ -5317,6 +5364,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         triggers.push(PendingTrigger {
                             ability_index: idx,
                             triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            // CR 603.10a: LKI snapshot from event — counters before zone change.
+                            lki_counters: bounced_lki_counters.clone(),
                             ..PendingTrigger::blank(
                                 *new_hand_id,
                                 controller,
@@ -8221,6 +8270,7 @@ pub fn handle_scavenge_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
+        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
     });
     // 11. Push the ScavengeAbility onto the stack with the target creature.
     // MR-TC-25: use trigger_default; override targets with the scavenge target.

@@ -645,6 +645,7 @@ fn handle_pay_echo(
                                 player: owner,
                                 object_id: permanent,
                                 new_exile_id: new_id,
+                                pre_lba_counters: pre_death_counters.clone(),
                             });
                         }
                         ZoneId::Command(_) => {
@@ -821,6 +822,7 @@ fn handle_pay_cumulative_upkeep(
                                 player: owner,
                                 object_id: permanent,
                                 new_exile_id: new_id,
+                                pre_lba_counters: pre_death_counters.clone(),
                             });
                         }
                         ZoneId::Command(_) => {

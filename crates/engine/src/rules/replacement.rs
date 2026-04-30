@@ -1567,6 +1567,8 @@ fn zone_change_events(
                 vec![GameEvent::PermanentDestroyed {
                     object_id: old_id,
                     new_grave_id: new_id,
+                    // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                    pre_lba_counters: pre_death_counters.clone(),
                 }]
             }
         }
@@ -1574,6 +1576,9 @@ fn zone_change_events(
             player: owner, // MR-M8-04: use real owner instead of hardcoded PlayerId(0)
             object_id: old_id,
             new_exile_id: new_id,
+            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+            // pre_death_counters captured before move_object_to_zone resets them.
+            pre_lba_counters: pre_death_counters.clone(),
         }],
         ZoneId::Command(_) => vec![GameEvent::CommanderZoneRedirect {
             // MR-M8-05: proper variant instead of ReplacementId(u64::MAX) sentinel

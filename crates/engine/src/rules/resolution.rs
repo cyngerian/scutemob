@@ -1185,6 +1185,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                     player: sac_owner,
                                                     object_id: sac_id,
                                                     new_exile_id: new_grave_id,
+                                                    pre_lba_counters: pre_death_counters.clone(),
                                                 });
                                             }
                                             ZoneId::Command(_) => {
@@ -2425,6 +2426,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         player: owner,
                                         object_id: vanishing_permanent,
                                         new_exile_id: new_id,
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                 }
                                 ZoneId::Command(_) => {
@@ -2558,6 +2560,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             player: owner,
                                             object_id: fading_permanent,
                                             new_exile_id: new_id,
+                                            pre_lba_counters: pre_sacrifice_counters.clone(),
                                         });
                                     }
                                     ZoneId::Command(_) => {
@@ -2809,6 +2812,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         player: owner,
                                         object_id: source_object,
                                         new_exile_id: new_id,
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                 }
                                 ZoneId::Command(_) => {
@@ -3025,12 +3029,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
-            let owner_opt = state
+            let owner_and_counters = state
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
-                .map(|obj| obj.owner);
-            if let Some(owner) = owner_opt {
+                .map(|obj| (obj.owner, obj.counters.clone()));
+            if let Some((owner, unearth_pre_lba)) = owner_and_counters {
                 // Exile the permanent directly. No zone-change replacement needed:
                 // the replacement effect only fires when the permanent would go to a
                 // NON-exile zone. Here we are already exiling it, so no replacement applies.
@@ -3040,6 +3044,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     player: owner,
                     object_id: source_object,
                     new_exile_id,
+                    pre_lba_counters: unearth_pre_lba,
                 });
             }
             // If not on battlefield, do nothing (already exiled by replacement or removed).
@@ -3061,12 +3066,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
-            let owner_opt = state
+            let owner_and_counters = state
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
-                .map(|obj| obj.owner);
-            if let Some(owner) = owner_opt {
+                .map(|obj| (obj.owner, obj.counters.clone()));
+            if let Some((owner, dash_pre_lba)) = owner_and_counters {
                 // Return to owner's hand (not controller's -- CR 702.109a says "owner's hand").
                 let (new_hand_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Hand(owner))?;
@@ -3074,6 +3079,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     player: owner,
                     object_id: source_object,
                     new_hand_id,
+                    pre_lba_counters: dash_pre_lba,
                 });
             }
             // If not on battlefield, do nothing (CR 400.7 -- creature is a new object).
@@ -3131,6 +3137,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         player: owner,
                                         object_id: source_object,
                                         new_exile_id: new_id,
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                 }
                                 ZoneId::Command(_) => {
@@ -3924,11 +3931,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 };
                 if let Some(target_id) = target_opt {
                     // Exile the qualifying permanent.
-                    let target_owner = state
+                    let (target_owner, champion_target_pre_lba) = state
                         .objects
                         .get(&target_id)
-                        .map(|o| o.owner)
-                        .unwrap_or(controller);
+                        .map(|o| (o.owner, o.counters.clone()))
+                        .unwrap_or((controller, im::OrdMap::new()));
                     if let Ok((new_exile_id, _old)) =
                         state.move_object_to_zone(target_id, ZoneId::Exile)
                     {
@@ -3940,6 +3947,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             player: controller,
                             object_id: target_id,
                             new_exile_id,
+                            pre_lba_counters: champion_target_pre_lba,
                         });
                         let _ = target_owner; // suppress unused warning
                     }
@@ -3979,6 +3987,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                 player: owner,
                                                 object_id: source_object,
                                                 new_exile_id: new_id,
+                                                pre_lba_counters: pre_death_counters.clone(),
                                             });
                                         }
                                         _ => {
@@ -5662,6 +5671,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         player: controller,
                         object_id: card_id,
                         new_exile_id,
+                        pre_lba_counters: im::OrdMap::new(), // library→exile: no battlefield counters
                     });
                 }
             }
@@ -6504,6 +6514,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             player: current_controller,
                                             object_id: source_object,
                                             new_exile_id: new_id,
+                                            pre_lba_counters: pre_death_counters.clone(),
                                         });
                                     }
                                     ZoneId::Command(_) => {
@@ -7120,6 +7131,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 player: stack_obj.controller,
                                 object_id: target,
                                 new_hand_id: new_id,
+                                pre_lba_counters: im::OrdMap::new(), // exile→hand: no battlefield counters
                             });
                         }
                     }
@@ -7139,6 +7151,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 player: stack_obj.controller,
                                 object_id: target,
                                 new_hand_id: new_id,
+                                pre_lba_counters: im::OrdMap::new(), // graveyard→hand: no battlefield counters
                             });
                         }
                     }
@@ -7190,12 +7203,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 DelayedTriggerAction::ExileObject => {
                     // Exile the target (must still be on the battlefield).
-                    let on_bf = state
+                    let target_pre_lba = state
                         .objects
                         .get(&target)
-                        .map(|o| o.zone == ZoneId::Battlefield)
-                        .unwrap_or(false);
-                    if on_bf {
+                        .filter(|o| o.zone == ZoneId::Battlefield)
+                        .map(|o| o.counters.clone());
+                    if let Some(exile_pre_lba) = target_pre_lba {
                         if let Ok((new_exile_id, _)) =
                             state.move_object_to_zone(target, ZoneId::Exile)
                         {
@@ -7203,6 +7216,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 player: stack_obj.controller,
                                 object_id: target,
                                 new_exile_id,
+                                pre_lba_counters: exile_pre_lba,
                             });
                         }
                     }

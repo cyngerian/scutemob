@@ -3360,6 +3360,7 @@ impl HashInto for GameEvent {
             GameEvent::AuraFellOff {
                 object_id,
                 new_grave_id,
+                ..
             } => {
                 29u8.hash_into(hasher);
                 object_id.hash_into(hasher);
@@ -3447,6 +3448,7 @@ impl HashInto for GameEvent {
                 player,
                 object_id,
                 new_exile_id,
+                ..
             } => {
                 41u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -3456,6 +3458,7 @@ impl HashInto for GameEvent {
             GameEvent::PermanentDestroyed {
                 object_id,
                 new_grave_id,
+                ..
             } => {
                 42u8.hash_into(hasher);
                 object_id.hash_into(hasher);
@@ -3515,6 +3518,7 @@ impl HashInto for GameEvent {
                 player,
                 object_id,
                 new_hand_id,
+                ..
             } => {
                 50u8.hash_into(hasher);
                 player.hash_into(hasher);

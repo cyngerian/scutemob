@@ -1891,12 +1891,12 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for token_id in myriad_token_ids {
-        // Capture controller before moving zone (needed for the exile event).
-        let controller = state
+        // Capture controller and counters before moving zone (needed for the exile event).
+        let (controller, myriad_pre_lba) = state
             .objects
             .get(&token_id)
-            .map(|o| o.controller)
-            .unwrap_or(state.turn.active_player);
+            .map(|o| (o.controller, o.counters.clone()))
+            .unwrap_or((state.turn.active_player, im::OrdMap::new()));
         if let Ok((new_exile_id, _old)) =
             state.move_object_to_zone(token_id, crate::state::zone::ZoneId::Exile)
         {
@@ -1904,6 +1904,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 player: controller,
                 object_id: token_id,
                 new_exile_id,
+                pre_lba_counters: myriad_pre_lba,
             });
         }
     }
@@ -1957,6 +1958,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 player: controller,
                                 object_id: obj_id,
                                 new_exile_id: new_id,
+                                pre_lba_counters: pre_death_counters.clone(),
                             });
                         }
                         crate::state::zone::ZoneId::Command(_) => {
@@ -2049,6 +2051,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 player: controller,
                                 object_id: obj_id,
                                 new_exile_id: new_id,
+                                pre_lba_counters: pre_death_counters.clone(),
                             });
                         }
                         crate::state::zone::ZoneId::Command(_) => {
@@ -2122,18 +2125,19 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             // For AtEndOfCombat ExileObject, exile inline (like myriad) rather than via stack
             // to avoid complexity. Can be upgraded to stack-based later.
             if action == DelayedTriggerAction::ExileObject {
-                let on_bf = state
+                let eoc_pre_lba = state
                     .objects
                     .get(&target)
-                    .map(|o| o.zone == ZoneId::Battlefield)
-                    .unwrap_or(false);
-                if on_bf {
+                    .filter(|o| o.zone == ZoneId::Battlefield)
+                    .map(|o| o.counters.clone());
+                if let Some(eoc_counters) = eoc_pre_lba {
                     if let Ok((new_exile_id, _)) = state.move_object_to_zone(target, ZoneId::Exile)
                     {
                         events.push(GameEvent::ObjectExiled {
                             player: controller,
                             object_id: target,
                             new_exile_id,
+                            pre_lba_counters: eoc_counters,
                         });
                     }
                 }
