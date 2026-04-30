@@ -1613,6 +1613,11 @@ pub(crate) fn resolve_cda_amount(
             }
             count
         }
+        // CR 613: CDAs cannot reference LKI — they evaluate continuously while the source
+        // is on the battlefield, where counters are live. Returns 0 as defensive default.
+        // Card authors should not pair CounterCountAtLastKnownInformation with a CDA;
+        // use the live `CounterCount` variant instead.
+        EffectAmount::CounterCountAtLastKnownInformation { .. } => 0,
         _ => {
             debug_assert!(
                 false,

@@ -355,9 +355,9 @@ fn test_pb_ts_counter_count_from_live_source() {
 
 // ── Test (e): Hash determinism and HASH_SCHEMA_VERSION sentinel ──────────────
 
-/// CR N/A (hash infrastructure) — PB-TS bumped HASH_SCHEMA_VERSION 13 → 14.
+/// CR N/A (hash infrastructure) — PB-TS bumped HASH_SCHEMA_VERSION 13 → 14 (bumped to 15 by PB-LKI-CC).
 ///
-/// (e-1) Sentinel: HASH_SCHEMA_VERSION is exactly 14.
+/// (e-1) Sentinel: HASH_SCHEMA_VERSION is exactly 15.
 /// (e-2) Determinism: two `TokenSpec` values with `Fixed(3)` produce the same hash.
 /// (e-3) `Fixed(3)` vs `Fixed(5)` produce distinct hashes (count IS hashed).
 /// (e-4) `Fixed(3)` vs `PermanentCount{...}` produce distinct hashes
@@ -366,9 +366,9 @@ fn test_pb_ts_counter_count_from_live_source() {
 fn test_pb_ts_hash_schema_version_and_token_spec_hash_determinism() {
     // (e-1) Schema-version sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 14u8,
-        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
-         CR 111.1 / 608.2h). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 15u8,
+        "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
+         CR 603.10a / 113.7a). If you bumped again, update this test and state/hash.rs history."
     );
 
     use blake3::Hasher;

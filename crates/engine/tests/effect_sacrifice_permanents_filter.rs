@@ -127,15 +127,15 @@ fn cast_test_sorcery(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C/PB-CC-A/PB-CC-C-followup/PB-TS:
-/// HASH_SCHEMA_VERSION is 14. Bumped from 13 (PB-CC-C-followup) to account for
-/// TokenSpec.count changing from u32 to EffectAmount (CR 111.1 / 608.2h).
+/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C/PB-CC-A/PB-CC-C-followup/PB-TS/PB-LKI-CC:
+/// HASH_SCHEMA_VERSION is 15. Bumped from 14 (PB-TS) by PB-LKI-CC to account for
+/// EffectAmount::CounterCountAtLastKnownInformation and LKI counter snapshot fields (CR 603.10a / 113.7a).
 #[test]
-fn test_sft_hash_schema_version_is_14() {
+fn test_sft_hash_schema_version_is_15() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 14u8,
-        "PB-TS: HASH_SCHEMA_VERSION must be 14 (bump from PB-CC-C-followup's 13 for \
-         TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h)"
+        HASH_SCHEMA_VERSION, 15u8,
+        "PB-LKI-CC: HASH_SCHEMA_VERSION must be 15 (bump from PB-TS's 14 for \
+         EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a)"
     );
 }
 

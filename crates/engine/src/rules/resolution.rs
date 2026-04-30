@@ -1390,6 +1390,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                     }
@@ -1471,6 +1472,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                     }
@@ -2049,6 +2051,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ctx.damaged_player = stack_obj.damaged_player;
                             ctx.combat_damage_amount = stack_obj.combat_damage_amount;
                             ctx.triggering_creature_id = stack_obj.triggering_creature_id;
+                            // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot for
+                            // EffectAmount::CounterCountAtLastKnownInformation.
+                            ctx.lki_counters = if stack_obj.lki_counters.is_empty() {
+                                None
+                            } else {
+                                Some(stack_obj.lki_counters.clone())
+                            };
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
@@ -2117,6 +2126,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         ctx.damaged_player = stack_obj.damaged_player;
                         ctx.combat_damage_amount = stack_obj.combat_damage_amount;
                         ctx.triggering_creature_id = stack_obj.triggering_creature_id;
+                        // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot for
+                        // EffectAmount::CounterCountAtLastKnownInformation.
+                        ctx.lki_counters = if stack_obj.lki_counters.is_empty() {
+                            None
+                        } else {
+                            Some(stack_obj.lki_counters.clone())
+                        };
                         let effect_events = execute_effect(state, &effect, &mut ctx);
                         events.extend(effect_events);
                     }
@@ -2345,6 +2361,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                     }

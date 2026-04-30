@@ -1026,6 +1026,7 @@ pub fn fire_saga_chapter_triggers(
                     haunt_source_card_id: None,
                     damaged_player: None,
                     combat_damage_amount: 0,
+                    lki_counters: im::OrdMap::new(),
                     data: None,
                 });
             }
@@ -1204,6 +1205,7 @@ pub fn queue_carddef_etb_triggers(
                     haunt_source_card_id: None,
                     damaged_player: None,
                     combat_damage_amount: 0,
+                    lki_counters: im::OrdMap::new(),
                     data: None,
                 });
             }
@@ -1244,6 +1246,7 @@ pub fn queue_carddef_etb_triggers(
                         haunt_source_card_id: None,
                         damaged_player: None,
                         combat_damage_amount: 0,
+                        lki_counters: im::OrdMap::new(),
                         data: None,
                     });
                 }

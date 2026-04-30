@@ -2373,6 +2373,29 @@ pub enum EffectAmount {
     /// NOT the graveyard object's base characteristics. Any anthem or P/T-setting effect
     /// that applied on the battlefield contributes the boosted value, not the printed value.
     PowerOfSacrificedCreature,
+    /// CR 603.10a / CR 113.7a: Counter count from last-known information (LKI).
+    /// Used by WhenDies / WhenLeavesBattlefield triggers whose effect needs to know
+    /// how many counters of a given type were on the source as it last existed on
+    /// the battlefield. The snapshot is captured at trigger-fire time (sba.rs
+    /// `pre_death_counters` block) and threaded through `PendingTrigger.lki_counters`,
+    /// `StackObject.lki_counters`, and `EffectContext.lki_counters`.
+    ///
+    /// **Versus `CounterCount`**: the existing `CounterCount { target, counter }`
+    /// variant reads live counters from `state.objects[id].counters`. Use that for
+    /// abilities that fire while the source is still on the battlefield (e.g.
+    /// "{T}: draw cards equal to the number of +1/+1 counters on this creature").
+    /// Use `CounterCountAtLastKnownInformation` for any effect on a leaves-the-
+    /// battlefield trigger (CR 603.10a) where `state.objects[ctx.source].counters`
+    /// is empty by the time the trigger resolves (CR 122.2 — counters cease on
+    /// zone change). The implicit target is the trigger source (LKI).
+    ///
+    /// **Returns 0** if `ctx.lki_counters` is `None` (e.g. variant authored on a
+    /// non-LKI trigger by mistake) or if the requested counter type is absent.
+    /// Defensive default — the card author should pair this variant only with
+    /// WhenDies / WhenLeavesBattlefield triggers.
+    ///
+    /// Discriminant 17 (state/hash.rs).
+    CounterCountAtLastKnownInformation { counter: CounterType },
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

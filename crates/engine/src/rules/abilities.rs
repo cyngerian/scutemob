@@ -279,6 +279,7 @@ pub fn handle_activate_ability(
                 chosen_creature_type: None,
                 mana_produced: None,
                 sacrificed_creature_powers: vec![],
+                lki_counters: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -2559,6 +2560,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             haunt_source_card_id: None,
                             damaged_player: None,
                             combat_damage_amount: 0,
+                            lki_counters: im::OrdMap::new(),
                             data: None,
                         };
                         triggers.push(evoke_trigger);
@@ -2622,6 +2624,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                         }
@@ -3384,6 +3387,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         haunt_source_card_id: None,
                                         damaged_player: None,
                                         combat_damage_amount: 0,
+                                        lki_counters: im::OrdMap::new(),
                                         data: None,
                                     });
                                 }
@@ -3687,6 +3691,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                         }
@@ -4007,6 +4012,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             // it dies, the trigger is controlled by Player A.
                             triggering_event: Some(TriggerEvent::SelfDies),
                             data,
+                            // CR 603.10a: capture the dying creature's pre-death counters into LKI
+                            // so EffectAmount::CounterCountAtLastKnownInformation can resolve.
+                            lki_counters: pre_death_counters.clone(),
                             ..PendingTrigger::blank(*new_grave_id, *death_controller, kind)
                         });
                     }
@@ -4032,6 +4040,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         triggers.push(PendingTrigger {
                             ability_index: idx,
                             triggering_event: Some(TriggerEvent::SelfLeavesBattlefield),
+                            // CR 603.10a: same LKI snapshot for leaves-battlefield triggers.
+                            lki_counters: pre_death_counters.clone(),
                             ..PendingTrigger::blank(
                                 *new_grave_id,
                                 controller,
@@ -4305,6 +4315,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                         }
@@ -4361,6 +4372,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             haunt_source_card_id: None,
                             damaged_player: None,
                             combat_damage_amount: 0,
+                            lki_counters: im::OrdMap::new(),
                             data: None,
                         });
                     }
@@ -4471,6 +4483,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             haunt_source_card_id: None,
                             damaged_player: None,
                             combat_damage_amount: 0,
+                            lki_counters: im::OrdMap::new(),
                             data: None,
                         });
                     }
@@ -4563,6 +4576,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 haunt_source_card_id: None,
                                                 damaged_player: Some(*damaged_pid),
                                                 combat_damage_amount: assignment.amount,
+                                                lki_counters: im::OrdMap::new(),
                                                 data: None,
                                             });
                                         }
@@ -4976,6 +4990,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     haunt_source_card_id: None,
                                     damaged_player: Some(*damaged_pid),
                                     combat_damage_amount: *total_amount,
+                                    lki_counters: im::OrdMap::new(),
                                     data: None,
                                 });
                             }
@@ -5141,6 +5156,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             haunt_source_card_id: None,
                             damaged_player: None,
                             combat_damage_amount: 0,
+                            lki_counters: im::OrdMap::new(),
                             data: None,
                         });
                     }
@@ -5392,6 +5408,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     haunt_source_card_id: None,
                                     damaged_player: None,
                                     combat_damage_amount: 0,
+                                    lki_counters: im::OrdMap::new(),
                                     data: None,
                                 });
                             }
@@ -5455,6 +5472,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 haunt_source_card_id: None,
                                 damaged_player: None,
                                 combat_damage_amount: 0,
+                                lki_counters: im::OrdMap::new(),
                                 data: None,
                             });
                         }
@@ -6062,6 +6080,7 @@ fn collect_triggers_for_event(
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -6136,6 +6155,7 @@ pub(crate) fn collect_emblem_triggers_for_event(
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -6261,6 +6281,7 @@ fn collect_graveyard_carddef_triggers(
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -7392,6 +7413,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             stack_obj.combat_damage_amount = trigger.combat_damage_amount;
             // The entering_object_id carries the dealing creature for per-creature triggers.
             stack_obj.triggering_creature_id = trigger.entering_object_id;
+            // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot from PendingTrigger
+            // to StackObject so resolution.rs can build EffectContext.lki_counters.
+            stack_obj.lki_counters = trigger.lki_counters.clone();
             // CR 700.2b: For modal triggered abilities, choose modes when the trigger is
             // put on the stack. Bot fallback: auto-select mode 0.
             // For "choose up to one" (min_modes: 0), if mode 0 is valid, select it;

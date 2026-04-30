@@ -72,7 +72,17 @@
 ///   changes from raw u32 to tagged-enum EffectAmount; pre-PB-TS replays are not
 ///   forward-compatible. Unblocks Phyrexian Swarmlord, Chasm Skulker, Krenko Mob Boss,
 ///   Izoni Thousand-Eyed.
-pub const HASH_SCHEMA_VERSION: u8 = 14;
+/// - 15: PB-LKI-CC (2026-04-29) — `EffectAmount::CounterCountAtLastKnownInformation`
+///   (disc 17) reads LKI counter snapshot for WhenDies / WhenLeavesBattlefield
+///   triggers (CR 603.10a, CR 113.7a, CR 122.2). New `lki_counters: OrdMap<CounterType, u32>`
+///   field on `PendingTrigger` (state/stubs.rs), `StackObject` (state/stack.rs),
+///   and `Option<OrdMap<CounterType, u32>>` on `EffectContext` (effects/mod.rs).
+///   Snapshot is captured at trigger-fire time from `GameEvent::CreatureDied.pre_death_counters`
+///   (already populated by sba.rs:540). Wire format change: PendingTrigger and
+///   StackObject gain a serialized OrdMap field; pre-PB-LKI-CC replays are not
+///   forward-compatible. Unblocks Chasm Skulker (re-author) and Toothy, Imaginary
+///   Friend (corrects existing wrong game state).
+pub const HASH_SCHEMA_VERSION: u8 = 15;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2113,6 +2123,12 @@ impl HashInto for PendingTrigger {
         // CR 510.3a: combat damage trigger data
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
+        // CR 603.10a: LKI counter snapshot — must be hashed for replay determinism.
+        // OrdMap iteration is deterministic by sorted key (im::OrdMap invariant).
+        for (ct, count) in self.lki_counters.iter() {
+            ct.hash_into(hasher);
+            count.hash_into(hasher);
+        }
     }
 }
 impl HashInto for SacrificeFilter {
@@ -2983,6 +2999,12 @@ impl HashInto for StackObject {
         (self.sacrificed_creature_powers.len() as u64).hash_into(hasher);
         for p in &self.sacrificed_creature_powers {
             p.hash_into(hasher);
+        }
+        // CR 603.10a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
+        // OrdMap iteration is deterministic by sorted key (im::OrdMap invariant).
+        for (ct, count) in self.lki_counters.iter() {
+            ct.hash_into(hasher);
+            count.hash_into(hasher);
         }
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
@@ -4472,6 +4494,12 @@ impl HashInto for EffectAmount {
             EffectAmount::PlayerCounterCount { player, counter } => {
                 16u8.hash_into(hasher);
                 player.hash_into(hasher);
+                counter.hash_into(hasher);
+            }
+            // PB-LKI-CC (discriminant 17) — LKI counter snapshot for WhenDies /
+            // WhenLeavesBattlefield triggers. CR 603.10a / CR 113.7a / CR 122.2.
+            EffectAmount::CounterCountAtLastKnownInformation { counter } => {
+                17u8.hash_into(hasher);
                 counter.hash_into(hasher);
             }
         }

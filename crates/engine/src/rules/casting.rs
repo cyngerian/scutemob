@@ -4231,6 +4231,7 @@ pub fn handle_cast_spell(
         // PB-P: For spells, LKI powers flow through additional_costs.Sacrifice.lki_powers
         // at resolution; this field is for activated abilities only.
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source

@@ -466,6 +466,13 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub cast_from_top_with_bonus: bool,
+    /// CR 603.10a / CR 113.7a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
+    /// Set from PendingTrigger::lki_counters when the trigger is flushed to the stack
+    /// (abilities.rs flush_pending_triggers). Read at resolution time
+    /// (resolution.rs) into EffectContext.lki_counters.
+    /// Empty for stack objects that are not LBA triggered abilities.
+    #[serde(default)]
+    pub lki_counters: im::OrdMap<crate::state::types::CounterType, u32>,
 }
 impl StackObject {
     /// Build a triggered-ability StackObject with all cast-specific fields set to
@@ -530,6 +537,7 @@ impl StackObject {
             triggering_creature_id: None,
             sacrificed_creature_powers: vec![],
             cast_from_top_with_bonus: false,
+            lki_counters: im::OrdMap::new(),
         }
     }
 }

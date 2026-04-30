@@ -132,6 +132,14 @@ pub struct EffectContext {
     /// Read by `EffectAmount::PowerOfSacrificedCreature` (PB-P).
     /// Empty for spells/abilities whose costs did not include creature sacrifice.
     pub sacrificed_creature_powers: Vec<i32>,
+    /// CR 603.10a / CR 113.7a: LKI counter snapshot for leaves-battlefield triggers.
+    /// Populated by `flush_pending_triggers` (abilities.rs) when a `WhenDies` /
+    /// `WhenLeavesBattlefield` trigger is put on the stack, capturing the source's
+    /// counters as they existed immediately before zone change. Threaded into
+    /// `EffectContext` at trigger resolution time (resolution.rs).
+    /// Read by `EffectAmount::CounterCountAtLastKnownInformation`.
+    /// `None` for non-LKI trigger contexts; lookups return 0 if `None` or absent.
+    pub lki_counters: Option<im::OrdMap<crate::state::types::CounterType, u32>>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -159,6 +167,7 @@ impl EffectContext {
             chosen_creature_type: None,
             mana_produced: None,
             sacrificed_creature_powers: vec![],
+            lki_counters: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -191,6 +200,7 @@ impl EffectContext {
             chosen_creature_type: None,
             mana_produced: None,
             sacrificed_creature_powers: vec![],
+            lki_counters: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -2439,6 +2449,7 @@ fn execute_effect_inner(
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
+                            lki_counters: ctx.lki_counters.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2473,6 +2484,7 @@ fn execute_effect_inner(
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
+                            lki_counters: ctx.lki_counters.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -6269,6 +6281,15 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         EffectAmount::PowerOfSacrificedCreature => {
             ctx.sacrificed_creature_powers.first().copied().unwrap_or(0)
         }
+        // CR 603.10a / CR 113.7a: Read counter count from LKI snapshot captured at
+        // trigger-fire time. Returns 0 if no LKI was captured (variant misused on
+        // a non-LBA trigger) or if the requested counter type is absent (source died
+        // with zero counters of that kind). The implicit target is the trigger source.
+        EffectAmount::CounterCountAtLastKnownInformation { counter } => ctx
+            .lki_counters
+            .as_ref()
+            .and_then(|map| map.get(counter).copied())
+            .unwrap_or(0) as i32,
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────
@@ -7241,6 +7262,7 @@ pub fn check_static_condition(
                 chosen_creature_type: None,
                 mana_produced: None,
                 sacrificed_creature_powers: vec![],
+                lki_counters: None,
             };
             check_condition(state, condition, &ctx)
         }

@@ -131,6 +131,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -198,6 +199,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -271,6 +273,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -339,6 +342,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -422,6 +426,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
@@ -566,6 +571,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             haunt_source_card_id: None,
             damaged_player: None,
             combat_damage_amount: 0,
+            lki_counters: im::OrdMap::new(),
             data: None,
         });
     }
@@ -637,6 +643,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             haunt_source_card_id: None,
             damaged_player: None,
             combat_damage_amount: 0,
+            lki_counters: im::OrdMap::new(),
             data: None,
         });
     }
@@ -680,6 +687,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             haunt_source_card_id: None,
             damaged_player: None,
             combat_damage_amount: 0,
+            lki_counters: im::OrdMap::new(),
             data: None,
         });
     }
@@ -735,6 +743,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             haunt_source_card_id: None,
             damaged_player: None,
             combat_damage_amount: 0,
+            lki_counters: im::OrdMap::new(),
             data: None,
         });
     }
@@ -809,6 +818,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                 haunt_source_card_id: None,
                 damaged_player: None,
                 combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
                 data: None,
             });
         }
