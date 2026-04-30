@@ -16,18 +16,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: "This creature gets +1/+0 for each oil counter on it." — CR 613.4c Layer 7c
-            // modify (CR 611.3a: static ability, NOT locked-in; must re-evaluate continuously).
-            //
-            // Blocked by: dynamic-static Layer-7c modify primitive (PB-CC-C-followup or similar).
-            // PB-CC-C added LayerModification::ModifyPowerDynamic and ModifyToughnessDynamic for
-            // one-shot spell use cases (CR 608.2h substitution-at-resolution, e.g. Olivia's
-            // Wrath pattern). Fuseling needs CR 611.3a continuous re-evaluation, which requires
-            // a separate `AbilityDefinition::CdaModifyPowerToughness` variant analogous to
-            // `CdaPowerToughness` (Layer 7a). Routing this through ApplyContinuousEffect would
-            // produce a stale-snapshot bug: the oil counter count freezes at ETB time, so
-            // subsequent counter changes do not update power, violating oracle text.
-            // See `memory/primitives/pb-review-CC-C.md` C1/E4 for full analysis.
+            // "This creature gets +1/+0 for each oil counter on it."
+            // CR 611.3a: static ability, not locked-in — continuously re-evaluates.
+            // CR 613.4c: Layer 7c modify (power only; toughness unchanged).
+            // CounterCount with EffectTarget::Source counts oil counters on this creature.
+            // PB-CC-C-followup ships AbilityDefinition::CdaModifyPowerToughness to
+            // register a ContinuousEffect with ModifyPowerDynamic + is_cda=true at Layer 7c.
+            AbilityDefinition::CdaModifyPowerToughness {
+                power: Some(EffectAmount::CounterCount {
+                    target: EffectTarget::Source,
+                    counter: CounterType::Oil,
+                }),
+                toughness: None,
+            },
 
             // ETB: put an oil counter on this creature.
             AbilityDefinition::Triggered {

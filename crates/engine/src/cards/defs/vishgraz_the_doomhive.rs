@@ -46,36 +46,23 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Vishgraz gets +1/+1 for each poison counter your opponents have."
-            //
-            // PB-CC-A status (Option B per PB-CC-C precedent): the EffectAmount primitive
-            // (`EffectAmount::PlayerCounterCount { player: PlayerTarget::EachOpponent,
-            // counter: CounterType::Poison }`) is shipped and produces correct values via
-            // `resolve_amount` and `resolve_cda_amount` (sums across opponents per CR 122.1
-            // and the Vishgraz 2023-02-04 ruling).
-            //
-            // The card-def is BLOCKED because there is no Layer-7c CDA-style continuous-
-            // re-evaluation primitive yet. Routing this through
-            // `AbilityDefinition::Static { continuous_effect: ContinuousEffectDef {
-            //     modification: LayerModification::ModifyBothDynamic { amount:
-            //         EffectAmount::PlayerCounterCount { ... }, negate: false }, .. } }`
-            // would (a) be registered with `is_cda: false` by
-            // `register_static_continuous_effects` (replacement.rs) and (b) reach
-            // layer-application code as an unsubstituted Dynamic variant, triggering the
-            // `debug_assert!` guard in `apply_modification` (rules/layers.rs:1164-1170)
-            // and silently no-op'ing in release.
-            //
-            // Mirroring `exuberant_fuseling.rs`: this needs the deferred PB-CC-C-followup
-            // primitive (Layer-7c dynamic-static modification with continuous re-evaluation
-            // — CR 611.3a). `CdaPowerToughness` (Layer 7a; abomination_of_llanowar pattern)
-            // is the closest existing analogue but applies to a different layer (it sets
-            // base P/T rather than modifying it), so a mechanical port using
-            // `Sum(Fixed(3), PlayerCounterCount)` would be wrong-game-state under
-            // Layer-7b "becomes a 0/2" overrides — forbidden by W6 policy.
-            //
-            // See: memory/primitives/pb-review-CC-C.md (Option B precedent),
-            //      memory/primitives/pb-retriage-CC.md PB-CC-A § (a) "What does NOT work
-            //      today" + § (b) "Subtlety on Vishgraz" (sum-semantic note).
+            // "Vishgraz gets +1/+1 for each poison counter your opponents have."
+            // CR 611.3a: static ability, not locked-in — continuously re-evaluates.
+            // CR 613.4c: Layer 7c modify (not a set — must not use CdaPowerToughness).
+            // CR 122.1 + Vishgraz 2023-02-04 ruling: EachOpponent sums poison counters
+            // across all opponents (3 opponents with 1/2/5 = 8, NOT count-of-poisoned=3).
+            // PB-CC-C-followup ships AbilityDefinition::CdaModifyPowerToughness to
+            // register a ContinuousEffect with ModifyBothDynamic + is_cda=true at Layer 7c.
+            AbilityDefinition::CdaModifyPowerToughness {
+                power: Some(EffectAmount::PlayerCounterCount {
+                    player: PlayerTarget::EachOpponent,
+                    counter: CounterType::Poison,
+                }),
+                toughness: Some(EffectAmount::PlayerCounterCount {
+                    player: PlayerTarget::EachOpponent,
+                    counter: CounterType::Poison,
+                }),
+            },
         ],
         ..Default::default()
     }
