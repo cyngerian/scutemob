@@ -7,9 +7,9 @@
 //!
 //! Engine surface:
 //! - `card_definition.rs`: `AbilityDefinition::CdaModifyPowerToughness` (disc 76)
-//! - `replacement.rs`: `register_static_continuous_effects` arm for the new variant
-//!   (stores `ModifyPowerDynamic` / `ModifyToughnessDynamic` / `ModifyBothDynamic`
-//!    with `is_cda: true` and `condition: None` per CR 604.3a(5))
+//! - `replacement.rs`: `register_static_continuous_effects` arm for the new variant.
+//!   Stores `ModifyPowerDynamic` / `ModifyToughnessDynamic` / `ModifyBothDynamic`
+//!   with `is_cda: true` and `condition: None` per CR 604.3a(5).
 //! - `layers.rs`: `apply_layer_modification` — three Dynamic arms now call
 //!   `resolve_cda_amount` live instead of debug_assert!-ing
 //! - `hash.rs`: disc 76 arm for `CdaModifyPowerToughness`; HASH_SCHEMA_VERSION = 13
@@ -31,7 +31,7 @@
 
 use mtg_engine::{
     all_cards, calculate_characteristics, card_name_to_id, enrich_spec_from_def, CardDefinition,
-    CardId, CardRegistry, CounterType, ContinuousEffect, EffectAmount, EffectDuration,
+    CardId, CardRegistry, ContinuousEffect, CounterType, EffectAmount, EffectDuration,
     EffectFilter, EffectId, EffectLayer, GameStateBuilder, LayerModification, ObjectId, ObjectSpec,
     PlayerId, Step, ZoneId, HASH_SCHEMA_VERSION,
 };
@@ -503,12 +503,6 @@ fn test_hash_schema_version_after_pb_cc_c_followup() {
         h_po, h_to,
         "(e-5) power-only and toughness-only CdaModifyPowerToughness must hash distinctly"
     );
-    assert_ne!(
-        h_po, h_both,
-        "(e-5) power-only != both-fields"
-    );
-    assert_ne!(
-        h_to, h_both,
-        "(e-5) toughness-only != both-fields"
-    );
+    assert_ne!(h_po, h_both, "(e-5) power-only != both-fields");
+    assert_ne!(h_to, h_both, "(e-5) toughness-only != both-fields");
 }

@@ -304,7 +304,11 @@ fn test_modify_toughness_dynamic_resolves_via_cda_amount_when_unsubstituted() {
     // PB-CC-C-followup: no panic. Fixed(1) resolves to 1. Toughness = base(2) + 1 = 3.
     let chars = calculate_characteristics(&state, stub_id).unwrap();
     assert_eq!(chars.power, Some(2), "power unchanged at base(2)");
-    assert_eq!(chars.toughness, Some(3), "toughness = base(2) + Fixed(1) = 3");
+    assert_eq!(
+        chars.toughness,
+        Some(3),
+        "toughness = base(2) + Fixed(1) = 3"
+    );
 }
 
 // ── Test 5: Full-dispatch — CR 608.2h X-locked-at-resolution semantic ────────
