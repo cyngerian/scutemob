@@ -371,48 +371,43 @@ pub enum LayerModification {
     ModifyToughness(i32),
     /// Adds equally to both power and toughness (e.g., "+2/+2" effects).
     ModifyBoth(i32),
-    /// DSL placeholder: dynamic +X/+X (or -X/-X) where X is an `EffectAmount`
-    /// resolved at `Effect::ApplyContinuousEffect` execution time (CR 608.2h).
+    /// Dynamic +X/+X (or -X/-X) modification where X is an `EffectAmount`.
     ///
-    /// CR 608.2h: "If an effect refers to a specific value of X, the value is
-    /// determined when the effect is created and remains that value regardless of
-    /// what X would be for the source." This variant must be substituted into a
-    /// concrete `ModifyBoth(resolved_value)` at `Effect::ApplyContinuousEffect`
-    /// execution time — it must NEVER appear in a stored `ContinuousEffect`. If
-    /// this variant is seen by layer-application code it means the substitution
-    /// was skipped (a bug).
+    /// **Two valid storage paths** — path chosen by the registering code:
     ///
-    /// Used for "creatures get -X/-X where X is the number of Vampires you control"
-    /// (Olivia's Wrath). `negate=true` produces `-X` from a non-negative amount;
-    /// `negate=false` produces `+X`. Boxed to avoid `large_enum_variant` clippy warnings.
+    /// 1. **Spell-effect path (CR 608.2h)**: `Effect::ApplyContinuousEffect` substitutes
+    ///    this variant into a concrete `ModifyBoth(resolved_value)` at resolution time so X
+    ///    is *locked in* at resolution. If `ModifyBothDynamic` reaches `apply_layer_modification`
+    ///    via this path it is a bug (substitution was skipped).
     ///
-    /// Mirrors `AllCreaturesExcludingChosenSubtype` (EffectFilter): both are DSL
-    /// placeholders that must be substituted at `ApplyContinuousEffect` time.
+    /// 2. **Static-ability path (CR 611.3a)**: `AbilityDefinition::CdaModifyPowerToughness`
+    ///    stores this variant directly in a `ContinuousEffect` with `is_cda: true`. The variant
+    ///    is **not** substituted; instead, `apply_layer_modification` calls `resolve_cda_amount`
+    ///    live on every `calculate_characteristics` invocation so the value is never locked in.
+    ///
+    /// `negate=true` produces `-X` from a non-negative amount; `negate=false` produces `+X`.
+    /// Boxed to avoid `large_enum_variant` clippy warnings.
     ModifyBothDynamic {
         amount: Box<crate::cards::card_definition::EffectAmount>,
         negate: bool,
     },
-    /// DSL placeholder: dynamic +X/+0 where X is an `EffectAmount` resolved at
-    /// `Effect::ApplyContinuousEffect` execution time (CR 608.2h, CR 613.4c).
+    /// Dynamic +X/+0 modification where X is an `EffectAmount`.
     ///
-    /// Mirrors `ModifyBothDynamic` exactly, but modifies power only. Must be
-    /// substituted into a concrete `ModifyPower(resolved_value)` at
-    /// `Effect::ApplyContinuousEffect` execution time — it must NEVER appear in a
-    /// stored `ContinuousEffect`. If this variant is seen by layer-application code
-    /// the substitution was skipped (a bug).
+    /// **Two valid storage paths** (same contract as `ModifyBothDynamic`):
     ///
-    /// **AUTHORING NOTE — static-ability footgun**: Do NOT use this variant as the
-    /// `modification` field of `AbilityDefinition::Static { continuous_effect:
-    /// ContinuousEffectDef { modification: ModifyPowerDynamic, .. } }`. The Static
-    /// path via `register_static_continuous_effects` stores the modification DIRECTLY
-    /// (without substitution), so the dynamic placeholder reaches layer-application
-    /// code unchanged — triggering the `debug_assert!` guard in debug builds or
-    /// producing silent wrong P/T in release builds. Use this variant only via
-    /// `Effect::ApplyContinuousEffect` from a resolving one-shot spell or activated
-    /// ability (CR 608.2h). For static abilities that continuously re-evaluate power
-    /// at Layer 7c (CR 611.3a), use the deferred Layer-7c dynamic-static primitive
-    /// (PB-CC-C-followup); `CdaPowerToughness` (Layer 7a, `resolve_cda_amount`) is
-    /// the closest existing analogue.
+    /// 1. **Spell-effect path (CR 608.2h)**: substituted to `ModifyPower(v)` at
+    ///    `Effect::ApplyContinuousEffect` time — X locked in at resolution.
+    ///    Reaching `apply_layer_modification` unsubstituted via this path is a bug.
+    ///
+    /// 2. **Static-ability path (CR 611.3a)**: stored unsubstituted by
+    ///    `AbilityDefinition::CdaModifyPowerToughness { power: Some(amount), .. }`
+    ///    with `is_cda: true`; `resolve_cda_amount` re-evaluates live at every
+    ///    `calculate_characteristics` call.
+    ///
+    /// **AUTHORING NOTE**: Do NOT store this variant via `AbilityDefinition::Static`
+    /// — the `Static` path sets `is_cda: false` and lacks the live-eval branch in
+    /// `apply_layer_modification`. Use `AbilityDefinition::CdaModifyPowerToughness`
+    /// for continuously-updating static abilities (CR 611.3a).
     ///
     /// `negate=true` produces `-X`; `negate=false` produces `+X`.
     /// Boxed to avoid `large_enum_variant` clippy warnings.
@@ -420,21 +415,23 @@ pub enum LayerModification {
         amount: Box<crate::cards::card_definition::EffectAmount>,
         negate: bool,
     },
-    /// DSL placeholder: dynamic +0/+X where X is an `EffectAmount` resolved at
-    /// `Effect::ApplyContinuousEffect` execution time (CR 608.2h, CR 613.4c).
+    /// Dynamic +0/+X modification where X is an `EffectAmount`.
     ///
-    /// Mirrors `ModifyBothDynamic` exactly, but modifies toughness only. Must be
-    /// substituted into a concrete `ModifyToughness(resolved_value)` at
-    /// `Effect::ApplyContinuousEffect` execution time — it must NEVER appear in a
-    /// stored `ContinuousEffect`. If this variant is seen by layer-application code
-    /// the substitution was skipped (a bug).
+    /// **Two valid storage paths** (same contract as `ModifyBothDynamic`):
     ///
-    /// **AUTHORING NOTE — static-ability footgun**: Same restriction as
-    /// `ModifyPowerDynamic` above. Do NOT use via `AbilityDefinition::Static` —
-    /// the Static path does NOT substitute. Use only via `Effect::ApplyContinuousEffect`
-    /// from a resolving one-shot spell or activated ability (CR 608.2h). For static
-    /// abilities that continuously re-evaluate toughness at Layer 7c (CR 611.3a),
-    /// use the deferred Layer-7c dynamic-static primitive (PB-CC-C-followup).
+    /// 1. **Spell-effect path (CR 608.2h)**: substituted to `ModifyToughness(v)` at
+    ///    `Effect::ApplyContinuousEffect` time — X locked in at resolution.
+    ///    Reaching `apply_layer_modification` unsubstituted via this path is a bug.
+    ///
+    /// 2. **Static-ability path (CR 611.3a)**: stored unsubstituted by
+    ///    `AbilityDefinition::CdaModifyPowerToughness { toughness: Some(amount), .. }`
+    ///    with `is_cda: true`; `resolve_cda_amount` re-evaluates live at every
+    ///    `calculate_characteristics` call.
+    ///
+    /// **AUTHORING NOTE**: Do NOT store this variant via `AbilityDefinition::Static`
+    /// — the `Static` path sets `is_cda: false` and lacks the live-eval branch in
+    /// `apply_layer_modification`. Use `AbilityDefinition::CdaModifyPowerToughness`
+    /// for continuously-updating static abilities (CR 611.3a).
     ///
     /// `negate=true` produces `-X`; `negate=false` produces `+X`.
     /// Boxed to avoid `large_enum_variant` clippy warnings.

@@ -93,13 +93,13 @@ fn resolve_via_apply(
 
 // ── Test 1: HASH_SCHEMA_VERSION sentinel ─────────────────────────────────────
 
-/// Catch any uncommitted bump after PB-CC-A. The next primitive that touches
-/// `EffectAmount` shape must update both the constant and this sentinel.
+/// Catch any uncommitted bump after PB-CC-C-followup. The next primitive that touches
+/// `AbilityDefinition` shape must update both the constant and this sentinel.
 #[test]
-fn test_hash_schema_version_after_pb_cc_a() {
+fn test_hash_schema_version_after_pb_cc_c_followup() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 12,
-        "PB-CC-A bumped HASH_SCHEMA_VERSION 11→12; if you intentionally bumped it \
+        HASH_SCHEMA_VERSION, 13,
+        "PB-CC-C-followup bumped HASH_SCHEMA_VERSION 12→13; if you intentionally bumped it \
          again, update this test together with state/hash.rs history."
     );
 }

@@ -58,7 +58,13 @@
 ///   (effects/mod.rs) and `resolve_cda_amount` (rules/layers.rs). Future-proof
 ///   for energy/experience/rad/ticket if/when those become flat fields on
 ///   `PlayerState`.
-pub const HASH_SCHEMA_VERSION: u8 = 12;
+/// - 13: PB-CC-C-followup (2026-04-29) — `AbilityDefinition::CdaModifyPowerToughness`
+///   (disc 76); Layer-7c dynamic CDA modification with continuous re-evaluation
+///   (CR 611.3a, CR 613.4c). Stores `ModifyPowerDynamic` / `ModifyToughnessDynamic` /
+///   `ModifyBothDynamic` unsubstituted with `is_cda: true`; `apply_layer_modification`
+///   calls `resolve_cda_amount` live at every `calculate_characteristics` invocation.
+///   Unblocks Vishgraz the Doomhive and Exuberant Fuseling.
+pub const HASH_SCHEMA_VERSION: u8 = 13;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -6060,6 +6066,25 @@ impl HashInto for AbilityDefinition {
                 70u8.hash_into(hasher);
                 power.hash_into(hasher);
                 toughness.hash_into(hasher);
+            }
+            // CdaModifyPowerToughness (discriminant 76) -- PB-CC-C-followup: static CDA Layer-7c
+            // dynamic P/T modification with continuous re-evaluation (CR 611.3a, CR 613.4c).
+            AbilityDefinition::CdaModifyPowerToughness { power, toughness } => {
+                76u8.hash_into(hasher);
+                match power {
+                    Some(p) => {
+                        1u8.hash_into(hasher);
+                        p.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
+                match toughness {
+                    Some(t) => {
+                        1u8.hash_into(hasher);
+                        t.hash_into(hasher);
+                    }
+                    None => 0u8.hash_into(hasher),
+                }
             }
             // AdditionalLandPlays (discriminant 71) -- PB-32: static additional land plays (CR 305.2)
             AbilityDefinition::AdditionalLandPlays { count } => {
