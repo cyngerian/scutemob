@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-04-30 02:33 UTC  
-**Git:** `e37670f1` on `main`  
+**Generated:** 2026-04-30 04:56 UTC  
+**Git:** `a2b24e42` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,17 +25,17 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO, non-empty abilities)  — 52.3% | 915 | · |
-| With TODO markers | 650 | -2 |
-| Empty `abilities: vec![]` placeholders | 183 | +2 |
-| Total TODO lines across all defs | 1,182 | -3 |
+| Clean (no TODO, non-empty abilities)  — 52.4% | 916 | +1 |
+| With TODO markers | 649 | -1 |
+| Empty `abilities: vec![]` placeholders | 183 | · |
+| Total TODO lines across all defs | 1,181 | -1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 142 |
-| last 30 days | 278 | 419 |
+| last 7 days | 0 | 143 |
+| last 30 days | 278 | 420 |
 | last 90 days | 1,773 | 1,151 |
 | last 1 year | 1,773 | 1,151 |
 
@@ -67,7 +67,7 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 75 | 102 | 10 |
-| `draw` | 163 / 169 | 96% | 57 | 81 | 25 |
+| `draw` | 163 / 169 | 96% | 58 | 80 | 25 |
 | `token-create` | 145 / 155 | 94% | 17 | 64 | 64 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
 | `other` | 108 / 131 | 82% | 61 | 47 | 0 |
@@ -169,29 +169,29 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 680 | · |
+| OTHER (unclassified) | 679 | -1 |
 | DSL gap (unspecified) | 149 | · |
 | attack trigger (self / generic) | 31 | · |
 | Cost::* missing variant | 22 | · |
 | replacement effect missing | 21 | · |
 | TriggerCondition::* missing variant | 19 | · |
-| EffectAmount::* missing variant | 18 | -1 |
+| EffectAmount::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
 | untap-all / untap trigger | 16 | · |
-| sacrifice as cost | 16 | -1 |
+| sacrifice as cost | 16 | · |
 | TargetFilter missing field | 16 | · |
 | CDA / dynamic P/T | 12 | · |
 | interactive / hidden-info choice | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
 | opponent-action trigger | 9 | · |
 | can't / must block-attack | 8 | · |
-| X-scaled tokens | 7 | -1 |
+| X-scaled tokens | 7 | · |
 | can't be countered | 7 | · |
 | no-maximum-hand-size | 7 | · |
 | proliferate trigger | 6 | · |
 | per-opponent upkeep | 6 | · |
 | devotion | 5 | · |
-| count-threshold static | 5 | -1 |
+| count-threshold static | 5 | · |
 | conditional static / grant | 5 | · |
 | counter-placed trigger | 5 | · |
 
@@ -199,7 +199,7 @@ _…and 34 more buckets totaling 74 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 680 
+Showing 12 of 679 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -207,12 +207,12 @@ deterministic (sorted by slug).
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bonecrusher_giant: // TODO: "Damage can't be prevented this turn" — no prevention-removal DSL effect.
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
+deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
 enduring_vitality: // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
-glimmer_lens: // TODO: For Mirrodin! + equipped attack trigger not expressible.
+glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
 izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
 mana_leak: // TODO: "Counter unless controller pays {3}" — requires CounterUnlessPays effect.
-nullmage_shepherd: // TODO: The activated ability cost requires tapping N other permanents you control
+oath_of_teferi: // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
 rings_of_brighthearth: // TODO: whenever you activate a non-mana ability, may pay {2} to copy it
 smothering_tithe: // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
 teferi_hero_of_dominaria: // TODO: Add LibraryPosition::NthFromTop(u32) for precise placement.
@@ -222,6 +222,7 @@ twilight_prophet: // TODO: Upkeep trigger conditioned on HasCitysBlessing requir
 ## Recent card-touching commits
 
 ```
+34317614 feat(pb-lki-cc): add EffectAmount::CounterCountAtLastKnownInformation (disc 17) + LKI snapshot threading
 4fde5d66 scutemob-16: PB-TS fix-phase — E1 Krenko sorcery-speed + C1 Chasm Skulker revert + OOS-TS-4 seed
 418976c9 scutemob-16: PB-TS card defs — 4 dynamic token-count cards re-authored
 a48f00e2 scutemob-16: PB-TS engine surface — TokenSpec.count u32 → EffectAmount
@@ -246,7 +247,6 @@ d343e1ba W6-prim: PB-N — SubtypeFilteredAttack + SubtypeFilteredDeath triggers
 fc83d9d0 W6-prim: stale-TODO sweep — PB-N pre-launch (3 cards)
 9c347754 W6-prim: PB-Q4 implement — EnchantTarget::Filtered + 4 land-aura cards
 464d9e79 W6-prim: PB-Q close — 2 cards shipped, 4 parked, 4 micro-PBs reserved
-880b7797 W6-prim: PB-Q implement — ChooseColor primitive (6 cards)
 ```
 
 ## Missing card-defs sidecar
