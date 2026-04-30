@@ -1,0 +1,198 @@
+# Authoring plan — cards still missing on disk
+# Generated: 2026-04-30 00:08 UTC  Git: ad793012  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (194 cards)
+
+activated-sacrifice	An Offer You Can't Refuse
+activated-sacrifice	Chatterfang, Squirrel General
+activated-sacrifice	Dark-Dweller Oracle
+activated-sacrifice	Dauthi Voidwalker
+activated-sacrifice	Goblin Chirurgeon
+activated-sacrifice	Goblin Lookout
+activated-sacrifice	Jeweled Lotus
+activated-sacrifice	Lotus Petal
+activated-sacrifice	Master of Dark Rites
+activated-sacrifice	Memory Jar
+activated-sacrifice	Orb of Dragonkind
+activated-sacrifice	Ranger-Captain of Eos
+activated-sacrifice	Rod of Absorption
+activated-sacrifice	Skirk Prospector
+activated-sacrifice	Spore Frog
+activated-sacrifice	Whirlpool Warrior
+activated-tap	Arbor Elf
+activated-tap	Astral Cornucopia
+activated-tap	Bloom Tender
+activated-tap	Conduit of Worlds
+activated-tap	Contagion Clasp
+activated-tap	Contagion Engine
+activated-tap	Eladamri, Korvecdal
+activated-tap	Formidable Speaker
+activated-tap	Giver of Runes
+activated-tap	Heraldic Banner
+activated-tap	Hobgoblin Bandit Lord
+activated-tap	Loot, Exuberant Explorer
+activated-tap	Lys Alana Scarblade
+activated-tap	Magewright's Stone
+activated-tap	Millikin
+activated-tap	Moggcatcher
+activated-tap	Myr Convert
+activated-tap	Sakura-Tribe Scout
+activated-tap	Scroll Rack
+activated-tap	Skyshroud Poacher
+activated-tap	Stoneforge Mystic
+activated-tap	The Chain Veil
+activated-tap	Timberwatch Elf
+activated-tap	Wellwisher
+activated-tap	Wirewood Channeler
+attack-trigger	Adriana, Captain of the Guard
+attack-trigger	Atarka, World Render
+attack-trigger	Brutal Hordechief
+attack-trigger	Caustic Bronco
+attack-trigger	Copperhorn Scout
+attack-trigger	Cunning Rhetoric
+attack-trigger	Fervent Charge
+attack-trigger	Frenzied Goblin
+attack-trigger	Goblin Piledriver
+attack-trigger	Goblin Wardriver
+attack-trigger	Hellkite Charger
+attack-trigger	Klauth, Unrivaled Ancient
+attack-trigger	Kozilek, Butcher of Truth
+attack-trigger	Lightning Runner
+attack-trigger	Muxus, Goblin Grandee
+attack-trigger	Norn's Decree
+attack-trigger	Ojutai, Soul of Winter
+attack-trigger	Olivia, Crimson Bride
+attack-trigger	Raid Bombardment
+attack-trigger	Raiyuu, Storm's Edge
+attack-trigger	Rhys the Exiled
+attack-trigger	Savage Ventmaw
+attack-trigger	Silumgar, the Drifting Death
+attack-trigger	Skyhunter Strike Force
+attack-trigger	Thrakkus the Butcher
+attack-trigger	Trench Behemoth
+attack-trigger	Triumphant Adventurer
+attack-trigger	Winota, Joiner of Forces
+body-only	Bloodline Keeper
+body-only	Bloodline Keeper // Lord of Lineage
+body-only	Docent of Perfection // Final Iteration
+body-only	Edgar, Charmed Groom
+body-only	Fable of the Mirror-Breaker
+body-only	Fable of the Mirror-Breaker // Reflection of Kiki-Jiki
+body-only	Grist, Voracious Larva // Grist, the Plague Swarm
+body-only	Growing Rites of Itlimoc
+body-only	Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun
+body-only	Invasion of Ikoria // Zilortha, Apex of Ikoria
+body-only	Legion's Landing
+body-only	Legion's Landing // Adanto, the First Fort
+body-only	Nicol Bolas, the Ravager
+body-only	Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel
+body-only	Westvale Abbey
+discard-effect	Fateful Showdown
+discard-effect	Insidious Dreams
+discard-effect	Necropotence
+discard-effect	Plaguecrafter
+discard-effect	Tolarian Winds
+discard-effect	Wheel of Fortune
+discard-effect	Windfall
+draw	Captain Howler, Sea Scourge
+draw	Gempalm Incinerator
+draw	Karazikar, the Eye Tyrant
+draw	Life from the Loam
+draw	Omnath, Locus of the Roil
+draw	Unshakable Tail
+exile-play	Demonic Consultation
+modal-choice	Arcane Heist
+modal-choice	As Foretold
+modal-choice	Augur of Autumn
+modal-choice	Bygone Colossus
+modal-choice	Carpet of Flowers
+modal-choice	Commandeer
+modal-choice	Conspicuous Snoop
+modal-choice	Crucible of Worlds
+modal-choice	Dracogenesis
+modal-choice	Extraplanar Lens
+modal-choice	Fallen Shinobi
+modal-choice	Fist of Suns
+modal-choice	Genesis Wave
+modal-choice	Icetill Explorer
+modal-choice	Kinnan, Bonder Prodigy
+modal-choice	Korlessa, Scale Singer
+modal-choice	Leonin Shikari
+modal-choice	Lim-Dûl's Vault
+modal-choice	Majestic Genesis
+modal-choice	Mana Echoes
+modal-choice	Misdirection
+modal-choice	Mitotic Manipulation
+modal-choice	Mystic Reflection
+modal-choice	Narset's Reversal
+modal-choice	Nashi, Moon Sage's Scion
+modal-choice	Nature's Rhythm
+modal-choice	Opposition Agent
+modal-choice	Ramunap Excavator
+modal-choice	Realmwalker
+modal-choice	Rishkar's Expertise
+modal-choice	Sarkhan, Soul Aflame
+modal-choice	Sigarda's Aid
+modal-choice	Silent-Blade Oni
+modal-choice	Squee, the Immortal
+modal-choice	Tainted Pact
+modal-choice	Underworld Breach
+modal-choice	Valakut Exploration
+other	Auriok Steelshaper
+other	Banner of Kinship
+other	Breach the Multiverse
+other	Coat of Arms
+other	Crackle with Power
+other	Deepglow Skate
+other	Faith's Reward
+other	Gauntlet of Power
+other	Ghyrson Starn, Kelermorph
+other	Heritage Druid
+other	High Tide
+other	Kindred Summons
+other	Mana Geyser
+other	Marvin, Murderous Mimic
+other	Metallic Mimic
+other	Morality Shift
+other	New Blood
+other	Patriarch's Bidding
+other	Roaming Throne
+other	Steelshaper's Gift
+other	Time Spiral
+other	Treasure Nabber
+other	Utopia Sprawl
+removal-exile	Touch the Spirit Realm
+sacrifice-outlet	Birthing Ritual
+sacrifice-outlet	Culling the Weak
+sacrifice-outlet	Eldritch Evolution
+sacrifice-outlet	Momentous Fall
+sacrifice-outlet	Victimize
+static-enchantment	Arcane Adaptation
+static-enchantment	Candlekeep Inspiration
+static-enchantment	Door of Destinies
+static-enchantment	Flux Channeler
+static-enchantment	Hand of the Praetors
+static-enchantment	Harmonic Prodigy
+static-enchantment	Ichormoon Gauntlet
+static-enchantment	Veilstone Amulet
+token-create	Delina, Wild Mage
+token-create	Dragonmaster Outcast
+token-create	Dwynen's Elite
+token-create	Hammers of Moradin
+token-create	Revel in Riches
+token-create	Rionya, Fire Dancer
+token-create	Scute Swarm
+token-create	Skrelv's Hive
+token-create	Surly Badgersaur
+token-create	Titania, Protector of Argoth
+untap-phase	Aggravated Assault
+untap-phase	Clever Concealment
+untap-phase	Earthcraft
+untap-phase	Hyrax Tower Scout
+untap-phase	Intruder Alarm
+untap-phase	Mobilize
+untap-phase	Quirion Ranger
+untap-phase	Relentless Assault
+untap-phase	Ripples of Potential
+untap-phase	Vitalize
+untap-phase	Wilderness Reclamation
+untap-phase	Wirewood Symbiote
