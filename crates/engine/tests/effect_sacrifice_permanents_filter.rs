@@ -127,15 +127,15 @@ fn cast_test_sorcery(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C/PB-CC-A/PB-CC-C-followup:
-/// HASH_SCHEMA_VERSION is 13. Bumped from 12 (PB-CC-A) to account for
-/// AbilityDefinition gaining `CdaModifyPowerToughness` variant (CR 611.3a).
+/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C/PB-CC-A/PB-CC-C-followup/PB-TS:
+/// HASH_SCHEMA_VERSION is 14. Bumped from 13 (PB-CC-C-followup) to account for
+/// TokenSpec.count changing from u32 to EffectAmount (CR 111.1 / 608.2h).
 #[test]
-fn test_sft_hash_schema_version_is_13() {
+fn test_sft_hash_schema_version_is_14() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13u8,
-        "PB-CC-C-followup: HASH_SCHEMA_VERSION must be 13 (bump from PB-CC-A's 12 for \
-         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a)"
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS: HASH_SCHEMA_VERSION must be 14 (bump from PB-CC-C-followup's 13 for \
+         TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h)"
     );
 }
 

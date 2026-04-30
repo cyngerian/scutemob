@@ -64,7 +64,15 @@
 ///   `ModifyBothDynamic` unsubstituted with `is_cda: true`; `apply_layer_modification`
 ///   calls `resolve_cda_amount` live at every `calculate_characteristics` invocation.
 ///   Unblocks Vishgraz the Doomhive and Exuberant Fuseling.
-pub const HASH_SCHEMA_VERSION: u8 = 13;
+/// - 14: PB-TS (2026-04-30) — `TokenSpec.count` shape change u32 → EffectAmount;
+///   `Effect::CreateToken` and `Effect::CreateTokenAndAttachSource` resolve dynamic
+///   counts via `resolve_amount` at execution time (CR 608.2h, CR 111.1).
+///   Replacement boundary `apply_token_creation_replacement` keeps u32 signature
+///   (token doublers operate on resolved counts). Wire format of TokenSpec.count
+///   changes from raw u32 to tagged-enum EffectAmount; pre-PB-TS replays are not
+///   forward-compatible. Unblocks Phyrexian Swarmlord, Chasm Skulker, Krenko Mob Boss,
+///   Izoni Thousand-Eyed.
+pub const HASH_SCHEMA_VERSION: u8 = 14;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
