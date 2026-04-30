@@ -23,6 +23,10 @@ Thumbs.db
 .mcp.json
 CLAUDE.md.pre-esm
 
+# ESM worker artifacts
+.esm/
+.worktrees/
+
 # Python
 __pycache__/
 
