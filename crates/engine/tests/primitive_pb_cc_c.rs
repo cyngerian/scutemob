@@ -205,17 +205,29 @@ fn test_modify_toughness_dynamic_substituted_at_apply_time() {
     );
 }
 
-// ── Test 3: Panic guard — ModifyPowerDynamic must never reach layer application ──
+// ── Test 3: ModifyPowerDynamic stored with is_cda=false reaches live-eval ────────
+//
+// PB-CC-C-followup update: the previous `debug_assert!(false, …)` guard in
+// `apply_layer_modification` was removed to enable CR 611.3a static-ability live
+// re-evaluation. `ModifyPowerDynamic` now calls `resolve_cda_amount` in ALL cases
+// (both `is_cda=true` static-ability path and any residual `is_cda=false` path).
+// The only correct way to ensure a spell-effect dynamic is locked at resolution is
+// to let the `Effect::ApplyContinuousEffect` substitution arm convert it to a
+// concrete `ModifyPower(N)` before storage — which tests 1/2/5 verify.
+//
+// This test documents the new behavior: a directly-stored unsubstituted
+// `ModifyPowerDynamic { Fixed(1), negate=false }` now produces power = base(2) + 1 = 3
+// (Fixed(1) resolves deterministically via `resolve_cda_amount`).
 
-/// CR 608.2h / CR 613.4c — If `ModifyPowerDynamic` reaches layer-application code
-/// without having been substituted, `debug_assert!(false, …)` panics. This indicates
-/// a bug in the calling code (substitution was skipped).
+/// CR 611.3a / CR 613.4c — `ModifyPowerDynamic` stored directly (bypassing
+/// `Effect::ApplyContinuousEffect`) now resolves via `resolve_cda_amount`
+/// rather than panicking. For `EffectAmount::Fixed(1)`: power = base(2) + 1 = 3.
 ///
-/// This test directly stores an unsubstituted `ModifyPowerDynamic` effect in game state
-/// and calls `calculate_characteristics`, which must panic.
+/// Note: the *correct* spell-effect path substitutes this to `ModifyPower(1)`
+/// before storage (tested by tests 1/2/5). This test exercises the residual
+/// behavior (PB-CC-C-followup removed the `debug_assert!` guard).
 #[test]
-#[should_panic]
-fn test_modify_power_dynamic_panics_if_not_substituted() {
+fn test_modify_power_dynamic_resolves_via_cda_amount_when_unsubstituted() {
     let p1 = p(1);
 
     let mut state = GameStateBuilder::new()
@@ -229,8 +241,9 @@ fn test_modify_power_dynamic_panics_if_not_substituted() {
 
     let stub_id = find_object(&state, "Bug Stub");
 
-    // Directly insert an unsubstituted ModifyPowerDynamic into continuous_effects.
-    // This simulates a bug where the substitution arm in effects/mod.rs was skipped.
+    // Directly insert an unsubstituted ModifyPowerDynamic — simulates the residual case
+    // where substitution was bypassed. PB-CC-C-followup: this now calls resolve_cda_amount
+    // instead of debug_assert!-ing.
     state.continuous_effects.push_back(ContinuousEffect {
         id: EffectId(9900),
         source: Some(stub_id),
@@ -238,7 +251,6 @@ fn test_modify_power_dynamic_panics_if_not_substituted() {
         layer: EffectLayer::PtModify,
         duration: EffectDuration::WhileSourceOnBattlefield,
         filter: EffectFilter::SingleObject(stub_id),
-        // CR 608.2h: this must never reach layer application.
         modification: LayerModification::ModifyPowerDynamic {
             amount: Box::new(EffectAmount::Fixed(1)),
             negate: false,
@@ -247,16 +259,20 @@ fn test_modify_power_dynamic_panics_if_not_substituted() {
         condition: None,
     });
 
-    // calculate_characteristics triggers layer application, which must panic on this variant.
-    let _ = calculate_characteristics(&state, stub_id);
+    // PB-CC-C-followup: no panic. Fixed(1) resolves to 1. Power = base(2) + 1 = 3.
+    let chars = calculate_characteristics(&state, stub_id).unwrap();
+    assert_eq!(chars.power, Some(3), "power = base(2) + Fixed(1) = 3");
+    assert_eq!(chars.toughness, Some(2), "toughness unchanged at base(2)");
 }
 
-// ── Test 4: Panic guard — ModifyToughnessDynamic must never reach layer application ─
+// ── Test 4: ModifyToughnessDynamic stored with is_cda=false reaches live-eval ───
+//
+// Same PB-CC-C-followup update as test 3 — see comment above for context.
 
-/// CR 608.2h / CR 613.4c — Same guard as test 3, but for `ModifyToughnessDynamic`.
+/// CR 611.3a / CR 613.4c — `ModifyToughnessDynamic` stored directly resolves via
+/// `resolve_cda_amount` for `EffectAmount::Fixed(1)`: toughness = base(2) + 1 = 3.
 #[test]
-#[should_panic]
-fn test_modify_toughness_dynamic_panics_if_not_substituted() {
+fn test_modify_toughness_dynamic_resolves_via_cda_amount_when_unsubstituted() {
     let p1 = p(1);
 
     let mut state = GameStateBuilder::new()
@@ -270,7 +286,6 @@ fn test_modify_toughness_dynamic_panics_if_not_substituted() {
 
     let stub_id = find_object(&state, "Bug Stub T");
 
-    // Directly insert an unsubstituted ModifyToughnessDynamic into continuous_effects.
     state.continuous_effects.push_back(ContinuousEffect {
         id: EffectId(9901),
         source: Some(stub_id),
@@ -278,7 +293,6 @@ fn test_modify_toughness_dynamic_panics_if_not_substituted() {
         layer: EffectLayer::PtModify,
         duration: EffectDuration::WhileSourceOnBattlefield,
         filter: EffectFilter::SingleObject(stub_id),
-        // CR 608.2h: this must never reach layer application.
         modification: LayerModification::ModifyToughnessDynamic {
             amount: Box::new(EffectAmount::Fixed(1)),
             negate: false,
@@ -287,8 +301,10 @@ fn test_modify_toughness_dynamic_panics_if_not_substituted() {
         condition: None,
     });
 
-    // calculate_characteristics triggers layer application, which must panic on this variant.
-    let _ = calculate_characteristics(&state, stub_id);
+    // PB-CC-C-followup: no panic. Fixed(1) resolves to 1. Toughness = base(2) + 1 = 3.
+    let chars = calculate_characteristics(&state, stub_id).unwrap();
+    assert_eq!(chars.power, Some(2), "power unchanged at base(2)");
+    assert_eq!(chars.toughness, Some(3), "toughness = base(2) + Fixed(1) = 3");
 }
 
 // ── Test 5: Full-dispatch — CR 608.2h X-locked-at-resolution semantic ────────
