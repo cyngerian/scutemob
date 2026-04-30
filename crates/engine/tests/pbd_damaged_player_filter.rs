@@ -591,12 +591,12 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 /// Any two variants colliding would indicate a hash implementation bug.
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
-    // Hash sentinel is bumped to 12 (PB-CC-A added EffectAmount::PlayerCounterCount,
-    // CR 122.1, following PB-CC-C's 11 for LayerModification::ModifyPower/ToughnessDynamic).
+    // Hash sentinel is bumped to 13 (PB-CC-C-followup added AbilityDefinition::CdaModifyPowerToughness
+    // disc 76, CR 611.3a, Layer-7c dynamic CDA modification with continuous re-evaluation).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 12u8,
-        "HASH_SCHEMA_VERSION must be 12 (PB-CC-A bump from PB-CC-C's 11 for \
-         EffectAmount::PlayerCounterCount). \
+        HASH_SCHEMA_VERSION, 13u8,
+        "HASH_SCHEMA_VERSION must be 13 (PB-CC-C-followup bump from PB-CC-A's 12 for \
+         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a). \
          If you bumped the sentinel, update this test."
     );
 

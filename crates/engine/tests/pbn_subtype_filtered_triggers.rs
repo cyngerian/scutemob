@@ -548,13 +548,13 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // PB-CC-B bumped the sentinel from 9 → 10 (TargetFilter.has_counter_type, CR 122.1).
     // PB-CC-C bumped the sentinel from 10 → 11 (LayerModification::ModifyPowerDynamic +
     //   ModifyToughnessDynamic, CR 613.4c single-axis dynamic P/T modification).
-    // PB-CC-A bumped the sentinel from 11 → 12 (EffectAmount::PlayerCounterCount, CR 122.1
-    //   sum-across-players counter count for poison-counter scaling effects).
+    // PB-CC-C-followup bumped the sentinel from 12 → 13 (AbilityDefinition::CdaModifyPowerToughness
+    //   disc 76, CR 611.3a continuous re-evaluation for Layer-7c dynamic CDA modifications).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 12u8,
-        "HASH_SCHEMA_VERSION must be 12 (PB-CC-A bump from PB-CC-C's 11 for \
-         EffectAmount::PlayerCounterCount). \
+        HASH_SCHEMA_VERSION, 13u8,
+        "HASH_SCHEMA_VERSION must be 13 (PB-CC-C-followup bump from PB-CC-A's 12 for \
+         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a). \
          If you bumped the sentinel, update this test."
     );
 }

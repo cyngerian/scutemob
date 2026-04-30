@@ -397,20 +397,20 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 
 // ── M4: Hash determinism + schema bump ────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 11 (PB-CC-C bump). Three
-/// distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
+/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 13 (PB-CC-C-followup bump).
+/// Three distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_12() {
+fn test_pbt_hash_schema_version_is_13() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 12 (PB-CC-A bump from PB-CC-C's 11 for
-    // EffectAmount::PlayerCounterCount variant (CR 122.1 player-counter count)).
+    // CR N/A — sentinel must be 13 (PB-CC-C-followup bump from PB-CC-A's 12 for
+    // AbilityDefinition::CdaModifyPowerToughness disc 76, CR 611.3a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 12u8,
-        "PB-CC-A: HASH_SCHEMA_VERSION must be 12 (bump from PB-CC-C's 11 for \
-         EffectAmount::PlayerCounterCount)"
+        HASH_SCHEMA_VERSION, 13u8,
+        "PB-CC-C-followup: HASH_SCHEMA_VERSION must be 13 (bump from PB-CC-A's 12 for \
+         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a)"
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -858,16 +858,16 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 12.
+/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 13.
 /// Regression guard against accidental rollback to a prior value.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_12_regression() {
-    // Must be exactly 12 (PB-CC-A bump from PB-CC-C's 11 for
-    // EffectAmount::PlayerCounterCount).
+fn test_pbt_hash_schema_version_sentinel_is_13_regression() {
+    // Must be exactly 13 (PB-CC-C-followup bump from PB-CC-A's 12 for
+    // AbilityDefinition::CdaModifyPowerToughness, CR 611.3a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 12u8,
-        "PB-CC-A: Sentinel must be 12; bumped from PB-CC-C's 11 for \
-         EffectAmount::PlayerCounterCount (CR 122.1)"
+        HASH_SCHEMA_VERSION, 13u8,
+        "PB-CC-C-followup: Sentinel must be 13; bumped from PB-CC-A's 12 for \
+         AbilityDefinition::CdaModifyPowerToughness (CR 611.3a)"
     );
 }
 
