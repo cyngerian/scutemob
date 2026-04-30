@@ -193,6 +193,8 @@ pub fn handle_tap_for_mana(
             events.push(GameEvent::PermanentDestroyed {
                 object_id: source,
                 new_grave_id: new_id,
+                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                pre_lba_counters: pre_death_counters.clone(),
             });
         }
     }

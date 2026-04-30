@@ -40,13 +40,13 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             // When Toothy leaves the battlefield, draw a card for each +1/+1 counter on it.
-            // Note: LKI — source is in graveyard/exile but counter count is preserved by move_object_to_zone.
+            // CR 603.10a / 122.2: counter count must be read from the LKI snapshot (PendingTrigger.lki_counters)
+            // because move_object_to_zone resets the GameObject's counters to empty.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenLeavesBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
-                    count: EffectAmount::CounterCount {
-                        target: EffectTarget::Source,
+                    count: EffectAmount::CounterCountAtLastKnownInformation {
                         counter: CounterType::PlusOnePlusOne,
                     },
                 },

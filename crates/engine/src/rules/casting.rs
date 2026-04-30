@@ -3640,6 +3640,7 @@ pub fn handle_cast_spell(
                             player,
                             object_id: exile_id,
                             new_exile_id,
+                            pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
                         });
                     }
                 }
@@ -3872,6 +3873,7 @@ pub fn handle_cast_spell(
             events.push(GameEvent::PermanentDestroyed {
                 object_id: sac_id,
                 new_grave_id: new_sac_id,
+                pre_lba_counters: pre_death_counters.clone(),
             });
         }
         // CR 701.21a: PermanentSacrificed for spell additional cost.
@@ -3952,6 +3954,7 @@ pub fn handle_cast_spell(
                 player,
                 object_id: ev_id,
                 new_exile_id,
+                pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
             });
         }
     }
@@ -4231,6 +4234,7 @@ pub fn handle_cast_spell(
         // PB-P: For spells, LKI powers flow through additional_costs.Sacrifice.lki_powers
         // at resolution; this field is for activated abilities only.
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source
@@ -4953,6 +4957,7 @@ fn apply_escape_exile_cost(
             player,
             object_id: id,
             new_exile_id,
+            pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
         });
     }
     Ok(())
@@ -5257,6 +5262,7 @@ fn apply_delve_reduction(
             player,
             object_id: id,
             new_exile_id,
+            pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
         });
     }
     // If the original cost was Some, return Some(reduced); if it was None, return None.
@@ -7272,6 +7278,7 @@ mod tests {
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
             sacrificed_creature_powers: vec![],
+            lki_counters: im::OrdMap::new(),
         }
     }
 

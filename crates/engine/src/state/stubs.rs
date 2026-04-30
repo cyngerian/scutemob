@@ -400,6 +400,15 @@ pub struct PendingTrigger {
     /// Not serialized (same as `kind`) — triggers are transient within a turn.
     #[serde(skip)]
     pub data: Option<TriggerData>,
+    /// CR 603.10a / CR 113.7a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
+    /// Captured at trigger queueing time (abilities.rs CreatureDied arm)
+    /// from the `GameEvent::CreatureDied.pre_death_counters` payload. Threaded
+    /// through `flush_pending_triggers` into `StackObject.lki_counters`, then into
+    /// `EffectContext.lki_counters` at resolution. Read by
+    /// `EffectAmount::CounterCountAtLastKnownInformation`.
+    /// Empty for triggers that don't fire from a leaves-battlefield event.
+    #[serde(default)]
+    pub lki_counters: im::OrdMap<crate::state::types::CounterType, u32>,
 }
 impl PendingTrigger {
     /// Construct a PendingTrigger with all Option fields as `None` and default values.
@@ -444,6 +453,7 @@ impl PendingTrigger {
             damaged_player: None,
             combat_damage_amount: 0,
             data: None,
+            lki_counters: im::OrdMap::new(),
         }
     }
 }

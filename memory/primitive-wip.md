@@ -147,3 +147,59 @@ The remaining counter-count siblings have **token creation** halves blocked on a
 
 Branch is **PASS** and ready for /review + signal-ready on ESM task scutemob-16. Coordinator should
 proceed to merge to main and close PB-TS WIP.
+
+---
+
+# Primitive WIP: PB-LKI-CC — `EffectAmount::CounterCountAtLastKnownInformation` (LKI snapshot for WhenDies / WhenLeavesBattlefield)
+
+batch: PB-LKI-CC
+title: EffectAmount::CounterCountAtLastKnownInformation — LKI snapshot for WhenDies / WhenLeavesBattlefield (CR 603.10a)
+cards_unblocked: Chasm Skulker (WhenDies token half unblocked by PB-TS OOS-TS-4), Toothy Imaginary Friend
+started: 2026-04-29
+phase: review-complete
+plan_file: memory/primitives/pb-plan-LKI-CC.md
+review_file: memory/primitives/pb-review-LKI-CC.md
+hash_version_pre: 14 (PB-TS)
+hash_version_post: 15 (PB-LKI-CC — LKI snapshot fields on 4 GameEvent variants)
+
+## Task reference
+- ESM task: scutemob-17
+- Branch: feat/pb-lki-cc-effectamountcountercount-lki-snapshot-for-whendies
+
+## Implementation checklist
+
+- [x] Engine change 1: `EffectAmount::CounterCountAtLastKnownInformation { counter: CounterType }` variant added (disc 17) — `card_definition.rs`
+- [x] Engine change 2: `PendingTrigger.lki_counters: OrdMap<CounterType, u32>` field added + `blank()` init — `state/stubs.rs`
+- [x] Engine change 3: `StackObject.lki_counters: OrdMap<CounterType, u32>` field added + `trigger_default()` init — `state/stack.rs`
+- [x] Engine change 4: `EffectContext.lki_counters: Option<OrdMap<CounterType, u32>>` field added + constructors updated — `effects/mod.rs`
+- [x] Engine change 5: LKI capture + flush in `abilities.rs` — `CreatureDied` SelfDies + SelfLeavesBattlefield arms use `pre_death_counters.clone()`
+- [x] Engine change 6: `resolve_amount` arm for discriminant 17 — `effects/mod.rs`
+- [x] Engine change 7: `resolve_cda_amount` arm for discriminant 17 — `rules/layers.rs`
+- [x] Engine change 8: `HashInto` arm for discriminant 17 + HASH_SCHEMA_VERSION 14→15 + history entry 15 — `state/hash.rs`
+- [x] Engine change 9: sentinel-assertion sweep across 6 files — all updated to assert 15
+- [x] Card def 1: `chasm_skulker.rs` re-authored — WhenDies trigger uses `CounterCountAtLastKnownInformation{PlusOnePlusOne}` for token count; OOS-TS-4 TODO cleared
+- [x] Card def 2: `toothy_imaginary_friend.rs` re-authored — WhenLeavesBattlefield trigger uses `CounterCountAtLastKnownInformation{PlusOnePlusOne}` for draw count
+- [x] Tests (a-e): 5 mandatory tests in `crates/engine/tests/primitive_pb_lki_cc.rs`
+
+## Fix-phase checklist (post review NEEDS-FIX)
+
+- [x] E1 (HIGH RESOLVED): `pre_lba_counters: OrdMap<CounterType, u32>` field added to `GameEvent::AuraFellOff`, `GameEvent::PermanentDestroyed`, `GameEvent::ObjectExiled`, `GameEvent::ObjectReturnedToHand` with `#[serde(default)]`. All ~35 emit sites across abilities.rs, casting.rs, engine.rs, resolution.rs, turn_actions.rs updated. Four trigger arms in `check_triggers` updated to propagate `pre_lba_counters` → `PendingTrigger.lki_counters`. `state/hash.rs` match arms updated with `..` to ignore new fields.
+- [x] E2 (LOW RESOLVED): `test_pb_lki_cc_hash_determinism` added + hash-determinism sub-test in sentinel test.
+- [x] E3 (LOW RESOLVED): OOS-LKI-3 (cost-payment LKI / Workhorse) and OOS-LKI-4 (AnyCreatureDies LKI) appended to `pb-retriage-CC.md`.
+- [x] C1 (LOW RESOLVED): `test_toothy_bounced_to_hand_draws_lki_counter_count`, `test_toothy_destroyed_draws_lki_counter_count`, `test_toothy_exiled_draws_lki_counter_count` added and passing.
+
+## Fix-phase gate results (2026-04-29)
+
+- `cargo build --workspace`: PASS (clean)
+- `cargo test --all`: PASS — **2734 tests** (+4 from fix-phase: 3 Toothy regression tests + 1 hash-determinism test)
+- `cargo fmt --check`: PASS — zero diffs
+- `cargo clippy -- -D warnings`: PASS — zero warnings
+
+## Verdict
+
+**PASS-WITH-NITS** → upgraded to **PASS** after fix-phase. 0 HIGH / 0 MEDIUM open. All LOWs resolved.
+Review file updated with fix-phase resolution section at `memory/primitives/pb-review-LKI-CC.md`.
+
+## Next step
+
+Branch is PASS and ready for signal-ready on ESM task scutemob-17. Coordinator should proceed to merge to main and close PB-LKI-CC.

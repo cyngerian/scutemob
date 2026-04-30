@@ -132,6 +132,14 @@ pub struct EffectContext {
     /// Read by `EffectAmount::PowerOfSacrificedCreature` (PB-P).
     /// Empty for spells/abilities whose costs did not include creature sacrifice.
     pub sacrificed_creature_powers: Vec<i32>,
+    /// CR 603.10a / CR 113.7a: LKI counter snapshot for leaves-battlefield triggers.
+    /// Populated by `flush_pending_triggers` (abilities.rs) when a `WhenDies` /
+    /// `WhenLeavesBattlefield` trigger is put on the stack, capturing the source's
+    /// counters as they existed immediately before zone change. Threaded into
+    /// `EffectContext` at trigger resolution time (resolution.rs).
+    /// Read by `EffectAmount::CounterCountAtLastKnownInformation`.
+    /// `None` for non-LKI trigger contexts; lookups return 0 if `None` or absent.
+    pub lki_counters: Option<im::OrdMap<crate::state::types::CounterType, u32>>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -159,6 +167,7 @@ impl EffectContext {
             chosen_creature_type: None,
             mana_produced: None,
             sacrificed_creature_powers: vec![],
+            lki_counters: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -191,6 +200,7 @@ impl EffectContext {
             chosen_creature_type: None,
             mana_produced: None,
             sacrificed_creature_powers: vec![],
+            lki_counters: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -790,6 +800,8 @@ fn execute_effect_inner(
                                             player: owner,
                                             object_id: id,
                                             new_exile_id: new_id,
+                                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                            pre_lba_counters: pre_death_counters.clone(),
                                         });
                                     }
                                     ZoneId::Command(_) => {
@@ -808,6 +820,8 @@ fn execute_effect_inner(
                                             events.push(GameEvent::PermanentDestroyed {
                                                 object_id: id,
                                                 new_grave_id: new_id,
+                                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                                pre_lba_counters: pre_death_counters.clone(),
                                             });
                                         }
                                     }
@@ -851,6 +865,8 @@ fn execute_effect_inner(
                                     events.push(GameEvent::PermanentDestroyed {
                                         object_id: id,
                                         new_grave_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                 }
                             }
@@ -979,6 +995,8 @@ fn execute_effect_inner(
                                         player: owner,
                                         object_id: id,
                                         new_exile_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                     destroyed_count += 1;
                                 }
@@ -1001,6 +1019,8 @@ fn execute_effect_inner(
                                         events.push(GameEvent::PermanentDestroyed {
                                             object_id: id,
                                             new_grave_id: new_id,
+                                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                            pre_lba_counters: pre_death_counters.clone(),
                                         });
                                     }
                                     destroyed_count += 1;
@@ -1042,6 +1062,8 @@ fn execute_effect_inner(
                                 events.push(GameEvent::PermanentDestroyed {
                                     object_id: id,
                                     new_grave_id: new_id,
+                                    // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                    pre_lba_counters: pre_death_counters.clone(),
                                 });
                             }
                             destroyed_count += 1;
@@ -1086,11 +1108,11 @@ fn execute_effect_inner(
                 .collect();
             let mut exiled_count: u32 = 0;
             for id in ids_to_exile {
-                let owner = state
+                let (owner, pre_lba_counters) = state
                     .objects
                     .get(&id)
-                    .map(|o| o.owner)
-                    .unwrap_or(ctx.controller);
+                    .map(|o| (o.owner, o.counters.clone()))
+                    .unwrap_or((ctx.controller, im::OrdMap::new()));
                 // CR 614: Check replacement effects before exiling.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1117,6 +1139,8 @@ fn execute_effect_inner(
                                         player: owner,
                                         object_id: id,
                                         new_exile_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_lba_counters.clone(),
                                     });
                                     exiled_count += 1;
                                 }
@@ -1148,6 +1172,8 @@ fn execute_effect_inner(
                                 player: owner,
                                 object_id: id,
                                 new_exile_id: new_id,
+                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                pre_lba_counters: pre_lba_counters.clone(),
                             });
                             exiled_count += 1;
                         }
@@ -1206,11 +1232,11 @@ fn execute_effect_inner(
                 .collect();
             let mut bounced_count: u32 = 0;
             for id in ids_to_bounce {
-                let owner = state
+                let (owner, pre_lba_counters) = state
                     .objects
                     .get(&id)
-                    .map(|o| o.owner)
-                    .unwrap_or(ctx.controller);
+                    .map(|o| (o.owner, o.counters.clone()))
+                    .unwrap_or((ctx.controller, im::OrdMap::new()));
                 // CR 614: Check replacement effects before bouncing.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1237,6 +1263,8 @@ fn execute_effect_inner(
                                         player: owner,
                                         object_id: id,
                                         new_hand_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_lba_counters.clone(),
                                     });
                                     bounced_count += 1;
                                 }
@@ -1269,6 +1297,8 @@ fn execute_effect_inner(
                                 player: owner,
                                 object_id: id,
                                 new_hand_id: new_id,
+                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                pre_lba_counters: pre_lba_counters.clone(),
                             });
                             bounced_count += 1;
                         }
@@ -1282,25 +1312,31 @@ fn execute_effect_inner(
             for (idx_opt, resolved) in targets {
                 match resolved {
                     ResolvedTarget::Object(id) => {
-                        let owner = state
+                        // CR 603.10a: capture counters BEFORE move_object_to_zone resets them.
+                        // Only relevant when exiling from the battlefield (WhenLeavesBattlefield LKI).
+                        let (owner, from_zone_type, pre_lba_counters) = state
                             .objects
                             .get(&id)
-                            .map(|o| o.owner)
-                            .unwrap_or(ctx.controller);
-                        // CR 614: Check replacement effects before exiling.
-                        let from_zone_type = state
-                            .objects
-                            .get(&id)
-                            .map(|o| match o.zone {
-                                ZoneId::Battlefield => ZoneType::Battlefield,
-                                ZoneId::Graveyard(_) => ZoneType::Graveyard,
-                                ZoneId::Hand(_) => ZoneType::Hand,
-                                ZoneId::Library(_) => ZoneType::Library,
-                                ZoneId::Stack => ZoneType::Stack,
-                                ZoneId::Exile => ZoneType::Exile,
-                                ZoneId::Command(_) => ZoneType::Command,
+                            .map(|o| {
+                                let fz = match o.zone {
+                                    ZoneId::Battlefield => ZoneType::Battlefield,
+                                    ZoneId::Graveyard(_) => ZoneType::Graveyard,
+                                    ZoneId::Hand(_) => ZoneType::Hand,
+                                    ZoneId::Library(_) => ZoneType::Library,
+                                    ZoneId::Stack => ZoneType::Stack,
+                                    ZoneId::Exile => ZoneType::Exile,
+                                    ZoneId::Command(_) => ZoneType::Command,
+                                };
+                                // Only capture counters for battlefield→exile (LKI relevant).
+                                let counters = if o.zone == ZoneId::Battlefield {
+                                    o.counters.clone()
+                                } else {
+                                    im::OrdMap::new()
+                                };
+                                (o.owner, fz, counters)
                             })
-                            .unwrap_or(ZoneType::Battlefield);
+                            .unwrap_or((ctx.controller, ZoneType::Battlefield, im::OrdMap::new()));
+                        // CR 614: Check replacement effects before exiling.
                         let action = crate::rules::replacement::check_zone_change_replacement(
                             state,
                             id,
@@ -1329,6 +1365,8 @@ fn execute_effect_inner(
                                                 player: ctx.controller,
                                                 object_id: id,
                                                 new_exile_id: new_id,
+                                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                                pre_lba_counters: pre_lba_counters.clone(),
                                             });
                                         }
                                     }
@@ -1366,6 +1404,8 @@ fn execute_effect_inner(
                                         player: ctx.controller,
                                         object_id: id,
                                         new_exile_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_lba_counters.clone(),
                                     });
                                 }
                             }
@@ -2016,6 +2056,14 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list_indexed(state, target, ctx);
             for (idx_opt, resolved) in targets {
                 if let ResolvedTarget::Object(id) = resolved {
+                    // CR 603.10a: capture counters BEFORE move_object_to_zone resets them.
+                    // Only relevant for battlefield→exile/hand moves (LKI snapshot).
+                    let pre_lba_counters = state
+                        .objects
+                        .get(&id)
+                        .filter(|o| o.zone == ZoneId::Battlefield)
+                        .map(|o| o.counters.clone())
+                        .unwrap_or_default();
                     let dest = resolve_zone_target(to, state, ctx);
                     if let Ok((new_id, _)) = state.move_object_to_zone(id, dest) {
                         // Apply controller override for "under your control" effects (e.g. Reanimate).
@@ -2043,6 +2091,8 @@ fn execute_effect_inner(
                                 player: ctx.controller,
                                 object_id: id,
                                 new_exile_id: new_id,
+                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                pre_lba_counters: pre_lba_counters.clone(),
                             },
                             ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
                                 player: ctx.controller,
@@ -2057,6 +2107,8 @@ fn execute_effect_inner(
                                 player: ctx.controller,
                                 object_id: id,
                                 new_hand_id: new_id,
+                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                pre_lba_counters: pre_lba_counters.clone(),
                             },
                             ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
                                 player: ctx.controller,
@@ -2068,6 +2120,7 @@ fn execute_effect_inner(
                                 player: ctx.controller,
                                 object_id: id,
                                 new_exile_id: new_id,
+                                pre_lba_counters: pre_lba_counters.clone(),
                             },
                         };
                         events.push(event);
@@ -2439,6 +2492,7 @@ fn execute_effect_inner(
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
+                            lki_counters: ctx.lki_counters.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2473,6 +2527,7 @@ fn execute_effect_inner(
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
+                            lki_counters: ctx.lki_counters.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2613,6 +2668,8 @@ fn execute_effect_inner(
                                             player: owner,
                                             object_id: id,
                                             new_exile_id: new_id,
+                                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                            pre_lba_counters: pre_death_counters.clone(),
                                         });
                                         // CR 701.21a: PermanentSacrificed alongside exile.
                                         events.push(GameEvent::PermanentSacrificed {
@@ -2637,6 +2694,8 @@ fn execute_effect_inner(
                                             events.push(GameEvent::PermanentDestroyed {
                                                 object_id: id,
                                                 new_grave_id: new_id,
+                                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                                pre_lba_counters: pre_death_counters.clone(),
                                             });
                                         }
                                         // CR 701.21a: PermanentSacrificed alongside death/destroy.
@@ -2685,6 +2744,8 @@ fn execute_effect_inner(
                                     events.push(GameEvent::PermanentDestroyed {
                                         object_id: id,
                                         new_grave_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                 }
                                 // CR 701.21a: PermanentSacrificed alongside death/destroy.
@@ -4419,12 +4480,20 @@ fn execute_effect_inner(
                     if !is_on_bf {
                         continue;
                     }
+                    // CR 603.10a: capture counters BEFORE move_object_to_zone resets them.
+                    let pre_lba_counters = state
+                        .objects
+                        .get(&id)
+                        .map(|o| o.counters.clone())
+                        .unwrap_or_default();
                     // Step 1: Exile the permanent.
                     if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
                         events.push(GameEvent::ObjectExiled {
                             player: ctx.controller,
                             object_id: id,
                             new_exile_id: exile_id,
+                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                            pre_lba_counters: pre_lba_counters.clone(),
                         });
                         // Step 2: Return from exile to battlefield under owner's control.
                         if let Ok((new_bf_id, _)) =
@@ -4488,11 +4557,16 @@ fn execute_effect_inner(
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
                     // Verify the target is on the battlefield.
-                    let owner = state
-                        .objects
-                        .get(&id)
-                        .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
-                        .map(|o| o.owner);
+                    let (owner, pre_lba_counters_delayed) = {
+                        let obj_opt = state
+                            .objects
+                            .get(&id)
+                            .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in());
+                        match obj_opt {
+                            Some(o) => (Some(o.owner), o.counters.clone()),
+                            None => (None, im::OrdMap::new()),
+                        }
+                    };
                     let Some(_owner) = owner else {
                         continue;
                     };
@@ -4502,6 +4576,8 @@ fn execute_effect_inner(
                             player: ctx.controller,
                             object_id: id,
                             new_exile_id: exile_id,
+                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                            pre_lba_counters: pre_lba_counters_delayed.clone(),
                         });
                         // Step 2: Register a DelayedTrigger to return it later.
                         let action = match return_to {
@@ -5031,6 +5107,8 @@ fn execute_effect_inner(
                             player: *pid,
                             object_id: old_id,
                             new_exile_id,
+                            // From graveyard — no LBA trigger LKI needed.
+                            pre_lba_counters: im::OrdMap::new(),
                         });
                         // Track the NEW exile ObjectId for step 3.
                         exiled_this_player.push(new_exile_id);
@@ -5092,6 +5170,8 @@ fn execute_effect_inner(
                                         player: owner,
                                         object_id: id,
                                         new_exile_id: new_id,
+                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                        pre_lba_counters: pre_death_counters.clone(),
                                     });
                                     events.push(GameEvent::PermanentSacrificed {
                                         player: pid,
@@ -5116,6 +5196,8 @@ fn execute_effect_inner(
                                         events.push(GameEvent::PermanentDestroyed {
                                             object_id: id,
                                             new_grave_id: new_id,
+                                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                            pre_lba_counters: pre_death_counters.clone(),
                                         });
                                     }
                                     events.push(GameEvent::PermanentSacrificed {
@@ -5161,6 +5243,8 @@ fn execute_effect_inner(
                                 events.push(GameEvent::PermanentDestroyed {
                                     object_id: id,
                                     new_grave_id: new_id,
+                                    // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                    pre_lba_counters: pre_death_counters.clone(),
                                 });
                             }
                             events.push(GameEvent::PermanentSacrificed {
@@ -6269,6 +6353,16 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         EffectAmount::PowerOfSacrificedCreature => {
             ctx.sacrificed_creature_powers.first().copied().unwrap_or(0)
         }
+        // CR 603.10a / CR 113.7a: Read counter count from LKI snapshot captured at
+        // trigger-fire time. Returns 0 if no LKI was captured (variant misused on
+        // a non-LBA trigger) or if the requested counter type is absent (source died
+        // with zero counters of that kind). The implicit target is the trigger source.
+        EffectAmount::CounterCountAtLastKnownInformation { counter } => {
+            ctx.lki_counters
+                .as_ref()
+                .and_then(|map| map.get(counter).copied())
+                .unwrap_or(0) as i32
+        }
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────
@@ -6301,6 +6395,9 @@ fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
     }
 }
 /// Produce the appropriate `GameEvent` for a zone move given the destination.
+/// NOTE: `pre_lba_counters` is always empty here because this helper is used for
+/// non-battlefield zone moves (library scanning, etc.). For battlefield→exile/hand
+/// moves, callers that need LKI counter snapshots use inline GameEvent construction.
 fn zone_move_event(
     controller: PlayerId,
     old_id: ObjectId,
@@ -6312,6 +6409,7 @@ fn zone_move_event(
             player: controller,
             object_id: old_id,
             new_exile_id: new_id,
+            pre_lba_counters: im::OrdMap::new(),
         },
         ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
             player: controller,
@@ -6326,6 +6424,7 @@ fn zone_move_event(
             player: controller,
             object_id: old_id,
             new_hand_id: new_id,
+            pre_lba_counters: im::OrdMap::new(),
         },
         ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
             player: controller,
@@ -6336,6 +6435,7 @@ fn zone_move_event(
             player: controller,
             object_id: old_id,
             new_exile_id: new_id,
+            pre_lba_counters: im::OrdMap::new(),
         },
     }
 }
@@ -7241,6 +7341,7 @@ pub fn check_static_condition(
                 chosen_creature_type: None,
                 mana_produced: None,
                 sacrificed_creature_powers: vec![],
+                lki_counters: None,
             };
             check_condition(state, condition, &ctx)
         }

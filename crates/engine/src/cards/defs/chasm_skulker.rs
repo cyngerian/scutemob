@@ -29,11 +29,33 @@ pub fn card() -> CardDefinition {
             },
             // When Chasm Skulker dies, create X 1/1 blue Squid creature tokens with islandwalk,
             // where X is the number of +1/+1 counters on it.
-            // TODO(OOS-TS-4): WhenDies CounterCount{Source, PlusOnePlusOne} resolves to 0 tokens
-            // because move_object_to_zone resets counters to empty (state/mod.rs:420). This card
-            // produces wrong game state (always 0 Squid tokens) until a pre-death-counter snapshot
-            // mechanism lands in PendingTrigger / EffectContext per CR 603.10a "leaves-battlefield
-            // triggers look back in time." Blocked on OOS-TS-4 primitive (memory/primitives/pb-retriage-CC.md).
+            // CR 603.10a: counter count read from LKI snapshot (counters cease on zone change per CR 122.2).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Squid".to_string(),
+                        power: 1,
+                        toughness: 1,
+                        colors: [Color::Blue].into_iter().collect(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Squid".to_string())].into_iter().collect(),
+                        keywords: [KeywordAbility::Landwalk(LandwalkType::BasicType(
+                            SubType("Island".to_string()),
+                        ))]
+                        .into_iter()
+                        .collect(),
+                        count: EffectAmount::CounterCountAtLastKnownInformation {
+                            counter: CounterType::PlusOnePlusOne,
+                        },
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

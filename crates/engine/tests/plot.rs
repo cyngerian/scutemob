@@ -678,6 +678,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     });
 
     let result = process_command(
@@ -1242,6 +1243,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     });
 
     let result = process_command(

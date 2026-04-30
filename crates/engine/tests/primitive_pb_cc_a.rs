@@ -93,14 +93,14 @@ fn resolve_via_apply(
 
 // ── Test 1: HASH_SCHEMA_VERSION sentinel ─────────────────────────────────────
 
-/// Catch any uncommitted bump after PB-TS. The next primitive that touches
-/// `TokenSpec` shape or `AbilityDefinition` shape must update both the constant and this sentinel.
+/// Catch any uncommitted bump after PB-LKI-CC. The next primitive that touches
+/// serialized struct shapes must update both the constant and this sentinel.
 #[test]
-fn test_hash_schema_version_after_pb_ts() {
+fn test_hash_schema_version_after_pb_lki_cc() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 14u8,
-        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
-         CR 111.1 / 608.2h); if you intentionally bumped it again, update this test \
+        HASH_SCHEMA_VERSION, 15u8,
+        "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
+         CR 603.10a / 113.7a); if you intentionally bumped it again, update this test \
          together with state/hash.rs history."
     );
 }

@@ -590,6 +590,9 @@ fn check_creature_sbas(
                                 player: owner,
                                 object_id: id,
                                 new_exile_id: new_id,
+                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                // pre_death_counters was captured before the zone move (sba.rs:540).
+                                pre_lba_counters: pre_death_counters.clone(),
                             });
                         }
                         ZoneId::Command(_) => {
@@ -714,6 +717,10 @@ fn check_planeswalker_sbas(
                                 player: owner,
                                 object_id: id,
                                 new_exile_id: new_id,
+                                // Planeswalkers exiled via replacement — loyalty counters not
+                                // used by WhenLeavesBattlefield LKI (planeswalkers use Loyalty
+                                // counter type, not typically referenced by LBA triggers).
+                                pre_lba_counters: im::OrdMap::new(),
                             });
                         }
                         ZoneId::Command(_) => {}
@@ -828,6 +835,8 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
         events.push(GameEvent::PermanentDestroyed {
             object_id: saga_id,
             new_grave_id: new_id,
+            // Saga sacrifice — no WhenLeavesBattlefield LKI counter trigger expected.
+            pre_lba_counters: im::OrdMap::new(),
         });
     }
     events
@@ -1132,14 +1141,16 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     }
     // CR 704.5m: Normal illegal Auras go to the graveyard.
     for id in normal_auras {
-        let owner = match state.objects.get(&id) {
-            Some(obj) => obj.owner,
+        let (owner, pre_lba_counters) = match state.objects.get(&id) {
+            Some(obj) => (obj.owner, obj.counters.clone()),
             None => continue,
         };
         if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
             events.push(GameEvent::AuraFellOff {
                 object_id: id,
                 new_grave_id: new_id,
+                // CR 603.10a: capture pre-move counters for WhenLeavesBattlefield triggers on the Aura.
+                pre_lba_counters,
             });
         }
     }

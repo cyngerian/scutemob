@@ -141,6 +141,7 @@ fn make_partner_with_trigger_stack_obj(
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     }
 }
 

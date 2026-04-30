@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed. ~45 open. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **PB-CC-C-followup shipped 2026-04-30** (`scutemob-15`, merged `7182a4c8`). Layer-7c continuous CDA primitive landed via Shape A+D hybrid (`AbilityDefinition::CdaModifyPowerToughness` + live-eval branch reusing `resolve_cda_amount`). HASH 12→13. Tests 2716→**2720** (+4). Vishgraz + Exuberant Fuseling unblocked. Review PASS-WITH-NITS, 0 HIGH, 1 MEDIUM (E1 fixed in fix-phase before signal-ready). Also this session: deterministic authoring-status report tooling shipped (`tools/authoring-report.py`, `docs/authoring-status*` — committed `faf1c7e8`). |
+| W6: Primitive + Card Authoring | — | available | — | **PB-LKI-CC shipped 2026-04-29** (`scutemob-17`). `EffectAmount::CounterCountAtLastKnownInformation { counter }` — LKI snapshot threaded `pre_death_counters → PendingTrigger.lki_counters → StackObject.lki_counters → EffectContext.lki_counters → resolve_amount`. HASH 14→**15**. Tests 2725→**2730** (+5). Chasm Skulker + Toothy Imaginary Friend unblocked. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,38 +23,35 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-29 evening – 2026-04-30 ~00:50 EDT
-**Workstream**: W6: Primitive (ESM-managed) + tooling
-**Task**: PB-CC-C-followup dispatch + collect (single worker) + canonical authoring-status report tooling
+**Date**: 2026-04-29
+**Workstream**: W6: Primitive (worker, scutemob-17)
+**Task**: PB-LKI-CC — `EffectAmount::CounterCountAtLastKnownInformation` for WhenDies/WhenLeavesBattlefield
 
 **Completed**:
-- **PB-CC-C-followup shipped** (`scutemob-15`, merged `7182a4c8` --no-ff). Worker chose Shape A+D hybrid: new `AbilityDefinition::CdaModifyPowerToughness` variant + live-eval branch reusing `resolve_cda_amount`. Substitution path (CR 608.2h) untouched — PB-CC-C T5 regression preserved. New path (CR 611.3a) re-resolves dynamic EffectAmount in `calculate_characteristics()`. 8 commits in worktree (engine + hash + cards + tests + clippy + fix-phase + memory artifacts).
-- **Cards unblocked**: `vishgraz_the_doomhive.rs` (CDA Layer 7c P/T per opponent poison) + `exuberant_fuseling.rs` (CDA Layer 7c power per oil counter on self). Both PB-CC-C-followup TODO citations cleared. Fuseling's `WheneverCreatureOrArtifactDies` death-trigger half remains TODO — out-of-scope separate primitive.
-- **HASH 12→13**, sentinel-assertion test files updated (6 test files this batch). Tests 2716→**2720** (+4 mandatory: a-e). Build/clippy/fmt all clean. Verified post-merge cargo test --workspace = 2720 passed.
-- **Review verdict**: PASS-WITH-NITS. 0 HIGH, 1 MEDIUM (E1 — asymmetric P/T amounts in `CdaModifyPowerToughness` register dispatch silently dropped one component; Vishgraz unaffected since amounts identical, but engine type-discipline gap). E1 fixed in fix-phase by splitting variant into two-effect dispatch. AC 3723 ("no open HIGH/MEDIUM") satisfied.
-- **Authoring-status tooling** (committed `faf1c7e8`, 5 files / 1,323 lines): `tools/authoring-report.py` (deterministic generator, stdlib-only), `docs/authoring-status.md` (auto-regenerated, never hand-edit), `docs/authoring-status-guide.md` (hand-written reading guide; documents intentionally-skipped scope), `docs/authoring-status-missing.txt` (sidecar worklist of 194 plan cards still missing on disk), `docs/authoring-status-prev.json` (snapshot for run-over-run Δ column). Headline at commit time: 1,748 def files; 88.1% plan coverage (1,442/1,636); 321 bonus defs traced to W2 split + W1-B ability batches + W6-prim samples; 915 clean / 652 todo / 181 empty.
-- **Discovery (data correction)**: earlier "10 cards added in last month" claim was wrong by an order of magnitude. Actual git log shows 278 NEW card files + 332 modified existing files in last 30 days (Wave A complete 91 cards, A-38 batch 1 53 cards, A-42 batch 1+2 77 cards, etc.). The `docs/project-status.md` "1456 / 1743 (84%)" snapshot from 2026-03-30 is stale — actual is **88.1% plan coverage** with **108% effective coverage** when bonus defs are counted.
+- **PB-LKI-CC implemented** (`scutemob-17`, branch `feat/pb-lki-cc-effectamountcountercount-lki-snapshot-for-whendies`). Path A chosen: new `EffectAmount::CounterCountAtLastKnownInformation { counter }` (disc 17). Counter snapshot threaded: `pre_death_counters → PendingTrigger.lki_counters → StackObject.lki_counters → EffectContext.lki_counters → resolve_amount arm`.
+- **Cards fixed**: `chasm_skulker.rs` (WhenDies: X Squid tokens) + `toothy_imaginary_friend.rs` (WhenLeavesBattlefield: draw X cards). Both now use the LKI variant instead of `CounterCount{Source}` which returns 0 after zone transition.
+- **HASH 14→15**: `PendingTrigger.lki_counters` + `StackObject.lki_counters` + new `EffectAmount` variant all hashed. `HASH_SCHEMA_VERSION` bumped. 8 sentinel-assertion test files updated.
+- **Tests 2725→2730** (+5): `crates/engine/tests/primitive_pb_lki_cc.rs` — (a) Chasm Skulker 3 counters → 3 Squids, (b) Toothy 4 counters → 4 draws, (c) zero counters → 0 tokens no panic, (d) multi-type counter discrimination, (e) HASH sentinel.
+- **`im` added to dev-dependencies** (`Cargo.toml`) — 14 test files constructing `StackObject` directly needed `im::OrdMap::new()` for the new field. 1 internal test in `casting.rs` also fixed. `primitive_pb37.rs` EffectContext direct construction uses `None`.
+- **OOS seeds filed**: `OOS-LKI-1` (Hardened Scales + LKI tokens — confirmed no interaction) + `OOS-LKI-2` (Parallel Lives + LKI token count — confirmed working correctly). Appended to `memory/primitives/pb-retriage-CC.md`.
+- Build/clippy/fmt all clean. `cargo build --workspace` clean (no TUI/replay-viewer gaps — `EffectAmount` match arms added in `layers.rs` + `hash.rs`; no new enum variants requiring exhaustive matches elsewhere).
 
 **Not done / deferred**:
-- 9 named seeds in `memory/primitives/pb-retriage-CC.md` stop-and-flag log still untouched (PB-TS token-count is biggest umbrella, ~5+ cards).
-- TODO classifier in `tools/authoring-report.py` covers 47 patterns; OTHER bucket still 682/1187 lines (~57%). Trivial to extend by adding regexes — see "Raw OTHER samples" section of the report.
-- `docs/project-status.md` is now demonstrably stale (per authoring-report numbers vs. its 2026-03-30 snapshot). Worth a refresh pass to align with the canonical report.
-- `.esm/` and `.worktrees/` not in `.gitignore` — show as untracked every session. Trivial fix queued but not done.
+- PB-LKI-CC review memo not yet written (plan calls for review after implementation). Worker outputs are complete; review phase is coordinator responsibility.
+- Remaining 8 stop-and-flag seeds in `pb-retriage-CC.md` still untouched.
+- `docs/project-status.md` Card Health section still stale (canonical: `tools/authoring-report.py`).
 
 **Next session**:
-- **Most natural**: pick up one of the 9 stop-and-flag seeds. PB-TS (token-count → EffectAmount) has the largest yield (~5 cards: Phyrexian Swarmlord, Chasm Skulker, Anim Pakal, Krenko, Izoni) and is well-scoped from prior re-triage memos.
-- **Alternative**: re-run `python3 tools/authoring-report.py` and use the lagging-group verdicts (`activated-tap` unwritten, `untap-phase` engine-blocked, etc.) to pick a Wave authoring run or a primitive batch.
-- **Bookkeeping option**: refresh `docs/project-status.md` Card Health section to point at the authoring-status report as canonical, and gitignore `.esm/` + `.worktrees/`.
+- Coordinator should collect `scutemob-17` (merge to main), then pick next primitive or card authoring wave.
+- The next stop-and-flag seed with significant yield is `PB-CC-B` (Armorcraft Judge / `TargetFilter.has_counter_type`) or a Wave authoring run.
 
-**Hazards** (carrying forward + this session's findings):
-- **CWD-stickiness in Bash tool** *(re-confirmed this session)*: shell drifted into `.worktrees/scutemob-15` from an earlier `cd` and `git branch --show-current` then returned the worker branch. Fix used: `cd /home/skydude/projects/scutemob` before merge. The hazard from prior handoff is real and recurring — recipe stands. Always reset cwd to absolute repo root before `esm worktree merge`.
-- **Dispatch-vs-inline correction** *(this session)*: I started running `/implement-primitive` inline as the coordinator. User correctly intervened — coordinator must `/dispatch` to a worker, never run primitive batches inline. Reinforced in `feedback_dispatch_not_inline.md` (new this session).
-- **`esm task transition --attest working_branch=<short>` poisons merge** (recipe carried forward from 2026-04-29). Pass the FULL long-form branch from `esm worktree create`.
-- **`bash -c '...'` apostrophe parse error** (carried forward).
-- **Worker-worktree `.claude/skills/` deletion artifact** (carried forward; `git diff main..HEAD --stat` post-merge).
-- **Carried-forward LOWs**: BASELINE-LKI-01, PB-Q4-M01, marisi stale-TODO, 11 PB-T LOWs, 5 PB-P LOWs, 1 PB-D LOW, 4×PB-CC review memo LOWs. Plus this session's 1 LOW from PB-CC-C-followup review (E1 was MEDIUM but fixed; check `memory/primitives/pb-review-CC-C-followup.md` if it exists).
+**Hazards** (carrying forward):
+- **CWD-stickiness in Bash tool**: always use absolute paths.
+- **`esm task transition --attest working_branch=<short>` poisons merge**: pass full long-form branch from `esm worktree create`.
+- **Worker-worktree `.claude/skills/` deletion artifact**: check `git diff main..HEAD --stat` post-merge.
+- **Carried-forward LOWs**: BASELINE-LKI-01, PB-Q4-M01, marisi stale-TODO, 11 PB-T LOWs, 5 PB-P LOWs, 1 PB-D LOW, 4×PB-CC review memo LOWs.
 
-**Commit prefix used**: worker-agent-generated (`scutemob-15:` worker side, `merge:` for merge commit) + coordinator `chore: authoring-status report tool` for inline tooling work.
+**Commit prefix used**: `scutemob-17:` (worker side)
 
 ## Handoff History
 

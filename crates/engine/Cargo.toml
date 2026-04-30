@@ -14,6 +14,7 @@ thiserror = "2"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+im = { version = "15", features = ["serde"] }
 proptest = "1"
 
 [[bench]]

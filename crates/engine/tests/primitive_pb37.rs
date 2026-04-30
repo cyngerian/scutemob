@@ -63,6 +63,7 @@ fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectC
         chosen_creature_type: None,
         mana_produced: None,
         sacrificed_creature_powers: vec![],
+        lki_counters: None,
     }
 }
 
