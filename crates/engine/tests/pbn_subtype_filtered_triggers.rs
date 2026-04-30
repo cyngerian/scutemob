@@ -550,6 +550,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   ModifyToughnessDynamic, CR 613.4c single-axis dynamic P/T modification).
     // PB-CC-C-followup bumped the sentinel from 12 → 13 (AbilityDefinition::CdaModifyPowerToughness
     //   disc 76, CR 611.3a continuous re-evaluation for Layer-7c dynamic CDA modifications).
+    // PB-TS bumped the sentinel from 13 → 14 (TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
         HASH_SCHEMA_VERSION, 14u8,

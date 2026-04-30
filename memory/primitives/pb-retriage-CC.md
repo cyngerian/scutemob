@@ -437,3 +437,36 @@ still absent. The fix is to add `apply_token_creation_replacement(state, ctx.con
 inside `CreateTokenAndAttachSource`'s dispatch arm (mirroring `CreateToken`).
 **Blocked on**: Engine fix in `effects/mod.rs` `Effect::CreateTokenAndAttachSource` arm; small
 isolated change, no new primitives required.
+
+### OOS-TS-4: Pre-death counter snapshot primitive
+
+**Cards**: Chasm Skulker, Toothy Imaginary Friend (and any future "when [permanent] dies, ...
+where X is the number of [counter] counters on it" patterns)
+**Oracle pattern**: "When [permanent] dies, create X 1/1 [type] creature tokens, where X is the
+number of [counter] counters on [permanent]." / "When [permanent] leaves the battlefield, ..."
+**Gap**: `move_object_to_zone` (state/mod.rs:420) creates a new `GameObject` with
+`counters: OrdMap::new()`, resetting all counter state on every zone change per CR 400.7. When a
+WhenDies / WhenLeavesBattlefield trigger resolves and its effect calls
+`EffectAmount::CounterCount { target: EffectTarget::Source, counter: ... }`, `resolve_amount`
+reads `state.objects[ctx.source].counters` — which is the **graveyard** object with empty counters.
+Result: the resolved count is always 0, producing wrong game state (0 tokens instead of X).
+CR 603.10a states that leaves-battlefield triggers "look back in time" for information about the
+object as it existed on the battlefield (the "last known information" rule). The engine has no
+mechanism to snapshot pre-death counter state and thread it through to trigger resolution.
+**Two possible engine paths**:
+(a) Add `EffectAmount::CounterCountAtLastKnownInformation { counter: CounterType }` — resolved
+    from a counter snapshot stored in `PendingTrigger` at the time the trigger fires (before
+    move_object_to_zone returns), or from `EffectContext.lki_counters` populated by the
+    WhenDies trigger dispatch. Cleanest approach; aligns with CR 603.10a / 113.7a.
+(b) Preserve counters on the graveyard object (copy them from the pre-transition battlefield
+    object into the new graveyard object). Smaller change but breaks the "new object, empty
+    counters" invariant from CR 400.7 / CR 122.2; risks cascading side effects on other
+    counter-check sites.
+**Yield**: ≥1 confirmed (Chasm Skulker token-create WhenDies). Toothy Imaginary Friend
+(WhenLeavesBattlefield draw X) is also broken by the same gap — it shipped pre-PB-TS but
+produces 0 draws, not X; this primitive would fix Toothy retroactively. Sweep for
+"when ... dies/leaves" + "number of ... counters" to find remaining cards.
+**Status**: Filed by PB-TS fix-phase 2026-04-30. Chasm Skulker death-trigger ability reverted
+to TODO comment in chasm_skulker.rs pending this primitive. Toothy deferred to this fix.
+**References**: state/mod.rs:420 (counters reset), effects/mod.rs:6011-6012 (comment on
+non-battlefield empty counters), CR 603.10a, CR 113.7a, CR 400.7, CR 122.2.

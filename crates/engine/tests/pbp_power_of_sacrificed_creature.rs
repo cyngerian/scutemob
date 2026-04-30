@@ -762,22 +762,22 @@ fn test_sacrifice_no_capture_returns_zero_defensive() {
     );
 }
 
-// ── Test M7: Hash parity — EffectAmount variants hash distinctly + sentinel 6 ──
+// ── Test M7: Hash parity — EffectAmount variants hash distinctly + sentinel 14 ──
 
 /// PB-P M7: Hash parity test — PowerOfSacrificedCreature and four neighboring EffectAmount
-/// variants all produce distinct hashes. Also asserts HASH_SCHEMA_VERSION == 6.
+/// variants all produce distinct hashes. Also asserts HASH_SCHEMA_VERSION == 14.
 ///
 /// CR: N/A (hash infrastructure).
 ///
-/// Discriminator: forces the sentinel assertion to fail if Change 10 (hash bump 5→6)
-/// was not applied. Discriminates the new variant from the existing neighbors.
+/// Discriminator: forces the sentinel assertion to fail if the bump is not made.
+/// Discriminates the new variant from the existing neighbors.
 #[test]
 fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // Assert hash sentinel is exactly 13 (PB-CC-C-followup bump from PB-CC-A's 12 for
-    // AbilityDefinition::CdaModifyPowerToughness disc 76, CR 611.3a).
+    // Assert hash sentinel is exactly 14 (PB-TS bump from PB-CC-C-followup's 13 for
+    // TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h).
     assert_eq!(
         HASH_SCHEMA_VERSION, 14u8,
         "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
