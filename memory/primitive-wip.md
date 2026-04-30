@@ -5,9 +5,9 @@ title: Layer-7c dynamic CDA with continuous re-evaluation (CR 611.3a continuous-
 cards_unblocked_estimated: exactly 2 (Vishgraz the Doomhive, Exuberant Fuseling) — both explicit Option-B deferrals from PB-CC-C and PB-CC-A. Per `feedback_pb_yield_calibration.md`: yield expectation is exactly 2; below 2 = hidden compound blocker → STOP and report.
 cards_unblocked_confirmed_post_plan: 2 (Vishgraz, Fuseling) — confirmed via dispatch-chain walk; verdict PASS, no hidden blockers
 started: 2026-04-29
-phase: review
+phase: fix-complete
 plan_file: memory/primitives/pb-plan-CC-C-followup.md
-review_file: memory/primitives/pb-review-CC-C-followup.md (TBD by reviewer)
+review_file: memory/primitives/pb-review-CC-C-followup.md
 shape_chosen: A+D hybrid — new `AbilityDefinition::CdaModifyPowerToughness { power: Option<EffectAmount>, toughness: Option<EffectAmount> }` variant + live-eval branch in `apply_layer_modification` that calls existing `resolve_cda_amount`. Mirrors Layer-7a `CdaPowerToughness`/`SetPtDynamic` precedent at Layer 7c.
 hash_version_pre: 12 (PB-CC-A)
 hash_version_post: 13 (PB-CC-C-followup — new AbilityDefinition variant + relaxed dynamic-LayerModification storage invariant for is_cda=true)
@@ -95,15 +95,15 @@ Cards explicitly blocked:
 
 ## Reviewer checklist
 
-- [ ] CR rules independently verified (611.3a, 611.3b, 613.4a, 613.4c, 604.2, 604.3a, 608.2h)
-- [ ] Card oracle text verified via MCP for Vishgraz and Fuseling
-- [ ] Every dispatch site walked and confirmed correct (especially: substitution path remains spell-only; static path re-evaluates live)
-- [ ] Hash arm + version bump + history entry verified
-- [ ] Test (a) — PB-CC-C T5 confirmed unmodified
-- [ ] Test (b) — post-mutation re-read genuinely re-evaluates
-- [ ] Test (c) — multi-opponent sum semantic confirmed (Vishgraz)
-- [ ] Test (d) — counter scaling confirmed (Fuseling)
-- [ ] Test (e) — hash determinism + HASH_SCHEMA_VERSION assertion present (= 13)
-- [ ] No scope creep (death trigger out of scope; per-target dynamic EffectAmount out of scope)
-- [ ] Review file written: `memory/primitives/pb-review-CC-C-followup.md`
-- [ ] Verdict: PASS or PASS-WITH-NITS (no open HIGH/MEDIUM)
+- [x] CR rules independently verified (611.3a, 611.3b, 613.4a, 613.4c, 604.2, 604.3a, 608.2h) — fetched via mtg-rules MCP and matched against engine implementation
+- [x] Card oracle text verified via MCP for Vishgraz and Fuseling — both card defs match MCP-reported oracle text exactly
+- [x] Every dispatch site walked and confirmed correct — DSL (card_definition.rs:962), register (replacement.rs:1873), storage (continuous_effect.rs unchanged), apply (layers.rs:1170-1212), hash (hash.rs:6072), substitution arm UNCHANGED for spell-only path (effects/mod.rs:2332)
+- [x] Hash arm + version bump + history entry verified — disc 76 unique, HASH_SCHEMA_VERSION=13, history entry 13 at hash.rs:61-66
+- [x] Test (a) — PB-CC-C T5 confirmed unmodified at primitive_pb_cc_c.rs:336-419
+- [x] Test (b) — post-mutation re-read genuinely re-evaluates (4 discriminating mutation steps: 0→2→5→0 oil counters)
+- [x] Test (c) — multi-opponent sum semantic confirmed (Vishgraz: 5+2+1=8 NOT max=5 NOT count=3, with controller's own poison ignored)
+- [x] Test (d) — counter scaling confirmed (Fuseling: 0→1→3→1 oil counters; toughness stays at 1; up- and down-scaling both verified)
+- [x] Test (e) — hash determinism + HASH_SCHEMA_VERSION assertion present (= 13); 5 sub-assertions
+- [x] No scope creep (death trigger out of scope; per-target dynamic EffectAmount out of scope)
+- [x] Review file written: `memory/primitives/pb-review-CC-C-followup.md`
+- [x] Verdict: PASS-WITH-NITS (1 MEDIUM E1 — both-Some toughness silent discard, footgun-prevention; 7 LOW — engine doc-comments + test polish). No HIGH open.
