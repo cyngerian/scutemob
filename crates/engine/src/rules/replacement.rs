@@ -1058,7 +1058,9 @@ pub fn queue_carddef_etb_triggers(
     card_id: Option<&crate::state::player::CardId>,
     registry: &crate::cards::registry::CardRegistry,
 ) -> Vec<GameEvent> {
-    use crate::cards::card_definition::{AbilityDefinition, Effect, EffectAmount, TokenSpec, TriggerCondition};
+    use crate::cards::card_definition::{
+        AbilityDefinition, Effect, EffectAmount, TokenSpec, TriggerCondition,
+    };
     use crate::effects::{execute_effect, EffectContext};
     use crate::state::stubs::{ETBSuppressFilter, PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};

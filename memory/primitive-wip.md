@@ -5,7 +5,7 @@ title: TokenSpec.count u32 → EffectAmount (dynamic token-count primitive — C
 cards_unblocked_estimated: 4 confirmed in-scope (Phyrexian Swarmlord, Chasm Skulker, Krenko Mob Boss, Izoni Thousand-Eyed). 1 OOS (Anim Pakal — non-Gnome attacker trigger filter, separate primitive seed). Per `feedback_pb_yield_calibration.md`: discount EffectAmount-PB yield 50–65%; expect 2–4 ships, AC requires ≥2.
 cards_unblocked_confirmed_post_plan: 4 (Phyrexian Swarmlord, Chasm Skulker, Krenko Mob Boss, Izoni Thousand-Eyed token-half/primary mechanic)
 started: 2026-04-30
-phase: plan-complete
+phase: implement-complete
 plan_file: memory/primitives/pb-plan-TS.md
 review_file: memory/primitives/pb-review-TS.md
 shape_chosen: A — replace `TokenSpec.count: u32` with `count: EffectAmount` directly. Default = `EffectAmount::Fixed(1)`. Predefined helpers keep `count: u32` parameter, convert internally to `EffectAmount::Fixed(count as i32)`. `Effect::CreateToken` and `Effect::CreateTokenAndAttachSource` resolve via `resolve_amount(state, &spec.count, ctx).max(0) as u32` BEFORE feeding into `apply_token_creation_replacement` (u32 boundary preserved). Rationale: type-system enforcement (per feedback_verify_full_chain.md), single source of truth, mirrors existing EffectAmount precedent for DrawCards/GainLife/Scry counts.
@@ -78,24 +78,25 @@ The remaining counter-count siblings have **token creation** halves blocked on a
 
 ## Implementation checklist (runner fills in)
 
-- [ ] Engine change 1: TokenSpec field shape change implemented per plan
-- [ ] Engine change 2: Effect::CreateToken / CreateTokenAndAttachSource resolve_amount integration
-- [ ] Engine change 3: apply_token_creation_replacement boundary preserved (resolved count → u32)
-- [ ] Engine change 4: predefined helper constructors updated
-- [ ] Engine change 5: dungeon.rs `spec.count` site updated
-- [ ] Engine change 6: hash arm + HASH_SCHEMA_VERSION bump 13→14 + history entry 14
-- [ ] Engine change 7: sentinel-assertion test files updated
-- [ ] Card def 1: phyrexian_swarmlord.rs re-authored (Upkeep token, no TODO)
-- [ ] Card def 2: chasm_skulker.rs re-authored (Death LKI token, no TODO)
-- [ ] Card def 3: krenko_mob_boss.rs re-authored (T-activated token, no TODO)
-- [ ] Card def 4: izoni_thousand_eyed.rs re-authored (ETB token primary mechanic, no TODO)
-- [ ] Anim Pakal blocker appended to memory/primitives/pb-retriage-CC.md
-- [ ] Izoni sacrifice-another cost blocker appended to memory/primitives/pb-retriage-CC.md
-- [ ] Tests: 5 mandatory in tests/primitive_pb_ts.rs (or matching file)
-- [ ] cargo test --workspace green, count > 2720
-- [ ] cargo build --workspace clean (replay-viewer + TUI exhaustive matches verified)
-- [ ] cargo fmt --check clean
-- [ ] cargo clippy --all-targets -- -D warnings clean
+- [x] Engine change 1: TokenSpec field shape change implemented — `count: u32` → `count: EffectAmount`, Default `EffectAmount::Fixed(1)` (card_definition.rs ~3114, ~3156)
+- [x] Engine change 2: Effect::CreateToken / CreateTokenAndAttachSource resolve_amount integration — `resolve_amount(state, &spec.count, ctx).max(0) as u32` added before replacement boundary (effects/mod.rs ~543, ~603)
+- [x] Engine change 3: apply_token_creation_replacement boundary preserved — u32 signature unchanged, resolves BEFORE calling replacement
+- [x] Engine change 4: predefined helper constructors updated — treasure/food/clue/blood/army/zombie_decayed all use `EffectAmount::Fixed(count as i32)` internally; also builder.rs (afterlife, living weapon germ), replacement.rs (fabricate servo)
+- [x] Engine change 5: dungeon.rs `spec.count` sites updated — 5 helpers `count: 1` → `EffectAmount::Fixed(1)`, Muiral's graveyard `spec.count = 2` → `EffectAmount::Fixed(2)`
+- [x] Engine change 6: hash arm + HASH_SCHEMA_VERSION bump 13→14 + history entry 14 — state/hash.rs; HashInto for TokenSpec dispatches through EffectAmount::hash_into (no new arm needed)
+- [x] Engine change 7: sentinel-assertion test files updated — primitive_pb_cc_a.rs, primitive_pb_cc_c_followup.rs, pbt_up_to_n_targets.rs (×2), effect_sacrifice_permanents_filter.rs, pbn_subtype_filtered_triggers.rs, pbd_damaged_player_filter.rs, pbp_power_of_sacrificed_creature.rs (8 total)
+- [x] Card def 1: phyrexian_swarmlord.rs re-authored — `PlayerCounterCount{EachOpponent, Poison}` token count, no TODO
+- [x] Card def 2: chasm_skulker.rs re-authored — `CounterCount{Source, PlusOnePlusOne}` token count (resolves at execution time), no TODO
+- [x] Card def 3: krenko_mob_boss.rs re-authored — `PermanentCount{Goblin creature, You}` token count, no TODO
+- [x] Card def 4: izoni_thousand_eyed.rs re-authored — `CardCount{Graveyard, You, Creature}` token count primary mechanic; secondary ability left TODO (OOS seed OOS-TS-2 appended)
+- [x] Anim Pakal blocker appended to memory/primitives/pb-retriage-CC.md (OOS-TS-1)
+- [x] Izoni sacrifice-another cost blocker appended to memory/primitives/pb-retriage-CC.md (OOS-TS-2)
+- [x] CreateTokenAndAttachSource missing replacement-effect call appended as OOS-TS-3
+- [x] Tests: 5 mandatory in crates/engine/tests/primitive_pb_ts.rs — (a) Fixed(N) creates N tokens, (b) Fixed(0) clamp, (c) PermanentCount Krenko-style, (d) CounterCount from live source, (e) hash determinism + HASH_SCHEMA_VERSION=14 sentinel
+- [x] cargo test --workspace green — 2725 tests passing (was 2720, +5 new)
+- [x] cargo build --workspace clean — replay-viewer + TUI exhaustive matches verified
+- [x] cargo fmt --check clean — zero diffs
+- [x] cargo clippy --all-targets -- -D warnings clean — zero warnings
 
 ## Reviewer checklist
 

@@ -594,10 +594,9 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel is bumped to 13 (PB-CC-C-followup added AbilityDefinition::CdaModifyPowerToughness
     // disc 76, CR 611.3a, Layer-7c dynamic CDA modification with continuous re-evaluation).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13u8,
-        "HASH_SCHEMA_VERSION must be 13 (PB-CC-C-followup bump from PB-CC-A's 12 for \
-         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a). \
-         If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
+         CR 111.1 / 608.2h). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);

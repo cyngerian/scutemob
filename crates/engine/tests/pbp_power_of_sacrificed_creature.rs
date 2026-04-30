@@ -779,10 +779,9 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     // Assert hash sentinel is exactly 13 (PB-CC-C-followup bump from PB-CC-A's 12 for
     // AbilityDefinition::CdaModifyPowerToughness disc 76, CR 611.3a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13u8,
-        "PB-CC-C-followup: HASH_SCHEMA_VERSION must be 13 (bump from PB-CC-A's 12 for \
-         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a). \
-         If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
+         CR 111.1 / 608.2h). If you bumped again, update this test and state/hash.rs history."
     );
 
     // Hash five EffectAmount variants; all must be distinct.

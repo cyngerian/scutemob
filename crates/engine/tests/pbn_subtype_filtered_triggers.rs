@@ -552,10 +552,9 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   disc 76, CR 611.3a continuous re-evaluation for Layer-7c dynamic CDA modifications).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13u8,
-        "HASH_SCHEMA_VERSION must be 13 (PB-CC-C-followup bump from PB-CC-A's 12 for \
-         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a). \
-         If you bumped the sentinel, update this test."
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
+         CR 111.1 / 608.2h). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

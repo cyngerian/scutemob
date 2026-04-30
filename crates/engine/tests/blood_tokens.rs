@@ -809,7 +809,11 @@ fn test_blood_token_create_via_effect() {
 
     // Verify spec creates the right token.
     let spec = blood_token_spec(1);
-    assert_eq!(spec.count, EffectAmount::Fixed(1), "blood_token_spec(1) creates 1 token");
+    assert_eq!(
+        spec.count,
+        EffectAmount::Fixed(1),
+        "blood_token_spec(1) creates 1 token"
+    );
     assert_eq!(spec.name, "Blood", "token name is Blood");
     assert!(
         spec.card_types.contains(&CardType::Artifact),
@@ -823,7 +827,11 @@ fn test_blood_token_create_via_effect() {
 
     // Verify multiple tokens.
     let spec3 = blood_token_spec(3);
-    assert_eq!(spec3.count, EffectAmount::Fixed(3), "blood_token_spec(3) creates 3 tokens");
+    assert_eq!(
+        spec3.count,
+        EffectAmount::Fixed(3),
+        "blood_token_spec(3) creates 3 tokens"
+    );
 
     // GameState is used to silence unused variable warning.
     let _ = state;

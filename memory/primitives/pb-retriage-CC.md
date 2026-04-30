@@ -395,3 +395,45 @@ The parked cards are **named, dispatchable seeds** for the next round of micro-P
 the outcome the yield-calibration feedback note recommends ("treat PB sizing as 'primitive
 scope + likely-shippable cards,' not 'all cards using the primitive.' The remainder are
 micro-PB seeds, not failures.").
+
+---
+
+## OOS Seeds appended by PB-TS runner (scutemob-16, 2026-04-30)
+
+### OOS-TS-1: Anim Pakal attacker filter
+
+**Card**: Anim Pakal, Thousandth Moon
+**Oracle text**: "Whenever Anim Pakal or another nontoken creature you control attacks, create a
+1/1 colorless Gnome artifact creature token."
+**Gap**: The WheneverYouAttackWithNonTokenNonGnome trigger condition requires filtering by
+`is_token: false` AND `has_subtype != Gnome` for the attacking creature. The current
+`TriggerCondition::WhenAttacks` and `ETBTriggerFilter` do not cover this pattern. A new
+`TriggerCondition::WheneverYouControlledCreatureAttacks { filter: AttackTriggerFilter }` variant
+or an extension of the existing attacker-trigger path is needed.
+**Blocked on**: Attacker-trigger filter primitive (new `TriggerCondition` variant + dispatch in
+`check_triggers` over `CreatureAttacked` or `AttackersDeclared` events).
+
+### OOS-TS-2: Izoni sacrifice-another-creature activated ability
+
+**Card**: Izoni, Thousand-Eyed
+**Oracle text**: "{B}{G}, Sacrifice another creature: You gain 1 life and draw a card."
+**Gap**: The cost `Sacrifice another creature` is a "sacrifice a creature you control other than
+the source" cost distinct from `ActivationCost::sacrifice_self` (which sacrifices the source).
+No `ActivationCost` variant for sacrifice-other exists. The card def currently has only the
+Undergrowth ETB trigger; the activated ability is left as a TODO.
+**Blocked on**: `ActivationCost` variant for sacrifice-another-creature (Cost::SacrificeOther or
+ActivationCost::sacrifice_filter excluding the source). Appended to OOS seeds 2026-04-29 by
+PB-TS runner.
+
+### OOS-TS-3: CreateTokenAndAttachSource missing replacement-effect call
+
+**Card**: Living Weapon permanents (e.g., Batterskull, Kaldra Compleat)
+**Gap**: `Effect::CreateTokenAndAttachSource` currently does NOT call
+`apply_token_creation_replacement` (the token-doubling boundary). This means Doubling Season /
+Parallel Lives / Anointed Procession do NOT double the Germ token. `Effect::CreateToken` was
+fixed by PB-TS (the `resolve_amount` call was added before the replacement boundary), but
+`CreateTokenAndAttachSource` only got the `resolve_amount` call — the replacement call is
+still absent. The fix is to add `apply_token_creation_replacement(state, ctx.controller, resolved_count)`
+inside `CreateTokenAndAttachSource`'s dispatch arm (mirroring `CreateToken`).
+**Blocked on**: Engine fix in `effects/mod.rs` `Effect::CreateTokenAndAttachSource` arm; small
+isolated change, no new primitives required.
