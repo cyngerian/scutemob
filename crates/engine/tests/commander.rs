@@ -1965,6 +1965,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     });
 
     assert_eq!(

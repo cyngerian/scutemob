@@ -1003,6 +1003,7 @@ fn test_eternalize_split_second_blocks() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

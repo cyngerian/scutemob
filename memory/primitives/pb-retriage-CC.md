@@ -470,3 +470,34 @@ produces 0 draws, not X; this primitive would fix Toothy retroactively. Sweep fo
 to TODO comment in chasm_skulker.rs pending this primitive. Toothy deferred to this fix.
 **References**: state/mod.rs:420 (counters reset), effects/mod.rs:6011-6012 (comment on
 non-battlefield empty counters), CR 603.10a, CR 113.7a, CR 400.7, CR 122.2.
+
+---
+
+## OOS seeds filed by PB-LKI-CC (scutemob-17, 2026-04-29)
+
+### OOS-LKI-1: Hardened Scales + CounterCountAtLastKnownInformation interaction
+
+**Category**: Out-of-scope interaction (replacement effects on counter placement from LKI tokens)
+**Discovered during**: PB-LKI-CC test planning
+**Description**: Hardened Scales says "If one or more +1/+1 counters would be placed on a
+creature you control, that many plus one +1/+1 counters are placed on it instead."
+When Chasm Skulker's WhenDies trigger creates N Squid tokens, the tokens themselves enter
+with 0 counters — no counter placement, so Hardened Scales does not interact with the token
+count at creation time. The `CounterCountAtLastKnownInformation` variant correctly resolves
+to the pre-death count; the Scales replacement has no surface here. This OOS item documents
+the confirmed no-interaction: the LKI counter read and Scales are orthogonal. No engine
+change required.
+**Status**: CONFIRMED-NO-INTERACTION. Documented for future reviewer clarity.
+
+### OOS-LKI-2: Parallel Lives / Anointed Procession + LKI token creation count
+
+**Category**: Out-of-scope interaction (token doubling replacement on LKI-driven CreateToken)
+**Discovered during**: PB-LKI-CC test planning
+**Description**: "If you would create one or more tokens, you instead create twice that many."
+When Chasm Skulker's WhenDies trigger creates N Squid tokens via `Effect::CreateToken` with
+`count: CounterCountAtLastKnownInformation`, the existing `apply_token_creation_replacement`
+boundary in `effects/mod.rs` runs AFTER `resolve_amount(spec.count, ...)` computes N. The
+doubling replacement correctly doubles the resolved N — it is not bounded by the LKI path.
+No new engine work required; the boundary is already in the right place (post-resolve, pre-create).
+**Status**: CONFIRMED-WORKING-CORRECTLY. No regression from PB-LKI-CC. Documented for future
+reviewer clarity.

@@ -6285,11 +6285,12 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
         // trigger-fire time. Returns 0 if no LKI was captured (variant misused on
         // a non-LBA trigger) or if the requested counter type is absent (source died
         // with zero counters of that kind). The implicit target is the trigger source.
-        EffectAmount::CounterCountAtLastKnownInformation { counter } => ctx
-            .lki_counters
-            .as_ref()
-            .and_then(|map| map.get(counter).copied())
-            .unwrap_or(0) as i32,
+        EffectAmount::CounterCountAtLastKnownInformation { counter } => {
+            ctx.lki_counters
+                .as_ref()
+                .and_then(|map| map.get(counter).copied())
+                .unwrap_or(0) as i32
+        }
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────

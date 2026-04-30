@@ -585,18 +585,18 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 // ── Test M6: Hash parity — all 4 TargetController variants produce distinct hashes ──
 
 /// PB-D M6: Hash parity test — all four TargetController variants hash to distinct values.
-/// Also verifies HASH_SCHEMA_VERSION is exactly 14 (PB-TS bump).
+/// Also verifies HASH_SCHEMA_VERSION is exactly 15 (PB-LKI-CC bump).
 ///
 /// Discriminator: forces the sentinel assertion to fail if the bump is not made.
 /// Any two variants colliding would indicate a hash implementation bug.
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
-    // Hash sentinel is bumped to 14 (PB-TS bumped TokenSpec.count from u32 → EffectAmount,
-    // CR 111.1 / 608.2h, dynamic token-count primitive).
+    // Hash sentinel is bumped to 15 (PB-LKI-CC bumped EffectAmount + PendingTrigger + StackObject,
+    // CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 14u8,
-        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
-         CR 111.1 / 608.2h). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 15u8,
+        "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
+         CR 603.10a / 113.7a). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);

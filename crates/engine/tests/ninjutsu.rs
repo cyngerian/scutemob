@@ -923,6 +923,7 @@ fn test_ninjutsu_split_second_blocks() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
     };
     state.stack_objects.push_back(stack_obj);
 
