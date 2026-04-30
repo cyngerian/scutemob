@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
                         supertypes: im::OrdSet::new(),
                         power: 1,
                         toughness: 1,
-                        count: 3,
+                        count: EffectAmount::Fixed(3),
                         // CR 509.1b: "This token can't block."
                         keywords: [KeywordAbility::Toxic(1), KeywordAbility::CantBlock]
                             .into_iter()

@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
                         keywords: [KeywordAbility::Haste].into_iter().collect(),
-                        count: 2,
+                        count: EffectAmount::Fixed(2),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,

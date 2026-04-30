@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Green].into_iter().collect(),
                         power: 2,
                         toughness: 2,
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         supertypes: im::OrdSet::new(),
                         keywords: im::OrdSet::new(),
                         tapped: false,

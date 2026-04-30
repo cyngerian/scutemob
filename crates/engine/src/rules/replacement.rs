@@ -1058,7 +1058,7 @@ pub fn queue_carddef_etb_triggers(
     card_id: Option<&crate::state::player::CardId>,
     registry: &crate::cards::registry::CardRegistry,
 ) -> Vec<GameEvent> {
-    use crate::cards::card_definition::{AbilityDefinition, Effect, TokenSpec, TriggerCondition};
+    use crate::cards::card_definition::{AbilityDefinition, Effect, EffectAmount, TokenSpec, TriggerCondition};
     use crate::effects::{execute_effect, EffectContext};
     use crate::state::stubs::{ETBSuppressFilter, PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};
@@ -1310,7 +1310,7 @@ pub fn queue_carddef_etb_triggers(
                             .collect(),
                         subtypes: [SubType("Servo".to_string())].into_iter().collect(),
                         keywords: im::OrdSet::new(),
-                        count: n,
+                        count: EffectAmount::Fixed(n as i32),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,

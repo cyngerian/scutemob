@@ -76,7 +76,7 @@ pub fn card() -> CardDefinition {
                             colors: [Color::Black].iter().copied().collect(),
                             card_types: [CardType::Creature].iter().copied().collect(),
                             subtypes: [SubType("Zombie".to_string())].iter().cloned().collect(),
-                            count: 1,
+                            count: EffectAmount::Fixed(1),
                             ..Default::default()
                         },
                     }),

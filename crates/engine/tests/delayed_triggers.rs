@@ -14,8 +14,8 @@
 use mtg_engine::state::game_object::ObjectId;
 use mtg_engine::state::types::SuperType;
 use mtg_engine::{
-    process_command, CardType, Command, GameEvent, GameState, GameStateBuilder, KeywordAbility,
-    PlayerId, Step, ZoneId,
+    process_command, CardType, Command, EffectAmount, GameEvent, GameState, GameStateBuilder,
+    KeywordAbility, PlayerId, Step, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -209,7 +209,7 @@ fn test_sacrifice_at_end_step_mobilize_token() {
         colors: [mtg_engine::state::types::Color::Red].into_iter().collect(),
         power: 1,
         toughness: 1,
-        count: 1,
+        count: EffectAmount::Fixed(1),
         sacrifice_at_end_step: true,
         ..Default::default()
     };
@@ -257,7 +257,7 @@ fn test_exile_at_end_step_token() {
         colors: [mtg_engine::state::types::Color::Red].into_iter().collect(),
         power: 3,
         toughness: 1,
-        count: 1,
+        count: EffectAmount::Fixed(1),
         keywords: [KeywordAbility::Haste].into_iter().collect(),
         exile_at_end_step: true,
         ..Default::default()

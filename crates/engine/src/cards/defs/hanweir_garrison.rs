@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Red].iter().copied().collect(),
                         card_types: [CardType::Creature].iter().copied().collect(),
                         subtypes: [SubType("Human".to_string())].iter().cloned().collect(),
-                        count: 2,
+                        count: EffectAmount::Fixed(2),
                         tapped: true,
                         enters_attacking: true,
                         ..Default::default()

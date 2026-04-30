@@ -538,12 +538,18 @@ fn execute_effect_inner(
         }
         // ── Permanents ────────────────────────────────────────────────────
         Effect::CreateToken { spec } => {
-            // CR 111.1 / CR 614.1: Apply token-creation replacement effects.
+            // CR 608.2h: Resolve dynamic count at execution time (answer determined once,
+            // when the effect is applied). Clamp to 0 before replacement math.
+            let raw_count = resolve_amount(state, &spec.count, ctx);
+            let resolved_count = raw_count.max(0) as u32;
+            // CR 111.1 / CR 614.1: Apply token-creation replacement effects (Doubling Season,
+            // Anointed Procession, etc.) on the resolved u32 count. The replacement boundary
+            // takes a u32 — EffectAmount resolution happens before it.
             let (token_count, repl_events) =
                 crate::rules::replacement::apply_token_creation_replacement(
                     state,
                     ctx.controller,
-                    spec.count,
+                    resolved_count,
                 );
             events.extend(repl_events);
             // CR 508.4: If enters_attacking, resolve the attack target from the
@@ -593,8 +599,11 @@ fn execute_effect_inner(
         // If multiple tokens are created (e.g., Doubling Season), the Equipment attaches
         // to the first one. Others are subject to SBAs normally (ruling 2020-08-07).
         Effect::CreateTokenAndAttachSource { spec } => {
+            // CR 608.2h: Resolve dynamic count at execution time.
+            let raw_count = resolve_amount(state, &spec.count, ctx);
+            let resolved_count = raw_count.max(0) as u32;
             let mut first_token_id: Option<ObjectId> = None;
-            for _ in 0..spec.count {
+            for _ in 0..resolved_count {
                 let obj = make_token(spec, ctx.controller);
                 if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {

@@ -6,7 +6,7 @@
 /// Such creatures are "attacking" but never "attacked" (no AttackersDeclared event).
 ///
 /// CR 508.4c: These creatures are not affected by attack requirements/restrictions.
-use mtg_engine::cards::card_definition::{EffectTarget, TokenSpec};
+use mtg_engine::cards::card_definition::{EffectAmount, EffectTarget, TokenSpec};
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::events::GameEvent;
 use mtg_engine::state::combat::{AttackTarget, CombatState};
@@ -34,7 +34,7 @@ fn human_token_spec_attacking() -> TokenSpec {
         colors: [Color::Red].iter().copied().collect(),
         card_types: [CardType::Creature].iter().copied().collect(),
         subtypes: [SubType("Human".to_string())].iter().cloned().collect(),
-        count: 2,
+        count: EffectAmount::Fixed(2),
         tapped: true,
         enters_attacking: true,
         ..Default::default()
@@ -249,7 +249,7 @@ fn test_token_enters_attacking_events_emitted() {
             toughness: 1,
             colors: im::OrdSet::new(),
             card_types: [CardType::Creature].iter().copied().collect(),
-            count: 1,
+            count: EffectAmount::Fixed(1),
             tapped: true,
             enters_attacking: true,
             ..Default::default()
@@ -302,7 +302,7 @@ fn test_last_created_permanent_after_create_token() {
                 toughness: 0,
                 colors: [Color::Black].iter().copied().collect(),
                 card_types: [CardType::Creature].iter().copied().collect(),
-                count: 1,
+                count: EffectAmount::Fixed(1),
                 ..Default::default()
             },
         },

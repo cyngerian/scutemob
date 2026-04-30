@@ -3111,7 +3111,9 @@ pub struct TokenSpec {
     pub subtypes: OrdSet<SubType>,
     pub keywords: OrdSet<KeywordAbility>,
     /// How many tokens to create.
-    pub count: u32,
+    /// CR 608.2h: resolved dynamically at execution time via `resolve_amount`;
+    /// use `EffectAmount::Fixed(N)` for a fixed count of N.
+    pub count: EffectAmount,
     /// True if the tokens enter the battlefield tapped.
     pub tapped: bool,
     /// CR 508.4: True if the tokens enter the battlefield attacking.
@@ -3153,7 +3155,7 @@ impl Default for TokenSpec {
             card_types: OrdSet::new(),
             subtypes: OrdSet::new(),
             keywords: OrdSet::new(),
-            count: 1,
+            count: EffectAmount::Fixed(1),
             tapped: false,
             enters_attacking: false,
             mana_color: None,
@@ -3180,7 +3182,7 @@ pub fn treasure_token_spec(count: u32) -> TokenSpec {
         keywords: OrdSet::new(),
         mana_abilities: vec![ManaAbility::treasure()],
         activated_abilities: vec![],
-        count,
+        count: EffectAmount::Fixed(count as i32),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -3228,7 +3230,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
             activation_zone: None,
             once_per_turn: false,
         }],
-        count,
+        count: EffectAmount::Fixed(count as i32),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -3277,7 +3279,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
             activation_zone: None,
             once_per_turn: false,
         }],
-        count,
+        count: EffectAmount::Fixed(count as i32),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -3329,7 +3331,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
             activation_zone: None,
             once_per_turn: false,
         }],
-        count,
+        count: EffectAmount::Fixed(count as i32),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -3353,7 +3355,7 @@ pub fn army_token_spec(subtype: &str) -> TokenSpec {
             .into_iter()
             .collect(),
         keywords: OrdSet::new(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -3377,7 +3379,7 @@ pub fn zombie_decayed_token_spec(count: u32) -> TokenSpec {
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Zombie".to_string())].into_iter().collect(),
         keywords: [KeywordAbility::Decayed].into_iter().collect(),
-        count,
+        count: EffectAmount::Fixed(count as i32),
         tapped: false,
         enters_attacking: false,
         mana_color: None,

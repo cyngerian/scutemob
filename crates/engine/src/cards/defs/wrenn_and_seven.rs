@@ -58,7 +58,7 @@ pub fn card() -> CardDefinition {
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Treefolk".to_string())].into_iter().collect(),
                         keywords: [KeywordAbility::Reach].into_iter().collect(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         ..Default::default()
                     },
                 },

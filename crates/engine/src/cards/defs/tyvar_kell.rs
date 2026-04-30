@@ -72,7 +72,7 @@ pub fn card() -> CardDefinition {
                         ]
                         .into_iter()
                         .collect(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         ..Default::default()
                     },
                 },

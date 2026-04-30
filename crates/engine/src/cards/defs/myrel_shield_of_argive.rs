@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
                         colors: im::OrdSet::new(),
                         power: 1,
                         toughness: 1,
-                        count: 2,
+                        count: EffectAmount::Fixed(2),
                         supertypes: im::OrdSet::new(),
                         keywords: im::OrdSet::new(),
                         tapped: false,

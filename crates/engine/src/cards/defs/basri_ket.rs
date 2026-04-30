@@ -80,7 +80,7 @@ pub fn card() -> CardDefinition {
                                     subtypes: [SubType("Soldier".to_string())]
                                         .into_iter()
                                         .collect(),
-                                    count: 1,
+                                    count: EffectAmount::Fixed(1),
                                     ..Default::default()
                                 },
                             }),

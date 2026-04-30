@@ -50,7 +50,7 @@ pub fn card() -> CardDefinition {
                             .iter()
                             .cloned()
                             .collect(),
-                            count: 2,
+                            count: EffectAmount::Fixed(2),
                             tapped: true,
                             enters_attacking: true,
                             ..Default::default()
