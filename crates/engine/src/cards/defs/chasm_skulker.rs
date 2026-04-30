@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
+            // Whenever you draw a card, put a +1/+1 counter on Chasm Skulker.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::AddCounter {
@@ -23,12 +24,48 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: Death trigger with variable token count (based on +1/+1 counters)
-            //   not expressible — TokenSpec.count is fixed u32.
+            // When Chasm Skulker dies, create X 1/1 blue Squid creature tokens with islandwalk,
+            // where X is the number of +1/+1 counters on it.
+            // CR 113.7a / CR 122.6: LKI — source is in graveyard but counter count preserved
+            // through move_object_to_zone (Toothy precedent). resolve_amount reads the
+            // graveyard object's counters via CounterCount { Source, PlusOnePlusOne }.
+            // CR 608.2h: count resolved at trigger resolution time (once, when effect applied).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Squid".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Squid".to_string())].into_iter().collect(),
+                        colors: [Color::Blue].into_iter().collect(),
+                        supertypes: im::OrdSet::new(),
+                        power: 1,
+                        toughness: 1,
+                        keywords: [KeywordAbility::Landwalk(LandwalkType::BasicType(
+                            SubType("Island".to_string()),
+                        ))]
+                        .into_iter()
+                        .collect(),
+                        count: EffectAmount::CounterCount {
+                            target: EffectTarget::Source,
+                            counter: CounterType::PlusOnePlusOne,
+                        },
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

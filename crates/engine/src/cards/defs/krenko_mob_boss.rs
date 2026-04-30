@@ -12,8 +12,44 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
-            // TODO: {T}: Create X tokens where X = count of Goblins you control.
-            // EffectAmount::CountCreaturesYouControlWithSubtype not in DSL.
+            // {T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.
+            // CR 111.1 / CR 608.2h: PermanentCount resolved at activation resolution time.
+            // Krenko himself counts as a Goblin (he's a Goblin Warrior on the battlefield).
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Goblin".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Goblin".to_string())].into_iter().collect(),
+                        colors: [Color::Red].into_iter().collect(),
+                        supertypes: im::OrdSet::new(),
+                        power: 1,
+                        toughness: 1,
+                        keywords: im::OrdSet::new(),
+                        count: EffectAmount::PermanentCount {
+                            filter: TargetFilter {
+                                has_card_type: Some(CardType::Creature),
+                                has_subtype: Some(SubType("Goblin".to_string())),
+                                controller: TargetController::You,
+                                ..Default::default()
+                            },
+                            controller: PlayerTarget::Controller,
+                        },
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                        ..Default::default()
+                    },
+                },
+                targets: vec![],
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }
