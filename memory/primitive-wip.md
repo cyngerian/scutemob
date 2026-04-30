@@ -5,8 +5,9 @@ title: TokenSpec.count u32 → EffectAmount (dynamic token-count primitive — C
 cards_unblocked_estimated: 4 confirmed in-scope (Phyrexian Swarmlord, Chasm Skulker, Krenko Mob Boss, Izoni Thousand-Eyed). 1 OOS (Anim Pakal — non-Gnome attacker trigger filter, separate primitive seed). Per `feedback_pb_yield_calibration.md`: discount EffectAmount-PB yield 50–65%; expect 2–4 ships, AC requires ≥2.
 cards_unblocked_confirmed_post_plan: 3 (Phyrexian Swarmlord, Krenko Mob Boss, Izoni Thousand-Eyed token-half/primary mechanic)
 cards_unblocked_confirmed_post_review: 3 valid (Phyrexian Swarmlord, Krenko after E1 fix, Izoni); Chasm Skulker has wrong game state per C1 HIGH finding (death-trigger CounterCount{Source} from graveyard reads empty counters → 0 tokens). Threshold of 2 still met after fix-phase clears C1 + E1.
+cards_unblocked_confirmed_post_rereview: 3 ships (Phyrexian Swarmlord, Krenko, Izoni primary). Chasm Skulker correctly reverted to TODO citing OOS-TS-4; first ability (counter-on-draw) still ships but does not count toward AC 3725 token-create primary mechanic. Threshold of ≥2 met.
 started: 2026-04-30
-phase: fix-complete
+phase: review-complete
 plan_file: memory/primitives/pb-plan-TS.md
 review_file: memory/primitives/pb-review-TS.md
 shape_chosen: A — replace `TokenSpec.count: u32` with `count: EffectAmount` directly. Default = `EffectAmount::Fixed(1)`. Predefined helpers keep `count: u32` parameter, convert internally to `EffectAmount::Fixed(count as i32)`. `Effect::CreateToken` and `Effect::CreateTokenAndAttachSource` resolve via `resolve_amount(state, &spec.count, ctx).max(0) as u32` BEFORE feeding into `apply_token_creation_replacement` (u32 boundary preserved). Rationale: type-system enforcement (per feedback_verify_full_chain.md), single source of truth, mirrors existing EffectAmount precedent for DrawCards/GainLife/Scry counts.
@@ -87,8 +88,8 @@ The remaining counter-count siblings have **token creation** halves blocked on a
 - [x] Engine change 6: hash arm + HASH_SCHEMA_VERSION bump 13→14 + history entry 14 — state/hash.rs; HashInto for TokenSpec dispatches through EffectAmount::hash_into (no new arm needed)
 - [x] Engine change 7: sentinel-assertion test files updated — primitive_pb_cc_a.rs, primitive_pb_cc_c_followup.rs, pbt_up_to_n_targets.rs (×2), effect_sacrifice_permanents_filter.rs, pbn_subtype_filtered_triggers.rs, pbd_damaged_player_filter.rs, pbp_power_of_sacrificed_creature.rs (8 total)
 - [x] Card def 1: phyrexian_swarmlord.rs re-authored — `PlayerCounterCount{EachOpponent, Poison}` token count, no TODO
-- [x] Card def 2: chasm_skulker.rs re-authored — `CounterCount{Source, PlusOnePlusOne}` token count (resolves at execution time), no TODO **— REVIEWED: produces wrong game state per C1 HIGH; counter snapshot primitive missing**
-- [x] Card def 3: krenko_mob_boss.rs re-authored — `PermanentCount{Goblin creature, You}` token count, no TODO **— REVIEWED: timing_restriction wrongly set to SorcerySpeed per E1 HIGH**
+- [x] Card def 2: chasm_skulker.rs re-authored — `CounterCount{Source, PlusOnePlusOne}` token count (resolves at execution time), no TODO **— REVIEWED: produces wrong game state per C1 HIGH; counter snapshot primitive missing — REVERTED to TODO in fix-phase, blocked on OOS-TS-4**
+- [x] Card def 3: krenko_mob_boss.rs re-authored — `PermanentCount{Goblin creature, You}` token count, no TODO **— REVIEWED: timing_restriction wrongly set to SorcerySpeed per E1 HIGH — FIXED to None in fix-phase**
 - [x] Card def 4: izoni_thousand_eyed.rs re-authored — `CardCount{Graveyard, You, Creature}` token count primary mechanic; secondary ability left TODO (OOS seed OOS-TS-2 appended)
 - [x] Anim Pakal blocker appended to memory/primitives/pb-retriage-CC.md (OOS-TS-1)
 - [x] Izoni sacrifice-another cost blocker appended to memory/primitives/pb-retriage-CC.md (OOS-TS-2)
@@ -127,3 +128,22 @@ The remaining counter-count siblings have **token creation** halves blocked on a
 - `cargo test --workspace`: PASS — 2725 tests, 0 failed
 - `cargo fmt --check`: PASS — zero diffs
 - `cargo clippy --all-targets -- -D warnings`: PASS — zero warnings
+
+## Re-review checklist (post fix-phase commit `4fde5d66`)
+
+- [x] Read fix-phase commit `4fde5d66` and verified diff scope (krenko_mob_boss.rs one-line, chasm_skulker.rs revert + comment, pb-retriage-CC.md OOS-TS-4 append, three sentinel test files prose updates)
+- [x] E1 verified RESOLVED — krenko_mob_boss.rs:48 reads `timing_restriction: None`; oracle re-verified via MCP confirms no sorcery restriction
+- [x] C1 verified RESOLVED — chasm_skulker.rs second ability fully reverted to TODO comment block citing OOS-TS-4 + state/mod.rs:420 + CR 603.10a; aspirationally-wrong "Toothy precedent" wording removed; first ability (counter-on-draw) intact
+- [x] L4 verified RESOLVED — OOS-TS-4 entry in pb-retriage-CC.md (lines 441-472) cites CR 603.10a / 113.7a / 400.7 / 122.2, references state/mod.rs:420 and effects/mod.rs:6011-6012, names two engine paths, identifies Toothy as also-affected
+- [x] L1 verified RESOLVED — pbd_damaged_player_filter.rs prose now cites "PB-TS bumped HASH_SCHEMA_VERSION 13→14"
+- [x] L2 verified RESOLVED — pbp_power_of_sacrificed_creature.rs header now says "sentinel 14"; inline comment cites PB-TS bump
+- [x] L3 verified RESOLVED — pbn_subtype_filtered_triggers.rs history block now contains the PB-TS bump line
+- [x] No regressions introduced by the fix commit — diff is purely card-def revert, constant change, comment edits, OOS seed append; no engine code paths altered
+- [x] No new findings opened
+- [x] Review file updated with re-review section: `memory/primitives/pb-review-TS.md` (lines 291+)
+- [x] Verdict: PASS (0 HIGH / 0 MEDIUM open; all LOWs resolved including load-bearing L4)
+
+## Next step
+
+Branch is **PASS** and ready for /review + signal-ready on ESM task scutemob-16. Coordinator should
+proceed to merge to main and close PB-TS WIP.
