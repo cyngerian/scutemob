@@ -5,7 +5,7 @@ title: Layer-7c dynamic CDA with continuous re-evaluation (CR 611.3a continuous-
 cards_unblocked_estimated: exactly 2 (Vishgraz the Doomhive, Exuberant Fuseling) — both explicit Option-B deferrals from PB-CC-C and PB-CC-A. Per `feedback_pb_yield_calibration.md`: yield expectation is exactly 2; below 2 = hidden compound blocker → STOP and report.
 cards_unblocked_confirmed_post_plan: 2 (Vishgraz, Fuseling) — confirmed via dispatch-chain walk; verdict PASS, no hidden blockers
 started: 2026-04-29
-phase: fix-complete
+phase: review-complete
 plan_file: memory/primitives/pb-plan-CC-C-followup.md
 review_file: memory/primitives/pb-review-CC-C-followup.md
 shape_chosen: A+D hybrid — new `AbilityDefinition::CdaModifyPowerToughness { power: Option<EffectAmount>, toughness: Option<EffectAmount> }` variant + live-eval branch in `apply_layer_modification` that calls existing `resolve_cda_amount`. Mirrors Layer-7a `CdaPowerToughness`/`SetPtDynamic` precedent at Layer 7c.
@@ -50,7 +50,7 @@ Cards explicitly blocked:
 - `memory/primitives/pb-review-CC-A.md` (Vishgraz deferral analysis lines 95, 129-156)
 - `memory/primitives/pb-retriage-CC.md` lines 180-184 (original PB-CC-C surface)
 - `crates/engine/src/cards/defs/{vishgraz_the_doomhive,exuberant_fuseling}.rs` (TODO citations)
-- CR 611.3a, 611.3b, 613.4a, 613.4c, 604.2, 604.3a
+- CR 611.3a, 611.3b, 613.4a/b/c, 604.2, 604.3a
 
 ## Planner checklist
 
@@ -92,6 +92,7 @@ Cards explicitly blocked:
 - [x] cargo build --workspace clean (verified replay-viewer + TUI exhaustive matches)
 - [x] cargo fmt --check clean (ran cargo fmt to fix auto-formatting, then --check passed)
 - [x] cargo clippy -- -D warnings — 0 lints after fixing doc_overindented_list_items / doc_lazy_continuation in primitive_pb_cc_c_followup.rs (commit to follow)
+- [x] **Fix-phase: E1 (MEDIUM) + E3 + E4 + T3 (LOWs) addressed** (commit 2668c35b) — Option B applied: register branch now emits two separate ModifyPowerDynamic + ModifyToughnessDynamic effects when both axes Some (eliminates silent toughness-discard footgun); doc-comments + test comment updated.
 
 ## Reviewer checklist
 
@@ -106,4 +107,6 @@ Cards explicitly blocked:
 - [x] Test (e) — hash determinism + HASH_SCHEMA_VERSION assertion present (= 13); 5 sub-assertions
 - [x] No scope creep (death trigger out of scope; per-target dynamic EffectAmount out of scope)
 - [x] Review file written: `memory/primitives/pb-review-CC-C-followup.md`
-- [x] Verdict: PASS-WITH-NITS (1 MEDIUM E1 — both-Some toughness silent discard, footgun-prevention; 7 LOW — engine doc-comments + test polish). No HIGH open.
+- [x] Initial verdict: PASS-WITH-NITS (1 MEDIUM E1 — both-Some toughness silent discard, footgun-prevention; 7 LOW — engine doc-comments + test polish). No HIGH open.
+- [x] **Re-review (post-fix, commit 2668c35b)**: E1 RESOLVED via Option B (two-effect emission); E2 RESOLVED-OBSOLETE; E3 RESOLVED; E4 RESOLVED; T3 RESOLVED. T1/T2/T4 remain OPEN as opportunistic LOWs (no merge gate).
+- [x] **Final verdict: PASS** — 0 HIGH, 0 MEDIUM, 3 open LOWs (all opportunistic test polish). AC 3723 satisfied. Ready for collection.
