@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
                         supertypes: im::OrdSet::new(),
                         power: 1,
                         toughness: 1,
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         keywords: [KeywordAbility::Lifelink].into_iter().collect(),
                         tapped: false,
                         enters_attacking: false,

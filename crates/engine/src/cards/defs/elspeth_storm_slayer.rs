@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Soldier".to_string())].into_iter().collect(),
                         keywords: im::OrdSet::new(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,

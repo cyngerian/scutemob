@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
                         .into_iter()
                         .collect(),
                         keywords: OrdSet::new(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,

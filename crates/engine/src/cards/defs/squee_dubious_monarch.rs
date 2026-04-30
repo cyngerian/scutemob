@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
                         supertypes: im::OrdSet::new(),
                         power: 1,
                         toughness: 1,
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         keywords: im::OrdSet::new(),
                         tapped: true,
                         enters_attacking: true,

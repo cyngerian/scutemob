@@ -397,20 +397,20 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 
 // ── M4: Hash determinism + schema bump ────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 13 (PB-CC-C-followup bump).
+/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 14 (PB-TS bump).
 /// Three distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_13() {
+fn test_pbt_hash_schema_version_is_14() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 13 (PB-CC-C-followup bump from PB-CC-A's 12 for
-    // AbilityDefinition::CdaModifyPowerToughness disc 76, CR 611.3a).
+    // CR N/A — sentinel must be 14 (PB-TS bump from PB-CC-C-followup's 13 for
+    // TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13u8,
-        "PB-CC-C-followup: HASH_SCHEMA_VERSION must be 13 (bump from PB-CC-A's 12 for \
-         AbilityDefinition::CdaModifyPowerToughness, CR 611.3a)"
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS: HASH_SCHEMA_VERSION must be 14 (bump from PB-CC-C-followup's 13 for \
+         TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h)"
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -858,16 +858,16 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 13.
+/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 14.
 /// Regression guard against accidental rollback to a prior value.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_13_regression() {
-    // Must be exactly 13 (PB-CC-C-followup bump from PB-CC-A's 12 for
-    // AbilityDefinition::CdaModifyPowerToughness, CR 611.3a).
+fn test_pbt_hash_schema_version_sentinel_is_14_regression() {
+    // Must be exactly 14 (PB-TS bump from PB-CC-C-followup's 13 for
+    // TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13u8,
-        "PB-CC-C-followup: Sentinel must be 13; bumped from PB-CC-A's 12 for \
-         AbilityDefinition::CdaModifyPowerToughness (CR 611.3a)"
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS: Sentinel must be 14; bumped from PB-CC-C-followup's 13 for \
+         TokenSpec.count: u32 → EffectAmount (CR 111.1 / 608.2h)"
     );
 }
 

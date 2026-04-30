@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Red].into_iter().collect(),
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Goblin".to_string())].into_iter().collect(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         tapped: true,
                         enters_attacking: true,
                         ..Default::default()

@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
+            // Whenever you draw a card, put a +1/+1 counter on Chasm Skulker.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::AddCounter {
@@ -23,12 +24,16 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: Death trigger with variable token count (based on +1/+1 counters)
-            //   not expressible — TokenSpec.count is fixed u32.
+            // When Chasm Skulker dies, create X 1/1 blue Squid creature tokens with islandwalk,
+            // where X is the number of +1/+1 counters on it.
+            // TODO(OOS-TS-4): WhenDies CounterCount{Source, PlusOnePlusOne} resolves to 0 tokens
+            // because move_object_to_zone resets counters to empty (state/mod.rs:420). This card
+            // produces wrong game state (always 0 Squid tokens) until a pre-death-counter snapshot
+            // mechanism lands in PendingTrigger / EffectContext per CR 603.10a "leaves-battlefield
+            // triggers look back in time." Blocked on OOS-TS-4 primitive (memory/primitives/pb-retriage-CC.md).
         ],
         ..Default::default()
     }

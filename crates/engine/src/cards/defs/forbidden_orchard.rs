@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
                         colors: OrdSet::new(),
                         card_types: [CardType::Creature].iter().copied().collect(),
                         subtypes: [SubType("Spirit".into())].iter().cloned().collect(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         ..Default::default()
                     },
                 },

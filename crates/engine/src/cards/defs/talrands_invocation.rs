@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Blue].into_iter().collect(),
                         power: 2,
                         toughness: 2,
-                        count: 2,
+                        count: EffectAmount::Fixed(2),
                         supertypes: im::OrdSet::new(),
                         keywords: [KeywordAbility::Flying].into_iter().collect(),
                         tapped: false,

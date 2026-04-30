@@ -93,14 +93,15 @@ fn resolve_via_apply(
 
 // ── Test 1: HASH_SCHEMA_VERSION sentinel ─────────────────────────────────────
 
-/// Catch any uncommitted bump after PB-CC-C-followup. The next primitive that touches
-/// `AbilityDefinition` shape must update both the constant and this sentinel.
+/// Catch any uncommitted bump after PB-TS. The next primitive that touches
+/// `TokenSpec` shape or `AbilityDefinition` shape must update both the constant and this sentinel.
 #[test]
-fn test_hash_schema_version_after_pb_cc_c_followup() {
+fn test_hash_schema_version_after_pb_ts() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 13,
-        "PB-CC-C-followup bumped HASH_SCHEMA_VERSION 12→13; if you intentionally bumped it \
-         again, update this test together with state/hash.rs history."
+        HASH_SCHEMA_VERSION, 14u8,
+        "PB-TS bumped HASH_SCHEMA_VERSION 13→14 (TokenSpec.count: u32 → EffectAmount, \
+         CR 111.1 / 608.2h); if you intentionally bumped it again, update this test \
+         together with state/hash.rs history."
     );
 }
 

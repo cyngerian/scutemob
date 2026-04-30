@@ -95,7 +95,7 @@ fn goblin_token_spec() -> crate::cards::card_definition::TokenSpec {
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Goblin".to_string())].into_iter().collect(),
         keywords: im::OrdSet::new(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -114,7 +114,7 @@ fn treasure_token_spec_1() -> crate::cards::card_definition::TokenSpec {
         card_types: [CardType::Artifact].into_iter().collect(),
         subtypes: [SubType("Treasure".to_string())].into_iter().collect(),
         keywords: im::OrdSet::new(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -133,7 +133,7 @@ fn skeleton_11_token_spec() -> crate::cards::card_definition::TokenSpec {
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Skeleton".to_string())].into_iter().collect(),
         keywords: im::OrdSet::new(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -152,7 +152,7 @@ fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Skeleton".to_string())].into_iter().collect(),
         keywords: [KeywordAbility::Menace].into_iter().collect(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -174,7 +174,7 @@ fn atropal_token_spec() -> crate::cards::card_definition::TokenSpec {
             .into_iter()
             .collect(),
         keywords: [KeywordAbility::Deathtouch].into_iter().collect(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: false,
         enters_attacking: false,
         mana_color: None,
@@ -369,7 +369,7 @@ fn dungeon_of_the_mad_mage() -> DungeonDef {
                 name: "Muiral's Graveyard",
                 effect: || {
                     let mut spec = skeleton_11_token_spec();
-                    spec.count = 2;
+                    spec.count = EffectAmount::Fixed(2);
                     Effect::CreateToken { spec }
                 },
                 exits: &[7],

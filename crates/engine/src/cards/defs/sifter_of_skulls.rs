@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
                         subtypes: [SubType("Eldrazi".to_string()), SubType("Scion".to_string())]
                             .into_iter()
                             .collect(),
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         mana_abilities: vec![ManaAbility {
                             sacrifice_self: true,
                             any_color: true,

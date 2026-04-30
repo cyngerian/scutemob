@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
                         subtypes: [SubType("Eldrazi".to_string()), SubType("Spawn".to_string())].into_iter().collect(),
                         power: 0,
                         toughness: 1,
-                        count: 1,
+                        count: EffectAmount::Fixed(1),
                         mana_color: Some(ManaColor::Colorless),
                         mana_abilities: vec![ManaAbility {
                             sacrifice_self: true,

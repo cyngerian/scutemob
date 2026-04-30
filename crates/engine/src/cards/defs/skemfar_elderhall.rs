@@ -59,7 +59,7 @@ pub fn card() -> CardDefinition {
                             card_types: [CardType::Creature].into_iter().collect(),
                             subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
                             keywords: im::OrdSet::new(),
-                            count: 2,
+                            count: EffectAmount::Fixed(2),
                             tapped: false,
                             enters_attacking: false,
                             mana_color: None,

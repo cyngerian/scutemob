@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Red].into_iter().collect(),
                         power: 3,
                         toughness: 1,
-                        count: 2,
+                        count: EffectAmount::Fixed(2),
                         keywords: [KeywordAbility::Haste].into_iter().collect(),
                         exile_at_end_step: true,
                         ..Default::default()

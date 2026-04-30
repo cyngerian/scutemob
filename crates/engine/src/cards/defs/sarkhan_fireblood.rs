@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Red].into_iter().collect(),
                         power: 5,
                         toughness: 5,
-                        count: 4,
+                        count: EffectAmount::Fixed(4),
                         supertypes: im::OrdSet::new(),
                         keywords: [KeywordAbility::Flying].into_iter().collect(),
                         tapped: false,

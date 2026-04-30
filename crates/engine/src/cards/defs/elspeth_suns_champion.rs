@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
                         toughness: 1,
                         supertypes: im::OrdSet::new(),
                         keywords: im::OrdSet::new(),
-                        count: 3,
+                        count: EffectAmount::Fixed(3),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,

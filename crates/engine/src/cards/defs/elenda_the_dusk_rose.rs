@@ -47,7 +47,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::White].into_iter().collect(),
                         power: 1,
                         toughness: 1,
-                        count: 3,
+                        count: EffectAmount::Fixed(3),
                         supertypes: im::OrdSet::new(),
                         keywords: [KeywordAbility::Lifelink].into_iter().collect(),
                         tapped: false,

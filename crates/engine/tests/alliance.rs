@@ -679,7 +679,7 @@ fn test_alliance_fires_on_create_token_effect() {
                     card_types: [CardType::Creature].into_iter().collect(),
                     subtypes: [SubType("Saproling".to_string())].into_iter().collect(),
                     keywords: Default::default(),
-                    count: 1,
+                    count: EffectAmount::Fixed(1),
                     tapped: false,
                     enters_attacking: false,
                     mana_color: None,

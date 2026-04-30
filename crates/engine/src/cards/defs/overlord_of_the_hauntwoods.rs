@@ -25,7 +25,7 @@ fn everywhere_token_spec() -> TokenSpec {
         .into_iter()
         .collect(),
         keywords: OrdSet::new(),
-        count: 1,
+        count: EffectAmount::Fixed(1),
         tapped: true,
         enters_attacking: false,
         mana_color: None,
