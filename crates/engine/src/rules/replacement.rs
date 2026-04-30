@@ -1873,37 +1873,36 @@ pub fn register_static_continuous_effects(
             AbilityDefinition::CdaModifyPowerToughness { power, toughness } => {
                 let ts = state.timestamp_counter;
                 state.timestamp_counter += 1;
-                // Choose the appropriate LayerModification variant:
-                // - Both Some with the same amount → ModifyBothDynamic (single effect).
-                // - Only power Some → ModifyPowerDynamic.
-                // - Only toughness Some → ModifyToughnessDynamic.
+                // Choose the appropriate LayerModification variant(s):
+                // - Both Some → two separate effects: one ModifyPowerDynamic + one
+                //   ModifyToughnessDynamic. Registering two independent effects correctly
+                //   supports asymmetric amounts (e.g. power: Fixed(3), toughness: Fixed(2))
+                //   and avoids silently discarding the toughness amount when the two amounts
+                //   differ. For symmetric amounts (e.g. Vishgraz: same PlayerCounterCount on
+                //   both axes), the two effects produce the same observable P/T as a single
+                //   ModifyBothDynamic would — just with two effect registrations.
+                // - Only power Some → single ModifyPowerDynamic.
+                // - Only toughness Some → single ModifyToughnessDynamic.
                 // - Both None → no-op (no effect registered).
-                let modification = match (power, toughness) {
-                    (Some(p), Some(_t)) => {
-                        // When both are Some, use ModifyBothDynamic with the power amount.
-                        // Semantically p and t should be the same EffectAmount ("+N/+N for each").
-                        // If they differ, authors should use two separate CdaModifyPowerToughness
-                        // entries (see variant doc-comment).
-                        Some(crate::state::continuous_effect::LayerModification::ModifyBothDynamic {
+                let mut modifications: Vec<crate::state::continuous_effect::LayerModification> =
+                    Vec::new();
+                if let Some(p) = power {
+                    modifications.push(
+                        crate::state::continuous_effect::LayerModification::ModifyPowerDynamic {
                             amount: Box::new(p.clone()),
                             negate: false,
-                        })
-                    }
-                    (Some(p), None) => {
-                        Some(crate::state::continuous_effect::LayerModification::ModifyPowerDynamic {
-                            amount: Box::new(p.clone()),
-                            negate: false,
-                        })
-                    }
-                    (None, Some(t)) => {
-                        Some(crate::state::continuous_effect::LayerModification::ModifyToughnessDynamic {
+                        },
+                    );
+                }
+                if let Some(t) = toughness {
+                    modifications.push(
+                        crate::state::continuous_effect::LayerModification::ModifyToughnessDynamic {
                             amount: Box::new(t.clone()),
                             negate: false,
-                        })
-                    }
-                    (None, None) => None,
-                };
-                if let Some(modification) = modification {
+                        },
+                    );
+                }
+                for modification in modifications {
                     let eff_id = state.next_object_id().0;
                     state
                         .continuous_effects

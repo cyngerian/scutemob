@@ -366,7 +366,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
     assert_eq!(chars.power, Some(3), "3 oil counters: power = 3");
     assert_eq!(chars.toughness, Some(1), "toughness unchanged at 1");
 
-    // Step 4: remove 2 (1 remaining). Power = 0 + 1 = 1. Down-scaling works.
+    // Step 4: set counter to 1 (down-scaling from 3 → 1 via overwrite). Power = 0 + 1 = 1.
     {
         let obj = state.objects.get_mut(&fuseling_id).unwrap();
         obj.counters.insert(CounterType::Oil, 1);

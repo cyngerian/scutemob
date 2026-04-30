@@ -935,11 +935,13 @@ pub enum AbilityDefinition {
     /// ## Authoring rules
     ///
     /// - Use when oracle text is "CARD gets +X/+Y for each THING" (additive Layer 7c).
-    /// - Both `power` and `toughness` `Some` → `ModifyBothDynamic` (single effect, equal modifier).
-    ///   Note: this requires `power == toughness` semantically (same EffectAmount); if they
-    ///   differ, emit two separate `CdaModifyPowerToughness` entries.
-    /// - `power: Some, toughness: None` → `ModifyPowerDynamic` only.
-    /// - `power: None, toughness: Some` → `ModifyToughnessDynamic` only.
+    /// - Both `power` and `toughness` `Some` → two separate effects registered:
+    ///   one `ModifyPowerDynamic` + one `ModifyToughnessDynamic`. Asymmetric amounts
+    ///   (e.g. `power: Fixed(3), toughness: Fixed(2)`) are fully supported. For
+    ///   symmetric amounts (e.g. Vishgraz: identical `PlayerCounterCount` on both axes),
+    ///   the two-effect result is identical to a single `ModifyBothDynamic`.
+    /// - `power: Some, toughness: None` → single `ModifyPowerDynamic` only.
+    /// - `power: None, toughness: Some` → single `ModifyToughnessDynamic` only.
     /// - `power: None, toughness: None` → no-op (don't author this; use a comment instead).
     ///
     /// ## CR citations
