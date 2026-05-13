@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-05-13 22:35 UTC  
-**Git:** `a48985a5` on `feat/pb-cd-counter-doubling-replacement-effects-cr-1216-hardened-`  
+**Generated:** 2026-05-13 22:40 UTC  
+**Git:** `36816e0f` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO, non-empty abilities)  — 52.5% | 918 | +2 |
-| With TODO markers | 647 | -2 |
+| Clean (no TODO, non-empty abilities)  — 52.5% | 918 | · |
+| With TODO markers | 647 | · |
 | Empty `abilities: vec![]` placeholders | 183 | · |
-| Total TODO lines across all defs | 1,178 | -3 |
+| Total TODO lines across all defs | 1,178 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 0 |
-| last 30 days | 0 | 167 |
-| last 90 days | 1,773 | 1,151 |
-| last 1 year | 1,773 | 1,151 |
+| last 7 days | 0 | 6 |
+| last 30 days | 0 | 173 |
+| last 90 days | 1,773 | 1,155 |
+| last 1 year | 1,773 | 1,155 |
 
 ## Bonus defs outside the plan
 
@@ -169,12 +169,12 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 680 | +1 |
-| DSL gap (unspecified) | 148 | -1 |
+| OTHER (unclassified) | 680 | · |
+| DSL gap (unspecified) | 148 | · |
 | attack trigger (self / generic) | 31 | · |
 | Cost::* missing variant | 22 | · |
 | TriggerCondition::* missing variant | 19 | · |
-| replacement effect missing | 18 | -3 |
+| replacement effect missing | 18 | · |
 | EffectAmount::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
 | untap-all / untap trigger | 16 | · |
@@ -222,6 +222,7 @@ twilight_prophet: // TODO: Upkeep trigger conditioned on HasCitysBlessing requir
 ## Recent card-touching commits
 
 ```
+f8d7cdf4 scutemob-18: PB-CD — counter-doubling replacement effects (CR 122.6/614.1)
 34317614 feat(pb-lki-cc): add EffectAmount::CounterCountAtLastKnownInformation (disc 17) + LKI snapshot threading
 4fde5d66 scutemob-16: PB-TS fix-phase — E1 Krenko sorcery-speed + C1 Chasm Skulker revert + OOS-TS-4 seed
 418976c9 scutemob-16: PB-TS card defs — 4 dynamic token-count cards re-authored
@@ -246,7 +247,6 @@ b55ad321 scutemob-2: PB-D cards — 6 card defs use DamagedPlayer filter
 d343e1ba W6-prim: PB-N — SubtypeFilteredAttack + SubtypeFilteredDeath triggers
 fc83d9d0 W6-prim: stale-TODO sweep — PB-N pre-launch (3 cards)
 9c347754 W6-prim: PB-Q4 implement — EnchantTarget::Filtered + 4 land-aura cards
-464d9e79 W6-prim: PB-Q close — 2 cards shipped, 4 parked, 4 micro-PBs reserved
 ```
 
 ## Missing card-defs sidecar
