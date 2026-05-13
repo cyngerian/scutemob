@@ -26,6 +26,8 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldPlaceCounters {
                     placer_filter: PlayerFilter::Specific(PlayerId(0)),
                     receiver_filter: ObjectFilter::Any,
+                    // PB-CD: Vorinclex says "one or more counters" — matches any counter type.
+                    counter_filter: None,
                 },
                 modification: ReplacementModification::DoubleCounters,
                 is_self: false,
@@ -36,6 +38,7 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldPlaceCounters {
                     placer_filter: PlayerFilter::OpponentsOf(PlayerId(0)),
                     receiver_filter: ObjectFilter::Any,
+                    counter_filter: None,
                 },
                 modification: ReplacementModification::HalveCounters,
                 is_self: false,

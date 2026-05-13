@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-04-30 04:56 UTC  
-**Git:** `a2b24e42` on `main`  
+**Generated:** 2026-05-13 22:35 UTC  
+**Git:** `a48985a5` on `feat/pb-cd-counter-doubling-replacement-effects-cr-1216-hardened-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,17 +25,17 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO, non-empty abilities)  — 52.4% | 916 | +1 |
-| With TODO markers | 649 | -1 |
+| Clean (no TODO, non-empty abilities)  — 52.5% | 918 | +2 |
+| With TODO markers | 647 | -2 |
 | Empty `abilities: vec![]` placeholders | 183 | · |
-| Total TODO lines across all defs | 1,181 | -1 |
+| Total TODO lines across all defs | 1,178 | -3 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 143 |
-| last 30 days | 278 | 420 |
+| last 7 days | 0 | 0 |
+| last 30 days | 0 | 167 |
 | last 90 days | 1,773 | 1,151 |
 | last 1 year | 1,773 | 1,151 |
 
@@ -75,7 +75,7 @@ are blocked on engine primitives.
 | `mana-land` | 92 / 92 | 100% | 73 | 16 | 3 |
 | `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
-| `counters-plus` | 49 / 49 | 100% | 17 | 32 | 0 |
+| `counters-plus` | 49 / 49 | 100% | 19 | 30 | 0 |
 | `land-fetch` | 45 / 45 | 100% | 25 | 19 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 18 | 16 | 0 |
@@ -169,12 +169,12 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 679 | -1 |
-| DSL gap (unspecified) | 149 | · |
+| OTHER (unclassified) | 680 | +1 |
+| DSL gap (unspecified) | 148 | -1 |
 | attack trigger (self / generic) | 31 | · |
 | Cost::* missing variant | 22 | · |
-| replacement effect missing | 21 | · |
 | TriggerCondition::* missing variant | 19 | · |
+| replacement effect missing | 18 | -3 |
 | EffectAmount::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
 | untap-all / untap trigger | 16 | · |
@@ -199,7 +199,7 @@ _…and 34 more buckets totaling 74 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 679 
+Showing 12 of 680 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -207,12 +207,12 @@ deterministic (sorted by slug).
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bonecrusher_giant: // TODO: "Damage can't be prevented this turn" — no prevention-removal DSL effect.
-deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
+deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
 enduring_vitality: // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
-glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
+glimmer_lens: // TODO: For Mirrodin! + equipped attack trigger not expressible.
 izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
 mana_leak: // TODO: "Counter unless controller pays {3}" — requires CounterUnlessPays effect.
-oath_of_teferi: // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
+nullmage_shepherd: // TODO: The activated ability cost requires tapping N other permanents you control
 rings_of_brighthearth: // TODO: whenever you activate a non-mana ability, may pay {2} to copy it
 smothering_tithe: // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
 teferi_hero_of_dominaria: // TODO: Add LibraryPosition::NthFromTop(u32) for precise placement.

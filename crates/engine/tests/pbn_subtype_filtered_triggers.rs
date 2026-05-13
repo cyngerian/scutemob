@@ -555,7 +555,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 15u8,
+        HASH_SCHEMA_VERSION, 16u8,
         "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
          CR 603.10a / 113.7a). If you bumped again, update this test and state/hash.rs history."
     );

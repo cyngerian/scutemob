@@ -779,7 +779,7 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     // Assert hash sentinel is exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 15u8,
+        HASH_SCHEMA_VERSION, 16u8,
         "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
          CR 603.10a / 113.7a). If you bumped again, update this test and state/hash.rs history."
     );
