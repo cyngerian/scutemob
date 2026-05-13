@@ -47,10 +47,16 @@ pub enum ReplacementTrigger {
     /// One or more counters would be placed on a permanent (CR 122.6, 614.1).
     /// `placer_filter` matches the player whose effect is placing the counters.
     /// `receiver_filter` matches the permanent receiving the counters.
-    /// Used by Vorinclex (placer-based), Pir (receiver-based).
+    /// `counter_filter` (PB-CD) optionally restricts the trigger to a specific counter
+    /// type. `None` = any counter type (Vorinclex, Pir, Lae'zel — "one or more counters").
+    /// `Some(t)` = only matches when the event's counter type equals `t`
+    /// (Hardened Scales / Conclave Mentor / Corpsejack Menace — "+1/+1 counters" only).
+    /// Used by Vorinclex (placer-based), Pir (receiver-based), Hardened Scales
+    /// (counter-type + receiver-based).
     WouldPlaceCounters {
         placer_filter: PlayerFilter,
         receiver_filter: ObjectFilter,
+        counter_filter: Option<CounterType>,
     },
     /// Tokens would be created (CR 111.1, 614.1).
     /// `controller_filter` matches the player who would create the tokens.
@@ -229,6 +235,13 @@ pub enum ObjectFilter {
     /// Used for effects like Leyline of the Void ("a card an opponent owns").
     /// Bound at registration time with the controller's PlayerId.
     OwnedByOpponentsOf(PlayerId),
+    /// PB-CD: Matches any creature controlled by a specific player. Combines
+    /// `AnyCreature` (layer-resolved type check, CR 613.1d) with `ControlledBy`
+    /// in a single variant. Used by Hardened Scales / Conclave Mentor /
+    /// Corpsejack Menace receiver scope ("creature you control"). PlayerId(0)
+    /// is a placeholder bound to the controller at registration time
+    /// (mirrors `ControlledBy(PlayerId(0))`).
+    CreatureControlledBy(PlayerId),
 }
 /// Filters which players a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

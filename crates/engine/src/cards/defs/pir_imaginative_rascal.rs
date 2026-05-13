@@ -32,6 +32,8 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldPlaceCounters {
                     placer_filter: PlayerFilter::Any,
                     receiver_filter: ObjectFilter::ControlledBy(PlayerId(0)),
+                    // PB-CD: Pir says "one or more counters" (any type, any kind).
+                    counter_filter: None,
                 },
                 modification: ReplacementModification::AddExtraCounter,
                 is_self: false,

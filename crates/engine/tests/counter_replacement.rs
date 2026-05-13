@@ -38,6 +38,7 @@ fn make_vorinclex_def() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldPlaceCounters {
                     placer_filter: PlayerFilter::Specific(PlayerId(0)),
                     receiver_filter: ObjectFilter::Any,
+                    counter_filter: None,
                 },
                 modification: ReplacementModification::DoubleCounters,
                 is_self: false,
@@ -48,6 +49,7 @@ fn make_vorinclex_def() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldPlaceCounters {
                     placer_filter: PlayerFilter::OpponentsOf(PlayerId(0)),
                     receiver_filter: ObjectFilter::Any,
+                    counter_filter: None,
                 },
                 modification: ReplacementModification::HalveCounters,
                 is_self: false,
@@ -77,6 +79,7 @@ fn make_pir_def() -> CardDefinition {
             trigger: ReplacementTrigger::WouldPlaceCounters {
                 placer_filter: PlayerFilter::Any,
                 receiver_filter: ObjectFilter::ControlledBy(PlayerId(0)),
+                counter_filter: None,
             },
             modification: ReplacementModification::AddExtraCounter,
             is_self: false,

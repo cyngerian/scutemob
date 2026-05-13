@@ -82,7 +82,17 @@
 ///   StackObject gain a serialized OrdMap field; pre-PB-LKI-CC replays are not
 ///   forward-compatible. Unblocks Chasm Skulker (re-author) and Toothy, Imaginary
 ///   Friend (corrects existing wrong game state).
-pub const HASH_SCHEMA_VERSION: u8 = 15;
+/// - 16: PB-CD (2026-05-13) — counter-doubling replacement gating (CR 122.6 / CR 614.1).
+///   `ReplacementTrigger::WouldPlaceCounters` gains `counter_filter: Option<CounterType>`
+///   field — `None` = any counter type (Vorinclex/Pir/Lae'zel), `Some(t)` = restrict to
+///   counter type `t` (Hardened Scales, Conclave Mentor, Corpsejack Menace — +1/+1 only).
+///   `ObjectFilter::CreatureControlledBy(PlayerId)` (discriminant 8) added — layer-resolved
+///   creature-type check (CR 613.1d) + controller equality. PlayerId(0) placeholder bound
+///   at registration. Wire format change: existing `WouldPlaceCounters` serialized states
+///   without `counter_filter` deserialize as `counter_filter: None` (backward compatible).
+///   Unblocks Hardened Scales, Corpsejack Menace, and the replacement half of Conclave Mentor
+///   (death trigger filed as OOS-LKI-Power seed pending LKI power snapshot primitive).
+pub const HASH_SCHEMA_VERSION: u8 = 16;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1765,6 +1775,12 @@ impl HashInto for ObjectFilter {
                 7u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // PB-CD: CreatureControlledBy (discriminant 8) — layer-resolved creature
+            // type + controller equality (CR 613.1d).
+            ObjectFilter::CreatureControlledBy(player) => {
+                8u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
@@ -1864,13 +1880,23 @@ impl HashInto for ReplacementTrigger {
                 filter.hash_into(hasher);
             }
             // CR 122.6/614.1: WouldPlaceCounters (discriminant 6)
+            // PB-CD: counter_filter field added (Option<CounterType>) for +1/+1-only
+            // gating on Hardened Scales / Conclave Mentor / Corpsejack Menace.
             ReplacementTrigger::WouldPlaceCounters {
                 placer_filter,
                 receiver_filter,
+                counter_filter,
             } => {
                 6u8.hash_into(hasher);
                 placer_filter.hash_into(hasher);
                 receiver_filter.hash_into(hasher);
+                match counter_filter {
+                    None => 0u8.hash_into(hasher),
+                    Some(c) => {
+                        1u8.hash_into(hasher);
+                        c.hash_into(hasher);
+                    }
+                }
             }
             // CR 111.1/614.1: WouldCreateTokens (discriminant 7)
             ReplacementTrigger::WouldCreateTokens { controller_filter } => {

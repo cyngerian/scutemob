@@ -366,7 +366,7 @@ any PB-CC micro-PB; treat each as a separate-primitive seed.
 | **Éomer, King of Rohan**          | `TargetFilter.exclude_self` (or new "exclude source" semantics in `PermanentCount`)    | "+1/+1 counter for each *other* Human" — counts source itself otherwise. Independent primitive seed; useful far beyond Eomer. |
 | **Inspiring Call**                | Multi-target grant over a filter-defined set ("those creatures gain indestructible")   | Distinct from PB-CC-B; would also need `Effect::GrantUntilEndOfTurn` over a set.       |
 | **Everflowing Chalice**           | ETB-with-N-counters from kicker count (multikicker → counter)                          | Kicker-count → counter-on-ETB replacement effect. Comment in card def claims `CounterCount` is in use; **the comment is stale** (the tap ability uses fixed mana, not CounterCount). |
-| **Hardened Scales / Conclave Mentor / Corpsejack Menace** | Counter-doubling replacement effect (CR 121.6)                              | "if N counters would be put on …, M instead" — replacement-effect primitive, separate. |
+| **Hardened Scales / Conclave Mentor / Corpsejack Menace** | Counter-doubling replacement effect (CR 122.6)                              | "if N counters would be put on …, M instead" — replacement-effect primitive, separate. |
 | **Master Biomancer**              | ETB-replacement counter placement based on source's power                              | "each other creature you control enters with +1/+1 counters equal to this creature's power" — replacement, not EffectAmount. |
 | **Fathom Mage**                   | `WheneverCounterIsPlacedOn` trigger condition                                          | Distinct trigger primitive.                                                            |
 | **Ainok Bond-Kin**                | Layer 6 grant filter "with +1/+1 counter"                                              | Filter applies to a Layer 6 grant, not a count. Different code path from PB-CC-B (which is for `EffectAmount::PermanentCount`). |
@@ -546,3 +546,39 @@ intentionally left empty per plan Risk #1 (separate primitive).
 **Yield**: 0 confirmed in current pool. File as preventive seed.
 **Status**: Filed by PB-LKI-CC fix-phase 2026-04-29.
 **References**: pb-plan-LKI-CC.md Step 4 OOS-LKI-2 draft; abilities.rs:4318 AnyCreatureDies arm.
+
+---
+
+## OOS seeds filed by PB-CD (scutemob-18, 2026-05-13)
+
+### OOS-LKI-Power: LKI source-power snapshot for WhenDies / WhenLeavesBattlefield triggers
+
+**Cards**: Conclave Mentor ("When this creature dies, you gain life equal to its power"),
+Juri, Master of the Revue ("When Juri dies, it deals damage equal to its power to any
+target"), and any future "When [permanent] dies/leaves, [effect] equal to its power /
+toughness" patterns.
+**Oracle pattern**: SelfDies / SelfLeavesBattlefield trigger reading
+`EffectAmount::SourcePower` (or `SourceToughness`) where the source is already in the
+graveyard at trigger resolution time.
+**Gap**: PB-LKI-CC (HASH 15) ships LKI **counter** snapshots through
+`PendingTrigger.lki_counters`, `StackObject.lki_counters`, and
+`EffectContext.lki_counters` for SelfDies / SelfLeavesBattlefield triggers. It does NOT
+snapshot the source's layer-resolved **power** or **toughness** at trigger-fire time.
+`EffectAmount::SourcePower` does not yet exist in the DSL; if added, it would read
+`calculate_characteristics(state, ctx.source).power` from the graveyard'd object — which
+has lost battlefield-layer state per CR 400.7 / 122.2. Both the DSL variant AND the LKI
+snapshot are needed; without them, "gain life equal to its power" resolves to 0.
+**Symmetry with PB-LKI-CC**: the snapshot site (sba.rs:540 where `pre_death_counters` is
+already computed) would also capture `pre_death_power: i32` and `pre_death_toughness: i32`
+into `GameEvent::CreatureDied` and thread them through to `PendingTrigger.lki_power: Option<i32>`.
+The dispatch chain is identical to PB-LKI-CC; only the snapshot field and the
+`EffectAmount` variant resolution differ.
+**Yield**: ≥2 confirmed (Conclave Mentor death trigger + Juri Master death trigger;
+Juri's existing card def at `cards/defs/juri_master_of_the_revue.rs:37-38` already
+documents the same gap). Sweep `"equal to its power"` + WhenDies/WhenLeavesBattlefield
+for additional candidates.
+**Status**: Filed by PB-CD 2026-05-13. Conclave Mentor's death-trigger ability remains a
+TODO comment in `cards/defs/conclave_mentor.rs` pending this primitive.
+**References**: PB-LKI-CC dispatch (sba.rs:540, abilities.rs:3987-3990); EffectAmount
+discriminant chain (last assigned 17 by PB-LKI-CC); `cards/defs/juri_master_of_the_revue.rs:37`
+existing TODO; `pb-retriage-CC.md` OOS-TS-4 (counter snapshot precedent).

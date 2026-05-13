@@ -297,19 +297,22 @@ fn trigger_matches(
             ReplacementTrigger::WouldBeDestroyed { filter: evt_filter },
         ) => event_object_matches_filter(state, evt_filter, eff_filter),
         // CR 122.6/614.1: Counter placement replacement matching.
-        // Both placer_filter and receiver_filter must match.
+        // placer_filter, receiver_filter, and (PB-CD) counter_filter must all match.
         (
             ReplacementTrigger::WouldPlaceCounters {
                 placer_filter: eff_placer,
                 receiver_filter: eff_receiver,
+                counter_filter: eff_counter,
             },
             ReplacementTrigger::WouldPlaceCounters {
                 placer_filter: evt_placer,
                 receiver_filter: evt_receiver,
+                counter_filter: evt_counter,
             },
         ) => {
             event_player_matches_filter(evt_placer, eff_placer)
                 && event_object_matches_filter(state, evt_receiver, eff_receiver)
+                && event_counter_matches_filter(evt_counter, eff_counter)
         }
         // CR 111.1/614.1: Token creation replacement matching.
         (
@@ -429,6 +432,39 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
             .get(&obj_id)
             .map(|o| o.owner != *player_id)
             .unwrap_or(false),
+        // PB-CD: layer-resolved creature-type check + controller equality.
+        // CR 613.1d: use layer-resolved types for replacement applicability.
+        ObjectFilter::CreatureControlledBy(player_id) => state
+            .objects
+            .get(&obj_id)
+            .map(|o| {
+                let is_creature = crate::rules::layers::calculate_characteristics(state, obj_id)
+                    .unwrap_or_else(|| o.characteristics.clone())
+                    .card_types
+                    .contains(&CardType::Creature);
+                is_creature && o.controller == *player_id
+            })
+            .unwrap_or(false),
+    }
+}
+/// PB-CD: Check if the event's counter type matches the effect's counter filter.
+///
+/// Effect `None` = no counter-type restriction (matches any counter type — Vorinclex,
+/// Pir, Lae'zel — "one or more counters").
+/// Effect `Some(t)` = only matches when the event also has `Some(t)` with equal type
+/// (Hardened Scales, Conclave Mentor, Corpsejack Menace — "+1/+1 counters" only).
+///
+/// The event side is always `Some(t)` because `apply_counter_replacement` constructs
+/// the event trigger from a concrete counter type. We still handle the `None` event
+/// case defensively (returns false for typed effects).
+fn event_counter_matches_filter(
+    event_filter: &Option<crate::state::types::CounterType>,
+    effect_filter: &Option<crate::state::types::CounterType>,
+) -> bool {
+    match (event_filter, effect_filter) {
+        (_, None) => true,
+        (Some(evt), Some(eff)) => evt == eff,
+        (None, Some(_)) => false,
     }
 }
 /// Check if the player identified by the event filter matches the effect's filter.
@@ -469,6 +505,10 @@ fn bind_player_filter(filter: &PlayerFilter, controller: PlayerId) -> PlayerFilt
 fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilter {
     match filter {
         ObjectFilter::ControlledBy(PlayerId(0)) => ObjectFilter::ControlledBy(controller),
+        // PB-CD: bind CreatureControlledBy placeholder to the actual controller.
+        ObjectFilter::CreatureControlledBy(PlayerId(0)) => {
+            ObjectFilter::CreatureControlledBy(controller)
+        }
         other => other.clone(),
     }
 }
@@ -1673,9 +1713,12 @@ pub fn register_permanent_replacement_abilities(
                     ReplacementTrigger::WouldPlaceCounters {
                         placer_filter,
                         receiver_filter,
+                        counter_filter,
                     } => ReplacementTrigger::WouldPlaceCounters {
                         placer_filter: bind_player_filter(placer_filter, controller),
                         receiver_filter: bind_object_filter(receiver_filter, controller),
+                        // PB-CD: counter_filter does not bind to controller; pass through.
+                        counter_filter: counter_filter.clone(),
                     },
                     ReplacementTrigger::WouldCreateTokens { controller_filter } => {
                         ReplacementTrigger::WouldCreateTokens {
@@ -2536,16 +2579,19 @@ pub fn apply_counter_replacement(
     state: &GameState,
     placer: PlayerId,
     receiver_id: ObjectId,
-    _counter: &crate::state::types::CounterType,
+    counter: &crate::state::types::CounterType,
     count: u32,
 ) -> (u32, Vec<GameEvent>) {
     let mut events = Vec::new();
     if count == 0 {
         return (0, events);
     }
+    // PB-CD: thread the concrete counter type into the event trigger so that
+    // typed effects (Hardened Scales: +1/+1 only) gate on counter type at match time.
     let event_trigger = ReplacementTrigger::WouldPlaceCounters {
         placer_filter: PlayerFilter::Specific(placer),
         receiver_filter: ObjectFilter::SpecificObject(receiver_id),
+        counter_filter: Some(counter.clone()),
     };
     let applicable = find_applicable(state, &event_trigger, &std::collections::HashSet::new());
     let mut modified_count = count;
