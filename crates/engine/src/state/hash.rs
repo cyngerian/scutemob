@@ -100,7 +100,17 @@
 ///   fields (CreatureDied, AuraFellOff, PermanentDestroyed, ObjectExiled, ObjectReturnedToHand).
 ///   Snapshot captured at sba.rs before `move_object_to_zone` using `calculate_characteristics`.
 ///   Unblocks Conclave Mentor death trigger and Juri, Master of the Revue.
-pub const HASH_SCHEMA_VERSION: u8 = 17;
+/// - 18: PB-EWC (2026-05-14) — `ReplacementModification::EntersWithCounters`
+///   migrates `count: u32` → `count: EffectAmount` (CR 614.1c). ETB-replacement
+///   counter placement now reads dynamic values from the replacement source
+///   (`EffectAmount::PowerOf(EffectTarget::Source)` for Master Biomancer's
+///   "equal to this creature's power"; `EffectAmount::XValue` for Ingenious
+///   Prodigy's "X +1/+1 counters"). The resolver builds an EffectContext
+///   pinned to the replacement's source (live, not LKI — the source is on
+///   the battlefield when its replacement fires for another creature's ETB).
+///   Wire format change: pre-PB-EWC serialized states with `u32` counts are
+///   not forward-compatible.
+pub const HASH_SCHEMA_VERSION: u8 = 18;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1970,6 +1980,9 @@ impl HashInto for ReplacementModification {
                 zone.hash_into(hasher);
             }
             ReplacementModification::EntersTapped => 1u8.hash_into(hasher),
+            // PB-EWC (HASH 18): `count` migrated from u32 → EffectAmount.
+            // Hashes via EffectAmount::hash_into (impl at hash.rs:4479), which already
+            // covers all variants the resolver can produce (Fixed, XValue, PowerOf, etc.).
             ReplacementModification::EntersWithCounters { counter, count } => {
                 2u8.hash_into(hasher);
                 counter.hash_into(hasher);

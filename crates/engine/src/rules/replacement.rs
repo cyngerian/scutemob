@@ -1409,17 +1409,26 @@ pub fn apply_etb_replacements(
     }
     let mut etb_events = Vec::new();
     for id in applicable {
-        let modification = state
+        // PB-EWC: pull both modification and source from the registered effect.
+        // The source is required to resolve dynamic counter amounts in
+        // EntersWithCounters (e.g. PowerOf(Source) reads from the replacement
+        // source — Master Biomancer — not the entering creature). If the
+        // effect disappeared since find_applicable, skip without emitting.
+        let Some((modification, replacement_source)) = state
             .replacement_effects
             .iter()
             .find(|e| e.id == id)
-            .map(|e| e.modification.clone());
+            .map(|e| (e.modification.clone(), e.source))
+        else {
+            continue;
+        };
         etb_events.extend(emit_etb_modification(
             state,
             new_id,
             controller,
             Some(id),
-            modification,
+            Some(modification),
+            replacement_source,
         ));
     }
     etb_events
@@ -1428,24 +1437,44 @@ pub fn apply_etb_replacements(
 /// definitions, which are not registered in `state.replacement_effects`).
 ///
 /// Does not emit `ReplacementEffectApplied` since there is no registered effect ID.
+///
+/// PB-EWC: for self-ETB replacements, the replacement source is the entering
+/// permanent itself (`new_id`). This is what `EntersWithCounters` resolves
+/// `EffectAmount::XValue` against — the entering permanent's `x_value` field,
+/// propagated from the StackObject during permanent-spell resolution before
+/// ETB processing.
 pub fn apply_self_etb_modification(
     state: &mut GameState,
     new_id: ObjectId,
     controller: PlayerId,
     modification: &ReplacementModification,
 ) -> Vec<GameEvent> {
-    emit_etb_modification(state, new_id, controller, None, Some(modification.clone()))
+    emit_etb_modification(
+        state,
+        new_id,
+        controller,
+        None,
+        Some(modification.clone()),
+        Some(new_id),
+    )
 }
 /// Internal: set state and produce events for one ETB modification.
 ///
 /// If `effect_id` is Some, emits `ReplacementEffectApplied` (for global effects with a
 /// registered ID). If None, skips that event (for inline self-ETB replacements).
+///
+/// PB-EWC: `replacement_source` is the source permanent of the replacement
+/// effect (for `EntersWithCounters` with a dynamic `EffectAmount`). For non-self
+/// global replacements (Master Biomancer), this is the replacement source from
+/// `ReplacementEffect.source`. For self-ETB (Ingenious Prodigy), this is the
+/// entering permanent itself. Falls back to `new_id` when `None` (defensive).
 fn emit_etb_modification(
     state: &mut GameState,
     new_id: ObjectId,
     controller: PlayerId,
     effect_id: Option<ReplacementId>,
     modification: Option<ReplacementModification>,
+    replacement_source: Option<ObjectId>,
 ) -> Vec<GameEvent> {
     let mut evts: Vec<GameEvent> = Vec::new();
     match modification {
@@ -1470,9 +1499,31 @@ fn emit_etb_modification(
             });
         }
         Some(ReplacementModification::EntersWithCounters { counter, count }) => {
+            // PB-EWC: resolve the EffectAmount against the replacement's source.
+            //
+            // CR 614.12: replacement effects modifying how a permanent enters check
+            // the source's characteristics "as it would exist on the battlefield."
+            // The replacement source (Master Biomancer for non-self; the entering
+            // permanent itself for self-ETB) is ALIVE on the battlefield when its
+            // replacement fires, so `EffectAmount::PowerOf(EffectTarget::Source)`
+            // resolves via the live arm of `resolve_amount` (layer-resolved P/T
+            // from `calculate_characteristics`).
+            //
+            // For `EffectAmount::XValue`, ctx.x_value is read from the source's
+            // `x_value` field — set on the entering permanent during permanent-spell
+            // resolution (before ETB processing) for self-ETB (Ingenious Prodigy),
+            // or 0 for non-X non-self sources.
+            let source_id = replacement_source.unwrap_or(new_id);
+            let mut ctx = crate::effects::EffectContext::new(controller, source_id, vec![]);
+            ctx.x_value = state
+                .objects
+                .get(&source_id)
+                .map(|o| o.x_value)
+                .unwrap_or(0);
+            let raw_count = crate::effects::resolve_amount(state, &count, &ctx).max(0) as u32;
             // CR 122.6: Apply counter-placement replacements to ETB counters too.
             let (modified_count, repl_events) =
-                apply_counter_replacement(state, controller, new_id, &counter, count);
+                apply_counter_replacement(state, controller, new_id, &counter, raw_count);
             evts.extend(repl_events);
             if modified_count > 0 {
                 if let Some(obj) = state.objects.get_mut(&new_id) {
@@ -1727,6 +1778,17 @@ pub fn register_permanent_replacement_abilities(
                         to: *to,
                         filter: ObjectFilter::OwnedByOpponentsOf(controller),
                     },
+                    // PB-EWC: bind WouldEnterBattlefield filter placeholders to the
+                    // controller. Master Biomancer registers with
+                    // `CreatureControlledBy(PlayerId(0))` to mean "each (other) creature
+                    // you control"; rebind to the actual controller so future entries
+                    // match correctly. Other ObjectFilter variants (Any, AnyCreature,
+                    // HasCardType, ...) pass through unchanged.
+                    ReplacementTrigger::WouldEnterBattlefield { filter } => {
+                        ReplacementTrigger::WouldEnterBattlefield {
+                            filter: bind_object_filter(filter, controller),
+                        }
+                    }
                     // Bind PlayerFilter placeholders at registration time.
                     // Card defs use Specific(PlayerId(0)) as a placeholder for "controller".
                     ReplacementTrigger::WouldPlaceCounters {

@@ -15,14 +15,14 @@
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
 - **Active Milestone**: M9.5 DONE — type consolidation complete; all workstreams unpaused
-- **Tests**: **2749 passing**; build/clippy/fmt clean
+- **Tests**: **2754 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
-- **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: PB-LKI-Power (`scutemob-19`, merged 2026-05-13 `12218638`) — LKI source-power snapshot for SelfDies/SelfLeavesBattlefield (CR 603.10a). Engine surface + handoff: `memory/workstream-state.md`.
-- **Open primitive seeds**: 5 OOS-LKI-Power variants (-1..-5), `TargetFilter.exclude_self` (Éomer), 8 older OOS-TS/LKI seeds. Full list: `memory/primitives/pb-retriage-CC.md`.
+- **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC) all DONE. PB-Q2/Q3/Q5 reserved.
+- **Last shipped**: PB-EWC (`scutemob-20`, signaled-ready 2026-05-14) — `ReplacementModification::EntersWithCounters.count` `u32` → `Box<EffectAmount>` (CR 614.1c/614.12). 2 cards: Master Biomancer (counter half, live `PowerOf(Source)`), Ingenious Prodigy (true CR-614.1c replacement, `XValue`). HASH 17→18. Engine surface + handoff: `memory/workstream-state.md`.
+- **Open primitive seeds**: 3 new OOS-EWC variants (-1 EntersAsAdditionalType, -2 Golgari Grave-Troll, -3 Dragonstorm Globe + `OwnedByOpponentsOf` rebind sub-gap), 5 OOS-LKI-Power variants (-1..-5), `TargetFilter.exclude_self` (Éomer), 8 older OOS-TS/LKI seeds. Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); ~45 LOW open. Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-05-14 (CLAUDE.md trim pass — top-of-file PB detail routed to `memory/workstream-state.md`)
+- **Last Updated**: 2026-05-14 (PB-EWC shipped)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 

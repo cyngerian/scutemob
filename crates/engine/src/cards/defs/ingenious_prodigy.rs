@@ -3,6 +3,19 @@
 // This creature enters with X +1/+1 counters on it.
 // At the beginning of your upkeep, if this creature has one or more +1/+1 counters on it,
 // you may remove a +1/+1 counter from it. If you do, draw a card.
+//
+// PB-EWC (2026-05-14): the ETB counter clause is now a true CR 614.1c
+// replacement effect (`AbilityDefinition::Replacement { is_self: true, ... }`),
+// not a triggered-ETB stub. The previous "DEVIATION: CR 614.1c" approximation
+// (counters placed by a stack-resolved trigger AFTER ETB) has been removed —
+// counters are now placed simultaneously with the permanent entering.
+//
+// X resolution: during permanent-spell resolution the entering permanent's
+// `x_value` is copied from `StackObject.x_value` BEFORE ETB processing runs.
+// By the time `apply_self_etb_from_definition` fires, `state.objects[new_id]
+// .x_value` is populated, and `emit_etb_modification` builds an EffectContext
+// with `source = new_id` and `x_value = state.objects[new_id].x_value`.
+// `EffectAmount::XValue` then returns the cast-time X.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,29 +29,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Skulk),
-            // CR 107.3m: "This creature enters with X +1/+1 counters on it."
-            // x_value is propagated from the spell's StackObject to the permanent's x_value
-            // field on resolution, then forwarded to the ETB trigger EffectContext in resolution.rs.
-            // DEVIATION: CR 614.1c — "enters with [counters]" is a replacement effect, not a
-            // triggered ability. The counters should be placed as part of entering the battlefield
-            // (simultaneously, without using the stack). The DSL lacks an EntersWithCounters
-            // replacement effect primitive, so this is modeled as a triggered ETB ability instead.
-            // Consequence: opponents can respond before counters are placed; SBAs see the creature
-            // without counters during that window. For Ingenious Prodigy (0/1 base) the creature
-            // survives either way, but timing is incorrect. Fix requires a future
-            // EntersWithCounters { counter, count: EffectAmount } replacement effect primitive.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::AddCounterAmount {
-                    target: EffectTarget::Source,
-                    counter: CounterType::PlusOnePlusOne,
-                    count: EffectAmount::XValue,
+            // CR 614.1c — "This creature enters with X +1/+1 counters on it."
+            // Self-replacement effect: applies inline at ETB time before any
+            // other replacements (CR 614.15). EffectAmount::XValue reads the
+            // entering permanent's x_value (propagated from the spell's
+            // StackObject at resolution.rs:546).
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
                 },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
+                modification: ReplacementModification::EntersWithCounters {
+                    counter: CounterType::PlusOnePlusOne,
+                    count: Box::new(EffectAmount::XValue),
+                },
+                is_self: true,
+                unless_condition: None,
             },
             // Upkeep: remove counter → draw.
             // DEVIATION: Oracle says "you MAY remove a +1/+1 counter." This ability is

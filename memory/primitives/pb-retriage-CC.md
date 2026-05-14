@@ -681,3 +681,83 @@ until an animated-non-creature card with a SelfLeavesBattlefield power trigger
 surfaces. Mechanical fix: replace `None` with `calculate_characteristics(state, id).power`
 at each of the 4 sites.
 **References**: pb-review-LKI-Power.md E2; pb-plan-LKI-Power.md Site 6.
+
+---
+
+## OOS seeds filed by PB-EWC (scutemob-20, 2026-05-14)
+
+### OOS-EWC-1: ReplacementModification::EntersAsAdditionalType — Master Biomancer (type-grant half)
+
+**Cards**: Master Biomancer ("...and as a Mutant in addition to its other types").
+Future cards with the same pattern (e.g. "creature you control enters as a
+[Type] in addition to its other types") would hit the same gap.
+**Oracle pattern**: ETB replacement that adds a subtype to the entering
+permanent on top of its inherent types (NOT a Layer 4 continuous effect on
+permanents already on the battlefield — this is a one-time entry modification).
+**Gap**: PB-EWC (HASH 18) ships `EntersWithCounters` with `EffectAmount` count
+but no parallel `EntersAsAdditionalType { type: SubType }` modification.
+Adding it requires:
+  1. A new `ReplacementModification::EntersAsAdditionalType { subtype: SubType }` variant.
+  2. A new arm in `emit_etb_modification` (replacement.rs) that pushes the
+     subtype into `state.objects[new_id].characteristics.subtypes` BEFORE
+     emitting `PermanentEnteredBattlefield`.
+  3. HASH bump for the new discriminant.
+  4. Author the type-grant half of `master_biomancer.rs` (TODO line preserved
+     in the def).
+**Yield**: 1 confirmed (Master Biomancer). Combined with `OOS-EWC-2` and
+`OOS-EWC-3` below this is the next logical Wave-C primitive for the
+replacement family.
+**Status**: Filed by PB-EWC 2026-05-14. Author hint reserved in
+`master_biomancer.rs` as a TODO referencing this seed.
+**References**: pb-plan-EWC; CR 614.1c.
+
+### OOS-EWC-2: EntersWithCounters dynamic count — Golgari Grave-Troll
+
+**Cards**: Golgari Grave-Troll ("This creature enters with a +1/+1 counter on
+it for each creature card in your graveyard"). Self-ETB; count = count of
+creature cards in controller's graveyard.
+**Oracle pattern**: Self-ETB `EntersWithCounters` with
+`EffectAmount::CardCount { zone: Graveyard(Controller), player: Controller,
+filter: Some(TargetFilter { has_card_types: vec![CardType::Creature], .. }) }`.
+PB-EWC's resolver already evaluates `EffectAmount::CardCount` correctly in the
+ETB EffectContext, so the only authoring requirement is a card-def edit plus
+a dredge-interaction test.
+**Gap**: card-def TODO at `crates/engine/src/cards/defs/golgari_grave_troll.rs`.
+No engine work required after PB-EWC.
+**Yield**: 1 confirmed (Golgari Grave-Troll). Pure card-authoring follow-up.
+**Status**: Filed by PB-EWC 2026-05-14 (sweep). Recommended to ship as a
+single-card follow-up alongside `OOS-EWC-3` and Eomer's `TargetFilter.exclude_self`.
+**References**: pb-plan-EWC; CR 614.1c; existing Dredge test scaffolding.
+
+### OOS-EWC-3: EntersWithCounters dynamic count + subtype receiver — Dragonstorm Globe
+
+**Cards**: Dragonstorm Globe ("Each Dragon you control enters with an
+additional +1/+1 counter on it"). Non-self ETB; receiver filter is
+"Dragon you control" (subtype + controller).
+**Oracle pattern**: Non-self `EntersWithCounters` with static
+`EffectAmount::Fixed(1)` BUT receiver filter requires a new
+`ObjectFilter::CreatureControlledByOfSubtype(PlayerId, SubType)` variant or
+generalization of `CreatureControlledBy` to accept an optional subtype.
+**Gap**: PB-EWC unblocked the count side but not the filter side. The
+existing `ObjectFilter::CreatureControlledBy(controller)` matches any creature;
+no variant gates on subtype today. **Sub-gap (E2 from
+`pb-review-EWC.md`)**: `bind_object_filter` does not rebind
+`OwnedByOpponentsOf(PlayerId(0))` for `WouldEnterBattlefield` triggers.
+The symmetric `WouldChangeZone` arm in
+`register_permanent_replacement_abilities` handles this case; the new
+`WouldEnterBattlefield` arm does not. No in-scope card hits it (Master
+Biomancer uses `CreatureControlledBy`, Ingenious Prodigy uses `Any`),
+but a hypothetical "When a creature an opponent controls enters, ..."
+would leak the placeholder through registration. Fix: extend
+`bind_object_filter` to also rebind `OwnedByOpponentsOf(PlayerId(0))` →
+`OwnedByOpponentsOf(controller)` (~3 lines), or add explicit pattern
+arm in `register_permanent_replacement_abilities` symmetric to the
+existing `WouldChangeZone { filter: OwnedByOpponentsOf(_) }` arm.
+**Yield**: 1 confirmed (Dragonstorm Globe). Lower priority; not strictly
+required for PB-EWC scope.
+**Status**: Filed by PB-EWC 2026-05-14 (sweep). Sub-gap routed from
+PB-EWC review LOW E2 2026-05-14 (no in-scope card affected). Defer until
+a future replacement-filter expansion (potentially fold into the broader
+replacement filter rework alongside Eomer's `TargetFilter.exclude_self`).
+**References**: pb-plan-EWC; pb-review-EWC.md E2; CR 614.1c; ObjectFilter
+variants in `state/replacement_effect.rs`.

@@ -382,7 +382,7 @@ fn test_pb_lki_power_hash_schema_version_and_determinism() {
 
     // Sub-assertion 1: HASH_SCHEMA_VERSION sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 17u8,
+        HASH_SCHEMA_VERSION, 18u8,
         "PB-LKI-Power bumped HASH_SCHEMA_VERSION 16→17 (EffectAmount::SourcePowerAtLastKnownInformation, \
          CR 603.10a / 113.7a); if you intentionally bumped it again, update this test \
          together with state/hash.rs history."

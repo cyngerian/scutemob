@@ -10,10 +10,10 @@ use std::collections::HashSet;
 use mtg_engine::rules::replacement::{self, ReplacementResult};
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, CombatDamageTarget, Command,
-    Condition, CounterType, DamageTargetFilter, EffectDuration, GameEvent, GameStateBuilder,
-    ManaCost, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger, SubType, SuperType, TypeLine,
-    ZoneId, ZoneType,
+    Condition, CounterType, DamageTargetFilter, EffectAmount, EffectDuration, GameEvent,
+    GameStateBuilder, ManaCost, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, SubType,
+    SuperType, TypeLine, ZoneId, ZoneType,
 };
 
 /// Helper: create a simple zone-change replacement effect for testing.
@@ -80,7 +80,7 @@ fn test_replacement_effect_serde_roundtrip_etb_counters() {
         },
         modification: ReplacementModification::EntersWithCounters {
             counter: CounterType::PlusOnePlusOne,
-            count: 3,
+            count: Box::new(EffectAmount::Fixed(3)),
         },
     };
     let json = serde_json::to_string(&effect).unwrap();
@@ -2034,7 +2034,7 @@ fn test_etb_permanent_enters_with_counters() {
         },
         modification: ReplacementModification::EntersWithCounters {
             counter: CounterType::PlusOnePlusOne,
-            count: 1,
+            count: Box::new(EffectAmount::Fixed(1)),
         },
     };
 
@@ -3240,7 +3240,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         },
         modification: ReplacementModification::EntersWithCounters {
             counter: CounterType::PlusOnePlusOne,
-            count: 1,
+            count: Box::new(EffectAmount::Fixed(1)),
         },
     };
 

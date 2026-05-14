@@ -437,7 +437,7 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
 #[test]
 fn test_pb_lki_cc_hash_schema_version_is_15() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 17u8,
+        HASH_SCHEMA_VERSION, 18u8,
         "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 \
          (EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a). \
          If this fails, a subsequent PB bumped the version — update this test and \
