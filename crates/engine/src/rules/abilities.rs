@@ -336,12 +336,18 @@ pub fn handle_activate_ability(
                     .get(&source)
                     .map(|o| o.characteristics.clone())
             });
-        crate::rules::casting::validate_targets(
+        // PB-XS: thread the activating object's id through validation so
+        // `TargetFilter.exclude_self` (CR 109.1 / 601.2c — "another target X")
+        // can reject self-targeting on activated abilities (Samut, Ezuri, etc.).
+        // The `with_source` variant also supplies the existing
+        // `TargetSpellOrAbilityWithSingleTarget` self-targeting prevention path.
+        crate::rules::casting::validate_targets_with_source(
             state,
             &targets,
             &target_requirements,
             player,
             source_chars.as_ref(),
+            source,
         )?;
     }
     // CR 702.6a / CR 601.2c: Equip abilities can only target "a creature you control."
@@ -6615,6 +6621,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                             &obj.characteristics,
                                             filter,
                                         )
+                                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                        // Death triggers like Elderfang Ritualist scan the graveyard
+                                        // where the trigger source's post-death object lives.
+                                        && (!filter.exclude_self || obj.id != trigger.source)
                                 })
                                 .map(|(id, obj)| SpellTarget {
                                     target: Target::Object(*id),
@@ -6627,6 +6637,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             .find(|(_, obj)| {
                                 matches!(obj.zone, ZoneId::Graveyard(_))
                                     && crate::effects::matches_filter(&obj.characteristics, filter)
+                                    // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                    && (!filter.exclude_self || obj.id != trigger.source)
                             })
                             .map(|(id, obj)| SpellTarget {
                                 target: Target::Object(*id),
@@ -6740,7 +6752,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                             .is_some_and(|dp| obj.controller == dp)
                                                     }
                                                 };
-                                                passes && ctrl_ok
+                                                // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                                let passes_self = !f.exclude_self || obj.id != trigger.source;
+                                                passes && ctrl_ok && passes_self
                                             }
                                             TargetRequirement::TargetPermanentWithFilter(f) => {
                                                 let passes =
@@ -6762,7 +6776,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                             .is_some_and(|dp| obj.controller == dp)
                                                     }
                                                 };
-                                                passes && ctrl_ok
+                                                // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                                let passes_self = !f.exclude_self || obj.id != trigger.source;
+                                                passes && ctrl_ok && passes_self
                                             }
                                             // Player-only reqs are handled above — no objects.
                                             TargetRequirement::TargetPlayer => false,
@@ -6813,7 +6829,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                                 crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
                                                                 crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
                                                             };
-                                                            passes && ctrl_ok
+                                                            // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                                            let passes_self = !f.exclude_self || obj.id != trigger.source;
+                                                            passes && ctrl_ok && passes_self
                                                         }
                                                     }
                                                     TargetRequirement::TargetPermanentWithFilter(f) => {
@@ -6824,7 +6842,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                             crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
                                                             crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
                                                         };
-                                                        passes && ctrl_ok
+                                                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                                        let passes_self = !f.exclude_self || obj.id != trigger.source;
+                                                        passes && ctrl_ok && passes_self
                                                     }
                                                     // Nested UpToN, graveyard targets, spell targets: not applicable for auto-target on triggers.
                                                     _ => false,

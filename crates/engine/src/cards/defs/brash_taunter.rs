@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // requires a targeted_trigger with a damage-amount variable — not in DSL.
             // {2}{R}, {T}: This creature fights another target creature.
             // CR 701.14a: Fight — each creature deals damage equal to its power to the other.
+            // PB-XS: CR 109.1 / 601.2c — "another target creature" excludes Brash Taunter.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -35,7 +36,10 @@ pub fn card() -> CardDefinition {
                     defender: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    exclude_self: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,

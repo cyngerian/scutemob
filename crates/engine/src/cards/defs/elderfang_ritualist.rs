@@ -20,8 +20,12 @@ pub fn card() -> CardDefinition {
                     controller_override: None,
                 },
                 intervening_if: None,
+                // PB-XS: CR 109.1 / 601.2c — "another target Elf card from your graveyard"
+                // excludes the post-death Elderfang Ritualist itself (its WhenDies trigger's
+                // source object continues to exist in the graveyard zone).
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
                     has_subtype: Some(SubType("Elf".to_string())),
+                    exclude_self: true,
                     ..Default::default()
                 })],
 

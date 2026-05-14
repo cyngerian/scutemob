@@ -5307,6 +5307,15 @@ fn apply_delve_reduction(
 ///
 /// `source_chars` is the characteristics of the spell being cast, used for protection-from
 /// checks (CR 702.16b). Pass `None` when unavailable (protection check is skipped).
+/// Source-agnostic wrapper around `validate_targets_inner` (no `self_id`).
+///
+/// PB-XS (2026-05-14): All in-tree callers have migrated to
+/// `validate_targets_with_source` so that `TargetFilter.exclude_self`
+/// (CR 109.1 / 601.2c — "another target X") and the existing
+/// `TargetSpellOrAbilityWithSingleTarget` self-target prevention can take
+/// effect. This entrypoint is retained for callers that genuinely cannot
+/// supply a source ObjectId (none exist today).
+#[allow(dead_code)]
 pub(crate) fn validate_targets(
     state: &GameState,
     targets: &[Target],
@@ -5709,7 +5718,10 @@ fn validate_object_satisfies_requirement(
                     // as unreachable (produces clean "no legal target" error, CR 601.2c).
                     TargetController::DamagedPlayer => false,
                 };
-                passes_filter && passes_controller
+                // PB-XS: CR 109.1 / 601.2c — "another target X" excludes the
+                // casting/activating source from being selected as a target.
+                let passes_self = !filter.exclude_self || self_id != Some(id);
+                passes_filter && passes_controller && passes_self
             }
         }
         TargetRequirement::TargetPermanentWithFilter(filter) => {
@@ -5726,19 +5738,28 @@ fn validate_object_satisfies_requirement(
                     // as unreachable (produces clean "no legal target" error, CR 601.2c).
                     TargetController::DamagedPlayer => false,
                 };
-                passes_filter && passes_controller
+                // PB-XS: CR 109.1 / 601.2c — "another target X" excludes the
+                // casting/activating source from being selected as a target.
+                let passes_self = !filter.exclude_self || self_id != Some(id);
+                passes_filter && passes_controller && passes_self
             }
         }
         // "target [type] card from your graveyard" — must be in caster's graveyard (CR 115.1).
         // No hexproof/shroud check — those only apply to permanents on the battlefield.
         TargetRequirement::TargetCardInYourGraveyard(filter) => {
             let in_your_gy = matches!(obj.zone, ZoneId::Graveyard(pid) if pid == caster);
-            in_your_gy && crate::effects::matches_filter(&chars, filter)
+            // PB-XS: CR 109.1 / 601.2c — "another target X card from your graveyard"
+            // excludes the trigger source itself (e.g. Elderfang Ritualist's WhenDies
+            // trigger excluding the post-death Ritualist in the graveyard).
+            let passes_self = !filter.exclude_self || self_id != Some(id);
+            in_your_gy && crate::effects::matches_filter(&chars, filter) && passes_self
         }
         // "target [type] card from a graveyard" — any player's graveyard (CR 115.1).
         TargetRequirement::TargetCardInGraveyard(filter) => {
             let in_any_gy = matches!(obj.zone, ZoneId::Graveyard(_));
-            in_any_gy && crate::effects::matches_filter(&chars, filter)
+            // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion (same as above).
+            let passes_self = !filter.exclude_self || self_id != Some(id);
+            in_any_gy && crate::effects::matches_filter(&chars, filter) && passes_self
         }
         // Player requirement — object target is illegal
         TargetRequirement::TargetPlayer => false,

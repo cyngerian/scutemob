@@ -110,7 +110,15 @@
 ///   the battlefield when its replacement fires for another creature's ETB).
 ///   Wire format change: pre-PB-EWC serialized states with `u32` counts are
 ///   not forward-compatible.
-pub const HASH_SCHEMA_VERSION: u8 = 18;
+/// - 19: PB-XS (2026-05-14) — `TargetFilter.exclude_self: bool` added (CR 109.1 /
+///   601.2c, "another target X"). Enforced at declarative target validation
+///   (`casting::validate_object_satisfies_requirement`) and trigger auto-target
+///   picker (`abilities.rs`) using already-threaded `self_id` / `trigger.source`.
+///   Backward compatible via `#[serde(default)] false`. Unblocks "another target
+///   creature/permanent/Elf/Vampire/etc." across Roalesk, Samut, Torch Courier,
+///   Brash Taunter, Ezuri Renegade Leader, Oath of Teferi, Elderfang Ritualist,
+///   Dour Port-Mage, Thousand-Faced Shadow.
+pub const HASH_SCHEMA_VERSION: u8 = 19;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4326,6 +4334,8 @@ impl HashInto for TargetFilter {
         self.has_chosen_subtype.hash_into(hasher);
         self.exclude_chosen_subtype.hash_into(hasher);
         self.has_counter_type.hash_into(hasher);
+        // PB-XS: target-side "another target X" exclusion (CR 109.1 / 601.2c).
+        self.exclude_self.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {

@@ -22,8 +22,11 @@ pub fn card() -> CardDefinition {
                     return_to: crate::cards::card_definition::DelayedReturnDestination::Battlefield,
                 },
                 intervening_if: None,
+                // PB-XS: CR 109.1 / 601.2c — "another target permanent you control"
+                // excludes Oath of Teferi from being exiled by its own ETB trigger.
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     controller: TargetController::You,
+                    exclude_self: true,
                     ..Default::default()
                 })],
                 modes: None,

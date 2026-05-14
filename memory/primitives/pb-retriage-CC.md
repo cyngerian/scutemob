@@ -761,3 +761,140 @@ a future replacement-filter expansion (potentially fold into the broader
 replacement filter rework alongside Eomer's `TargetFilter.exclude_self`).
 **References**: pb-plan-EWC; pb-review-EWC.md E2; CR 614.1c; ObjectFilter
 variants in `state/replacement_effect.rs`.
+
+---
+
+## OOS seeds filed by PB-XS (scutemob-21, 2026-05-14)
+
+PB-XS shipped `TargetFilter.exclude_self: bool` (HASH 18→19) for the
+"another target X" target-selection family — CR 109.1 / 601.2c. Enforcement
+wired at the declarative target-validation path
+(`casting::validate_object_satisfies_requirement` w/ already-threaded
+`self_id`) and the trigger auto-target picker (`abilities.rs`,
+`trigger.source`). Activated abilities now route through
+`validate_targets_with_source` (was `validate_targets`, dead-code retained
+behind `#[allow(dead_code)]` for callers without a source). In-scope cards
+fixed: Roalesk, Samut Voice of Dissent, Torch Courier, Brash Taunter, Ezuri
+Renegade Leader, Oath of Teferi, Elderfang Ritualist, Dour Port-Mage,
+Thousand-Faced Shadow.
+
+### OOS-XS-1: "different from other declared target" — Hidden Strings, twincast-style
+
+**Cards**: Hidden Strings ("tap or untap target permanent, then you may tap
+or untap another target permanent"). Future cards with "two target X, no two
+of which are the same" patterns (e.g. Boros Charm-family multi-target choose-one,
+Time Stretch, etc.) hit the same gap.
+**Oracle pattern**: A spell or ability with multiple TargetRequirement slots
+where slot N must reference a different object than slots 0..N-1. This is
+NOT exclude_self (the source isn't a battlefield permanent for sorceries);
+it is *inter-target distinctness*.
+**Gap**: PB-XS only excludes the source. Hidden Strings would need a new
+field like `TargetRequirement::TargetPermanentDistinctFrom(usize)` or a
+post-pass after declared-target binding that rejects duplicates among
+flagged slot indices. Authorship cost ~30 lines + tests; out of scope here.
+**Yield**: 1 confirmed (Hidden Strings) + ~3 speculative future cards.
+**Status**: Filed by PB-XS 2026-05-14. Defer until a real multi-target
+"another" card crosses the priority threshold.
+**References**: `crates/engine/src/cards/defs/hidden_strings.rs`; CR 601.2c.
+
+### OOS-XS-2: TargetFilter.is_attacking enforcement at validate sites
+
+**Cards**: Thousand-Faced Shadow ("create a token that's a copy of another
+target attacking creature"). Future "target attacking creature" cards
+(Aether Tradewinds family, Naya Charm) hit the same gap.
+**Oracle pattern**: A target requirement whose filter constrains the target
+to currently-attacking creatures (CombatState.attackers membership).
+**Gap**: `TargetFilter.is_attacking` exists but per its doc comment is
+checked ONLY by `combat_damage_filter` in abilities.rs — the declarative
+target-validation path (`validate_object_satisfies_requirement`) and the
+trigger auto-target picker silently ignore it. PB-XS authored Thousand-Faced
+Shadow with `is_attacking: true` set on the filter so the card-def reads
+correctly, but the engine does not yet enforce it during target validation.
+**Mechanical fix**: in `validate_object_satisfies_requirement` (and the
+auto-target picker), after `matches_filter` returns true, additionally check
+`!filter.is_attacking || state.combat.is_attacking(id)`. Mirror the
+`exclude_self` pattern PB-XS just added.
+**Yield**: 1 confirmed (Thousand-Faced Shadow). Light primitive (~15 lines).
+**Status**: Filed by PB-XS 2026-05-14. Recommend bundling with the next
+"target X with runtime predicate" primitive (e.g. is_tapped, is_nontoken
+target side). Could ship as PB-XA ("eXclude / Attacking / runtime predicates").
+**References**: `crates/engine/src/cards/defs/thousand_faced_shadow.rs`;
+`TargetFilter.is_attacking` doc comment in `card_definition.rs:2600`.
+
+### OOS-XS-3: Olivia Voldaren {1}{R} multi-effect activated ability
+
+**Cards**: Olivia Voldaren ("{1}{R}: Olivia Voldaren deals 1 damage to
+another target creature. That creature becomes a Vampire in addition to its
+other types. Put a +1/+1 counter on Olivia Voldaren.").
+**Oracle pattern**: A single activated ability that resolves three distinct
+effects (damage to declared target + LayerModification::AddSubtype to that
+target + AddCounter on Source). Existing DSL `AbilityDefinition::Activated`
+takes a single `effect`; sequencing via `Effect::Sequence` works only if
+each child Effect is representable. `AddSubtype` LayerModification does not
+exist.
+**Gap**: PB-XS added `exclude_self: true` would be required ONCE the
+activated ability is authored, but the underlying DSL gap is
+`LayerModification::AddSubtype { subtype: SubType }` (Layer 4 type-addition,
+CR 613.1d). No card-def edit lands today.
+**Yield**: 1 confirmed (Olivia Voldaren). Additional cards: Conspiracy,
+Arcane Adaptation, Door of Destinies (all "this creature is also X").
+**Status**: Filed by PB-XS 2026-05-14. Belongs to a Layer-4 type-grant
+primitive batch alongside the ObjectFilter::OwnedByOpponentsOf sub-gap
+already on the roadmap.
+**References**: `crates/engine/src/cards/defs/olivia_voldaren.rs`; CR 613.1d.
+
+### OOS-XS-4: Skrelv Defector Mite — ChooseColor + protection-from-color + can't-block-by-color
+
+**Cards**: Skrelv, Defector Mite ("{W/P}, {T}: Choose a color. Another
+target creature you control gains toxic 1 and hexproof from that color
+until end of turn. It can't be blocked by creatures of that color this
+turn.").
+**Oracle pattern**: An activated ability whose effect (a) prompts the
+controller for a color choice, (b) grants conditional hexproof-from-color
+to the target until end of turn, (c) attaches a "can't be blocked by
+creatures of that color this turn" combat restriction. PB-XS handles only
+the "another target" half via `exclude_self`.
+**Gap**: Three orthogonal DSL primitives missing:
+  1. `ChooseColor` effect / activation-time prompt with the chosen color
+     stored on the resulting continuous effect.
+  2. `LayerModification::AddProtectionFromColor(ManaColor)` with continuous-
+     effect duration UntilEndOfTurn (CR 702.16, color-keyed protection).
+  3. A combat-restriction continuous effect referencing the chosen color
+     (CR 509.1b — block restrictions evaluated during DeclareBlockers).
+**Yield**: 1 confirmed (Skrelv). Adjacent cards: Mother of Runes (color-keyed
+protection), Disenchant variants. Color-choice is a broader primitive.
+**Status**: Filed by PB-XS 2026-05-14. High complexity; defer until a
+post-alpha protection-from-color primitive batch.
+**References**: `crates/engine/src/cards/defs/skrelv_defector_mite.rs`;
+CR 702.16, CR 509.1b.
+
+### OOS-XS-5: "Whenever another X enters/dies" trigger-side filter — Metastatic Evangel et al.
+
+**Cards**: Metastatic Evangel ("Whenever another nontoken creature you
+control enters, proliferate"). Shadow Alley Denizen, Forerunner of the
+Legion, Boggart Shenanigans, Athreos God of Passage, Meren of Clan Nel Toth
+all have the "another X enters/dies" trigger-side exclusion pattern.
+**Oracle pattern**: A `WheneverCreatureEntersBattlefield` /
+`WheneverPermanentEntersBattlefield` / `WheneverCreatureDies` trigger whose
+trigger object must NOT be the trigger source itself.
+**Gap**: `WheneverCreatureDies.exclude_self` already exists (PB-23). The
+sibling `WheneverCreatureEntersBattlefield` and
+`WheneverPermanentEntersBattlefield` variants in `TriggerCondition` have
+only `filter: Option<TargetFilter>` — no `exclude_self` flag at the trigger
+level. The trigger-evaluation site silently fires on the source's own ETB.
+Note: this is the TRIGGER-side exclusion (which trigger object fires), NOT
+the target-side exclusion (which this PB shipped). Cards currently document
+the miss via inline comments (see `metastatic_evangel.rs:18-21`).
+**Mechanical fix**: add `exclude_self: bool` to
+`TriggerCondition::WheneverCreatureEntersBattlefield` and
+`WheneverPermanentEntersBattlefield`; gate the matching trigger evaluation
+on `triggering_object_id != trigger.source` when set. Mirror PB-23
+(`WheneverCreatureDies.exclude_self`).
+**Yield**: 6+ confirmed (Metastatic Evangel, Shadow Alley Denizen,
+Forerunner of the Legion, Boggart Shenanigans, Athreos, Meren — and more on
+sweep). High-yield primitive.
+**Status**: Filed by PB-XS 2026-05-14. Recommended next PB after the
+exclude_self family completes. Likely PB-XS-E (Enters-trigger sibling).
+**References**: `crates/engine/src/cards/defs/metastatic_evangel.rs`;
+`WheneverCreatureDies.exclude_self` precedent at `card_definition.rs:2690`;
+CR 603.10a.

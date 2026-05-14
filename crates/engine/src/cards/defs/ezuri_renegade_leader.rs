@@ -24,10 +24,10 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: None,
-                // NOTE: oracle says "another target Elf" — self-exclusion on TargetRequirement
-                // not in DSL; implemented without self-exclusion.
+                // PB-XS: CR 109.1 / 601.2c — "another target Elf" excludes Ezuri herself.
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     has_subtype: Some(SubType("Elf".to_string())),
+                    exclude_self: true,
                     ..Default::default()
                 })],
                 activation_condition: None,

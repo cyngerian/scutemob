@@ -392,11 +392,9 @@ fn test_ingenious_prodigy_x_value_replacement_counts() {
 #[test]
 fn test_pb_ewc_hash_schema_version_is_18() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 18u8,
-        "PB-EWC: HASH_SCHEMA_VERSION must be 18 (bump from PB-LKI-Power's 17 \
-         for ReplacementModification::EntersWithCounters count: u32 → EffectAmount). \
-         If this fails, hash.rs:103 needs to be incremented and the canary \
-         tests for prior PBs need their sentinels updated."
+        HASH_SCHEMA_VERSION, 19u8,
+        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
+         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
