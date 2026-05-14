@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed. ~45 open. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **2 PBs shipped 2026-04-30 in chain** — `scutemob-16` PB-TS (`TokenSpec.count: u32→EffectAmount`, 4 cards Phyrexian Swarmlord/Krenko/Izoni/Chasm Skulker reverted, HASH 13→14, +5 tests) merged `68f4bfbc`; `scutemob-17` PB-LKI-CC (`EffectAmount::CounterCountAtLastKnownInformation`, 2 cards Chasm Skulker re-author + Toothy retroactive fix, HASH 14→**15**, +9 tests via fix-phase E1 full-LBA sweep) merged `a2b24e42`. Tests 2720→**2734** (+14). |
+| W6: Primitive + Card Authoring | — | available | — | **2 PBs shipped 2026-05-13/14 in chain** — `scutemob-18` PB-CD (`ReplacementTrigger::WouldPlaceCounters.counter_filter` + `ObjectFilter::CreatureControlledBy`, 3 cards Hardened Scales/Corpsejack Menace/Conclave Mentor replacement-half, HASH 15→16, +11 tests) merged `36816e0f`; `scutemob-19` PB-LKI-Power (`EffectAmount::SourcePowerAtLastKnownInformation` disc 18 + `lki_power: Option<i32>` LKI snapshot, 2 cards Conclave Mentor death-trigger + Juri Master, HASH 16→**17**, +4 tests via 21-site dispatch chain) merged `12218638`. Tests 2734→**2749** (+15). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,34 +23,46 @@
 
 ## Last Handoff
 
-**Date**: 2026-04-30 ~01:00–05:00 EDT
-**Workstream**: W6: Primitive (coordinator chain — 2 PBs back-to-back)
-**Task**: PB-TS + PB-LKI-CC dispatch-collect chain (both shipped)
+**Date**: 2026-05-13/14 (oversight session, 2 PBs back-to-back)
+**Workstream**: W6: Primitive (coordinator chain)
+**Task**: PB-CD + PB-LKI-Power dispatch-collect chain (both shipped)
 
 **Completed**:
-- **PB-TS shipped** (`scutemob-16`, merged `68f4bfbc`). `TokenSpec.count: u32 → EffectAmount` — dynamic token count via `resolve_amount` integration at `effects/mod.rs:540-590` + `601-668` before `apply_token_creation_replacement` boundary. 4 cards re-authored: Phyrexian Swarmlord, Krenko Mob Boss, Izoni Thousand-Eyed, Chasm Skulker (Chasm later reverted in fix-phase pending PB-LKI-CC). HASH 13→14. Tests 2720→2725 (+5). Review NEEDS-FIX → PASS (E1 Krenko sorcery-speed + C1 Chasm 0-tokens). 4 OOS seeds filed (OOS-TS-1 through 4). Wall clock ~82min.
-- **PB-LKI-CC shipped** (`scutemob-17`, merged `a2b24e42`). `EffectAmount::CounterCountAtLastKnownInformation { counter }` (disc 17) — LKI snapshot threaded `pre_death_counters → PendingTrigger.lki_counters → StackObject.lki_counters → EffectContext.lki_counters → resolve_amount`. Fix-phase E1 swept all 5 `SelfLeavesBattlefield` dispatch arms — added `pre_lba_counters: OrdMap<CounterType, u32>` field to 4 `GameEvent` variants (`AuraFellOff`/`PermanentDestroyed`/`ObjectExiled`/`ObjectReturnedToHand`), updated ~35 emit sites across `casting.rs`/`engine.rs`/`resolution.rs`/`turn_actions.rs`/`abilities.rs`. 2 cards: Chasm Skulker (re-authored from PB-TS revert), Toothy Imaginary Friend (retroactive correctness — was producing 0 draws on bounce/exile/destroy). HASH 14→15. Tests 2725→2734 (+9). Review NEEDS-FIX → PASS (1 HIGH + 3 LOW, all resolved). 2 OOS seeds filed (OOS-LKI-3 Workhorse cost-LKI + OOS-LKI-4 AnyCreatureDies). Wall clock ~128min.
-- **Bookkeeping**: `.gitignore` updated to hide `.esm/` + `.worktrees/` (queued from prior session). `.claude/skills/` contamination cleanup applied per recipe after both merges. Authoring report regenerated twice — TODO lines 1187→1182→1180; clean count 915→916.
+- **PB-CD shipped** (`scutemob-18`, merged `36816e0f`). Counter-doubling replacement effects (CR 122.6 / 614.1). Engine: `ReplacementTrigger::WouldPlaceCounters.counter_filter: Option<CounterType>` for counter-type gating + `ObjectFilter::CreatureControlledBy(PlayerId)` disc 8 for receiver scope (layer-resolved creature type per CR 613.1d). Existing Vorinclex/Pir/Lae'zel preserved via `counter_filter: None`. 3 cards: Hardened Scales (AddExtraCounter), Corpsejack Menace (DoubleCounters), Conclave Mentor (replacement half only — death trigger deferred as OOS-LKI-Power seed, closed by next PB). HASH 15→16. Tests 2734→2745 (+11). Review PASS (3 LOW: 1 CR-citation fix 121.6→122.6, 2 false-positives non-reproducible).
+- **PB-LKI-Power shipped** (`scutemob-19`, merged `12218638`). LKI source-power snapshot for SelfDies/SelfLeavesBattlefield triggers (CR 603.10a / 122.2 / 400.7). Engine: `EffectAmount::SourcePowerAtLastKnownInformation` (disc 18; disc 19 reserved for toughness variant) + `lki_power: Option<i32>` threaded through `PendingTrigger`/`StackObject`/`EffectContext`. Snapshot at `sba.rs:540` via `calculate_characteristics(state, source_id).power` BEFORE `move_object_to_zone`. 5 `GameEvent` variants extended: `CreatureDied.pre_death_power` HASHED; `AuraFellOff`/`PermanentDestroyed`/`ObjectExiled`/`ObjectReturnedToHand.pre_lba_power` NOT hashed (mirrors PB-LKI-CC LBA precedent). 21-site dispatch chain (full plumbing trace in review memo). 2 cards: Conclave Mentor death-trigger life-gain (closes PB-CD TODO), Juri Master of the Revue death-trigger damage. HASH 16→17. Tests 2745→2749 (+4 — discriminating coverage: per-card + LKI-after-zone-change discriminator + hash determinism canary). Review PASS-WITH-NITS → PASS after worker fix-phase (E1 OOS-LKI-Power-4 seed filed for AnyCreatureDies, E3 stale doc-comment line numbers removed; E2 deferred as OOS-LKI-Power-5).
+- **5 OOS-LKI-Power seeds filed** in `memory/primitives/pb-retriage-CC.md`: -1 (toughness variant, disc 19 reserved), -2 (Master Biomancer ETB-replacement EffectAmount from source power), -3 (LBA hash arm symmetric extension), -4 (AnyCreatureDies LKI-power), -5 (Layer-4 animated non-creature SBA paths). Original OOS-LKI-Power closed.
+- **Tests**: 2734→**2749** (+15 overall). Build/clippy/fmt clean throughout. **HASH**: 15→17 (two bumps).
+- **Bookkeeping**: authoring report regenerated by PB-LKI-Power worker in fix-phase commit; coordinator-side tidy fixed a duplicated phrase ("Master Biomancer ETB-counter-from-source-power" appearing twice) in worker-written CLAUDE.md.
 
 **Not done / deferred**:
-- 8 stop-and-flag seeds in `memory/primitives/pb-retriage-CC.md` still untouched (OOS-LKI-3/4 newly added). Counter-doubling replacement (Hardened Scales et al., CR 121.6) and `TargetFilter.exclude_self` (Éomer) remain attractive next picks.
+- 5 newly-filed OOS-LKI-Power seeds (-1 through -5) untouched.
+- 8 prior OOS-TS/LKI seeds still untouched (OOS-LKI-3 Workhorse cost-LKI, OOS-LKI-4 AnyCreatureDies counter axis, OOS-TS-1/2/3/4, etc.).
+- `TargetFilter.exclude_self` (Éomer + ~5 "for each other [type]" cards) still attractive small primitive.
 - `docs/project-status.md` Card Health section still stale (canonical: `tools/authoring-report.py`).
-- Toothy Imaginary Friend now has correct draw count on bounce/exile/destroy but should be regression-tested under copy/replication scenarios (worker did a basic regression sweep).
 
 **Next session**:
-- Pick another primitive from the OOS seeds. **OOS-LKI-3** (Workhorse cost-payment LKI) is natural follow-up since LKI infrastructure is fresh. Or pivot to a new primitive family: counter-doubling replacement (CR 121.6 — 3 named EDH staples), or `TargetFilter.exclude_self` (5+ cards likely).
-- Alternative: refresh `docs/project-status.md` Card Health to point at the canonical authoring-status report.
+- **Master Biomancer ETB-replacement** (OOS-LKI-Power-2) — closes a freshly-filed seed; ETB-side dynamic counter count from source power; different shape from LKI snapshot (live source, not LKI). One named EDH staple.
+- **`TargetFilter.exclude_self`** (Éomer) — small contained primitive.
+- Or pivot: refresh `docs/project-status.md` Card Health, or tackle one of the older OOS seeds.
 
-**Hazards** (carrying forward + reconfirmed this session):
-- **CWD-stickiness in Bash tool** *(reconfirmed twice this session — once for each PB)*: `cd` does NOT reliably persist between bash invocations in this tool. Reliable recipe: `cd /home/skydude/projects/scutemob && <command>` in the SAME bash invocation, every time. The second occurrence happened when `esm worktree merge` tried to find the worktree at a doubled path because cwd was inside it.
-- **Worker forgot to mark criteria satisfied before signal-ready** *(new this session, scutemob-17)*: worker completed all work (review PASS, tests pass, memos exist) but never ran `esm task satisfy` for the 7 criteria. Coordinator verified independently and applied. Possibly worth strengthening the worker prompt or dispatch skill to require satisfy step before signal-ready.
-- **`esm task transition --attest working_branch=<short>` poisons merge** (carried forward).
-- **Worker-worktree `.claude/skills/` deletion artifact** (carried forward; `.esm/worker.md` add now suppressed by .gitignore but `.claude/skills/` deletion still happens — recipe: `git checkout HEAD^1 -- .claude/skills/`).
-- **Carried-forward LOWs**: BASELINE-LKI-01, PB-Q4-M01, marisi stale-TODO, 11 PB-T LOWs, 5 PB-P LOWs, 1 PB-D LOW, 4×PB-CC review memo LOWs, 3 LOWs from PB-LKI-CC review memo (E1/E2/E3 all resolved but check memo for any LOWs filed).
+**Hazards** (carrying forward, mostly stable):
+- **CWD-stickiness in Bash tool**: hit ONCE this session (after `cd /home/skydude/projects/scutemob/.worktrees/scutemob-18 && git log --oneline main..HEAD`, a later bare `git branch --show-current` returned the feature branch because cwd persisted). Recipe still: `cd /home/skydude/projects/scutemob && <command>` in same bash invocation. Less severe than prior session.
+- **`feedback_worker_satisfy_before_signal_ready` worked** — both workers correctly ran `esm task satisfy` for all criteria this session. The auto-memory feedback rule is observably improving outcomes.
+- **CLAUDE.md bloat**: file now at **407 lines** (size guard is 250). Worker updates added detailed Active Plan + Status entries for each PB. Not addressed this session (would require trimming completed PB detail to topic files); flag as future cleanup pivot.
+- **Worktree "uncommitted changes (discarded)" warning** fired on both merges — final commits are clean and reviewed, safe to ignore but documented.
+- **`esm task transition --attest working_branch=<short>` poisons merge** (carried forward — used full branch name both times to avoid).
+- **Worker-worktree `.claude/skills/` deletion artifact** carried forward but not triggered this session (no contamination cleanup needed post-merge for either PB).
+- **Carried-forward LOWs**: BASELINE-LKI-01, PB-Q4-M01, marisi stale-TODO, 11 PB-T LOWs, 5 PB-P LOWs, 1 PB-D LOW, 4×PB-CC review memo LOWs, 3×PB-LKI-CC LOWs (resolved), 3×PB-CD LOWs (1 fixed, 2 false-positives), 3×PB-LKI-Power LOWs (E1/E3 fixed, E2 deferred as OOS-LKI-Power-5).
 
-**Commit prefix used**: worker-agent-generated (`scutemob-16:` / `scutemob-17:` worker side, `merge:` for merge commits) + coordinator `chore:` for both post-collect cleanups.
+**Commit prefix used**: worker-side `scutemob-18:` / `scutemob-19:`, `merge:` for merges, coordinator-side `chore:` for both post-collect tidies.
 
 ## Handoff History
+
+### 2026-04-30 ~01:00–05:00 EDT (PB-TS + PB-LKI-CC chain) — W6: Primitive
+
+- **PB-TS shipped** (`scutemob-16`, merged `68f4bfbc`). `TokenSpec.count: u32 → EffectAmount` — dynamic token count via `resolve_amount` integration at `effects/mod.rs:540-590` + `601-668` before `apply_token_creation_replacement` boundary. 4 cards re-authored: Phyrexian Swarmlord, Krenko Mob Boss, Izoni Thousand-Eyed, Chasm Skulker (reverted in fix-phase pending PB-LKI-CC). HASH 13→14. Tests +5. Review NEEDS-FIX → PASS. 4 OOS-TS seeds filed.
+- **PB-LKI-CC shipped** (`scutemob-17`, merged `a2b24e42`). `EffectAmount::CounterCountAtLastKnownInformation { counter }` (disc 17) — LKI snapshot threaded `pre_death_counters → PendingTrigger.lki_counters → StackObject.lki_counters → EffectContext.lki_counters → resolve_amount`. Fix-phase E1 swept all 5 `SelfLeavesBattlefield` dispatch arms (~35 emit sites across 5 engine files). 2 cards: Chasm Skulker re-authored from PB-TS revert + Toothy Imaginary Friend retroactive correctness fix. HASH 14→15. Tests +9. Review PASS (1 HIGH + 3 LOW resolved). 2 OOS-LKI seeds filed.
+- Tests 2720→**2734** (+14). New hazard: worker forgot satisfy step before signal-ready (captured in feedback memory `feedback_worker_satisfy_before_signal_ready.md`).
 
 ### 2026-04-29 evening – 2026-04-30 ~00:50 EDT (PB-CC-C-followup + canonical authoring-status tooling) — W6: Primitive + tooling
 
@@ -77,8 +89,4 @@
 ### 2026-04-20 (PB-T single-worker dispatch) — W6: TargetRequirement::UpToN
 
 - W6 re-triage (pre-dispatch): old queue (PB-R/Q3/U/V/W/Y/Q2/Q5) verified 0-1 live TODOs each; new-rank candidates identified (Cost::SacrificeFilteredType rank 3 ~12 live, EffectAmount::CounterCount rank 6 ~10 live). PB-T picked. **PB-T shipped** (`scutemob-5`, merged `2d447e93`): `TargetRequirement::UpToN { count, inner }` per CR 601.2c. Two-pass best-fit validator (out-of-slot-order legal). Auto-target routing for `UpToN{Player}` + nested `UpToN`. HASH 7→8. 22-card oracle sweep → 14 CONFIRMED (64% yield). 14 cards unblocked. 13 tests in `pbt_up_to_n_targets.rs`. Review: needs-fix (1 HIGH validator + 5 MEDIUM) → fix → re-review PASS. Tests 2673→2686. Wall clock ~113 min.
-
-### 2026-04-19 (chain-dispatch session) — W6: PB-P + PB-L shipped sequentially via ESM
-
-- **Push** (`52e2c9dc..872ea5d2`): 11 commits pushed to `origin/main` in two pushes. **PB-P shipped** (`scutemob-3`, merged `8ba9c5b7`): `EffectAmount::PowerOfSacrificedCreature` + `AdditionalCost::Sacrifice` reshape to `{ ids, lki_powers }` for CR 608.2b LKI capture-by-value. 3 cards (altar_of_dementia, greater_good, lifes_legacy). HASH 5→6. Review PASS-WITH-NOTES (5 LOW). **PB-L shipped** (`scutemob-4`, merged `872ea5d2`): Step 0 verdict reversed mid-task (EXISTS → PARTIAL-GAP). No new `TriggerCondition` variant (Landfall = ability word CR 207.2c). Minimal primitive: `ETBTriggerFilter.card_type_filter` + battlefield conversion block in `replay_harness.rs`. 3 cards + 5 TODO rewrites. HASH 6→7. Memo `memory/primitives/pb-note-L-collapsed.md`. **Chain-dispatch pattern validated**: single coordinator ran two `/dispatch` → poll → `/collect` cycles, no user intervention mid-chain. Tests 2655→2673.
 
