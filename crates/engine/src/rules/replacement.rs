@@ -887,11 +887,18 @@ pub fn resolve_pending_zone_change(
             };
             // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
             // CR 702.79a: capture counters before move_object_to_zone resets them.
-            let (pre_move_controller, pre_death_counters) = state
+            // CR 603.10a: capture LKI power before move_object_to_zone for SourcePowerAtLKI.
+            let oid = pending.object_id;
+            let (pre_move_controller, pre_death_counters, pre_death_power_repl) = state
                 .objects
-                .get(&pending.object_id)
-                .map(|o| (o.controller, o.counters.clone()))
-                .unwrap_or((pending.affected_player, Default::default()));
+                .get(&oid)
+                .map(|o| {
+                    let lki_power = crate::rules::layers::calculate_characteristics(state, oid)
+                        .and_then(|c| c.power)
+                        .or(o.characteristics.power);
+                    (o.controller, o.counters.clone(), lki_power)
+                })
+                .unwrap_or((pending.affected_player, Default::default(), None));
             // Do the zone move
             if let Ok((new_id, _old)) = state.move_object_to_zone(pending.object_id, final_dest) {
                 events.extend(zone_change_events(
@@ -902,6 +909,7 @@ pub fn resolve_pending_zone_change(
                     pending.affected_player,
                     pre_move_controller,
                     &pre_death_counters,
+                    pre_death_power_repl,
                 ));
             }
         }
@@ -1067,6 +1075,7 @@ pub fn fire_saga_chapter_triggers(
                     damaged_player: None,
                     combat_damage_amount: 0,
                     lki_counters: im::OrdMap::new(),
+                    lki_power: None,
                     data: None,
                 });
             }
@@ -1246,6 +1255,7 @@ pub fn queue_carddef_etb_triggers(
                     damaged_player: None,
                     combat_damage_amount: 0,
                     lki_counters: im::OrdMap::new(),
+                    lki_power: None,
                     data: None,
                 });
             }
@@ -1287,6 +1297,7 @@ pub fn queue_carddef_etb_triggers(
                         damaged_player: None,
                         combat_damage_amount: 0,
                         lki_counters: im::OrdMap::new(),
+                        lki_power: None,
                         data: None,
                     });
                 }
@@ -1576,6 +1587,7 @@ fn emit_etb_modification(
 /// `pre_death_counters` is the counter state captured before `move_object_to_zone` reset it —
 /// required for CR 702.79a persist/undying intervening-if check in `check_triggers`.
 /// `card_types` is used to choose `CreatureDied` vs `PermanentDestroyed` for graveyard moves.
+#[allow(clippy::too_many_arguments)]
 fn zone_change_events(
     state: &GameState,
     old_id: ObjectId,
@@ -1584,6 +1596,7 @@ fn zone_change_events(
     owner: PlayerId,
     pre_move_controller: PlayerId,
     pre_death_counters: &im::OrdMap<crate::state::types::CounterType, u32>,
+    pre_death_power: Option<i32>,
 ) -> Vec<GameEvent> {
     match dest {
         ZoneId::Graveyard(_) => {
@@ -1602,6 +1615,8 @@ fn zone_change_events(
                     controller: pre_move_controller,
                     // CR 702.79a: last-known counter state for persist/undying check.
                     pre_death_counters: pre_death_counters.clone(),
+                    // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                    pre_death_power,
                 }]
             } else {
                 vec![GameEvent::PermanentDestroyed {
@@ -1609,6 +1624,8 @@ fn zone_change_events(
                     new_grave_id: new_id,
                     // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                     pre_lba_counters: pre_death_counters.clone(),
+                    // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                    pre_lba_power: pre_death_power,
                 }]
             }
         }
@@ -1619,6 +1636,8 @@ fn zone_change_events(
             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
             // pre_death_counters captured before move_object_to_zone resets them.
             pre_lba_counters: pre_death_counters.clone(),
+            // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+            pre_lba_power: pre_death_power,
         }],
         ZoneId::Command(_) => vec![GameEvent::CommanderZoneRedirect {
             // MR-M8-05: proper variant instead of ReplacementId(u64::MAX) sentinel

@@ -409,6 +409,17 @@ pub struct PendingTrigger {
     /// Empty for triggers that don't fire from a leaves-battlefield event.
     #[serde(default)]
     pub lki_counters: im::OrdMap<crate::state::types::CounterType, u32>,
+    /// CR 603.10a / CR 113.7a: LKI source-power snapshot for WhenDies / WhenLeavesBattlefield triggers.
+    /// Captured at trigger queueing time (abilities.rs CreatureDied/AuraFellOff/PermanentDestroyed/
+    /// ObjectExiled/ObjectReturnedToHand arms) from the corresponding GameEvent's
+    /// `pre_death_power` / `pre_lba_power` payload. Threaded through
+    /// `flush_pending_triggers` into `StackObject.lki_power`, then into
+    /// `EffectContext.lki_power` at resolution. Read by
+    /// `EffectAmount::SourcePowerAtLastKnownInformation`.
+    /// `None` for triggers that don't fire from a leaves-battlefield event OR for
+    /// sources whose layer-resolved power was `None` (non-creatures).
+    #[serde(default)]
+    pub lki_power: Option<i32>,
 }
 impl PendingTrigger {
     /// Construct a PendingTrigger with all Option fields as `None` and default values.
@@ -454,6 +465,7 @@ impl PendingTrigger {
             combat_damage_amount: 0,
             data: None,
             lki_counters: im::OrdMap::new(),
+            lki_power: None,
         }
     }
 }

@@ -537,10 +537,21 @@ fn check_creature_sbas(
                 continue; // Skip destruction -- permanent stays on battlefield
             }
         }
-        let (owner, pre_death_controller, pre_death_counters) = match state.objects.get(&id) {
-            Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
-            None => continue, // Already removed in a previous SBA this pass.
-        };
+        let (owner, pre_death_controller, pre_death_counters, pre_death_power) =
+            match state.objects.get(&id) {
+                Some(obj) => {
+                    // CR 603.10a: capture layer-resolved power BEFORE move_object_to_zone
+                    // (which destroys battlefield-only continuous effects). Use
+                    // calculate_characteristics for the boosted on-battlefield value;
+                    // fall back to base characteristics if layer calc returns None
+                    // (e.g. object newly registered without a layer pass yet).
+                    let lki_power = crate::rules::layers::calculate_characteristics(state, id)
+                        .and_then(|c| c.power)
+                        .or(obj.characteristics.power);
+                    (obj.owner, obj.controller, obj.counters.clone(), lki_power)
+                }
+                None => continue, // Already removed in a previous SBA this pass.
+            };
         // CR 708.9: A face-down permanent leaving the battlefield must be revealed to all
         // players. Capture the reveal event BEFORE moving the object (after move, old ObjectId
         // is dead and face_down_as has been cleared on the new object).
@@ -569,6 +580,8 @@ fn check_creature_sbas(
                         controller: pre_death_controller,
                         // CR 702.79a: capture counters before move_object_to_zone resets them.
                         pre_death_counters: pre_death_counters.clone(),
+                        // CR 603.10a: LKI power snapshot captured before zone move.
+                        pre_death_power,
                     });
                 }
             }
@@ -593,6 +606,8 @@ fn check_creature_sbas(
                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                 // pre_death_counters was captured before the zone move (sba.rs:540).
                                 pre_lba_counters: pre_death_counters.clone(),
+                                // CR 603.10a: pass LKI power snapshot for SourcePowerAtLastKnownInformation.
+                                pre_lba_power: pre_death_power,
                             });
                         }
                         ZoneId::Command(_) => {
@@ -606,6 +621,8 @@ fn check_creature_sbas(
                                 controller: pre_death_controller,
                                 // CR 702.79a: capture counters before move_object_to_zone resets them.
                                 pre_death_counters: pre_death_counters.clone(),
+                                // CR 603.10a: LKI power snapshot captured before zone move.
+                                pre_death_power,
                             });
                         }
                     }
@@ -721,6 +738,8 @@ fn check_planeswalker_sbas(
                                 // used by WhenLeavesBattlefield LKI (planeswalkers use Loyalty
                                 // counter type, not typically referenced by LBA triggers).
                                 pre_lba_counters: im::OrdMap::new(),
+                                // Planeswalkers have no power characteristic.
+                                pre_lba_power: None,
                             });
                         }
                         ZoneId::Command(_) => {}
@@ -837,6 +856,8 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             new_grave_id: new_id,
             // Saga sacrifice — no WhenLeavesBattlefield LKI counter trigger expected.
             pre_lba_counters: im::OrdMap::new(),
+            // Sagas are not creatures; no power LKI needed.
+            pre_lba_power: None,
         });
     }
     events
@@ -1151,6 +1172,8 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 new_grave_id: new_id,
                 // CR 603.10a: capture pre-move counters for WhenLeavesBattlefield triggers on the Aura.
                 pre_lba_counters,
+                // Auras falling off are non-creature enchantments; no power LKI needed.
+                pre_lba_power: None,
             });
         }
     }

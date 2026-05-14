@@ -140,6 +140,17 @@ pub struct EffectContext {
     /// Read by `EffectAmount::CounterCountAtLastKnownInformation`.
     /// `None` for non-LKI trigger contexts; lookups return 0 if `None` or absent.
     pub lki_counters: Option<im::OrdMap<crate::state::types::CounterType, u32>>,
+    /// CR 603.10a / CR 113.7a: LKI source-power snapshot for leaves-battlefield triggers.
+    /// Populated by `flush_pending_triggers` (abilities.rs) when a `WhenDies` /
+    /// `WhenLeavesBattlefield` trigger is put on the stack, capturing the source's
+    /// layer-resolved power (via `calculate_characteristics`) immediately before zone
+    /// change. Threaded into `EffectContext` at trigger resolution time
+    /// (resolution.rs).
+    /// Read by `EffectAmount::SourcePowerAtLastKnownInformation`.
+    /// `None` for non-LKI trigger contexts OR for sources whose
+    /// `Characteristics.power` was `None` (e.g. non-creature permanents); lookup
+    /// returns 0 in both cases.
+    pub lki_power: Option<i32>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -168,6 +179,7 @@ impl EffectContext {
             mana_produced: None,
             sacrificed_creature_powers: vec![],
             lki_counters: None,
+            lki_power: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -201,6 +213,7 @@ impl EffectContext {
             mana_produced: None,
             sacrificed_creature_powers: vec![],
             lki_counters: None,
+            lki_power: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -754,19 +767,28 @@ fn execute_effect_inner(
                         }
                     }
                     // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
-                    let (card_types, owner, pre_death_controller, pre_death_counters) = state
+                    let (
+                        card_types,
+                        owner,
+                        pre_death_controller,
+                        pre_death_counters,
+                        pre_death_power,
+                    ) = state
                         .objects
                         .get(&id)
                         .map(|o| {
+                            let chars = crate::rules::layers::calculate_characteristics(state, id)
+                                .unwrap_or_else(|| o.characteristics.clone());
+                            let lki_power = chars.power;
                             (
-                                crate::rules::layers::calculate_characteristics(state, id)
-                                    .unwrap_or_else(|| o.characteristics.clone())
-                                    .card_types,
+                                chars.card_types,
                                 o.owner,
                                 // CR 603.3a: capture controller before move_object_to_zone resets it.
                                 o.controller,
                                 // CR 702.79a: capture counters before move_object_to_zone resets them.
                                 o.counters.clone(),
+                                // CR 603.10a: capture layer-resolved power before zone move.
+                                lki_power,
                             )
                         })
                         .unwrap_or_else(|| {
@@ -775,6 +797,7 @@ fn execute_effect_inner(
                                 ctx.controller,
                                 ctx.controller,
                                 Default::default(),
+                                None,
                             )
                         });
                     // CR 614: Check replacement effects before moving to graveyard.
@@ -802,6 +825,7 @@ fn execute_effect_inner(
                                             new_exile_id: new_id,
                                             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                             pre_lba_counters: pre_death_counters.clone(),
+                                            pre_lba_power: pre_death_power,
                                         });
                                     }
                                     ZoneId::Command(_) => {
@@ -815,6 +839,7 @@ fn execute_effect_inner(
                                                 controller: pre_death_controller,
                                                 // CR 702.79a: last-known counter state.
                                                 pre_death_counters: pre_death_counters.clone(),
+                                                pre_death_power,
                                             });
                                         } else {
                                             events.push(GameEvent::PermanentDestroyed {
@@ -822,6 +847,7 @@ fn execute_effect_inner(
                                                 new_grave_id: new_id,
                                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                                 pre_lba_counters: pre_death_counters.clone(),
+                                                pre_lba_power: pre_death_power,
                                             });
                                         }
                                     }
@@ -860,6 +886,7 @@ fn execute_effect_inner(
                                         controller: pre_death_controller,
                                         // CR 702.79a: last-known counter state.
                                         pre_death_counters: pre_death_counters.clone(),
+                                        pre_death_power,
                                     });
                                 } else {
                                     events.push(GameEvent::PermanentDestroyed {
@@ -867,6 +894,7 @@ fn execute_effect_inner(
                                         new_grave_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        pre_lba_power: pre_death_power,
                                     });
                                 }
                             }
@@ -951,27 +979,31 @@ fn execute_effect_inner(
                     }
                 }
                 // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
-                let (card_types, owner, pre_death_controller, pre_death_counters) = state
-                    .objects
-                    .get(&id)
-                    .map(|o| {
-                        (
-                            crate::rules::layers::calculate_characteristics(state, id)
-                                .unwrap_or_else(|| o.characteristics.clone())
-                                .card_types,
-                            o.owner,
-                            o.controller,
-                            o.counters.clone(),
-                        )
-                    })
-                    .unwrap_or_else(|| {
-                        (
-                            Default::default(),
-                            ctx.controller,
-                            ctx.controller,
-                            Default::default(),
-                        )
-                    });
+                let (card_types, owner, pre_death_controller, pre_death_counters, pre_death_power) =
+                    state
+                        .objects
+                        .get(&id)
+                        .map(|o| {
+                            let chars = crate::rules::layers::calculate_characteristics(state, id)
+                                .unwrap_or_else(|| o.characteristics.clone());
+                            let lki_power = chars.power;
+                            (
+                                chars.card_types,
+                                o.owner,
+                                o.controller,
+                                o.counters.clone(),
+                                lki_power,
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            (
+                                Default::default(),
+                                ctx.controller,
+                                ctx.controller,
+                                Default::default(),
+                                None,
+                            )
+                        });
                 // CR 614: Check replacement effects before moving to graveyard.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -997,6 +1029,7 @@ fn execute_effect_inner(
                                         new_exile_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        pre_lba_power: pre_death_power,
                                     });
                                     destroyed_count += 1;
                                 }
@@ -1014,6 +1047,7 @@ fn execute_effect_inner(
                                             new_grave_id: new_id,
                                             controller: pre_death_controller,
                                             pre_death_counters: pre_death_counters.clone(),
+                                            pre_death_power,
                                         });
                                     } else {
                                         events.push(GameEvent::PermanentDestroyed {
@@ -1021,6 +1055,7 @@ fn execute_effect_inner(
                                             new_grave_id: new_id,
                                             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                             pre_lba_counters: pre_death_counters.clone(),
+                                            pre_lba_power: pre_death_power,
                                         });
                                     }
                                     destroyed_count += 1;
@@ -1057,6 +1092,7 @@ fn execute_effect_inner(
                                     new_grave_id: new_id,
                                     controller: pre_death_controller,
                                     pre_death_counters: pre_death_counters.clone(),
+                                    pre_death_power,
                                 });
                             } else {
                                 events.push(GameEvent::PermanentDestroyed {
@@ -1064,6 +1100,7 @@ fn execute_effect_inner(
                                     new_grave_id: new_id,
                                     // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                     pre_lba_counters: pre_death_counters.clone(),
+                                    pre_lba_power: pre_death_power,
                                 });
                             }
                             destroyed_count += 1;
@@ -1108,11 +1145,16 @@ fn execute_effect_inner(
                 .collect();
             let mut exiled_count: u32 = 0;
             for id in ids_to_exile {
-                let (owner, pre_lba_counters) = state
+                let (owner, pre_lba_counters, pre_lba_power) = state
                     .objects
                     .get(&id)
-                    .map(|o| (o.owner, o.counters.clone()))
-                    .unwrap_or((ctx.controller, im::OrdMap::new()));
+                    .map(|o| {
+                        let lki_power = crate::rules::layers::calculate_characteristics(state, id)
+                            .and_then(|c| c.power)
+                            .or(o.characteristics.power);
+                        (o.owner, o.counters.clone(), lki_power)
+                    })
+                    .unwrap_or((ctx.controller, im::OrdMap::new(), None));
                 // CR 614: Check replacement effects before exiling.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1141,6 +1183,7 @@ fn execute_effect_inner(
                                         new_exile_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_lba_counters.clone(),
+                                        pre_lba_power,
                                     });
                                     exiled_count += 1;
                                 }
@@ -1174,6 +1217,7 @@ fn execute_effect_inner(
                                 new_exile_id: new_id,
                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                 pre_lba_counters: pre_lba_counters.clone(),
+                                pre_lba_power,
                             });
                             exiled_count += 1;
                         }
@@ -1232,11 +1276,16 @@ fn execute_effect_inner(
                 .collect();
             let mut bounced_count: u32 = 0;
             for id in ids_to_bounce {
-                let (owner, pre_lba_counters) = state
+                let (owner, pre_lba_counters, pre_lba_power) = state
                     .objects
                     .get(&id)
-                    .map(|o| (o.owner, o.counters.clone()))
-                    .unwrap_or((ctx.controller, im::OrdMap::new()));
+                    .map(|o| {
+                        let lki_power = crate::rules::layers::calculate_characteristics(state, id)
+                            .and_then(|c| c.power)
+                            .or(o.characteristics.power);
+                        (o.owner, o.counters.clone(), lki_power)
+                    })
+                    .unwrap_or((ctx.controller, im::OrdMap::new(), None));
                 // CR 614: Check replacement effects before bouncing.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1265,6 +1314,7 @@ fn execute_effect_inner(
                                         new_hand_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_lba_counters.clone(),
+                                        pre_lba_power,
                                     });
                                     bounced_count += 1;
                                 }
@@ -1299,6 +1349,7 @@ fn execute_effect_inner(
                                 new_hand_id: new_id,
                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                 pre_lba_counters: pre_lba_counters.clone(),
+                                pre_lba_power,
                             });
                             bounced_count += 1;
                         }
@@ -1314,7 +1365,7 @@ fn execute_effect_inner(
                     ResolvedTarget::Object(id) => {
                         // CR 603.10a: capture counters BEFORE move_object_to_zone resets them.
                         // Only relevant when exiling from the battlefield (WhenLeavesBattlefield LKI).
-                        let (owner, from_zone_type, pre_lba_counters) = state
+                        let (owner, from_zone_type, pre_lba_counters, pre_lba_power) = state
                             .objects
                             .get(&id)
                             .map(|o| {
@@ -1327,15 +1378,27 @@ fn execute_effect_inner(
                                     ZoneId::Exile => ZoneType::Exile,
                                     ZoneId::Command(_) => ZoneType::Command,
                                 };
-                                // Only capture counters for battlefield→exile (LKI relevant).
+                                // Only capture counters/power for battlefield→exile (LKI relevant).
                                 let counters = if o.zone == ZoneId::Battlefield {
                                     o.counters.clone()
                                 } else {
                                     im::OrdMap::new()
                                 };
-                                (o.owner, fz, counters)
+                                let lki_power = if o.zone == ZoneId::Battlefield {
+                                    crate::rules::layers::calculate_characteristics(state, id)
+                                        .and_then(|c| c.power)
+                                        .or(o.characteristics.power)
+                                } else {
+                                    None
+                                };
+                                (o.owner, fz, counters, lki_power)
                             })
-                            .unwrap_or((ctx.controller, ZoneType::Battlefield, im::OrdMap::new()));
+                            .unwrap_or((
+                                ctx.controller,
+                                ZoneType::Battlefield,
+                                im::OrdMap::new(),
+                                None,
+                            ));
                         // CR 614: Check replacement effects before exiling.
                         let action = crate::rules::replacement::check_zone_change_replacement(
                             state,
@@ -1367,6 +1430,7 @@ fn execute_effect_inner(
                                                 new_exile_id: new_id,
                                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                                 pre_lba_counters: pre_lba_counters.clone(),
+                                                pre_lba_power,
                                             });
                                         }
                                     }
@@ -1406,6 +1470,7 @@ fn execute_effect_inner(
                                         new_exile_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_lba_counters.clone(),
+                                        pre_lba_power,
                                     });
                                 }
                             }
@@ -2058,11 +2123,17 @@ fn execute_effect_inner(
                 if let ResolvedTarget::Object(id) = resolved {
                     // CR 603.10a: capture counters BEFORE move_object_to_zone resets them.
                     // Only relevant for battlefield→exile/hand moves (LKI snapshot).
-                    let pre_lba_counters = state
+                    let (pre_lba_counters, pre_lba_power_mz) = state
                         .objects
                         .get(&id)
                         .filter(|o| o.zone == ZoneId::Battlefield)
-                        .map(|o| o.counters.clone())
+                        .map(|o| {
+                            let lki_power =
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .and_then(|c| c.power)
+                                    .or(o.characteristics.power);
+                            (o.counters.clone(), lki_power)
+                        })
                         .unwrap_or_default();
                     let dest = resolve_zone_target(to, state, ctx);
                     if let Ok((new_id, _)) = state.move_object_to_zone(id, dest) {
@@ -2093,6 +2164,8 @@ fn execute_effect_inner(
                                 new_exile_id: new_id,
                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                 pre_lba_counters: pre_lba_counters.clone(),
+                                // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                                pre_lba_power: pre_lba_power_mz,
                             },
                             ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
                                 player: ctx.controller,
@@ -2109,6 +2182,8 @@ fn execute_effect_inner(
                                 new_hand_id: new_id,
                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                 pre_lba_counters: pre_lba_counters.clone(),
+                                // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                                pre_lba_power: pre_lba_power_mz,
                             },
                             ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
                                 player: ctx.controller,
@@ -2121,6 +2196,8 @@ fn execute_effect_inner(
                                 object_id: id,
                                 new_exile_id: new_id,
                                 pre_lba_counters: pre_lba_counters.clone(),
+                                // Command zone / Stack: non-battlefield origin, no power snapshot needed.
+                                pre_lba_power: None,
                             },
                         };
                         events.push(event);
@@ -2493,6 +2570,7 @@ fn execute_effect_inner(
                             mana_produced: ctx.mana_produced.clone(),
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
                             lki_counters: ctx.lki_counters.clone(),
+                            lki_power: ctx.lki_power,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2528,6 +2606,7 @@ fn execute_effect_inner(
                             mana_produced: ctx.mana_produced.clone(),
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
                             lki_counters: ctx.lki_counters.clone(),
+                            lki_power: ctx.lki_power,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2632,19 +2711,29 @@ fn execute_effect_inner(
                 for id in to_sacrifice {
                     // CR 701.21a: sacrifice is NOT destruction — no indestructible check.
                     // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
-                    let (card_types, owner, pre_sacrifice_controller, pre_death_counters) =
-                        match state.objects.get(&id) {
-                            Some(obj) => (
-                                crate::rules::layers::calculate_characteristics(state, id)
-                                    .unwrap_or_else(|| obj.characteristics.clone())
-                                    .card_types,
+                    let (
+                        card_types,
+                        owner,
+                        pre_sacrifice_controller,
+                        pre_death_counters,
+                        pre_death_power,
+                    ) = match state.objects.get(&id) {
+                        Some(obj) => {
+                            let chars = crate::rules::layers::calculate_characteristics(state, id)
+                                .unwrap_or_else(|| obj.characteristics.clone());
+                            let lki_power = chars.power;
+                            (
+                                chars.card_types,
                                 obj.owner,
                                 obj.controller,
                                 // CR 702.79a: capture counters before move_object_to_zone resets them.
                                 obj.counters.clone(),
-                            ),
-                            None => continue,
-                        };
+                                // CR 603.10a: capture layer-resolved power before zone move.
+                                lki_power,
+                            )
+                        }
+                        None => continue,
+                    };
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,
@@ -2670,6 +2759,7 @@ fn execute_effect_inner(
                                             new_exile_id: new_id,
                                             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                             pre_lba_counters: pre_death_counters.clone(),
+                                            pre_lba_power: pre_death_power,
                                         });
                                         // CR 701.21a: PermanentSacrificed alongside exile.
                                         events.push(GameEvent::PermanentSacrificed {
@@ -2689,6 +2779,7 @@ fn execute_effect_inner(
                                                 controller: pre_sacrifice_controller,
                                                 // CR 702.79a: last-known counter state.
                                                 pre_death_counters: pre_death_counters.clone(),
+                                                pre_death_power,
                                             });
                                         } else {
                                             events.push(GameEvent::PermanentDestroyed {
@@ -2696,6 +2787,7 @@ fn execute_effect_inner(
                                                 new_grave_id: new_id,
                                                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                                 pre_lba_counters: pre_death_counters.clone(),
+                                                pre_lba_power: pre_death_power,
                                             });
                                         }
                                         // CR 701.21a: PermanentSacrificed alongside death/destroy.
@@ -2739,6 +2831,7 @@ fn execute_effect_inner(
                                         controller: pre_sacrifice_controller,
                                         // CR 702.79a: last-known counter state.
                                         pre_death_counters: pre_death_counters.clone(),
+                                        pre_death_power,
                                     });
                                 } else {
                                     events.push(GameEvent::PermanentDestroyed {
@@ -2746,6 +2839,7 @@ fn execute_effect_inner(
                                         new_grave_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        pre_lba_power: pre_death_power,
                                     });
                                 }
                                 // CR 701.21a: PermanentSacrificed alongside death/destroy.
@@ -4480,11 +4574,17 @@ fn execute_effect_inner(
                     if !is_on_bf {
                         continue;
                     }
-                    // CR 603.10a: capture counters BEFORE move_object_to_zone resets them.
-                    let pre_lba_counters = state
+                    // CR 603.10a: capture counters and power BEFORE move_object_to_zone resets them.
+                    let (pre_lba_counters, pre_lba_power) = state
                         .objects
                         .get(&id)
-                        .map(|o| o.counters.clone())
+                        .map(|o| {
+                            let lki_power =
+                                crate::rules::layers::calculate_characteristics(state, id)
+                                    .and_then(|c| c.power)
+                                    .or(o.characteristics.power);
+                            (o.counters.clone(), lki_power)
+                        })
                         .unwrap_or_default();
                     // Step 1: Exile the permanent.
                     if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
@@ -4494,6 +4594,7 @@ fn execute_effect_inner(
                             new_exile_id: exile_id,
                             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                             pre_lba_counters: pre_lba_counters.clone(),
+                            pre_lba_power,
                         });
                         // Step 2: Return from exile to battlefield under owner's control.
                         if let Ok((new_bf_id, _)) =
@@ -4557,14 +4658,20 @@ fn execute_effect_inner(
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
                     // Verify the target is on the battlefield.
-                    let (owner, pre_lba_counters_delayed) = {
+                    let (owner, pre_lba_counters_delayed, pre_lba_power_delayed) = {
                         let obj_opt = state
                             .objects
                             .get(&id)
                             .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in());
                         match obj_opt {
-                            Some(o) => (Some(o.owner), o.counters.clone()),
-                            None => (None, im::OrdMap::new()),
+                            Some(o) => {
+                                let lki_power =
+                                    crate::rules::layers::calculate_characteristics(state, id)
+                                        .and_then(|c| c.power)
+                                        .or(o.characteristics.power);
+                                (Some(o.owner), o.counters.clone(), lki_power)
+                            }
+                            None => (None, im::OrdMap::new(), None),
                         }
                     };
                     let Some(_owner) = owner else {
@@ -4578,6 +4685,8 @@ fn execute_effect_inner(
                             new_exile_id: exile_id,
                             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                             pre_lba_counters: pre_lba_counters_delayed.clone(),
+                            // CR 603.10a: pass LKI power for SourcePowerAtLastKnownInformation.
+                            pre_lba_power: pre_lba_power_delayed,
                         });
                         // Step 2: Register a DelayedTrigger to return it later.
                         let action = match return_to {
@@ -5109,6 +5218,8 @@ fn execute_effect_inner(
                             new_exile_id,
                             // From graveyard — no LBA trigger LKI needed.
                             pre_lba_counters: im::OrdMap::new(),
+                            // From graveyard — no battlefield power snapshot.
+                            pre_lba_power: None,
                         });
                         // Track the NEW exile ObjectId for step 3.
                         exiled_this_player.push(new_exile_id);
@@ -5134,18 +5245,27 @@ fn execute_effect_inner(
                 ids
             };
             for id in creatures_to_sacrifice {
-                let (card_types, owner, pre_sacrifice_controller, pre_death_counters) =
-                    match state.objects.get(&id) {
-                        Some(obj) => (
-                            crate::rules::layers::calculate_characteristics(state, id)
-                                .unwrap_or_else(|| obj.characteristics.clone())
-                                .card_types,
+                let (
+                    card_types,
+                    owner,
+                    pre_sacrifice_controller,
+                    pre_death_counters,
+                    pre_death_power_ld,
+                ) = match state.objects.get(&id) {
+                    Some(obj) => {
+                        let chars = crate::rules::layers::calculate_characteristics(state, id)
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                        let lki_power = chars.power.or(obj.characteristics.power);
+                        (
+                            chars.card_types,
                             obj.owner,
                             obj.controller,
                             obj.counters.clone(),
-                        ),
-                        None => continue, // already gone (e.g. moved by earlier step)
-                    };
+                            lki_power,
+                        )
+                    }
+                    None => continue, // already gone (e.g. moved by earlier step)
+                };
                 let pid = pre_sacrifice_controller;
                 // CR 614: Check replacement effects before moving to graveyard.
                 let action = crate::rules::replacement::check_zone_change_replacement(
@@ -5172,6 +5292,8 @@ fn execute_effect_inner(
                                         new_exile_id: new_id,
                                         // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                                        pre_lba_power: pre_death_power_ld,
                                     });
                                     events.push(GameEvent::PermanentSacrificed {
                                         player: pid,
@@ -5191,6 +5313,7 @@ fn execute_effect_inner(
                                             new_grave_id: new_id,
                                             controller: pre_sacrifice_controller,
                                             pre_death_counters: pre_death_counters.clone(),
+                                            pre_death_power: pre_death_power_ld,
                                         });
                                     } else {
                                         events.push(GameEvent::PermanentDestroyed {
@@ -5198,6 +5321,8 @@ fn execute_effect_inner(
                                             new_grave_id: new_id,
                                             // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                             pre_lba_counters: pre_death_counters.clone(),
+                                            // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                                            pre_lba_power: pre_death_power_ld,
                                         });
                                     }
                                     events.push(GameEvent::PermanentSacrificed {
@@ -5238,6 +5363,7 @@ fn execute_effect_inner(
                                     new_grave_id: new_id,
                                     controller: pre_sacrifice_controller,
                                     pre_death_counters: pre_death_counters.clone(),
+                                    pre_death_power: pre_death_power_ld,
                                 });
                             } else {
                                 events.push(GameEvent::PermanentDestroyed {
@@ -5245,6 +5371,8 @@ fn execute_effect_inner(
                                     new_grave_id: new_id,
                                     // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                                     pre_lba_counters: pre_death_counters.clone(),
+                                    // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                                    pre_lba_power: pre_death_power_ld,
                                 });
                             }
                             events.push(GameEvent::PermanentSacrificed {
@@ -6363,6 +6491,13 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .and_then(|map| map.get(counter).copied())
                 .unwrap_or(0) as i32
         }
+        // CR 603.10a / CR 113.7a: Read source's layer-resolved power from LKI snapshot
+        // captured at trigger-fire time. Returns 0 if no LKI was captured (variant misused
+        // on a non-LBA trigger, or source had no inherent power). The implicit target is
+        // the trigger source. Per Juri ruling 2020-11-10: "If that power was 0 or less,
+        // Juri deals no damage" — this is handled at the Effect::DealDamage boundary
+        // (clamping); the resolver returns the raw value (which may be negative).
+        EffectAmount::SourcePowerAtLastKnownInformation => ctx.lki_power.unwrap_or(0),
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────
@@ -6395,9 +6530,9 @@ fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
     }
 }
 /// Produce the appropriate `GameEvent` for a zone move given the destination.
-/// NOTE: `pre_lba_counters` is always empty here because this helper is used for
-/// non-battlefield zone moves (library scanning, etc.). For battlefield→exile/hand
-/// moves, callers that need LKI counter snapshots use inline GameEvent construction.
+/// NOTE: `pre_lba_counters` and `pre_lba_power` are always empty/None here because
+/// this helper is used for non-battlefield zone moves (library scanning, etc.). For
+/// battlefield→exile/hand moves, callers that need LKI snapshots use inline construction.
 fn zone_move_event(
     controller: PlayerId,
     old_id: ObjectId,
@@ -6410,6 +6545,7 @@ fn zone_move_event(
             object_id: old_id,
             new_exile_id: new_id,
             pre_lba_counters: im::OrdMap::new(),
+            pre_lba_power: None,
         },
         ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
             player: controller,
@@ -6425,6 +6561,7 @@ fn zone_move_event(
             object_id: old_id,
             new_hand_id: new_id,
             pre_lba_counters: im::OrdMap::new(),
+            pre_lba_power: None,
         },
         ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
             player: controller,
@@ -6436,6 +6573,7 @@ fn zone_move_event(
             object_id: old_id,
             new_exile_id: new_id,
             pre_lba_counters: im::OrdMap::new(),
+            pre_lba_power: None,
         },
     }
 }
@@ -7342,6 +7480,7 @@ pub fn check_static_condition(
                 mana_produced: None,
                 sacrificed_creature_powers: vec![],
                 lki_counters: None,
+                lki_power: None,
             };
             check_condition(state, condition, &ctx)
         }

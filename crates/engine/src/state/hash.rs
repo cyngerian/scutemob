@@ -92,7 +92,15 @@
 ///   without `counter_filter` deserialize as `counter_filter: None` (backward compatible).
 ///   Unblocks Hardened Scales, Corpsejack Menace, and the replacement half of Conclave Mentor
 ///   (death trigger filed as OOS-LKI-Power seed pending LKI power snapshot primitive).
-pub const HASH_SCHEMA_VERSION: u8 = 16;
+/// - 17: PB-LKI-Power (2026-05-13) — `EffectAmount::SourcePowerAtLastKnownInformation`
+///   (disc 18) reads LKI power snapshot for WhenDies / WhenLeavesBattlefield triggers
+///   (CR 603.10a, CR 113.7a). New `lki_power: Option<i32>` field on `PendingTrigger`
+///   (state/stubs.rs), `StackObject` (state/stack.rs), and `Option<i32>` on `EffectContext`
+///   (effects/mod.rs). Five `GameEvent` variants gain `pre_death_power`/`pre_lba_power`
+///   fields (CreatureDied, AuraFellOff, PermanentDestroyed, ObjectExiled, ObjectReturnedToHand).
+///   Snapshot captured at sba.rs before `move_object_to_zone` using `calculate_characteristics`.
+///   Unblocks Conclave Mentor death trigger and Juri, Master of the Revue.
+pub const HASH_SCHEMA_VERSION: u8 = 17;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2155,6 +2163,8 @@ impl HashInto for PendingTrigger {
             ct.hash_into(hasher);
             count.hash_into(hasher);
         }
+        // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+        self.lki_power.hash_into(hasher);
     }
 }
 impl HashInto for SacrificeFilter {
@@ -3032,6 +3042,8 @@ impl HashInto for StackObject {
             ct.hash_into(hasher);
             count.hash_into(hasher);
         }
+        // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+        self.lki_power.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3364,6 +3376,7 @@ impl HashInto for GameEvent {
                 new_grave_id,
                 controller,
                 pre_death_counters,
+                pre_death_power,
             } => {
                 27u8.hash_into(hasher);
                 object_id.hash_into(hasher);
@@ -3374,6 +3387,8 @@ impl HashInto for GameEvent {
                     ct.hash_into(hasher);
                     count.hash_into(hasher);
                 }
+                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                pre_death_power.hash_into(hasher);
             }
             GameEvent::PlaneswalkerDied {
                 object_id,
@@ -4532,6 +4547,9 @@ impl HashInto for EffectAmount {
                 17u8.hash_into(hasher);
                 counter.hash_into(hasher);
             }
+            // PB-LKI-Power (discriminant 18) — LKI source-power snapshot for WhenDies /
+            // WhenLeavesBattlefield triggers. CR 603.10a / CR 113.7a.
+            EffectAmount::SourcePowerAtLastKnownInformation => 18u8.hash_into(hasher),
         }
     }
 }

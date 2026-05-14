@@ -1,6 +1,11 @@
 // Juri, Master of the Revue — {B}{R}, Legendary Creature — Human Shaman 1/1
 // Whenever you sacrifice a permanent, put a +1/+1 counter on Juri.
 // When Juri dies, it deals damage equal to its power to any target.
+//
+// Death trigger uses `EffectAmount::SourcePowerAtLastKnownInformation` (PB-LKI-Power,
+// CR 603.10a) to honor the 2020-11-10 ruling: use power as it last existed on the
+// battlefield (boosted by +1/+1 counters before death). Damage of 0 or less resolves
+// to 0 at the DealDamage boundary (CR 120.4). TargetAny allows p or creature targets.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -34,8 +39,21 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "When Juri dies, deals damage equal to its power to any target."
-            // Needs EffectAmount::SourcePower.
+            // When Juri dies, it deals damage equal to its power to any target.
+            // CR 603.10a / Ruling 2020-11-10: power read from LKI snapshot
+            // (boosted by accumulated +1/+1 counters before death).
+            // CR 120.4: damage of 0 or less is reduced to 0 — Juri ruling explicitly notes this.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::DealDamage {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::SourcePowerAtLastKnownInformation,
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetAny],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

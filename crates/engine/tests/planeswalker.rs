@@ -400,6 +400,7 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     });
 
     let result = rules::process_command(

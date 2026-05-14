@@ -577,8 +577,107 @@ The dispatch chain is identical to PB-LKI-CC; only the snapshot field and the
 Juri's existing card def at `cards/defs/juri_master_of_the_revue.rs:37-38` already
 documents the same gap). Sweep `"equal to its power"` + WhenDies/WhenLeavesBattlefield
 for additional candidates.
-**Status**: Filed by PB-CD 2026-05-13. Conclave Mentor's death-trigger ability remains a
-TODO comment in `cards/defs/conclave_mentor.rs` pending this primitive.
-**References**: PB-LKI-CC dispatch (sba.rs:540, abilities.rs:3987-3990); EffectAmount
-discriminant chain (last assigned 17 by PB-LKI-CC); `cards/defs/juri_master_of_the_revue.rs:37`
-existing TODO; `pb-retriage-CC.md` OOS-TS-4 (counter snapshot precedent).
+**Status**: CLOSED by PB-LKI-Power (scutemob-19, 2026-05-13). `EffectAmount::SourcePowerAtLastKnownInformation`
+(disc 18, HASH 17) ships in this batch. Conclave Mentor death trigger and Juri Master death trigger both
+implemented. See `pb-plan-LKI-Power.md` for full dispatch-chain audit.
+
+---
+
+## OOS seeds filed by PB-LKI-Power (scutemob-19, 2026-05-13)
+
+### OOS-LKI-Power-1: SourceToughnessAtLastKnownInformation
+
+**Cards**: hypothetical "When ~ dies, [effect] X = its toughness". None confirmed
+in current card-def universe (sweep 2026-05-13 found no SelfDies/SelfLeavesBattlefield
+trigger reading source toughness).
+**Oracle pattern**: SelfDies/SelfLeavesBattlefield trigger reading source's own
+toughness at LKI.
+**Gap**: PB-LKI-Power (HASH 17) ships `EffectAmount::SourcePowerAtLastKnownInformation`
+(disc 18) and reserves disc 19 for the toughness sibling. The
+`pre_death_power: Option<i32>` snapshot infrastructure at sba.rs:540 +
+PendingTrigger/StackObject/EffectContext threading + GameEvent payload extension
+all generalize trivially: add `pre_death_toughness: Option<i32>` alongside,
+add disc 19 variant, add resolve_amount arm reading `ctx.lki_toughness`.
+**Yield**: 0 confirmed in current pool. File as preventive seed.
+**Status**: Filed by PB-LKI-Power planner 2026-05-13.
+
+### OOS-LKI-Power-2: ReplacementModification::EntersWith(EffectAmount) — Master Biomancer
+
+**Cards**: Master Biomancer ("Each other creature you control enters with a number
+of +1/+1 counters on it equal to Biomancer's power"), and any future card with
+similar ETB-replacement wording reading the source's live power.
+**Oracle pattern**: `EnterFromX` replacement that places counters where the count
+is dynamic (= source's power, source's toughness, count of permanents, etc.).
+**Gap**: today, `ReplacementModification::EntersWith` accepts a static u32
+counter count, not an `EffectAmount`. The source is alive on the battlefield
+when the replacement fires (not LKI), so `EffectAmount::PowerOf(EffectTarget::Source)`
+would resolve correctly via the live arm — but the replacement DSL doesn't
+plumb EffectAmount through. This is the replacement-side mirror of the PB-TS
+TokenSpec.count u32→EffectAmount migration.
+**Yield**: 1 confirmed (Master Biomancer); broader sweep would surface more
+ETB-replacement cards using "equal to X" wording.
+**Status**: Filed by PB-LKI-Power planner 2026-05-13.
+
+### OOS-LKI-Power-3: GameEvent LBA hash arms don't hash pre_lba_counters or pre_lba_power
+
+**Cards**: N/A (engine consistency issue, not card-blocking).
+**Gap**: `GameEvent::AuraFellOff`, `GameEvent::ObjectExiled`,
+`GameEvent::PermanentDestroyed`, and `GameEvent::ObjectReturnedToHand` hash
+arms in `state/hash.rs` use `..` and do NOT hash their
+`pre_lba_counters` (added by PB-LKI-CC) or `pre_lba_power` (added by
+PB-LKI-Power) fields. Only `GameEvent::CreatureDied` hashes its LKI fields.
+This is a pre-existing inconsistency that PB-LKI-CC and PB-LKI-Power both
+intentionally preserve to minimize blast radius. Replay determinism is
+preserved because PendingTrigger and StackObject DO hash these fields, and
+GameEvents are derived state recomputable from commands.
+**Yield**: 0 (engine-consistency cleanup, no card unblocking).
+**Status**: Filed by PB-LKI-Power planner 2026-05-13. Resolution would bump
+HASH_SCHEMA_VERSION; defer until a determinism issue is observed in production.
+
+### OOS-LKI-Power-4: AnyCreatureDies + LKI source-power gap
+
+**Cards**: hypothetical cards using "Whenever a creature dies, [effect] equal to
+its power" patterns where "its" refers to the dying creature (not the trigger
+source). Examples that *don't* exist in the current pool but would hit this gap:
+hypothetical "Whenever a creature dies, you gain life equal to its power"
+global-trigger card.
+**Oracle pattern**: AnyCreatureDies trigger reading the *triggering* (dying)
+creature's LKI power, not the trigger *source*'s LKI power.
+**Gap**: `EffectAmount::SourcePowerAtLastKnownInformation` (PB-LKI-Power, disc 18)
+reads `ctx.lki_power`, which is populated from `PendingTrigger.lki_power` set
+in the SelfDies/SelfLeavesBattlefield trigger arms (CR 603.10a / source = trigger
+source). The AnyCreatureDies arm (`abilities.rs:4391`) intentionally defaults
+`lki_power: None` because the dying creature is the *triggering object*, not
+the trigger source. A different snapshot field would be needed: e.g.
+`triggering_creature_lki_power: Option<i32>` on `PendingTrigger`, populated
+from the GameEvent's `pre_death_power`. Symmetric to OOS-LKI-4 (counter
+version filed by PB-LKI-CC).
+**Dispatch site**: `abilities.rs:4391` AnyCreatureDies arm — currently
+`lki_power: None` (intentionally per plan Site 9 + plan Risk #1).
+**Yield**: 0 confirmed in current pool. Preventive seed (mirror of OOS-LKI-4).
+**Status**: Filed by PB-LKI-Power reviewer 2026-05-13 (E1 finding).
+**References**: pb-review-LKI-Power.md E1; pb-retriage-CC.md OOS-LKI-4 (counter
+sibling); pb-plan-LKI-Power.md Step 4 risk register.
+
+### OOS-LKI-Power-5: Non-creature SBA paths hard-code pre_lba_power: None (Layer 4 animation loss)
+
+**Cards**: hypothetical animated-planeswalker / animated-Saga / animated-Aura
+that becomes a creature via Layer 4 (e.g. Karn ultimate, Roalesk-style global
+animation) AND has a SelfLeavesBattlefield trigger reading
+`EffectAmount::SourcePowerAtLastKnownInformation`. None confirmed in current
+pool.
+**Oracle pattern**: Layer 4 type-grant effect produces a power on a non-creature
+permanent that subsequently leaves the battlefield via a non-CreatureDied SBA
+path (planeswalker SBA-exile, Saga SBA-sacrifice, Aura SBA-fall-off, Food forage).
+**Gap**: 4 SBA sites hard-code `pre_lba_power: None` (sba.rs:733 planeswalker
+exile, sba.rs:854 Saga sacrifice, sba.rs:1170 Aura fall-off, abilities.rs:890
+Food forage) with comments saying "X are not creatures; no power LKI needed."
+This is correct for the printed/base power but loses the layer-resolved power
+if a Layer 4 animation effect was active. Symmetric to PB-LKI-CC's identical
+pattern for `pre_lba_counters` at the same sites.
+**Yield**: 0 confirmed in current pool. Preventive seed.
+**Status**: Filed by PB-LKI-Power reviewer 2026-05-13 (E2 finding). Defer
+until an animated-non-creature card with a SelfLeavesBattlefield power trigger
+surfaces. Mechanical fix: replace `None` with `calculate_characteristics(state, id).power`
+at each of the 4 sites.
+**References**: pb-review-LKI-Power.md E2; pb-plan-LKI-Power.md Site 6.

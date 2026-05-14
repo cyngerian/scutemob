@@ -408,7 +408,7 @@ fn test_pbt_hash_schema_version_is_15() {
     // CR N/A — sentinel must be 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 16u8,
+        HASH_SCHEMA_VERSION, 17u8,
         "PB-LKI-CC: HASH_SCHEMA_VERSION must be 15 (bump from PB-TS's 14 for \
          EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a)"
     );
@@ -865,7 +865,7 @@ fn test_pbt_hash_schema_version_sentinel_is_15_regression() {
     // Must be exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 16u8,
+        HASH_SCHEMA_VERSION, 17u8,
         "PB-LKI-CC: Sentinel must be 15; bumped from PB-TS's 14 for \
          EffectAmount::CounterCountAtLastKnownInformation (CR 603.10a / 113.7a)"
     );

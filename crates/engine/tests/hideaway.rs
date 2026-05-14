@@ -128,6 +128,7 @@ fn make_hideaway_trigger_stack_obj(
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     }
 }
 

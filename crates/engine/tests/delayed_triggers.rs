@@ -569,6 +569,7 @@ fn test_exile_until_source_leaves() {
         new_grave_id: grave_id,
         controller: p1,
         pre_death_counters: im::OrdMap::new(),
+        pre_death_power: None,
     }];
     let triggers = mtg_engine::rules::abilities::check_triggers(&state, &events);
     for t in triggers {

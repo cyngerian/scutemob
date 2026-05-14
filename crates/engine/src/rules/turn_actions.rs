@@ -132,6 +132,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 damaged_player: None,
                 combat_damage_amount: 0,
                 lki_counters: im::OrdMap::new(),
+                lki_power: None,
                 data: None,
             });
         }
@@ -200,6 +201,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 damaged_player: None,
                 combat_damage_amount: 0,
                 lki_counters: im::OrdMap::new(),
+                lki_power: None,
                 data: None,
             });
         }
@@ -274,6 +276,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 damaged_player: None,
                 combat_damage_amount: 0,
                 lki_counters: im::OrdMap::new(),
+                lki_power: None,
                 data: None,
             });
         }
@@ -343,6 +346,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 damaged_player: None,
                 combat_damage_amount: 0,
                 lki_counters: im::OrdMap::new(),
+                lki_power: None,
                 data: None,
             });
         }
@@ -427,6 +431,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 damaged_player: None,
                 combat_damage_amount: 0,
                 lki_counters: im::OrdMap::new(),
+                lki_power: None,
                 data: None,
             });
         }
@@ -572,6 +577,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             damaged_player: None,
             combat_damage_amount: 0,
             lki_counters: im::OrdMap::new(),
+            lki_power: None,
             data: None,
         });
     }
@@ -644,6 +650,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             damaged_player: None,
             combat_damage_amount: 0,
             lki_counters: im::OrdMap::new(),
+            lki_power: None,
             data: None,
         });
     }
@@ -688,6 +695,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             damaged_player: None,
             combat_damage_amount: 0,
             lki_counters: im::OrdMap::new(),
+            lki_power: None,
             data: None,
         });
     }
@@ -744,6 +752,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             damaged_player: None,
             combat_damage_amount: 0,
             lki_counters: im::OrdMap::new(),
+            lki_power: None,
             data: None,
         });
     }
@@ -819,6 +828,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                 damaged_player: None,
                 combat_damage_amount: 0,
                 lki_counters: im::OrdMap::new(),
+                lki_power: None,
                 data: None,
             });
         }
@@ -1891,12 +1901,17 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for token_id in myriad_token_ids {
-        // Capture controller and counters before moving zone (needed for the exile event).
-        let (controller, myriad_pre_lba) = state
+        // Capture controller, counters, and power before moving zone (needed for the exile event).
+        let (controller, myriad_pre_lba, myriad_lki_power) = state
             .objects
             .get(&token_id)
-            .map(|o| (o.controller, o.counters.clone()))
-            .unwrap_or((state.turn.active_player, im::OrdMap::new()));
+            .map(|o| {
+                let lki_power = crate::rules::layers::calculate_characteristics(state, token_id)
+                    .and_then(|c| c.power)
+                    .or(o.characteristics.power);
+                (o.controller, o.counters.clone(), lki_power)
+            })
+            .unwrap_or((state.turn.active_player, im::OrdMap::new(), None));
         if let Ok((new_exile_id, _old)) =
             state.move_object_to_zone(token_id, crate::state::zone::ZoneId::Exile)
         {
@@ -1905,6 +1920,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 object_id: token_id,
                 new_exile_id,
                 pre_lba_counters: myriad_pre_lba,
+                pre_lba_power: myriad_lki_power,
             });
         }
     }
@@ -1931,10 +1947,16 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for obj_id in decayed_sacrifice_ids {
-        let (owner, controller, pre_death_counters) = match state.objects.get(&obj_id) {
-            Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
-            None => continue,
-        };
+        let (owner, controller, pre_death_counters, pre_death_power) =
+            match state.objects.get(&obj_id) {
+                Some(obj) => {
+                    let lki_power = crate::rules::layers::calculate_characteristics(state, obj_id)
+                        .and_then(|c| c.power)
+                        .or(obj.characteristics.power);
+                    (obj.owner, obj.controller, obj.counters.clone(), lki_power)
+                }
+                None => continue,
+            };
         // CR 614: Check replacement effects before moving to graveyard.
         let action = crate::rules::replacement::check_zone_change_replacement(
             state,
@@ -1959,6 +1981,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 object_id: obj_id,
                                 new_exile_id: new_id,
                                 pre_lba_counters: pre_death_counters.clone(),
+                                pre_lba_power: pre_death_power,
                             });
                         }
                         crate::state::zone::ZoneId::Command(_) => {
@@ -1970,6 +1993,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 new_grave_id: new_id,
                                 controller,
                                 pre_death_counters,
+                                pre_death_power,
                             });
                         }
                     }
@@ -1984,6 +2008,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         new_grave_id: new_id,
                         controller,
                         pre_death_counters,
+                        pre_death_power,
                     });
                 }
             }
@@ -1998,6 +2023,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         new_grave_id: new_id,
                         controller,
                         pre_death_counters,
+                        pre_death_power,
                     });
                 }
             }
@@ -2024,10 +2050,16 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for obj_id in ring_sacrifice_ids {
-        let (owner, controller, pre_death_counters) = match state.objects.get(&obj_id) {
-            Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
-            None => continue,
-        };
+        let (owner, controller, pre_death_counters, pre_death_power) =
+            match state.objects.get(&obj_id) {
+                Some(obj) => {
+                    let lki_power = crate::rules::layers::calculate_characteristics(state, obj_id)
+                        .and_then(|c| c.power)
+                        .or(obj.characteristics.power);
+                    (obj.owner, obj.controller, obj.counters.clone(), lki_power)
+                }
+                None => continue,
+            };
         // CR 614: Check replacement effects before moving to graveyard.
         let action = crate::rules::replacement::check_zone_change_replacement(
             state,
@@ -2052,6 +2084,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 object_id: obj_id,
                                 new_exile_id: new_id,
                                 pre_lba_counters: pre_death_counters.clone(),
+                                pre_lba_power: pre_death_power,
                             });
                         }
                         crate::state::zone::ZoneId::Command(_) => {
@@ -2063,6 +2096,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 new_grave_id: new_id,
                                 controller,
                                 pre_death_counters,
+                                pre_death_power,
                             });
                         }
                     }
@@ -2077,6 +2111,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         new_grave_id: new_id,
                         controller,
                         pre_death_counters,
+                        pre_death_power,
                     });
                 }
             }
@@ -2091,6 +2126,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         new_grave_id: new_id,
                         controller,
                         pre_death_counters,
+                        pre_death_power,
                     });
                 }
             }
@@ -2129,8 +2165,14 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                     .objects
                     .get(&target)
                     .filter(|o| o.zone == ZoneId::Battlefield)
-                    .map(|o| o.counters.clone());
-                if let Some(eoc_counters) = eoc_pre_lba {
+                    .map(|o| {
+                        let lki_power =
+                            crate::rules::layers::calculate_characteristics(state, target)
+                                .and_then(|c| c.power)
+                                .or(o.characteristics.power);
+                        (o.counters.clone(), lki_power)
+                    });
+                if let Some((eoc_counters, eoc_lki_power)) = eoc_pre_lba {
                     if let Ok((new_exile_id, _)) = state.move_object_to_zone(target, ZoneId::Exile)
                     {
                         events.push(GameEvent::ObjectExiled {
@@ -2138,6 +2180,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                             object_id: target,
                             new_exile_id,
                             pre_lba_counters: eoc_counters,
+                            pre_lba_power: eoc_lki_power,
                         });
                     }
                 }
