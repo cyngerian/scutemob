@@ -475,8 +475,8 @@ pub struct StackObject {
     pub lki_counters: im::OrdMap<crate::state::types::CounterType, u32>,
     /// CR 603.10a / CR 113.7a: LKI source-power snapshot for WhenDies / WhenLeavesBattlefield triggers.
     /// Set from PendingTrigger::lki_power when the trigger is flushed to the stack
-    /// (abilities.rs flush_pending_triggers ~line 7467). Read at resolution time
-    /// (resolution.rs ~line 2057) into EffectContext.lki_power.
+    /// (abilities.rs `flush_pending_triggers`). Read at resolution time
+    /// (resolution.rs) into EffectContext.lki_power.
     /// `None` for stack objects that are not LBA triggered abilities or whose source
     /// had no inherent power.
     #[serde(default)]

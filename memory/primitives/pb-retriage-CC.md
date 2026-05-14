@@ -633,3 +633,51 @@ GameEvents are derived state recomputable from commands.
 **Yield**: 0 (engine-consistency cleanup, no card unblocking).
 **Status**: Filed by PB-LKI-Power planner 2026-05-13. Resolution would bump
 HASH_SCHEMA_VERSION; defer until a determinism issue is observed in production.
+
+### OOS-LKI-Power-4: AnyCreatureDies + LKI source-power gap
+
+**Cards**: hypothetical cards using "Whenever a creature dies, [effect] equal to
+its power" patterns where "its" refers to the dying creature (not the trigger
+source). Examples that *don't* exist in the current pool but would hit this gap:
+hypothetical "Whenever a creature dies, you gain life equal to its power"
+global-trigger card.
+**Oracle pattern**: AnyCreatureDies trigger reading the *triggering* (dying)
+creature's LKI power, not the trigger *source*'s LKI power.
+**Gap**: `EffectAmount::SourcePowerAtLastKnownInformation` (PB-LKI-Power, disc 18)
+reads `ctx.lki_power`, which is populated from `PendingTrigger.lki_power` set
+in the SelfDies/SelfLeavesBattlefield trigger arms (CR 603.10a / source = trigger
+source). The AnyCreatureDies arm (`abilities.rs:4391`) intentionally defaults
+`lki_power: None` because the dying creature is the *triggering object*, not
+the trigger source. A different snapshot field would be needed: e.g.
+`triggering_creature_lki_power: Option<i32>` on `PendingTrigger`, populated
+from the GameEvent's `pre_death_power`. Symmetric to OOS-LKI-4 (counter
+version filed by PB-LKI-CC).
+**Dispatch site**: `abilities.rs:4391` AnyCreatureDies arm — currently
+`lki_power: None` (intentionally per plan Site 9 + plan Risk #1).
+**Yield**: 0 confirmed in current pool. Preventive seed (mirror of OOS-LKI-4).
+**Status**: Filed by PB-LKI-Power reviewer 2026-05-13 (E1 finding).
+**References**: pb-review-LKI-Power.md E1; pb-retriage-CC.md OOS-LKI-4 (counter
+sibling); pb-plan-LKI-Power.md Step 4 risk register.
+
+### OOS-LKI-Power-5: Non-creature SBA paths hard-code pre_lba_power: None (Layer 4 animation loss)
+
+**Cards**: hypothetical animated-planeswalker / animated-Saga / animated-Aura
+that becomes a creature via Layer 4 (e.g. Karn ultimate, Roalesk-style global
+animation) AND has a SelfLeavesBattlefield trigger reading
+`EffectAmount::SourcePowerAtLastKnownInformation`. None confirmed in current
+pool.
+**Oracle pattern**: Layer 4 type-grant effect produces a power on a non-creature
+permanent that subsequently leaves the battlefield via a non-CreatureDied SBA
+path (planeswalker SBA-exile, Saga SBA-sacrifice, Aura SBA-fall-off, Food forage).
+**Gap**: 4 SBA sites hard-code `pre_lba_power: None` (sba.rs:733 planeswalker
+exile, sba.rs:854 Saga sacrifice, sba.rs:1170 Aura fall-off, abilities.rs:890
+Food forage) with comments saying "X are not creatures; no power LKI needed."
+This is correct for the printed/base power but loses the layer-resolved power
+if a Layer 4 animation effect was active. Symmetric to PB-LKI-CC's identical
+pattern for `pre_lba_counters` at the same sites.
+**Yield**: 0 confirmed in current pool. Preventive seed.
+**Status**: Filed by PB-LKI-Power reviewer 2026-05-13 (E2 finding). Defer
+until an animated-non-creature card with a SelfLeavesBattlefield power trigger
+surfaces. Mechanical fix: replace `None` with `calculate_characteristics(state, id).power`
+at each of the 4 sites.
+**References**: pb-review-LKI-Power.md E2; pb-plan-LKI-Power.md Site 6.

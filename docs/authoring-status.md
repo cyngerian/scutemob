@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-05-13 22:40 UTC  
-**Git:** `36816e0f` on `main`  
+**Generated:** 2026-05-14 00:33 UTC  
+**Git:** `e7a9a16c` on `feat/pb-lki-power-lki-source-powertoughness-snapshot-for-whendies`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,17 +25,17 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO, non-empty abilities)  — 52.5% | 918 | · |
-| With TODO markers | 647 | · |
+| Clean (no TODO, non-empty abilities)  — 52.6% | 920 | +2 |
+| With TODO markers | 645 | -2 |
 | Empty `abilities: vec![]` placeholders | 183 | · |
-| Total TODO lines across all defs | 1,178 | · |
+| Total TODO lines across all defs | 1,176 | -2 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 6 |
-| last 30 days | 0 | 173 |
+| last 7 days | 0 | 7 |
+| last 30 days | 0 | 174 |
 | last 90 days | 1,773 | 1,155 |
 | last 1 year | 1,773 | 1,155 |
 
@@ -75,7 +75,7 @@ are blocked on engine primitives.
 | `mana-land` | 92 / 92 | 100% | 73 | 16 | 3 |
 | `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
-| `counters-plus` | 49 / 49 | 100% | 19 | 30 | 0 |
+| `counters-plus` | 49 / 49 | 100% | 21 | 28 | 0 |
 | `land-fetch` | 45 / 45 | 100% | 25 | 19 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 18 | 16 | 0 |
@@ -169,7 +169,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 680 | · |
+| OTHER (unclassified) | 678 | -2 |
 | DSL gap (unspecified) | 148 | · |
 | attack trigger (self / generic) | 31 | · |
 | Cost::* missing variant | 22 | · |
@@ -199,7 +199,7 @@ _…and 34 more buckets totaling 74 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 680 
+Showing 12 of 678 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -207,21 +207,22 @@ deterministic (sorted by slug).
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bonecrusher_giant: // TODO: "Damage can't be prevented this turn" — no prevention-removal DSL effect.
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
+deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
 enduring_vitality: // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
-glimmer_lens: // TODO: For Mirrodin! + equipped attack trigger not expressible.
+glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
 izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
-mana_leak: // TODO: "Counter unless controller pays {3}" — requires CounterUnlessPays effect.
-nullmage_shepherd: // TODO: The activated ability cost requires tapping N other permanents you control
-rings_of_brighthearth: // TODO: whenever you activate a non-mana ability, may pay {2} to copy it
+mana_tithe: // TODO: "Counter unless controller pays {1}" — requires CounterUnlessPays effect.
+oath_of_teferi: // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
+ripples_of_undeath: // TODO: "first main phase" trigger + mill-3 + pay-1-life conditional return.
 smothering_tithe: // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
-teferi_hero_of_dominaria: // TODO: Add LibraryPosition::NthFromTop(u32) for precise placement.
+teferi_hero_of_dominaria: // TODO: TriggerEvent::WheneverYouDrawCard not in DSL — emblem trigger gap.
 twilight_prophet: // TODO: Upkeep trigger conditioned on HasCitysBlessing requires:
 ```
 
 ## Recent card-touching commits
 
 ```
+e7a9a16c scutemob-19: PB-LKI-Power — LKI source-power snapshot for WhenDies/WhenLeavesBattlefield (CR 603.10a)
 f8d7cdf4 scutemob-18: PB-CD — counter-doubling replacement effects (CR 122.6/614.1)
 34317614 feat(pb-lki-cc): add EffectAmount::CounterCountAtLastKnownInformation (disc 17) + LKI snapshot threading
 4fde5d66 scutemob-16: PB-TS fix-phase — E1 Krenko sorcery-speed + C1 Chasm Skulker revert + OOS-TS-4 seed
@@ -246,7 +247,6 @@ b55ad321 scutemob-2: PB-D cards — 6 card defs use DamagedPlayer filter
 0e5d7cf1 W6-prim: PB-N fix phase — 6 findings (F1+F2 HIGH, F3+F4+F5 MEDIUM, F6 LOW)
 d343e1ba W6-prim: PB-N — SubtypeFilteredAttack + SubtypeFilteredDeath triggers
 fc83d9d0 W6-prim: stale-TODO sweep — PB-N pre-launch (3 cards)
-9c347754 W6-prim: PB-Q4 implement — EnchantTarget::Filtered + 4 land-aura cards
 ```
 
 ## Missing card-defs sidecar

@@ -206,15 +206,20 @@ Branch is PASS and ready for signal-ready on ESM task scutemob-17. Coordinator s
 
 ---
 
+
+---
+
 # Primitive WIP: PB-LKI-Power — `EffectAmount::SourcePowerAtLastKnownInformation` (LKI source-power snapshot for WhenDies / WhenLeavesBattlefield)
 
 batch: PB-LKI-Power
 title: EffectAmount::SourcePowerAtLastKnownInformation (and SourceToughnessAtLastKnownInformation if needed) — LKI source-P/T snapshot for WhenDies / WhenLeavesBattlefield (CR 603.10a / 122.2)
 cards_unblocked_estimated: 2 confirmed in-scope (Conclave Mentor death-trigger life-gain, Juri Master of the Revue death-trigger damage). Sweep may add others. Per `feedback_pb_yield_calibration.md`: ≥2 yield threshold met.
 cards_unblocked_post_plan: 2 (Conclave Mentor + Juri Master). TODO sweep returned 2 forced adds; both already in scope. No additional pattern-sweep candidates. Toughness variant DEFERRED (no in-scope card needs it; rulings explicitly say "power"); discriminant 19 reserved for future seed OOS-LKI-Power-1.
+cards_unblocked_post_review: 2 ships (Conclave Mentor + Juri Master). Both card defs verified against MCP oracle text + rulings; both pass dedicated tests + the discriminating LKI-after-zone-change test (c). Threshold of ≥2 met.
 started: 2026-05-13
-phase: implement-complete
+phase: PASS
 plan_file: memory/primitives/pb-plan-LKI-Power.md
+review_file: memory/primitives/pb-review-LKI-Power.md
 hash_version_pre: 16 (PB-CD)
 hash_version_post: 17 (PB-LKI-Power — LKI power snapshot fields on 5 GameEvent variants + new EffectAmount variant disc 18)
 
@@ -324,11 +329,27 @@ Confirmed in-scope yield: **2** (Conclave Mentor, Juri).
 
 ## Reviewer checklist
 
-- [ ] CR rules independently verified (603.10a, 113.7a, 122.2, 400.7)
-- [ ] Card oracle text re-verified via MCP for both re-authored cards (Conclave Mentor, Juri Master)
-- [ ] Every dispatch site walked and confirmed correct (21 sites; full chain)
-- [ ] Hash arm + version bump + history entry verified (HASH=17, history entry 17, 9 sentinel files updated)
-- [ ] Tests verified (4-5 present, all cite CR, all discriminating; test (c) is the load-bearing LKI-after-zone-change discriminator)
-- [ ] No scope creep (toughness variant deferred, AnyCreatureDies untouched, cost-payment LKI untouched, LBA hash arms unchanged)
-- [ ] Review file written: `memory/primitives/pb-review-LKI-Power.md`
-- [ ] Verdict: PASS / PASS-WITH-NITS / NEEDS-FIX
+- [x] CR rules independently verified (603.10a, 113.7a, 122.2, 400.7) via MCP
+- [x] Card oracle text re-verified via MCP for both re-authored cards (Conclave Mentor, Juri Master) — match verbatim
+- [x] Every dispatch site walked and confirmed correct (21 sites; full chain documented in pb-review-LKI-Power.md plumbing trace table)
+- [x] Hash arm + version bump + history entry verified (HASH=17, history entry 17, 11 sentinel files updated to 17u8; no stale 16u8)
+- [x] Tests verified (4 present, all cite CR, test (c) is the load-bearing LKI-after-zone-change discriminator, test (d) covers Option tag-byte canary)
+- [x] No scope creep (toughness variant deferred, AnyCreatureDies untouched, cost-payment LKI untouched, LBA hash arms unchanged)
+- [x] Review file written: `memory/primitives/pb-review-LKI-Power.md`
+- [x] Verdict: **PASS-WITH-NITS** (3 LOW findings: E1 — AnyCreatureDies LKI-power gap not assigned a dedicated OOS seed; E2 — hard-coded `pre_lba_power: None` for non-creature SBA paths drops layer-4 animated power; E3 — doc-comment line-number drift on PendingTrigger/StackObject lki_power field docs. 0 HIGH; 0 MEDIUM. Coordinator decision: ship-as-is OR brief fix-phase pass.)
+
+## Fix-phase checklist (2026-05-13)
+
+- [x] E1 RESOLVED: OOS-LKI-Power-4 appended to `pb-retriage-CC.md` documenting AnyCreatureDies + LKI source-power gap (mirror of OOS-LKI-4 counter sibling). Engine code unchanged — `abilities.rs:4391` AnyCreatureDies arm correctly defaults `lki_power: None` per plan Site 9 + Risk #1.
+- [x] E2 RESOLVED (deferred): OOS-LKI-Power-5 appended to `pb-retriage-CC.md` documenting non-creature SBA paths (planeswalker exile, Saga sacrifice, Aura fall-off, Food forage) hard-coding `pre_lba_power: None`. Symmetric to PB-LKI-CC's preserved pattern; no in-scope card hits these paths. Engine fix deferred per reviewer recommendation.
+- [x] E3 RESOLVED: stale line-number references removed from `state/stack.rs:478-479` doc comment for `lki_power`. Now reads "abilities.rs `flush_pending_triggers`" / "resolution.rs" — function-name-only references.
+
+## Fix-phase gate results (2026-05-13)
+
+- `cargo build --workspace`: PASS (clean)
+- `cargo fmt --check`: PASS — zero diffs
+- All 3 LOW findings resolved (1 inline comment edit, 2 OOS seeds appended; engine semantics unchanged)
+
+## Verdict (post-fix-phase)
+
+**PASS** — 0 HIGH / 0 MEDIUM / 0 LOW open. All review findings resolved. Branch ready for signal-ready.

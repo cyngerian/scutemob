@@ -1,15 +1,15 @@
 {
-  "generated": "2026-05-13 22:40 UTC",
-  "git_head": "36816e0f",
+  "generated": "2026-05-14 00:33 UTC",
+  "git_head": "e7a9a16c",
   "total_files": 1748,
-  "total_todos": 1178,
+  "total_todos": 1176,
   "file_buckets": {
-    "clean": 918,
-    "todo": 647,
+    "clean": 920,
+    "todo": 645,
     "empty": 183
   },
   "todo_classes": {
-    "OTHER (unclassified)": 680,
+    "OTHER (unclassified)": 678,
     "replacement effect missing": 18,
     "X-scaled tokens": 7,
     "TriggerCondition::* missing variant": 19,
