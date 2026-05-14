@@ -398,8 +398,8 @@ fn test_hash_schema_version_after_pb_lki_cc() {
     // (e-1) Sentinel: must be exactly 15.
     assert_eq!(
         HASH_SCHEMA_VERSION, 19u8,
-        "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
-         CR 603.10a / 113.7a). If you bumped again, update this test and state/hash.rs history."
+        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
+         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
     );
 
     let hash_effect = |eff: &ContinuousEffect| -> [u8; 32] {

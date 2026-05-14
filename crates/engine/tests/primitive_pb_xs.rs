@@ -25,8 +25,8 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 use mtg_engine::cards::card_definition::{
-    AbilityDefinition, CardDefinition, Cost, Effect, EffectTarget, TargetController, TargetFilter,
-    TargetRequirement, TypeLine,
+    AbilityDefinition, CardDefinition, Cost, Effect, EffectTarget, TargetFilter, TargetRequirement,
+    TypeLine,
 };
 use mtg_engine::rules::{process_command, Command};
 use mtg_engine::state::game_object::ManaCost;
@@ -468,47 +468,55 @@ fn test_pbxs_graveyard_filter_excludes_source() {
     );
 }
 
-// ── F: Existing-card regression — Roalesk-style ETB without alternative ──────
+// ── F: Trigger auto-target picker — Elderfang-style WhenDies ───────────────────
 
-/// PB-XS F-1: When Roalesk's ETB trigger fires and Roalesk is the only
-/// creature P1 controls, the trigger must auto-target NO legal candidate
-/// (per CR 603.3d). Without `exclude_self`, the trigger would auto-target
-/// Roalesk herself; with `exclude_self`, the trigger must skip.
+/// PB-XS F-1: Elderfang Ritualist death-trigger graveyard auto-target picker.
 ///
-/// We exercise this via a synthetic ETB-triggered ability mirroring Roalesk's
-/// shape: "When this enters, put two +1/+1 counters on another target creature
-/// you control" — using the actual Roalesk def shape but without the proliferate
-/// half. We then verify that putting Roalesk on the battlefield with no other
-/// creature on P1's side does NOT panic and does NOT place counters anywhere.
+/// CR 109.1 / 601.2c / 400.7 / 603.10a: The dying creature continues to exist
+/// as a new graveyard object after `move_object_to_zone`. The WhenDies trigger's
+/// `source` is bound to that POST-death graveyard ObjectId. Without `exclude_self`,
+/// the auto-target picker scanning `TargetCardInYourGraveyard(Elf)` would pick
+/// the dying Ritualist itself as its own legal target. With `exclude_self: true`,
+/// the picker must skip the source and pick the SECOND Elf card in the graveyard.
+///
+/// This test discriminates pre-death (battlefield) vs post-death (graveyard)
+/// ObjectId for `trigger.source`, and directly exercises the graveyard-scan arm
+/// added by PB-XS at `abilities.rs:6627`.
 #[test]
-fn test_pbxs_etb_auto_target_picker_skips_source() {
+fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
     use mtg_engine::cards::card_definition::TriggerCondition;
+    use mtg_engine::state::turn::Step;
 
-    let roalesk_like_def = CardDefinition {
-        name: "MiniRoalesk".to_string(),
-        card_id: CardId("test-pbxs-mini-roalesk".to_string()),
+    // Card def: "When this dies, return another target Elf card from your
+    // graveyard to your hand." — Elderfang Ritualist's exact ability shape.
+    let ritualist_def = CardDefinition {
+        name: "Test Elderfang".to_string(),
+        card_id: CardId("test-pbxs-elderfang".to_string()),
         mana_cost: Some(ManaCost {
-            green: 2,
-            blue: 1,
+            black: 1,
             generic: 2,
             ..ManaCost::default()
         }),
         types: TypeLine {
             card_types: im::ordset![CardType::Creature],
+            subtypes: im::ordset![SubType("Elf".to_string())],
             ..Default::default()
         },
-        power: Some(4),
-        toughness: Some(5),
+        power: Some(3),
+        toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenEntersBattlefield,
-            effect: Effect::AddCounter {
+            trigger_condition: TriggerCondition::WhenDies,
+            effect: Effect::MoveZone {
                 target: EffectTarget::DeclaredTarget { index: 0 },
-                counter: CounterType::PlusOnePlusOne,
-                count: 2,
+                to: mtg_engine::ZoneTarget::Hand {
+                    owner: mtg_engine::PlayerTarget::Controller,
+                },
+                controller_override: None,
             },
             intervening_if: None,
-            targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                controller: TargetController::You,
+            targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                has_subtype: Some(SubType("Elf".to_string())),
+                // PB-XS: exclude the post-death Ritualist itself.
                 exclude_self: true,
                 ..Default::default()
             })],
@@ -517,47 +525,227 @@ fn test_pbxs_etb_auto_target_picker_skips_source() {
         }],
         ..Default::default()
     };
-    let registry = CardRegistry::new(vec![roalesk_like_def.clone()]);
+    let (defs, registry) = single_def(ritualist_def.clone());
 
-    // Place MiniRoalesk directly on the battlefield — this synthetic placement
-    // does NOT fire ETB triggers (the trigger fires via emit_etb_triggered_effects
-    // only when objects actually move into the battlefield zone). For the unit
-    // test, we instead verify that the AUTO-TARGET PICKER (abilities.rs) would
-    // skip MiniRoalesk herself. We force-evaluate this by activating a no-op
-    // command sequence and asserting no counters appear on MiniRoalesk (which
-    // would be the auto-target choice without exclude_self).
-    let roalesk = ObjectSpec::card(p(1), "MiniRoalesk")
-        .with_card_id(roalesk_like_def.card_id.clone())
-        .in_zone(ZoneId::Battlefield);
+    // Battlefield Ritualist with lethal damage already on it (dies to SBA).
+    let dying_ritualist = enrich_spec_from_def(
+        ObjectSpec::card(p(1), "Test Elderfang")
+            .with_card_id(ritualist_def.card_id.clone())
+            .in_zone(ZoneId::Battlefield)
+            .with_damage(1),
+        &defs,
+    );
+    // A SECOND Elf card already in P1's graveyard — the only legal target
+    // for the death trigger once exclude_self gates out the Ritualist.
+    let other_elf = ObjectSpec::card(p(1), "Lurking Elf")
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Elf".to_string())])
+        .in_zone(ZoneId::Graveyard(p(1)));
 
-    let state = GameStateBuilder::new()
+    let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
         .with_registry(registry)
-        .object(roalesk)
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .object(dying_ritualist)
+        .object(other_elf)
         .build()
         .expect("builder must succeed");
+    state.turn.priority_holder = Some(p(1));
 
-    let roalesk_id = find_obj(&state, "MiniRoalesk");
-
-    // The synthetic battlefield placement does not enqueue the ETB trigger.
-    // The functional check that matters for PB-XS is the *declarative* one:
-    // calling validate_targets_with_source for the trigger's TargetRequirement
-    // against the source itself must return Err(InvalidTarget). Use the
-    // public-facing ActivateAbility path which exercises the same validation,
-    // but for a synthetic ability — skipped here because Triggered abilities
-    // are NOT player-activatable. Instead, perform an absence assertion: no
-    // counters were ever placed on MiniRoalesk via the synthetic placement
-    // (covers regression on the auto-target path indirectly).
-    use mtg_engine::CounterType;
-    let counters = state
-        .objects
-        .get(&roalesk_id)
-        .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
-        .unwrap_or(0);
+    // Sanity: both objects exist with expected zones before SBAs fire.
+    let ritualist_id_pre = find_obj(&state, "Test Elderfang");
+    let other_elf_id = find_obj(&state, "Lurking Elf");
     assert_eq!(
-        counters, 0,
-        "PB-XS F-1: synthetic placement must not result in counters via self-auto-target"
+        state.objects.get(&ritualist_id_pre).unwrap().zone,
+        ZoneId::Battlefield,
+        "pre-SBA: Ritualist on battlefield"
+    );
+    assert_eq!(
+        state.objects.get(&other_elf_id).unwrap().zone,
+        ZoneId::Graveyard(p(1)),
+        "pre-SBA: Other Elf in graveyard"
+    );
+
+    // Both players pass priority → SBAs fire → Ritualist dies (CR 704.5g
+    // damage >= toughness) → check_triggers queues the WhenDies trigger →
+    // auto-target picker runs against TargetCardInYourGraveyard(Elf,
+    // exclude_self=true).
+    let (state, events) = {
+        let mut all = Vec::new();
+        let mut s = state;
+        for pl in [p(1), p(2)] {
+            let (ns, ev) = process_command(s, Command::PassPriority { player: pl })
+                .expect("pass priority must succeed");
+            all.extend(ev);
+            s = ns;
+        }
+        (s, all)
+    };
+
+    // Sanity: CreatureDied fired (so the trigger had a chance to queue).
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, mtg_engine::GameEvent::CreatureDied { .. })),
+        "F-1: CreatureDied event must have fired"
+    );
+
+    // After SBA + trigger queueing, the WhenDies TriggeredAbility stack object
+    // should be on the stack with `targets` containing the OTHER Elf — not the
+    // post-death Ritualist's new graveyard ObjectId.
+    use mtg_engine::StackObjectKind;
+    let trigger_so = state
+        .stack_objects
+        .iter()
+        .find(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
+        .expect("F-1: WhenDies TriggeredAbility must be on the stack");
+
+    assert_eq!(
+        trigger_so.targets.len(),
+        1,
+        "F-1: WhenDies trigger must have exactly 1 target (CR 603.3d auto-pick)"
+    );
+
+    let target = &trigger_so.targets[0];
+    let target_id = match target.target {
+        Target::Object(id) => id,
+        Target::Player(_) => panic!("F-1: target must be an object, got player"),
+    };
+
+    // Resolve the post-death Ritualist's new graveyard ObjectId for the
+    // discrimination: per CR 400.7 it is a DIFFERENT ObjectId from the
+    // pre-death one. We locate it by name in the graveyard.
+    let post_death_ritualist_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| {
+            o.characteristics.name == "Test Elderfang" && o.zone == ZoneId::Graveyard(p(1))
+        })
+        .map(|(id, _)| *id)
+        .expect("F-1: post-death Ritualist must be in graveyard (CR 400.7 new ObjectId)");
+
+    // The discrimination: target must be the OTHER Elf, not the post-death
+    // Ritualist. Without exclude_self, the auto-target picker would pick the
+    // first match in iteration order — which could be the post-death Ritualist.
+    assert_eq!(
+        target_id, other_elf_id,
+        "F-1 / CR 109.1 / CR 400.7 / CR 603.10a: WhenDies auto-target picker must \
+         exclude the post-death source (id {:?}) and pick the second Elf (id {:?}); \
+         got id {:?}",
+        post_death_ritualist_id, other_elf_id, target_id
+    );
+    assert_ne!(
+        target_id, post_death_ritualist_id,
+        "F-1: auto-target picker MUST NOT pick the post-death source as its own target"
+    );
+}
+
+/// PB-XS F-2: Negative-discriminator companion to F-1.
+///
+/// Same setup as F-1 but with NO second Elf in the graveyard. Per CR 603.3d,
+/// when no legal target exists the trigger is skipped entirely (no stack
+/// object created). Without `exclude_self`, the picker would (incorrectly)
+/// pick the post-death Ritualist; with `exclude_self`, there is genuinely
+/// no legal target.
+#[test]
+fn test_pbxs_death_trigger_skipped_when_only_source_is_legal() {
+    use mtg_engine::cards::card_definition::TriggerCondition;
+    use mtg_engine::state::turn::Step;
+
+    let ritualist_def = CardDefinition {
+        name: "Test Elderfang Solo".to_string(),
+        card_id: CardId("test-pbxs-elderfang-solo".to_string()),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 2,
+            ..ManaCost::default()
+        }),
+        types: TypeLine {
+            card_types: im::ordset![CardType::Creature],
+            subtypes: im::ordset![SubType("Elf".to_string())],
+            ..Default::default()
+        },
+        power: Some(3),
+        toughness: Some(1),
+        abilities: vec![AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDies,
+            effect: Effect::MoveZone {
+                target: EffectTarget::DeclaredTarget { index: 0 },
+                to: mtg_engine::ZoneTarget::Hand {
+                    owner: mtg_engine::PlayerTarget::Controller,
+                },
+                controller_override: None,
+            },
+            intervening_if: None,
+            targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                has_subtype: Some(SubType("Elf".to_string())),
+                exclude_self: true,
+                ..Default::default()
+            })],
+            modes: None,
+            trigger_zone: None,
+        }],
+        ..Default::default()
+    };
+    let (defs, registry) = single_def(ritualist_def.clone());
+
+    let dying_ritualist = enrich_spec_from_def(
+        ObjectSpec::card(p(1), "Test Elderfang Solo")
+            .with_card_id(ritualist_def.card_id.clone())
+            .in_zone(ZoneId::Battlefield)
+            .with_damage(1),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(registry)
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .object(dying_ritualist)
+        .build()
+        .expect("builder must succeed");
+    state.turn.priority_holder = Some(p(1));
+
+    let (state, events) = {
+        let mut all = Vec::new();
+        let mut s = state;
+        for pl in [p(1), p(2)] {
+            let (ns, ev) = process_command(s, Command::PassPriority { player: pl })
+                .expect("pass priority must succeed");
+            all.extend(ev);
+            s = ns;
+        }
+        (s, all)
+    };
+
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, mtg_engine::GameEvent::CreatureDied { .. })),
+        "F-2: CreatureDied event must have fired"
+    );
+
+    // The WhenDies trigger must have been skipped (no legal non-self target).
+    // Per CR 603.3d, when no legal target exists, the trigger is not put on
+    // the stack at all (handled by `flush_pending_triggers`).
+    use mtg_engine::StackObjectKind;
+    let no_dies_trigger = state
+        .stack_objects
+        .iter()
+        .all(|so| !matches!(so.kind, StackObjectKind::TriggeredAbility { .. }));
+    assert!(
+        no_dies_trigger,
+        "F-2 / CR 603.3d: WhenDies trigger with only-self in graveyard must be SKIPPED \
+         (exclude_self=true rejects post-death source; no other Elf exists); got stack: {:?}",
+        state
+            .stack_objects
+            .iter()
+            .map(|so| format!("{:?}", so.kind))
+            .collect::<Vec<_>>()
     );
 }
 

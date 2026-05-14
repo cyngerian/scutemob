@@ -99,8 +99,8 @@ fn resolve_via_apply(
 fn test_hash_schema_version_after_pb_lki_cc() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 19u8,
-        "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
-         CR 603.10a / 113.7a); if you intentionally bumped it again, update this test \
+        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
+         CR 109.1 / 601.2c); if you intentionally bumped it again, update this test \
          together with state/hash.rs history."
     );
 }

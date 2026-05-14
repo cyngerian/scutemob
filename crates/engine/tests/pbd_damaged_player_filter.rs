@@ -595,8 +595,8 @@ fn test_damaged_player_hash_parity_all_variants() {
     // CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     assert_eq!(
         HASH_SCHEMA_VERSION, 19u8,
-        "PB-LKI-CC bumped HASH_SCHEMA_VERSION 14→15 (EffectAmount::CounterCountAtLastKnownInformation, \
-         CR 603.10a / 113.7a). If you bumped again, update this test and state/hash.rs history."
+        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
+         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);
