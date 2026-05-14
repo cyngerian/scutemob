@@ -1618,6 +1618,10 @@ pub(crate) fn resolve_cda_amount(
         // Card authors should not pair CounterCountAtLastKnownInformation with a CDA;
         // use the live `CounterCount` variant instead.
         EffectAmount::CounterCountAtLastKnownInformation { .. } => 0,
+        // CR 613: CDAs cannot reference LKI source power — power is a live characteristic
+        // while on the battlefield. Returns 0 as defensive default.
+        // Card authors should not pair SourcePowerAtLastKnownInformation with a CDA.
+        EffectAmount::SourcePowerAtLastKnownInformation => 0,
         _ => {
             debug_assert!(
                 false,

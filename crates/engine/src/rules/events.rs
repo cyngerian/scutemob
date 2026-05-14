@@ -219,6 +219,14 @@ pub enum GameEvent {
         /// and undying (checks +1/+1) to evaluate the intervening-if condition at
         /// trigger time. Captured before `move_object_to_zone` resets counters.
         pre_death_counters: OrdMap<CounterType, u32>,
+        /// CR 603.10a / CR 113.7a: layer-resolved power of the dying creature at LKI.
+        /// Used by `EffectAmount::SourcePowerAtLastKnownInformation` for "when this dies,
+        /// gain life equal to its power" / "deal damage equal to its power" patterns
+        /// (Conclave Mentor, Juri Master of the Revue). Captured BEFORE move_object_to_zone
+        /// at sba.rs:540 alongside `pre_death_counters`.
+        /// `None` if the dying object had no power characteristic.
+        #[serde(default)]
+        pre_death_power: Option<i32>,
     },
     /// A planeswalker was put into its owner's graveyard because its loyalty
     /// reached 0 (CR 704.5i).
@@ -237,6 +245,14 @@ pub enum GameEvent {
         /// `EffectAmount::CounterCountAtLastKnownInformation`.
         #[serde(default)]
         pre_lba_counters: OrdMap<CounterType, u32>,
+        /// CR 603.10a: layer-resolved power snapshot captured before `move_object_to_zone`
+        /// destroys battlefield-only continuous effects. Populated when the object was on
+        /// the battlefield immediately before zone change; `None` for non-battlefield
+        /// sources OR for objects with no power characteristic.
+        /// Used by `SelfLeavesBattlefield` triggers to resolve
+        /// `EffectAmount::SourcePowerAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_power: Option<i32>,
     },
     /// CR 702.103f: A bestowed Aura became unattached and reverted to an
     /// enchantment creature. Unlike normal Auras (AuraFellOff), the permanent
@@ -368,6 +384,14 @@ pub enum GameEvent {
         /// `EffectAmount::CounterCountAtLastKnownInformation`.
         #[serde(default)]
         pre_lba_counters: OrdMap<CounterType, u32>,
+        /// CR 603.10a: layer-resolved power snapshot captured before `move_object_to_zone`
+        /// destroys battlefield-only continuous effects. Populated when the object was on
+        /// the battlefield immediately before zone change; `None` for non-battlefield
+        /// sources OR for objects with no power characteristic.
+        /// Used by `SelfLeavesBattlefield` triggers to resolve
+        /// `EffectAmount::SourcePowerAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_power: Option<i32>,
     },
     /// A non-creature permanent was destroyed by a spell or ability (CR 701.7).
     ///
@@ -382,6 +406,14 @@ pub enum GameEvent {
         /// non-creature permanents to resolve `EffectAmount::CounterCountAtLastKnownInformation`.
         #[serde(default)]
         pre_lba_counters: OrdMap<CounterType, u32>,
+        /// CR 603.10a: layer-resolved power snapshot captured before `move_object_to_zone`
+        /// destroys battlefield-only continuous effects. Populated when the object was on
+        /// the battlefield immediately before zone change; `None` for non-battlefield
+        /// sources OR for objects with no power characteristic.
+        /// Used by `SelfLeavesBattlefield` triggers to resolve
+        /// `EffectAmount::SourcePowerAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_power: Option<i32>,
     },
     /// A permanent was untapped by a spell or ability (CR 701.17).
     PermanentUntapped {
@@ -467,6 +499,14 @@ pub enum GameEvent {
         /// `EffectAmount::CounterCountAtLastKnownInformation`.
         #[serde(default)]
         pre_lba_counters: OrdMap<CounterType, u32>,
+        /// CR 603.10a: layer-resolved power snapshot captured before `move_object_to_zone`
+        /// destroys battlefield-only continuous effects. Populated when the object was on
+        /// the battlefield immediately before zone change; `None` for non-battlefield
+        /// sources OR for objects with no power characteristic.
+        /// Used by `SelfLeavesBattlefield` triggers to resolve
+        /// `EffectAmount::SourcePowerAtLastKnownInformation`.
+        #[serde(default)]
+        pre_lba_power: Option<i32>,
     },
     /// An object was put into a graveyard by a spell or ability, not via
     /// destruction or death (CR 400).

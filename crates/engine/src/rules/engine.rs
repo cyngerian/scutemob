@@ -588,12 +588,16 @@ fn handle_pay_echo(
     // Validate: permanent must still be on the battlefield.
     let source_info = state.objects.get(&permanent).and_then(|obj| {
         if obj.zone == ZoneId::Battlefield {
-            Some((obj.owner, obj.controller, obj.counters.clone()))
+            // CR 603.10a: capture layer-resolved power BEFORE any zone move.
+            let lki_power = crate::rules::layers::calculate_characteristics(state, permanent)
+                .and_then(|c| c.power)
+                .or(obj.characteristics.power);
+            Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
         } else {
             None
         }
     });
-    let Some((owner, controller, pre_death_counters)) = source_info else {
+    let Some((owner, controller, pre_death_counters, echo_lki_power)) = source_info else {
         // Permanent left the battlefield since the trigger resolved; nothing to do.
         return Ok(events);
     };
@@ -646,6 +650,8 @@ fn handle_pay_echo(
                                 object_id: permanent,
                                 new_exile_id: new_id,
                                 pre_lba_counters: pre_death_counters.clone(),
+                                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                                pre_lba_power: echo_lki_power,
                             });
                         }
                         ZoneId::Command(_) => {
@@ -657,6 +663,8 @@ fn handle_pay_echo(
                                 new_grave_id: new_id,
                                 controller,
                                 pre_death_counters,
+                                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                                pre_death_power: echo_lki_power,
                             });
                         }
                     }
@@ -671,6 +679,8 @@ fn handle_pay_echo(
                         new_grave_id,
                         controller,
                         pre_death_counters,
+                        // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                        pre_death_power: echo_lki_power,
                     });
                 }
             }
@@ -740,12 +750,16 @@ fn handle_pay_cumulative_upkeep(
     // Validate: permanent must still be on the battlefield.
     let source_info = state.objects.get(&permanent).and_then(|obj| {
         if obj.zone == ZoneId::Battlefield {
-            Some((obj.owner, obj.controller, obj.counters.clone()))
+            // CR 603.10a: capture layer-resolved power BEFORE any zone move.
+            let lki_power = crate::rules::layers::calculate_characteristics(state, permanent)
+                .and_then(|c| c.power)
+                .or(obj.characteristics.power);
+            Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
         } else {
             None
         }
     });
-    let Some((owner, controller, pre_death_counters)) = source_info else {
+    let Some((owner, controller, pre_death_counters, cu_lki_power)) = source_info else {
         // Permanent left the battlefield since the trigger resolved; nothing to do.
         return Ok(events);
     };
@@ -823,6 +837,8 @@ fn handle_pay_cumulative_upkeep(
                                 object_id: permanent,
                                 new_exile_id: new_id,
                                 pre_lba_counters: pre_death_counters.clone(),
+                                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                                pre_lba_power: cu_lki_power,
                             });
                         }
                         ZoneId::Command(_) => {
@@ -834,6 +850,8 @@ fn handle_pay_cumulative_upkeep(
                                 new_grave_id: new_id,
                                 controller,
                                 pre_death_counters,
+                                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                                pre_death_power: cu_lki_power,
                             });
                         }
                     }
@@ -848,6 +866,8 @@ fn handle_pay_cumulative_upkeep(
                         new_grave_id,
                         controller,
                         pre_death_counters,
+                        // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                        pre_death_power: cu_lki_power,
                     });
                 }
             }
@@ -1929,6 +1949,7 @@ pub fn ring_ability_stack_object(
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     }
 }
 /// Build a `StackObject` for a dungeon room ability (CR 309.4c).
@@ -1990,6 +2011,7 @@ fn room_ability_stack_object(
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     }
 }
 /// CR 701.49: Handle a venture-into-the-dungeon action.
@@ -2366,6 +2388,7 @@ fn handle_activate_loyalty_ability(
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
     // Reset priority since a new object is on the stack.
@@ -2518,6 +2541,7 @@ fn handle_level_up_class(
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
     events.push(GameEvent::AbilityActivated {

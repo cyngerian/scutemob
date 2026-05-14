@@ -1152,12 +1152,22 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 continue;
                             }
                             // Capture last-known information before zone move (CR 400.7).
-                            let (sac_owner, pre_death_controller, pre_death_counters) = {
+                            let (
+                                sac_owner,
+                                pre_death_controller,
+                                pre_death_counters,
+                                devour_lki_power,
+                            ) = {
                                 let obj = match state.objects.get(&sac_id) {
                                     Some(o) => o,
                                     None => continue,
                                 };
-                                (obj.owner, obj.controller, obj.counters.clone())
+                                // CR 603.10a: capture layer-resolved power before zone move.
+                                let lki_power =
+                                    crate::rules::layers::calculate_characteristics(state, sac_id)
+                                        .and_then(|c| c.power)
+                                        .or(obj.characteristics.power);
+                                (obj.owner, obj.controller, obj.counters.clone(), lki_power)
                             };
                             // CR 614: Check replacement effects (e.g., Rest in Peace).
                             let action = crate::rules::replacement::check_zone_change_replacement(
@@ -1186,6 +1196,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                     object_id: sac_id,
                                                     new_exile_id: new_grave_id,
                                                     pre_lba_counters: pre_death_counters.clone(),
+                                                    pre_lba_power: devour_lki_power,
                                                 });
                                             }
                                             ZoneId::Command(_) => {
@@ -1197,6 +1208,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                     new_grave_id,
                                                     controller: pre_death_controller,
                                                     pre_death_counters,
+                                                    pre_death_power: devour_lki_power,
                                                 });
                                             }
                                         }
@@ -1218,6 +1230,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             new_grave_id,
                                             controller: pre_death_controller,
                                             pre_death_counters,
+                                            pre_death_power: devour_lki_power,
                                         });
                                         // CR 701.21a: PermanentSacrificed for devour cost.
                                         events.push(GameEvent::PermanentSacrificed {
@@ -1241,6 +1254,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             new_grave_id,
                                             controller: pre_death_controller,
                                             pre_death_counters,
+                                            pre_death_power: devour_lki_power,
                                         });
                                         // CR 701.21a: PermanentSacrificed for devour cost.
                                         events.push(GameEvent::PermanentSacrificed {
@@ -1392,6 +1406,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 damaged_player: None,
                                 combat_damage_amount: 0,
                                 lki_counters: im::OrdMap::new(),
+                                lki_power: None,
                                 data: None,
                             });
                     }
@@ -1474,6 +1489,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 damaged_player: None,
                                 combat_damage_amount: 0,
                                 lki_counters: im::OrdMap::new(),
+                                lki_power: None,
                                 data: None,
                             });
                     }
@@ -2059,6 +2075,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             } else {
                                 Some(stack_obj.lki_counters.clone())
                             };
+                            // CR 603.10a / CR 113.7a: Propagate LKI source-power snapshot for
+                            // EffectAmount::SourcePowerAtLastKnownInformation.
+                            ctx.lki_power = stack_obj.lki_power;
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
@@ -2134,6 +2153,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         } else {
                             Some(stack_obj.lki_counters.clone())
                         };
+                        // CR 603.10a / CR 113.7a: Propagate LKI source-power snapshot for
+                        // EffectAmount::SourcePowerAtLastKnownInformation.
+                        ctx.lki_power = stack_obj.lki_power;
                         let effect_events = execute_effect(state, &effect, &mut ctx);
                         events.extend(effect_events);
                     }
@@ -2363,6 +2385,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 damaged_player: None,
                                 combat_damage_amount: 0,
                                 lki_counters: im::OrdMap::new(),
+                                lki_power: None,
                                 data: None,
                             });
                     }
@@ -2394,12 +2417,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Check if the source is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&vanishing_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
-                    Some((obj.owner, obj.controller, obj.counters.clone()))
+                    // CR 603.10a: capture layer-resolved power before zone move.
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, vanishing_permanent)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                    Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
                 } else {
                     None
                 }
             });
-            if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
+            if let Some((owner, pre_death_controller, pre_death_counters, vanishing_lki_power)) =
+                source_info
+            {
                 // CR 701.21a: Sacrifice bypasses indestructible.
                 // CR 614: Replacement effects (e.g., Rest in Peace) still apply.
                 let action = crate::rules::replacement::check_zone_change_replacement(
@@ -2427,6 +2457,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         object_id: vanishing_permanent,
                                         new_exile_id: new_id,
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        // CR 603.10a: LKI power snapshot.
+                                        pre_lba_power: vanishing_lki_power,
                                     });
                                 }
                                 ZoneId::Command(_) => {
@@ -2438,6 +2470,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         new_grave_id: new_id,
                                         controller: pre_death_controller,
                                         pre_death_counters,
+                                        // CR 603.10a: LKI power snapshot.
+                                        pre_death_power: vanishing_lki_power,
                                     });
                                 }
                             }
@@ -2452,6 +2486,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 new_grave_id,
                                 controller: pre_death_controller,
                                 pre_death_counters,
+                                // CR 603.10a: LKI power snapshot.
+                                pre_death_power: vanishing_lki_power,
                             });
                         }
                     }
@@ -2505,18 +2541,28 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Check if permanent is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&fading_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, fading_permanent)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
                     Some((
                         obj.owner,
                         obj.controller,
                         obj.counters.clone(),
                         obj.counters.get(&CounterType::Fade).copied().unwrap_or(0),
+                        lki_power,
                     ))
                 } else {
                     None
                 }
             });
-            if let Some((owner, pre_sacrifice_controller, pre_sacrifice_counters, fade_count)) =
-                source_info
+            if let Some((
+                owner,
+                pre_sacrifice_controller,
+                pre_sacrifice_counters,
+                fade_count,
+                pre_sacrifice_lki_power,
+            )) = source_info
             {
                 if fade_count > 0 {
                     // CR 702.32a: Remove one fade counter.
@@ -2561,6 +2607,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             object_id: fading_permanent,
                                             new_exile_id: new_id,
                                             pre_lba_counters: pre_sacrifice_counters.clone(),
+                                            pre_lba_power: pre_sacrifice_lki_power,
                                         });
                                     }
                                     ZoneId::Command(_) => {
@@ -2572,6 +2619,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             new_grave_id: new_id,
                                             controller: pre_sacrifice_controller,
                                             pre_death_counters: pre_sacrifice_counters,
+                                            pre_death_power: pre_sacrifice_lki_power,
                                         });
                                     }
                                 }
@@ -2586,6 +2634,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     new_grave_id,
                                     controller: pre_sacrifice_controller,
                                     pre_death_counters: pre_sacrifice_counters,
+                                    pre_death_power: pre_sacrifice_lki_power,
                                 });
                             }
                         }
@@ -2782,12 +2831,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Check if the source is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
-                    Some((obj.owner, obj.controller, obj.counters.clone()))
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, source_object)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                    Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
                 } else {
                     None
                 }
             });
-            if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info {
+            if let Some((owner, pre_sacrifice_controller, pre_death_counters, pre_death_power)) =
+                source_info
+            {
                 // CR 701.21a: Sacrifice is NOT destruction — no indestructible check.
                 // CR 614: Check replacement effects before moving to graveyard.
                 let action = crate::rules::replacement::check_zone_change_replacement(
@@ -2813,6 +2868,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         object_id: source_object,
                                         new_exile_id: new_id,
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        pre_lba_power: pre_death_power,
                                     });
                                 }
                                 ZoneId::Command(_) => {
@@ -2824,6 +2880,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         new_grave_id: new_id,
                                         controller: pre_sacrifice_controller,
                                         pre_death_counters,
+                                        pre_death_power,
                                     });
                                 }
                             }
@@ -2838,6 +2895,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 new_grave_id,
                                 controller: pre_sacrifice_controller,
                                 pre_death_counters,
+                                pre_death_power,
                             });
                         }
                     }
@@ -3033,8 +3091,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
-                .map(|obj| (obj.owner, obj.counters.clone()));
-            if let Some((owner, unearth_pre_lba)) = owner_and_counters {
+                .map(|obj| {
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, source_object)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                    (obj.owner, obj.counters.clone(), lki_power)
+                });
+            if let Some((owner, unearth_pre_lba, unearth_lki_power)) = owner_and_counters {
                 // Exile the permanent directly. No zone-change replacement needed:
                 // the replacement effect only fires when the permanent would go to a
                 // NON-exile zone. Here we are already exiling it, so no replacement applies.
@@ -3045,6 +3109,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: source_object,
                     new_exile_id,
                     pre_lba_counters: unearth_pre_lba,
+                    pre_lba_power: unearth_lki_power,
                 });
             }
             // If not on battlefield, do nothing (already exiled by replacement or removed).
@@ -3070,8 +3135,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .objects
                 .get(&source_object)
                 .filter(|obj| obj.zone == ZoneId::Battlefield)
-                .map(|obj| (obj.owner, obj.counters.clone()));
-            if let Some((owner, dash_pre_lba)) = owner_and_counters {
+                .map(|obj| {
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, source_object)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                    (obj.owner, obj.counters.clone(), lki_power)
+                });
+            if let Some((owner, dash_pre_lba, dash_lki_power)) = owner_and_counters {
                 // Return to owner's hand (not controller's -- CR 702.109a says "owner's hand").
                 let (new_hand_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Hand(owner))?;
@@ -3080,6 +3151,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     object_id: source_object,
                     new_hand_id,
                     pre_lba_counters: dash_pre_lba,
+                    pre_lba_power: dash_lki_power,
                 });
             }
             // If not on battlefield, do nothing (CR 400.7 -- creature is a new object).
@@ -3106,12 +3178,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Check if the source is still on the battlefield (CR 400.7).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
-                    Some((obj.owner, obj.controller, obj.counters.clone()))
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, source_object)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                    Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
                 } else {
                     None
                 }
             });
-            if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
+            if let Some((owner, pre_death_controller, pre_death_counters, pre_death_power)) =
+                source_info
+            {
                 // Sacrifice: move to owner's graveyard.
                 // Sacrifice bypasses indestructible (CR 701.21a).
                 // Replacement effects (e.g., Rest in Peace) still apply.
@@ -3138,6 +3216,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         object_id: source_object,
                                         new_exile_id: new_id,
                                         pre_lba_counters: pre_death_counters.clone(),
+                                        pre_lba_power: pre_death_power,
                                     });
                                 }
                                 ZoneId::Command(_) => {
@@ -3149,6 +3228,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         new_grave_id: new_id,
                                         controller: pre_death_controller,
                                         pre_death_counters,
+                                        pre_death_power,
                                     });
                                 }
                             }
@@ -3163,6 +3243,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 new_grave_id,
                                 controller: pre_death_controller,
                                 pre_death_counters,
+                                pre_death_power,
                             });
                         }
                     }
@@ -3931,11 +4012,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 };
                 if let Some(target_id) = target_opt {
                     // Exile the qualifying permanent.
-                    let (target_owner, champion_target_pre_lba) = state
+                    let (target_owner, champion_target_pre_lba, champion_target_lki_power) = state
                         .objects
                         .get(&target_id)
-                        .map(|o| (o.owner, o.counters.clone()))
-                        .unwrap_or((controller, im::OrdMap::new()));
+                        .map(|o| {
+                            let lki_power =
+                                crate::rules::layers::calculate_characteristics(state, target_id)
+                                    .and_then(|c| c.power)
+                                    .or(o.characteristics.power);
+                            (o.owner, o.counters.clone(), lki_power)
+                        })
+                        .unwrap_or((controller, im::OrdMap::new(), None));
                     if let Ok((new_exile_id, _old)) =
                         state.move_object_to_zone(target_id, ZoneId::Exile)
                     {
@@ -3948,6 +4035,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             object_id: target_id,
                             new_exile_id,
                             pre_lba_counters: champion_target_pre_lba,
+                            pre_lba_power: champion_target_lki_power,
                         });
                         let _ = target_owner; // suppress unused warning
                     }
@@ -3955,12 +4043,23 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // No qualifying target: sacrifice the champion (CR 702.72a).
                     let source_info = state.objects.get(&source_object).and_then(|obj| {
                         if obj.zone == ZoneId::Battlefield {
-                            Some((obj.owner, obj.controller, obj.counters.clone()))
+                            let lki_power = crate::rules::layers::calculate_characteristics(
+                                state,
+                                source_object,
+                            )
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                            Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
                         } else {
                             None
                         }
                     });
-                    if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info
+                    if let Some((
+                        owner,
+                        pre_sacrifice_controller,
+                        pre_death_counters,
+                        pre_death_power,
+                    )) = source_info
                     {
                         // CR 701.21a: Sacrifice is NOT destruction — no indestructible check.
                         let action = crate::rules::replacement::check_zone_change_replacement(
@@ -3988,6 +4087,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                 object_id: source_object,
                                                 new_exile_id: new_id,
                                                 pre_lba_counters: pre_death_counters.clone(),
+                                                pre_lba_power: pre_death_power,
                                             });
                                         }
                                         _ => {
@@ -3996,6 +4096,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                 new_grave_id: new_id,
                                                 controller: pre_sacrifice_controller,
                                                 pre_death_counters,
+                                                pre_death_power,
                                             });
                                         }
                                     }
@@ -4017,6 +4118,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                         new_grave_id,
                                         controller: pre_sacrifice_controller,
                                         pre_death_counters,
+                                        pre_death_power,
                                     });
                                     // CR 701.21a: Champion sacrifice emits PermanentSacrificed
                                     // so "whenever you sacrifice a permanent" triggers fire.
@@ -5672,6 +5774,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         object_id: card_id,
                         new_exile_id,
                         pre_lba_counters: im::OrdMap::new(), // library→exile: no battlefield counters
+                        pre_lba_power: None,                 // library→exile: no battlefield power
                     });
                 }
             }
@@ -6485,10 +6588,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // control as the delayed triggered ability resolves, you can't sacrifice
                 // that token." Only sacrifice if still controlled by the activator.
                 if current_controller == activator {
-                    let pre_death_counters = state
+                    let (pre_death_counters, offspring_lki_power) = state
                         .objects
                         .get(&source_object)
-                        .map(|o| o.counters.clone())
+                        .map(|o| {
+                            let lki_power = crate::rules::layers::calculate_characteristics(
+                                state,
+                                source_object,
+                            )
+                            .and_then(|c| c.power)
+                            .or(o.characteristics.power);
+                            (o.counters.clone(), lki_power)
+                        })
                         .unwrap_or_default();
                     // Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
@@ -6515,6 +6626,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             object_id: source_object,
                                             new_exile_id: new_id,
                                             pre_lba_counters: pre_death_counters.clone(),
+                                            pre_lba_power: offspring_lki_power,
                                         });
                                     }
                                     ZoneId::Command(_) => {
@@ -6526,6 +6638,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             new_grave_id: new_id,
                                             controller: current_controller,
                                             pre_death_counters,
+                                            pre_death_power: offspring_lki_power,
                                         });
                                     }
                                 }
@@ -6540,6 +6653,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     new_grave_id: new_id,
                                     controller: current_controller,
                                     pre_death_counters,
+                                    pre_death_power: offspring_lki_power,
                                 });
                             }
                         }
@@ -6553,6 +6667,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     new_grave_id: new_id,
                                     controller: current_controller,
                                     pre_death_counters,
+                                    pre_death_power: offspring_lki_power,
                                 });
                             }
                         }
@@ -7132,6 +7247,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 object_id: target,
                                 new_hand_id: new_id,
                                 pre_lba_counters: im::OrdMap::new(), // exile→hand: no battlefield counters
+                                pre_lba_power: None, // exile→hand: no battlefield power
                             });
                         }
                     }
@@ -7152,6 +7268,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 object_id: target,
                                 new_hand_id: new_id,
                                 pre_lba_counters: im::OrdMap::new(), // graveyard→hand: no battlefield counters
+                                pre_lba_power: None, // graveyard→hand: no battlefield power
                             });
                         }
                     }
@@ -7163,8 +7280,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .objects
                         .get(&target)
                         .filter(|o| o.zone == ZoneId::Battlefield)
-                        .map(|o| (o.owner, o.controller, o.counters.clone()));
-                    if let Some((owner, pre_death_controller, pre_death_counters)) = pre_death_info
+                        .map(|o| {
+                            let lki_power =
+                                crate::rules::layers::calculate_characteristics(state, target)
+                                    .and_then(|c| c.power)
+                                    .or(o.characteristics.power);
+                            (o.owner, o.controller, o.counters.clone(), lki_power)
+                        });
+                    if let Some((
+                        owner,
+                        pre_death_controller,
+                        pre_death_counters,
+                        pre_death_power,
+                    )) = pre_death_info
                     {
                         let is_creature = {
                             let chars =
@@ -7196,6 +7324,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     new_grave_id: new_id,
                                     controller: pre_death_controller,
                                     pre_death_counters,
+                                    pre_death_power,
                                 });
                             }
                         }
@@ -7207,8 +7336,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .objects
                         .get(&target)
                         .filter(|o| o.zone == ZoneId::Battlefield)
-                        .map(|o| o.counters.clone());
-                    if let Some(exile_pre_lba) = target_pre_lba {
+                        .map(|o| {
+                            let lki_power =
+                                crate::rules::layers::calculate_characteristics(state, target)
+                                    .and_then(|c| c.power)
+                                    .or(o.characteristics.power);
+                            (o.counters.clone(), lki_power)
+                        });
+                    if let Some((exile_pre_lba, exile_lki_power)) = target_pre_lba {
                         if let Ok((new_exile_id, _)) =
                             state.move_object_to_zone(target, ZoneId::Exile)
                         {
@@ -7217,6 +7352,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 object_id: target,
                                 new_exile_id,
                                 pre_lba_counters: exile_pre_lba,
+                                pre_lba_power: exile_lki_power,
                             });
                         }
                     }

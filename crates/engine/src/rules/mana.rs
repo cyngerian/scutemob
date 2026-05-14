@@ -168,17 +168,19 @@ pub fn handle_tap_for_mana(
     //    Sacrifice is a cost paid before mana is produced (CR 602.2c).
     //    After the zone move, `source` is a dead ObjectId (CR 400.7).
     if ability.sacrifice_self {
-        let (is_creature, owner, pre_death_controller, pre_death_counters) = {
+        let (is_creature, owner, pre_death_controller, pre_death_counters, pre_death_power_mana) = {
             let obj = state.object(source)?;
             // CR 613.1d: Use layer-resolved types for sacrifice creature check
             // (animated artifacts/lands are creatures per layer 4).
             let sac_chars = crate::rules::layers::calculate_characteristics(state, source)
                 .unwrap_or_else(|| obj.characteristics.clone());
+            let lki_power = sac_chars.power.or(obj.characteristics.power);
             (
                 sac_chars.card_types.contains(&CardType::Creature),
                 obj.owner,
                 obj.controller,
                 obj.counters.clone(),
+                lki_power,
             )
         };
         let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
@@ -188,6 +190,7 @@ pub fn handle_tap_for_mana(
                 new_grave_id: new_id,
                 controller: pre_death_controller,
                 pre_death_counters,
+                pre_death_power: pre_death_power_mana,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {
@@ -195,6 +198,8 @@ pub fn handle_tap_for_mana(
                 new_grave_id: new_id,
                 // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
                 pre_lba_counters: pre_death_counters.clone(),
+                // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
+                pre_lba_power: pre_death_power_mana,
             });
         }
     }

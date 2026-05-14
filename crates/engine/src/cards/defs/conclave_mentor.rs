@@ -10,12 +10,10 @@
 // fires). This matches CR 614.13: replacement effects from a permanent don't apply to
 // that permanent's own ETB event unless self-replacement.
 //
-// Death trigger ("you gain life equal to its power") is BLOCKED on LKI power snapshot
-// at WhenDies. PB-LKI-CC threaded LKI counters through PendingTrigger; PB-LKI-Power
-// (filed as OOS seed in memory/primitives/pb-retriage-CC.md) would extend the same
-// pattern to source power. Until that primitive lands, the death trigger is intentionally
-// not implemented to avoid wrong game state (it would resolve to 0 from a graveyard'd
-// source per CR 122.2 / CR 400.7, just like Toothy did pre-PB-LKI-CC).
+// Death trigger uses `EffectAmount::SourcePowerAtLastKnownInformation` (PB-LKI-Power,
+// CR 603.10a) to honor the 2020-06-23 ruling that gain-life amount equals power as it
+// last existed on the battlefield (layer-resolved, including +1/+1 counters added by
+// the replacement half), NOT the printed value or graveyard-reset value.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -38,9 +36,20 @@ pub fn card() -> CardDefinition {
                 is_self: false,
                 unless_condition: None,
             },
-            // TODO (OOS-LKI-Power, see memory/primitives/pb-retriage-CC.md): WhenDies
-            // trigger reading LKI source power. Blocked on LKI power snapshot primitive
-            // (extension of PB-LKI-CC's lki_counters pattern to lki_power).
+            // When Conclave Mentor dies, you gain life equal to its power.
+            // CR 603.10a / Ruling 2020-06-23: power read from LKI snapshot
+            // (boosted-on-battlefield value, not printed 2/2).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::SourcePowerAtLastKnownInformation,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

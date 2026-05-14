@@ -714,6 +714,7 @@ fn test_forecast_blocked_by_split_second() {
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     });
 
     state

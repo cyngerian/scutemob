@@ -2396,6 +2396,47 @@ pub enum EffectAmount {
     ///
     /// Discriminant 17 (state/hash.rs).
     CounterCountAtLastKnownInformation { counter: CounterType },
+    /// CR 603.10a / CR 113.7a: Source's layer-resolved power from last-known information
+    /// (LKI). Used by WhenDies / WhenLeavesBattlefield triggers whose effect needs to
+    /// know the source's power as it last existed on the battlefield. The snapshot is
+    /// captured at trigger-fire time (sba.rs `pre_death_power` block, alongside
+    /// `pre_death_counters`) and threaded through `PendingTrigger.lki_power`,
+    /// `StackObject.lki_power`, and `EffectContext.lki_power`.
+    ///
+    /// **Versus `PowerOf(EffectTarget::Source)`**: the existing `PowerOf` variant reads
+    /// the source's live characteristics — for a battlefield permanent it returns the
+    /// layer-resolved value, for a non-battlefield object it returns
+    /// `obj.characteristics.power` (the printed/base face, since layers don't apply
+    /// off-battlefield). Use `PowerOf` for abilities that fire while the source is still
+    /// on the battlefield (e.g. "{T}: deal damage equal to this creature's power"). Use
+    /// `SourcePowerAtLastKnownInformation` for any effect on a leaves-the-battlefield
+    /// trigger (CR 603.10a) where `state.objects[ctx.source].characteristics.power` is
+    /// the printed value by the time the trigger resolves (CR 122.2 / CR 400.7 — counters
+    /// and continuous effects cease on zone change). The implicit target is the trigger
+    /// source (LKI).
+    ///
+    /// **Returns 0** if `ctx.lki_power` is `None` (e.g. variant authored on a non-LKI
+    /// trigger by mistake, OR the source had `Characteristics.power = None` such as a
+    /// non-creature permanent with no inherent power). Defensive default — the card
+    /// author should pair this variant only with WhenDies / WhenLeavesBattlefield
+    /// triggers on creatures.
+    ///
+    /// **Cards using this variant**:
+    /// - Conclave Mentor: "When this creature dies, you gain life equal to its power."
+    ///   (Ruling 2020-06-23: "Use Conclave Mentor's power as it last existed on the
+    ///   battlefield to determine how much life you gain.")
+    /// - Juri, Master of the Revue: "When Juri dies, it deals damage equal to its power
+    ///   to any target." (Ruling 2020-11-10: "use its power from when it was last on
+    ///   the battlefield to determine how much damage is dealt. If that power was 0 or
+    ///   less, Juri deals no damage.")
+    ///
+    /// Discriminant 18 (state/hash.rs). Discriminant 19 reserved for a future
+    /// `SourceToughnessAtLastKnownInformation` if a real card surfaces it (none in scope
+    /// for PB-LKI-Power).
+    SourcePowerAtLastKnownInformation,
+    // TODO (OOS-LKI-Power-1): SourceToughnessAtLastKnownInformation — discriminant 19
+    // reserved. No in-scope card requires toughness LKI in PB-LKI-Power sweep (2026-05-13).
+    // Ship when a real "When ~ dies, [effect] equal to its toughness" card surfaces.
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

@@ -203,3 +203,132 @@ Review file updated with fix-phase resolution section at `memory/primitives/pb-r
 ## Next step
 
 Branch is PASS and ready for signal-ready on ESM task scutemob-17. Coordinator should proceed to merge to main and close PB-LKI-CC.
+
+---
+
+# Primitive WIP: PB-LKI-Power — `EffectAmount::SourcePowerAtLastKnownInformation` (LKI source-power snapshot for WhenDies / WhenLeavesBattlefield)
+
+batch: PB-LKI-Power
+title: EffectAmount::SourcePowerAtLastKnownInformation (and SourceToughnessAtLastKnownInformation if needed) — LKI source-P/T snapshot for WhenDies / WhenLeavesBattlefield (CR 603.10a / 122.2)
+cards_unblocked_estimated: 2 confirmed in-scope (Conclave Mentor death-trigger life-gain, Juri Master of the Revue death-trigger damage). Sweep may add others. Per `feedback_pb_yield_calibration.md`: ≥2 yield threshold met.
+cards_unblocked_post_plan: 2 (Conclave Mentor + Juri Master). TODO sweep returned 2 forced adds; both already in scope. No additional pattern-sweep candidates. Toughness variant DEFERRED (no in-scope card needs it; rulings explicitly say "power"); discriminant 19 reserved for future seed OOS-LKI-Power-1.
+started: 2026-05-13
+phase: implement-complete
+plan_file: memory/primitives/pb-plan-LKI-Power.md
+hash_version_pre: 16 (PB-CD)
+hash_version_post: 17 (PB-LKI-Power — LKI power snapshot fields on 5 GameEvent variants + new EffectAmount variant disc 18)
+
+## Task reference
+- ESM task: scutemob-19
+- Branch: feat/pb-lki-power-lki-source-powertoughness-snapshot-for-whendies
+- Acceptance criteria: 3762 (plan), 3763 (EffectAmount variants + hash changelog), 3764 (PendingTrigger/StackObject/EffectContext threading + sba.rs:540 snapshot site), 3765 (GameEvent pre_death_power/pre_death_toughness on 4-5 variants + abilities.rs sweep), 3766 (HASH 16→17 + Option tag-byte encoding + sentinel sweep), 3767 (Conclave Mentor + Juri TODOs cleared), 3768 (tests including LKI-after-zone-change), 3769 (cargo gates), 3770 (review + fixes), 3771 (CLAUDE.md + OOS seed close + authoring report regen)
+
+## Context
+
+PB-LKI-CC (HASH 15) shipped LKI **counter** snapshots for SelfDies / SelfLeavesBattlefield triggers. Filed OOS-LKI-Power seed (pb-retriage-CC.md:554) for the symmetric **power/toughness** problem. PB-CD (HASH 16) consumed counter-doubling capability but left Conclave Mentor's death trigger TODO pending this primitive. Juri Master of the Revue has the same blocker (TODO at line 37).
+
+This PB mirrors the PB-LKI-CC dispatch chain field-for-field, swapping `lki_counters: OrdMap<CounterType,u32>` for `lki_power: Option<i32>`.
+
+### Confirmed in-scope cards (post-MCP verification 2026-05-13)
+
+- **Conclave Mentor** — "When this creature dies, you gain life equal to its power" (TODO at conclave_mentor.rs:41-43, names OOS-LKI-Power explicitly). Ruling 2020-06-23: "Use Conclave Mentor's power as it last existed on the battlefield to determine how much life you gain." Confirmed POWER (not toughness).
+- **Juri, Master of the Revue** — "When Juri dies, it deals damage equal to its power to any target" (TODO at juri_master_of_the_revue.rs:37-38, names EffectAmount::SourcePower). Ruling 2020-11-10: "use its power from when it was last on the battlefield to determine how much damage is dealt. If that power was 0 or less, Juri deals no damage."
+
+### Sweep results (2026-05-13)
+
+TODO sweep `grep "TODO.*\(LKI.*[Pp]ower\|SourcePower\|EffectAmount::SourcePower\|OOS-LKI-Power\)"`:
+- Returned 2 forced adds: conclave_mentor.rs and juri_master_of_the_revue.rs. Both already in scope.
+
+Pattern sweep `grep "equal to its power"` over `crates/engine/src/cards/defs/`:
+- Hits in spell defs, ETB triggers on the entering creature, granted activated abilities, Fight/Bite, and live-source activated abilities. **None** are SelfDies/SelfLeavesBattlefield contexts. Specifically NOT in scope: swords_to_plowshares.rs (spell), jagged_scar_archers.rs (live activated), bridgeworks_battle.rs (Fight wording), warstorm_surge.rs (live ETB on ANOTHER creature — different snapshot target), brash_taunter.rs (Fight), archdruids_charm.rs (Bite spell), ram_through.rs (spell), eomer_king_of_rohan.rs (live ETB on self), wolverine_riders.rs (ETB-on-OTHER trigger reading the entering creature's toughness), infectious_bite.rs (spell), legolas/legolasquick (granted activated abilities).
+
+Confirmed in-scope yield: **2** (Conclave Mentor, Juri).
+
+### Out of scope (planner verifies, files seeds if discovered)
+
+- **`SourceToughnessAtLastKnownInformation`** — discriminant 19 reserved, NOT shipped. Both in-scope cards' rulings explicitly say "power." File as OOS-LKI-Power-1.
+- **Master Biomancer ETB-replacement reading source's live power** — different DSL gap (replacement-side dynamic counter count, source is alive). File as OOS-LKI-Power-2.
+- **Triggered abilities reading OTHER objects' P/T (not source's own LKI)** — different snapshot target.
+- **Cost-payment LKI (Workhorse)** — already filed as OOS-LKI-3.
+- **AnyCreatureDies LKI** — already filed as OOS-LKI-4.
+- **GameEvent LBA hash arm symmetric extension** — pre-existing PB-LKI-CC inconsistency; preserve. File as OOS-LKI-Power-3.
+
+## STOP-AND-FLAG triggers
+
+1. If sweep finds a card whose oracle text says "equal to its toughness" on a SelfDies/SelfLeavesBattlefield trigger → in scope; add SourceToughnessAtLastKnownInformation. Otherwise toughness variant deferred (planner decided: NOT shipped this batch — no in-scope card).
+2. If any in-scope card has additional non-LKI gaps, do NOT widen scope; file OOS seed.
+3. Hash bump rule: HASH_SCHEMA_VERSION 16→17 + sentinel sweep across all 9 sentinel files (10 sentinel sites).
+4. Per `feedback_verify_full_chain.md`: walk every dispatch site (DSL → resolve → snapshot → emit → trigger → resolution → hash → tests). 21 sites enumerated in plan Step 3.
+5. Hash arm symmetric-extension creep: do NOT add `pre_lba_power` to AuraFellOff/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand hash arms. Mirror PB-LKI-CC `..` precedent. File as OOS-LKI-Power-3 if revisited.
+6. AnyCreatureDies arm at abilities.rs:4318: do NOT thread `triggering_creature_lki_power` in this PB. PB-LKI-CC's OOS-LKI-4 governs.
+7. Cost-payment LKI for activated abilities: do NOT extend `EffectContext.sacrificed_creature_powers` in this PB. PB-LKI-CC's OOS-LKI-3 governs.
+8. Yield drop below 2: STOP and report. Per `feedback_pb_yield_calibration.md` threshold is ≥2.
+9. `calculate_characteristics` recursion at sba.rs:540: STOP and report unexpected layer interactions.
+
+## Reference docs (for planner — used)
+
+- `memory/primitives/pb-plan-LKI-CC.md` — primary template (mirrored field-for-field, OrdMap → Option<i32>).
+- `memory/primitives/pb-review-LKI-CC.md` — reviewer template + fix-phase pattern.
+- `memory/primitives/pb-retriage-CC.md:554` — OOS-LKI-Power seed (the source description).
+- `crates/engine/src/cards/card_definition.rs:2376-2398` — `EffectAmount::CounterCountAtLastKnownInformation` definition + doc (template for new variant disc 18).
+- `crates/engine/src/rules/sba.rs:540` — `pre_death_counters` snapshot site (where pre_death_power is added).
+- `crates/engine/src/rules/abilities.rs:4015-4076` (CreatureDied), `:4351-4410` (AuraFellOff), `:5258-5269` (PermanentDestroyed), `:5311-5322` (ObjectExiled), `:5364-5375` (ObjectReturnedToHand) — 6 trigger arms touching `lki_counters` propagation, all need `lki_power` siblings.
+- `crates/engine/src/state/stubs.rs:411-457` — `PendingTrigger.lki_counters` (add `lki_power` next to it).
+- `crates/engine/src/state/stack.rs:475-541` — `StackObject.lki_counters` (add `lki_power` next to it).
+- `crates/engine/src/effects/mod.rs:142, 168-205, 6360-6365` — `EffectContext.lki_counters` field + constructors + resolve_amount arm (add `lki_power` siblings).
+- `crates/engine/src/state/hash.rs:95, 4529-4534, 2154-2157, 3031-3034` — HASH_SCHEMA_VERSION (16→17), HashInto for EffectAmount disc 18, HashInto for PendingTrigger.lki_power, HashInto for StackObject.lki_power.
+- `crates/engine/src/rules/events.rs:207-222` (CreatureDied), `:231-240` (AuraFellOff), `:357-371` (ObjectExiled), `:375-385` (PermanentDestroyed), `:456-470` (ObjectReturnedToHand) — 5 GameEvent variants where `pre_death_power` / `pre_lba_power: Option<i32>` field is added with `#[serde(default)]`.
+- `feedback_pb_yield_calibration.md`, `feedback_verify_full_chain.md`, `feedback_oversight_primitive_category_not_cards.md`, `feedback_verify_cr_before_implement.md`.
+
+## Planner checklist
+
+- [x] Step 1: CR research — quoted 603.10a, 122.2, 400.7, 113.7a verbatim with notes on LKI semantics for power/toughness. Conclave Mentor 2020-06-23 ruling and Juri 2020-11-10 ruling both verbatim.
+- [x] Step 2: Engine architecture walk — 21 dispatch sites enumerated (mirroring PB-LKI-CC).
+- [x] Step 3: Per-card oracle-text verification via MCP `lookup_card` — confirmed Conclave Mentor (POWER, ruling 2020-06-23) and Juri Master (POWER, ruling 2020-11-10). Both rulings explicitly mandate LKI ("power as it last existed on the battlefield").
+- [x] Step 4: Toughness variant scope decision — NOT shipped. No in-scope card needs toughness LKI. Discriminant 19 reserved for future seed OOS-LKI-Power-1. Justified: shipping unused variants is dead surface; PB-LKI-CC OOS-LKI-N precedent is to file seeds, not pre-stub variants.
+- [x] Step 5: Hash strategy — bump 16→17, sentinel sweep file list (9 files, 10 sentinel sites), Option<i32> uses generic HashInto<Option<T>> at hash.rs:191-201 (tag byte 0/1 + payload).
+- [x] Step 6: Test plan — 4-5 mandatory tests: (a) Conclave Mentor life gain == LKI power (boosted), (b) Juri damage == LKI power (boosted), (c) discriminating LKI test (read source power AFTER it's in graveyard — must equal pre-death NOT printed NOT 0), (d) hash determinism + sentinel + variant-discrimination + Option<i32> tag-byte encoding canary, (f) optional GameEvent-redirect path.
+- [x] Plan file written: `memory/primitives/pb-plan-LKI-Power.md`.
+
+## Implementation checklist (runner fills in)
+
+- [x] Engine change 1: `EffectAmount::SourcePowerAtLastKnownInformation` variant added (disc 18) — `card_definition.rs:2398+`
+- [x] Engine change 2: `EffectContext.lki_power: Option<i32>` field added + 2 constructors + 2 inner_ctx clones + check_condition stub updated — `effects/mod.rs`
+- [x] Engine change 3: `PendingTrigger.lki_power: Option<i32>` field added + `blank()` init — `state/stubs.rs`
+- [x] Engine change 4: `StackObject.lki_power: Option<i32>` field added + `trigger_default()` init — `state/stack.rs`
+- [x] Engine change 5: LKI capture at sba.rs:540 — extended let-bind to include `pre_death_power` via `calculate_characteristics`; `calculate_characteristics(state, id).and_then(|c| c.power).or(obj.characteristics.power)`
+- [x] Engine change 6: `GameEvent::CreatureDied.pre_death_power: Option<i32>` field added — `events.rs` with `#[serde(default)]`
+- [x] Engine change 7: `pre_lba_power: Option<i32>` added to AuraFellOff/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand — `events.rs` with `#[serde(default)]`
+- [x] Engine change 8: ALL emit sites for these 5 GameEvent variants updated (~35 sites across effects/mod.rs, casting.rs, mana.rs, replacement.rs); non-battlefield sources use `None`; `zone_change_events` in replacement.rs got 8th parameter + `#[allow(clippy::too_many_arguments)]`; `zone_move_event` helper uses `pre_lba_power: None` for all arms
+- [x] Engine change 9: 6 trigger arms in `check_triggers` updated to propagate `pre_death_power`/`pre_lba_power` → `PendingTrigger.lki_power` — `abilities.rs`
+- [x] Engine change 10: `flush_pending_triggers` threads `stack_obj.lki_power = trigger.lki_power` — `abilities.rs`
+- [x] Engine change 11: `ctx.lki_power = stack_obj.lki_power;` at resolution time (2 paths) — `resolution.rs`
+- [x] Engine change 12: `resolve_amount` arm for disc 18 reads `ctx.lki_power.unwrap_or(0)` — `effects/mod.rs`
+- [x] Engine change 13: `resolve_cda_amount` arm for disc 18 returns 0 — `rules/layers.rs`
+- [x] Engine change 14: `HashInto for EffectAmount` disc 18 — `state/hash.rs` (fieldless: just `18u8.hash_into(hasher)`)
+- [x] Engine change 15: `HashInto for PendingTrigger` and `HashInto for StackObject` add `self.lki_power.hash_into(hasher)` — `state/hash.rs`
+- [x] Engine change 16: `HashInto for GameEvent::CreatureDied` add `pre_death_power` to destructure pattern + `pre_death_power.hash_into(hasher)` — `state/hash.rs`. 4 LBA hash arms left unchanged (per STOP-AND-FLAG 5: use `..`).
+- [x] Engine change 17: HASH_SCHEMA_VERSION 16→17 + history entry 17 — `state/hash.rs`
+- [x] Engine change 18: sentinel-assertion sweep across 9 files (10 sentinel sites) — all updated 16→17: primitive_pb_ts.rs:369, pbn_subtype_filtered_triggers.rs:558, pbd_damaged_player_filter.rs:597, effect_sacrifice_permanents_filter.rs:136, primitive_pb_cc_c_followup.rs:400, primitive_pb_lki_cc.rs:440, primitive_pb_cc_a.rs:101, pbp_power_of_sacrificed_creature.rs:782, pbt_up_to_n_targets.rs:411 and :868
+- [x] Card def 1: `conclave_mentor.rs` — TODO replaced with WhenDies trigger using `EffectAmount::SourcePowerAtLastKnownInformation` + `Effect::GainLife`; header comment updated
+- [x] Card def 2: `juri_master_of_the_revue.rs` — TODO replaced with WhenDies trigger using `EffectAmount::SourcePowerAtLastKnownInformation` + `Effect::DealDamage` + `TargetRequirement::TargetAny`; header comment updated
+- [x] OOS seeds appended to `pb-retriage-CC.md`: OOS-LKI-Power-1 (toughness variant, disc 19 reserved), OOS-LKI-Power-2 (Master Biomancer ETB-replacement), OOS-LKI-Power-3 (LBA hash arm symmetric extension); existing OOS-LKI-Power seed marked CLOSED
+- [x] Tests (a-d) in `crates/engine/tests/primitive_pb_lki_power.rs`: (a) test_conclave_mentor_death_trigger_gains_life_from_lki_power, (b) test_juri_master_death_trigger_deals_damage_from_lki_power, (c) test_lki_power_resolves_to_pre_death_value_not_printed_value, (d) test_pb_lki_power_hash_schema_version_and_determinism
+- [x] Additional test file fixes: copy_redirect.rs, partner_with.rs, plot.rs, saga_class.rs, planeswalker.rs, backup.rs, commander.rs, eternalize.rs, dungeon_resolution.rs, encore.rs, ninjutsu.rs, hideaway.rs, mana_and_lands.rs, forecast.rs (missing `lki_power: None` in StackObject literals); primitive_pb37.rs (missing `lki_power: None` in EffectContext literal); delayed_triggers.rs (missing `pre_death_power: None` in GameEvent::CreatureDied literal)
+- [x] cargo build --workspace clean — replay-viewer + TUI exhaustive matches verified
+- [x] cargo test --workspace green — **2749 tests passing** (was 2745, +4 new in primitive_pb_lki_power.rs)
+- [x] cargo fmt --check clean — zero diffs
+- [x] cargo clippy --all-targets -- -D warnings clean — zero warnings
+- [ ] CLAUDE.md updated: Active Plan + test count + HASH version (deferred to coordinator per dispatch brief)
+- [ ] Authoring report regenerated: `python3 tools/authoring-report.py` (deferred to coordinator per dispatch brief)
+
+## Reviewer checklist
+
+- [ ] CR rules independently verified (603.10a, 113.7a, 122.2, 400.7)
+- [ ] Card oracle text re-verified via MCP for both re-authored cards (Conclave Mentor, Juri Master)
+- [ ] Every dispatch site walked and confirmed correct (21 sites; full chain)
+- [ ] Hash arm + version bump + history entry verified (HASH=17, history entry 17, 9 sentinel files updated)
+- [ ] Tests verified (4-5 present, all cite CR, all discriminating; test (c) is the load-bearing LKI-after-zone-change discriminator)
+- [ ] No scope creep (toughness variant deferred, AnyCreatureDies untouched, cost-payment LKI untouched, LBA hash arms unchanged)
+- [ ] Review file written: `memory/primitives/pb-review-LKI-Power.md`
+- [ ] Verdict: PASS / PASS-WITH-NITS / NEEDS-FIX

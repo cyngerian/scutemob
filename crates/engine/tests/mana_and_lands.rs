@@ -296,6 +296,7 @@ fn test_play_land_stack_nonempty_fails() {
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     });
 
     let result = mtg_engine::process_command(

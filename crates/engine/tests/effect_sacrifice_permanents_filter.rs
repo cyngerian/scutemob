@@ -133,7 +133,7 @@ fn cast_test_sorcery(
 #[test]
 fn test_sft_hash_schema_version_is_15() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 16u8,
+        HASH_SCHEMA_VERSION, 17u8,
         "PB-LKI-CC: HASH_SCHEMA_VERSION must be 15 (bump from PB-TS's 14 for \
          EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a)"
     );

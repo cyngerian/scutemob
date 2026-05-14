@@ -898,6 +898,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     };
     state.stack_objects.push_back(backup_trigger);
 

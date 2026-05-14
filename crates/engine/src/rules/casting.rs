@@ -3641,6 +3641,7 @@ pub fn handle_cast_spell(
                             object_id: exile_id,
                             new_exile_id,
                             pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+                            pre_lba_power: None, // graveyard→exile: no battlefield power to snapshot
                         });
                     }
                 }
@@ -3861,6 +3862,12 @@ pub fn handle_cast_spell(
                 }
             }
         }
+        // CR 603.10a: Use sac_lki_power (already captured above) for LKI power snapshot.
+        let sac_lki_power_opt = if is_creature {
+            Some(sac_lki_power)
+        } else {
+            None
+        };
         let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
         if is_creature {
             events.push(GameEvent::CreatureDied {
@@ -3868,12 +3875,16 @@ pub fn handle_cast_spell(
                 new_grave_id: new_sac_id,
                 controller: pre_death_controller,
                 pre_death_counters,
+                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                pre_death_power: sac_lki_power_opt,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {
                 object_id: sac_id,
                 new_grave_id: new_sac_id,
                 pre_lba_counters: pre_death_counters.clone(),
+                // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
+                pre_lba_power: None, // non-creature permanents have no power
             });
         }
         // CR 701.21a: PermanentSacrificed for spell additional cost.
@@ -3955,6 +3966,7 @@ pub fn handle_cast_spell(
                 object_id: ev_id,
                 new_exile_id,
                 pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+                pre_lba_power: None,                 // graveyard→exile: no battlefield power
             });
         }
     }
@@ -4235,6 +4247,7 @@ pub fn handle_cast_spell(
         // at resolution; this field is for activated abilities only.
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source
@@ -4958,6 +4971,7 @@ fn apply_escape_exile_cost(
             object_id: id,
             new_exile_id,
             pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+            pre_lba_power: None,                 // graveyard→exile: no battlefield power
         });
     }
     Ok(())
@@ -5263,6 +5277,7 @@ fn apply_delve_reduction(
             object_id: id,
             new_exile_id,
             pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+            pre_lba_power: None,                 // graveyard→exile: no battlefield power
         });
     }
     // If the original cost was Some, return Some(reduced); if it was None, return None.
@@ -7279,6 +7294,7 @@ mod tests {
             cast_from_top_with_bonus: false,
             sacrificed_creature_powers: vec![],
             lki_counters: im::OrdMap::new(),
+            lki_power: None,
         }
     }
 

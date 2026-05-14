@@ -312,6 +312,7 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -546,6 +547,7 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
         lki_counters: im::OrdMap::new(),
+        lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
 
