@@ -11,26 +11,28 @@
 
 ## Current State
 
-- **Active Milestone**: M9.5 DONE — **TYPE CONSOLIDATION COMPLETE** (all workstreams unpaused)
-- **Status**: **2749 tests passing**; ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/105 P4 (95/95 implemented; 9 permanent-n/a; 1 deferred: Banding post-alpha); Type consolidation COMPLETE; W6-review 21/21 COMPLETE; 0 HIGH/MEDIUM open; **~45 LOW open**; PB-0 through PB-37 DONE; **PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/CC-C-followup/TS/LKI-CC/CD/LKI-Power DONE**; PB-Q2/Q3/Q5 reserved (planned); OOS-LKI-Power CLOSED by PB-LKI-Power; new seeds OOS-LKI-Power-1 (toughness variant), OOS-LKI-Power-2 (Master Biomancer ETB-replacement), OOS-LKI-Power-3 (LBA hash arm symmetric extension), OOS-LKI-Power-4 (AnyCreatureDies LKI-power), OOS-LKI-Power-5 (Layer-4 animated non-creature SBA paths) filed. Stop-and-flag picks: `TargetFilter.exclude_self` (Éomer), Master Biomancer ETB-counter-from-source-power (OOS-LKI-Power-2), or one of the remaining OOS-LKI seeds.
-- **Active Plan**: **PB-LKI-Power MERGED 2026-05-13** (`scutemob-19`). LKI source-power snapshot for SelfDies / SelfLeavesBattlefield triggers (CR 603.10a / 122.2 / 400.7) — ships Conclave Mentor death-trigger life-gain and Juri Master of the Revue death-trigger damage. Engine surface: (1) `EffectAmount::SourcePowerAtLastKnownInformation` (disc 18; disc 19 reserved for OOS-LKI-Power-1 toughness variant); (2) `lki_power: Option<i32>` threaded through `PendingTrigger`, `StackObject`, `EffectContext`; (3) snapshot at `sba.rs:540` via `calculate_characteristics(state, source_id).power` BEFORE `move_object_to_zone`; (4) `GameEvent::CreatureDied.pre_death_power` (HASHED) + `pre_lba_power` on AuraFellOff/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand (NOT hashed, mirroring PB-LKI-CC LBA precedent). HASH 16→17. Tests +4 (Conclave Mentor, Juri, discriminating LKI-after-zone-change, hash determinism + sentinel). Review PASS-WITH-NITS → PASS after fix-phase (3 LOW: E1 OOS-LKI-Power-4 filed, E2 OOS-LKI-Power-5 filed (deferred), E3 stale doc-comment line numbers removed). Tests 2745→**2749**. Predecessor: PB-CD MERGED 2026-05-13. Next session: `TargetFilter.exclude_self` (Éomer), Master Biomancer ETB-with-counters-from-source-power (OOS-LKI-Power-2), or one of the existing OOS-LKI seeds.
-- **Strategic Review**: `docs/mtg-engine-strategic-review.md` (historical snapshot 2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-05-13 (PB-LKI-Power merged `scutemob-19`; tests 2745→2749; HASH 16→17)
+> Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
+> Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-### What Exists (M9.5 complete + 90 abilities through Batch 15 + Mutate + Transform, includes M0-M9 + Engine Core Complete checkpoint)
-- `cards/`: CardDefinition framework (30+ Effect primitives), ~1693 card defs (149 hand-authored + 114 Phase 1 templates + 82 Phase 2 Wave 1 + 108 prior + 88 Phase 2 Tier 1 + 88 Phase 2 Tier 2 + 162 A-18 draw + 144 A-19 token-create + 121 A-20/A-21/A-22/A-23 + 61 A-24/A-25/A-26/A-27/A-28 + 334 prior Phase 2 + 91 Wave A + 130 Wave B), CardRegistry
-- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, PlayExiledCard, DetachEquipment, Fight, Bite, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution (card registry fallback for CardDef triggers via PendingTriggerKind::Normal — B14 fix), ETB trigger queueing via queue_carddef_etb_triggers() (CR 603.3 — replaces inline execute, triggers properly queue and resolve from stack; CR 603.4 intervening-if re-evaluated at resolution), ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion, Friends Forever/ChooseABackground/DoctorsCompanion partner variants — B15), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste); end_step_actions() generic CardDef sweep (B14 fix); Mutate (CR 702.140): merged_cards/MergedComponent on GameObject, CastWithMutate command, resolution merge (over/under), zone-change splitting (CR 729.5), mutate trigger; Transform/DFC (CR 701.28, 712): CardFace struct on CardDefinition, is_transformed on GameObject, layer system face resolution, Command::Transform; Daybound/Nightbound (CR 702.146): DayNight enum on GameState, automatic transform triggers; Disturb (CR 702.145): AltCostKind::Disturb graveyard casting, exile replacement; Craft (CR 702.167): activated ability with material validation; Morph/Megamorph (CR 702.37): FaceDownKind enum on GameObject, AltCostKind::Morph casting, Command::TurnFaceUp + TurnFaceUpMethod, face-down layer override (2/2 colorless no abilities), FaceDownRevealed event (CR 708.9), Manifest (CR 701.40) + Cloak (CR 701.58) Effect variants, Disguise (CR 702.162) ward-2 face-down; Type Consolidation (RC-1 through RC-3): CastSpell 32→13 fields (AdditionalCost vec), SOK 62→~20 (KeywordTrigger), AbilDef 64→55 (AltCastAbility), Designations bitfield
-- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~112 approved game scripts (scripts 200-204 approved; 187/190/191/195/196/197/198 pending_review), ~1934 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card`/`cast_spell_modal`/`cast_spell_fuse`/`cast_spell_spree`/`cast_with_mutate`/`turn_face_up`/`search_library` action types; `activate_ability` with `discard_card_name` (Blood tokens, B14); `activate_loyalty_ability` (PB-14); `PlayerAction.gift_opponent` field (script_schema.rs) for Gift spells
-- `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
-- `tools/replay-viewer/`: axum HTTP server + Svelte 5 frontend; 5 API endpoints; full StateViewModel serialization; 12 Svelte components (PlayerPanel, ZoneBattlefield, ZoneStack, ZoneHand, ZoneGraveyard, ZoneExile, PhaseIndicator, EventTimeline, ScriptPicker, CombatView, CardDisplay, AssertionBadges); diff highlighting; keyboard nav
-- All 36 corner cases: 32 COVERED, 4 GAP, 0 DEFERRED — Morph/Manifest face-down (case 30) promoted from DEFERRED to COVERED (Morph mini-milestone)
+- **Active Milestone**: M9.5 DONE — type consolidation complete; all workstreams unpaused
+- **Tests**: **2749 passing**; build/clippy/fmt clean
+- **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
+- **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power) all DONE. PB-Q2/Q3/Q5 reserved.
+- **Last shipped**: PB-LKI-Power (`scutemob-19`, merged 2026-05-13 `12218638`) — LKI source-power snapshot for SelfDies/SelfLeavesBattlefield (CR 603.10a). Engine surface + handoff: `memory/workstream-state.md`.
+- **Open primitive seeds**: 5 OOS-LKI-Power variants (-1..-5), `TargetFilter.exclude_self` (Éomer), 8 older OOS-TS/LKI seeds. Full list: `memory/primitives/pb-retriage-CC.md`.
+- **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); ~45 LOW open. Full: `docs/mtg-engine-milestone-reviews.md`.
+- **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
+- **Last Updated**: 2026-05-14 (CLAUDE.md trim pass — top-of-file PB detail routed to `memory/workstream-state.md`)
 
-### Known Issue Summary (from code reviews)
-- **HIGH open**: 0 — all resolved through M9.4
-- **MEDIUM open**: 2 — pre-M8 deferred to M10+ (MR-M7-09, MR-M7-12)
-- **~76 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage, ~22 type consolidation stale doc comments — deferred, address opportunistically
-- **Full details**: `docs/mtg-engine-milestone-reviews.md`
+### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
+
+- `cards/`: CardDefinition framework (30+ Effect primitives), ~1693 card defs across hand-authored + templated waves; CardRegistry
+- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, Fight, etc.)
+- `rules/`: Turn structure, priority, stack, SBAs, dependency-based layer system, combat, casting (Convoke/Improvise/Delve/Evoke/Kicker/Morph/Disturb alt costs), resolution, ETB trigger queueing (CR 603.3/603.4), ETB & global replacements, prevention, Commander (deck validation, command zone, tax, zone-return SBA, mulligan, companion, partner variants), protection (DEBT), copy (Layer 1 + storm + cascade), loop detection (CR 104.4b), Enchant, suspend, Mutate (CR 702.140), Transform/DFC (CR 701.28/712), Daybound/Nightbound, Craft, Morph/Megamorph/Disguise/Manifest/Cloak; Type Consolidation refactor complete (CastSpell 32→13, SOK ~20, AbilDef 55)
+- `testing/`: Replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~112 approved scripts, ~1934 harness tests, 6-player suite, 54 property invariants
+- `benches/`: criterion (priority_cycle_4p 23µs, sba_check 14µs, full_turn_4p 205µs)
+- `tools/replay-viewer/`: axum + Svelte 5, 5 API endpoints, 12 components, diff highlighting, keyboard nav
+- 36 corner cases: 32 COVERED, 4 GAP, 0 DEFERRED
 
 ---
 
@@ -288,77 +290,20 @@ Use these slash commands to manage your ESM session:
 
 ## Worker Detection
 
-If the file `.esm/worker.md` exists in this directory, **you are a worker agent**.
-Read `.esm/worker.md` immediately and follow its instructions. The worker file
-defines your task, acceptance criteria, and constraints. The rest of this CLAUDE.md
-still applies (conventions, tools, project info) but the worker file takes
-precedence for your role and workflow.
-
-## Session Lifecycle
-
-1. **Start session**: Run `/start`
-2. **Work normally** — heartbeats happen automatically
-3. **Complete tasks**: Run `/collect` (for dispatched workers) or `/done` (for self-assigned)
-4. **End session**: Run `/end`
-
-Sessions without a heartbeat for 10 minutes are automatically ended.
+If `.esm/worker.md` exists in the working directory, **you are a worker agent**. Read it
+immediately and follow its task/acceptance criteria. The rest of this CLAUDE.md still applies.
 
 ## Workflow Rules
 
-**Follow this workflow for all implementation work.**
+1. **Bootstrap first**: `/start` (or `esm project bootstrap scutemob && esm session start --project scutemob --agent primary`).
+2. **An `in_progress` task must exist before writing code.** Lifecycle: `backlog → in_progress → in_review → done` (or `blocked` from either active state).
+3. **Branch protocol**: feature branch per task; attest `working_branch=<full-name>` on transition; `/done` (self-assigned) or `/collect` (dispatched) merges to main.
+4. **Tests are mandatory.** Write alongside implementation. Must pass before `in_review`.
+5. **Acceptance criteria**: `esm task satisfy <task_id> <criterion_id> --by <agent>` for each before signaling ready.
+6. **Task comments are short status lines** — `Completed: X. Next: Y.` / `Blocked: X. Tried: Y.` / `Decision: X. Reason: Y.` Detailed design notes belong in `docs/` or `memory/`, not comments.
+7. **Dispatch, don't implement.** Coordinator creates tasks and dispatches workers via `/dispatch` for PB / ability / card-authoring work. Only implement inline for trivial fixes (<10 lines) or when explicitly told.
 
-1. **Bootstrap first**: Run `/start` to see current state.
-2. **Check tasks**: Run `esm task list --project scutemob` to see tasks and their state.
-3. **Before writing code**, you need an active task in `in_progress` state.
-4. **Task lifecycle**: backlog → in_progress → in_review → done (can go to `blocked` from in_progress or in_review)
-5. **Write tests.** Every task that adds or changes functionality must include tests. Write
-   tests alongside implementation, not after. Tests must pass before transitioning to `in_review`.
-   If the project has an existing test framework, follow its patterns.
-6. **Branch protocol**:
-   - Create a feature branch for each task before transitioning to `in_progress`
-   - Include `working_branch` in your attestations when transitioning
-   - **Run `/done` to merge to main** — this transitions to done AND merges the branch
-7. **Commit frequently** with descriptive messages.
-8. **Acceptance criteria**: Run `esm task satisfy <task_id> <criterion_id> --by <agent>` to mark them as met.
-9. **Task comments** should be short status updates (2-4 lines), not design docs. Use structured formats:
-   - `Completed: <what>. Next: <what>.`
-   - `Blocked: <issue>. Tried: <what>.`
-   - `Decision: <choice>. Reason: <why>.`
-   Put detailed content in project files (docs/, DESIGN.md), not in comments.
-10. **Dispatch, don't implement.** The primary agent creates tasks and dispatches
-    workers. Use `/dispatch` for implementation work. Only implement directly
-    for trivial fixes (< 10 lines) or when explicitly told to work inline.
-
-## ESM CLI Quick Reference
-
-```bash
-# Session
-esm session start --project scutemob --agent primary
-esm session end <session_id> --summary "<text>"
-
-# Tasks
-esm task create --project scutemob --title "<title>" --description "<desc>" --criteria "<c1>" --criteria "<c2>"
-esm task list --project scutemob [--status <status>]
-esm task get <task_id>
-esm task transition <task_id> <status> --agent primary --attest key=val --attest key=val
-esm task satisfy <task_id> <criterion_id> --by primary [--note "<text>"]
-esm task signal-ready <task_id> --agent primary
-esm task comment <task_id> --agent primary "<message>"
-esm task lock <task_id> --agent primary
-esm task unlock <task_id> --agent primary
-
-# Worktrees
-esm worktree create <task_id>
-esm worktree list
-esm worktree merge <task_id> [--no-ff]
-esm worktree check <task_id>
-esm worktree conflicts
-
-# Project & Fleet
-esm project bootstrap scutemob
-esm fleet status [--md]
-esm local
-```
+ESM CLI reference: `esm --help` or `esm <command> --help`. Sessions without a heartbeat for 10 minutes are auto-ended.
 
 ## Required Attestations
 
