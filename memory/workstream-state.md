@@ -15,13 +15,47 @@
 | W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed. ~45 open. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **2 PBs shipped 2026-05-13/14 in chain** — `scutemob-18` PB-CD (`ReplacementTrigger::WouldPlaceCounters.counter_filter` + `ObjectFilter::CreatureControlledBy`, 3 cards Hardened Scales/Corpsejack Menace/Conclave Mentor replacement-half, HASH 15→16, +11 tests) merged `36816e0f`; `scutemob-19` PB-LKI-Power (`EffectAmount::SourcePowerAtLastKnownInformation` disc 18 + `lki_power: Option<i32>` LKI snapshot, 2 cards Conclave Mentor death-trigger + Juri Master, HASH 16→**17**, +4 tests via 21-site dispatch chain) merged `12218638`. Tests 2734→**2749** (+15). |
+| W6: Primitive + Card Authoring | — | available | — | **3 PBs shipped 2026-05-13/14 in chain** — `scutemob-18` PB-CD (`ReplacementTrigger::WouldPlaceCounters.counter_filter` + `ObjectFilter::CreatureControlledBy`, 3 cards Hardened Scales/Corpsejack Menace/Conclave Mentor replacement-half, HASH 15→16, +11 tests) merged `36816e0f`; `scutemob-19` PB-LKI-Power (`EffectAmount::SourcePowerAtLastKnownInformation` disc 18 + `lki_power: Option<i32>` LKI snapshot, 2 cards Conclave Mentor death-trigger + Juri Master, HASH 16→**17**, +4 tests via 21-site dispatch chain) merged `12218638`; `scutemob-20` PB-EWC (`ReplacementModification::EntersWithCounters.count` `u32`→`Box<EffectAmount>`, 2 cards Master Biomancer counter half + Ingenious Prodigy CR 614.1c-correct ETB, HASH 17→**18**, +5 tests, OwnedByOpponentsOf rebind sub-gap routed to OOS-EWC-3) signaled-ready 2026-05-14. Tests 2734→**2754** (+20). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
+
+**Date**: 2026-05-14 (worker session)
+**Workstream**: W6: Primitive (PB-EWC)
+**Task**: `scutemob-20` PB-EWC — `ReplacementModification::EntersWithCounters` count `u32` → `Box<EffectAmount>` (CR 614.1c). **Signaled ready 2026-05-14.**
+
+**Completed**:
+- **Engine migration**: `ReplacementModification::EntersWithCounters` count migrated `u32` → `Box<EffectAmount>` (boxed to satisfy `clippy::large_enum_variant` — `EffectAmount::Sum`/`CardCount` make it large). Resolver `emit_etb_modification` gained `replacement_source: Option<ObjectId>` parameter; for self-ETB the source is the entering permanent itself (so `EffectAmount::XValue` reads its propagated `x_value`); for global ETB the source comes from `ReplacementEffect.source` (so `PowerOf(EffectTarget::Source)` reads the replacement-owner's live, layer-resolved power per CR 614.12). `resolve_amount` visibility widened to `pub(crate)`. New `WouldEnterBattlefield { filter }` rebind clause in `register_permanent_replacement_abilities` (non-self branch) — without it, Master Biomancer's `CreatureControlledBy(PlayerId(0))` placeholder would leak through registration. HASH 17→**18**.
+- **2 cards authored/refactored**: **Master Biomancer** counter half via non-self replacement with `count: PowerOf(EffectTarget::Source)` (type-grant half filed as OOS-EWC-1). **Ingenious Prodigy** ETB clause refactored from triggered-ETB stub (with CR 614.1c DEVIATION comment) to true self-ETB replacement with `count: XValue` — DEVIATION comment removed; upkeep draw trigger preserved.
+- **5 new tests** in `tests/primitive_pb_ewc.rs`: (a) live-power base 2/4 → 2 counters, (b) pumped-power 4/6 → 4 counters (calculate_characteristics Layer 7d), (c) Ingenious Prodigy X=5 timing, (d) HASH==18 canary, (e) X=0 absence (discriminating via `contains_key` check). Existing `x_cost_spells.rs:test_x_cost_etb_counters_ingenious_prodigy` and `replacement_effects.rs` call sites migrated to `Box::new(EffectAmount::Fixed(N))`.
+- **10 PB hash canary tests** bumped from `HASH_SCHEMA_VERSION, 17u8` to `18u8` via sed sweep.
+- **3 new OOS seeds filed** in `pb-retriage-CC.md`: **OOS-EWC-1** (`EntersAsAdditionalType` for Master Biomancer's "as a Mutant" type-grant half), **OOS-EWC-2** (Golgari Grave-Troll self-ETB CardCount over creature graveyard — pure card-authoring follow-up, no engine work needed), **OOS-EWC-3** (Dragonstorm Globe subtype receiver filter; absorbed E2 sub-gap for `OwnedByOpponentsOf(PlayerId(0))` placeholder rebind in `bind_object_filter` for `WouldEnterBattlefield`). OOS-LKI-Power-2 (the originating seed) closed.
+- **Review**: `primitive-impl-reviewer` agent verdict PASS-WITH-NITS — 0 HIGH, 0 MEDIUM, 7 LOW (all dispositioned: 5 RESOLVED inline — defensive-default `let-else` cleanup, 4 stale-line-number doc-comment drops, T1 discriminating absence check; 1 ROUTED to OOS-EWC-3 — `OwnedByOpponentsOf` sub-gap; 1 already RESOLVED — comment style). See `memory/primitives/pb-review-EWC.md` § Resolution.
+- **Tests**: 2749→**2754** (+5). Build/clippy/fmt clean. **HASH**: 17→18.
+
+**Not done / deferred**:
+- OOS-EWC-1/2/3 untouched (Master Biomancer type-grant, Golgari Grave-Troll, Dragonstorm Globe).
+- 5 prior OOS-LKI-Power seeds (-1 through -5) untouched.
+- 8 prior OOS-TS/LKI seeds untouched.
+- `TargetFilter.exclude_self` (Éomer + "for each other [type]" cards) still attractive small primitive.
+- `docs/project-status.md` Card Health section still stale (canonical: `tools/authoring-report.py`).
+
+**Next session candidates**:
+- **OOS-EWC-2 Golgari Grave-Troll** — pure card-authoring; engine work done after PB-EWC. Single self-ETB with `CardCount { Graveyard(Controller), CreatureCard }`. Should take a single short session.
+- **`TargetFilter.exclude_self`** (Éomer + ~5 "for each other [type]" cards) — small contained primitive.
+- **OOS-EWC-1 EntersAsAdditionalType** — Master Biomancer type-grant half. New `ReplacementModification` variant + minor resolver arm + HASH bump.
+
+**Hazards** (carrying forward):
+- **CWD-stickiness in Bash tool**: same as prior; recipe is `cd /home/skydude/projects/scutemob && <command>` in same bash invocation. Did not bite this session.
+- **`feedback_worker_satisfy_before_signal_ready`**: enforced — all 8 criteria satisfied before `signal-ready`.
+- **`feedback_verify_full_chain`**: the `register_permanent_replacement_abilities` `WouldEnterBattlefield` filter-rebind gap was caught only because test (a) failed loudly on the first run (got 0 counters, not 2). Without the failing test, the placeholder-leak would have shipped silently. Confirms the recurring pattern: any new `ReplacementTrigger` variant must walk the full registration → rebind → match dispatch chain. New OOS-EWC-3 sub-gap (`OwnedByOpponentsOf` rebind in `bind_object_filter`) is the same shape; left as a tracked seed because no in-scope card hits it today.
+
+---
+
+## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-05-13/14 (oversight session, 2 PBs back-to-back)
 **Workstream**: W6: Primitive (coordinator chain)

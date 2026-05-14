@@ -14,6 +14,7 @@ use super::game_object::ObjectId;
 use super::player::{CardId, PlayerId};
 use super::types::{CardType, Color, CounterType, SubType};
 use super::zone::ZoneType;
+use crate::cards::card_definition::EffectAmount;
 use serde::{Deserialize, Serialize};
 /// Unique identifier for a replacement effect instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -124,7 +125,23 @@ pub enum ReplacementModification {
     EntersTapped,
     /// Permanent enters the battlefield with counters (CR 614.1c).
     /// E.g., "~ enters the battlefield with N +1/+1 counters".
-    EntersWithCounters { counter: CounterType, count: u32 },
+    ///
+    /// PB-EWC: `count` is an `EffectAmount` so the count can be dynamic — read
+    /// from X (Ingenious Prodigy: `EffectAmount::XValue`), from the source's
+    /// live power (Master Biomancer: `EffectAmount::PowerOf(EffectTarget::Source)`),
+    /// or from any other resolver-supported amount. For self-ETB replacements,
+    /// the EffectContext's `source` is the entering permanent (so X is read from
+    /// its own cast-time `x_value`, set during permanent-spell resolution before
+    /// ETB processing). For non-self ETB replacements (Master Biomancer), the
+    /// source is the permanent owning the replacement effect (read from
+    /// `ReplacementEffect.source`).
+    ///
+    /// Boxed to avoid `large_enum_variant` clippy warning — `EffectAmount` can
+    /// be large (CardCount with TargetFilter, recursive Sum).
+    EntersWithCounters {
+        counter: CounterType,
+        count: Box<EffectAmount>,
+    },
     /// Skip the draw entirely (CR 614.10).
     /// E.g., "skip that draw" / replacement that prevents the draw.
     SkipDraw,

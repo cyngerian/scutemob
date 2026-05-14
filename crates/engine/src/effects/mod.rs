@@ -6122,7 +6122,7 @@ fn deal_creature_power_damage(
 }
 // ── Amount resolution ─────────────────────────────────────────────────────────
 /// Resolve an `EffectAmount` to a concrete integer value.
-fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext) -> i32 {
+pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext) -> i32 {
     match amount {
         EffectAmount::Fixed(n) => *n,
         // CR 107.3m: X resolves to the value chosen at cast time, stored in ctx.x_value.
