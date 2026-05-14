@@ -18,6 +18,9 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: "Leave without dying" trigger not in DSL.
             // {1}{U}, {T}: Bounce another creature you control.
+            // PB-XS: CR 109.1 / 601.2c — "another target creature you control" excludes
+            // Dour Port-Mage herself. Adds the missing controller=You constraint as well
+            // (oracle: "another target creature you control").
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost { generic: 1, blue: 1, ..Default::default() }),
@@ -31,7 +34,11 @@ pub fn card() -> CardDefinition {
                     controller_override: None,
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    exclude_self: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,

@@ -29,8 +29,11 @@ pub fn card() -> CardDefinition {
                     count: 2,
                 },
                 intervening_if: None,
+                // PB-XS: CR 109.1 / 601.2c — "another target creature you control"
+                // excludes Roalesk herself from being chosen as a target.
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     controller: TargetController::You,
+                    exclude_self: true,
                     ..Default::default()
                 })],
 

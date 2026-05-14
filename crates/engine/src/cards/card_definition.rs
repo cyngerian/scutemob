@@ -2626,6 +2626,27 @@ pub struct TargetFilter {
     /// be silently ignored by `matches_filter()`.
     #[serde(default)]
     pub has_counter_type: Option<CounterType>,
+    /// PB-XS: CR 109.1 / 601.2c — "another target X" target selection.
+    /// When `true`, the source object of the spell/ability cannot be chosen
+    /// as a target via this filter. Mirrors `WheneverCreatureDies.exclude_self`
+    /// (death-trigger side); this is the *target-selection* side.
+    ///
+    /// NOTE: Like `is_token` / `is_attacking`, this is a runtime relationship
+    /// between the candidate and the casting/activating source, NOT a
+    /// `Characteristics` property. It MUST be checked explicitly at each call
+    /// site that has a source ObjectId available — it is silently ignored by
+    /// `matches_filter()` (which takes only `&Characteristics`).
+    ///
+    /// Enforced at:
+    /// - `casting::validate_object_satisfies_requirement` (declarative target
+    ///   validation, CR 601.2c) for TargetCreatureWithFilter,
+    ///   TargetPermanentWithFilter, TargetCardInYourGraveyard,
+    ///   TargetCardInGraveyard — uses the `self_id: Option<ObjectId>` parameter
+    ///   already threaded through via `validate_targets_with_source`.
+    /// - `abilities.rs` auto-target picker for triggered abilities — uses
+    ///   `trigger.source` as the self_id.
+    #[serde(default)]
+    pub exclude_self: bool,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

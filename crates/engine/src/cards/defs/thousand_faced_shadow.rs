@@ -40,11 +40,14 @@ pub fn card() -> CardDefinition {
                     gains_haste: false,
                     delayed_action: None,
                 },
-                // TODO: TargetFilter lacks is_attacking and exclude_source constraints.
-                // Oracle says "another target attacking creature" but filter allows
-                // self-targeting and non-attacking creatures.
+                // PB-XS: CR 109.1 / 601.2c — exclude_self handles "another target".
+                // TODO: TargetFilter.is_attacking still silently ignored by
+                // validate_object_satisfies_requirement (only enforced by
+                // combat_damage_filter path); filed as OOS seed.
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     has_card_type: Some(CardType::Creature),
+                    is_attacking: true,
+                    exclude_self: true,
                     ..Default::default()
                 })],
                 intervening_if: None,

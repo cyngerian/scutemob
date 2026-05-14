@@ -392,7 +392,7 @@ fn test_ingenious_prodigy_x_value_replacement_counts() {
 #[test]
 fn test_pb_ewc_hash_schema_version_is_18() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 18u8,
+        HASH_SCHEMA_VERSION, 19u8,
         "PB-EWC: HASH_SCHEMA_VERSION must be 18 (bump from PB-LKI-Power's 17 \
          for ReplacementModification::EntersWithCounters count: u32 → EffectAmount). \
          If this fails, hash.rs:103 needs to be incremented and the canary \

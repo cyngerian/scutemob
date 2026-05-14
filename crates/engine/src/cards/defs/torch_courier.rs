@@ -14,7 +14,10 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // Sacrifice this creature: Another target creature gains haste until end of turn.
-            // Note: "another" restriction is moot — self is sacrificed as cost.
+            // PB-XS: CR 109.1 / 601.2c — "another target creature" excludes Torch Courier.
+            // CR 601.2b/c: target chosen BEFORE costs paid, so the self-sacrifice cost does
+            // not retroactively make self-targeting legal — exclude_self enforces this at
+            // announcement time.
             AbilityDefinition::Activated {
                 cost: Cost::SacrificeSelf,
                 effect: Effect::ApplyContinuousEffect {
@@ -27,7 +30,10 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    exclude_self: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,
