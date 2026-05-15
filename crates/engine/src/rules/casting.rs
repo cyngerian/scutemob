@@ -5721,15 +5721,34 @@ fn validate_object_satisfies_requirement(
                 // PB-XS: CR 109.1 / 601.2c — "another target X" excludes the
                 // casting/activating source from being selected as a target.
                 let passes_self = !filter.exclude_self || self_id != Some(id);
-                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts target
-                // selection to creatures currently in combat.attackers. Like exclude_self,
-                // is_attacking is a runtime relationship NOT checked by matches_filter.
-                let passes_attacking = !filter.is_attacking
-                    || state
+                // PB-XA2: CR 508.1k / 509.1c / 601.2c — "target attacking [or
+                // blocking] X" restricts to creatures in combat.attackers OR
+                // combat.blockers. When both is_attacking AND is_blocking are set,
+                // the filter accepts either role (Eiganjo Channel half, OR semantics).
+                let passes_combat_role = match (filter.is_attacking, filter.is_blocking) {
+                    (false, false) => true,
+                    (true, false) => state
                         .combat
                         .as_ref()
-                        .is_some_and(|c| c.attackers.contains_key(&id));
-                passes_filter && passes_controller && passes_self && passes_attacking
+                        .is_some_and(|c| c.attackers.contains_key(&id)),
+                    (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(id)),
+                    (true, true) => state
+                        .combat
+                        .as_ref()
+                        .is_some_and(|c| c.attackers.contains_key(&id) || c.is_blocking(id)),
+                };
+                // PB-XA2: CR 701.20a — "target tapped X" reads GameObject.status.tapped.
+                let passes_tapped =
+                    !filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.status.tapped);
+                // PB-XA2: CR 701.21a — "target untapped X" reads !status.tapped.
+                let passes_untapped =
+                    !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
+                passes_filter
+                    && passes_controller
+                    && passes_self
+                    && passes_combat_role
+                    && passes_tapped
+                    && passes_untapped
             }
         }
         TargetRequirement::TargetPermanentWithFilter(filter) => {
@@ -5749,15 +5768,31 @@ fn validate_object_satisfies_requirement(
                 // PB-XS: CR 109.1 / 601.2c — "another target X" excludes the
                 // casting/activating source from being selected as a target.
                 let passes_self = !filter.exclude_self || self_id != Some(id);
-                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts target
-                // selection to creatures currently in combat.attackers. Like exclude_self,
-                // is_attacking is a runtime relationship NOT checked by matches_filter.
-                let passes_attacking = !filter.is_attacking
-                    || state
+                // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check (same as V1).
+                let passes_combat_role = match (filter.is_attacking, filter.is_blocking) {
+                    (false, false) => true,
+                    (true, false) => state
                         .combat
                         .as_ref()
-                        .is_some_and(|c| c.attackers.contains_key(&id));
-                passes_filter && passes_controller && passes_self && passes_attacking
+                        .is_some_and(|c| c.attackers.contains_key(&id)),
+                    (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(id)),
+                    (true, true) => state
+                        .combat
+                        .as_ref()
+                        .is_some_and(|c| c.attackers.contains_key(&id) || c.is_blocking(id)),
+                };
+                // PB-XA2: CR 701.20a — tapped-state check.
+                let passes_tapped =
+                    !filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.status.tapped);
+                // PB-XA2: CR 701.21a — untapped-state check.
+                let passes_untapped =
+                    !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
+                passes_filter
+                    && passes_controller
+                    && passes_self
+                    && passes_combat_role
+                    && passes_tapped
+                    && passes_untapped
             }
         }
         // "target [type] card from your graveyard" — must be in caster's graveyard (CR 115.1).
@@ -5768,36 +5803,69 @@ fn validate_object_satisfies_requirement(
             // excludes the trigger source itself (e.g. Elderfang Ritualist's WhenDies
             // trigger excluding the post-death Ritualist in the graveyard).
             let passes_self = !filter.exclude_self || self_id != Some(id);
-            // PB-XA: CR 508.1k / 601.2c — graveyard objects are never in combat.attackers
-            // (CR 508.1k requires a creature on the battlefield). This check naturally rejects
-            // graveyard candidates when is_attacking=true, applied uniformly for consistency.
-            let passes_attacking = !filter.is_attacking
-                || state
+            // PB-XA2: CR 508.1k / 509.1c / 601.2c — graveyard objects are never in
+            // combat.attackers or combat.blockers (CR 508.1k requires battlefield).
+            // All branches of passes_combat_role correctly reject graveyard candidates
+            // when is_attacking/is_blocking are set. Applied uniformly for consistency.
+            // Design note: is_tapped=true always rejects graveyard cards (status.tapped
+            // defaults to false → !o.status.tapped is true → passes_tapped=false).
+            // is_untapped=true always accepts graveyard candidates (same default false
+            // satisfies !is_tapped). This is a degenerate edge case — no card legitimately
+            // uses is_tapped/is_untapped on a graveyard filter (CR 110.5 tapped is
+            // battlefield-only). Document and lock in via test H-1.
+            let passes_combat_role = match (filter.is_attacking, filter.is_blocking) {
+                (false, false) => true,
+                (true, false) => state
                     .combat
                     .as_ref()
-                    .is_some_and(|c| c.attackers.contains_key(&id));
+                    .is_some_and(|c| c.attackers.contains_key(&id)),
+                (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(id)),
+                (true, true) => state
+                    .combat
+                    .as_ref()
+                    .is_some_and(|c| c.attackers.contains_key(&id) || c.is_blocking(id)),
+            };
+            let passes_tapped =
+                !filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.status.tapped);
+            let passes_untapped =
+                !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
             in_your_gy
                 && crate::effects::matches_filter(&chars, filter)
                 && passes_self
-                && passes_attacking
+                && passes_combat_role
+                && passes_tapped
+                && passes_untapped
         }
         // "target [type] card from a graveyard" — any player's graveyard (CR 115.1).
         TargetRequirement::TargetCardInGraveyard(filter) => {
             let in_any_gy = matches!(obj.zone, ZoneId::Graveyard(_));
             // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion (same as above).
             let passes_self = !filter.exclude_self || self_id != Some(id);
-            // PB-XA: CR 508.1k / 601.2c — graveyard objects are never in combat.attackers
-            // (CR 508.1k requires a creature on the battlefield). This check naturally rejects
-            // graveyard candidates when is_attacking=true, applied uniformly for consistency.
-            let passes_attacking = !filter.is_attacking
-                || state
+            // PB-XA2: CR 508.1k / 509.1c / 601.2c — graveyard objects are never in
+            // combat roles (same rationale as V3 above). See V3 for design-quirk note
+            // on is_tapped/is_untapped behavior for graveyard arms.
+            let passes_combat_role = match (filter.is_attacking, filter.is_blocking) {
+                (false, false) => true,
+                (true, false) => state
                     .combat
                     .as_ref()
-                    .is_some_and(|c| c.attackers.contains_key(&id));
+                    .is_some_and(|c| c.attackers.contains_key(&id)),
+                (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(id)),
+                (true, true) => state
+                    .combat
+                    .as_ref()
+                    .is_some_and(|c| c.attackers.contains_key(&id) || c.is_blocking(id)),
+            };
+            let passes_tapped =
+                !filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.status.tapped);
+            let passes_untapped =
+                !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
             in_any_gy
                 && crate::effects::matches_filter(&chars, filter)
                 && passes_self
-                && passes_attacking
+                && passes_combat_role
+                && passes_tapped
+                && passes_untapped
         }
         // Player requirement — object target is illegal
         TargetRequirement::TargetPlayer => false,

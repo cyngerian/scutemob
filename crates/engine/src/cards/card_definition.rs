@@ -2602,6 +2602,10 @@ pub struct TargetFilter {
     /// `CombatState.attackers`), NOT a `Characteristics` field. It is NOT checked inside
     /// `matches_filter()`. It MUST be checked explicitly at each call site that uses it.
     ///
+    /// When this AND `is_blocking` are BOTH set on the same filter, the validate
+    /// sites apply OR semantics (accept either role) — see `passes_combat_role`
+    /// in `casting.rs` / `abilities.rs`.
+    ///
     /// Enforced at:
     /// - `casting::validate_object_satisfies_requirement` (declarative target
     ///   validation, CR 601.2c) for TargetCreatureWithFilter,
@@ -2612,6 +2616,47 @@ pub struct TargetFilter {
     ///   predicate using `obj.id` as the candidate identifier.
     #[serde(default)]
     pub is_attacking: bool,
+    /// PB-XA2: CR 509.1 — Must be currently blocking (a creature in
+    /// `CombatState.blockers`). Mirrors `is_attacking` for the blocker side
+    /// of "target attacking or blocking creature" (Eiganjo, Seat of the
+    /// Empire Channel half). NOT checked inside `matches_filter()`.
+    ///
+    /// When this AND `is_attacking` are BOTH set on the same filter, the
+    /// validate sites apply OR semantics (accept either role) — see
+    /// `passes_combat_role` in `casting.rs` / `abilities.rs`.
+    ///
+    /// Enforced at:
+    /// - `casting::validate_object_satisfies_requirement` (declarative
+    ///   target validation, CR 601.2c) for TargetCreatureWithFilter,
+    ///   TargetPermanentWithFilter, TargetCardInYourGraveyard,
+    ///   TargetCardInGraveyard — uses `state.combat.as_ref()
+    ///   .is_some_and(|c| c.is_blocking(id))`.
+    /// - `abilities.rs` auto-target picker for triggered abilities — same
+    ///   predicate using `obj.id` as the candidate identifier.
+    #[serde(default)]
+    pub is_blocking: bool,
+    /// PB-XA2: CR 701.20a — Must be currently tapped (`GameObject.status
+    /// .tapped == true`). Runtime `GameObject` field, NOT a Characteristics
+    /// property. NOT checked inside `matches_filter()`.
+    ///
+    /// Setting both `is_tapped` AND `is_untapped` on the same filter yields
+    /// an unreachable filter (no creature is both states simultaneously) —
+    /// the validate sites will return "no legal target" for any candidate.
+    ///
+    /// Enforced at:
+    /// - `casting::validate_object_satisfies_requirement` (declarative
+    ///   target validation, CR 601.2c) — same 4 variants as `is_attacking`.
+    /// - `abilities.rs` auto-target picker for triggered abilities.
+    #[serde(default)]
+    pub is_tapped: bool,
+    /// PB-XA2: CR 701.21a — Must be currently untapped (`GameObject.status
+    /// .tapped == false`). Runtime `GameObject` field, NOT a Characteristics
+    /// property. NOT checked inside `matches_filter()`. See `is_tapped` for
+    /// the mutually-exclusive-state caveat.
+    ///
+    /// Enforced at: same sites as `is_tapped` (4 validate + 6 picker).
+    #[serde(default)]
+    pub is_untapped: bool,
     /// Must have the chosen creature type from the source permanent or EffectContext.
     /// Resolved dynamically: reads `ctx.chosen_creature_type` (spell-level) or source
     /// permanent's `chosen_creature_type` (permanent ability). Used by Etchings of the Chosen

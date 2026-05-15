@@ -143,7 +143,18 @@
 ///   the new variant remain deserializable (existing variants are unchanged), but
 ///   any new state hashing or serializing with `EntersAsAdditionalType` is
 ///   schema-version 21+.
-pub const HASH_SCHEMA_VERSION: u8 = 21;
+/// - 22: PB-XA2 (2026-05-15) — `TargetFilter.is_blocking: bool`,
+///   `TargetFilter.is_tapped: bool`, `TargetFilter.is_untapped: bool`
+///   added (CR 509.1 / 701.20a / 701.21a). Enforced at the 10 PB-XA
+///   sites (4 declarative validate + 6 trigger auto-target picker) via
+///   `passes_combat_role` (combines `is_attacking` × `is_blocking` with
+///   OR semantics for "attacking or blocking creature") and per-field
+///   `passes_tapped` / `passes_untapped` AND terms. New `CombatState::
+///   is_blocking(id)` helper. Backward compatible via
+///   `#[serde(default)] false`. Unblocks Eiganjo, Seat of the Empire
+///   Channel half. Replaces PB-XA's `passes_attacking` term at all
+///   sites.
+pub const HASH_SCHEMA_VERSION: u8 = 22;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4368,6 +4379,12 @@ impl HashInto for TargetFilter {
         self.has_counter_type.hash_into(hasher);
         // PB-XS: target-side "another target X" exclusion (CR 109.1 / 601.2c).
         self.exclude_self.hash_into(hasher);
+        // PB-XA2: blocking-role runtime predicate (CR 509.1).
+        self.is_blocking.hash_into(hasher);
+        // PB-XA2: tapped-state runtime predicate (CR 701.20a).
+        self.is_tapped.hash_into(hasher);
+        // PB-XA2: untapped-state runtime predicate (CR 701.21a).
+        self.is_untapped.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {

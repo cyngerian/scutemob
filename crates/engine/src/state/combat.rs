@@ -112,6 +112,16 @@ impl CombatState {
     pub fn is_blocked(&self, attacker: ObjectId) -> bool {
         self.blocked_attackers.contains(&attacker)
     }
+    /// PB-XA2: Returns `true` if `id` is currently declared as a blocker
+    /// (CR 509.1c — `id` keys into `CombatState.blockers`).
+    ///
+    /// Distinct from `is_blocked(attacker_id)` — this checks whether `id`
+    /// IS a blocker, not whether `id` IS BLOCKED. Used by
+    /// `TargetFilter.is_blocking` enforcement at validate sites and the
+    /// trigger auto-target picker.
+    pub fn is_blocking(&self, id: ObjectId) -> bool {
+        self.blockers.contains_key(&id)
+    }
     /// Returns the set of players being attacked directly (not via a planeswalker).
     pub fn players_being_attacked(&self) -> OrdSet<PlayerId> {
         let mut players = OrdSet::new();

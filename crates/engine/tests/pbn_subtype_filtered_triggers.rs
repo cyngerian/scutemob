@@ -555,8 +555,8 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 21u8,
-        "PB-EAT bumped HASH_SCHEMA_VERSION 20→21 (ReplacementModification::EntersAsAdditionalType {{ subtype: SubType }}, CR 614.1c). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 22u8,
+        "PB-XA2 bumped HASH_SCHEMA_VERSION 21→22 (TargetFilter.is_blocking/is_tapped/is_untapped, CR 509.1/701.20a/701.21a). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
