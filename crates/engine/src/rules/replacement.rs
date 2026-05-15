@@ -1622,6 +1622,32 @@ fn emit_etb_modification(
                 obj.chosen_color = Some(chosen);
             }
         }
+        Some(ReplacementModification::EntersAsAdditionalType { subtype }) => {
+            // PB-EAT: CR 614.1c — "...enters as a [Type] in addition to its other
+            // types." This is an entry modification, not a Layer 4 continuous
+            // type-adding effect. The subtype is pushed into the entering
+            // permanent's `characteristics.subtypes` BEFORE `PermanentEnteredBattlefield`
+            // is emitted (the caller — `apply_etb_replacements` /
+            // `apply_self_etb_modification` — runs before the ETB event in
+            // `resolution.rs` / `lands.rs` / `effects/mod.rs`), so ETB triggers
+            // and SBAs observe the augmented type set on the very turn it enters.
+            //
+            // OrdSet semantics: idempotent insert. If the printed type set already
+            // contains the subtype (or this replacement was somehow applied twice),
+            // the second insert is a no-op (CR 614.5 also forbids double-application).
+            if let Some(obj) = state.objects.get_mut(&new_id) {
+                obj.characteristics.subtypes.insert(subtype.clone());
+            }
+            if let Some(id) = effect_id {
+                evts.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: format!(
+                        "enters as a {} in addition to its other types",
+                        subtype.0
+                    ),
+                });
+            }
+        }
         _ => {
             // RedirectToZone and other modifications are not applicable to ETB
             // modification interception. Zone redirections are handled at zone-change

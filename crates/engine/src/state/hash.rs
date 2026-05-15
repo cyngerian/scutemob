@@ -132,7 +132,18 @@
 ///   explicitly. Enforcement at `collect_triggers_for_event` (rules/abilities.rs)
 ///   already gates `obj_id == entering_id` on the runtime filter (existing PB-N
 ///   plumbing). Backward compatible via `#[serde(default)] false`.
-pub const HASH_SCHEMA_VERSION: u8 = 20;
+/// - 21: PB-EAT (2026-05-15) — `ReplacementModification::EntersAsAdditionalType
+///   { subtype: SubType }` added (discriminant 22). One-time ETB modification
+///   that pushes a subtype into the entering permanent's `characteristics.subtypes`
+///   before `PermanentEnteredBattlefield` is emitted (CR 614.1c). Distinct from
+///   a Layer 4 continuous type-adding effect (which would only apply to permanents
+///   already on the battlefield). Unblocks the type-grant half of Master Biomancer
+///   ("...and as a Mutant in addition to its other types"), removing the
+///   OOS-EWC-1 TODO. Wire format change: pre-PB-EAT serialized states without
+///   the new variant remain deserializable (existing variants are unchanged), but
+///   any new state hashing or serializing with `EntersAsAdditionalType` is
+///   schema-version 21+.
+pub const HASH_SCHEMA_VERSION: u8 = 21;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2061,6 +2072,13 @@ impl HashInto for ReplacementModification {
             }
             // CR 106.6a / CR 105.1: AddOneManaOfChosenColor (discriminant 21)
             ReplacementModification::AddOneManaOfChosenColor => 21u8.hash_into(hasher),
+            // PB-EAT (HASH 21): EntersAsAdditionalType (discriminant 22) — CR 614.1c
+            // entry modification that adds a subtype to the entering permanent.
+            // Hashes the discriminant + the SubType's inner String.
+            ReplacementModification::EntersAsAdditionalType { subtype } => {
+                22u8.hash_into(hasher);
+                subtype.0.hash_into(hasher);
+            }
         }
     }
 }
