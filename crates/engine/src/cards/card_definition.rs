@@ -2721,9 +2721,44 @@ pub enum TriggerCondition {
         filter: Option<TargetFilter>,
     },
     /// "Whenever a creature enters the battlefield" (with optional filter).
-    WheneverCreatureEntersBattlefield { filter: Option<TargetFilter> },
+    ///
+    /// PB-XS-E (CR 109.1 / 603.2): `exclude_self` distinguishes the "another"
+    /// qualifier from the inclusive case. Mirrors `WheneverCreatureDies.exclude_self`.
+    /// - `exclude_self: false` — fires on ANY creature entering, including the
+    ///   trigger source itself (e.g. Witty Roastmaster — "Whenever a creature
+    ///   enters under your control"; Risen Reef — "Whenever this or another
+    ///   Elemental enters"; Ayara — "Whenever Ayara or another black creature
+    ///   enters").
+    /// - `exclude_self: true` — fires only when the entering creature is NOT the
+    ///   trigger source (e.g. Shadow Alley Denizen — "Whenever another black
+    ///   creature you control enters"; Marwyn — "Whenever another Elf you
+    ///   control enters"). Enforced at `collect_triggers_for_event` (rules/abilities.rs)
+    ///   via the runtime `ETBTriggerFilter.exclude_self` field.
+    WheneverCreatureEntersBattlefield {
+        filter: Option<TargetFilter>,
+        /// If true, the entering creature must NOT be the trigger source itself ("another").
+        /// Maps to `ETBTriggerFilter::exclude_self`.
+        #[serde(default)]
+        exclude_self: bool,
+    },
     /// "Whenever a permanent enters the battlefield" (with optional filter).
-    WheneverPermanentEntersBattlefield { filter: Option<TargetFilter> },
+    ///
+    /// PB-XS-E (CR 109.1 / 603.2): `exclude_self` distinguishes the "another"
+    /// qualifier from the inclusive case. Mirrors `WheneverCreatureDies.exclude_self`.
+    /// - `exclude_self: false` — fires on ANY permanent matching `filter` entering,
+    ///   including the trigger source (e.g. Landfall — "Whenever a land you control
+    ///   enters"; the source is typically not a land, so this is the natural default).
+    /// - `exclude_self: true` — fires only when the entering permanent is NOT the
+    ///   trigger source. Used when oracle text says "another [type] enters" for a
+    ///   non-creature filter (e.g. "another artifact enters") on a creature-source
+    ///   that could potentially match the filter via layer effects.
+    WheneverPermanentEntersBattlefield {
+        filter: Option<TargetFilter>,
+        /// If true, the entering permanent must NOT be the trigger source itself ("another").
+        /// Maps to `ETBTriggerFilter::exclude_self`.
+        #[serde(default)]
+        exclude_self: bool,
+    },
     /// "At the beginning of your upkeep."
     AtBeginningOfYourUpkeep,
     /// "At the beginning of each player's upkeep."

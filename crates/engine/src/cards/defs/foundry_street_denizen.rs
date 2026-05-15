@@ -2,10 +2,9 @@
 // Whenever another red creature enters the battlefield under your control,
 // this creature gets +1/+0 until end of turn.
 //
-// Note: WheneverCreatureEntersBattlefield filter includes the controller constraint and
-// color filter. The "another" (exclude_self) constraint is not available on this trigger
-// variant (unlike WheneverCreatureDies). This will fire when the Denizen itself enters,
-// which is a minor over-trigger edge case. The +1/+0 on Source is correct otherwise.
+// Note: WheneverCreatureEntersBattlefield filter includes the controller constraint,
+// color filter, and (PB-XS-E) exclude_self: true to honor the "another" qualifier
+// (CR 109.1 / 603.2). The +1/+0 on Source is applied via a Layer-7c continuous effect.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,9 +18,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // CR 603.6a: "Whenever another red creature enters under your control, gets +1/+0."
-            // WheneverCreatureEntersBattlefield with colors=Red + controller=You filter.
-            // Note: "another" (exclude_self) is not supported on this trigger; the Denizen
-            // will also trigger on its own ETB. Minor inaccuracy, not wrong game state.
+            // WheneverCreatureEntersBattlefield with colors=Red + controller=You filter
+            // and exclude_self: true (PB-XS-E) so the Denizen's own ETB does not fire it.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
@@ -30,6 +28,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {

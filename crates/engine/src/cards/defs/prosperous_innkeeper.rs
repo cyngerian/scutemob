@@ -1,8 +1,8 @@
 // Prosperous Innkeeper — Alliance (life gain), ETB Treasure token
 // CR 702.x: Alliance is an ability word (no keyword variant); implemented as a
 // plain Triggered ability using WheneverCreatureEntersBattlefield with
-// controller: You filter. The engine's trigger collector sets exclude_self: true
-// automatically for all WheneverCreatureEntersBattlefield triggers.
+// controller: You filter and exclude_self: true (PB-XS-E, CR 109.1 / 603.2 —
+// the "another" qualifier on the Alliance trigger).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,13 +24,15 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             // Alliance ability word (CR 702 ability word — no KeywordAbility variant).
-            // Fires whenever another creature you control enters (exclude_self applied by engine).
+            // Fires whenever another creature you control enters; exclude_self: true
+            // (PB-XS-E) prevents Prosperous Innkeeper from triggering its own Alliance.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

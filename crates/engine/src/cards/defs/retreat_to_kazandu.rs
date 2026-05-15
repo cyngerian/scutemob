@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 // Main effect is a placeholder; modal resolution uses modes field.
                 effect: Effect::Nothing,

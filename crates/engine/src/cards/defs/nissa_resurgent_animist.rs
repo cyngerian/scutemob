@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::AddManaAnyColor {
                     player: PlayerTarget::Controller,

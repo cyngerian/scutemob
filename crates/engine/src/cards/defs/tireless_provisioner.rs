@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,

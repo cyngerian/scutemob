@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,

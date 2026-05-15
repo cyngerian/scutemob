@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                         has_subtype: Some(SubType("Elf".to_string())),
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

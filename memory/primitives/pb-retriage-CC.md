@@ -893,8 +893,58 @@ on `triggering_object_id != trigger.source` when set. Mirror PB-23
 **Yield**: 6+ confirmed (Metastatic Evangel, Shadow Alley Denizen,
 Forerunner of the Legion, Boggart Shenanigans, Athreos, Meren — and more on
 sweep). High-yield primitive.
-**Status**: Filed by PB-XS 2026-05-14. Recommended next PB after the
-exclude_self family completes. Likely PB-XS-E (Enters-trigger sibling).
+**Status**: SHIPPED 2026-05-15 (PB-XS-E, scutemob-22). The Enters half
+(creature + permanent) landed with `TriggerCondition::*.exclude_self: bool`
++ HASH 19→20 + 17 creature card defs migrated. Boggart Shenanigans /
+Athreos / Meren remain dies-side (out of PB-XS-E scope); they use the
+existing `WheneverCreatureDies.exclude_self` (PB-23) — re-audit pending to
+confirm their card defs use the flag correctly.
 **References**: `crates/engine/src/cards/defs/metastatic_evangel.rs`;
 `WheneverCreatureDies.exclude_self` precedent at `card_definition.rs:2690`;
-CR 603.10a.
+CR 603.10a. Shipped impl: `crates/engine/tests/primitive_pb_xs_e.rs`.
+
+### OOS-XS-E-1: Three dies-side cards (Boggart Shenanigans, Athreos, Meren)
+
+**Cards**: Boggart Shenanigans, Athreos God of Passage, Meren of Clan Nel
+Toth. Listed in the PB-XS-E seed roster but each uses a "Whenever another
+creature [Goblin/you own/you control] dies" trigger, not an Enters trigger.
+**Oracle pattern**: `WheneverCreatureDies` with `exclude_self: true` —
+already supported by the engine via PB-23 (`DeathTriggerFilter::exclude_self`).
+**Gap**: No engine gap. The card defs MAY already be using the field
+correctly. A future audit should confirm each of these three sets
+`exclude_self: true` on its `WheneverCreatureDies` trigger, and that
+behavior matches oracle ("another" semantics).
+**Yield**: 3 cards, each potentially already correct or a one-line fix.
+**Status**: Filed by PB-XS-E 2026-05-15 as a follow-up sweep. Low priority
+(no engine change needed; pure card-def verification).
+**References**: PB-23; `crates/engine/src/cards/card_definition.rs:2706`
+(`WheneverCreatureDies`).
+
+### OOS-XS-E-2: Self-inclusive ETB-trigger correctness regression sweep
+
+**Cards**: Risen Reef ("Whenever this or another Elemental..."), Ayara
+First of Locthwain ("Whenever Ayara or another black creature..."),
+Bloomvine Regent ("Whenever this creature or another Dragon..."), Satoru
+the Infiltrator ("Whenever Satoru and/or one or more other nontoken
+creatures..."), and any non-creature-source cards with simple "Whenever a
+creature you control enters" wording (Witty Roastmaster).
+**Oracle pattern**: Either explicit self-inclusion ("X or another") or
+unrestricted ("a creature enters under your control"). With the old
+hardcoded `ETBTriggerFilter.exclude_self = true`, these cards latently
+failed to fire on their own ETB. PB-XS-E flips the default to `false`, and
+for the 4 self-inclusive cards listed above the new behavior matches oracle.
+**Gap**: BEHAVIORAL CORRECTNESS regression-fix that landed silently with
+PB-XS-E. Existing scripts in `test-data/generated-scripts/` and CardDef
+tests may assert the OLD (buggy) semantics; a sweep should re-run scripts
+sensitive to Risen Reef / Ayara / Bloomvine / Satoru self-ETBs and update
+assertions where the old "trigger never fires on self" expectation is
+encoded.
+**Yield**: ~5 cards explicitly self-inclusive; possibly more if scripts
+assume the old hardcoded behavior.
+**Status**: Filed by PB-XS-E 2026-05-15 as a follow-up regression sweep
+(low priority unless a failing script surfaces). The 2775-test workspace
+suite passed unchanged after the migration, suggesting no in-tree test
+encodes the old assumption — but a generated-script audit is still due.
+**References**: `crates/engine/src/cards/defs/risen_reef.rs`,
+`ayara_first_of_locthwain.rs`, `bloomvine_regent.rs`,
+`satoru_the_infiltrator.rs`; CR 207.2c / CR 603.2.

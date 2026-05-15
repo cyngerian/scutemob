@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::Any,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

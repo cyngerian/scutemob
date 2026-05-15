@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                         has_subtype: Some(SubType("Elemental".to_string())),
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 // Land → battlefield tapped; else → hand.
                 effect: Effect::RevealAndRoute {

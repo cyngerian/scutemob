@@ -594,9 +594,8 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel is bumped to 15 (PB-LKI-CC bumped EffectAmount + PendingTrigger + StackObject,
     // CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 19u8,
-        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
-         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 20u8,
+        "PB-XS-E bumped HASH_SCHEMA_VERSION 19→20 (TriggerCondition::Whenever{{Creature,Permanent}}EntersBattlefield.exclude_self, CR 109.1 / 603.2). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);

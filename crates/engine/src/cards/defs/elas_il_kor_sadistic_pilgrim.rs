@@ -21,6 +21,7 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

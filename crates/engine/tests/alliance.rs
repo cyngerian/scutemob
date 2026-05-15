@@ -304,6 +304,8 @@ fn test_alliance_does_not_fire_on_self_etb() {
                     controller: mtg_engine::TargetController::You,
                     ..Default::default()
                 }),
+                // PB-XS-E (CR 207.2c "another"): Alliance excludes the source itself.
+                exclude_self: true,
             },
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,

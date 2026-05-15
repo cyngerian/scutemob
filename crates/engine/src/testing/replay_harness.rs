@@ -2343,13 +2343,20 @@ pub fn enrich_spec_from_def(
     // (Impact Tremors uses the same TriggerCondition but is an enchantment, not a creature).
     // The ETB filter is applied at trigger-collection time in collect_triggers_for_event.
     //
-    // `exclude_self` is always true because:
-    // - Alliance cards say "another creature" -- the card itself must not trigger itself.
-    // - Non-creature sources (e.g. Impact Tremors) can never BE the entering creature,
-    //   so exclude_self: true is correct and harmless for non-creature trigger sources.
+    // PB-XS-E: `exclude_self` is now per-card. Set to `true` on cards whose oracle
+    // text uses "another"/"other" (Alliance cards, Shadow Alley Denizen, Marwyn, etc.);
+    // leave `false` on cards that say "this or another X" (Risen Reef, Ayara,
+    // Bloomvine Regent, Satoru) and on simple "Whenever a creature enters under your
+    // control" cards (Witty Roastmaster). For non-creature trigger sources the
+    // value is irrelevant — the source can never be the entering creature — but
+    // it should still match the oracle text for clarity.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield { filter },
+            trigger_condition:
+                TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter,
+                    exclude_self,
+                },
             effect,
             ..
         } = ability
@@ -2359,7 +2366,7 @@ pub fn enrich_spec_from_def(
                 controller_you: filter
                     .as_ref()
                     .is_some_and(|f| matches!(f.controller, TargetController::You)),
-                exclude_self: true,
+                exclude_self: *exclude_self,
                 // Propagate color filter from TargetFilter to ETBTriggerFilter.
                 // e.g., Shadow Alley Denizen: "another black creature you control enters"
                 color_filter: filter
@@ -2407,13 +2414,17 @@ pub fn enrich_spec_from_def(
     //   - Horn of Greed (Land, any controller)
     //   - Warstorm Surge, Puresteel Paladin (non-Land filters)
     //
-    // Unlike Alliance (WheneverCreatureEntersBattlefield) which hardcodes
-    // `exclude_self: true` and `creature_only: true`, this variant mirrors the
-    // TargetFilter faithfully:
-    //   - `exclude_self: false` (a land you just played can satisfy your own
-    //     "whenever a land enters" trigger)
+    // Unlike Alliance (WheneverCreatureEntersBattlefield) which historically
+    // hardcoded `exclude_self: true`, this variant has always defaulted to
+    // `exclude_self: false` (a land you just played can satisfy your own
+    // "whenever a land enters" trigger). PB-XS-E surfaces both as a per-card
+    // field so cards can opt into self-exclusion when oracle text says "another"
+    // for a filter that could match the source itself.
+    //
+    // Field mapping:
     //   - `creature_only: false` unless the filter specifies Creature
-    //   - `card_type_filter: filter.has_card_type` (the new PB-L field)
+    //   - `card_type_filter: filter.has_card_type` (PB-L)
+    //   - `exclude_self: trigger_condition.exclude_self` (PB-XS-E)
     //
     // Skips abilities with `trigger_zone: Some(TriggerZone::Graveyard)` — those are
     // handled by collect_graveyard_carddef_triggers at dispatch time and must NOT
@@ -2421,7 +2432,11 @@ pub fn enrich_spec_from_def(
     // but these triggers fire only from the graveyard).
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield { filter },
+            trigger_condition:
+                TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter,
+                    exclude_self,
+                },
             effect,
             trigger_zone,
             ..
@@ -2460,12 +2475,13 @@ pub fn enrich_spec_from_def(
             let etb_filter = ETBTriggerFilter {
                 creature_only,
                 controller_you,
-                // "Whenever a permanent you control enters" — the trigger fires for
-                // the entering permanent itself when controlled by the same player.
-                // Unlike Alliance ("another creature"), this variant does NOT
-                // exclude self — a land a player just played should trigger their
-                // own Landfall-source creature (which is not the land itself anyway).
-                exclude_self: false,
+                // PB-XS-E (CR 109.1 / 603.2): per-card "another" gate. The default
+                // (`false`) keeps Landfall-style triggers firing for the entering
+                // land you just played. Setting `true` matches oracle text using
+                // "another [permanent type]" — used when the filter could match
+                // the trigger source itself (e.g. a creature with a layer-effect
+                // type addition matching its own filter).
+                exclude_self: *exclude_self,
                 color_filter,
                 card_type_filter,
             };

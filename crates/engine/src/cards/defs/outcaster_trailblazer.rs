@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                         min_power: Some(4),
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

@@ -6335,10 +6335,22 @@ fn collect_graveyard_carddef_triggers(
                     object_id: entering_id,
                     ..
                 } => match trigger_condition {
-                    TriggerCondition::WheneverPermanentEntersBattlefield { filter } => {
+                    TriggerCondition::WheneverPermanentEntersBattlefield {
+                        filter,
+                        exclude_self,
+                    } => {
                         // Landfall: check if the entering permanent matches the filter
                         // (typically land type).
-                        if let Some(entering_obj) = state.objects.get(entering_id) {
+                        // PB-XS-E (CR 109.1 / 603.2): if `exclude_self` is set, the
+                        // entering permanent must not be the trigger source itself.
+                        // The trigger source (`obj_id`) here lives in the graveyard;
+                        // by zone-identity (CR 400.7), an entering battlefield object
+                        // is always a different object, so this gate is moot for
+                        // graveyard triggers but kept for symmetry with the battlefield
+                        // path.
+                        if *exclude_self && *entering_id == obj_id {
+                            false
+                        } else if let Some(entering_obj) = state.objects.get(entering_id) {
                             let entering_chars = crate::rules::layers::calculate_characteristics(
                                 state,
                                 *entering_id,
