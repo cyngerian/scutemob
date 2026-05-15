@@ -387,6 +387,22 @@ fn test_eat_idempotent_when_subtype_already_present() {
         "Mutant must be present (printed + replacement). Got: {:?}",
         initiate_obj.characteristics.subtypes
     );
+    // Explicit dedup: there must be exactly ONE "Mutant" entry. Iterate the OrdSet
+    // and count. Survives a hypothetical future migration off OrdSet (e.g. to Vec)
+    // where idempotency would no longer be structural.
+    let mutant_count = initiate_obj
+        .characteristics
+        .subtypes
+        .iter()
+        .filter(|st| **st == SubType("Mutant".to_string()))
+        .count();
+    assert_eq!(
+        mutant_count, 1,
+        "CR 614.5 / OrdSet idempotency: Mutant must appear exactly once even \
+         though both the printed type set and the EntersAsAdditionalType \
+         replacement contribute it. Got {} entries.",
+        mutant_count
+    );
 
     // PB-EWC counters still applied: 2 from MB's power + 1 from Simic Initiate's
     // own Graft 1 self-ETB replacement (CR 702.58 — "this creature enters with

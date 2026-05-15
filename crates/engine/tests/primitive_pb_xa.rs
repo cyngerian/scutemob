@@ -90,8 +90,7 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 21u8,
-        "HASH_SCHEMA_VERSION sentinel: expected 20u8. If a PB bumped the version, \
-         update this sentinel to match the new value."
+        "PB-EAT bumped HASH_SCHEMA_VERSION 20→21 (ReplacementModification::EntersAsAdditionalType {{ subtype: SubType }}, CR 614.1c). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
