@@ -15,14 +15,14 @@
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
 - **Active Milestone**: M9.5 DONE — type consolidation complete; all workstreams unpaused
-- **Tests**: **2764 passing**; build/clippy/fmt clean
+- **Tests**: **2818 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
-- **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: PB-XS (`scutemob-21`, signaled-ready 2026-05-14) — `TargetFilter.exclude_self: bool` for "another target X" target selection (CR 109.1 / 601.2c). 9 cards: Roalesk, Samut, Torch Courier, Brash Taunter, Ezuri Renegade Leader, Oath of Teferi, Elderfang Ritualist, Dour Port-Mage, Thousand-Faced Shadow. HASH 18→19. Engine surface + handoff: `memory/workstream-state.md`.
-- **Open primitive seeds**: 5 new OOS-XS variants (-1 inter-target distinctness, -2 is_attacking enforcement, -3 Olivia multi-effect, -4 Skrelv color-keyed, -5 "Whenever another X enters/dies" trigger-side filter — recommended next PB), 3 OOS-EWC, 5 OOS-LKI-Power, 8 older OOS-TS/LKI seeds. Full list: `memory/primitives/pb-retriage-CC.md`.
+- **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
+- **Last shipped**: 7-PB coordinator chain 2026-05-15 (`scutemob-22..28`) — PB-XS-E (Enters-trigger exclude_self), OOS-EWC-2 (Golgari Grave-Troll), PB-XA (`TargetFilter.is_attacking` enforcement), PB-EAT (`EntersAsAdditionalType` — Master Biomancer Mutant half), PB-XA2 (`is_blocking`/`is_tapped`/`is_untapped` — Eiganjo), OOS-XS-E-1 (dies-side audit), PB-EWC-D (`ObjectFilter::CreatureControlledByOfSubtype` — Dragonstorm Globe). HASH 19→**23** (4 schema bumps). Full chain detail: `memory/workstream-state.md`.
+- **Open primitive seeds**: OOS-XA2-1..5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2 (new); older OOS-XS-1/3/4, OOS-LKI-Power-1/3/4/5, OOS-LKI-1..4, OOS-TS-1..4 — most are 0-yield defensives. Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); ~45 LOW open. Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-05-14 (PB-XS shipped)
+- **Last Updated**: 2026-05-15 (7-PB chain shipped)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
