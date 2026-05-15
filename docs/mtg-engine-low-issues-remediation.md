@@ -359,8 +359,8 @@ Findings from post-Morph sanity reviews of early P1 abilities. HIGHs and MEDIUMs
 
 | ID | Severity | Description | Location |
 |----|----------|-------------|----------|
-| SR-TRM-01 | LOW | Planeswalker combat damage marks damage on PW object instead of removing loyalty counters (CR 120.3c). Pre-existing, not trample-specific. | `rules/combat.rs:1527-1531` |
-| SR-TRM-02 | LOW | Dead code removed by the `blocked_attackers` fix — old `is_blocked()` scan branch should be cleaned up if any residual dead branches remain. | `rules/combat.rs` |
+| SR-TRM-01 | LOW (**Status: CLOSED 2026-05-15, scutemob-33**) | ~~Planeswalker combat damage marks damage on PW object instead of removing loyalty counters (CR 120.3c).~~ Verified already correct: the `CombatDamageTarget::Planeswalker` arm in `apply_combat_damage`'s damage loop removes loyalty counters (`counters[Loyalty].saturating_sub(dmg)`) and never sets `damage_marked`. The doc line ref `:1527-1531` was stale (a later refactor moved/fixed this). Added regression test `test_sr_trm01_planeswalker_combat_damage_removes_loyalty`. | `rules/combat.rs` (PW damage arm), `tests/combat.rs` |
+| SR-TRM-02 | LOW (**Status: CLOSED 2026-05-15, scutemob-33**) | ~~Old `is_blocked()` scan branch should be cleaned up if any residual dead branches remain.~~ Verified: no residual dead code. `CombatState::is_blocked()` is the clean post-refactor form — a single `blocked_attackers.contains()` set lookup, not a scan — and is actively used (`combat.rs:1311`, `abilities.rs:1919`). `cargo build` is warning-free (would flag any unused fn). | `rules/combat.rs` |
 
 ### Protection (protection.rs / casting.rs)
 
@@ -376,8 +376,8 @@ Findings from post-Morph sanity reviews of early P1 abilities. HIGHs and MEDIUMs
 | ID | Severity | Description | Location |
 |----|----------|-------------|----------|
 | SR-FS-01 | LOW (**Status: CLOSED 2026-04-25**) | ~~`first_strike_damage_resolved` field on `CombatState` is written but never read — dead field left over from an incomplete snapshot plan.~~ Verified absent: `grep -rn "first_strike_damage_resolved" crates/ tools/` returned no hits. Field was previously removed; this entry was stale. | `state/combat.rs` |
-| SR-FS-02 | LOW | No test for a creature gaining first strike between the two combat damage steps (CR 702.7c). Low impact today — no cards trigger this — but structural gap. | `tests/combat.rs` |
-| SR-FS-03 | LOW | No test for first-strike attacker vs. first-strike blocker (both deal damage simultaneously in first-strike step; neither should appear in regular step). | `tests/combat.rs` |
+| SR-FS-02 | LOW (**Status: CLOSED 2026-05-15, scutemob-33**) | ~~No test for a creature gaining first strike between the two combat damage steps (CR 702.7c).~~ Added `test_sr_fs02_first_strike_gained_between_damage_steps`: a plain attacker is granted first strike (via a continuous effect) after the first-strike step; it is not in `first_strike_participants` so it still deals its damage in the regular step. | `tests/combat.rs` |
+| SR-FS-03 | LOW (**Status: CLOSED 2026-05-15, scutemob-33**) | ~~No test for first-strike attacker vs. first-strike blocker.~~ Covered by `test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step`: both creatures deal damage simultaneously in the first-strike step, neither in the regular step. | `tests/combat.rs` |
 
 ### PB-Q4 (Enchant target filter) — 2026-04-12
 

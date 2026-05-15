@@ -1429,9 +1429,11 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     }
     // Remove "until end of turn" continuous effects (CR 514.2).
     super::layers::expire_end_of_turn_effects(state);
-    // Empty mana pools
-    empty_all_mana_pools(state);
-    events.push(GameEvent::ManaPoolsEmptied);
+    // Empty mana pools (CR 500.4). `empty_all_mana_pools` returns a conditional
+    // `ManaPoolsEmptied` event only when at least one pool was actually non-empty
+    // (MR-M2-16). By the time cleanup runs, pools were already emptied at the
+    // End→Cleanup step transition, so this is normally a no-op and pushes nothing.
+    events.extend(empty_all_mana_pools(state));
     events.push(GameEvent::CleanupPerformed);
     events
 }
