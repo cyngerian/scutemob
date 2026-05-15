@@ -15,13 +15,41 @@
 | W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed. ~45 open. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **7 PBs shipped 2026-05-15 in coordinator-dispatched chain** — `scutemob-22` PB-XS-E (Enters-trigger sibling of PB-23, HASH 19→20, 3 cards, +11 tests) merged `e0f3f5b0`; `scutemob-23` OOS-EWC-2 (Golgari Grave-Troll pure card-authoring, +4) merged `87c3a306`; `scutemob-24` PB-XA (`TargetFilter.is_attacking` enforcement at 10 sites, +10) merged `b42e06bb`; `scutemob-25` PB-EAT (`ReplacementModification::EntersAsAdditionalType`, HASH 20→21, Master Biomancer Mutant, +5) merged `75302138`; `scutemob-26` PB-XA2 (`is_blocking`/`is_tapped`/`is_untapped`, HASH 21→22, Eiganjo, +17) merged `f3905b62`; `scutemob-27` OOS-XS-E-1 (audit-only, +0) merged `a78e8481`; `scutemob-28` PB-EWC-D (`ObjectFilter::CreatureControlledByOfSubtype` + `bind_object_filter` fix, HASH 22→**23**, Dragonstorm Globe, +7) merged `0a84badc`. Tests 2764→**2818** (+54). HASH 19→23 (4 schema bumps). |
+| W6: Primitive + Card Authoring | — | available | — | **2 PBs shipped 2026-05-15 (coordinator session 2)** — `scutemob-29` OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**, +1 test) merged `e7d01fda`; `scutemob-30` OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, OOS-XA-3/XA2-3 RESOLVED) merged `184162df`. Tests 2818→**2819**. Earlier 2026-05-15: 7-PB chain (`scutemob-22..28`, HASH 19→23). High-confidence primitive backlog now exhausted — see Last Handoff. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
+
+**Date**: 2026-05-15 (coordinator session 2 — 2-PB sequential chain)
+**Workstream**: W6: Primitive
+**Task**: 2 PBs dispatched in sequence — `scutemob-29` (HASH-bumping, serialized first), then `scutemob-30` (audit). Both worker-delegated per dispatch policy; both spawned a reviewer before signal-ready.
+
+**Completed**:
+- **OOS-LKI-Power-3** (`scutemob-29`, merge `e7d01fda`): hashed `pre_lba_power` on 4 `GameEvent` variants (AuraFellOff, ObjectExiled, PermanentDestroyed, ObjectReturnedToHand) — previously skipped via `..` in `HashInto for GameEvent`. CR 603.10a/113.7a determinism + replay correctness. HASH 23→**24** + history entry. Sentinel sweep across all `primitive_pb_*.rs` canaries 23u8→24u8. +1 determinism test. Review verdict PASS. Sub-bullet (AnyCreatureDies `pre_lba_power: None` promotion) decision documented in `memory/primitives/pb-plan-OOS-LKI-Power-3.md`.
+- **OOS-XA2-3** (`scutemob-30`, merge `184162df`): `is_nontoken` target-side enforcement audit. **0-yield** — the only `is_nontoken` in `defs/` (accursed_marauder.rs:26) is effect-side, not inside a `TargetRequirement::Target*WithFilter` block. No target-side consumer → no engine change. OOS-XA-3 and OOS-XA2-3 both marked RESOLVED in `pb-retriage-CC.md`. Audit-only signal-ready (OOS-XS-E-1 precedent).
+
+**Session totals**: 2 PB merges. Tests 2818→**2819** (+1). HASH 23→**24** (1 schema bump). Build/clippy/fmt clean at every merge.
+
+**Not done / deferred**:
+- OOS-EWCD-1/2/3 — explicitly NOT dispatched: `pb-retriage-CC.md` says "no in-scope card currently needs this; file for future batch when a card surfaces." Dispatching speculative receiver-filter variants would violate the W6 "no primitive until a card needs it" policy.
+- OOS-XA2-4 (CombatRole enum refactor), OOS-XA2-5 (runtime-predicate helper extraction) — LOW refactors, no correctness gap.
+- Older OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — 0-yield defensives.
+
+**Next session candidates**:
+- High-confidence primitive backlog is exhausted; remaining OOS seeds are 0-yield defensives or card-gated. Recommend pivoting workstream: W2 TUI hardening, W3 LOW remediation (~45 open), or W6 card-authoring waves (Wave B re-triage / Wave C).
+
+**Hazards** (carrying forward):
+- Bash CWD-stickiness: coordinator shell drifted into a worktree after a verification `cd`; had to `cd` back to repo root before `/collect` (which requires being on main). Always `cd` back explicitly after entering a worktree.
+- Both workers correctly spawned a reviewer before signal-ready — the PB-XA2 self-collect hazard did not recur.
+
+**Commit prefix used**: worker-side `scutemob-N:`, `merge:` for merges, `chore:` for end-session.
+
+---
+
+## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-05-15 (coordinator/oversight session, 7-PB autonomous chain)
 **Workstream**: W6: Primitive + Card Authoring
@@ -61,24 +89,11 @@
 
 ---
 
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-05-14 (worker session, dispatched — last PB before the 2026-05-15 7-PB chain)
-**Workstream**: W6: Primitive (PB-XS)
-**Task**: `scutemob-21` PB-XS — `TargetFilter.exclude_self` for "another target X" spell/ability target selection (CR 109.1 / 601.2c). **Merged `dbc17896` 2026-05-14.**
-
-**Completed**:
-- **Engine surface**: `TargetFilter.exclude_self: bool` with `#[serde(default)]` at `card_definition.rs:2639`; doc comment mirrors the `is_token`/`is_attacking` "MUST be checked at each call site" pattern. HASH 18→**19**; field hashed in `state/hash.rs::HashInto for TargetFilter`.
-- **Enforcement (per-call-site validator)**: `casting::validate_object_satisfies_requirement` extended to all four filter-bearing TargetRequirement variants via existing `self_id: Option<ObjectId>` parameter threading. Activated-ability call site at `abilities.rs:344` switched from `validate_targets` → `validate_targets_with_source`. Trigger auto-target picker gained `obj.id != trigger.source` checks across 6 sites (battlefield/graveyard scan, top-level + UpToN-inner).
-- **9 card defs updated**: roalesk_apex_hybrid, samut_voice_of_dissent, torch_courier, brash_taunter, ezuri_renegade_leader, oath_of_teferi, elderfang_ritualist, dour_port_mage, thousand_faced_shadow. Four migrated from bare `TargetCreature` → `TargetCreatureWithFilter { exclude_self: true }`.
-- **10 new tests** in `tests/primitive_pb_xs.rs` including F-1 (positive Elderfang death-trigger graveyard auto-target picker) + F-2 (negative companion). 10 PB hash canary tests bumped 18→19u8.
-- **5 OOS seeds filed** (OOS-XS-1..5) — XS-2 (`is_attacking`), XS-5 (Enters-trigger sibling), and the EWC-1/Mutant-half routing all landed in the follow-on 2026-05-15 chain.
-- **Review**: `primitive-impl-reviewer` verdict NEEDS-FIX → CLEAN. 1 HIGH (tautological test) + 6 LOW. HIGH fixed by replacing the synthetic test with F-1/F-2 real-trigger discriminators.
-- **Tests**: 2754→**2764** (+10). HASH: 18→19.
-
-**Commit prefix used**: worker-side `scutemob-21:`, `merge:` for the merge commit.
-
 ## Handoff History
+
+### 2026-05-14 (PB-XS) — W6: Primitive
+
+- **PB-XS shipped** (`scutemob-21`, merged `dbc17896`). `TargetFilter.exclude_self: bool` for "another target X" spell/ability target selection (CR 109.1 / 601.2c). Per-call-site validator enforcement across 4 filter-bearing TargetRequirement variants + 6 trigger auto-target-picker sites. 9 card defs updated (4 migrated bare `TargetCreature` → `TargetCreatureWithFilter`). HASH 18→**19**. Tests 2754→**2764** (+10). Review NEEDS-FIX → CLEAN (1 HIGH tautological test replaced with F-1/F-2 real-trigger discriminators). 5 OOS-XS seeds filed.
 
 ### 2026-05-14 (PB-EWC) — W6: Primitive
 
@@ -103,12 +118,4 @@
 - **Review verdict PASS-WITH-NITS**: 0 HIGH, 1 MEDIUM (E1 — asymmetric P/T amounts dispatch dropped one component; fix-phase split variant into two-effect dispatch). All LOWs resolved.
 - **Authoring-status tooling shipped** (committed `faf1c7e8`, 5 files / 1,323 lines): `tools/authoring-report.py` (deterministic stdlib-only generator), `docs/authoring-status.md` (auto-regenerated), `docs/authoring-status-guide.md` (reading guide), `docs/authoring-status-missing.txt` (worklist), `docs/authoring-status-prev.json` (Δ snapshot). Headline at commit: 1748 def files; 88.1% plan coverage; 321 bonus defs; 915 clean / 652 todo / 181 empty.
 - Coordinator data-correction: earlier "10 cards added in last month" claim was wrong by order of magnitude; actual `git log` shows 278 new + 332 modified in last 30 days.
-
-### 2026-04-29 ~01:00–05:00 EDT (5-PB autonomous chain — PB-SFT + PB-CC umbrella) — W6: Primitive
-
-- **Phase A re-triage** (`scutemob-8`/`scutemob-9`): PB-SFT verdict PROCEED — FIELD-ADDITION (gap on Effect not Cost); PB-CC verdict UMBRELLA-OF-MICRO-PRIMITIVES (4 micro-PBs).
-- **Wave 1 parallel** (`scutemob-10` + `scutemob-11`): PB-SFT (`Effect::SacrificePermanents.filter`) + PB-CC-W (Mossborn Hydra Landfall wire-up). 7+ cards re-authored (Fleshbag/Merciless/Butcher/Dictate/Grave Pact/Liliana DH-4/Blasphemous Edict/etc.).
-- **Wave 2 sequential** (`scutemob-12`/`scutemob-13`/`scutemob-14`): PB-CC-B (`TargetFilter.has_counter_type` + Armorcraft Judge), PB-CC-C (`LayerModification::ModifyPower/ToughnessDynamic` — Fuseling deferred Option B), PB-CC-A (`EffectAmount::PlayerCounterCount` — Vishgraz deferred Option B; same trap).
-- Tests 2689→2716 (+27). HASH bumped 4×. Pushed `051442bd..fd6c8e6a`.
-- **Discovery**: two CDA target cards hit deeper architectural gap — `ModifyBothDynamic`-style substitution locks value at registration but CR 611.3a requires continuous re-eval. Filed PB-CC-C-followup seed (later shipped as `scutemob-15`).
 
