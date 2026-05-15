@@ -97,9 +97,10 @@ export function diffState(prev, curr) {
       changed.add(`zones.battlefield.${pname}`);
     }
 
-    // Hand
-    const prevHand = prev.zones?.hand?.[pname]?.length;
-    const currHand = curr.zones?.hand?.[pname]?.length;
+    // Hand — compare full contents, not just length (a card can move out and
+    // a different card be drawn in the same step, leaving the length unchanged).
+    const prevHand = JSON.stringify(prev.zones?.hand?.[pname]);
+    const currHand = JSON.stringify(curr.zones?.hand?.[pname]);
     if (prevHand !== currHand) {
       changed.add(`zones.hand.${pname}`);
     }

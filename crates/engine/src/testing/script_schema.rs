@@ -422,7 +422,17 @@ pub enum ScriptAction {
     /// An automatic action that happens at the start of a step (untap, draw, etc.).
     TurnBasedAction {
         /// One of: `untap_all`, `draw_card`, `empty_mana_pool`, `remove_until_eot`,
-        /// `discard_to_hand_size`. Optional for informational-only scripts.
+        /// `discard_to_hand_size`.
+        ///
+        /// **Empty-string contract:** `#[serde(default)]` makes this field optional;
+        /// when absent from JSON (or explicitly `""`) it deserializes to the empty
+        /// string. An empty `action` is the canonical sentinel for a synthetic or
+        /// informational `TurnBasedAction` that names no concrete turn-based action —
+        /// e.g. the replay viewer's step-0 "initial game state" snapshot. No replay
+        /// driver (`replay_harness`, `script_replay`, replay-viewer) currently reads
+        /// this field; all `TurnBasedAction` entries are treated as informational and
+        /// dispatch no engine `Command`. If a driver is ever wired to dispatch on
+        /// `action`, it MUST treat the empty string as "no action" explicitly.
         #[serde(default)]
         action: String,
         player: Option<String>,

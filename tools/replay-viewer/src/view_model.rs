@@ -302,11 +302,19 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
         .collect();
 
     // ── Battlefield ────────────────────────────────────────────────────────
+    // Iterate the Battlefield zone's own object-id list (the single source of
+    // truth for zone membership), consistent with `objects_in_zone_as_card_views`,
+    // rather than scanning all of `state.objects` in OrdMap key order.
     let mut battlefield: HashMap<String, Vec<PermanentView>> = HashMap::new();
-    for (_, obj) in &state.objects {
-        if obj.zone != ZoneId::Battlefield {
+    let battlefield_ids = state
+        .zones
+        .get(&ZoneId::Battlefield)
+        .map(|z| z.object_ids())
+        .unwrap_or_default();
+    for obj_id in battlefield_ids {
+        let Some(obj) = state.objects.get(&obj_id) else {
             continue;
-        }
+        };
         let controller_name = player_name(obj.controller, player_names);
         let is_commander = obj
             .card_id

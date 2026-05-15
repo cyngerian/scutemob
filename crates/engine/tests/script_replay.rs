@@ -249,6 +249,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                 }
 
                 // Informational actions — no engine command needed.
+                // `TurnBasedAction.action` is intentionally not read: every
+                // turn-based action is informational here (see the empty-string
+                // contract on `ScriptAction::TurnBasedAction`).
                 ScriptAction::StackResolve { .. }
                 | ScriptAction::SbaCheck { .. }
                 | ScriptAction::TriggerPlaced { .. }

@@ -41,6 +41,7 @@
         { step: 'BeginningOfCombat', label: 'Begin' },
         { step: 'DeclareAttackers', label: 'Attackers' },
         { step: 'DeclareBlockers', label: 'Blockers' },
+        { step: 'FirstStrikeDamage', label: 'First Strike' },
         { step: 'CombatDamage', label: 'Damage' },
         { step: 'EndOfCombat', label: 'End' },
       ],
