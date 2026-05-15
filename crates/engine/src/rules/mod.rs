@@ -57,9 +57,11 @@ pub(crate) fn validate_target_protection(
             "object has hexproof and cannot be targeted by opponents".into(),
         ));
     }
-    // CR 702.16b: protection from the source blocks targeting.
+    // CR 702.16b: protection from the source blocks targeting. The caster controls
+    // the targeting spell/ability, so it is the source's controller for the
+    // `FromPlayer` protection quality (CR 702.16k).
     if let Some(sc) = source_chars {
-        protection::check_protection_targeting(keywords, sc)?;
+        protection::check_protection_targeting(keywords, sc, Some(caster))?;
     }
     Ok(())
 }

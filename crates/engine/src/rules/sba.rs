@@ -1115,6 +1115,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                         if super::protection::attachment_is_illegal_due_to_protection(
                             &target_keywords,
                             ac,
+                            Some(obj.controller),
                         ) {
                             return true;
                         }
@@ -1246,6 +1247,7 @@ fn check_equipment_sbas(
                                         if super::protection::attachment_is_illegal_due_to_protection(
                                             &tc.keywords,
                                             ec,
+                                            Some(obj.controller),
                                         ) {
                                             return true;
                                         }

@@ -97,6 +97,13 @@ pub enum ProtectionQuality {
     FromCardType(CardType),
     /// Protection from a subtype (e.g., "protection from Goblins").
     FromSubType(SubType),
+    /// Protection from a supertype (e.g., "protection from legendary").
+    FromSuperType(SuperType),
+    /// Protection from a card with a specific name (e.g., "protection from Nicol Bolas").
+    FromName(String),
+    /// Protection from a player (CR 702.16k) — blocks DEBT from sources that player
+    /// controls. Rare but rules-legal.
+    FromPlayer(PlayerId),
     /// Protection from everything (e.g., "protection from everything").
     FromAll,
 }

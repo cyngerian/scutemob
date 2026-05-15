@@ -2198,6 +2198,9 @@ pub fn apply_damage_prevention(
     amount: u32,
 ) -> (u32, Vec<GameEvent>) {
     // CR 702.16e: protection is a static prevention — checked BEFORE dynamic shields.
+    // The controller of the damage source is needed for `FromPlayer` protection
+    // (CR 702.16k).
+    let source_controller = state.objects.get(&source).map(|o| o.controller);
     match target {
         CombatDamageTarget::Creature(target_id) | CombatDamageTarget::Planeswalker(target_id) => {
             let target_keywords =
@@ -2206,7 +2209,11 @@ pub fn apply_damage_prevention(
                     .unwrap_or_default();
             let source_chars = crate::rules::protection::source_characteristics(state, source);
             if let Some(sc) = &source_chars {
-                if crate::rules::protection::protection_prevents_damage(&target_keywords, sc) {
+                if crate::rules::protection::protection_prevents_damage(
+                    &target_keywords,
+                    sc,
+                    source_controller,
+                ) {
                     return (0, Vec::new());
                 }
             }
@@ -2225,8 +2232,11 @@ pub fn apply_damage_prevention(
                         .cloned()
                         .collect();
                     for quality in &qualities {
-                        if crate::rules::protection::has_protection_from_source_quality(quality, sc)
-                        {
+                        if crate::rules::protection::has_protection_from_source_quality(
+                            quality,
+                            sc,
+                            source_controller,
+                        ) {
                             return (0, Vec::new());
                         }
                     }

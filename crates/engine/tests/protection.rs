@@ -8,7 +8,7 @@ use mtg_engine::CombatDamageTarget;
 use mtg_engine::{
     process_command, start_game, AttackTarget, CardType, Color, Command, GameEvent,
     GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId,
-    ProtectionQuality, Step, SubType, Target, ZoneId,
+    ProtectionQuality, Step, SubType, SuperType, Target, ZoneId,
 };
 
 // ── Helper: find object by name ───────────────────────────────────────────────
@@ -367,6 +367,7 @@ fn test_protection_from_red_prevents_red_damage() {
     let prevents = mtg_engine::rules::protection::protection_prevents_damage(
         &target_chars.keywords,
         &red_source,
+        None,
     );
     assert!(
         prevents,
@@ -381,6 +382,7 @@ fn test_protection_from_red_prevents_red_damage() {
     let prevents_green = mtg_engine::rules::protection::protection_prevents_damage(
         &target_chars.keywords,
         &green_source,
+        None,
     );
     assert!(
         !prevents_green,
@@ -1189,5 +1191,421 @@ fn test_protection_player_damage_not_prevented_wrong_color() {
         "CR 702.16e: damage from a green source to a player with protection from red \
          must NOT be prevented (amount must be 3, got {})",
         amount
+    );
+}
+
+// ── SR-PRO-01: Protection from a supertype ────────────────────────────────────
+
+#[test]
+/// SR-PRO-01 / CR 702.16b — Protection from a supertype (e.g. "legendary") blocks
+/// targeting by sources that have that supertype, and does NOT block sources that
+/// lack it.
+///
+/// Source: CR 702.16a ("having that quality" — applies to any property, including
+/// supertypes).
+fn test_protection_from_supertype_legendary() {
+    fn try_cast(source_name: &str, supertypes: Vec<SuperType>) -> bool {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+
+        // Target: creature with protection from legendary.
+        let target_spec = ObjectSpec::creature(p1, "Legend-Hater", 2, 2).with_keyword(
+            KeywordAbility::ProtectionFrom(ProtectionQuality::FromSuperType(SuperType::Legendary)),
+        );
+
+        let source_spec = ObjectSpec::card(p2, source_name)
+            .with_types(vec![CardType::Instant])
+            .with_supertypes(supertypes)
+            .with_mana_cost(ManaCost {
+                red: 1,
+                ..Default::default()
+            })
+            .with_colors(vec![Color::Red])
+            .in_zone(ZoneId::Hand(p2));
+
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .object(target_spec)
+            .object(source_spec)
+            .at_step(Step::PreCombatMain)
+            .active_player(p2)
+            .build()
+            .unwrap();
+        state
+            .players
+            .get_mut(&p2)
+            .unwrap()
+            .mana_pool
+            .add(ManaColor::Red, 1);
+        state.turn.priority_holder = Some(p2);
+
+        let target_id = find_object(&state, "Legend-Hater");
+        let spell_id = find_object(&state, source_name);
+
+        process_command(
+            state,
+            Command::CastSpell {
+                player: p2,
+                card: spell_id,
+                targets: vec![Target::Object(target_id)],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .is_err()
+    }
+
+    assert!(
+        try_cast("Legendary Bolt", vec![SuperType::Legendary]),
+        "SR-PRO-01 / CR 702.16b: a legendary spell must not target a creature with \
+         protection from legendary"
+    );
+    assert!(
+        !try_cast("Plain Bolt", vec![]),
+        "SR-PRO-01: a non-legendary spell must be able to target a creature with \
+         protection from legendary"
+    );
+}
+
+// ── SR-PRO-01: Protection from a name ─────────────────────────────────────────
+
+#[test]
+/// SR-PRO-01 / CR 702.16b — Protection from a card name (e.g. "protection from
+/// Nicol Bolas") blocks targeting by a source whose name matches exactly, and does
+/// NOT block sources with a different name.
+///
+/// Source: CR 702.16a ("having that quality" — names are a permitted quality).
+fn test_protection_from_name() {
+    fn try_cast(source_name: &str, protected_from: &str) -> bool {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+
+        let target_spec = ObjectSpec::creature(p1, "Name-Hater", 2, 2).with_keyword(
+            KeywordAbility::ProtectionFrom(ProtectionQuality::FromName(protected_from.to_string())),
+        );
+
+        let source_spec = ObjectSpec::card(p2, source_name)
+            .with_types(vec![CardType::Instant])
+            .with_mana_cost(ManaCost {
+                red: 1,
+                ..Default::default()
+            })
+            .with_colors(vec![Color::Red])
+            .in_zone(ZoneId::Hand(p2));
+
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .object(target_spec)
+            .object(source_spec)
+            .at_step(Step::PreCombatMain)
+            .active_player(p2)
+            .build()
+            .unwrap();
+        state
+            .players
+            .get_mut(&p2)
+            .unwrap()
+            .mana_pool
+            .add(ManaColor::Red, 1);
+        state.turn.priority_holder = Some(p2);
+
+        let target_id = find_object(&state, "Name-Hater");
+        let spell_id = find_object(&state, source_name);
+
+        process_command(
+            state,
+            Command::CastSpell {
+                player: p2,
+                card: spell_id,
+                targets: vec![Target::Object(target_id)],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .is_err()
+    }
+
+    assert!(
+        try_cast("Nicol Bolas", "Nicol Bolas"),
+        "SR-PRO-01 / CR 702.16b: a spell named 'Nicol Bolas' must not target a \
+         creature with protection from Nicol Bolas"
+    );
+    assert!(
+        !try_cast("Shock", "Nicol Bolas"),
+        "SR-PRO-01: a spell with a different name must be able to target a creature \
+         with protection from Nicol Bolas"
+    );
+}
+
+// ── SR-PRO-02: Protection from a player (CR 702.16k) ──────────────────────────
+
+#[test]
+/// SR-PRO-02 / CR 702.16k — Protection from a player blocks targeting by spells that
+/// player controls, and allows targeting by everyone else.
+///
+/// A creature with "protection from <p2>" cannot be targeted by p2's spells, but
+/// its own controller (p1) can still target it.
+fn test_protection_from_player_targeting() {
+    fn try_cast(caster: PlayerId) -> bool {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+
+        // p1's creature has protection from player p2.
+        let target_spec = ObjectSpec::creature(p1, "Bolas-Hater", 2, 2).with_keyword(
+            KeywordAbility::ProtectionFrom(ProtectionQuality::FromPlayer(p2)),
+        );
+
+        let source_spec = ObjectSpec::card(caster, "Targeted Bolt")
+            .with_types(vec![CardType::Instant])
+            .with_mana_cost(ManaCost {
+                red: 1,
+                ..Default::default()
+            })
+            .with_colors(vec![Color::Red])
+            .in_zone(ZoneId::Hand(caster));
+
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .object(target_spec)
+            .object(source_spec)
+            .at_step(Step::PreCombatMain)
+            .active_player(caster)
+            .build()
+            .unwrap();
+        state
+            .players
+            .get_mut(&caster)
+            .unwrap()
+            .mana_pool
+            .add(ManaColor::Red, 1);
+        state.turn.priority_holder = Some(caster);
+
+        let target_id = find_object(&state, "Bolas-Hater");
+        let spell_id = find_object(&state, "Targeted Bolt");
+
+        process_command(
+            state,
+            Command::CastSpell {
+                player: caster,
+                card: spell_id,
+                targets: vec![Target::Object(target_id)],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .is_err()
+    }
+
+    assert!(
+        try_cast(PlayerId(2)),
+        "SR-PRO-02 / CR 702.16k: a spell controlled by p2 must not target a creature \
+         with protection from p2"
+    );
+    assert!(
+        !try_cast(PlayerId(1)),
+        "SR-PRO-02 / CR 702.16k: a spell controlled by p1 (not p2) must be able to \
+         target a creature with protection from p2"
+    );
+}
+
+#[test]
+/// SR-PRO-02 / CR 702.16k/702.16e — Damage from a source controlled by the
+/// protected-from player is prevented; damage from a source controlled by any other
+/// player is not.
+///
+/// Exercises the `FromPlayer` wiring in the damage-prevention path, where the
+/// source's controller is read from the source game object.
+fn test_protection_from_player_damage_prevented() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let p3 = PlayerId(3);
+
+    // A source creature controlled by p2.
+    let source_spec = ObjectSpec::creature(p2, "Bolas Minion", 3, 3);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .object(source_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Bolas Minion");
+
+    // p1 has protection from player p2 → damage from p2's source is prevented.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .protection_qualities
+        .push(ProtectionQuality::FromPlayer(p2));
+
+    let (amount, _events) = mtg_engine::rules::replacement::apply_damage_prevention(
+        &mut state,
+        source_id,
+        &CombatDamageTarget::Player(p1),
+        4,
+    );
+    assert_eq!(
+        amount, 0,
+        "SR-PRO-02 / CR 702.16e: damage from a source controlled by p2 to a player \
+         with protection from p2 must be fully prevented (got {})",
+        amount
+    );
+
+    // Swap p1's protection to be from p3 instead → p2's source damage now lands.
+    {
+        let ps = state.players.get_mut(&p1).unwrap();
+        ps.protection_qualities.clear();
+        ps.protection_qualities
+            .push(ProtectionQuality::FromPlayer(p3));
+    }
+    let (amount2, _events2) = mtg_engine::rules::replacement::apply_damage_prevention(
+        &mut state,
+        source_id,
+        &CombatDamageTarget::Player(p1),
+        4,
+    );
+    assert_eq!(
+        amount2, 4,
+        "SR-PRO-02 / CR 702.16k: damage from p2's source to a player with protection \
+         only from p3 must NOT be prevented (got {})",
+        amount2
+    );
+}
+
+// ── SR-PRO-03: Multicolor source — damage prevention path ─────────────────────
+
+#[test]
+/// SR-PRO-03 / CR 702.16e — Protection from a color is triggered by ANY source that
+/// shares that color, even a multicolor one, in the *damage-prevention* path.
+///
+/// Exercises `protection_prevents_damage` directly (the existing SR-PRO-03 tests
+/// cover only the targeting path): a creature with protection from red takes 0
+/// damage from a red/green multicolor source, but full damage from a blue/green
+/// multicolor source that shares no color with the quality.
+fn test_protection_from_multicolor_source_damage_prevention() {
+    let p1 = PlayerId(1);
+
+    let target_spec = ObjectSpec::creature(p1, "Multicolor Damage Target", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(PlayerId(2))
+        .object(target_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let target_id = find_object(&state, "Multicolor Damage Target");
+    let target_chars = mtg_engine::calculate_characteristics(&state, target_id).unwrap();
+
+    // A red/green multicolor source shares red with the protection quality.
+    let red_green_source = mtg_engine::state::game_object::Characteristics {
+        colors: [Color::Red, Color::Green].iter().cloned().collect(),
+        ..Default::default()
+    };
+    assert!(
+        mtg_engine::rules::protection::protection_prevents_damage(
+            &target_chars.keywords,
+            &red_green_source,
+            None,
+        ),
+        "SR-PRO-03 / CR 702.16e: protection from red must prevent damage from a \
+         red+green multicolor source (source shares red)"
+    );
+
+    // A blue/green multicolor source shares no color with the protection quality.
+    let blue_green_source = mtg_engine::state::game_object::Characteristics {
+        colors: [Color::Blue, Color::Green].iter().cloned().collect(),
+        ..Default::default()
+    };
+    assert!(
+        !mtg_engine::rules::protection::protection_prevents_damage(
+            &target_chars.keywords,
+            &blue_green_source,
+            None,
+        ),
+        "SR-PRO-03 / CR 702.16e: protection from red must NOT prevent damage from a \
+         blue+green multicolor source (no shared color)"
+    );
+}
+
+// ── SR-PRO-04: Subtype-based protection — blocking path ───────────────────────
+
+#[test]
+/// SR-PRO-04 / CR 702.16f — Protection from a subtype prevents blocking by a creature
+/// that has that subtype, in the *blocking* path.
+///
+/// Exercises `protection_prevents_blocking` / `can_block` directly (the existing
+/// SR-PRO-04 tests cover only the targeting path): an attacker with protection from
+/// Goblins cannot be blocked by a Goblin creature, but can be blocked by a Wizard.
+fn test_protection_from_subtype_goblin_prevents_blocking() {
+    let attacker_keywords: im::OrdSet<KeywordAbility> = [KeywordAbility::ProtectionFrom(
+        ProtectionQuality::FromSubType(SubType("Goblin".to_string())),
+    )]
+    .iter()
+    .cloned()
+    .collect();
+
+    // A Goblin blocker shares the protected-from subtype → cannot block.
+    let goblin_blocker = mtg_engine::state::game_object::Characteristics {
+        subtypes: [SubType("Goblin".to_string())].iter().cloned().collect(),
+        ..Default::default()
+    };
+    assert!(
+        !mtg_engine::rules::protection::can_block(&attacker_keywords, &goblin_blocker, None),
+        "SR-PRO-04 / CR 702.16f: a Goblin creature must not be able to block an \
+         attacker with protection from Goblins"
+    );
+
+    // A Wizard blocker does not share the subtype → can block.
+    let wizard_blocker = mtg_engine::state::game_object::Characteristics {
+        subtypes: [SubType("Wizard".to_string())].iter().cloned().collect(),
+        ..Default::default()
+    };
+    assert!(
+        mtg_engine::rules::protection::can_block(&attacker_keywords, &wizard_blocker, None),
+        "SR-PRO-04 / CR 702.16f: a Wizard creature (no Goblin subtype) must be able to \
+         block an attacker with protection from Goblins"
     );
 }

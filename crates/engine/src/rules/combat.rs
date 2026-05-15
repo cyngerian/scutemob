@@ -832,7 +832,12 @@ pub fn handle_declare_blockers(
         }
         // CR 702.16f: protection from blocking. A creature with protection from a quality
         // cannot be blocked by creatures that match that quality. The blocker is the source.
-        if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {
+        let blocker_controller = state.objects.get(blocker_id).map(|o| o.controller);
+        if !super::protection::can_block(
+            &attacker_chars.keywords,
+            &blocker_chars,
+            blocker_controller,
+        ) {
             return Err(GameStateError::InvalidCommand(format!(
                 "Object {:?} cannot block {:?} (attacker has protection from the blocker)",
                 blocker_id, attacker_id
@@ -1055,7 +1060,12 @@ pub fn handle_declare_blockers(
                 }
             }
             // CR 702.16f: Protection prevents blocking.
-            if !super::protection::can_block(&attacker_chars.keywords, &provoked_chars) {
+            let provoked_controller = state.objects.get(&provoked_id).map(|o| o.controller);
+            if !super::protection::can_block(
+                &attacker_chars.keywords,
+                &provoked_chars,
+                provoked_controller,
+            ) {
                 continue; // Requirement impossible -- skip
             }
             // CR 702.14c: Landwalk -- can't be blocked if defender controls matching land.
