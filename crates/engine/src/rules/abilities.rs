@@ -6624,10 +6624,28 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         // Graveyard card targets: scan objects in the appropriate graveyard.
                         TargetRequirement::TargetCardInYourGraveyard(filter) => {
                             let controller_gy = ZoneId::Graveyard(trigger.controller);
+                            let combat_ref = state.combat.as_ref();
                             state
                                 .objects
                                 .iter()
                                 .find(|(_, obj)| {
+                                    // PB-XA2: CR 508.1k / 509.1c — graveyard objects are never in
+                                    // combat roles. passes_combat_role rejects correctly for all branches.
+                                    let role_ok = match (filter.is_attacking, filter.is_blocking) {
+                                        (false, false) => true,
+                                        (true, false) => combat_ref
+                                            .is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                                        (false, true) => {
+                                            combat_ref.is_some_and(|c| c.is_blocking(obj.id))
+                                        }
+                                        (true, true) => combat_ref.is_some_and(|c| {
+                                            c.attackers.contains_key(&obj.id)
+                                                || c.is_blocking(obj.id)
+                                        }),
+                                    };
+                                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
+                                    let tapped_ok = !filter.is_tapped || obj.status.tapped;
+                                    let untapped_ok = !filter.is_untapped || !obj.status.tapped;
                                     obj.zone == controller_gy
                                         && crate::effects::matches_filter(
                                             &obj.characteristics,
@@ -6637,33 +6655,43 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         // Death triggers like Elderfang Ritualist scan the graveyard
                                         // where the trigger source's post-death object lives.
                                         && (!filter.exclude_self || obj.id != trigger.source)
-                                        // PB-XA: CR 508.1k / 601.2c — graveyard objects are never
-                                        // in combat.attackers; rejects when is_attacking=true.
-                                        && (!filter.is_attacking
-                                            || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)))
+                                        && role_ok && tapped_ok && untapped_ok
                                 })
                                 .map(|(id, obj)| SpellTarget {
                                     target: Target::Object(*id),
                                     zone_at_cast: Some(obj.zone),
                                 })
                         }
-                        TargetRequirement::TargetCardInGraveyard(filter) => state
-                            .objects
-                            .iter()
-                            .find(|(_, obj)| {
-                                matches!(obj.zone, ZoneId::Graveyard(_))
-                                    && crate::effects::matches_filter(&obj.characteristics, filter)
-                                    // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                    && (!filter.exclude_self || obj.id != trigger.source)
-                                    // PB-XA: CR 508.1k / 601.2c — graveyard objects are never
-                                    // in combat.attackers; rejects when is_attacking=true.
-                                    && (!filter.is_attacking
-                                        || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)))
-                            })
-                            .map(|(id, obj)| SpellTarget {
-                                target: Target::Object(*id),
-                                zone_at_cast: Some(obj.zone),
-                            }),
+                        TargetRequirement::TargetCardInGraveyard(filter) => {
+                            let combat_ref2 = state.combat.as_ref();
+                            state
+                                .objects
+                                .iter()
+                                .find(|(_, obj)| {
+                                    // PB-XA2: CR 508.1k / 509.1c — graveyard objects are never in
+                                    // combat roles (same rationale as T1 above).
+                                    let role_ok = match (filter.is_attacking, filter.is_blocking) {
+                                        (false, false) => true,
+                                        (true, false) => combat_ref2.is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                                        (false, true) => combat_ref2.is_some_and(|c| c.is_blocking(obj.id)),
+                                        (true, true) => combat_ref2.is_some_and(|c| {
+                                            c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                                        }),
+                                    };
+                                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
+                                    let tapped_ok = !filter.is_tapped || obj.status.tapped;
+                                    let untapped_ok = !filter.is_untapped || !obj.status.tapped;
+                                    matches!(obj.zone, ZoneId::Graveyard(_))
+                                        && crate::effects::matches_filter(&obj.characteristics, filter)
+                                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                                        && (!filter.exclude_self || obj.id != trigger.source)
+                                        && role_ok && tapped_ok && untapped_ok
+                                })
+                                .map(|(id, obj)| SpellTarget {
+                                    target: Target::Object(*id),
+                                    zone_at_cast: Some(obj.zone),
+                                })
+                        }
                         // UpToN: auto-target is optional (contribute 0 targets by returning None).
                         // If inner is a player-targeting requirement, route to player-picker so
                         // that UpToN{inner=TargetPlayer} finds players rather than battlefield
@@ -6774,11 +6802,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                 };
                                                 // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                 let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
-                                                // to creatures currently in combat.attackers.
-                                                let passes_attacking = !f.is_attacking
-                                                    || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
-                                                passes && ctrl_ok && passes_self && passes_attacking
+                                                // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+                                                let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                                                    (false, false) => true,
+                                                    (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                                                    (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                                                    (true, true) => state.combat.as_ref().is_some_and(|c| {
+                                                        c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                                                    }),
+                                                };
+                                                // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+                                                let passes_tapped = !f.is_tapped || obj.status.tapped;
+                                                let passes_untapped = !f.is_untapped || !obj.status.tapped;
+                                                passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
                                             }
                                             TargetRequirement::TargetPermanentWithFilter(f) => {
                                                 let passes =
@@ -6802,11 +6838,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                 };
                                                 // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                 let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
-                                                // to creatures currently in combat.attackers.
-                                                let passes_attacking = !f.is_attacking
-                                                    || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
-                                                passes && ctrl_ok && passes_self && passes_attacking
+                                                // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+                                                let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                                                    (false, false) => true,
+                                                    (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                                                    (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                                                    (true, true) => state.combat.as_ref().is_some_and(|c| {
+                                                        c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                                                    }),
+                                                };
+                                                // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+                                                let passes_tapped = !f.is_tapped || obj.status.tapped;
+                                                let passes_untapped = !f.is_untapped || !obj.status.tapped;
+                                                passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
                                             }
                                             // Player-only reqs are handled above — no objects.
                                             TargetRequirement::TargetPlayer => false,
@@ -6859,11 +6903,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                             };
                                                             // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                             let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                            // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
-                                                            // to creatures currently in combat.attackers.
-                                                            let passes_attacking = !f.is_attacking
-                                                                || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
-                                                            passes && ctrl_ok && passes_self && passes_attacking
+                                                            // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+                                                            let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                                                                (false, false) => true,
+                                                                (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                                                                (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                                                                (true, true) => state.combat.as_ref().is_some_and(|c| {
+                                                                    c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                                                                }),
+                                                            };
+                                                            // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+                                                            let passes_tapped = !f.is_tapped || obj.status.tapped;
+                                                            let passes_untapped = !f.is_untapped || !obj.status.tapped;
+                                                            passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
                                                         }
                                                     }
                                                     TargetRequirement::TargetPermanentWithFilter(f) => {
@@ -6876,11 +6928,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                         };
                                                         // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                         let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                        // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
-                                                        // to creatures currently in combat.attackers.
-                                                        let passes_attacking = !f.is_attacking
-                                                            || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
-                                                        passes && ctrl_ok && passes_self && passes_attacking
+                                                        // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+                                                        let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                                                            (false, false) => true,
+                                                            (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                                                            (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                                                            (true, true) => state.combat.as_ref().is_some_and(|c| {
+                                                                c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                                                            }),
+                                                        };
+                                                        // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+                                                        let passes_tapped = !f.is_tapped || obj.status.tapped;
+                                                        let passes_untapped = !f.is_untapped || !obj.status.tapped;
+                                                        passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
                                                     }
                                                     // Nested UpToN, graveyard targets, spell targets: not applicable for auto-target on triggers.
                                                     _ => false,

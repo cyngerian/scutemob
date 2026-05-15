@@ -1135,3 +1135,62 @@ strange to design).
 **Status**: Filed by PB-EAT 2026-05-15 as defensive completeness. Defer
 indefinitely.
 **References**: pb-plan-EAT (this commit); CR 614.1c; CR 205.4 (supertypes).
+
+---
+
+## OOS seeds filed by PB-XA2 (scutemob-26, 2026-05-15)
+
+PB-XA2 shipped `TargetFilter.is_blocking`, `TargetFilter.is_tapped`, and
+`TargetFilter.is_untapped` (HASH 21→22) — three runtime predicates enforced at the
+same 10 sites as PB-XA's `is_attacking` (4 declarative validate + 6 trigger
+auto-target picker). OR semantics for "attacking or blocking" resolved via a
+four-way `passes_combat_role` match. New helper `CombatState::is_blocking(id)`.
+Card unblocked: Eiganjo, Seat of the Empire (Channel half).
+
+### OOS-XA2-1: Target-side color predicate audit
+
+**Gap**: `TargetFilter.colors` / `TargetFilter.exclude_colors` are pre-existing
+fields whose enforcement at validate sites currently routes through `matches_filter`
+(which DOES read `Characteristics.colors`). Verify this is correct — color is a
+`Characteristics` field, not a runtime field, so the routing should already be
+correct. The audit goal is to spot-check, not implement.
+**Priority**: LOW — likely already correct; audit pass only.
+**References**: pb-plan-XA2; `cards/card_definition.rs:2526-2530`; `effects/mod.rs`
+`matches_filter`.
+
+### OOS-XA2-2: Target-side `has_name` enforcement audit
+
+**Gap**: `TargetFilter.has_name: Option<String>` exists; verify `matches_filter`
+and the validate sites enforce it. Likely already correct; audit pass needed to
+confirm no silent enforcement gap.
+**Priority**: LOW — audit only.
+**References**: pb-plan-XA2; `cards/card_definition.rs`; `effects/mod.rs`
+`matches_filter`.
+
+### OOS-XA2-3: Target-side `is_nontoken` enforcement audit (carryforward from OOS-XA-3)
+
+**Gap**: Pre-existing `TargetFilter.is_nontoken` field. Target-validate-site
+enforcement is uninvestigated. OOS-XA-3 (filed by PB-XA scutemob-24) remains
+open; PB-XA2 does not address it.
+**Priority**: MEDIUM — enforcement correctness gap.
+**References**: pb-retriage-CC.md OOS-XA-3; `cards/card_definition.rs:2584-2590`.
+
+### OOS-XA2-4: `CombatRole` enum refactor
+
+**Gap**: The PB-XA review recommended replacing `is_attacking: bool` + `is_blocking:
+bool` with a `combat_role: Option<CombatRole>` enum (variants: Attacking, Blocking,
+AttackingOrBlocking). PB-XA2 chose option (a) two-bool-OR for scope economy (1-card
+driver). File for future refactor if a third combat-role variant appears.
+**Priority**: LOW — refactor only; no correctness gap currently.
+**References**: pb-review-XA OOS-XA-1 reviewer recommendation; pb-plan-XA2
+OR-semantics decision section.
+
+### OOS-XA2-5: Runtime-predicate helper extraction (carryforward from E-XA-01)
+
+**Gap**: The four-way `passes_combat_role` match + `passes_tapped` / `passes_untapped`
+is duplicated at 10 sites. Extracting a `runtime_predicates_pass(state, id, filter,
+self_id) -> bool` helper in `state/combat.rs` or `rules/casting.rs` would reduce
+duplication (~80 LOC net negative). E-XA-01 from pb-review-XA flagged the original
+`passes_attacking` duplication; PB-XA2 triples the site count.
+**Priority**: LOW — refactor only; the ten sites are mechanically symmetric.
+**References**: pb-review-XA E-XA-01; pb-plan-XA2 Step 10 deferred question 2.
