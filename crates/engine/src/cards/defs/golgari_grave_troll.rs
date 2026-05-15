@@ -3,23 +3,26 @@
 // {1}, Remove a +1/+1 counter from this creature: Regenerate this creature.
 // Dredge 6
 //
-// OOS-EWC-2 (2026-05-15): self-ETB EntersWithCounters now authored using
+// OOS-EWC-2 (2026-05-15): self-ETB EntersWithCounters authored using
 // `EffectAmount::CardCount { zone: Graveyard(Controller), player: Controller,
 // filter: TargetFilter { has_card_type: Creature } }`. Mirrors PB-EWC's
-// Ingenious Prodigy / Master Biomancer pattern. CR 614.1c — counters are placed
-// simultaneously with the permanent entering (resolver builds an EffectContext
-// pinned to the entering object and calls `resolve_amount`, so the count is
-// taken at the exact moment of ETB).
+// Ingenious Prodigy / Master Biomancer pattern. CR 614.1c — counters are
+// placed at ETB time by `apply_self_etb_from_definition`, which builds an
+// `EffectContext` pinned to the entering object and calls `resolve_amount`.
 //
+// **Engine ordering caveat — ruling 2018-12-07 NOT honored today**:
 // Ruling 2018-12-07 ("If you return Golgari Grave-Troll from your graveyard
-// directly to the battlefield, its first ability counts itself"): when the
-// Troll is the card being moved out of the graveyard by the same event that
-// puts it onto the battlefield, the LKI-style snapshot of the graveyard at
-// replacement-resolution time still contains the Troll. CardCount counts
-// zone membership at resolution time; the engine's WouldEnterBattlefield
-// replacement runs BEFORE the zone-change has been applied, so the source
-// card is still in its origin zone. This matches the ruling without any
-// special-casing.
+// directly to the battlefield, its first ability counts itself") would
+// require the EWC count to evaluate while the Troll is still in the
+// graveyard. The current engine in `rules/resolution.rs:519-520` runs
+// `move_object_to_zone(source_object, ZoneId::Battlefield)` BEFORE the
+// `apply_self_etb_from_definition` call at line 1606; by then, the Troll
+// is in `ZoneId::Battlefield`, not its origin zone. For casts from hand
+// (this PR's tested path) the result is correct — the Troll wasn't in
+// the graveyard to begin with. For reanimate-from-graveyard the engine
+// will under-count by one. Filed as an OOS follow-up (engine ordering
+// fix is out of scope for this card-authoring task; see PB-EWC handoff
+// in `memory/workstream-state.md`).
 //
 // CR 702.52a: Dredge 6 — if you would draw a card, you may instead mill 6
 // cards and return this card from your graveyard to your hand. Functions only
