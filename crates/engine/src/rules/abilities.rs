@@ -6637,6 +6637,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         // Death triggers like Elderfang Ritualist scan the graveyard
                                         // where the trigger source's post-death object lives.
                                         && (!filter.exclude_self || obj.id != trigger.source)
+                                        // PB-XA: CR 508.1k / 601.2c — graveyard objects are never
+                                        // in combat.attackers; rejects when is_attacking=true.
+                                        && (!filter.is_attacking
+                                            || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)))
                                 })
                                 .map(|(id, obj)| SpellTarget {
                                     target: Target::Object(*id),
@@ -6651,6 +6655,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                     && crate::effects::matches_filter(&obj.characteristics, filter)
                                     // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                     && (!filter.exclude_self || obj.id != trigger.source)
+                                    // PB-XA: CR 508.1k / 601.2c — graveyard objects are never
+                                    // in combat.attackers; rejects when is_attacking=true.
+                                    && (!filter.is_attacking
+                                        || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)))
                             })
                             .map(|(id, obj)| SpellTarget {
                                 target: Target::Object(*id),
@@ -6766,7 +6774,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                 };
                                                 // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                 let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                passes && ctrl_ok && passes_self
+                                                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
+                                                // to creatures currently in combat.attackers.
+                                                let passes_attacking = !f.is_attacking
+                                                    || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
+                                                passes && ctrl_ok && passes_self && passes_attacking
                                             }
                                             TargetRequirement::TargetPermanentWithFilter(f) => {
                                                 let passes =
@@ -6790,7 +6802,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                 };
                                                 // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                 let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                passes && ctrl_ok && passes_self
+                                                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
+                                                // to creatures currently in combat.attackers.
+                                                let passes_attacking = !f.is_attacking
+                                                    || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
+                                                passes && ctrl_ok && passes_self && passes_attacking
                                             }
                                             // Player-only reqs are handled above — no objects.
                                             TargetRequirement::TargetPlayer => false,
@@ -6843,7 +6859,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                             };
                                                             // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                             let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                            passes && ctrl_ok && passes_self
+                                                            // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
+                                                            // to creatures currently in combat.attackers.
+                                                            let passes_attacking = !f.is_attacking
+                                                                || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
+                                                            passes && ctrl_ok && passes_self && passes_attacking
                                                         }
                                                     }
                                                     TargetRequirement::TargetPermanentWithFilter(f) => {
@@ -6856,7 +6876,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                         };
                                                         // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                                                         let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                        passes && ctrl_ok && passes_self
+                                                        // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts
+                                                        // to creatures currently in combat.attackers.
+                                                        let passes_attacking = !f.is_attacking
+                                                            || state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id));
+                                                        passes && ctrl_ok && passes_self && passes_attacking
                                                     }
                                                     // Nested UpToN, graveyard targets, spell targets: not applicable for auto-target on triggers.
                                                     _ => false,

@@ -5721,7 +5721,15 @@ fn validate_object_satisfies_requirement(
                 // PB-XS: CR 109.1 / 601.2c — "another target X" excludes the
                 // casting/activating source from being selected as a target.
                 let passes_self = !filter.exclude_self || self_id != Some(id);
-                passes_filter && passes_controller && passes_self
+                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts target
+                // selection to creatures currently in combat.attackers. Like exclude_self,
+                // is_attacking is a runtime relationship NOT checked by matches_filter.
+                let passes_attacking = !filter.is_attacking
+                    || state
+                        .combat
+                        .as_ref()
+                        .is_some_and(|c| c.attackers.contains_key(&id));
+                passes_filter && passes_controller && passes_self && passes_attacking
             }
         }
         TargetRequirement::TargetPermanentWithFilter(filter) => {
@@ -5741,7 +5749,15 @@ fn validate_object_satisfies_requirement(
                 // PB-XS: CR 109.1 / 601.2c — "another target X" excludes the
                 // casting/activating source from being selected as a target.
                 let passes_self = !filter.exclude_self || self_id != Some(id);
-                passes_filter && passes_controller && passes_self
+                // PB-XA: CR 508.1k / 601.2c — "target attacking X" restricts target
+                // selection to creatures currently in combat.attackers. Like exclude_self,
+                // is_attacking is a runtime relationship NOT checked by matches_filter.
+                let passes_attacking = !filter.is_attacking
+                    || state
+                        .combat
+                        .as_ref()
+                        .is_some_and(|c| c.attackers.contains_key(&id));
+                passes_filter && passes_controller && passes_self && passes_attacking
             }
         }
         // "target [type] card from your graveyard" — must be in caster's graveyard (CR 115.1).
@@ -5752,14 +5768,36 @@ fn validate_object_satisfies_requirement(
             // excludes the trigger source itself (e.g. Elderfang Ritualist's WhenDies
             // trigger excluding the post-death Ritualist in the graveyard).
             let passes_self = !filter.exclude_self || self_id != Some(id);
-            in_your_gy && crate::effects::matches_filter(&chars, filter) && passes_self
+            // PB-XA: CR 508.1k / 601.2c — graveyard objects are never in combat.attackers
+            // (CR 508.1k requires a creature on the battlefield). This check naturally rejects
+            // graveyard candidates when is_attacking=true, applied uniformly for consistency.
+            let passes_attacking = !filter.is_attacking
+                || state
+                    .combat
+                    .as_ref()
+                    .is_some_and(|c| c.attackers.contains_key(&id));
+            in_your_gy
+                && crate::effects::matches_filter(&chars, filter)
+                && passes_self
+                && passes_attacking
         }
         // "target [type] card from a graveyard" — any player's graveyard (CR 115.1).
         TargetRequirement::TargetCardInGraveyard(filter) => {
             let in_any_gy = matches!(obj.zone, ZoneId::Graveyard(_));
             // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion (same as above).
             let passes_self = !filter.exclude_self || self_id != Some(id);
-            in_any_gy && crate::effects::matches_filter(&chars, filter) && passes_self
+            // PB-XA: CR 508.1k / 601.2c — graveyard objects are never in combat.attackers
+            // (CR 508.1k requires a creature on the battlefield). This check naturally rejects
+            // graveyard candidates when is_attacking=true, applied uniformly for consistency.
+            let passes_attacking = !filter.is_attacking
+                || state
+                    .combat
+                    .as_ref()
+                    .is_some_and(|c| c.attackers.contains_key(&id));
+            in_any_gy
+                && crate::effects::matches_filter(&chars, filter)
+                && passes_self
+                && passes_attacking
         }
         // Player requirement — object target is illegal
         TargetRequirement::TargetPlayer => false,

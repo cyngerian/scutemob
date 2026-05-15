@@ -948,3 +948,106 @@ encodes the old assumption — but a generated-script audit is still due.
 **References**: `crates/engine/src/cards/defs/risen_reef.rs`,
 `ayara_first_of_locthwain.rs`, `bloomvine_regent.rs`,
 `satoru_the_infiltrator.rs`; CR 207.2c / CR 603.2.
+
+## OOS seeds filed by PB-XA (scutemob-24, 2026-05-15)
+
+PB-XA shipped `TargetFilter.is_attacking` enforcement at the four validate sites
+and six trigger auto-target picker sites (CR 508.1k / 109.1 / 601.2c). HASH
+unchanged at 20 — `is_attacking` is a pre-existing field. 1 card unblocked
+(Thousand-Faced Shadow ETB trigger). Three sibling runtime-predicate gaps
+surfaced during the sweep:
+
+### OOS-XA-1: TargetFilter.is_blocking enforcement (field missing entirely)
+
+**Cards**: Eiganjo, Seat of the Empire ("Channel — {2}{W}, Discard this card:
+It deals 4 damage to target attacking or blocking creature"). Probable
+additional yield: Mortal Combat / Naya Charm family if and when authored with
+combat-restricted targeting.
+**Oracle pattern**: A target requirement whose filter constrains the target to
+currently-blocking creatures (CombatState.blockers membership). Often paired
+with `is_attacking` via an OR in the oracle ("attacking or blocking creature").
+**Gap**: `TargetFilter` has NO `is_blocking` field. Even if added, neither
+`matches_filter` nor `validate_object_satisfies_requirement` would enforce it
+without a parallel of the PB-XA mechanical fix. The current Eiganjo def at
+`crates/engine/src/cards/defs/eiganjo_seat_of_the_empire.rs:26` carries an
+inline TODO citing both `is_attacking` AND `is_blocking` — PB-XA only resolves
+the first half.
+**Mechanical fix**: (a) Add `pub is_blocking: bool` to TargetFilter with
+`#[serde(default)]`; bump HASH 20→21 and add hash arm at `state/hash.rs:4347`.
+(b) Add a helper `state.combat.is_blocking(id)` to `state/combat.rs`
+(`blockers.contains_key(&id)` — `blockers` is the live map keyed by blocker
+ObjectId). (c) Apply the PB-XA enforcement pattern at the same 10 sites
+(V1-V4 + T1-T6) with an additional `passes_blocking` term. (d) Update Eiganjo
+def to use `TargetCreatureWithFilter { is_attacking: true, is_blocking: true,
+... }` (the oracle uses OR — see Eiganjo TODO). Worker should re-check oracle
+semantics: "target attacking or blocking creature" — likely needs either two
+bools combined with OR semantics inside `passes_attacking_or_blocking`, or a
+new enum field `TargetFilter.combat_role: Option<CombatRole>` with variants
+`Attacking | Blocking | AttackingOrBlocking`. The two-bool approach is simpler
+but requires OR semantics at the validate site (i.e., if BOTH bools set, accept
+EITHER role).
+**Yield**: 1 confirmed (Eiganjo Channel half). Potential second yield: cards
+that target "blocking creature" specifically (sweep needed against oracle text
+queries when authoring resumes).
+**Status**: Filed by PB-XA 2026-05-15. Recommend as PB-XA-2 sibling. Light
+primitive (~30 lines) once the OR-semantics question is decided.
+**References**: `crates/engine/src/cards/defs/eiganjo_seat_of_the_empire.rs:26`;
+CR 509.1 (declare blockers); `state/combat.rs:blockers` map.
+
+### OOS-XA-2: TargetFilter.is_tapped / is_untapped enforcement (field missing entirely)
+
+**Cards**: Future authoring will hit this — reanimation effects ("return target
+tapped creature to its owner's hand," etc.), Murderous Cut family ("destroy
+target tapped creature"), Frilled Mystic-style untap-condition combos. Grep
+confirmed ZERO current card defs use these flags (because the field doesn't
+exist), but `oracle_text:` strings include "tapped creature" in several
+multi-mode and untap-condition cards.
+**Oracle pattern**: A target requirement whose filter constrains the target to
+the currently-tapped / currently-untapped state. Like `is_attacking`, this is a
+runtime `GameObject.tapped: bool` property, NOT a Characteristics field.
+**Gap**: `TargetFilter` has NO `is_tapped` / `is_untapped` fields. Light
+mechanical fix mirroring PB-XA — single bool plus one-line check
+`!filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.tapped)`. The
+tapped state is on `GameObject` so the check is one indirection cheaper than
+`is_attacking` (no `combat` Option lookup).
+**Mechanical fix**: (a) Add `pub is_tapped: bool` + `pub is_untapped: bool` to
+TargetFilter with `#[serde(default)]`; hash arm. (b) Same 10-site PB-XA pattern.
+(c) Audit existing `targets:` blocks in defs/ where the oracle says "tapped"
+and the def currently uses bare `TargetCreature` — replace with `WithFilter`.
+**Yield**: Unknown — needs an oracle-text sweep against authored cards to
+estimate. Probably 5-15 cards across the existing 1693 defs based on common
+MTG design patterns.
+**Status**: Filed by PB-XA 2026-05-15. Recommend bundling with OOS-XA-1 into a
+larger "TargetFilter runtime predicates" PB. Light (~40 lines) including hash
+bump.
+**References**: `crates/engine/src/state/game_object.rs:GameObject.tapped`;
+CR 701.20 (Tap as cost/action); CR 701.21 (Untap).
+
+### OOS-XA-3: target-side `is_nontoken` enforcement audit
+
+**Cards**: TBD — `TargetFilter.is_nontoken: bool` already exists
+(`card_definition.rs:2589-2590`) and is checked in `effects/mod.rs:2683` for
+the effect-resolution path (the "filter to nontoken creatures" inside
+SacrificePermanents / BounceAll / etc.). Unclear whether the
+TARGET-VALIDATION path (`validate_object_satisfies_requirement`) and the
+TRIGGER auto-target picker enforce `is_nontoken` against the candidate
+TargetObject — grep at the validate sites shows no `is_nontoken` reference in
+`casting.rs:5707-5763` or in `abilities.rs:6744-6860`. Pattern is identical to
+the pre-PB-XA `is_attacking` gap.
+**Oracle pattern**: "Target nontoken creature" (e.g. Heartless Hidetsugu's
+saga half, certain reanimator cards that explicitly carve out token exclusion).
+**Gap**: Whether this is a gap depends on whether any current target-side
+consumer of `is_nontoken` exists. Re-audit needed:
+  1. grep `is_nontoken: true` across `defs/` — if it appears inside a
+     `TargetRequirement::Target*WithFilter` block, the gap bites.
+  2. grep at validate + auto-target-picker sites — if no `obj.is_token` /
+     `is_nontoken` is consulted, enforcement is silently broken.
+**Mechanical fix** (if needed): Same PB-XA pattern with
+`!filter.is_nontoken || !state.objects.get(&id).is_some_and(|o| o.is_token)`.
+**Yield**: Unknown until the re-audit. Possibly zero in current defs (the
+field may be used only on effect-side filters).
+**Status**: Filed by PB-XA 2026-05-15 as a deferred re-audit (not implemented).
+Lower priority than OOS-XA-1 / OOS-XA-2 because the field already exists and
+the audit may show zero target-side consumers in current defs.
+**References**: `crates/engine/src/cards/card_definition.rs:2589-2590`
+(`is_nontoken` doc); `effects/mod.rs:2683` (effect-side enforcement).
