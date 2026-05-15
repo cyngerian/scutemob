@@ -2601,6 +2601,15 @@ pub struct TargetFilter {
     /// NOTE: Like `is_token`, this is a runtime property of the `GameObject` (checked via
     /// `CombatState.attackers`), NOT a `Characteristics` field. It is NOT checked inside
     /// `matches_filter()`. It MUST be checked explicitly at each call site that uses it.
+    ///
+    /// Enforced at:
+    /// - `casting::validate_object_satisfies_requirement` (declarative target
+    ///   validation, CR 601.2c) for TargetCreatureWithFilter,
+    ///   TargetPermanentWithFilter, TargetCardInYourGraveyard,
+    ///   TargetCardInGraveyard — uses `state.combat.as_ref().is_some_and(|c|
+    ///   c.attackers.contains_key(&id))`.
+    /// - `abilities.rs` auto-target picker for triggered abilities — same
+    ///   predicate using `obj.id` as the candidate identifier.
     #[serde(default)]
     pub is_attacking: bool,
     /// Must have the chosen creature type from the source permanent or EffectContext.
