@@ -81,17 +81,17 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
 
 // ── A: Hash schema sentinel ───────────────────────────────────────────────────
 
-/// PB-XA A-1: HASH_SCHEMA_VERSION must remain 20u8.
+/// PB-XA A-1: HASH_SCHEMA_VERSION sentinel.
 /// is_attacking is a pre-existing TargetFilter field already hashed at
 /// hash.rs:4347. PB-XA adds no new fields, struct changes, or discriminants,
-/// so no HASH bump is needed or expected.
+/// so no HASH bump is needed or expected. When the next PB bumps the version,
+/// update this sentinel to match (keep it in lockstep with the live constant).
 #[test]
-fn test_pbxa_hash_schema_version_no_bump() {
+fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 20u8,
-        "PB-XA: no HASH bump expected (is_attacking is pre-existing, \
-         already hashed at hash.rs:4347). If you bumped, revert — PB-XA \
-         is a pure enforcement change with no schema impact."
+        "HASH_SCHEMA_VERSION sentinel: expected 20u8. If a PB bumped the version, \
+         update this sentinel to match the new value."
     );
 }
 
@@ -503,20 +503,27 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
 // ── F: Trigger auto-target picker — Thousand-Faced-Shadow-shaped ETB ─────────
 
 /// PB-XA F-1: ETB trigger auto-target picker with TargetPermanentWithFilter
-/// {is_attacking=true, exclude_self=true} picks the attacking creature over
-/// the non-attacking one.
+/// {is_attacking=true} picks the attacking creature over the non-attacking one.
 ///
 /// Setup:
 /// - P1 controls a TFS-shaped creature on the battlefield (the triggering source).
-/// - P2 controls two creatures: one in combat.attackers ("Ravager"), one not
-///   ("Sitter").
+/// - P2 controls two creatures: "Sitter" (non-attacking, SMALLER ObjectId, added
+///   first) and "Ravager" (attacker, LARGER ObjectId, added second).
 /// - state.combat is injected with Ravager as the sole attacker.
 ///
-/// Expected: the ETB trigger auto-picks Ravager (the attacker), not Sitter.
+/// Expected: the trigger auto-picks Ravager (the attacker), skipping Sitter.
 ///
-/// Exercises T4 (top-level TargetPermanentWithFilter in abilities.rs).
-/// Without PB-XA, the picker would pick whichever non-self object comes first
-/// in iteration order regardless of attacking status.
+/// ObjectId-ordering discriminator (cf. PB-XS E1 HIGH / H-XA-01 review finding):
+/// The auto-target picker walks state.objects (BTreeMap, ascending ObjectId) and
+/// short-circuits on the first legal match. Sitter is added BEFORE Ravager so it
+/// gets the smaller ObjectId and is seen FIRST in iteration order. Without PB-XA
+/// (`passes_attacking` removed), the picker finds Sitter legal and returns it —
+/// the assertion `target_id == ravager_id` FAILS. With PB-XA enabled, Sitter
+/// fails the `passes_attacking` gate; the picker advances to Ravager and returns
+/// it — the assertion PASSES. This construction guarantees the test only passes
+/// when `passes_attacking` enforcement is active (CR 508.1k / 601.2c).
+///
+/// Exercises T4 (top-level TargetPermanentWithFilter in abilities.rs:6783-6810).
 #[test]
 fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
     // The TFS-shaped ETB source: put it on the battlefield (triggers on ETB).
@@ -533,18 +540,9 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
     //
     //   Build dying creature → SBA fires → check_triggers → WhenDies trigger queued
     //
-    // For F-1 we need WhenEntersBattlefield, not WhenDies. The cleanest approach
-    // is to build the state with the Ninja in hand and cast it via a mock cast
-    // command. But that requires mana. Instead, let's put the Ninja on the
-    // battlefield with a WhenDies trigger by using a re-shaped def that triggers
-    // on death but picks an "attacking creature" — same T4 code path.
-    //
-    // Actually, the plan says to use WhenEntersBattlefield and inject the trigger
-    // via SBA flow. Let's use a simpler approach: put the Ninja on the battlefield
-    // with damage so it dies via SBA, but have a DIFFERENT trigger condition —
-    // WhenDies with TargetPermanentWithFilter{is_attacking=true}. This exercises
-    // the exact same T4 auto-target picker code path (battlefield scan,
-    // TargetPermanentWithFilter arm).
+    // We use a WhenDies trigger (not WhenEntersBattlefield) for simplicity — the
+    // same T4 TargetPermanentWithFilter auto-target picker code path is exercised
+    // regardless of the trigger condition.
 
     // Re-define as WhenDies to use the SBA-death trigger flow (same T4 code path).
     let ninja_def_dies = CardDefinition {
@@ -597,9 +595,13 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
             .with_damage(1),
         &defs2,
     );
-    // Two creatures controlled by P2: Ravager (will be the attacker), Sitter (not).
-    let ravager = ObjectSpec::creature(p(2), "Ravager", 3, 3).in_zone(ZoneId::Battlefield);
+    // ObjectId-ordering discriminator: Sitter is added BEFORE Ravager so it gets
+    // the smaller ObjectId and is visited first by the auto-target picker's BTreeMap
+    // iteration. Without `passes_attacking` enforcement, the picker would short-
+    // circuit on Sitter (legal non-attacker with smaller ID) and the assertion
+    // `target_id == ravager_id` would fail — proving the test is not a tautology.
     let sitter = ObjectSpec::creature(p(2), "Sitter", 2, 2).in_zone(ZoneId::Battlefield);
+    let ravager = ObjectSpec::creature(p(2), "Ravager", 3, 3).in_zone(ZoneId::Battlefield);
 
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
@@ -608,8 +610,8 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
         .active_player(p(1))
         .at_step(Step::PreCombatMain)
         .object(dying_ninja)
-        .object(ravager)
-        .object(sitter)
+        .object(sitter) // Sitter first → smaller ObjectId (seen first in iteration).
+        .object(ravager) // Ravager second → larger ObjectId.
         .build()
         .expect("builder must succeed");
     state.turn.priority_holder = Some(p(1));
@@ -617,7 +619,22 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
     let ravager_id = find_obj(&state, "Ravager");
     let sitter_id = find_obj(&state, "Sitter");
 
+    // Sanity: confirm the ObjectId ordering assumption holds. If the builder ever
+    // changes insertion order this assertion will catch the re-tautologisation
+    // before a false-green test can slip through review.
+    assert!(
+        sitter_id < ravager_id,
+        "F-1 discriminator invariant: Sitter (added first) must have a smaller ObjectId \
+         than Ravager (added second). Got sitter={:?} ravager={:?}. \
+         If the builder's ObjectId-assignment order changed, adjust the add order above.",
+        sitter_id,
+        ravager_id
+    );
+
     // Inject combat state: Ravager is the sole attacker.
+    // Note: attacking_player p(1) does not match Ravager's controller p(2) — an MTG-
+    // impossible state — but the validate/picker sites only check attackers.contains_key,
+    // not attacking_player, so the discrimination is unaffected (L-XA-01).
     state.combat = Some(combat_with_attacker(p(1), ravager_id));
 
     // Both players pass priority → SBAs fire → Shadow Ninja dies → WhenDies
