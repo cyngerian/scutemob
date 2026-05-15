@@ -4,9 +4,9 @@ batch: PB-EWC-D
 title: ObjectFilter::CreatureControlledByOfSubtype { controller: PlayerId, subtype: SubType } variant + bind_object_filter OwnedByOpponentsOf rebind (sub-gap E2 from pb-review-EWC.md)
 cards_unblocked: 1 confirmed in-scope — Dragonstorm Globe (Each Dragon you control enters with an additional +1/+1 counter on it.)
 started: 2026-05-15
-phase: implement
+phase: review-complete
 plan_file: memory/primitives/pb-plan-EWC-D.md
-review_file: memory/primitives/pb-review-EWC-D.md (pending)
+review_file: memory/primitives/pb-review-EWC-D.md
 shape_chosen: (a) — additive new variant `ObjectFilter::CreatureControlledByOfSubtype { controller: PlayerId, subtype: SubType }`. Rationale: purely additive, no migration of existing CreatureControlledBy(PlayerId) call sites required. Mirrors PB-CD CreatureControlledBy pattern. PB-EAT precedent (`EntersAsAdditionalType { subtype: SubType }`) confirms SubType-by-value is acceptable in enum variants. See plan file Section "Design choice".
 hash_version_pre: 22 (PB-XA2)
 hash_version_post: 23 (PB-EWC-D — new ObjectFilter variant, discriminant 9)
@@ -72,15 +72,33 @@ Sentinel bumps (16 files):
 
 ## Reviewer checklist (post-implement)
 
-- [ ] CR rules independently verified (614.1c, 613.1d, 122.6)
-- [ ] Dragonstorm Globe oracle text re-verified via MCP
-- [ ] Every dispatch site walked and confirmed correct (variant declaration → hash arm → bind rebind → match resolution → card def DSL → tests)
-- [ ] Hash arm + version bump + history entry verified
-- [ ] All 16 sentinel sites updated; no stale 22u8
-- [ ] Tests verified — 6 present, all cite CR, all discriminating
-- [ ] No scope creep — OOS seeds filed for card-type / supertype / multi-subtype variants
-- [ ] Review file written: memory/primitives/pb-review-EWC-D.md
-- [ ] Verdict + HIGH/MEDIUM resolution inline if any
+- [x] CR rules independently verified (614.1c, 613.1d, 122.6) via MCP `get_rule`
+- [x] Dragonstorm Globe oracle text re-verified via MCP `lookup_card` (matches verbatim; 2025-04-04 ruling noted)
+- [x] Every dispatch site walked and confirmed correct (29 sites; full chain documented in pb-review-EWC-D.md plumbing trace table — variant declaration → hash arm → bind rebind (both new arms) → match resolution → card def DSL → tests)
+- [x] Hash arm + version bump + history entry verified (HASH=23, history entry 23, 18 sentinel sites updated to 23u8; no stale 22u8 against HASH_SCHEMA_VERSION literal)
+- [x] All 18 sentinel sites updated (17 listed in plan + 1 new in primitive_pb_ewcd.rs); no stale 22u8
+- [x] Tests verified — 6 present, all cite CR. Tests 1-5 discriminating. **Test 6 IS NOT discriminating** (T1 HIGH finding: serde-only, does not invoke bind_object_filter; would pass even if the new OwnedByOpponentsOf arm at replacement.rs:532-534 were deleted)
+- [x] No scope creep — 4 engine files touched (matches plan exactly); 1 card def; OOS seeds filed for card-type / supertype / multi-subtype variants
+- [x] Review file written: memory/primitives/pb-review-EWC-D.md
+- [x] Verdict: **PASS-WITH-NITS** — 1 HIGH (T1 test-validity for Test 6), 0 MEDIUM, 2 LOW (E1 hash-determinism test gap; E2 OOS-EWC-3 close-marker bookkeeping)
+
+## Recommended fix-phase (per reviewer)
+
+1. **T1 (HIGH per conventions.md test-validity rule)**: Rewrite Test 6 to actually exercise `bind_object_filter` for `OwnedByOpponentsOf(PlayerId(0))`. Recommended approach: add `#[cfg(test)] pub use bind_object_filter` (or change to `pub(crate) fn` + cfg-test re-export at crate root), then call it directly in the test and assert the result equals `OwnedByOpponentsOf(actual_controller)`. ~10-15 lines net. Alternative: synthetic CardDefinition + register through `register_permanent_replacement_abilities` + inspect `state.replacement_effects` (~40-60 lines).
+2. **E1 (LOW)**: Add hash-determinism sub-test for the new variant (~10 lines).
+3. **E2 (LOW, close-phase)**: Annotate OOS-EWC-3 in `pb-retriage-CC.md:732+` as CLOSED by PB-EWC-D.
+
+## Fix-phase checklist (scutemob-28)
+
+- [x] T1 (HIGH RESOLVED 2026-05-15): `bind_object_filter` changed to `pub fn` at `rules/replacement.rs:521` + doc-comment noting "Public for test access; not part of the engine's runtime API." Added `#[doc(hidden)] pub use rules::replacement::bind_object_filter` to `lib.rs:57`. Rewrote Test 6 to call `bind_object_filter` directly and assert: (a) `OwnedByOpponentsOf(PlayerId(0))` → `OwnedByOpponentsOf(controller)`; (b) non-placeholder `OwnedByOpponentsOf(PlayerId(3))` is unchanged; (c) `CreatureControlledByOfSubtype{PlayerId(0), Dragon}` → `{controller, Dragon}`; (d) passthrough cases (Any, AnyCreature, non-zero variants) are unchanged. Test now fails if the OwnedByOpponentsOf arm at replacement.rs:532-534 is deleted.
+- [x] E1 (LOW RESOLVED 2026-05-15): Added new Test 7 `test_pb_ewcd_hash_determinism_for_creature_controlled_by_of_subtype` — asserts two equal `CreatureControlledByOfSubtype{p1, Dragon}` instances produce identical hashes; asserts different controller → different hash; different subtype → different hash; different variant `CreatureControlledBy(p1)` → different hash. Mirrors PB-LKI-Power test (d) pattern.
+- [x] E2 (LOW RESOLVED 2026-05-15): OOS-EWC-3 entry in `pb-retriage-CC.md:758+` annotated with `Status (2026-05-15): CLOSED by PB-EWC-D (commit 27c1381b, fix-phase scutemob-28)`.
+
+## Fix-phase gate results (2026-05-15)
+
+- `cargo test --test primitive_pb_ewcd`: PASS — 7 tests passing (was 6, +1 Test 7 hash-determinism)
+- All 3 findings resolved (T1 HIGH + E1 LOW + E2 LOW)
+- Full workspace gates: pending below
 
 ---
 

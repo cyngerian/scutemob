@@ -762,6 +762,12 @@ replacement filter rework alongside Eomer's `TargetFilter.exclude_self`).
 **References**: pb-plan-EWC; pb-review-EWC.md E2; CR 614.1c; ObjectFilter
 variants in `state/replacement_effect.rs`.
 
+**Status (2026-05-15)**: CLOSED by PB-EWC-D (commit 27c1381b, fix-phase
+scutemob-28). `ObjectFilter::CreatureControlledByOfSubtype { controller, subtype }`
+added (discriminant 9). `bind_object_filter` extended with `OwnedByOpponentsOf`
+rebind (E2 sub-gap) and `CreatureControlledByOfSubtype` rebind. Dragonstorm Globe
+counter half authored. See `memory/primitives/pb-review-EWC-D.md`.
+
 ---
 
 ## OOS seeds filed by PB-XS (scutemob-21, 2026-05-14)

@@ -401,96 +401,150 @@ fn test_dragonstorm_globe_non_dragon_etb_no_counter() {
 // ── Test 6: OwnedByOpponentsOf(PlayerId(0)) rebind regression ────────────────
 
 /// PB-EWC-D (E2 fix from pb-review-EWC.md): `bind_object_filter` now rebinds
-/// `OwnedByOpponentsOf(PlayerId(0))` → `OwnedByOpponentsOf(controller)` for
-/// `WouldEnterBattlefield` triggers (and any other trigger routed through
-/// `bind_object_filter`).
+/// `OwnedByOpponentsOf(PlayerId(0))` → `OwnedByOpponentsOf(controller)` for any
+/// filter passed through `bind_object_filter`, including `WouldEnterBattlefield`.
 ///
-/// This test constructs a `ReplacementTrigger::WouldEnterBattlefield` with
-/// `OwnedByOpponentsOf(PlayerId(0))` and registers it by resolving a permanent
-/// with that ability onto the battlefield. It then asserts the registered
-/// replacement effect contains `OwnedByOpponentsOf(actual_controller)` and NOT
-/// the placeholder `OwnedByOpponentsOf(PlayerId(0))`.
+/// This test calls `bind_object_filter` directly and asserts the result equals
+/// `OwnedByOpponentsOf(actual_controller)` — NOT the placeholder
+/// `OwnedByOpponentsOf(PlayerId(0))`. Also asserts that passthrough cases (Any,
+/// AnyCreature, ControlledBy(non-zero), etc.) are returned unchanged. And asserts
+/// the same rebind for `CreatureControlledByOfSubtype` (the EWC-D primary variant).
 ///
-/// CR 614.12: replacement effects are registered with the controller's identity
-/// bound in at registration time.
+/// CR 614.12: replacement effects bind the controller's identity at registration
+/// time; the `PlayerId(0)` placeholder must never survive into `state.replacement_effects`.
 #[test]
 fn test_bind_object_filter_rebinds_owned_by_opponents_of_for_wouldenterbattlefield() {
-    use mtg_engine::state::replacement_effect::{
-        ObjectFilter as OFilter, ReplacementModification as RMod, ReplacementTrigger as RTrig,
-    };
+    use mtg_engine::bind_object_filter;
+    use mtg_engine::state::types::SubType;
+    use mtg_engine::ObjectFilter;
 
-    // We need a card that has a non-self WouldEnterBattlefield replacement
-    // with OwnedByOpponentsOf(PlayerId(0)) as its filter.
-    //
-    // Since no existing card uses this exact pattern in production, we construct
-    // a synthetic test directly via `bind_object_filter`'s observable behavior:
-    // by checking the replacement_effects registered after a permanent with the
-    // new pattern enters.
-    //
-    // Approach: verify via ObjectFilter::CreatureControlledByOfSubtype rebind
-    // (the EWC-D primary feature) AND the OwnedByOpponentsOf rebind by checking
-    // the serialized form of the two filter variants.
-    //
-    // For the OwnedByOpponentsOf rebind, we verify that:
-    // (a) ObjectFilter::OwnedByOpponentsOf(PlayerId(0)) round-trips through
-    //     serde correctly (the pre-bind state).
-    // (b) After bind_object_filter would run (validated indirectly via
-    //     CreatureControlledByOfSubtype registration in test 4), the
-    //     DragonStorm Globe test confirms bind_object_filter works for the
-    //     new variant, so the OwnedByOpponentsOf branch (same function) must
-    //     also rebind correctly.
-    //
-    // Direct unit test: serialize OwnedByOpponentsOf(PlayerId(0)) to JSON, then
-    // verify the filter is NOT what we'd see after binding (proving the pre-bind
-    // placeholder value is distinguishable from the post-bind value).
+    let controller = PlayerId(7);
 
-    let placeholder = OFilter::OwnedByOpponentsOf(PlayerId(0));
-    let rebound = OFilter::OwnedByOpponentsOf(PlayerId(42));
-
-    // Confirm the placeholder and rebound are distinguishable.
-    assert_ne!(
-        placeholder, rebound,
-        "OwnedByOpponentsOf(PlayerId(0)) and OwnedByOpponentsOf(PlayerId(42)) must differ"
-    );
-
-    // Round-trip placeholder through serde — confirms the variant serializes stably.
-    let json = serde_json::to_string(&placeholder).expect("OwnedByOpponentsOf serializes");
-    let back: OFilter = serde_json::from_str(&json).expect("OwnedByOpponentsOf deserializes");
+    // ── Rebind: OwnedByOpponentsOf(PlayerId(0)) → OwnedByOpponentsOf(controller) ──
+    let placeholder_ooo = ObjectFilter::OwnedByOpponentsOf(PlayerId(0));
+    let rebound_ooo = bind_object_filter(&placeholder_ooo, controller);
     assert_eq!(
-        back,
-        OFilter::OwnedByOpponentsOf(PlayerId(0)),
-        "OwnedByOpponentsOf(PlayerId(0)) must round-trip"
+        rebound_ooo,
+        ObjectFilter::OwnedByOpponentsOf(controller),
+        "bind_object_filter must rebind OwnedByOpponentsOf(PlayerId(0)) to \
+         OwnedByOpponentsOf(controller); got {:?}",
+        rebound_ooo
     );
 
-    // Verify that a WouldEnterBattlefield trigger with this filter can be round-tripped
-    // (confirms the E2 bind path is reachable in the type system).
-    let trigger = RTrig::WouldEnterBattlefield {
-        filter: OFilter::OwnedByOpponentsOf(PlayerId(0)),
+    // Non-placeholder OwnedByOpponentsOf must be returned unchanged.
+    let non_placeholder_ooo = ObjectFilter::OwnedByOpponentsOf(PlayerId(3));
+    let unchanged_ooo = bind_object_filter(&non_placeholder_ooo, controller);
+    assert_eq!(
+        unchanged_ooo,
+        ObjectFilter::OwnedByOpponentsOf(PlayerId(3)),
+        "bind_object_filter must NOT rebind OwnedByOpponentsOf with a non-zero PlayerId"
+    );
+
+    // ── Rebind: CreatureControlledByOfSubtype{PlayerId(0), Dragon} → {controller, Dragon} ──
+    let placeholder_ccs = ObjectFilter::CreatureControlledByOfSubtype {
+        controller: PlayerId(0),
+        subtype: SubType("Dragon".to_string()),
     };
-    let modification = RMod::EntersTapped;
-    let trigger_json = serde_json::to_string(&trigger).expect("trigger serializes");
-    let trigger_back: RTrig = serde_json::from_str(&trigger_json).expect("trigger deserializes");
-    assert!(
-        matches!(
-            &trigger_back,
-            RTrig::WouldEnterBattlefield {
-                filter: OFilter::OwnedByOpponentsOf(PlayerId(0))
-            }
-        ),
-        "WouldEnterBattlefield {{ filter: OwnedByOpponentsOf(PlayerId(0)) }} must round-trip"
+    let rebound_ccs = bind_object_filter(&placeholder_ccs, controller);
+    assert_eq!(
+        rebound_ccs,
+        ObjectFilter::CreatureControlledByOfSubtype {
+            controller,
+            subtype: SubType("Dragon".to_string()),
+        },
+        "bind_object_filter must rebind CreatureControlledByOfSubtype{{PlayerId(0), Dragon}} \
+         to {{controller, Dragon}}; got {:?}",
+        rebound_ccs
     );
-    let _ = modification;
 
-    // The end-to-end registration test: use the EWC-D Dragonstorm Globe
-    // test (test 4) as the vehicle — it verifies that `bind_object_filter`
-    // is called for WouldEnterBattlefield and that the placeholder is rebound.
-    // The OwnedByOpponentsOf rebind sits in the same function (bind_object_filter)
-    // at the same call site (WouldEnterBattlefield arm). Since test 4 proves the
-    // function is called and a new arm (CreatureControlledByOfSubtype) in it works,
-    // and the OwnedByOpponentsOf arm is a simple pattern-match with no branching,
-    // this serde-roundtrip test closes the E2 loop at the DSL/type level.
-    //
-    // CR 614.12: replacement effects bind controller at registration; the
-    // PlayerId(0) placeholder must never appear in the active replacement_effects
-    // map for a registered ability.
+    // ── Passthrough cases — should be returned unchanged ──────────────────────
+    let passthrough_cases: &[ObjectFilter] = &[
+        ObjectFilter::Any,
+        ObjectFilter::AnyCreature,
+        ObjectFilter::ControlledBy(PlayerId(3)), // non-zero, must not be rebound
+        ObjectFilter::OwnedByOpponentsOf(PlayerId(5)), // non-zero, must not be rebound
+        ObjectFilter::CreatureControlledByOfSubtype {
+            controller: PlayerId(2), // non-zero, must not be rebound
+            subtype: SubType("Goblin".to_string()),
+        },
+    ];
+    for filter in passthrough_cases {
+        let result = bind_object_filter(filter, controller);
+        assert_eq!(
+            &result, filter,
+            "bind_object_filter must return {:?} unchanged (passthrough case); got {:?}",
+            filter, result
+        );
+    }
+}
+
+// ── Test 7: Hash determinism for CreatureControlledByOfSubtype ────────────────
+
+/// PB-EWC-D (E1): The new `ObjectFilter::CreatureControlledByOfSubtype` variant
+/// produces deterministic hashes. Two structurally equal values must produce
+/// identical `HashInto` bytes; structurally different values must not.
+///
+/// CR 613.1d — subtype membership is part of the receiver filter predicate;
+/// the hash must encode both `controller` and `subtype` to be sound.
+#[test]
+fn test_pb_ewcd_hash_determinism_for_creature_controlled_by_of_subtype() {
+    use blake3::Hasher;
+    use mtg_engine::state::hash::HashInto;
+    use mtg_engine::state::types::SubType;
+    use mtg_engine::ObjectFilter;
+
+    let hash = |f: &ObjectFilter| {
+        let mut h = Hasher::new();
+        f.hash_into(&mut h);
+        *h.finalize().as_bytes()
+    };
+
+    let dragon_p1_a = ObjectFilter::CreatureControlledByOfSubtype {
+        controller: PlayerId(1),
+        subtype: SubType("Dragon".to_string()),
+    };
+    let dragon_p1_b = ObjectFilter::CreatureControlledByOfSubtype {
+        controller: PlayerId(1),
+        subtype: SubType("Dragon".to_string()),
+    };
+    let dragon_p2 = ObjectFilter::CreatureControlledByOfSubtype {
+        controller: PlayerId(2),
+        subtype: SubType("Dragon".to_string()),
+    };
+    let goblin_p1 = ObjectFilter::CreatureControlledByOfSubtype {
+        controller: PlayerId(1),
+        subtype: SubType("Goblin".to_string()),
+    };
+    let creature_controlled_by_p1 = ObjectFilter::CreatureControlledBy(PlayerId(1));
+
+    // Two equal instances must hash identically.
+    assert_eq!(
+        hash(&dragon_p1_a),
+        hash(&dragon_p1_b),
+        "CreatureControlledByOfSubtype{{p1, Dragon}} must have deterministic hash"
+    );
+
+    // Different controller must produce a different hash.
+    assert_ne!(
+        hash(&dragon_p1_a),
+        hash(&dragon_p2),
+        "CreatureControlledByOfSubtype{{p1, Dragon}} vs {{p2, Dragon}} must hash differently \
+         (controller contributes to hash)"
+    );
+
+    // Different subtype must produce a different hash.
+    assert_ne!(
+        hash(&dragon_p1_a),
+        hash(&goblin_p1),
+        "CreatureControlledByOfSubtype{{p1, Dragon}} vs {{p1, Goblin}} must hash differently \
+         (subtype contributes to hash)"
+    );
+
+    // Different variant must produce a different hash.
+    assert_ne!(
+        hash(&dragon_p1_a),
+        hash(&creature_controlled_by_p1),
+        "CreatureControlledByOfSubtype must hash differently from CreatureControlledBy \
+         with the same PlayerId (discriminant byte 9 vs 8)"
+    );
 }

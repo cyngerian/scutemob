@@ -518,7 +518,10 @@ fn bind_player_filter(filter: &PlayerFilter, controller: PlayerId) -> PlayerFilt
 /// Card definitions use `ControlledBy(PlayerId(0))` as a placeholder for
 /// "controlled by the controller". At registration time, replace with the
 /// actual controller's PlayerId.
-fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilter {
+///
+/// Public for test access (see `tests/primitive_pb_ewcd.rs`); not part of the
+/// engine's runtime API.
+pub fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilter {
     match filter {
         ObjectFilter::ControlledBy(PlayerId(0)) => ObjectFilter::ControlledBy(controller),
         // PB-CD: bind CreatureControlledBy placeholder to the actual controller.
