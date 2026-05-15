@@ -131,14 +131,10 @@ fn cast_creature(
 
 // ── Test A: Hash schema sentinel ──────────────────────────────────────────────
 
-/// PB-EAT bumped `HASH_SCHEMA_VERSION` from 20 to 21 to cover the new
-/// `ReplacementModification::EntersAsAdditionalType { subtype: SubType }`
-/// variant (discriminant 22). The wire-format change is additive — pre-PB-EAT
-/// states that do not contain the new variant deserialize unchanged — but the
-/// version bump is still required so that anyone hashing or persisting state
-/// containing the new variant uses the new schema.
+/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
+/// without this test being updated. See the `state/hash.rs` history block.
 #[test]
-fn test_pb_eat_hash_schema_version_is_21() {
+fn test_pb_eat_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 24u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."

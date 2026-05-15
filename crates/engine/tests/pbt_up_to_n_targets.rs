@@ -401,12 +401,12 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 /// Three distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_is_15() {
+fn test_pbt_hash_schema_version_live_sentinel() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
 
-    // CR N/A — sentinel must be 15 (PB-LKI-CC bump from PB-TS's 14 for
-    // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
+    // HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
+    // without this test being updated. See the `state/hash.rs` history block.
     assert_eq!(
         HASH_SCHEMA_VERSION, 24u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
@@ -857,12 +857,10 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 
 // ── O1: Hash history integrity ────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T O1: HASH_SCHEMA_VERSION sentinel is exactly 15.
-/// Regression guard against accidental rollback to a prior value.
+/// HASH_SCHEMA_VERSION live sentinel — regression guard against accidental
+/// rollback. See the `state/hash.rs` history block.
 #[test]
-fn test_pbt_hash_schema_version_sentinel_is_15_regression() {
-    // Must be exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
-    // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
+fn test_pbt_hash_schema_version_sentinel_regression() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 24u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."

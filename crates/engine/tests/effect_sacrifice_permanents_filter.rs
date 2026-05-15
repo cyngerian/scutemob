@@ -127,11 +127,10 @@ fn cast_test_sorcery(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-SFT/PB-CC-B/PB-CC-C/PB-CC-A/PB-CC-C-followup/PB-TS/PB-LKI-CC:
-/// HASH_SCHEMA_VERSION is 15. Bumped from 14 (PB-TS) by PB-LKI-CC to account for
-/// EffectAmount::CounterCountAtLastKnownInformation and LKI counter snapshot fields (CR 603.10a / 113.7a).
+/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
+/// without this test being updated. See the `state/hash.rs` history block.
 #[test]
-fn test_sft_hash_schema_version_is_15() {
+fn test_sft_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 24u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."

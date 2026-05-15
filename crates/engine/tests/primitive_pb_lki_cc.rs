@@ -419,23 +419,10 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
 
 // ── Test (e): HASH_SCHEMA_VERSION sentinel ────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-LKI-CC bumped `HASH_SCHEMA_VERSION` 14 → 15.
-///
-/// New fields:
-///   - `PendingTrigger.lki_counters: OrdMap<CounterType, u32>` — counter snapshot at trigger-fire time
-///   - `StackObject.lki_counters: OrdMap<CounterType, u32>` — threaded to resolution
-///
-/// New discriminant:
-///   - `EffectAmount::CounterCountAtLastKnownInformation { counter }` — discriminant 17
-///
-/// Also verifies hash determinism: two identical states must produce the same hash,
-/// and a state after Toothy dies (with LKI counters snapshotted on the trigger) must
-/// produce a DIFFERENT hash from the initial state.
-///
-/// If you see this test fail, a subsequent batch has bumped the version again.
-/// Update the assertion and the hash.rs history comment for that batch.
+/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
+/// without this test being updated. See the `state/hash.rs` history block.
 #[test]
-fn test_pb_lki_cc_hash_schema_version_is_15() {
+fn test_pb_lki_cc_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 24u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."

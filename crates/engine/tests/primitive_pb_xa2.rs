@@ -97,12 +97,8 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
 
 // ── A: Hash schema sentinel ───────────────────────────────────────────────────
 
-/// PB-XA2 A-1: HASH_SCHEMA_VERSION sentinel.
-/// PB-XA2 bumped HASH_SCHEMA_VERSION 21→22 by adding three new fields:
-/// `TargetFilter.is_blocking`, `TargetFilter.is_tapped`, `TargetFilter.is_untapped`.
-/// Each adds a new arm to `HashInto for TargetFilter` in `state/hash.rs`.
-///
-/// When the next PB bumps the version, update this sentinel to match.
+/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
+/// without this test being updated. See the `state/hash.rs` history block.
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(

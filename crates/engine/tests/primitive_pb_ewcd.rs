@@ -134,12 +134,10 @@ fn cast_creature(
 
 // ── Test 1: Hash schema sentinel ──────────────────────────────────────────────
 
-/// PB-EWC-D bumped `HASH_SCHEMA_VERSION` from 22 to 23 to cover the new
-/// `ObjectFilter::CreatureControlledByOfSubtype { controller: PlayerId, subtype: SubType }`
-/// variant (discriminant 9) and the `bind_object_filter` `OwnedByOpponentsOf`
-/// rebind (sub-gap E2 from pb-review-EWC.md, CR 613.1d / 614.1c).
+/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
+/// without this test being updated. See the `state/hash.rs` history block.
 #[test]
-fn test_pb_ewcd_hash_schema_version_is_23() {
+fn test_pb_ewcd_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 24u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
