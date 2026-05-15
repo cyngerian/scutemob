@@ -157,8 +157,8 @@ fn triggers_for(state: &GameState, source: ObjectId) -> usize {
 #[test]
 fn test_pbxse_hash_schema_version_is_20() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 23u8,
-        "PB-EWC-D bumped HASH_SCHEMA_VERSION 22→23 (new ObjectFilter::CreatureControlledByOfSubtype variant + bind_object_filter OwnedByOpponentsOf rebind). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 24u8,
+        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

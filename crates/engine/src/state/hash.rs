@@ -162,7 +162,20 @@
 ///   to rebind `OwnedByOpponentsOf(PlayerId(0))` → `OwnedByOpponentsOf(controller)`
 ///   (sub-gap E2 from pb-review-EWC.md), picked up automatically by the
 ///   `WouldEnterBattlefield` arm. Unblocks Dragonstorm Globe counter half.
-pub const HASH_SCHEMA_VERSION: u8 = 23;
+/// - 24: OOS-LKI-Power-3 (2026-05-15) — `GameEvent::AuraFellOff`,
+///   `GameEvent::ObjectExiled`, `GameEvent::PermanentDestroyed`, and
+///   `GameEvent::ObjectReturnedToHand` hash arms now explicitly destructure and
+///   hash both `pre_lba_counters: OrdMap<CounterType, u32>` (added by PB-LKI-CC)
+///   and `pre_lba_power: Option<i32>` (added by PB-LKI-Power) instead of using
+///   `..` to skip them. Mirrors `GameEvent::CreatureDied`'s treatment of the
+///   symmetric `pre_death_counters` / `pre_death_power` fields. Closes the hash
+///   inconsistency filed as OOS-LKI-Power-3 at pb-retriage-CC.md:621 (CR 603.10a:
+///   LBA triggers look back in time; replay determinism requires all LKI payloads
+///   to be folded into the state hash). `#[serde(default)]` on the four
+///   `pre_lba_power` fields ensures pre-bump serialized events still deserialize
+///   cleanly with `pre_lba_power: None`, which hashes identically to what the old
+///   `..` skip produced for those replays.
+pub const HASH_SCHEMA_VERSION: u8 = 24;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -3483,11 +3496,19 @@ impl HashInto for GameEvent {
             GameEvent::AuraFellOff {
                 object_id,
                 new_grave_id,
-                ..
+                pre_lba_counters,
+                pre_lba_power,
             } => {
                 29u8.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_grave_id.hash_into(hasher);
+                // CR 603.10a: hash LKI counter snapshot for replay determinism.
+                for (ct, count) in pre_lba_counters.iter() {
+                    ct.hash_into(hasher);
+                    count.hash_into(hasher);
+                }
+                // CR 603.10a: hash LKI power snapshot (Option tag-byte + payload).
+                pre_lba_power.hash_into(hasher);
             }
             GameEvent::EquipmentUnattached { object_id } => {
                 30u8.hash_into(hasher);
@@ -3571,21 +3592,37 @@ impl HashInto for GameEvent {
                 player,
                 object_id,
                 new_exile_id,
-                ..
+                pre_lba_counters,
+                pre_lba_power,
             } => {
                 41u8.hash_into(hasher);
                 player.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_exile_id.hash_into(hasher);
+                // CR 603.10a: hash LKI counter snapshot for replay determinism.
+                for (ct, count) in pre_lba_counters.iter() {
+                    ct.hash_into(hasher);
+                    count.hash_into(hasher);
+                }
+                // CR 603.10a: hash LKI power snapshot (Option tag-byte + payload).
+                pre_lba_power.hash_into(hasher);
             }
             GameEvent::PermanentDestroyed {
                 object_id,
                 new_grave_id,
-                ..
+                pre_lba_counters,
+                pre_lba_power,
             } => {
                 42u8.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_grave_id.hash_into(hasher);
+                // CR 603.10a: hash LKI counter snapshot for replay determinism.
+                for (ct, count) in pre_lba_counters.iter() {
+                    ct.hash_into(hasher);
+                    count.hash_into(hasher);
+                }
+                // CR 603.10a: hash LKI power snapshot (Option tag-byte + payload).
+                pre_lba_power.hash_into(hasher);
             }
             GameEvent::PermanentUntapped { player, object_id } => {
                 43u8.hash_into(hasher);
@@ -3641,12 +3678,20 @@ impl HashInto for GameEvent {
                 player,
                 object_id,
                 new_hand_id,
-                ..
+                pre_lba_counters,
+                pre_lba_power,
             } => {
                 50u8.hash_into(hasher);
                 player.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_hand_id.hash_into(hasher);
+                // CR 603.10a: hash LKI counter snapshot for replay determinism.
+                for (ct, count) in pre_lba_counters.iter() {
+                    ct.hash_into(hasher);
+                    count.hash_into(hasher);
+                }
+                // CR 603.10a: hash LKI power snapshot (Option tag-byte + payload).
+                pre_lba_power.hash_into(hasher);
             }
             GameEvent::ObjectPutInGraveyard {
                 player,

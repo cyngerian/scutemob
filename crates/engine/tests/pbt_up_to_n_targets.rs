@@ -408,8 +408,8 @@ fn test_pbt_hash_schema_version_is_15() {
     // CR N/A — sentinel must be 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 23u8,
-        "PB-EWC-D bumped HASH_SCHEMA_VERSION 22→23 (new ObjectFilter::CreatureControlledByOfSubtype variant + bind_object_filter OwnedByOpponentsOf rebind). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 24u8,
+        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -864,8 +864,8 @@ fn test_pbt_hash_schema_version_sentinel_is_15_regression() {
     // Must be exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 23u8,
-        "PB-EWC-D bumped HASH_SCHEMA_VERSION 22→23 (new ObjectFilter::CreatureControlledByOfSubtype variant + bind_object_filter OwnedByOpponentsOf rebind). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 24u8,
+        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
