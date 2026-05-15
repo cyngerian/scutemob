@@ -23,14 +23,29 @@ use im::OrdSet;
 /// - `FromColor(c)`: source has color `c` in its colors set.
 /// - `FromCardType(t)`: source has card type `t`.
 /// - `FromSubType(s)`: source has subtype `s`.
+/// - `FromSuperType(s)`: source has supertype `s`.
+/// - `FromName(n)`: source's name equals `n`.
+/// - `FromPlayer(p)`: source is controlled by player `p` (CR 702.16k); requires
+///   `source_controller` to be supplied — when `None`, this quality never matches.
 /// - `FromAll`: matches every source.
+///
+/// `source_controller` is the player who controls the source (the spell/ability,
+/// damage source, blocker, or attachment). Pass `None` when it is unavailable;
+/// only `FromPlayer` depends on it.
+///
+/// Performance (MR-M9.4-10): this is a linear scan of the keyword set. The scan
+/// is intentionally left as-is — keyword sets are tiny (CR-bounded, in practice
+/// well under 20 elements even on heavily-modified permanents), so a structured
+/// lookup or range query over the `OrdSet` would add complexity without a
+/// measurable win. Confirmed a non-bottleneck; no micro-optimization warranted.
 pub fn has_protection_from_source(
     keywords: &OrdSet<KeywordAbility>,
     source_chars: &Characteristics,
+    source_controller: Option<PlayerId>,
 ) -> bool {
     for kw in keywords {
         if let KeywordAbility::ProtectionFrom(quality) = kw {
-            if matches_quality(quality, source_chars) {
+            if matches_quality(quality, source_chars, source_controller) {
                 return true;
             }
         }
@@ -49,8 +64,9 @@ pub fn has_protection_from_source(
 pub fn check_protection_targeting(
     target_keywords: &OrdSet<KeywordAbility>,
     source_chars: &Characteristics,
+    source_controller: Option<PlayerId>,
 ) -> Result<(), GameStateError> {
-    if has_protection_from_source(target_keywords, source_chars) {
+    if has_protection_from_source(target_keywords, source_chars, source_controller) {
         return Err(GameStateError::InvalidTarget(
             "object has protection from the source and cannot be targeted".into(),
         ));
@@ -64,8 +80,9 @@ pub fn check_protection_targeting(
 pub fn protection_prevents_damage(
     target_keywords: &OrdSet<KeywordAbility>,
     source_chars: &Characteristics,
+    source_controller: Option<PlayerId>,
 ) -> bool {
-    has_protection_from_source(target_keywords, source_chars)
+    has_protection_from_source(target_keywords, source_chars, source_controller)
 }
 /// CR 702.16f: Check whether a blocker is prevented from blocking an attacker by protection.
 ///
@@ -74,8 +91,9 @@ pub fn protection_prevents_damage(
 pub fn protection_prevents_blocking(
     attacker_keywords: &OrdSet<KeywordAbility>,
     blocker_chars: &Characteristics,
+    blocker_controller: Option<PlayerId>,
 ) -> bool {
-    has_protection_from_source(attacker_keywords, blocker_chars)
+    has_protection_from_source(attacker_keywords, blocker_chars, blocker_controller)
 }
 /// CR 702.16c / 702.16d: Check if an aura or equipment is illegal on its target due to protection.
 ///
@@ -84,8 +102,9 @@ pub fn protection_prevents_blocking(
 pub fn attachment_is_illegal_due_to_protection(
     target_keywords: &OrdSet<KeywordAbility>,
     attachment_chars: &Characteristics,
+    attachment_controller: Option<PlayerId>,
 ) -> bool {
-    has_protection_from_source(target_keywords, attachment_chars)
+    has_protection_from_source(target_keywords, attachment_chars, attachment_controller)
 }
 /// CR 702.16b/e: Check if a single `ProtectionQuality` matches a source's characteristics.
 ///
@@ -94,8 +113,9 @@ pub fn attachment_is_illegal_due_to_protection(
 pub fn has_protection_from_source_quality(
     quality: &ProtectionQuality,
     source_chars: &Characteristics,
+    source_controller: Option<PlayerId>,
 ) -> bool {
-    matches_quality(quality, source_chars)
+    matches_quality(quality, source_chars, source_controller)
 }
 /// Retrieve the computed characteristics of the source object, if available.
 ///
@@ -134,8 +154,10 @@ pub fn check_full_targeting_protection(
         ));
     }
     // Protection: can't be targeted by sources it is protected from (CR 702.16b).
+    // The caster controls the targeting spell/ability, so it is the source's
+    // controller for `FromPlayer` (CR 702.16k) protection checks.
     if let Some(sc) = source_chars {
-        check_protection_targeting(target_keywords, sc)?;
+        check_protection_targeting(target_keywords, sc, Some(caster))?;
     }
     Ok(())
 }
@@ -147,18 +169,30 @@ pub fn check_full_targeting_protection(
 pub fn can_block(
     attacker_keywords: &OrdSet<KeywordAbility>,
     blocker_chars: &Characteristics,
+    blocker_controller: Option<PlayerId>,
 ) -> bool {
-    !protection_prevents_blocking(attacker_keywords, blocker_chars)
+    !protection_prevents_blocking(attacker_keywords, blocker_chars, blocker_controller)
 }
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-/// Returns true if a `ProtectionQuality` matches the given source characteristics.
-fn matches_quality(quality: &ProtectionQuality, source_chars: &Characteristics) -> bool {
+/// Returns true if a `ProtectionQuality` matches the given source.
+///
+/// `source_controller` is the player controlling the source; it is only consulted
+/// for `FromPlayer` (CR 702.16k). When the quality is `FromPlayer` and the
+/// controller is unknown (`None`), the quality does not match.
+fn matches_quality(
+    quality: &ProtectionQuality,
+    source_chars: &Characteristics,
+    source_controller: Option<PlayerId>,
+) -> bool {
     match quality {
         ProtectionQuality::FromColor(c) => source_chars.colors.contains(c),
         ProtectionQuality::FromCardType(ct) => source_chars.card_types.contains(ct),
         ProtectionQuality::FromSubType(st) => source_chars.subtypes.contains(st),
+        ProtectionQuality::FromSuperType(st) => source_chars.supertypes.contains(st),
+        ProtectionQuality::FromName(n) => &source_chars.name == n,
+        ProtectionQuality::FromPlayer(p) => source_controller == Some(*p),
         ProtectionQuality::FromAll => true,
     }
 }

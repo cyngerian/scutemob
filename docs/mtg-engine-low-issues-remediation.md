@@ -328,7 +328,7 @@ Address when touching the relevant subsystem for other reasons:
 | MR-M1-18 (zone O(n) contains) | Not a bottleneck — profiling would need to show otherwise |
 | MR-M6-14 (blockers_for rebuild) | ≤10 blockers in practice, negligible |
 | MR-M9.5-13 (PlayerId as cast) | Consistent with M1, not a real risk |
-| MR-M9.4-10 (linear keyword scan) | <20 keywords per object, OrdSet range query would be more complex than the savings |
+| MR-M9.4-10 (linear keyword scan) | **CLOSED 2026-05-15, scutemob-34** — re-confirmed non-bottleneck (<20 keywords/object, OrdSet range query more complex than the savings); a doc comment on `has_protection_from_source` now formally records the decision |
 
 ---
 
@@ -366,10 +366,10 @@ Findings from post-Morph sanity reviews of early P1 abilities. HIGHs and MEDIUMs
 
 | ID | Severity | Description | Location |
 |----|----------|-------------|----------|
-| SR-PRO-01 | LOW | `ProtectionQuality` missing `FromSuperType` and `FromName` variants (e.g. "protection from Wizards", "protection from Nicol Bolas"). No current cards need these. | `state/types.rs` |
-| SR-PRO-02 | LOW | No `FromPlayer` variant for CR 702.16k (protection from a player — rare but rules-legal). | `state/types.rs` |
-| SR-PRO-03 | LOW | No test for protection vs. multicolor source (source must share *any* color). | `tests/protection.rs` |
-| SR-PRO-04 | LOW | No test for subtype-based protection (e.g. "protection from Goblins"). | `tests/protection.rs` |
+| SR-PRO-01 | LOW (**Status: CLOSED 2026-05-15, scutemob-34**) | ~~`ProtectionQuality` missing `FromSuperType` and `FromName` variants (e.g. "protection from Wizards", "protection from Nicol Bolas").~~ Added `ProtectionQuality::{FromSuperType, FromName}` — fully wired: enum (`state/types.rs`), `HashInto` (`state/hash.rs`), `matches_quality` enforcement and all exhaustive matches (`rules/protection.rs`). Tests `test_protection_from_supertype_legendary`, `test_protection_from_name`. | `state/types.rs` |
+| SR-PRO-02 | LOW (**Status: CLOSED 2026-05-15, scutemob-34**) | ~~No `FromPlayer` variant for CR 702.16k (protection from a player — rare but rules-legal).~~ Added `ProtectionQuality::FromPlayer(PlayerId)`. An `Option<PlayerId>` source-controller is now threaded through every protection entry point (targeting, damage prevention, blocking, attachment SBAs) and all callers. Tests `test_protection_from_player_targeting`, `test_protection_from_player_damage_prevented`. | `state/types.rs` |
+| SR-PRO-03 | LOW (**Status: CLOSED 2026-05-15, scutemob-34**) | ~~No test for protection vs. multicolor source (source must share *any* color).~~ Covered by `test_protection_from_red_blocks_multicolor_red_source` / `test_protection_from_red_allows_green_only_multicolor_source` (targeting path) plus new `test_protection_from_multicolor_source_damage_prevention` (damage-prevention path). | `tests/protection.rs` |
+| SR-PRO-04 | LOW (**Status: CLOSED 2026-05-15, scutemob-34**) | ~~No test for subtype-based protection (e.g. "protection from Goblins").~~ Covered by `test_protection_from_subtype_goblin_blocks_goblin_source` / `test_protection_from_subtype_goblin_allows_wizard_source` (targeting path) plus new `test_protection_from_subtype_goblin_prevents_blocking` (blocking path). | `tests/protection.rs` |
 
 ### First Strike / Double Strike (combat.rs)
 

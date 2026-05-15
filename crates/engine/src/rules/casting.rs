@@ -5495,14 +5495,19 @@ fn validate_targets_inner(
                 // CR 702.16b: a player with protection from a quality cannot be targeted
                 // by sources that match that quality. Check both permanent and temporary
                 // protection qualities (CR 611.2b: temporary protections are still active).
+                // The caster controls the targeting spell, so it is the source's
+                // controller for the `FromPlayer` quality (CR 702.16k).
                 if let Some(sc) = source_chars {
                     let all_qualities = player
                         .protection_qualities
                         .iter()
                         .chain(player.temporary_protection_qualities.iter());
                     for quality in all_qualities {
-                        if crate::rules::protection::has_protection_from_source_quality(quality, sc)
-                        {
+                        if crate::rules::protection::has_protection_from_source_quality(
+                            quality,
+                            sc,
+                            Some(caster),
+                        ) {
                             return Err(GameStateError::InvalidTarget(format!(
                                 "player {:?} has protection from the source and cannot be targeted",
                                 id

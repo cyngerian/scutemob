@@ -413,6 +413,18 @@ impl HashInto for ProtectionQuality {
                 st.hash_into(hasher);
             }
             ProtectionQuality::FromAll => 3u8.hash_into(hasher),
+            ProtectionQuality::FromSuperType(st) => {
+                4u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            ProtectionQuality::FromName(n) => {
+                5u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            ProtectionQuality::FromPlayer(p) => {
+                6u8.hash_into(hasher);
+                p.hash_into(hasher);
+            }
         }
     }
 }
