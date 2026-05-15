@@ -218,8 +218,11 @@ fn test_master_biomancer_counter_from_live_power_base() {
         find_on_battlefield(&state, "Master Biomancer").is_some(),
         "Master Biomancer must be on battlefield after casting"
     );
-    // Sanity: MB's global ETB replacement is registered exactly once, with the
-    // filter bound to p1 (verifies bind_object_filter ran for WouldEnterBattlefield).
+    // Sanity: MB's EntersWithCounters global ETB replacement is registered exactly
+    // once, with the filter bound to p1 (verifies bind_object_filter ran for
+    // WouldEnterBattlefield). PB-EAT (2026-05-15) added a second MB replacement
+    // (EntersAsAdditionalType) with the same trigger filter — filter the count to
+    // only EntersWithCounters so this canary keeps its original PB-EWC scope.
     let mb_repl_count: usize = state
         .replacement_effects
         .iter()
@@ -229,6 +232,9 @@ fn test_master_biomancer_counter_from_live_power_base() {
                 mtg_engine::ReplacementTrigger::WouldEnterBattlefield {
                     filter: mtg_engine::ObjectFilter::CreatureControlledBy(pid)
                 } if *pid == p1
+            ) && matches!(
+                &e.modification,
+                mtg_engine::ReplacementModification::EntersWithCounters { .. }
             )
         })
         .count();
@@ -392,8 +398,8 @@ fn test_ingenious_prodigy_x_value_replacement_counts() {
 #[test]
 fn test_pb_ewc_hash_schema_version_is_18() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 20u8,
-        "PB-XS-E bumped HASH_SCHEMA_VERSION 19→20 (TriggerCondition::Whenever{{Creature,Permanent}}EntersBattlefield.exclude_self, CR 109.1 / 603.2). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 21u8,
+        "PB-EAT bumped HASH_SCHEMA_VERSION 20→21 (ReplacementModification::EntersAsAdditionalType {{ subtype: SubType }}, CR 614.1c). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

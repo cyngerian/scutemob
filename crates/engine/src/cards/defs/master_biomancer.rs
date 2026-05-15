@@ -2,7 +2,7 @@
 // Each other creature you control enters with a number of additional +1/+1 counters on it
 //   equal to this creature's power and as a Mutant in addition to its other types.
 //
-// PB-EWC (2026-05-14): authors the counter half via
+// PB-EWC (2026-05-14): authored the counter half via
 // `ReplacementModification::EntersWithCounters { counter: PlusOnePlusOne,
 //   count: EffectAmount::PowerOf(EffectTarget::Source) }`. The replacement's
 // source is Master Biomancer itself (registered with `source: Some(new_id)` at
@@ -11,16 +11,21 @@
 // battlefield"). Ruling 2013-01-24: "use Master Biomancer's power as that
 // creature is entering" — exactly the live resolver semantic.
 //
-// Why "each OTHER creature" is correct without an explicit exclude_self:
-//   `register_permanent_replacement_abilities` runs AFTER
-//   `apply_etb_replacements` for the same ETB. MB's replacement is therefore
-//   not registered in time to fire on its own ETB. Any subsequent creature
-//   ETB matches CreatureControlledBy(controller) — and is, by construction,
-//   a different ObjectId from MB.
+// PB-EAT (2026-05-15): authors the type-grant half via
+// `ReplacementModification::EntersAsAdditionalType { subtype: SubType("Mutant") }`.
+// CR 614.1c entry modification: the subtype is pushed into the entering permanent's
+// `characteristics.subtypes` BEFORE `PermanentEnteredBattlefield` is emitted, so
+// ETB triggers and SBAs observe the augmented type set on the very turn it enters.
+// This is NOT a Layer 4 continuous type-adding effect (which would only apply to
+// permanents already on the battlefield and would not alter the entering object's
+// own characteristics at ETB time).
 //
-// TODO (OOS-EWC-1): the type-grant half ("as a Mutant in addition to its other
-// types") is a separate replacement primitive (EntersAsAdditionalType) that
-// PB-EWC does not ship. Filed in memory/primitives/pb-retriage-CC.md.
+// Why "each OTHER creature" is correct without an explicit exclude_self for BOTH
+// replacements: `register_permanent_replacement_abilities` runs AFTER
+// `apply_etb_replacements` for the same ETB. MB's replacements are therefore
+// not registered in time to fire on its own ETB. Any subsequent creature ETB
+// matches CreatureControlledBy(controller) — and is, by construction, a
+// different ObjectId from MB.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -56,9 +61,25 @@ pub fn card() -> CardDefinition {
                 is_self: false,
                 unless_condition: None,
             },
-            // TODO (OOS-EWC-1): "as a Mutant in addition to its other types"
-            // requires a new ReplacementModification primitive
-            // (EntersAsAdditionalType). Filed in memory/primitives/pb-retriage-CC.md.
+            // CR 614.1c + CR 205.3 — replacement effect: "...and as a Mutant in
+            // addition to its other types."
+            //
+            // Same `CreatureControlledBy(PlayerId(0))` placeholder; same
+            // bind_object_filter rebinding to the actual controller. Both
+            // replacements fire on the same ETB event (the counter and type
+            // modifications are independent — CR 614.5 forbids double-applying
+            // a single replacement, not two distinct replacements from the
+            // same source).
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::CreatureControlledBy(PlayerId(0)),
+                },
+                modification: ReplacementModification::EntersAsAdditionalType {
+                    subtype: SubType("Mutant".to_string()),
+                },
+                is_self: false,
+                unless_condition: None,
+            },
         ],
         ..Default::default()
     }

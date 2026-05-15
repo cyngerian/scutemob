@@ -1051,3 +1051,87 @@ Lower priority than OOS-XA-1 / OOS-XA-2 because the field already exists and
 the audit may show zero target-side consumers in current defs.
 **References**: `crates/engine/src/cards/card_definition.rs:2589-2590`
 (`is_nontoken` doc); `effects/mod.rs:2683` (effect-side enforcement).
+
+---
+
+## OOS seeds filed by PB-EAT (scutemob-25, 2026-05-15)
+
+PB-EAT shipped `ReplacementModification::EntersAsAdditionalType { subtype: SubType }`
+(HASH 20→21) for the "...enters as a [subtype] in addition to its other types"
+entry-modification family — CR 614.1c. The resolver in `emit_etb_modification`
+pushes the subtype into `state.objects[new_id].characteristics.subtypes` before
+`PermanentEnteredBattlefield` is emitted, so ETB triggers and SBAs observe the
+augmented type set on the very turn it enters. This is NOT a Layer 4 continuous
+type-adding effect — distinct path from `ContinuousEffectDef` Layer 4
+modifications, which apply only to permanents already on the battlefield.
+
+Card unblocked: Master Biomancer (type-grant half — OOS-EWC-1 resolved).
+
+### OOS-EAT-1: EntersAsAdditional CARD TYPE (not subtype) — Mistform Ultimus / changelings et al.
+
+**Cards**: Mistform Ultimus ("every creature type") — already handled by the
+existing `OmniCreatureType` discriminator, not this gap. The gap arises for
+the future case of "enters as a [card type]" (e.g. a hypothetical "this
+creature also enters as an Artifact in addition to its other types"). Examples
+of EXISTING cards using static Layer 4 type-addition (not entry modification):
+March of the Machine: Chandra Pyromaster cards, certain Saga/Land hybrids.
+Some cards say "is also a Land" (Mishra's Self-Replicator etc.); those are
+Layer 4 continuous effects and do NOT need PB-EAT.
+**Oracle pattern**: "...and as a [CARD TYPE] in addition to its other types."
+The CR-correct path is the same as PB-EAT (CR 614.1c entry modification, NOT
+Layer 4) WHEN the oracle text says "enters as" rather than "is also". The
+former is one-shot at ETB, the latter is a Layer 4 continuous type-adding
+effect (CR 613.1d).
+**Gap**: PB-EAT ships subtype-only (`EntersAsAdditionalType { subtype: SubType }`).
+A `CardType` variant would be a parallel primitive
+`EntersAsAdditionalCardType { card_type: CardType }` that calls
+`obj.characteristics.card_types.insert(card_type)` instead.
+**Yield**: 0 confirmed in the current 1693-card defs corpus (grep of oracle
+text for "enters as a" against CardType keywords like "Artifact"/"Enchantment"
+returns no in-scope cards). Filed defensively because the resolver shape and
+hash plumbing are byte-for-byte parallel to PB-EAT.
+**Status**: Filed by PB-EAT 2026-05-15 as a hypothetical follow-up. Defer until
+a real card pattern surfaces; the primitive is a 1-hour copy-paste of PB-EAT.
+**References**: pb-plan-EAT (this commit); CR 614.1c; CR 613.1d (Layer 4 vs
+entry modification distinction).
+
+### OOS-EAT-2: EntersAsAdditionalColor — "enters as a [color] creature" at ETB
+
+**Cards**: Hypothetical — cards saying "this creature enters as [color]" at
+ETB. Existing color-on-entry interactions instead use either:
+  - `ReplacementModification::ChooseColor` (CR 614.12a — "as this enters, choose
+    a color"; sets `chosen_color`, NOT `characteristics.colors`); or
+  - Layer 5 continuous color-adding effects via `ContinuousEffectDef` (Crystalline
+    Sliver-style anthems and similar — not entry modifications).
+No card today says "enters as a [color] creature in addition to its other
+colors." The closest is March of Otherworldly Light / Painter's Servant, which
+are Layer 5, not entry modification.
+**Oracle pattern**: "...and as a [color] in addition to its other colors."
+**Gap**: A parallel `EntersAsAdditionalColor { color: Color }` variant whose
+resolver does `obj.characteristics.colors.insert(color)` BEFORE
+`PermanentEnteredBattlefield`. Distinguished from `ChooseColor` (which writes
+`chosen_color` for ManaWouldBeProduced + AddOneManaOfChosenColor lookups,
+not `characteristics.colors`).
+**Yield**: 0 confirmed in the corpus. Defensively filed alongside OOS-EAT-1.
+**Status**: Filed by PB-EAT 2026-05-15 as hypothetical. Defer until a real
+card pattern surfaces.
+**References**: pb-plan-EAT (this commit); CR 614.1c; CR 105.2 (objects' color);
+`ReplacementModification::ChooseColor` (replacement_effect.rs:212).
+
+### OOS-EAT-3: EntersAsAdditionalSupertype — "enters as [supertype]" at ETB
+
+**Cards**: Hypothetical — no current card in the corpus says "enters as a
+Legendary [creature]" or similar at ETB; supertype additions today are Layer 4
+continuous effects via `LayerModification::AddSupertype` or similar.
+**Oracle pattern**: "...and as a [supertype] in addition to its other
+supertypes" at ETB time.
+**Gap**: A parallel `EntersAsAdditionalSupertype { supertype: SuperType }`
+variant whose resolver does `obj.characteristics.supertypes.insert(supertype)`
+BEFORE `PermanentEnteredBattlefield`.
+**Yield**: 0 confirmed. Lowest priority of the three OOS-EAT seeds — no oracle
+text in the corpus suggests this pattern would ever surface as an entry
+modification (the legendary supertype rule CR 205.4b makes such patterns
+strange to design).
+**Status**: Filed by PB-EAT 2026-05-15 as defensive completeness. Defer
+indefinitely.
+**References**: pb-plan-EAT (this commit); CR 614.1c; CR 205.4 (supertypes).

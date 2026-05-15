@@ -228,6 +228,18 @@ pub enum ReplacementModification {
     /// Reads `source.chosen_color` from the replacement source (Caged Sun) at application
     /// time, NOT from the tapped land.
     AddOneManaOfChosenColor,
+    /// CR 614.1c / CR 205.3: "...enters as a [Type] in addition to its other types."
+    /// One-time entry modification that adds a subtype to the entering permanent
+    /// during its ETB, BEFORE `PermanentEnteredBattlefield` is emitted (so ETB triggers
+    /// and SBAs observe the augmented type set on the very turn it enters). Distinct
+    /// from a Layer 4 continuous type-adding effect (CR 613.1d), which would only apply
+    /// to permanents already on the battlefield and would NOT alter the entering object's
+    /// own characteristics at ETB time.
+    ///
+    /// Used by Master Biomancer ("...and as a Mutant in addition to its other types").
+    /// `SubType` is carried by value — its inner `String` is already a heap allocation,
+    /// so no `Box` is needed to keep the enum size reasonable (mirrors `ChooseCreatureType`).
+    EntersAsAdditionalType { subtype: SubType },
 }
 /// Filters which objects a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

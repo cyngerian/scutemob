@@ -366,8 +366,8 @@ fn test_pb_ts_counter_count_from_live_source() {
 fn test_pb_ts_hash_schema_version_and_token_spec_hash_determinism() {
     // (e-1) Schema-version sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 20u8,
-        "PB-XS-E bumped HASH_SCHEMA_VERSION 19→20 (TriggerCondition::Whenever{{Creature,Permanent}}EntersBattlefield.exclude_self, CR 109.1 / 603.2). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 21u8,
+        "PB-EAT bumped HASH_SCHEMA_VERSION 20→21 (ReplacementModification::EntersAsAdditionalType {{ subtype: SubType }}, CR 614.1c). If you bumped again, update this test and state/hash.rs history."
     );
 
     use blake3::Hasher;
