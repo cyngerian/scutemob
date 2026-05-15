@@ -474,3 +474,49 @@ fn test_reveals_hidden_info_priority_given_false() {
         "PriorityGiven should NOT reveal hidden info"
     );
 }
+
+#[test]
+/// MR-M9-09 — `reveals_hidden_info()` returns `true` for `MulliganTaken`.
+///
+/// A mulligan shuffles the (hidden) opening hand back into the library and
+/// draws a fresh hand. The M10 network layer must not allow rewinding past it.
+fn test_reveals_hidden_info_mulligan_taken_true() {
+    let event = GameEvent::MulliganTaken {
+        player: p(1),
+        mulligan_number: 1,
+        is_free: true,
+    };
+    assert!(
+        event.reveals_hidden_info(),
+        "MulliganTaken should reveal hidden info"
+    );
+}
+
+#[test]
+/// MR-M9-09 — `reveals_hidden_info()` returns `true` for `LibraryShuffled`.
+///
+/// Shuffling changes the hidden library order; rewinding past it would expose
+/// a library order the players never agreed to.
+fn test_reveals_hidden_info_library_shuffled_true() {
+    let event = GameEvent::LibraryShuffled { player: p(1) };
+    assert!(
+        event.reveals_hidden_info(),
+        "LibraryShuffled should reveal hidden info"
+    );
+}
+
+#[test]
+/// MR-M9-09 — `reveals_hidden_info()` returns `true` for `CompanionBroughtToHand`.
+///
+/// Bringing a companion moves a card from the command zone into the hidden
+/// hand zone.
+fn test_reveals_hidden_info_companion_brought_to_hand_true() {
+    let event = GameEvent::CompanionBroughtToHand {
+        player: p(1),
+        card_id: cid("Lurrus of the Dream-Den"),
+    };
+    assert!(
+        event.reveals_hidden_info(),
+        "CompanionBroughtToHand should reveal hidden info"
+    );
+}

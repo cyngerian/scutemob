@@ -51,6 +51,15 @@ pub enum DeckViolation {
 ///
 /// `commander_card_ids`: the CardId(s) of the designated commander(s) (1 or 2 for partners).
 /// `deck_card_ids`: ALL 100 card IDs including the commander(s).
+///
+/// MR-M9-11 (decided): violations are intentionally NOT deduplicated by card name.
+/// A single card can legitimately fail multiple independent checks (e.g. a banned
+/// card that is also outside the commander's color identity), and the deck builder
+/// surfaces every distinct problem so the player can fix them all at once. Within a
+/// single check each card yields at most one violation: the color-identity loop
+/// `break`s after the first offending color, and the duplicate pass reports one
+/// `DuplicateCard` per name. So there are no spurious repeats — only genuinely
+/// distinct violations — and no dedup pass is warranted.
 pub fn validate_deck(
     commander_card_ids: &[CardId],
     deck_card_ids: &[CardId],
@@ -141,9 +150,11 @@ pub fn validate_deck(
         colors.sort();
         colors
     };
-    // Check each card in the deck
-    let mut name_counts: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    // Check each card in the deck.
+    // MR-M9-10: im::OrdMap (not std HashMap) keeps the engine consistent with the
+    // im-rs policy (Architecture Invariant 2) and, because it iterates in sorted
+    // key order, produces deterministic DuplicateCard violation ordering.
+    let mut name_counts: im::OrdMap<String, usize> = im::OrdMap::new();
     for card_id in deck_card_ids {
         let def = match registry.get(card_id.clone()) {
             Some(d) => d,
@@ -731,11 +742,13 @@ pub fn handle_take_mulligan(
         .get(&hand_zone_id)
         .map(|z| z.object_ids())
         .unwrap_or_default();
-    // Move each card from hand to library
+    // Move each card from hand to library.
+    // MR-M9-12: propagate move errors instead of silently dropping them with
+    // `let _ =`. During a pregame mulligan every hand card is in the hand zone,
+    // so a failed move signals a real state inconsistency that must surface.
     let lib_zone_id = ZoneId::Library(player);
     for obj_id in hand_objects {
-        // Move card back to library (ignore errors for individual cards)
-        let _ = state.move_object_to_zone(obj_id, lib_zone_id);
+        state.move_object_to_zone(obj_id, lib_zone_id)?;
     }
     // Shuffle library (represented by event; order is not tracked in state)
     events.push(GameEvent::LibraryShuffled { player });
@@ -881,6 +894,31 @@ pub fn handle_bring_companion(
             return Err(GameStateError::InsufficientMana);
         }
     }
+    // MR-M9-13: locate the companion in the command zone BEFORE paying any cost.
+    // The companion's card is placed in the player's command zone at setup, so it
+    // must be there when `BringCompanion` is issued. If it is missing, the action
+    // is invalid — return an error rather than paying mana, marking the action
+    // used, and emitting a phantom `CompanionBroughtToHand` for a move that never
+    // happened (Architecture Invariant 4: events describe what actually happened).
+    let companion_zone_id = ZoneId::Command(player);
+    let companion_obj_id = state
+        .zones
+        .get(&companion_zone_id)
+        .and_then(|z| {
+            z.object_ids().into_iter().find(|oid| {
+                state
+                    .objects
+                    .get(oid)
+                    .and_then(|o| o.card_id.as_ref())
+                    .map(|cid| cid == &companion_card_id)
+                    .unwrap_or(false)
+            })
+        })
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(
+                "companion card not found in command zone (CR 702.139a)".to_string(),
+            )
+        })?;
     // Deduct 3 generic mana from pool via shared pay_cost logic.
     {
         let companion_cost = ManaCost {
@@ -898,25 +936,11 @@ pub fn handle_bring_companion(
             ..Default::default()
         },
     });
-    // Find the companion card object in the command zone (or treat as not yet in game)
-    // The companion's card is in the player's command zone (stored there at setup)
-    let companion_zone_id = ZoneId::Command(player);
-    let companion_obj_id = state.zones.get(&companion_zone_id).and_then(|z| {
-        z.object_ids().into_iter().find(|oid| {
-            state
-                .objects
-                .get(oid)
-                .and_then(|o| o.card_id.as_ref())
-                .map(|cid| cid == &companion_card_id)
-                .unwrap_or(false)
-        })
-    });
-    // If companion is in command zone, move it to hand
-    if let Some(obj_id) = companion_obj_id {
+    // Move the companion from the command zone to the player's hand.
+    {
         let hand_zone_id = ZoneId::Hand(player);
-        state.move_object_to_zone(obj_id, hand_zone_id)?;
+        state.move_object_to_zone(companion_obj_id, hand_zone_id)?;
     }
-    // If not in command zone, it may have been moved there; either way emit the event
     // Mark companion as used
     if let Some(ps) = state.players.get_mut(&player) {
         ps.companion_used = true;

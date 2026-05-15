@@ -1336,6 +1336,14 @@ impl GameEvent {
             // CR 702.143a: Foretelling reveals the card's identity to the owner only.
             // Opponents see that a card was exiled face-down but not its identity.
             GameEvent::CardForetold { .. } => true,
+            // Mulligan moves the (hidden) opening hand back to the library, draws
+            // a fresh hand, and reshuffles — committing/revealing hidden info.
+            GameEvent::MulliganTaken { .. } => true,
+            // Shuffling changes the (hidden) library order; replaying past this
+            // point would expose a library order the players never agreed to.
+            GameEvent::LibraryShuffled { .. } => true,
+            // The companion moves from the command zone into hand (hidden zone).
+            GameEvent::CompanionBroughtToHand { .. } => true,
             // All other events involve only public information.
             _ => false,
         }

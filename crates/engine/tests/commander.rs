@@ -1812,6 +1812,56 @@ fn test_companion_special_action_costs_3_mana() {
 }
 
 #[test]
+/// MR-M9-13 / CR 702.139a — `BringCompanion` is rejected when the companion
+/// card is not in the command zone.
+///
+/// The companion card is placed in the command zone at pre-game setup. If it
+/// is missing (here: registered as the player's companion but with no
+/// corresponding object anywhere), the special action must return an error
+/// rather than paying mana, marking the action used, and emitting a phantom
+/// `CompanionBroughtToHand` for a move that never happened.
+fn test_companion_rejected_when_not_in_command_zone() {
+    let p1 = p(1);
+    let comp_id = cid("missing-companion");
+
+    // No companion object is created — the command zone is empty.
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                ..Default::default()
+            },
+        )
+        .build()
+        .unwrap();
+
+    // Register the companion CardId, but the card itself is nowhere on the board.
+    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+
+    let err = process_command(state.clone(), Command::BringCompanion { player: p1 }).unwrap_err();
+    assert!(
+        matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
+        "expected InvalidCommand when companion is not in the command zone: {:?}",
+        err
+    );
+
+    // The action failed atomically: the state the caller keeps is unchanged —
+    // no mana spent, action not marked used.
+    assert!(
+        !state.players.get(&p1).unwrap().companion_used,
+        "companion_used must remain false after a rejected BringCompanion"
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().mana_pool.colorless,
+        3,
+        "mana must not be deducted when BringCompanion is rejected"
+    );
+}
+
+#[test]
 /// CR 702.139a — companion special action rejected outside main phase.
 fn test_companion_only_during_main_phase_stack_empty() {
     let p1 = p(1);
