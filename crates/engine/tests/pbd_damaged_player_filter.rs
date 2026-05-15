@@ -594,8 +594,8 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel is bumped to 15 (PB-LKI-CC bumped EffectAmount + PendingTrigger + StackObject,
     // CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 22u8,
-        "PB-XA2 bumped HASH_SCHEMA_VERSION 21→22 (TargetFilter.is_blocking/is_tapped/is_untapped, CR 509.1/701.20a/701.21a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 23u8,
+        "PB-EWC-D bumped HASH_SCHEMA_VERSION 22→23 (new ObjectFilter::CreatureControlledByOfSubtype variant + bind_object_filter OwnedByOpponentsOf rebind). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);

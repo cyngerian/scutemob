@@ -1194,3 +1194,43 @@ duplication (~80 LOC net negative). E-XA-01 from pb-review-XA flagged the origin
 `passes_attacking` duplication; PB-XA2 triples the site count.
 **Priority**: LOW — refactor only; the ten sites are mechanically symmetric.
 **References**: pb-review-XA E-XA-01; pb-plan-XA2 Step 10 deferred question 2.
+
+---
+
+## PB-EWC-D OOS seeds (filed 2026-05-15)
+
+### OOS-EWCD-1: Card-type receiver filter variant
+
+**Gap**: `ObjectFilter::CreatureControlledByOfSubtype` handles subtype-filtered
+receivers but no analogous variant exists for card-type filters. Example oracle
+texts that would need this: "Each artifact you control enters with an additional
++1/+1 counter on it" / "Each enchantment you control enters tapped." These would
+require either `HasCardType + ControlledBy` AND-composition or a dedicated
+`PermanentControlledByOfCardType { controller: PlayerId, card_type: CardType }`
+variant.
+**Priority**: LOW — no in-scope card currently needs this. File for future batch
+when a card with this exact pattern is triaged.
+**References**: PB-EWC-D plan Section "OOS seeds expected (AC 3908)"; design
+choice (a) additive-variant rationale.
+
+### OOS-EWCD-2: Supertype receiver filter variant
+
+**Gap**: No receiver-filter variant for legendary/snow/world supertypes exists.
+Example: "Each legendary creature you control enters with an additional +1/+1
+counter on it." Would require a `SuperType` field on a controlled-creature variant
+or a new `CreatureControlledByOfSupertype { controller: PlayerId, supertype: SuperType }`
+variant.
+**Priority**: LOW — no in-scope card currently needs this.
+**References**: PB-EWC-D plan Section "OOS seeds expected (AC 3908)".
+
+### OOS-EWCD-3: Multi-subtype AND-composition receiver filter
+
+**Gap**: `ObjectFilter::CreatureControlledByOfSubtype` carries a single `SubType`.
+Cards like "Each Elf Warrior you control enters with..." require matching multiple
+subtypes simultaneously (both "Elf" AND "Warrior"). The current variant cannot
+express this. Would require either a `Vec<SubType>` field or a new variant with
+multi-subtype AND semantics.
+**Priority**: LOW — no in-scope card currently needs this. File for future batch
+when a dual-subtype receiver card is triaged.
+**References**: PB-EWC-D plan Section "OOS seeds expected (AC 3908)"; trade-offs
+accepted in design choice (a).

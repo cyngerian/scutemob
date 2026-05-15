@@ -1,3 +1,89 @@
+# Primitive WIP: PB-EWC-D — ObjectFilter::CreatureControlledByOfSubtype + bind_object_filter OwnedByOpponentsOf rebind
+
+batch: PB-EWC-D
+title: ObjectFilter::CreatureControlledByOfSubtype { controller: PlayerId, subtype: SubType } variant + bind_object_filter OwnedByOpponentsOf rebind (sub-gap E2 from pb-review-EWC.md)
+cards_unblocked: 1 confirmed in-scope — Dragonstorm Globe (Each Dragon you control enters with an additional +1/+1 counter on it.)
+started: 2026-05-15
+phase: implement
+plan_file: memory/primitives/pb-plan-EWC-D.md
+review_file: memory/primitives/pb-review-EWC-D.md (pending)
+shape_chosen: (a) — additive new variant `ObjectFilter::CreatureControlledByOfSubtype { controller: PlayerId, subtype: SubType }`. Rationale: purely additive, no migration of existing CreatureControlledBy(PlayerId) call sites required. Mirrors PB-CD CreatureControlledBy pattern. PB-EAT precedent (`EntersAsAdditionalType { subtype: SubType }`) confirms SubType-by-value is acceptable in enum variants. See plan file Section "Design choice".
+hash_version_pre: 22 (PB-XA2)
+hash_version_post: 23 (PB-EWC-D — new ObjectFilter variant, discriminant 9)
+
+## Task reference
+- ESM task: scutemob-28
+- Branch: feat/pb-ewc-d-objectfilter-subtype-bindobjectfilter-ownedbyoppone
+- Acceptance criteria:
+  - 3902: Engine surface — new ObjectFilter::CreatureControlledByOfSubtype variant (chose option (a) additive)
+  - 3903: Hash arm + HASH_SCHEMA_VERSION bump 22→23 + ALL existing PB hash canary sentinels bumped to 23u8 with PB-EWC-D citation
+  - 3904: Resolver — wire object_matches_filter for new subtype-aware variant (CR 614.1c receiver-filter for ETB replacements)
+  - 3905: bind_object_filter — add OwnedByOpponentsOf(PlayerId(0)) → OwnedByOpponentsOf(controller) rebind (~3 lines, E2 from pb-review-EWC.md)
+  - 3906: Card — author Dragonstorm Globe counter half via new variant (controller=Self placeholder, subtype=Dragon); remove inline TODO
+  - 3907: Tests — new primitive_pb_ewcd.rs with HASH-23 sentinel, PartialEq discriminator, serde-default backward-compat, Dragonstorm Globe positive functional, bind_object_filter OwnedByOpponentsOf regression test
+  - 3908: OOS seeds — file OOS-EWCD-N entries for any new receiver-filter gaps observed (card-type, supertype, multi-subtype)
+  - 3909: cargo gates green; /review (primitive-impl-reviewer) PASS or PASS-WITH-NITS; resolve HIGH/MEDIUM inline
+
+## Engine surface (per plan)
+
+- `state/replacement_effect.rs` — add `ObjectFilter::CreatureControlledByOfSubtype { controller: PlayerId, subtype: SubType }` variant with doc comment citing CR 614.1c / 613.1d.
+- `state/hash.rs` — add hash arm discriminant 9 (next after PB-CD's `CreatureControlledBy` = 8); bump HASH_SCHEMA_VERSION 22→23 with history entry citing PB-EWC-D.
+- `rules/replacement.rs`:
+  - extend `object_matches_filter` with the new variant arm — layer-resolved creature type (CR 613.1d) + controller equality + subtype membership.
+  - extend `bind_object_filter` with TWO new arms:
+    - (E2 fix) `OwnedByOpponentsOf(PlayerId(0))` → `OwnedByOpponentsOf(controller)` ~3 lines
+    - `CreatureControlledByOfSubtype { controller: PlayerId(0), subtype }` → `{ controller, subtype }` ~3 lines
+  - the non-self `WouldEnterBattlefield { filter }` arm at line 1813 already calls `bind_object_filter(filter, controller)` (PB-EWC), so picks up both new arms automatically.
+
+## Card def
+
+- `cards/defs/dragonstorm_globe.rs` — replace TODO with `AbilityDefinition::Replacement` carrying `trigger: WouldEnterBattlefield { filter: CreatureControlledByOfSubtype { controller: PlayerId(0), subtype: SubType("Dragon".into()) } }` + `modification: EntersWithCounters { counter: PlusOnePlusOne, count: Box::new(EffectAmount::Fixed(1)) }`. Verified oracle text via MCP lookup_card.
+
+## Tests (per plan)
+
+`crates/engine/tests/primitive_pb_ewcd.rs`:
+1. `test_pb_ewcd_hash_schema_version_is_23` — sentinel canary.
+2. `test_pb_ewcd_partial_eq_discriminates_subtype_variant` — variant equality + inequality.
+3. `test_pb_ewcd_serde_default_backward_compat` — JSON roundtrip for new variant.
+4. `test_dragonstorm_globe_dragon_etb_gets_extra_counter` — positive functional.
+5. `test_dragonstorm_globe_non_dragon_etb_no_counter` — negative functional.
+6. `test_bind_object_filter_rebinds_owned_by_opponents_of_for_wouldenterbattlefield` — E2 regression.
+
+Sentinel bumps (16 files):
+- crates/engine/tests/primitive_pb_cc_a.rs, primitive_pb_xa.rs, primitive_pb_cc_c_followup.rs, primitive_pb_xs_e.rs, primitive_pb_xs.rs, primitive_pb_lki_power.rs, primitive_pb_ts.rs, primitive_pb_eat.rs, primitive_pb_lki_cc.rs, primitive_pb_ewc.rs, primitive_pb_xa2.rs
+- crates/engine/tests/pbt_up_to_n_targets.rs (×2 sites), pbn_subtype_filtered_triggers.rs, pbd_damaged_player_filter.rs, pbp_power_of_sacrificed_creature.rs, effect_sacrifice_permanents_filter.rs
+- Rewrite sentinel messages to cite PB-EWC-D uniformly.
+
+## Implementation checklist (runner fills in)
+
+- [x] Engine change 1: `ObjectFilter::CreatureControlledByOfSubtype { controller, subtype }` variant — state/replacement_effect.rs (placed after CreatureControlledBy, doc comment citing CR 613.1d / 614.1c)
+- [x] Engine change 2: hash arm discriminant 9 — state/hash.rs (after CreatureControlledBy discriminant 8; hashes controller + subtype via HashInto)
+- [x] Engine change 3: HASH_SCHEMA_VERSION 22→23 + history entry 23 — state/hash.rs (entry documents new variant + OwnedByOpponentsOf bind fix)
+- [x] Engine change 4: `object_matches_filter` arm for new variant — rules/replacement.rs (layer-resolved creature + subtype + controller check, CR 613.1d)
+- [x] Engine change 5: `bind_object_filter` arms for new variant + OwnedByOpponentsOf (E2) — rules/replacement.rs (two new arms added)
+- [x] Card def 1: dragonstorm_globe.rs — authored counter half with CreatureControlledByOfSubtype{Dragon} filter, removed TODO
+- [x] Tests: primitive_pb_ewcd.rs — 6 tests (all pass)
+- [x] Sentinel sweep — 17 sentinel sites bumped 22→23 with PB-EWC-D citation (pbt_up_to_n_targets.rs had ×2 sites)
+- [x] OOS seeds appended to pb-retriage-CC.md (OOS-EWCD-1, OOS-EWCD-2, OOS-EWCD-3)
+- [x] cargo build --workspace clean (2026-05-15)
+- [x] cargo test --workspace green — 2817 tests passing (+6 new from primitive_pb_ewcd.rs)
+- [x] cargo clippy --workspace --all-targets -- -D warnings clean (zero warnings)
+- [x] cargo fmt --all -- --check clean (zero diffs)
+
+## Reviewer checklist (post-implement)
+
+- [ ] CR rules independently verified (614.1c, 613.1d, 122.6)
+- [ ] Dragonstorm Globe oracle text re-verified via MCP
+- [ ] Every dispatch site walked and confirmed correct (variant declaration → hash arm → bind rebind → match resolution → card def DSL → tests)
+- [ ] Hash arm + version bump + history entry verified
+- [ ] All 16 sentinel sites updated; no stale 22u8
+- [ ] Tests verified — 6 present, all cite CR, all discriminating
+- [ ] No scope creep — OOS seeds filed for card-type / supertype / multi-subtype variants
+- [ ] Review file written: memory/primitives/pb-review-EWC-D.md
+- [ ] Verdict + HIGH/MEDIUM resolution inline if any
+
+---
+
 # Primitive WIP: PB-TS — TokenSpec.count u32 → EffectAmount (dynamic token-count primitive)
 
 batch: PB-TS
