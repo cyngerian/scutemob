@@ -1,14 +1,31 @@
-// Golgari Grave-Troll — {4G}, Creature — Troll Skeleton 0/0
+// Golgari Grave-Troll — {4}{G}, Creature — Troll Skeleton 0/0
 // This creature enters with a +1/+1 counter on it for each creature card in your graveyard.
 // {1}, Remove a +1/+1 counter from this creature: Regenerate this creature.
 // Dredge 6
 //
-// Note: ETB counter placement (one per creature card in graveyard) deferred —
-// needs a TriggeredEffect that counts graveyard contents at resolution.
+// OOS-EWC-2 (2026-05-15): self-ETB EntersWithCounters now authored using
+// `EffectAmount::CardCount { zone: Graveyard(Controller), player: Controller,
+// filter: TargetFilter { has_card_type: Creature } }`. Mirrors PB-EWC's
+// Ingenious Prodigy / Master Biomancer pattern. CR 614.1c — counters are placed
+// simultaneously with the permanent entering (resolver builds an EffectContext
+// pinned to the entering object and calls `resolve_amount`, so the count is
+// taken at the exact moment of ETB).
 //
-// CR 702.52a: Dredge N — if you would draw a card, you may instead mill N cards
-// and return this card from your graveyard to your hand. Functions only while
-// this card is in the graveyard. Requires >= N cards in library (CR 702.52b).
+// Ruling 2018-12-07 ("If you return Golgari Grave-Troll from your graveyard
+// directly to the battlefield, its first ability counts itself"): when the
+// Troll is the card being moved out of the graveyard by the same event that
+// puts it onto the battlefield, the LKI-style snapshot of the graveyard at
+// replacement-resolution time still contains the Troll. CardCount counts
+// zone membership at resolution time; the engine's WouldEnterBattlefield
+// replacement runs BEFORE the zone-change has been applied, so the source
+// card is still in its origin zone. This matches the ruling without any
+// special-casing.
+//
+// CR 702.52a: Dredge 6 — if you would draw a card, you may instead mill 6
+// cards and return this card from your graveyard to your hand. Functions only
+// while this card is in the graveyard. Requires >= 6 cards in library
+// (CR 702.52b). Engine machinery already exists (rules/replacement.rs
+// `DredgeAvailable` + Command::ChooseDredge).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,6 +39,31 @@ pub fn card() -> CardDefinition {
         power: Some(0),
         toughness: Some(0),
         abilities: vec![
+            // CR 614.1c: self-replacement — "This creature enters with a +1/+1
+            // counter on it for each creature card in your graveyard."
+            //
+            // `is_self: true` + `ObjectFilter::Any` together restrict the
+            // replacement to the entering permanent that owns this ability
+            // (CR 614.15). `EffectAmount::CardCount` counts creature cards in
+            // the controller's graveyard at the moment ETB is processed.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersWithCounters {
+                    counter: CounterType::PlusOnePlusOne,
+                    count: Box::new(EffectAmount::CardCount {
+                        zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                        player: PlayerTarget::Controller,
+                        filter: Some(TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            ..Default::default()
+                        }),
+                    }),
+                },
+                is_self: true,
+                unless_condition: None,
+            },
             // CR 702.52a: Dredge 6 marker.
             AbilityDefinition::Keyword(KeywordAbility::Dredge(6)),
             // CR 602.2: {1}, Remove a +1/+1 counter from this creature: Regenerate.
@@ -35,20 +77,9 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        color_indicator: None,
-        back_face: None,
-        spell_cost_modifiers: vec![],
-        self_cost_reduction: None,
-        starting_loyalty: None,
-        adventure_face: None,
-        meld_pair: None,
-        spell_additional_costs: vec![],
-        activated_ability_cost_reductions: vec![],
-        cant_be_countered: false,
-        self_exile_on_resolution: false,
-        self_shuffle_on_resolution: false,
+        ..Default::default()
     }
 }
