@@ -551,3 +551,90 @@ fn test_combat_damage_no_declare_blockers_command() {
         "P2 should have taken 1 combat damage (40 - 1 = 39)"
     );
 }
+
+#[test]
+/// CR 903.10a / CR 704.6c (MR-M9-16) — Partner commander damage is tracked
+/// independently per commander, not summed across the pair.
+///
+/// A player controls a partner commander pair. The opponent has received
+/// damage from BOTH partners. Verifies:
+///   1. 20 + 20 from the two partners does NOT cause a loss — the totals are
+///      tracked separately, so neither individual total reaches 21.
+///   2. When one partner pushes its own total to 21 (and the other stays
+///      below 21), ONLY that partner triggers the state-based loss.
+fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let partner_a = cid("partner-a");
+    let partner_b = cid("partner-b");
+
+    // p1 has a partner commander pair: partner_a + partner_b.
+    // partner_a is a 1/1 on the battlefield (it will deal the final point of
+    // damage). partner_b need not be present — its damage is pre-set.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .player_commander(p1, partner_a.clone())
+        .player_commander(p1, partner_b.clone())
+        .object(ObjectSpec::creature(p1, "Partner A", 1, 1).with_card_id(partner_a.clone()))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    // Pre-set p2 as having received 20 damage from EACH partner (40 total).
+    // Both partners belong to p1, so both totals live in the same inner map.
+    {
+        let p2_state = state.players.get_mut(&p2).unwrap();
+        let from_p1 = im::OrdMap::from(vec![
+            (partner_a.clone(), 20u32),
+            (partner_b.clone(), 20u32),
+        ]);
+        p2_state.commander_damage_received.insert(p1, from_p1);
+    }
+
+    // (1) 20 + 20 must NOT cause a loss — damage is tracked per-commander, not
+    // summed. If it were summed (40), p2 would already have lost.
+    let events = check_and_apply_sbas(&mut state);
+    assert!(
+        !state.players.get(&p2).unwrap().has_lost,
+        "p2 must NOT lose at 20 from each partner — partner damage is tracked \
+         independently, not summed; events: {:?}",
+        events
+    );
+
+    // (2) partner_a deals 1 more combat damage, pushing ITS total to 21.
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.card_id.as_ref() == Some(&partner_a))
+        .unwrap()
+        .id;
+    let (state, _) = run_one_unblocked_combat(state, p1, p2, attacker_id, &[p1, p2]);
+
+    let p2_state = state.players.get(&p2).unwrap();
+    let dmg_a = p2_state
+        .commander_damage_received
+        .get(&p1)
+        .and_then(|m| m.get(&partner_a))
+        .copied()
+        .unwrap_or(0);
+    let dmg_b = p2_state
+        .commander_damage_received
+        .get(&p1)
+        .and_then(|m| m.get(&partner_b))
+        .copied()
+        .unwrap_or(0);
+
+    // Only partner_a crossed the 21 threshold; partner_b stayed at 20.
+    assert_eq!(dmg_a, 21, "partner_a should have dealt 21 commander damage");
+    assert_eq!(dmg_b, 20, "partner_b should remain at 20 — it dealt no more");
+    assert!(
+        dmg_b < 21,
+        "partner_b must stay below 21 so the loss is attributable to partner_a alone"
+    );
+    assert!(
+        p2_state.has_lost,
+        "p2 should lose: partner_a alone reached 21 commander damage (CR 704.6c)"
+    );
+}

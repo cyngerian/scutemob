@@ -262,6 +262,103 @@ fn test_deck_validation_rejects_duplicate_nonbasic() {
 }
 
 #[test]
+/// MR-M9-10 — `DuplicateCard` violations are emitted in deterministic
+/// (name-sorted) order.
+///
+/// `validate_deck` accumulates duplicate counts in an `im::OrdMap`, which
+/// iterates in sorted key order. With several distinct duplicated card names
+/// the resulting `DuplicateCard` violations must appear alphabetically, and
+/// the ordering must be identical across repeated runs (no HashMap-style
+/// non-determinism).
+fn test_deck_validation_duplicate_ordering_deterministic() {
+    let mut defs = Vec::new();
+    defs.push(legendary_creature(
+        "test-commander",
+        "Test Commander",
+        ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        },
+    ));
+    // Three distinct duplicated names, intentionally NOT inserted in sorted order.
+    let dup_names = ["Zebra Card", "Apple Card", "Mango Card"];
+    for (n, name) in dup_names.iter().enumerate() {
+        for copy in 0..2 {
+            defs.push(artifact(
+                &format!("dup-{n}-{copy}"),
+                name,
+                ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                },
+            ));
+        }
+    }
+    // Filler to reach exactly 100: 1 commander + 6 dup cards + 33 filler + 60 plains.
+    for i in 1..=33 {
+        defs.push(artifact(
+            &format!("filler-{i}"),
+            &format!("Filler {i}"),
+            ManaCost {
+                generic: 1,
+                ..Default::default()
+            },
+        ));
+    }
+    defs.push(basic_land("plains", "Plains", "Plains"));
+    let registry = CardRegistry::new(defs);
+
+    let mut ids = vec![cid("test-commander")];
+    for n in 0..dup_names.len() {
+        for copy in 0..2 {
+            ids.push(cid(&format!("dup-{n}-{copy}")));
+        }
+    }
+    for i in 1..=33 {
+        ids.push(cid(&format!("filler-{i}")));
+    }
+    for _ in 0..60 {
+        ids.push(cid("plains"));
+    }
+    assert_eq!(ids.len(), 100);
+
+    // Extract the DuplicateCard names from a validation run.
+    let dup_order = |result: &mtg_engine::DeckValidationResult| -> Vec<String> {
+        result
+            .violations
+            .iter()
+            .filter_map(|v| match v {
+                DeckViolation::DuplicateCard { name, .. } => Some(name.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+
+    let first = validate_deck(&[cid("test-commander")], &ids, &registry, &[]);
+    let order = dup_order(&first);
+    assert_eq!(
+        order,
+        vec![
+            "Apple Card".to_string(),
+            "Mango Card".to_string(),
+            "Zebra Card".to_string(),
+        ],
+        "DuplicateCard violations must be emitted in sorted name order"
+    );
+
+    // Repeated runs must produce the identical order (no non-determinism).
+    for _ in 0..20 {
+        let again = validate_deck(&[cid("test-commander")], &ids, &registry, &[]);
+        assert_eq!(
+            dup_order(&again),
+            order,
+            "DuplicateCard ordering must be stable across runs"
+        );
+    }
+}
+
+#[test]
 /// CR 903.5b exception — multiple basic lands of the same name are allowed.
 fn test_deck_validation_allows_basic_land_duplicates() {
     let registry = build_valid_deck_registry();
