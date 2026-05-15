@@ -5,8 +5,9 @@
 //! combat triggers, commander damage, and multiplayer combat.
 
 use mtg_engine::{
-    process_command, AttackTarget, CombatDamageTarget, Command, GameEvent, GameState,
-    GameStateBuilder, GameStateError, KeywordAbility, ObjectSpec, PlayerId, Step,
+    process_command, AttackTarget, CombatDamageTarget, Command, ContinuousEffect, CounterType,
+    EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState, GameStateBuilder,
+    GameStateError, KeywordAbility, LayerModification, ObjectSpec, PlayerId, Step,
 };
 
 // ---------------------------------------------------------------------------
@@ -2587,27 +2588,383 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
     );
 }
 
-// ── SR-FS-02: First strike gained mid-combat (documentation note) ─────────────
-//
-// SR-FS-02: A creature gaining first strike between the two combat damage steps.
-// CR 702.7c states that the first-strike snapshot is taken at the START of the
-// first-strike damage step. A creature that gains first strike AFTER that snapshot
-// is taken (i.e., between the two steps) would already have missed the FS step and
-// would participate in the regular step only.
-//
-// However, this scenario requires a mechanism to grant first strike mid-combat
-// (e.g., a spell cast at instant speed during the gap between damage steps, such
-// as "Giant Growth with First Strike" or an activated ability). In this engine,
-// there is currently no way to grant keywords mid-step via test commands without
-// an activated ability or instant spell infrastructure.
-//
-// The snapshot-exclusion logic IS tested by `test_702_7b_first_strike_snapshot_*`
-// tests which verify that:
-// (a) creatures in the snapshot don't deal regular damage, and
-// (b) creatures NOT in the snapshot DO deal regular damage.
-//
-// SR-FS-02 is therefore deferred: the underlying mechanism (snapshot-based exclusion)
-// is validated, but the specific mid-combat-grant scenario requires additional
-// infrastructure (instant-speed keyword grants mid-step). Will be tested when such
-// a card definition (e.g., a flash creature with "until end of turn, target creature
-// gains first strike") is authored. Issue SR-FS-02 remains deferred.
+// ── SR-FS-02: First strike gained between the two combat damage steps ─────────
+
+#[test]
+/// SR-FS-02 / CR 702.7c — A creature that gains first strike AFTER the first-strike
+/// damage step has begun (i.e., between the two combat damage steps) is not retro-
+/// actively added to the first-strike step. It already missed it, and it still deals
+/// its damage normally in the regular combat damage step.
+///
+/// CR 702.7c: "A creature that's removed from combat ... won't assign combat damage
+/// ... A creature that gains first strike or double strike after [the first-strike]
+/// combat damage step has begun won't [retroactively deal damage in it]." The engine
+/// implements this with `first_strike_participants` — a snapshot taken at the start
+/// of the first-strike step. Membership, not current keywords, decides regular-step
+/// eligibility.
+///
+/// Scenario: p1 attacks p2 with two unblocked creatures — a 2/2 FirstStrike "Vanguard"
+/// (forces a first-strike step and a snapshot) and a 3/3 plain "Latecomer". After the
+/// first-strike step resolves (only Vanguard deals damage), a continuous effect grants
+/// Latecomer first strike — simulating an instant cast in the gap between the steps.
+/// Latecomer must still deal its 3 damage in the regular step (it was never in the
+/// snapshot), and Vanguard must not deal damage again.
+fn test_sr_fs02_first_strike_gained_between_damage_steps() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Vanguard", 2, 2).with_keyword(KeywordAbility::FirstStrike),
+        )
+        .object(ObjectSpec::creature(p1, "Latecomer", 3, 3))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let vanguard_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Vanguard")
+        .unwrap()
+        .id;
+    let latecomer_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Latecomer")
+        .unwrap()
+        .id;
+
+    // Declare both attackers at p2.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![
+                (vanguard_id, AttackTarget::Player(p2)),
+                (latecomer_id, AttackTarget::Player(p2)),
+            ],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    // DeclareAttackers → DeclareBlockers; p2 declares no blockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .unwrap();
+
+    // DeclareBlockers → FirstStrikeDamage step. Only Vanguard (FS) deals damage.
+    let (mut state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::FirstStrikeDamage,
+        "SR-FS-02: should be in FirstStrikeDamage step"
+    );
+
+    // CR 702.7b: the snapshot must contain Vanguard (had FS) but not Latecomer.
+    {
+        let snapshot = &state.combat.as_ref().unwrap().first_strike_participants;
+        assert!(
+            snapshot.contains(&vanguard_id),
+            "SR-FS-02: Vanguard (FirstStrike) must be in the first-strike snapshot"
+        );
+        assert!(
+            !snapshot.contains(&latecomer_id),
+            "SR-FS-02: Latecomer (no FirstStrike at step start) must NOT be in the snapshot"
+        );
+    }
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        38,
+        "SR-FS-02: p2 takes only Vanguard's 2 damage in the first-strike step"
+    );
+
+    // --- Grant Latecomer first strike BETWEEN the two damage steps ---
+    // Simulates an instant-speed grant (e.g. a spell) cast during the priority
+    // window after the first-strike step. CR 702.7c: this must NOT retroactively
+    // place Latecomer into the first-strike step.
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(9_000_002),
+        source: None,
+        timestamp: 9_000_002,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::UntilEndOfTurn,
+        filter: EffectFilter::SingleObject(latecomer_id),
+        modification: LayerModification::AddKeyword(KeywordAbility::FirstStrike),
+        is_cda: false,
+        condition: None,
+    });
+
+    // Sanity: the grant is live — Latecomer now has first strike.
+    let latecomer_chars = mtg_engine::calculate_characteristics(&state, latecomer_id).unwrap();
+    assert!(
+        latecomer_chars
+            .keywords
+            .contains(&KeywordAbility::FirstStrike),
+        "SR-FS-02: continuous effect should have granted Latecomer first strike"
+    );
+
+    // FirstStrikeDamage → CombatDamage. Latecomer (not in snapshot) still deals
+    // its 3 damage here despite now having first strike; Vanguard (in snapshot,
+    // FS only) does not deal damage again.
+    let (state, regular_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::CombatDamage,
+        "SR-FS-02: should advance to CombatDamage step"
+    );
+
+    let regular_damage: u32 = regular_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+    assert_eq!(
+        regular_damage, 3,
+        "SR-FS-02 / CR 702.7c: Latecomer (gained FS after the snapshot) still deals \
+         its 3 damage in the regular step; Vanguard does not deal damage again"
+    );
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        35,
+        "SR-FS-02: p2 ends at 40 - 2 (FS step) - 3 (regular step) = 35"
+    );
+}
+
+// ── MR-M6-13: attacker blocked, all blockers gone before damage, no trample ───
+
+#[test]
+/// MR-M6-13 / CR 509.1h — A creature that has been blocked remains blocked even
+/// after every creature blocking it leaves combat. Without trample, such an
+/// attacker deals NO combat damage: not to its (now-absent) blockers, and not to
+/// the defending player.
+///
+/// Scenario: p1 attacks p2 with a plain 3/3 "Grizzly" (no trample, no first strike).
+/// p2 blocks with a 1/1 "Wall". Before the combat damage step, the Wall is destroyed
+/// (here, a continuous effect drops its toughness to 0, simulating a removal spell
+/// cast during the declare-blockers priority window). In the combat damage step the
+/// Grizzly is still "blocked" (CR 509.1h) but has no blockers and no trample, so it
+/// deals no damage at all.
+fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Grizzly", 3, 3))
+        .object(ObjectSpec::creature(p2, "Wall", 1, 1))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Grizzly")
+        .unwrap()
+        .id;
+    let blocker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Wall")
+        .unwrap()
+        .id;
+
+    // Declare the attacker at p2.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    // DeclareAttackers → DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // p2 blocks the Grizzly with the Wall.
+    let (mut state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // The attacker is now recorded as blocked (CR 509.1h).
+    assert!(
+        state.combat.as_ref().unwrap().is_blocked(attacker_id),
+        "MR-M6-13: Grizzly should be marked blocked after declaration"
+    );
+
+    // --- Remove the blocker before the combat damage step ---
+    // A continuous effect drops the Wall's toughness to 0; the next SBA check
+    // destroys it (CR 704.5f). This simulates a removal spell resolving during
+    // the declare-blockers priority window.
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(9_000_013),
+        source: None,
+        timestamp: 9_000_013,
+        layer: EffectLayer::PtModify,
+        duration: EffectDuration::UntilEndOfTurn,
+        filter: EffectFilter::SingleObject(blocker_id),
+        modification: LayerModification::ModifyToughness(-1),
+        is_cda: false,
+        condition: None,
+    });
+
+    // DeclareBlockers → CombatDamage. The SBA fires on the way, destroying the Wall.
+    let (state, events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::CombatDamage,
+        "MR-M6-13: should advance to the CombatDamage step"
+    );
+
+    // The Wall is gone (CR 400.7: original ObjectId no longer on the battlefield).
+    let wall_alive = state.objects.values().any(|o| o.id == blocker_id);
+    assert!(
+        !wall_alive,
+        "MR-M6-13: the Wall should have been destroyed by the 0-toughness SBA"
+    );
+
+    // CR 509.1h: the Grizzly is still blocked even though no blockers remain.
+    assert!(
+        state.combat.as_ref().unwrap().is_blocked(attacker_id),
+        "MR-M6-13: Grizzly remains blocked after its blocker left combat (CR 509.1h)"
+    );
+
+    // No combat damage was dealt to the player — blocked, blockers gone, no trample.
+    let player_damage: u32 = events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(
+                    assignments
+                        .iter()
+                        .filter(|a| matches!(a.target, CombatDamageTarget::Player(_)))
+                        .map(|a| a.amount)
+                        .sum::<u32>(),
+                )
+            } else {
+                None
+            }
+        })
+        .sum();
+    assert_eq!(
+        player_damage, 0,
+        "MR-M6-13 / CR 509.1h: a blocked attacker with no blockers and no trample \
+         deals no combat damage to the player"
+    );
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        40,
+        "MR-M6-13: p2 takes no damage (blocked Grizzly, blockers gone, no trample)"
+    );
+}
+
+// ── SR-TRM-01: planeswalker combat damage removes loyalty counters ────────────
+
+#[test]
+/// SR-TRM-01 / CR 120.3c — Combat damage dealt to a planeswalker causes that many
+/// loyalty counters to be removed from it. The damage is NOT marked on the
+/// planeswalker object as it would be on a creature.
+///
+/// Scenario: p1 attacks p2's planeswalker (5 loyalty) with a 3/3 creature. After
+/// combat damage, the planeswalker has 5 - 3 = 2 loyalty counters and zero marked
+/// damage.
+fn test_sr_trm01_planeswalker_combat_damage_removes_loyalty() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Raider", 3, 3))
+        .object(ObjectSpec::planeswalker(p2, "Garruk", 5).with_counter(CounterType::Loyalty, 5))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Raider")
+        .unwrap()
+        .id;
+    let pw_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Garruk")
+        .unwrap()
+        .id;
+
+    // Declare the attacker at the planeswalker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Planeswalker(pw_id))],
+            enlist_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    // DeclareAttackers → DeclareBlockers; p2 declares no blockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .unwrap();
+
+    // DeclareBlockers → CombatDamage (no first strike → single damage step).
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::CombatDamage,
+        "SR-TRM-01: should be in the CombatDamage step"
+    );
+
+    let pw = state
+        .objects
+        .get(&pw_id)
+        .expect("SR-TRM-01: planeswalker should still be on the battlefield (5 - 3 = 2 loyalty)");
+
+    // CR 120.3c: 3 loyalty counters removed (5 → 2).
+    assert_eq!(
+        pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0),
+        2,
+        "SR-TRM-01 / CR 120.3c: 3 combat damage removes 3 loyalty counters (5 → 2)"
+    );
+    // The damage must NOT be marked on the planeswalker object.
+    assert_eq!(
+        pw.damage_marked, 0,
+        "SR-TRM-01: combat damage to a planeswalker removes loyalty counters, \
+         it is not marked as damage on the object"
+    );
+}
