@@ -1052,9 +1052,21 @@ consumer of `is_nontoken` exists. Re-audit needed:
 `!filter.is_nontoken || !state.objects.get(&id).is_some_and(|o| o.is_token)`.
 **Yield**: Unknown until the re-audit. Possibly zero in current defs (the
 field may be used only on effect-side filters).
-**Status**: Filed by PB-XA 2026-05-15 as a deferred re-audit (not implemented).
-Lower priority than OOS-XA-1 / OOS-XA-2 because the field already exists and
-the audit may show zero target-side consumers in current defs.
+**Status**: **RESOLVED 2026-05-15 (scutemob-30, OOS-XA2-3) — 0-yield audit, no
+engine change.** Audit step 1: `grep is_nontoken: true` across `defs/` →
+exactly one occurrence, `accursed_marauder.rs`, inside an effect-side
+`Effect::SacrificePermanents { filter: Some(...) }` block (NOT a
+`TargetRequirement::Target*WithFilter`; the trigger's `targets` vec is empty).
+Audit step 2: target-validate path (`casting.rs:5707-5797`) and auto-target
+picker (`abilities.rs:6780-6853`) have no `is_nontoken`/`is_token` check —
+enforcement absent but UNREACHABLE (no target-side consumer). The sole consumer
+(effect-side) IS correctly enforced at `effects/mod.rs:2683`. Conditional-fix
+predicate (target-side consumer AND enforcement absent) NOT satisfied → closed
+audit-only, OOS-XS-E-1 precedent. Latent gap documented: a future "target
+nontoken creature" card def must add the
+`!filter.is_nontoken || !state.objects.get(&id).is_some_and(|o| o.is_token)`
+guard to both `Target*WithFilter` arms (same as PB-XA2 `is_tapped`). Full audit:
+`memory/primitives/pb-plan-OOS-XA2-3.md`.
 **References**: `crates/engine/src/cards/card_definition.rs:2589-2590`
 (`is_nontoken` doc); `effects/mod.rs:2683` (effect-side enforcement).
 
@@ -1179,6 +1191,11 @@ confirm no silent enforcement gap.
 enforcement is uninvestigated. OOS-XA-3 (filed by PB-XA scutemob-24) remains
 open; PB-XA2 does not address it.
 **Priority**: MEDIUM — enforcement correctness gap.
+**Status**: **RESOLVED 2026-05-15 (scutemob-30) — 0-yield audit, no engine
+change.** Investigated jointly with OOS-XA-3 (see that entry above for the full
+audit conclusion). No target-side `is_nontoken` consumer exists in current card
+defs; the sole consumer is effect-side and correctly enforced. Closed
+audit-only. Full audit: `memory/primitives/pb-plan-OOS-XA2-3.md`.
 **References**: pb-retriage-CC.md OOS-XA-3; `cards/card_definition.rs:2584-2590`.
 
 ### OOS-XA2-4: `CombatRole` enum refactor
