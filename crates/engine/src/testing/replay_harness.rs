@@ -41,7 +41,14 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     let player_map: HashMap<String, PlayerId> = names
         .iter()
         .enumerate()
-        .map(|(i, name)| (name.clone(), PlayerId(i as u64 + 1)))
+        .map(|(i, name)| {
+            // Checked conversion: `i` is a `usize` from `enumerate()`. Player
+            // counts are always tiny, so this never fails in practice, but use
+            // `try_into` rather than a bare `as u64` cast so an overflow would
+            // panic loudly instead of silently wrapping.
+            let index: u64 = i.try_into().expect("player index fits in u64");
+            (name.clone(), PlayerId(index + 1))
+        })
         .collect();
     let active = player_map
         .get(&init.active_player)

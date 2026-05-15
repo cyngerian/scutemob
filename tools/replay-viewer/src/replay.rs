@@ -81,9 +81,12 @@ impl ReplaySession {
         let mut steps: Vec<StepSnapshot> = Vec::new();
 
         // Step 0: initial state before any commands.
-        // We use a synthetic "initial" action to represent this.
+        // This is a synthetic, informational entry — it names no concrete
+        // turn-based action, so it uses the documented empty-string `action`
+        // sentinel (see `ScriptAction::TurnBasedAction`). Human-readable context
+        // lives in `note`; no engine `Command` is dispatched for it.
         let initial_action = ScriptAction::TurnBasedAction {
-            action: "initial_state".to_string(),
+            action: String::new(),
             player: None,
             cr_ref: None,
             note: Some("Initial game state before any commands".to_string()),
@@ -330,6 +333,9 @@ impl ReplaySession {
                     }
 
                     // Informational actions — no engine command, just record.
+                    // `TurnBasedAction.action` is intentionally not read here: every
+                    // turn-based action is treated as informational (see the
+                    // empty-string contract on `ScriptAction::TurnBasedAction`).
                     ScriptAction::StackResolve { .. }
                     | ScriptAction::SbaCheck { .. }
                     | ScriptAction::TriggerPlaced { .. }
@@ -624,6 +630,27 @@ mod tests {
         assert!(step0.command.is_none(), "step 0 must have no command");
         assert!(step0.events.is_empty(), "step 0 must have no events");
         assert!(step0.assertions.is_none(), "step 0 must have no assertions");
+    }
+
+    /// MR-M9.5-09 / MR-CKP-01: the synthetic step-0 snapshot uses the documented
+    /// empty-string `action` convention, not a hardcoded magic string.
+    #[test]
+    fn test_step_zero_uses_empty_action_convention() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        match &session.steps[0].script_action {
+            ScriptAction::TurnBasedAction { action, note, .. } => {
+                assert!(
+                    action.is_empty(),
+                    "step 0 must use the empty-string action sentinel, got {action:?}"
+                );
+                assert!(
+                    note.is_some(),
+                    "step 0 must carry human-readable context in `note`"
+                );
+            }
+            other => panic!("step 0 must be a TurnBasedAction, got {other:?}"),
+        }
     }
 
     #[test]
