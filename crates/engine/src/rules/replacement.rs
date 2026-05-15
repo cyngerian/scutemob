@@ -445,6 +445,22 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
                 is_creature && o.controller == *player_id
             })
             .unwrap_or(false),
+        // PB-EWC-D: layer-resolved subtype + controller equality (CR 613.1d).
+        // Used for "Each [Subtype] you control" receiver filters (Dragonstorm Globe).
+        ObjectFilter::CreatureControlledByOfSubtype {
+            controller: player_id,
+            subtype,
+        } => state
+            .objects
+            .get(&obj_id)
+            .map(|o| {
+                let chars = crate::rules::layers::calculate_characteristics(state, obj_id)
+                    .unwrap_or_else(|| o.characteristics.clone());
+                let is_creature = chars.card_types.contains(&CardType::Creature);
+                let has_subtype = chars.subtypes.contains(subtype);
+                is_creature && has_subtype && o.controller == *player_id
+            })
+            .unwrap_or(false),
     }
 }
 /// PB-CD: Check if the event's counter type matches the effect's counter filter.
@@ -502,13 +518,31 @@ fn bind_player_filter(filter: &PlayerFilter, controller: PlayerId) -> PlayerFilt
 /// Card definitions use `ControlledBy(PlayerId(0))` as a placeholder for
 /// "controlled by the controller". At registration time, replace with the
 /// actual controller's PlayerId.
-fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilter {
+///
+/// Public for test access (see `tests/primitive_pb_ewcd.rs`); not part of the
+/// engine's runtime API.
+pub fn bind_object_filter(filter: &ObjectFilter, controller: PlayerId) -> ObjectFilter {
     match filter {
         ObjectFilter::ControlledBy(PlayerId(0)) => ObjectFilter::ControlledBy(controller),
         // PB-CD: bind CreatureControlledBy placeholder to the actual controller.
         ObjectFilter::CreatureControlledBy(PlayerId(0)) => {
             ObjectFilter::CreatureControlledBy(controller)
         }
+        // PB-EWC-D (E2 fix from pb-review-EWC.md): bind OwnedByOpponentsOf placeholder.
+        // Symmetric to the direct pattern-match in register_permanent_replacement_abilities
+        // for WouldChangeZone — now WouldEnterBattlefield (and any other site that routes
+        // through bind_object_filter) handles the same rebind.
+        ObjectFilter::OwnedByOpponentsOf(PlayerId(0)) => {
+            ObjectFilter::OwnedByOpponentsOf(controller)
+        }
+        // PB-EWC-D: bind CreatureControlledByOfSubtype placeholder to the actual controller.
+        ObjectFilter::CreatureControlledByOfSubtype {
+            controller: PlayerId(0),
+            subtype,
+        } => ObjectFilter::CreatureControlledByOfSubtype {
+            controller,
+            subtype: subtype.clone(),
+        },
         other => other.clone(),
     }
 }

@@ -382,8 +382,8 @@ fn test_pb_lki_power_hash_schema_version_and_determinism() {
 
     // Sub-assertion 1: HASH_SCHEMA_VERSION sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 22u8,
-        "PB-XA2 bumped HASH_SCHEMA_VERSION 21→22 (TargetFilter.is_blocking/is_tapped/is_untapped, CR 509.1/701.20a/701.21a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 23u8,
+        "PB-EWC-D bumped HASH_SCHEMA_VERSION 22→23 (new ObjectFilter::CreatureControlledByOfSubtype variant + bind_object_filter OwnedByOpponentsOf rebind). If you bumped again, update this test and state/hash.rs history."
     );
 
     // Sub-assertion 2: variant-discriminant determinism.

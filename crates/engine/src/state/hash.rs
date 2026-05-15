@@ -154,7 +154,15 @@
 ///   `#[serde(default)] false`. Unblocks Eiganjo, Seat of the Empire
 ///   Channel half. Replaces PB-XA's `passes_attacking` term at all
 ///   sites.
-pub const HASH_SCHEMA_VERSION: u8 = 22;
+/// - 23: PB-EWC-D (2026-05-15) — `ObjectFilter::CreatureControlledByOfSubtype
+///   { controller: PlayerId, subtype: SubType }` added (discriminant 9).
+///   Layer-resolved creature-type AND subtype check + controller equality
+///   (CR 613.1d / 614.1c) for "Each [Subtype] you control enters with..."
+///   receiver filters on ETB replacement effects. Also fixes bind_object_filter
+///   to rebind `OwnedByOpponentsOf(PlayerId(0))` → `OwnedByOpponentsOf(controller)`
+///   (sub-gap E2 from pb-review-EWC.md), picked up automatically by the
+///   `WouldEnterBattlefield` arm. Unblocks Dragonstorm Globe counter half.
+pub const HASH_SCHEMA_VERSION: u8 = 23;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1842,6 +1850,16 @@ impl HashInto for ObjectFilter {
             ObjectFilter::CreatureControlledBy(player) => {
                 8u8.hash_into(hasher);
                 player.hash_into(hasher);
+            }
+            // PB-EWC-D: CreatureControlledByOfSubtype (discriminant 9) — layer-resolved
+            // creature type + subtype + controller equality (CR 613.1d / 614.1c).
+            ObjectFilter::CreatureControlledByOfSubtype {
+                controller,
+                subtype,
+            } => {
+                9u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                subtype.hash_into(hasher);
             }
         }
     }

@@ -271,6 +271,18 @@ pub enum ObjectFilter {
     /// is a placeholder bound to the controller at registration time
     /// (mirrors `ControlledBy(PlayerId(0))`).
     CreatureControlledBy(PlayerId),
+    /// PB-EWC-D: Layer-resolved creature subtype check + controller equality.
+    /// Used for "Each [Subtype] you control" receiver filters on ETB replacement
+    /// effects (Dragonstorm Globe: "Each Dragon you control enters with...").
+    /// PlayerId(0) is a placeholder bound to the controller at registration time
+    /// (mirrors `CreatureControlledBy(PlayerId(0))`). SubType is carried by value;
+    /// its inner String is already heap-allocated (mirrors `EntersAsAdditionalType.subtype`).
+    /// Receiver-filter check uses `calculate_characteristics` for layer-resolved
+    /// card types AND subtypes (CR 613.1d).
+    CreatureControlledByOfSubtype {
+        controller: PlayerId,
+        subtype: SubType,
+    },
 }
 /// Filters which players a replacement trigger matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

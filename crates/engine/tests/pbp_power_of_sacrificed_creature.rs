@@ -779,8 +779,8 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     // Assert hash sentinel is exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 22u8,
-        "PB-XA2 bumped HASH_SCHEMA_VERSION 21→22 (TargetFilter.is_blocking/is_tapped/is_untapped, CR 509.1/701.20a/701.21a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 23u8,
+        "PB-EWC-D bumped HASH_SCHEMA_VERSION 22→23 (new ObjectFilter::CreatureControlledByOfSubtype variant + bind_object_filter OwnedByOpponentsOf rebind). If you bumped again, update this test and state/hash.rs history."
     );
 
     // Hash five EffectAmount variants; all must be distinct.
