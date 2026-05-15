@@ -631,8 +631,7 @@ intentionally preserve to minimize blast radius. Replay determinism is
 preserved because PendingTrigger and StackObject DO hash these fields, and
 GameEvents are derived state recomputable from commands.
 **Yield**: 0 (engine-consistency cleanup, no card unblocking).
-**Status**: Filed by PB-LKI-Power planner 2026-05-13. Resolution would bump
-HASH_SCHEMA_VERSION; defer until a determinism issue is observed in production.
+**Status**: CLOSED by PB-OOS-LKI-Power-3 (scutemob-29, 2026-05-15). HASH 23→24; 4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power.
 
 ### OOS-LKI-Power-4: AnyCreatureDies + LKI source-power gap
 
@@ -680,6 +679,7 @@ pattern for `pre_lba_counters` at the same sites.
 until an animated-non-creature card with a SelfLeavesBattlefield power trigger
 surfaces. Mechanical fix: replace `None` with `calculate_characteristics(state, id).power`
 at each of the 4 sites.
+  - Cross-ref: blocked on the same v24 hash bump shipped by OOS-LKI-Power-3 (scutemob-29). When a real animated-non-creature card surfaces, capture the four sites and bump HASH 24→25 (or piggy-back the next HASH bump if it arrives first).
 **References**: pb-review-LKI-Power.md E2; pb-plan-LKI-Power.md Site 6.
 
 ---
