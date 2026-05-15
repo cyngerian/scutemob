@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::Nothing,
                 intervening_if: None,

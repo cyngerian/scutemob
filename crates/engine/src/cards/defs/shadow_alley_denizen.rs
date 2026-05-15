@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                         colors: Some([Color::Black].iter().copied().collect()),
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {

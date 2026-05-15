@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: None,
+                    exclude_self: false,
                 },
                 effect: Effect::UntapPermanent {
                     target: EffectTarget::Source,

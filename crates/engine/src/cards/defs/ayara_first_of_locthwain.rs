@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                         colors: Some(im::ordset![Color::Black]),
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::DrainLife {
                     amount: EffectAmount::Fixed(1),

@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
                 effect: Effect::MoveZone {

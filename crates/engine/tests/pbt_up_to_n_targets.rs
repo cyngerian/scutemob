@@ -408,9 +408,8 @@ fn test_pbt_hash_schema_version_is_15() {
     // CR N/A — sentinel must be 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 19u8,
-        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
-         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 20u8,
+        "PB-XS-E bumped HASH_SCHEMA_VERSION 19→20 (TriggerCondition::Whenever{{Creature,Permanent}}EntersBattlefield.exclude_self, CR 109.1 / 603.2). If you bumped again, update this test and state/hash.rs history."
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -865,9 +864,8 @@ fn test_pbt_hash_schema_version_sentinel_is_15_regression() {
     // Must be exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 19u8,
-        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
-         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 20u8,
+        "PB-XS-E bumped HASH_SCHEMA_VERSION 19→20 (TriggerCondition::Whenever{{Creature,Permanent}}EntersBattlefield.exclude_self, CR 109.1 / 603.2). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

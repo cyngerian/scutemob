@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
                         has_subtype: Some(SubType("Vampire".to_string())),
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {

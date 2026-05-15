@@ -392,9 +392,8 @@ fn test_ingenious_prodigy_x_value_replacement_counts() {
 #[test]
 fn test_pb_ewc_hash_schema_version_is_18() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 19u8,
-        "PB-XS bumped HASH_SCHEMA_VERSION 18→19 (TargetFilter.exclude_self, \
-         CR 109.1 / 601.2c). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 20u8,
+        "PB-XS-E bumped HASH_SCHEMA_VERSION 19→20 (TriggerCondition::Whenever{{Creature,Permanent}}EntersBattlefield.exclude_self, CR 109.1 / 603.2). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

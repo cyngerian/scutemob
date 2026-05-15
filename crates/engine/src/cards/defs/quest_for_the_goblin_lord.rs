@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                         has_subtype: Some(SubType("Goblin".to_string())),
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

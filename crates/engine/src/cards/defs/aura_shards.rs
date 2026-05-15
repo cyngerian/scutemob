@@ -13,15 +13,16 @@ pub fn card() -> CardDefinition {
                 .to_string(),
         abilities: vec![
             // CR 603.1: Triggered — fires when any creature you control enters the battlefield.
-            // The engine applies exclude_self=true automatically for
-            // WheneverCreatureEntersBattlefield triggers (Aura Shards is an enchantment,
-            // so exclude_self would not matter here anyway).
+            // Oracle says "a creature" (not "another"), so exclude_self: false matches the
+            // text. Aura Shards is an enchantment and cannot be the entering creature anyway,
+            // so the setting is moot in practice but kept faithful to oracle (PB-XS-E).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: false,
                 },
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

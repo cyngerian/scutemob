@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
                     controller: TargetController::You,
                     ..Default::default()
                 }),
+                exclude_self: false,
             },
             // ForEach over EachOpponent: engine creates an inner context with each
             // opponent as Target::Player at index 0 (see effects/mod.rs ForEach handler).

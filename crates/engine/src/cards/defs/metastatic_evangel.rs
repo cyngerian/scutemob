@@ -14,17 +14,20 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             // CR 603.6a: "Whenever another nontoken creature you control enters, proliferate."
-            // WheneverCreatureEntersBattlefield with controller=You filter.
-            // The "nontoken" and "another" constraints use the is_token flag in TargetFilter —
-            // NOTE: is_token in TargetFilter is only checked in combat_damage_filter paths;
-            // for ETB trigger matching it is silently ignored. "another" (exclude_self) is
-            // also unavailable on this trigger variant. Both are minor inaccuracies.
+            // WheneverCreatureEntersBattlefield with controller=You filter +
+            // exclude_self: true (PB-XS-E, CR 109.1 / 603.2). The "nontoken" qualifier
+            // uses is_token in TargetFilter — NOTE: is_token in TargetFilter is only
+            // checked in combat_damage_filter paths; for ETB trigger matching it is
+            // silently ignored. Minor inaccuracy: a token creature ETB would still fire
+            // this trigger today (until ETBTriggerFilter gains a token-only/nontoken-only
+            // axis). Tracked elsewhere.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
+                    exclude_self: true,
                 },
                 effect: Effect::Proliferate,
                 intervening_if: None,

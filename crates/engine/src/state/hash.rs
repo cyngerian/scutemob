@@ -118,7 +118,21 @@
 ///   creature/permanent/Elf/Vampire/etc." across Roalesk, Samut, Torch Courier,
 ///   Brash Taunter, Ezuri Renegade Leader, Oath of Teferi, Elderfang Ritualist,
 ///   Dour Port-Mage, Thousand-Faced Shadow.
-pub const HASH_SCHEMA_VERSION: u8 = 19;
+/// - 20: PB-XS-E (2026-05-15) — `TriggerCondition::WheneverCreatureEntersBattlefield`
+///   and `TriggerCondition::WheneverPermanentEntersBattlefield` each gain
+///   `exclude_self: bool` (CR 109.1 / 603.2, "Whenever another [permanent] enters").
+///   Previously the runtime conversion in `enrich_spec_from_def` hardcoded
+///   `ETBTriggerFilter.exclude_self = true` for the Creature variant (causing a
+///   latent bug for "this or another X" cards like Risen Reef, Ayara, Bloomvine
+///   Regent, Satoru, Witty Roastmaster, Cathars' Crusade — these never fired on
+///   their own ETB despite oracle text including self) and `false` for the
+///   Permanent variant (correct default — Landfall sources are not lands).
+///   Per-card setting threads through to the runtime filter at conversion time.
+///   Card defs that say "another"/"other" in oracle text now set the field
+///   explicitly. Enforcement at `collect_triggers_for_event` (rules/abilities.rs)
+///   already gates `obj_id == entering_id` on the runtime filter (existing PB-N
+///   plumbing). Backward compatible via `#[serde(default)] false`.
+pub const HASH_SCHEMA_VERSION: u8 = 20;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -4653,13 +4667,23 @@ impl HashInto for TriggerCondition {
                 // PB-N: hash the new subtype/color/type filter field
                 filter.hash_into(hasher);
             }
-            TriggerCondition::WheneverCreatureEntersBattlefield { filter } => {
+            TriggerCondition::WheneverCreatureEntersBattlefield {
+                filter,
+                exclude_self,
+            } => {
                 8u8.hash_into(hasher);
                 filter.hash_into(hasher);
+                // PB-XS-E: hash the new exclude_self field
+                exclude_self.hash_into(hasher);
             }
-            TriggerCondition::WheneverPermanentEntersBattlefield { filter } => {
+            TriggerCondition::WheneverPermanentEntersBattlefield {
+                filter,
+                exclude_self,
+            } => {
                 9u8.hash_into(hasher);
                 filter.hash_into(hasher);
+                // PB-XS-E: hash the new exclude_self field
+                exclude_self.hash_into(hasher);
             }
             TriggerCondition::AtBeginningOfYourUpkeep => 10u8.hash_into(hasher),
             TriggerCondition::AtBeginningOfEachUpkeep => 11u8.hash_into(hasher),
