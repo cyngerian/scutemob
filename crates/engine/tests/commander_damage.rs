@@ -586,10 +586,8 @@ fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
     // Both partners belong to p1, so both totals live in the same inner map.
     {
         let p2_state = state.players.get_mut(&p2).unwrap();
-        let from_p1 = im::OrdMap::from(vec![
-            (partner_a.clone(), 20u32),
-            (partner_b.clone(), 20u32),
-        ]);
+        let from_p1 =
+            im::OrdMap::from(vec![(partner_a.clone(), 20u32), (partner_b.clone(), 20u32)]);
         p2_state.commander_damage_received.insert(p1, from_p1);
     }
 
@@ -628,7 +626,10 @@ fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
 
     // Only partner_a crossed the 21 threshold; partner_b stayed at 20.
     assert_eq!(dmg_a, 21, "partner_a should have dealt 21 commander damage");
-    assert_eq!(dmg_b, 20, "partner_b should remain at 20 — it dealt no more");
+    assert_eq!(
+        dmg_b, 20,
+        "partner_b should remain at 20 — it dealt no more"
+    );
     assert!(
         dmg_b < 21,
         "partner_b must stay below 21 so the loss is attributable to partner_a alone"

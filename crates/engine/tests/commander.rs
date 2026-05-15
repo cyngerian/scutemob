@@ -1841,8 +1841,7 @@ fn test_companion_rejected_when_not_in_command_zone() {
     // Register the companion CardId, but the card itself is nowhere on the board.
     state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
-    let err =
-        process_command(state.clone(), Command::BringCompanion { player: p1 }).unwrap_err();
+    let err = process_command(state.clone(), Command::BringCompanion { player: p1 }).unwrap_err();
     assert!(
         matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
         "expected InvalidCommand when companion is not in the command zone: {:?}",
