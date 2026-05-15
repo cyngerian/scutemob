@@ -218,9 +218,9 @@ Fifteen project-scoped agents in `.claude/agents/` encode milestone, ability, pr
 
 ## Session & Workstream Protocol
 
-- `/start-session` — orientation: git log, workstream state, dispatch table
+- `/start` — bootstrap ESM, check local state, orient (also covers what `/start-session` used to do — workstream state is loaded via `esm project bootstrap` and the auto-memory MEMORY.md index)
 - `/start-work W1-B3` — claim a workstream before coding (prevents parallel collisions)
-- `/end-session` — release claim, write handoff, update memory
+- `/eot` — end-of-turn / end-of-session: ESM session close + workstream-state rotation + memory routing (replaces `/end` + `/end-session`)
 - State file: `memory/workstream-state.md` (shared across sessions)
 - Conventions: `memory/conventions.md` | Decisions: `memory/decisions.md`
 - Dev environment: `.claude/CLAUDE.local.md`
@@ -284,7 +284,7 @@ Use these slash commands to manage your ESM session:
 - **`/task <title>`** — Create a task and work on it yourself (for small, self-assigned work only).
 - **`/done [task_id]`** — Complete a self-assigned task: transition to done, merge branch to main.
 - **`/spawn <title>`** — Like /dispatch, but you launch the worker manually.
-- **`/end`** — End a session. Records summary, checks for uncommitted work, ensures continuity.
+- **`/eot`** — End-of-turn / end-of-session: ESM close + workstream-state rotation + memory routing. **Use this instead of `/end`** for scutemob — `/end` still works but skips the project-specific bookkeeping.
 
 **Every session must begin with `/start`** (or manually running `esm project bootstrap scutemob` + `esm session start`).
 
@@ -342,7 +342,7 @@ Managed docs have a `<!-- last_updated: YYYY-MM-DD -->` comment that tracks fres
 When you update a managed doc, always update the `<!-- last_updated: YYYY-MM-DD -->`
 comment to today's date. Only update it for substantive changes — not typo fixes.
 
-The `/done` and `/end` skills automatically check for stale docs based on which
+The `/done` and `/eot` skills automatically check for stale docs based on which
 files you changed. Follow their recommendations or dismiss with a reason.
 
 ## Project Info
