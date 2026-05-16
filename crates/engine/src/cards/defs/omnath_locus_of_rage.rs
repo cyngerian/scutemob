@@ -52,10 +52,28 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: DSL gap — subtype-filtered death trigger (separate blocker from Landfall).
-            // "Whenever Omnath or another Elemental you control dies, deal 3 damage to any target."
-            // Requires TriggerCondition::WheneverCreatureDies with subtype filter + self-or-other
-            // matching. This is independent of the Landfall ability above.
+            // CR 603.10a: "Whenever Omnath or another Elemental you control dies."
+            // exclude_self=false: fires when Omnath itself dies or another Elemental you control dies.
+            // controller=You, filter=Elemental subtype (Omnath is an Elemental, so this covers it).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Elemental".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::DealDamage {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::Fixed(3),
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetAny],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

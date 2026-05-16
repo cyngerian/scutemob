@@ -18,9 +18,13 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Whenever one or more Goblins you control attack" — needs subtype-filtered
-            // attack trigger + tapped-and-attacking token creation.
-            // Whenever another creature you control enters, deal 1 to each opponent.
+            // TODO: DSL gap — "Whenever one or more Goblins you control attack" fires ONCE per
+            // combat if at least one Goblin attacked. WheneverCreatureYouControlAttacks fires
+            // per-creature (over-triggers). WheneverYouAttack fires once but doesn't check for
+            // Goblins (over-triggers when no Goblins attack). A
+            // WheneverOneOrMoreCreaturesWithSubtypeAttack trigger variant is needed.
+
+            // Whenever another creature you control enters, General Kreat deals 1 damage to each opponent.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
@@ -38,7 +42,6 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },

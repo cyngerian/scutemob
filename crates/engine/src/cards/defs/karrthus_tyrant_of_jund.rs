@@ -2,10 +2,6 @@
 // Flying, haste
 // When Karrthus enters, gain control of all Dragons, then untap all Dragons.
 // Other Dragon creatures you control have haste.
-//
-// TODO: DSL gap — ETB triggered ability "gain control of all Dragons, then untap all Dragons"
-//   (mass control change + untap for subtype-filtered permanents not supported in card DSL)
-// CR 604.2 / CR 613.1f: Static subtype-filtered keyword grant.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -30,7 +26,33 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: ETB — gain control of all Dragons, then untap all Dragons.
+            // CR 613.1f / CR 701.10a: "When Karrthus enters, gain control of all Dragons,
+            // then untap all Dragons." — ETB triggered ability. Gain control is indefinite
+            // (no stated duration). Untap follows immediately (Sequence).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Sequence(vec![
+                    Effect::GainControl {
+                        target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
+                            has_subtype: Some(SubType("Dragon".to_string())),
+                            has_card_type: Some(CardType::Creature),
+                            ..Default::default()
+                        })),
+                        duration: EffectDuration::Indefinite,
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
+                            has_subtype: Some(SubType("Dragon".to_string())),
+                            has_card_type: Some(CardType::Creature),
+                            ..Default::default()
+                        })),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             // CR 613.1f / Layer 6: "Other Dragon creatures you control have haste."
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {

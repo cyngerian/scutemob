@@ -16,9 +16,19 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever another nontoken Dragon enters" — nontoken subtype-filtered ETB
-            // trigger not in DSL (blocked on PB-26).
-            // CR 613.4c: "{1}{R}: Dragons you control get +1/+0 until end of turn."
+            // TODO: ENGINE-BLOCKED — "Whenever another nontoken Dragon you control enters,
+            // create a 5/5 red Dragon creature token with flying." The
+            // WheneverCreatureEntersBattlefield trigger converts to an ETBTriggerFilter
+            // (state/game_object.rs:560), which carries NO subtype field and NO token field —
+            // only creature_only/controller_you/exclude_self/color_filter/card_type_filter.
+            // Both the `has_subtype: Dragon` and the `nontoken` constraints would be silently
+            // dropped at replay_harness.rs:2371, so the trigger would fire for every creature
+            // (token or not) entering and mint a 5/5 Dragon each time. Needs ETBTriggerFilter
+            // to carry subtype + nontoken filters (or the creature-ETB path to forward
+            // triggering_creature_filter like the death-trigger path does). Authoring-only
+            // batch — cannot make the engine change. The activated pump ability below IS
+            // expressible and is implemented.
+            // CR 613.4c: {1}{R}: Dragons you control get +1/+0 until end of turn.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),
                 effect: Effect::ApplyContinuousEffect {
@@ -36,7 +46,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()
