@@ -675,3 +675,176 @@ fn test_spree_non_spree_spell_unchanged() {
         "non-Spree spell should not require additional mode costs; cast should succeed with base cost only"
     );
 }
+
+// ── Real-card coverage: Insatiable Avarice (MR-B11-08 / MR-B11-09) ─────────────
+//
+// The tests above exercise a synthetic Spree card. The two tests below close
+// MR-B11-08 and MR-B11-09 by exercising the *authored* CardDefinition for the
+// real MTG Spree card "Insatiable Avarice" (Murders at Karlov Manor), whose
+// printed mana cost is a non-zero {B}:
+//   Spree (Choose one or more additional costs.)
+//   + {2}    — Search your library for a card, then shuffle and put it on top. (mode 0)
+//   + {B}{B} — Target player draws three cards and loses 3 life.              (mode 1)
+//
+// The earlier coverage only proved cost summation against a synthetic card, and
+// never proved the minimum-one-mode rejection on a real card with a non-zero
+// base cost. These tests use `cards::defs::insatiable_avarice::card()` directly.
+
+/// Build a test state with the real Insatiable Avarice card def in p1's hand.
+fn build_insatiable_avarice_state(p1: PlayerId, p2: PlayerId) -> mtg_engine::GameState {
+    let registry = CardRegistry::new(vec![mtg_engine::cards::defs::insatiable_avarice::card()]);
+
+    let spell = ObjectSpec::card(p1, "Insatiable Avarice")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("insatiable-avarice".to_string()))
+        .with_types(vec![CardType::Sorcery])
+        .with_keyword(KeywordAbility::Spree)
+        .with_mana_cost(ManaCost {
+            black: 1,
+            ..Default::default()
+        });
+
+    GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap()
+}
+
+/// Add `colorless` colorless mana and `black` black mana to p1's pool.
+fn add_mana_cb(state: &mut mtg_engine::GameState, p1: PlayerId, colorless: u32, black: u32) {
+    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    pool.add(ManaColor::Colorless, colorless);
+    pool.add(ManaColor::Black, black);
+}
+
+/// Cast Insatiable Avarice from p1's hand with the given chosen modes.
+fn cast_insatiable_avarice(
+    state: mtg_engine::GameState,
+    p1: PlayerId,
+    modes_chosen: Vec<usize>,
+) -> Result<(mtg_engine::GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
+    let spell_id = find_object(&state, "Insatiable Avarice");
+    process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: spell_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen,
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+}
+
+// ── MR-B11-08: mode_costs summed with a non-zero base mana cost ───────────────
+
+/// CR 601.2f / 700.2h / 702.172a — On a real Spree card with a non-zero base
+/// cost ({B}), the total cost paid is the base mana cost plus the sum of the
+/// per-mode additional costs of the *selected* modes:
+///   - modes [0,1]: {B} + {2} + {B}{B} = {2}{B}{B}{B} (2 generic + 3 black)
+///   - modes [0]:   {B} + {2}          = {2}{B}        (2 generic + 1 black)
+/// Casting [0,1] with only {2}{B} available is rejected — mode 1's {B}{B} was
+/// genuinely added on top; and casting [0] succeeds with that same {2}{B},
+/// proving only the selected mode's cost is charged.
+#[test]
+fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Scenario A: both modes — base {B} + {2} + {B}{B} = {2}{B}{B}{B}.
+    // Provide exactly 2 colorless + 3 black.
+    let mut state = build_insatiable_avarice_state(p1, p2);
+    add_mana_cb(&mut state, p1, 2, 3);
+    state.turn.priority_holder = Some(p1);
+
+    let (state, _) = cast_insatiable_avarice(state, p1, vec![0, 1])
+        .unwrap_or_else(|e| panic!("cast [0,1] with exact {{2}}{{B}}{{B}}{{B}} failed: {:?}", e));
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "Insatiable Avarice should be on the stack after paying base + both mode costs"
+    );
+    assert_eq!(
+        state.stack_objects[0].modes_chosen,
+        vec![0, 1],
+        "CR 702.172a: both chosen modes should be recorded"
+    );
+
+    // Scenario B: both modes chosen, but only {2}{B} of mana provided — enough
+    // for base {B} + mode-0 {2}, but NOT mode-1's {B}{B}. Must be rejected.
+    let mut state = build_insatiable_avarice_state(p1, p2);
+    add_mana_cb(&mut state, p1, 2, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let result = cast_insatiable_avarice(state, p1, vec![0, 1]);
+    assert!(
+        result.is_err(),
+        "CR 700.2h: mode-1's {{B}}{{B}} cost must be summed on top — casting [0,1] \
+         with only base + mode-0 mana ({{2}}{{B}}) must be rejected"
+    );
+
+    // Scenario C: the SAME {2}{B} mana suffices when only mode 0 is chosen —
+    // proving the cost charged tracks exactly the selected modes.
+    let mut state = build_insatiable_avarice_state(p1, p2);
+    add_mana_cb(&mut state, p1, 2, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let (state, _) = cast_insatiable_avarice(state, p1, vec![0])
+        .unwrap_or_else(|e| panic!("cast [0] with exact {{2}}{{B}} failed: {:?}", e));
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "CR 601.2f: base {{B}} + mode-0 {{2}} = {{2}}{{B}} should be exactly payable"
+    );
+    assert_eq!(
+        state.stack_objects[0].modes_chosen,
+        vec![0],
+        "CR 702.172a: only mode 0 should be recorded"
+    );
+}
+
+// ── MR-B11-09: zero modes rejected on a card with a non-zero base cost ────────
+
+/// CR 702.172a — A Spree spell requires at least one mode to be chosen. Casting
+/// Insatiable Avarice (a real Spree card with a non-zero {B} base cost) with
+/// `modes_chosen` empty must be rejected, regardless of available mana, via the
+/// minimum-one-mode path — distinct from a base-cost mana failure.
+#[test]
+fn test_spree_insatiable_avarice_zero_modes_rejected() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut state = build_insatiable_avarice_state(p1, p2);
+    // Provide far more than the base {B} — rejection must be due to zero modes,
+    // not insufficient mana for the base cost.
+    add_mana_cb(&mut state, p1, 5, 5);
+    state.turn.priority_holder = Some(p1);
+
+    let result = cast_insatiable_avarice(state, p1, vec![]);
+    assert!(
+        result.is_err(),
+        "CR 702.172a: casting a Spree spell with zero modes must be rejected \
+         even when the base cost could be paid"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("spree spell requires at least one mode"),
+        "CR 702.172a: error must be the minimum-one-mode rejection, got: {}",
+        err_msg
+    );
+}
