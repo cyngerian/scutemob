@@ -434,6 +434,19 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
 
 ## ESM Dispatch / Worker Coordination Gotchas (2026-04-29)
 
+- **Each worktree builds its own ~30G `cargo target/`** — the workspace is large. N
+  parallel dispatched workers = N×30G of build artifacts. At scutemob LOW-sweep (2026-05-15)
+  4 parallel worktrees filled the 396G disk to 100%; a disk-full write zeroed `~/.claude.json`
+  (recovered from `~/.claude/backups/.claude.json.backup.*`; auth is safe — separate
+  `~/.claude/.credentials.json`). **Run dispatched sessions strictly sequential** — one
+  worktree at a time, peak ~30G. `esm worktree merge` removes the worktree (and its `target/`)
+  on collect, so sequential keeps the floor low. After a verification `cargo test --all` on
+  main, `rm -rf target` if disk is tight (no repo-root `target/` is kept by default).
+- **Worker `signal-ready` is rejected while the coordinator holds the task lock**
+  (`Task is locked by 'primary', agent 'worker' cannot transition`). Run
+  `esm task unlock <id> --agent primary` right after the `in_progress` transition so the
+  worker can self-transition to `in_review`. Otherwise the coordinator must step in:
+  unlock → `esm task transition <id> in_review` → collect.
 - **CWD-stickiness in Bash tool**: A `cd` in one Bash call persists to subsequent calls in
   the same conversation. After `cd .worktrees/scutemob-N` to inspect worktree state,
   `esm worktree merge scutemob-N` from the next bash call will fail with
