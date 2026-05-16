@@ -602,6 +602,20 @@ pub enum StackObjectKind {
         /// Prevents index-namespace collisions with runtime triggered_abilities.
         #[serde(default)]
         is_carddef_etb: bool,
+        /// MR-B12-04: The triggered ability's effect, captured when the trigger was
+        /// queued (`collect_triggers_for_event`, while the source was still in its
+        /// triggering zone). CR 400.7: if the source changes zones before the
+        /// trigger resolves — e.g. a creature that dies from the same combat damage
+        /// that triggered its Enrage ability — the `source_object` id is retired
+        /// and the effect can no longer be looked up from `state.objects`.
+        /// Resolution falls back to this captured effect so the ability still runs.
+        /// `None` for triggers resolved via the card-registry path (`is_carddef_etb`)
+        /// or where no effect was captured.
+        ///
+        /// Boxed to keep `StackObjectKind`'s variant sizes balanced (mirrors
+        /// `ActivatedAbility::effect`).
+        #[serde(default)]
+        embedded_effect: Option<Box<crate::cards::card_definition::Effect>>,
     },
     /// CR 702.35a: Madness triggered ability on the stack.
     ///

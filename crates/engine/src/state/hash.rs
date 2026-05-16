@@ -175,7 +175,17 @@
 ///   `pre_lba_power` fields ensures pre-bump serialized events still deserialize
 ///   cleanly with `pre_lba_power: None`, which hashes identically to what the old
 ///   `..` skip produced for those replays.
-pub const HASH_SCHEMA_VERSION: u8 = 24;
+/// - 25: MR-B12-04 (2026-05-15) — `StackObjectKind::TriggeredAbility` gains
+///   `embedded_effect: Option<Effect>` and `PendingTrigger` gains a matching
+///   `embedded_effect` field (state/stubs.rs, `#[serde(skip)]` — transient).
+///   The triggered ability's effect is captured at trigger-queue time
+///   (`collect_triggers_for_event`) so resolution can run it even after the
+///   source object changes zones (CR 400.7 — e.g. a creature that dies from
+///   the same combat damage that triggered its Enrage ability). The hash arm
+///   folds in `embedded_effect.is_some()` (mirrors `StackObjectKind::ActivatedAbility`:
+///   `Effect` has no `HashInto` impl, presence is sufficient for divergence
+///   detection). Backward compatible via `#[serde(default)] None`.
+pub const HASH_SCHEMA_VERSION: u8 = 25;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2751,11 +2761,15 @@ impl HashInto for StackObjectKind {
                 source_object,
                 ability_index,
                 is_carddef_etb,
+                embedded_effect,
             } => {
                 2u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
                 is_carddef_etb.hash_into(hasher);
+                // MR-B12-04: mirror ActivatedAbility — hash effect presence, not content
+                // (Effect has no HashInto impl; presence is enough for state divergence).
+                embedded_effect.is_some().hash_into(hasher);
             }
             // MadnessTrigger (discriminant 6) — CR 702.35a
             StackObjectKind::MadnessTrigger {

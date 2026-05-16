@@ -1380,6 +1380,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state
                             .pending_triggers
                             .push_back(crate::state::stubs::PendingTrigger {
+                                embedded_effect: None,
                                 source: new_id,
                                 ability_index: 0,
                                 controller: stack_obj.controller,
@@ -1463,6 +1464,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state
                             .pending_triggers
                             .push_back(crate::state::stubs::PendingTrigger {
+                                embedded_effect: None,
                                 source: new_id,
                                 ability_index: 0,
                                 controller: stack_obj.controller,
@@ -1879,6 +1881,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             source_object,
             ability_index,
             is_carddef_etb,
+            embedded_effect,
         } => {
             // CR 603.4: Check intervening-if condition at resolution time.
             // If the condition is false, the ability has no effect (but still resolves).
@@ -2127,15 +2130,27 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if condition_holds {
                     // CR 613.1f: Use layer-resolved triggered_abilities to match
                     // collect_triggers_for_event namespace.
-                    let triggered_effect = state.objects.get(&source_object).and_then(|obj| {
-                        let resolved =
-                            crate::rules::layers::calculate_characteristics(state, source_object)
-                                .unwrap_or_else(|| obj.characteristics.clone());
-                        resolved
-                            .triggered_abilities
-                            .get(ability_index)
-                            .and_then(|ab| ab.effect.clone())
-                    });
+                    let triggered_effect = state
+                        .objects
+                        .get(&source_object)
+                        .and_then(|obj| {
+                            let resolved = crate::rules::layers::calculate_characteristics(
+                                state,
+                                source_object,
+                            )
+                            .unwrap_or_else(|| obj.characteristics.clone());
+                            resolved
+                                .triggered_abilities
+                                .get(ability_index)
+                                .and_then(|ab| ab.effect.clone())
+                        })
+                        // MR-B12-04: CR 400.7 — if the source left its zone before the
+                        // trigger resolved (e.g. a creature that died from the same combat
+                        // damage that triggered its Enrage ability), the ObjectId lookup
+                        // returns None. Fall back to the effect captured when the trigger
+                        // was queued so the ability still resolves (the draw is no longer
+                        // silently skipped).
+                        .or_else(|| embedded_effect.as_deref().cloned());
                     if let Some(effect) = triggered_effect {
                         let mut ctx = EffectContext::new(
                             stack_obj.controller,
@@ -2354,6 +2369,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state
                             .pending_triggers
                             .push_back(crate::state::stubs::PendingTrigger {
+                                embedded_effect: None,
                                 source: vanishing_permanent,
                                 ability_index: 0,
                                 controller: owner,
@@ -7147,10 +7163,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let dungeon_def = get_dungeon(dungeon);
             if let Some(room_def) = dungeon_def.rooms.get(room) {
                 let room_effect = (room_def.effect)();
-                // Use a sentinel ObjectId (0) since dungeons have no permanent source.
+                // CR 309 / MR-B16-07: dungeons have no permanent source object, so room
+                // abilities resolve with the named ObjectId::SENTINEL as their source.
+                // No room effect references EffectTarget::Source (which would resolve
+                // against a nonexistent object) — see ObjectId::SENTINEL docs.
                 let mut ctx = crate::effects::EffectContext::new(
                     owner,
-                    crate::state::game_object::ObjectId(0),
+                    crate::state::game_object::ObjectId::SENTINEL,
                     vec![],
                 );
                 let effect_events = execute_effect(state, &room_effect, &mut ctx);

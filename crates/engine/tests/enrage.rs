@@ -15,9 +15,10 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardEffectTarget, CardId,
-    CardRegistry, CardType, Command, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
-    ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, Target, TargetRequirement,
-    TriggerCondition, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
+    CardRegistry, CardType, Command, DamageTargetFilter, Effect, EffectAmount, EffectDuration,
+    GameEvent, GameState, GameStateBuilder, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, Step, Target,
+    TargetRequirement, TriggerCondition, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -607,12 +608,14 @@ fn test_enrage_multiple_blockers_triggers_once() {
 /// The creature with Enrage (2/3) receives 5 lethal damage. The Enrage trigger
 /// fires (damage > 0). SBAs then kill the creature before the trigger resolves.
 /// Per ruling 2018-01-19, the ability triggers and the creature leaves before
-/// the ability resolves.
+/// the ability resolves — and the effect (drawing a card) STILL applies.
 ///
-/// Note: Due to CR 400.7 zone-change identity semantics, when the source object's
-/// ID is retired by move_object_to_zone (SBA), the TriggeredAbility resolution
-/// cannot find the effect via the stale battlefield ID. This test verifies the
-/// trigger fires correctly; the draw-after-lethal is a LOW deferred limitation.
+/// MR-B12-04: Previously, CR 400.7 zone-change identity semantics meant that
+/// once the source object's id was retired by `move_object_to_zone` (SBA), the
+/// `TriggeredAbility` resolution could not find the effect via the stale
+/// battlefield id and the draw was silently skipped. The effect is now embedded
+/// in the trigger when it is queued, so it resolves correctly even after the
+/// source dies. This test verifies the draw happens.
 fn test_enrage_lethal_damage_still_triggers() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -655,6 +658,7 @@ fn test_enrage_lethal_damage_still_triggers() {
 
     let attacker_id = find_object(&state, "Big Attacker");
     let enrage_id = find_object(&state, "Doomed Raptor");
+    let initial_hand_count = hand_count(&state, p1);
 
     // P2 declares the 5/5 as attacker targeting P1.
     let (state, _) = process_command(
@@ -723,5 +727,142 @@ fn test_enrage_lethal_damage_still_triggers() {
     assert_eq!(
         trigger_controller, p1,
         "Ruling 2018-01-19: Enrage trigger controller should be P1 even after lethal damage"
+    );
+
+    // MR-B12-04: Resolve the Enrage trigger. Even though its source creature died
+    // from the same combat damage (CR 400.7 — the battlefield ObjectId is retired),
+    // the effect was embedded in the trigger when it was queued, so it still
+    // resolves and P1 draws a card.
+    let (state, _) = pass_all(state, &[p2, p1]);
+    assert!(
+        state.stack_objects.is_empty(),
+        "MR-B12-04: Enrage trigger should resolve off the stack"
+    );
+    assert_eq!(
+        hand_count(&state, p1),
+        initial_hand_count + 1,
+        "MR-B12-04: P1 must still draw a card from the Enrage trigger even though the \
+         Enrage creature died from the lethal damage that triggered it (effect no longer \
+         silently skipped)"
+    );
+}
+
+// ── Test 6: Prevention reduces damage to zero — Enrage does NOT trigger ────────
+
+#[test]
+/// MR-B12-03 / CR 603.2g — A real prevention effect reduces all incoming damage
+/// to zero, so Enrage does NOT trigger.
+///
+/// Unlike `test_enrage_zero_damage_no_trigger` (which used a 0-power attacker to
+/// produce "no damage"), this test uses a 3-power attacker and a `PreventAllDamage`
+/// replacement effect (CR 615.1). Combat damage is computed (3), then prevention
+/// reduces it to 0 before the `CombatDamageDealt` event is emitted. Per CR 603.2g,
+/// a creature dealt 0 damage is not "dealt damage", so Enrage must not fire.
+fn test_enrage_prevention_reduces_to_zero_no_trigger() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let enrage_creature = ObjectSpec::creature(p1, "Raptor Shielded", 4, 5).with_triggered_ability(
+        TriggeredAbilityDef {
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![],
+            trigger_on: TriggerEvent::SelfIsDealtDamage,
+            intervening_if: None,
+            description: "Enrage -- Whenever this creature is dealt damage, draw a card."
+                .to_string(),
+            effect: Some(Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            }),
+        },
+    );
+
+    // A real 3/3 attacker — it WOULD deal 3 combat damage to the blocker.
+    let attacker = ObjectSpec::creature(p2, "Real Attacker", 3, 3);
+
+    // CR 615.1: a "prevent all damage" shield. Not consumed when it applies.
+    let shield_id = ReplacementId(7001);
+    let prevent_all = ReplacementEffect {
+        id: shield_id,
+        source: None,
+        controller: p1,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventAllDamage,
+    };
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .with_replacement_effect(prevent_all)
+        .object(enrage_creature)
+        .object(attacker)
+        .active_player(p2)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Real Attacker");
+    let enrage_id = find_object(&state, "Raptor Shielded");
+
+    // P2 attacks with the real 3/3 creature.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p2,
+            attackers: vec![(attacker_id, AttackTarget::Player(p1))],
+            enlist_choices: vec![],
+        },
+    )
+    .expect("DeclareAttackers failed");
+
+    let (state, _) = pass_all(state, &[p2, p1]);
+
+    // P1 blocks with the Enrage creature.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p1,
+            blockers: vec![(enrage_id, attacker_id)],
+        },
+    )
+    .expect("DeclareBlockers failed");
+
+    // Advance through CombatDamage step — the 3 damage is fully prevented.
+    let (state, damage_events) = pass_all(state, &[p2, p1]);
+
+    // CR 615.1: a DamagePrevented event confirms the prevention effect actually fired
+    // (this is a *real* prevention path, not a 0-power attacker).
+    assert!(
+        damage_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DamagePrevented { .. })),
+        "MR-B12-03: the PreventAllDamage shield must actually prevent the combat damage"
+    );
+
+    // CR 603.2g: no AbilityTriggered event from the Enrage creature.
+    let triggered = damage_events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::AbilityTriggered { source_object_id, .. }
+            if *source_object_id == enrage_id
+        )
+    });
+    assert!(
+        !triggered,
+        "CR 603.2g: Enrage must NOT trigger when all damage is prevented (final amount = 0)"
+    );
+
+    // No Enrage trigger on the stack.
+    assert!(
+        state.stack_objects.is_empty(),
+        "CR 603.2g: Stack should be empty — no Enrage trigger queued for prevention-zeroed damage"
     );
 }

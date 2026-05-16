@@ -553,6 +553,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
             source_object: ObjectId(9998),
             ability_index: 0,
             is_carddef_etb: false,
+            embedded_effect: None,
         },
         targets: Vec::new(),
         cant_be_countered: false,

@@ -805,6 +805,20 @@ impl GameState {
                 self.permanents_put_into_graveyard_this_turn += 1;
             }
         }
+        // MR-M8-16: GC stale `WhileSourceOnBattlefield` replacement effects.
+        // When a permanent leaves the battlefield its `ObjectId` is retired (CR 400.7) —
+        // any replacement effect sourced on it can never be active again, since the
+        // source can never reappear on the battlefield under that same id. `is_effect_active`
+        // already returns false for these, so this is purely housekeeping: without it the
+        // `replacement_effects` vector grows unbounded over a long game. Targeted removal
+        // (only the just-departed object's effects) keeps the cost O(replacement_effects).
+        if old_object.zone == ZoneId::Battlefield && to != ZoneId::Battlefield {
+            use crate::state::continuous_effect::EffectDuration;
+            self.replacement_effects.retain(|e| {
+                !(e.duration == EffectDuration::WhileSourceOnBattlefield
+                    && e.source == Some(object_id))
+            });
+        }
         Ok((new_id, old_object))
     }
     /// CR 708.9: Build a `FaceDownRevealed` event for a face-down permanent that is

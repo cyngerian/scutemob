@@ -63,7 +63,7 @@ fn test_pb_oos_lki_power_3_lba_variants_hash_pre_lba_fields() {
     // addition to the per-PB sweep files. If this assertion fails, update this
     // file's sentinel AND add a new history entry in state/hash.rs.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 24u8,
+        HASH_SCHEMA_VERSION, 25u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 

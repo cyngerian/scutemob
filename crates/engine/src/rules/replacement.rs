@@ -970,16 +970,109 @@ pub fn resolve_pending_zone_change(
     Ok(events)
 }
 // ── ETB replacement interception (Session 4) ──────────────────────────────
-/// CR 614.12 / 614.15: Apply self-ETB replacement abilities from a card definition.
+/// Which subset of `WouldEnterBattlefield` replacements an application pass covers.
+///
+/// CR 614.15 requires self-replacement effects to be applied before other
+/// replacement effects. The two-pass split (self pass, then global pass)
+/// guarantees that ordering: each pass is a full CR 614/616 application loop,
+/// but `apply_self_etb_from_definition` runs the self pass before any call site
+/// reaches `apply_etb_replacements` (the global pass).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EtbPass {
+    /// CR 614.15: self-replacement effects (`is_self_replacement == true`).
+    SelfReplacements,
+    /// Global (non-self) replacement effects registered by other permanents.
+    Global,
+}
+/// CR 614/616: shared application loop for `WouldEnterBattlefield` replacements.
+///
+/// Repeatedly calls [`find_applicable`] (which orders self-replacements first per
+/// CR 614.15) and [`determine_action`], applying one effect per iteration and
+/// recording it in `already_applied` so CR 614.5 loop prevention holds — no
+/// replacement is applied twice to the same enter-the-battlefield event.
+///
+/// `pass` restricts the loop to one subset (`SelfReplacements` or `Global`) so the
+/// caller can guarantee self-replacements resolve before global ones (CR 614.15).
+fn apply_etb_replacement_pass(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+    pass: EtbPass,
+) -> Vec<GameEvent> {
+    let trigger = ReplacementTrigger::WouldEnterBattlefield {
+        filter: ObjectFilter::SpecificObject(new_id),
+    };
+    let mut already_applied: HashSet<ReplacementId> = HashSet::new();
+    let mut events = Vec::new();
+    loop {
+        // CR 614.5: `find_applicable` excludes already-applied effects; CR 614.15:
+        // it returns self-replacements first. Restrict to this pass's subset.
+        let applicable: Vec<ReplacementId> = find_applicable(state, &trigger, &already_applied)
+            .into_iter()
+            .filter(|id| {
+                state
+                    .replacement_effects
+                    .iter()
+                    .find(|e| e.id == *id)
+                    .map(|e| match pass {
+                        EtbPass::SelfReplacements => e.is_self_replacement,
+                        EtbPass::Global => !e.is_self_replacement,
+                    })
+                    .unwrap_or(false)
+            })
+            .collect();
+        let description = format!("{new_id:?} would enter the battlefield");
+        let chosen = match determine_action(state, &applicable, controller, &description) {
+            ReplacementResult::NoApplicable => break,
+            ReplacementResult::AutoApply(id) => id,
+            // Pre-M10: no interactive replacement ordering. ETB modifications
+            // (EntersTapped, EntersWithCounters, ...) are commutative, so apply
+            // the first choice deterministically; the CR 614.5 `already_applied`
+            // loop applies the remaining effects on later iterations.
+            ReplacementResult::NeedsChoice { choices, .. } => match choices.first() {
+                Some(id) => *id,
+                None => break,
+            },
+        };
+        let modification_source = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == chosen)
+            .map(|e| (e.modification.clone(), e.source));
+        already_applied.insert(chosen);
+        if let Some((modification, replacement_source)) = modification_source {
+            events.extend(emit_etb_modification(
+                state,
+                new_id,
+                controller,
+                Some(chosen),
+                Some(modification),
+                replacement_source,
+            ));
+        }
+    }
+    events
+}
+/// CR 614.12 / 614.15: Register and apply self-ETB replacement abilities from a card definition.
 ///
 /// Called immediately after a permanent enters the battlefield (before emitting
-/// the ETB event). Looks up the card definition and applies any
-/// `AbilityDefinition::Replacement` abilities with a `WouldEnterBattlefield` trigger
-/// and `is_self: true`. Self-replacements apply before global replacement effects (CR 614.15).
+/// the ETB event). Looks up the card definition and, for each
+/// `AbilityDefinition::Replacement` ability with a `WouldEnterBattlefield` trigger
+/// and `is_self: true`, registers a `ReplacementEffect` in `state.replacement_effects`,
+/// then applies it through the replacement-effect framework
+/// ([`find_applicable`] / [`determine_action`] via [`apply_etb_replacement_pass`]).
 ///
-/// Unlike global ETB replacements, self-ETB replacements are not registered in
-/// `state.replacement_effects` — they are applied inline from the card definition.
-/// No `ReplacementEffectApplied` event is emitted.
+/// MR-M8-12: self-ETB replacements previously bypassed the framework (applied
+/// inline). They now route through it, so they participate in CR 614.15 self-first
+/// ordering and CR 614.5 loop prevention exactly like global ETB replacements.
+/// Self-replacements are applied here (the self pass); global ETB replacements are
+/// applied by the immediately-following `apply_etb_replacements` call (the global
+/// pass) — preserving CR 614.15's "self-replacements first" rule by call order.
+///
+/// The registered effects use `duration: WhileSourceOnBattlefield`; once the
+/// permanent leaves the battlefield they are garbage-collected (see MR-M8-16).
+/// While the permanent remains, the effect is inert — its `SpecificObject` filter
+/// can never match a second enter event (CR 400.7: re-entry creates a new object).
 pub fn apply_self_etb_from_definition(
     state: &mut GameState,
     new_id: ObjectId,
@@ -994,7 +1087,11 @@ pub fn apply_self_etb_from_definition(
     let Some(def) = registry.get(cid.clone()) else {
         return Vec::new();
     };
+    use crate::state::continuous_effect::EffectDuration;
     let mut evts = Vec::new();
+    // MR-M8-12: register each self-ETB WouldEnterBattlefield replacement into
+    // `state.replacement_effects` so it is applied through the framework below
+    // (rather than inline) — participating in CR 614.15 ordering / CR 614.5.
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
             trigger: ReplacementTrigger::WouldEnterBattlefield { .. },
@@ -1004,21 +1101,37 @@ pub fn apply_self_etb_from_definition(
         } = ability
         {
             // CR 614.1c: "enters tapped unless [condition]" — if the condition
-            // is met, skip the replacement (permanent enters untapped).
+            // is met, do not register the replacement (permanent enters untapped).
             if let Some(condition) = unless_condition {
                 let ctx = crate::effects::EffectContext::new(controller, new_id, vec![]);
                 if crate::effects::check_condition(state, condition, &ctx) {
                     continue;
                 }
             }
-            evts.extend(apply_self_etb_modification(
-                state,
-                new_id,
+            let id = state.next_replacement_id();
+            state.replacement_effects.push_back(ReplacementEffect {
+                id,
+                source: Some(new_id),
                 controller,
-                modification,
-            ));
+                duration: EffectDuration::WhileSourceOnBattlefield,
+                is_self_replacement: true,
+                // Bind the placeholder filter to this specific object so the
+                // effect only matches this permanent's enter event.
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::SpecificObject(new_id),
+                },
+                modification: modification.clone(),
+            });
         }
     }
+    // CR 614.15: apply the self-replacement pass now (before the caller's
+    // `apply_etb_replacements` global pass).
+    evts.extend(apply_etb_replacement_pass(
+        state,
+        new_id,
+        controller,
+        EtbPass::SelfReplacements,
+    ));
     // CR 306.5b: "This permanent enters with a number of loyalty counters on it
     // equal to its printed loyalty number." This is an intrinsic replacement effect.
     if let Some(loyalty) = def.starting_loyalty {
@@ -1083,6 +1196,7 @@ pub fn fire_saga_chapter_triggers(
             // CR 714.2b: Trigger fires if count crossed the chapter threshold.
             if old_count < *chapter && new_count >= *chapter {
                 state.pending_triggers.push_back(PendingTrigger {
+                    embedded_effect: None,
                     source: saga_id,
                     controller,
                     kind: PendingTriggerKind::Normal,
@@ -1258,6 +1372,7 @@ pub fn queue_carddef_etb_triggers(
                 // runtime triggered_abilities). This avoids index collisions with triggers
                 // added by enrich_spec_from_def for attack/dies/etc. triggers.
                 state.pending_triggers.push_back(PendingTrigger {
+                    embedded_effect: None,
                     source: new_id,
                     ability_index: idx,
                     controller,
@@ -1302,6 +1417,7 @@ pub fn queue_carddef_etb_triggers(
                 // CR 603.4: Intervening-if — only queue trigger if tribute was not paid.
                 if !tribute_was_paid {
                     state.pending_triggers.push_back(PendingTrigger {
+                        embedded_effect: None,
                         source: new_id,
                         ability_index: idx,
                         controller,
@@ -1423,74 +1539,21 @@ pub fn queue_carddef_etb_triggers(
 /// CR 614.12: Apply global ETB replacement effects to a just-entered permanent.
 ///
 /// Called in resolution.rs and lands.rs immediately after a permanent enters the
-/// battlefield (before emitting the ETB event). Checks `state.replacement_effects` for
-/// `WouldEnterBattlefield` effects matching `new_id` and applies `EntersTapped` and
-/// `EntersWithCounters` modifications.
+/// battlefield (before emitting the ETB event). Runs the CR 614/616 application
+/// loop ([`apply_etb_replacement_pass`]) over the global (non-self) replacement
+/// effects in `state.replacement_effects` — applying `EntersTapped`,
+/// `EntersWithCounters`, and similar modifications with CR 614.5 loop prevention.
 ///
-/// Self-ETB replacements from card definitions must be applied BEFORE calling this
-/// function via `apply_self_etb_from_definition` (CR 614.15: self-replacement first).
+/// Self-ETB replacements from card definitions are registered and applied BEFORE
+/// this call by `apply_self_etb_from_definition` (CR 614.15: self-replacement
+/// first). Self-replacements still registered in `state.replacement_effects` are
+/// skipped here — `apply_etb_replacement_pass(.., Global)` filters them out.
 pub fn apply_etb_replacements(
     state: &mut GameState,
     new_id: ObjectId,
     controller: PlayerId,
 ) -> Vec<GameEvent> {
-    let trigger = ReplacementTrigger::WouldEnterBattlefield {
-        filter: ObjectFilter::SpecificObject(new_id),
-    };
-    let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
-    if applicable.is_empty() {
-        return Vec::new();
-    }
-    let mut etb_events = Vec::new();
-    for id in applicable {
-        // PB-EWC: pull both modification and source from the registered effect.
-        // The source is required to resolve dynamic counter amounts in
-        // EntersWithCounters (e.g. PowerOf(Source) reads from the replacement
-        // source — Master Biomancer — not the entering creature). If the
-        // effect disappeared since find_applicable, skip without emitting.
-        let Some((modification, replacement_source)) = state
-            .replacement_effects
-            .iter()
-            .find(|e| e.id == id)
-            .map(|e| (e.modification.clone(), e.source))
-        else {
-            continue;
-        };
-        etb_events.extend(emit_etb_modification(
-            state,
-            new_id,
-            controller,
-            Some(id),
-            Some(modification),
-            replacement_source,
-        ));
-    }
-    etb_events
-}
-/// Apply a single ETB modification directly (used for self-ETB replacements from card
-/// definitions, which are not registered in `state.replacement_effects`).
-///
-/// Does not emit `ReplacementEffectApplied` since there is no registered effect ID.
-///
-/// PB-EWC: for self-ETB replacements, the replacement source is the entering
-/// permanent itself (`new_id`). This is what `EntersWithCounters` resolves
-/// `EffectAmount::XValue` against — the entering permanent's `x_value` field,
-/// propagated from the StackObject during permanent-spell resolution before
-/// ETB processing.
-pub fn apply_self_etb_modification(
-    state: &mut GameState,
-    new_id: ObjectId,
-    controller: PlayerId,
-    modification: &ReplacementModification,
-) -> Vec<GameEvent> {
-    emit_etb_modification(
-        state,
-        new_id,
-        controller,
-        None,
-        Some(modification.clone()),
-        Some(new_id),
-    )
+    apply_etb_replacement_pass(state, new_id, controller, EtbPass::Global)
 }
 /// Internal: set state and produce events for one ETB modification.
 ///
@@ -1661,8 +1724,8 @@ fn emit_etb_modification(
             // types." This is an entry modification, not a Layer 4 continuous
             // type-adding effect. The subtype is pushed into the entering
             // permanent's `characteristics.subtypes` BEFORE `PermanentEnteredBattlefield`
-            // is emitted (the caller — `apply_etb_replacements` /
-            // `apply_self_etb_modification` — runs before the ETB event in
+            // is emitted (the caller — `apply_self_etb_from_definition` /
+            // `apply_etb_replacements` — runs before the ETB event in
             // `resolution.rs` / `lands.rs` / `effects/mod.rs`), so ETB triggers
             // and SBAs observe the augmented type set on the very turn it enters.
             //

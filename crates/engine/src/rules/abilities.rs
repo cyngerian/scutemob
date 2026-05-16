@@ -2603,6 +2603,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 if let Some(obj) = state.objects.get(object_id) {
                     if obj.cast_alt_cost == Some(crate::state::types::AltCostKind::Evoke) {
                         let evoke_trigger = PendingTrigger {
+                            embedded_effect: None,
                             source: *object_id,
                             ability_index: 0, // unused for evoke sacrifice
                             controller: obj.controller,
@@ -2668,6 +2669,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let controller = obj.controller;
                         for _ in 0..exploit_count {
                             triggers.push(PendingTrigger {
+                                embedded_effect: None,
                                 source: *object_id,
                                 ability_index: 0, // unused for exploit triggers
                                 controller,
@@ -3432,6 +3434,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     // Push the cast-trigger using the stack object as source.
                                     // Condition check (if any) is deferred to resolution.
                                     triggers.push(PendingTrigger {
+                                        embedded_effect: None,
                                         source: *source_object_id,
                                         ability_index: idx,
                                         controller: caster,
@@ -3737,6 +3740,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .unwrap_or(0);
                         if ring_level >= 2 {
                             triggers.push(PendingTrigger {
+                                embedded_effect: None,
                                 source: *attacker_id,
                                 ability_index: 0,
                                 controller: *attacking_player,
@@ -4366,6 +4370,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                             triggers.push(PendingTrigger {
+                                embedded_effect: None,
                                 source: obj_id,
                                 ability_index: idx,
                                 controller: obj.controller,
@@ -4431,6 +4436,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                         let event = trigger_def.trigger_on.clone();
                         triggers.push(PendingTrigger {
+                            embedded_effect: None,
                             source: *new_grave_id,
                             ability_index: idx,
                             controller,
@@ -4545,6 +4551,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                         triggers.push(PendingTrigger {
+                            embedded_effect: None,
                             source: *object_id,
                             ability_index: idx,
                             controller: obj.controller,
@@ -4637,6 +4644,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             .collect();
                                         for ability_idx in carddef_indices {
                                             triggers.push(PendingTrigger {
+                                                embedded_effect: None,
                                                 source: source_id,
                                                 ability_index: ability_idx,
                                                 controller,
@@ -5052,6 +5060,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     }
                                 }
                                 triggers.push(PendingTrigger {
+                                    embedded_effect: None,
                                     source: obj_id,
                                     ability_index: idx,
                                     controller: obj.controller,
@@ -5221,6 +5230,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     };
                     if is_ring_bearer && ring_level >= 4 {
                         triggers.push(PendingTrigger {
+                            embedded_effect: None,
                             source: assignment.source,
                             ability_index: 0,
                             controller: ring_controller,
@@ -5501,6 +5511,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             } = ability
                             {
                                 triggers.push(PendingTrigger {
+                                    embedded_effect: None,
                                     source: *permanent,
                                     ability_index: idx,
                                     controller: ctrl,
@@ -5566,6 +5577,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         } = ability
                         {
                             triggers.push(PendingTrigger {
+                                embedded_effect: None,
                                 source: obj_id,
                                 ability_index: idx,
                                 controller: *tempted_player,
@@ -6175,6 +6187,10 @@ fn collect_triggers_for_event(
                 }
             }
             triggers.push(PendingTrigger {
+                // MR-B12-04: capture the triggered ability's effect now, while the
+                // source object still exists. If the source changes zones before
+                // resolution (CR 400.7), this is the only surviving copy of the effect.
+                embedded_effect: trigger_def.effect.clone(),
                 source: obj_id,
                 ability_index: idx,
                 controller: obj.controller,
@@ -6251,6 +6267,10 @@ pub(crate) fn collect_emblem_triggers_for_event(
                 }
             }
             triggers.push(PendingTrigger {
+                // MR-B12-04: capture the triggered ability's effect now, while the
+                // source object still exists. If the source changes zones before
+                // resolution (CR 400.7), this is the only surviving copy of the effect.
+                embedded_effect: trigger_def.effect.clone(),
                 source: obj_id,
                 ability_index: idx,
                 controller: obj.controller,
@@ -6388,6 +6408,7 @@ fn collect_graveyard_carddef_triggers(
                 }
             }
             triggers.push(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index: idx,
                 controller: owner,
@@ -7619,6 +7640,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
                     is_carddef_etb: false,
+                    // MR-B12-04: carry the effect captured at trigger-queue time so
+                    // resolution can run it even if the source has since left its zone.
+                    embedded_effect: trigger.embedded_effect.clone().map(Box::new),
                 },
                 // CR 603.3: Card-definition ETB triggers use CardDefETB kind.
                 // ability_index is into CardDef::abilities, NOT runtime triggered_abilities.
@@ -7627,6 +7651,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
                     is_carddef_etb: true,
+                    // CardDefETB resolves via the card registry (ability_index into
+                    // CardDef::abilities) — no embedded effect needed.
+                    embedded_effect: None,
                 },
                 PendingTriggerKind::KeywordTrigger {
                     ref keyword,

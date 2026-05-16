@@ -424,7 +424,7 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
 #[test]
 fn test_pb_lki_cc_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 24u8,
+        HASH_SCHEMA_VERSION, 25u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 }

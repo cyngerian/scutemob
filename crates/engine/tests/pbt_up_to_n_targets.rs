@@ -408,7 +408,7 @@ fn test_pbt_hash_schema_version_live_sentinel() {
     // HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
     // without this test being updated. See the `state/hash.rs` history block.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 24u8,
+        HASH_SCHEMA_VERSION, 25u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 
@@ -862,7 +862,7 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 #[test]
 fn test_pbt_hash_schema_version_sentinel_regression() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 24u8,
+        HASH_SCHEMA_VERSION, 25u8,
         "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
     );
 }

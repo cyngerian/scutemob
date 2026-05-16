@@ -384,7 +384,7 @@ Findings from post-Morph sanity reviews of early P1 abilities. HIGHs and MEDIUMs
 | ID | Severity | Description | Location |
 |----|----------|-------------|----------|
 | PB-Q4-M01 | MEDIUM | `EnchantFilter` (6 fields) duplicates the enchant-relevant subset of `TargetFilter` (24 fields). The two will diverge over time. Root cause: `cards/card_definition.rs` imports from `state::*` so `state/types.rs::EnchantTarget` cannot reference `TargetFilter` without a cycle. Fix options: (a) relocate `TargetFilter` to `state/`, then collapse `EnchantFilter` into `Filtered(Box<TargetFilter>)`; (b) document the 18 non-supported `TargetFilter` fields on `EnchantFilter` as deliberate. Decide when authoring the next non-land enchant target. | `state/types.rs:286`, `cards/card_definition.rs` |
-| PB-Q4-L01 | LOW | `matches_enchant_target` defensive `.unwrap_or(aura_ctrl)` masks regressions if a target object lookup ever returns `None`. Replace with explicit error or `debug_assert!`. | `rules/sba.rs:1067-1071` |
+| PB-Q4-L01 | LOW (**Status: CLOSED 2026-05-15, LS-5 scutemob-35** `b70211fd`) | ~~`matches_enchant_target` defensive `.unwrap_or(aura_ctrl)` masks regressions if a target object lookup ever returns `None`. Replace with explicit error or `debug_assert!`.~~ The `target_ctrl` lookup in `check_aura_sbas` now `debug_assert!`s on a `None` result (the `target_gone` check above already guarantees the object exists) instead of silently falling back to the aura's controller. | `rules/sba.rs` |
 
 ### PB-N (Subtype-filtered attack/death triggers) — 2026-04-12
 

@@ -1094,11 +1094,21 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                         if let Some(tc) = target_chars {
                             // CR 704.5m: for Filtered enchant targets, compare controllers.
                             let aura_ctrl = obj.controller;
-                            let target_ctrl = state
-                                .objects
-                                .get(&target_id)
-                                .map(|o| o.controller)
-                                .unwrap_or(aura_ctrl);
+                            // PB-Q4-L01: `target_gone` was already checked false above, so
+                            // the target object must exist here. A `None` lookup is an
+                            // invariant violation (CR 400.7) — surface it in debug builds
+                            // rather than silently falling back to the aura's controller.
+                            let target_ctrl = match state.objects.get(&target_id) {
+                                Some(o) => o.controller,
+                                None => {
+                                    debug_assert!(
+                                        false,
+                                        "matches_enchant_target: target object {target_id:?} \
+                                         lookup returned None despite target_gone == false"
+                                    );
+                                    aura_ctrl
+                                }
+                            };
                             if !matches_enchant_target(&enchant_target, &tc, aura_ctrl, target_ctrl)
                             {
                                 return true;
