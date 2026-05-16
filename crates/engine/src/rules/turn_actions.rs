@@ -1210,8 +1210,15 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
             if !obj.goaded_by.is_empty() {
                 obj.goaded_by = im::Vector::new();
             }
-            // CR 502.2: Untap tapped permanents.
-            if obj.status.tapped {
+            // CR 502.3 / PB-LS6: a permanent with a pending skip-untap count does not
+            // untap this step; instead the count is decremented by one (Tamiyo -2 /
+            // Hands of Binding). Once the count reaches 0 it untaps normally.
+            // The decrement fires even if the permanent is already untapped — the "next
+            // untap step" is consumed regardless of tapped state.
+            if obj.skip_untap_steps > 0 {
+                obj.skip_untap_steps -= 1;
+            } else if obj.status.tapped {
+                // CR 502.2: Untap tapped permanents.
                 obj.status.tapped = false;
                 untapped.push(*id);
             }

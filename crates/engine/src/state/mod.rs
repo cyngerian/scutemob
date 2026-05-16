@@ -526,6 +526,8 @@ impl GameState {
             // CR 712.4a / CR 400.7: meld component is cleared on zone change.
             adventure_exiled_by: None,
             meld_component: None,
+
+            skip_untap_steps: 0,
         };
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
         // We already have old_object.paired_with from the clone taken before removal.
@@ -670,6 +672,8 @@ impl GameState {
                     // CR 712.4a / CR 400.7: meld pairing is cleared on zone change.
                     adventure_exiled_by: None,
                     meld_component: None,
+
+                    skip_untap_steps: 0,
                 };
                 // Add component to destination zone and objects map.
                 if let Some(zone_set) = self.zones.get_mut(&to) {
@@ -784,6 +788,8 @@ impl GameState {
                         designations: Designations::default(),
                         adventure_exiled_by: None,
                         meld_component: None,
+
+                        skip_untap_steps: 0,
                     };
                     if let Some(zone_set) = self.zones.get_mut(&to) {
                         zone_set.insert(component_id);
@@ -995,6 +1001,8 @@ impl GameState {
             // CR 712.4a / CR 400.7: meld component is cleared on zone change.
             adventure_exiled_by: None,
             meld_component: None,
+
+            skip_untap_steps: 0,
         };
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
         if let Some(partner_id) = old_object.paired_with {

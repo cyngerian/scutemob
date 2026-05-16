@@ -1282,6 +1282,30 @@ pub enum Effect {
         #[serde(default)]
         cant_be_regenerated: bool,
     },
+    /// CR 701.7 + reanimation (PB-LS6): destroy each declared-target permanent, then return
+    /// every card actually put into a graveyard by this destruction to the battlefield under
+    /// the effect's controller's control (CR 400.7 — each is a new object).
+    ///
+    /// Used by Sorin, Lord of Innistrad's -6: "Destroy up to three target creatures and/or
+    /// other planeswalkers. Return each card put into a graveyard this way to the battlefield
+    /// under your control."
+    ///
+    /// Tokens that are destroyed do NOT return (they cease to exist as an SBA before the
+    /// reanimation step — CR 704.5d). Permanents redirected away from the graveyard by a
+    /// replacement effect (Rest in Peace, commander zone-change SBA, Kalitas) are likewise
+    /// not reanimated — only cards that actually land in a graveyard are returned.
+    ///
+    /// `targets` is a list of `EffectTarget` entries, one per declared-target slot. This is
+    /// required because `DeclaredTarget { index }` resolves exactly one target — iterating
+    /// each slot produces all up-to-N declared targets.
+    DestroyAndReanimate {
+        /// The permanents to destroy. Each `EffectTarget` resolves to at most one target.
+        /// For Sorin -6 (UpToN 3), use `[DeclaredTarget{0}, DeclaredTarget{1}, DeclaredTarget{2}]`.
+        targets: Vec<EffectTarget>,
+        /// CR 701.19c: if true, regeneration shields are bypassed during destruction.
+        #[serde(default)]
+        cant_be_regenerated: bool,
+    },
     /// CR 701.8: Destroy all permanents on the battlefield matching the filter.
     /// Respects indestructible (CR 702.12), regeneration (CR 701.19), and umbra armor (CR 702.89a).
     /// Stores the count of actually-destroyed permanents in ctx.last_effect_count
@@ -1312,6 +1336,13 @@ pub enum Effect {
     TapPermanent { target: EffectTarget },
     /// CR 701.17: Untap a permanent.
     UntapPermanent { target: EffectTarget },
+    /// CR 502.3 (PB-LS6): The target permanent doesn't untap during its controller's next
+    /// untap step. Increments the target's `skip_untap_steps` counter by 1; the counter is
+    /// decremented at the controller's untap step (see `untap_active_player_permanents`).
+    ///
+    /// Used by Tamiyo, Field Researcher -2 and Hands of Binding. Stacks: applying this
+    /// twice makes the permanent skip two untap steps.
+    PreventNextUntap { target: EffectTarget },
     // ── Mana ────────────────────────────────────────────────────────────────
     /// Add mana to a player's pool (CR 106).
     AddMana {

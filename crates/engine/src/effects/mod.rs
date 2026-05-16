@@ -1110,6 +1110,273 @@ fn execute_effect_inner(
             }
             ctx.last_effect_count = destroyed_count;
         }
+        // PB-LS6 / CR 701.7 + reanimation: Destroy each declared target, then return every
+        // card actually put into a graveyard by this destruction to the battlefield under the
+        // effect controller's control (CR 400.7 — each is a new object).
+        //
+        // Phase 1: destroy each target using the same pipeline as DestroyPermanent (indestructible
+        // check, regeneration, umbra armor, zone-change replacement). Record each ObjectId that
+        // actually lands in a graveyard.
+        //
+        // Phase 2: for each graveyard ObjectId, if the object is still in a graveyard AND is not
+        // a token (CR 704.5d / Sorin ruling: tokens can't be reanimated), move it to the
+        // battlefield under ctx.controller and run the full ETB chain (mirrors
+        // ReturnAllFromGraveyardToBattlefield).
+        Effect::DestroyAndReanimate {
+            targets,
+            cant_be_regenerated,
+        } => {
+            // Phase 1: destroy each target and record which ones land in a graveyard.
+            let mut reanimate_ids: Vec<ObjectId> = Vec::new();
+            for target in targets.iter() {
+                let resolved = resolve_effect_target_list(state, target, ctx);
+                for rt in resolved {
+                    if let ResolvedTarget::Object(id) = rt {
+                        // CR 702.12: indestructible permanents can't be destroyed.
+                        let indestructible = state
+                            .objects
+                            .get(&id)
+                            .map(|o| {
+                                o.characteristics
+                                    .keywords
+                                    .contains(&KeywordAbility::Indestructible)
+                            })
+                            .unwrap_or(false);
+                        if indestructible {
+                            continue;
+                        }
+                        // CR 701.19c: bypass regeneration only if cant_be_regenerated.
+                        if !cant_be_regenerated {
+                            if let Some(shield_id) =
+                                crate::rules::replacement::check_regeneration_shield(state, id)
+                            {
+                                let regen_events = crate::rules::replacement::apply_regeneration(
+                                    state, id, shield_id,
+                                );
+                                events.extend(regen_events);
+                                continue;
+                            }
+                        }
+                        // CR 702.89a: umbra armor saves the enchanted permanent.
+                        {
+                            let auras = crate::rules::replacement::check_umbra_armor(state, id);
+                            if !auras.is_empty() {
+                                let aura_id = auras[0];
+                                let umbra_events = crate::rules::replacement::apply_umbra_armor(
+                                    state, id, aura_id,
+                                );
+                                events.extend(umbra_events);
+                                continue;
+                            }
+                        }
+                        // Capture LKI before zone move.
+                        let (
+                            card_types,
+                            owner,
+                            pre_death_controller,
+                            pre_death_counters,
+                            pre_death_power,
+                        ) = state
+                            .objects
+                            .get(&id)
+                            .map(|o| {
+                                let chars =
+                                    crate::rules::layers::calculate_characteristics(state, id)
+                                        .unwrap_or_else(|| o.characteristics.clone());
+                                let lki_power = chars.power;
+                                (
+                                    chars.card_types,
+                                    o.owner,
+                                    o.controller,
+                                    o.counters.clone(),
+                                    lki_power,
+                                )
+                            })
+                            .unwrap_or_else(|| {
+                                (
+                                    Default::default(),
+                                    ctx.controller,
+                                    ctx.controller,
+                                    Default::default(),
+                                    None,
+                                )
+                            });
+                        // CR 614: check replacement effects before moving to graveyard.
+                        let action = crate::rules::replacement::check_zone_change_replacement(
+                            state,
+                            id,
+                            ZoneType::Battlefield,
+                            ZoneType::Graveyard,
+                            owner,
+                            &std::collections::HashSet::new(),
+                        );
+                        match action {
+                            crate::rules::replacement::ZoneChangeAction::Redirect {
+                                to: dest,
+                                events: repl_events,
+                                ..
+                            } => {
+                                events.extend(repl_events);
+                                if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                                    match dest {
+                                        ZoneId::Exile => {
+                                            events.push(GameEvent::ObjectExiled {
+                                                player: owner,
+                                                object_id: id,
+                                                new_exile_id: new_id,
+                                                pre_lba_counters: pre_death_counters.clone(),
+                                                pre_lba_power: pre_death_power,
+                                            });
+                                            // Redirected to exile — NOT reanimated.
+                                        }
+                                        ZoneId::Graveyard(_) => {
+                                            // Redirected to a graveyard — treat as destruction.
+                                            if card_types.contains(&CardType::Creature) {
+                                                events.push(GameEvent::CreatureDied {
+                                                    object_id: id,
+                                                    new_grave_id: new_id,
+                                                    controller: pre_death_controller,
+                                                    pre_death_counters: pre_death_counters.clone(),
+                                                    pre_death_power,
+                                                });
+                                            } else {
+                                                events.push(GameEvent::PermanentDestroyed {
+                                                    object_id: id,
+                                                    new_grave_id: new_id,
+                                                    pre_lba_counters: pre_death_counters.clone(),
+                                                    pre_lba_power: pre_death_power,
+                                                });
+                                            }
+                                            reanimate_ids.push(new_id);
+                                        }
+                                        ZoneId::Command(_) => {
+                                            // Commander redirect — not reanimated.
+                                        }
+                                        _ => {
+                                            // Other redirect — not reanimated.
+                                        }
+                                    }
+                                }
+                            }
+                            crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                                player,
+                                choices,
+                                event_description,
+                            } => {
+                                use crate::state::replacement_effect::PendingZoneChange;
+                                state.pending_zone_changes.push_back(PendingZoneChange {
+                                    object_id: id,
+                                    original_from: ZoneType::Battlefield,
+                                    original_destination: ZoneType::Graveyard,
+                                    affected_player: player,
+                                    already_applied: Vec::new(),
+                                });
+                                events.push(GameEvent::ReplacementChoiceRequired {
+                                    player,
+                                    event_description,
+                                    choices,
+                                });
+                                // ChoiceRequired — can't track destination; not reanimated.
+                            }
+                            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                                // No replacement — move to graveyard normally.
+                                if let Ok((new_id, _old)) =
+                                    state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                                {
+                                    if card_types.contains(&CardType::Creature) {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: id,
+                                            new_grave_id: new_id,
+                                            controller: pre_death_controller,
+                                            pre_death_counters: pre_death_counters.clone(),
+                                            pre_death_power,
+                                        });
+                                    } else {
+                                        events.push(GameEvent::PermanentDestroyed {
+                                            object_id: id,
+                                            new_grave_id: new_id,
+                                            pre_lba_counters: pre_death_counters.clone(),
+                                            pre_lba_power: pre_death_power,
+                                        });
+                                    }
+                                    reanimate_ids.push(new_id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Phase 2: reanimate. Sort ascending for determinism.
+            reanimate_ids.sort();
+            for old_id in reanimate_ids {
+                // Verify the object is still in a graveyard (it may have been moved by an SBA
+                // or a token may have ceased to exist). Also exclude tokens (CR 704.5d).
+                let should_reanimate = state
+                    .objects
+                    .get(&old_id)
+                    .map(|o| {
+                        matches!(o.zone, ZoneId::Graveyard(_)) && !o.is_token && o.card_id.is_some()
+                    })
+                    .unwrap_or(false);
+                if !should_reanimate {
+                    continue;
+                }
+                let entering_controller = ctx.controller;
+                if let Ok((new_id, _old)) = state.move_object_to_zone(old_id, ZoneId::Battlefield) {
+                    // CR 400.7: override controller — "under your control".
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.controller = entering_controller;
+                    }
+                    let card_id = state
+                        .objects
+                        .get(&new_id)
+                        .and_then(|obj| obj.card_id.clone());
+                    let registry = std::sync::Arc::clone(&state.card_registry);
+                    // Apply self-ETB replacements from the card definition.
+                    events.extend(crate::rules::replacement::apply_self_etb_from_definition(
+                        state,
+                        new_id,
+                        entering_controller,
+                        card_id.as_ref(),
+                        &registry,
+                    ));
+                    // Apply global ETB replacements.
+                    events.extend(crate::rules::replacement::apply_etb_replacements(
+                        state,
+                        new_id,
+                        entering_controller,
+                    ));
+                    // Register permanent replacement abilities.
+                    crate::rules::replacement::register_permanent_replacement_abilities(
+                        state,
+                        new_id,
+                        entering_controller,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    // Register static continuous effects.
+                    crate::rules::replacement::register_static_continuous_effects(
+                        state,
+                        new_id,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    // Emit PermanentEnteredBattlefield for ETB triggers (CR 603.6a).
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: entering_controller,
+                        object_id: new_id,
+                    });
+                    // Queue CardDef ETB triggered abilities (CR 603.3).
+                    events.extend(crate::rules::replacement::queue_carddef_etb_triggers(
+                        state,
+                        new_id,
+                        entering_controller,
+                        card_id.as_ref(),
+                        &registry,
+                    ));
+                }
+            }
+        }
         // CR 406.2: Exile all permanents matching the filter.
         // Stores count in ctx.last_effect_count for follow-up effects.
         Effect::ExileAll { filter } => {
@@ -1587,6 +1854,21 @@ fn execute_effect_inner(
                                 object_id: id,
                             });
                         }
+                    }
+                }
+            }
+        }
+        // PB-LS6 / CR 502.3: The target permanent doesn't untap during its controller's
+        // next untap step. Increments skip_untap_steps by 1; the counter is decremented
+        // (and the permanent skips untapping) in untap_active_player_permanents.
+        // No game event is emitted — the freeze has no observable event of its own;
+        // the only observable is the missing untap in a future untap step.
+        Effect::PreventNextUntap { target } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    if let Some(obj) = state.objects.get_mut(&id) {
+                        obj.skip_untap_steps = obj.skip_untap_steps.saturating_add(1);
                     }
                 }
             }
@@ -3475,6 +3757,8 @@ fn execute_effect_inner(
                             designations: crate::state::game_object::Designations::default(),
                             adventure_exiled_by: None,
                             meld_component: Some(pair_card_id),
+
+                            skip_untap_steps: 0,
                         };
                         // Add to battlefield zone.
                         if let Some(zone_set) = state
@@ -4351,6 +4635,8 @@ fn execute_effect_inner(
                     designations: crate::state::game_object::Designations::default(),
                     adventure_exiled_by: None,
                     meld_component: None,
+
+                    skip_untap_steps: 0,
                 };
                 let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
                     Ok(id) => id,
@@ -4517,6 +4803,8 @@ fn execute_effect_inner(
                 designations: crate::state::game_object::Designations::default(),
                 adventure_exiled_by: None,
                 meld_component: None,
+
+                skip_untap_steps: 0,
             };
             let emblem_id = match state.add_object(emblem_obj, command_zone) {
                 Ok(id) => id,
@@ -6704,6 +6992,8 @@ pub fn make_token(
         designations: Designations::default(),
         adventure_exiled_by: None,
         meld_component: None,
+
+        skip_untap_steps: 0,
     }
 }
 // ── Card draw helper ──────────────────────────────────────────────────────────
