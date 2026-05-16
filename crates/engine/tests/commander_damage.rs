@@ -464,6 +464,7 @@ fn test_commander_damage_survives_zone_change() {
                 adventure_exiled_by: None,
                 meld_component: None,
                 entered_turn: None,
+                skip_untap_steps: 0,
             },
             ZoneId::Battlefield,
         )

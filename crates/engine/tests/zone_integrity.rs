@@ -236,6 +236,7 @@ fn test_add_object_to_state() {
         adventure_exiled_by: None,
         meld_component: None,
         entered_turn: None,
+        skip_untap_steps: 0,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

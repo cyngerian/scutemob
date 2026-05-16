@@ -179,6 +179,7 @@ fn make_test_creature(
         adventure_exiled_by: None,
         meld_component: None,
         entered_turn: None,
+        skip_untap_steps: 0,
     }
 }
 

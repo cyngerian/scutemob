@@ -132,8 +132,8 @@ fn cast_test_sorcery(
 #[test]
 fn test_sft_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 25u8,
-        "MR-B12-04 bumped HASH_SCHEMA_VERSION 24→25 (StackObjectKind::TriggeredAbility gains embedded_effect; hash arm folds in embedded_effect.is_some()). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 26u8,
+        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
