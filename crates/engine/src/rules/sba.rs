@@ -537,18 +537,26 @@ fn check_creature_sbas(
                 continue; // Skip destruction -- permanent stays on battlefield
             }
         }
-        let (owner, pre_death_controller, pre_death_counters, pre_death_power) =
+        let (owner, pre_death_controller, pre_death_counters, pre_death_power, pre_death_chars) =
             match state.objects.get(&id) {
                 Some(obj) => {
-                    // CR 603.10a: capture layer-resolved power BEFORE move_object_to_zone
-                    // (which destroys battlefield-only continuous effects). Use
-                    // calculate_characteristics for the boosted on-battlefield value;
+                    // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE
+                    // move_object_to_zone (which destroys battlefield-only continuous effects).
+                    // Use calculate_characteristics for the boosted on-battlefield value;
                     // fall back to base characteristics if layer calc returns None
                     // (e.g. object newly registered without a layer pass yet).
-                    let lki_power = crate::rules::layers::calculate_characteristics(state, id)
+                    let pre_chars = crate::rules::layers::calculate_characteristics(state, id);
+                    let lki_power = pre_chars
+                        .as_ref()
                         .and_then(|c| c.power)
                         .or(obj.characteristics.power);
-                    (obj.owner, obj.controller, obj.counters.clone(), lki_power)
+                    (
+                        obj.owner,
+                        obj.controller,
+                        obj.counters.clone(),
+                        lki_power,
+                        pre_chars,
+                    )
                 }
                 None => continue, // Already removed in a previous SBA this pass.
             };
@@ -582,6 +590,8 @@ fn check_creature_sbas(
                         pre_death_counters: pre_death_counters.clone(),
                         // CR 603.10a: LKI power snapshot captured before zone move.
                         pre_death_power,
+                        // CR 603.10a / CR 613.1d: full LKI characteristics snapshot.
+                        pre_death_characteristics: pre_death_chars.clone(),
                     });
                 }
             }
@@ -623,6 +633,8 @@ fn check_creature_sbas(
                                 pre_death_counters: pre_death_counters.clone(),
                                 // CR 603.10a: LKI power snapshot captured before zone move.
                                 pre_death_power,
+                                // CR 603.10a / CR 613.1d: full LKI characteristics snapshot.
+                                pre_death_characteristics: pre_death_chars.clone(),
                             });
                         }
                     }

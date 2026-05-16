@@ -588,16 +588,25 @@ fn handle_pay_echo(
     // Validate: permanent must still be on the battlefield.
     let source_info = state.objects.get(&permanent).and_then(|obj| {
         if obj.zone == ZoneId::Battlefield {
-            // CR 603.10a: capture layer-resolved power BEFORE any zone move.
-            let lki_power = crate::rules::layers::calculate_characteristics(state, permanent)
+            // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE any zone move.
+            let pre_chars = crate::rules::layers::calculate_characteristics(state, permanent);
+            let lki_power = pre_chars
+                .as_ref()
                 .and_then(|c| c.power)
                 .or(obj.characteristics.power);
-            Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
+            Some((
+                obj.owner,
+                obj.controller,
+                obj.counters.clone(),
+                lki_power,
+                pre_chars,
+            ))
         } else {
             None
         }
     });
-    let Some((owner, controller, pre_death_counters, echo_lki_power)) = source_info else {
+    let Some((owner, controller, pre_death_counters, echo_lki_power, echo_pre_chars)) = source_info
+    else {
         // Permanent left the battlefield since the trigger resolved; nothing to do.
         return Ok(events);
     };
@@ -665,6 +674,7 @@ fn handle_pay_echo(
                                 pre_death_counters,
                                 // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                                 pre_death_power: echo_lki_power,
+                                pre_death_characteristics: echo_pre_chars.clone(),
                             });
                         }
                     }
@@ -681,6 +691,7 @@ fn handle_pay_echo(
                         pre_death_counters,
                         // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                         pre_death_power: echo_lki_power,
+                        pre_death_characteristics: echo_pre_chars.clone(),
                     });
                 }
             }
@@ -750,16 +761,25 @@ fn handle_pay_cumulative_upkeep(
     // Validate: permanent must still be on the battlefield.
     let source_info = state.objects.get(&permanent).and_then(|obj| {
         if obj.zone == ZoneId::Battlefield {
-            // CR 603.10a: capture layer-resolved power BEFORE any zone move.
-            let lki_power = crate::rules::layers::calculate_characteristics(state, permanent)
+            // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE any zone move.
+            let pre_chars = crate::rules::layers::calculate_characteristics(state, permanent);
+            let lki_power = pre_chars
+                .as_ref()
                 .and_then(|c| c.power)
                 .or(obj.characteristics.power);
-            Some((obj.owner, obj.controller, obj.counters.clone(), lki_power))
+            Some((
+                obj.owner,
+                obj.controller,
+                obj.counters.clone(),
+                lki_power,
+                pre_chars,
+            ))
         } else {
             None
         }
     });
-    let Some((owner, controller, pre_death_counters, cu_lki_power)) = source_info else {
+    let Some((owner, controller, pre_death_counters, cu_lki_power, cu_pre_chars)) = source_info
+    else {
         // Permanent left the battlefield since the trigger resolved; nothing to do.
         return Ok(events);
     };
@@ -852,6 +872,7 @@ fn handle_pay_cumulative_upkeep(
                                 pre_death_counters,
                                 // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                                 pre_death_power: cu_lki_power,
+                                pre_death_characteristics: cu_pre_chars.clone(),
                             });
                         }
                     }
@@ -868,6 +889,7 @@ fn handle_pay_cumulative_upkeep(
                         pre_death_counters,
                         // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                         pre_death_power: cu_lki_power,
+                        pre_death_characteristics: cu_pre_chars.clone(),
                     });
                 }
             }

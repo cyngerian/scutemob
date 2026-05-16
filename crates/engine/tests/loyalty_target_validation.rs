@@ -347,12 +347,12 @@ fn test_l01_no_target_ability_unaffected() {
 
 // ── HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────────────
 
-/// PB-LS6 bump: HASH_SCHEMA_VERSION = 26 (Effect::DestroyAndReanimate disc 85,
-/// Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps field).
+/// BASELINE-LKI-01 bump: HASH_SCHEMA_VERSION = 27 (GameEvent::CreatureDied.pre_death_characteristics,
+/// CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
 #[test]
 fn test_pb_ls6_hash_schema_version_is_26() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 26u8,
-        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 27u8,
+        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }

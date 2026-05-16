@@ -591,11 +591,11 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 /// Any two variants colliding would indicate a hash implementation bug.
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
-    // Hash sentinel is bumped to 15 (PB-LKI-CC bumped EffectAmount + PendingTrigger + StackObject,
-    // CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
+    // Hash sentinel bumped to 27 (BASELINE-LKI-01: GameEvent::CreatureDied.pre_death_characteristics,
+    // CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 26u8,
-        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 27u8,
+        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);

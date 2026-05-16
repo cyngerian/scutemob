@@ -397,8 +397,8 @@ fn test_hash_schema_version_after_pb_lki_cc() {
 
     // (e-1) Sentinel: must be exactly 15.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 26u8,
-        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 27u8,
+        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 
     let hash_effect = |eff: &ContinuousEffect| -> [u8; 32] {

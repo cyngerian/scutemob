@@ -3868,6 +3868,8 @@ pub fn handle_cast_spell(
         } else {
             None
         };
+        // CR 603.10a / CR 613.1d: capture full characteristics snapshot before zone move.
+        let casting_sac_pre_chars = crate::rules::layers::calculate_characteristics(state, sac_id);
         let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
         if is_creature {
             events.push(GameEvent::CreatureDied {
@@ -3877,6 +3879,7 @@ pub fn handle_cast_spell(
                 pre_death_counters,
                 // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                 pre_death_power: sac_lki_power_opt,
+                pre_death_characteristics: casting_sac_pre_chars,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {

@@ -408,8 +408,8 @@ fn test_pbt_hash_schema_version_live_sentinel() {
     // HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
     // without this test being updated. See the `state/hash.rs` history block.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 26u8,
-        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 27u8,
+        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -862,8 +862,8 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 #[test]
 fn test_pbt_hash_schema_version_sentinel_regression() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 26u8,
-        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 27u8,
+        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
