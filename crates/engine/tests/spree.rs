@@ -755,9 +755,8 @@ fn cast_insatiable_avarice(
 
 /// CR 601.2f / 700.2h / 702.172a — On a real Spree card with a non-zero base
 /// cost ({B}), the total cost paid is the base mana cost plus the sum of the
-/// per-mode additional costs of the *selected* modes:
-///   - modes [0,1]: {B} + {2} + {B}{B} = {2}{B}{B}{B} (2 generic + 3 black)
-///   - modes [0]:   {B} + {2}          = {2}{B}        (2 generic + 1 black)
+/// per-mode additional costs of the *selected* modes (modes [0,1] cost
+/// {B} + {2} + {B}{B} = {2}{B}{B}{B}; mode [0] alone costs {B} + {2} = {2}{B}).
 /// Casting [0,1] with only {2}{B} available is rejected — mode 1's {B}{B} was
 /// genuinely added on top; and casting [0] succeeds with that same {2}{B},
 /// proving only the selected mode's cost is charged.
