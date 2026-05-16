@@ -174,6 +174,7 @@ fn test_clone_independence_object_modification() {
                 adventure_exiled_by: None,
                 meld_component: None,
                 entered_turn: None,
+                skip_untap_steps: 0,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

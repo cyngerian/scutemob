@@ -1164,6 +1164,15 @@ pub struct GameObject {
     /// Cleared automatically when the card leaves exile (CR 400.7: new object).
     #[serde(default)]
     pub adventure_exiled_by: Option<PlayerId>,
+    /// CR 502.3 (PB-LS6): Number of upcoming untap steps during which this permanent must
+    /// skip untapping. Decremented (not zeroed) once per the controller's untap step in
+    /// `untap_active_player_permanents`; the permanent does not untap while this is > 0.
+    ///
+    /// Set by `Effect::PreventNextUntap` (Tamiyo, Field Researcher -2; Hands of Binding).
+    /// A count rather than a bool so multiple freeze effects on the same permanent stack.
+    /// Reset to 0 on zone changes (CR 400.7) — a new object has no memory of the freeze.
+    #[serde(default)]
+    pub skip_untap_steps: u32,
 }
 /// CR 729.2: A single component in a merged permanent.
 ///

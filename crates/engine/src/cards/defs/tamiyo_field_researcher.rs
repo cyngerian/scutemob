@@ -27,15 +27,18 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // −2: Tap up to two target nonland permanents. (CR 601.2c / 115.1b)
-            // They don't untap during their controller's next untap step. (CR 613.6)
-            // TODO(PB-T-L03): "Don't untap during controller's next untap step" —
-            // LayerModification::PreventUntap / EffectDuration::UntilControllersNextUntapStep
-            // not yet in DSL. Tap effect implemented; freeze rider deferred.
+            //     They don't untap during their controller's next untap step. (CR 502.3)
+            // Freeze rider implemented via Effect::PreventNextUntap + GameObject.skip_untap_steps
+            // (PB-LS6). Note: the card-def comment previously cited "CR 613.6" — that is
+            // incorrect. "Doesn't untap" is a CR 502.3 untap-step exception, not a continuous
+            // characteristic-modifying effect.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(2),
                 effect: Effect::Sequence(vec![
                     Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
                     Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 1 } },
+                    Effect::PreventNextUntap { target: EffectTarget::DeclaredTarget { index: 0 } },
+                    Effect::PreventNextUntap { target: EffectTarget::DeclaredTarget { index: 1 } },
                 ]),
                 targets: vec![TargetRequirement::UpToN {
                     count: 2,

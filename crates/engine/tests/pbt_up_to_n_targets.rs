@@ -408,8 +408,8 @@ fn test_pbt_hash_schema_version_live_sentinel() {
     // HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
     // without this test being updated. See the `state/hash.rs` history block.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 25u8,
-        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 26u8,
+        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
     );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
@@ -862,8 +862,8 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 #[test]
 fn test_pbt_hash_schema_version_sentinel_regression() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 25u8,
-        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 26u8,
+        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

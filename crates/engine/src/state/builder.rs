@@ -1095,6 +1095,8 @@ impl GameStateBuilder {
                 designations: Designations::default(),
                 adventure_exiled_by: None,
                 meld_component: None,
+
+                skip_untap_steps: 0,
             };
             state.add_object(object, zone)?;
         }

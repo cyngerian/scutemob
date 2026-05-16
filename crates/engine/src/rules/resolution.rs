@@ -4508,6 +4508,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         designations: Designations::default(),
                         adventure_exiled_by: None,
                         meld_component: None,
+
+                        skip_untap_steps: 0,
                     };
                     // Add the token to the battlefield.
                     let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
@@ -4708,6 +4710,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 designations: Designations::default(),
                 adventure_exiled_by: None,
                 meld_component: None,
+
+                skip_untap_steps: 0,
             };
             // Add the token to the battlefield.
             let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
@@ -5422,6 +5426,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     designations: Designations::default(),
                     adventure_exiled_by: None,
                     meld_component: None,
+
+                    skip_untap_steps: 0,
                 };
                 // Add the token to the battlefield.
                 let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
@@ -6082,6 +6088,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     designations: Designations::default(),
                     adventure_exiled_by: None,
                     meld_component: None,
+
+                    skip_untap_steps: 0,
                 };
                 // Add the token to the battlefield.
                 let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
@@ -6293,6 +6301,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     designations: Designations::default(),
                     adventure_exiled_by: None,
                     meld_component: None,
+
+                    skip_untap_steps: 0,
                 };
                 // Add the token to the battlefield.
                 let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
@@ -6520,6 +6530,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         designations: Designations::default(),
                         adventure_exiled_by: None,
                         meld_component: None,
+
+                        skip_untap_steps: 0,
                     };
                     // Add the token to the battlefield.
                     let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;

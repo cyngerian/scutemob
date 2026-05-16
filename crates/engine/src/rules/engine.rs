@@ -2289,9 +2289,37 @@ fn handle_activate_loyalty_ability(
             loyalty_abilities.len()
         ))
     })?;
-    let AbilityDefinition::LoyaltyAbility { cost, effect, .. } = ability else {
+    let AbilityDefinition::LoyaltyAbility {
+        cost,
+        effect,
+        targets: ability_targets,
+    } = ability
+    else {
         unreachable!();
     };
+    // Clone ability_targets immediately — the `def` borrow (via card_registry) must be
+    // dropped before the mutable `state.objects.get_mut` at the loyalty-cost payment below.
+    let ability_targets = ability_targets.clone();
+    // CR 601.2c: validate declared targets against the ability's TargetRequirements BEFORE
+    // paying the loyalty cost, so an illegal activation doesn't burn loyalty.
+    // Mirrors the activated-ability path in rules/abilities.rs.
+    if !ability_targets.is_empty() {
+        let source_chars =
+            crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
+                state
+                    .objects
+                    .get(&source)
+                    .map(|o| o.characteristics.clone())
+            });
+        crate::rules::casting::validate_targets_with_source(
+            state,
+            &targets,
+            &ability_targets,
+            player,
+            source_chars.as_ref(),
+            source,
+        )?;
+    }
     // CR 606.6: Validate sufficient loyalty counters for negative costs.
     let current_loyalty = state
         .objects

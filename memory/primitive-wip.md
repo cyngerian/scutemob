@@ -457,3 +457,49 @@ Confirmed in-scope yield: **2** (Conclave Mentor, Juri).
 ## Verdict (post-fix-phase)
 
 **PASS** — 0 HIGH / 0 MEDIUM / 0 LOW open. All review findings resolved. Branch ready for signal-ready.
+
+---
+
+# Primitive WIP: PB-LS6 — LOW sweep: loyalty target validation, DestroyAndReanimate, PreventNextUntap / skip_untap_steps
+
+batch: PB-LS6
+title: 3 PB-T LOW issues — L01 loyalty target validation, L02 Effect::DestroyAndReanimate (Sorin -6), L03 Effect::PreventNextUntap + GameObject.skip_untap_steps (Tamiyo -2 / Hands of Binding)
+cards_unblocked: Sorin Lord of Innistrad -6 (DestroyAndReanimate), Tamiyo Field Researcher -2 (PreventNextUntap), Hands of Binding (PreventNextUntap)
+started: 2026-05-15
+phase: implement-complete
+plan_file: memory/primitives/pb-plan-LS6.md
+hash_version_pre: 25 (MR-B12-04 prior LS-5 batch)
+hash_version_post: 26 (PB-LS6 — Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps field)
+
+## Task reference
+- ESM task: scutemob-36
+- Branch: feat/ls-6-low-sweep-pb-t-loyalty-dsl-unblocks-pb-scale
+
+## Implementation checklist
+
+- [x] L01: handle_activate_loyalty_ability (rules/engine.rs) — thread TargetRequirement validation via validate_targets_with_source before loyalty cost payment (CR 601.2c / CR 606.4)
+- [x] L02: Effect::DestroyAndReanimate { targets: Vec<EffectTarget>, cant_be_regenerated: bool } variant — card_definition.rs + effects/mod.rs phase-1 (destroy pipeline) + phase-2 (reanimate non-token cards under controller)
+- [x] L03: GameObject.skip_untap_steps: u32 field (#[serde(default)]) — game_object.rs; Effect::PreventNextUntap { target: EffectTarget } variant — card_definition.rs + effects/mod.rs; untap_active_player_permanents (turn_actions.rs) decrement logic
+- [x] Hash: discriminant arms 85/86 + skip_untap_steps + HASH_SCHEMA_VERSION 25→26 + history entry 26 — state/hash.rs
+- [x] Struct-literal sites: 15 explicit GameObject literals updated across state/mod.rs, state/builder.rs, effects/mod.rs, rules/resolution.rs + 5 in test files (zone_integrity, emblem_tests, delayed_triggers, snapshot_perf, commander_damage)
+- [x] Card def 1: sorin_lord_of_innistrad.rs — -6 ability replaced with Effect::DestroyAndReanimate (3 DeclaredTarget indices)
+- [x] Card def 2: tamiyo_field_researcher.rs — -2 Sequence extended with Effect::PreventNextUntap x2; CR citation corrected 613.6 → 502.3
+- [x] Card def 3: hands_of_binding.rs — spell effect upgraded to Sequence([TapPermanent, PreventNextUntap]); TODO removed
+- [x] Tests: loyalty_target_validation.rs (6 tests, L01 + HASH sentinel), destroy_and_reanimate.rs (6 tests, L02), prevent_next_untap.rs (5 tests, L03)
+- [x] Sentinel sweep: 19 existing sentinel files bumped 25u8 → 26u8
+- [x] cargo build --workspace: PASS (clean; tools/replay-viewer + tools/tui exhaustive matches verified — no new StackObjectKind/KeywordAbility variants added)
+- [x] cargo test --all: PASS — **2855 tests** (was 2819, +36 net: 17 new tests across 3 new files)
+- [x] cargo clippy --all-targets -- -D warnings: PASS — zero warnings
+- [x] cargo fmt --all: PASS — zero diffs
+
+## Gate results (2026-05-15)
+
+Committed in 3 logical chunks on branch feat/ls-6-low-sweep-pb-t-loyalty-dsl-unblocks-pb-scale:
+1. a2c82c68 — engine changes (9 files, +417/-4 lines)
+2. 5a8b404e — card def fixes (3 files, +28/-20 lines)
+3. 97423497 — tests (26 files, +1211/-38 lines; 3 new test files)
+
+## Verdict
+
+**IMPLEMENT-COMPLETE** — 3 issues implemented, 3 card defs fixed, 17 new tests. 2855 tests passing.
+No review phase scheduled (LOW issues — single-pass implementation).

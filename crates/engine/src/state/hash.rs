@@ -185,7 +185,14 @@
 ///   folds in `embedded_effect.is_some()` (mirrors `StackObjectKind::ActivatedAbility`:
 ///   `Effect` has no `HashInto` impl, presence is sufficient for divergence
 ///   detection). Backward compatible via `#[serde(default)] None`.
-pub const HASH_SCHEMA_VERSION: u8 = 25;
+/// - 26: PB-LS6 (2026-05-15) — two new `Effect` variants (`DestroyAndReanimate`
+///   discriminant 85, `PreventNextUntap` discriminant 86) + new `GameObject` field
+///   `skip_untap_steps: u32` hashed at end of `HashInto for GameObject`. Covers
+///   PB-T-L01 (loyalty target validation), PB-T-L02 (Sorin -6 reanimate rider),
+///   and PB-T-L03 (Tamiyo -2 / Hands of Binding freeze rider). `#[serde(default)]`
+///   on `skip_untap_steps` ensures pre-bump serialized states still deserialize
+///   cleanly with `skip_untap_steps: 0`.
+pub const HASH_SCHEMA_VERSION: u8 = 26;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1274,6 +1281,8 @@ impl HashInto for GameObject {
         self.sacrifice_at_end_step.hash_into(hasher);
         self.exile_at_end_step.hash_into(hasher);
         self.return_to_hand_at_end_step.hash_into(hasher);
+        // PB-LS6: skip-untap counter (CR 502.3 — Tamiyo -2 / Hands of Binding)
+        self.skip_untap_steps.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::game_object::MergedComponent {
@@ -5868,6 +5877,23 @@ impl HashInto for Effect {
                 84u8.hash_into(hasher);
                 player.hash_into(hasher);
                 amount.hash_into(hasher);
+            }
+            // PB-LS6: DestroyAndReanimate (discriminant 85) — CR 701.8 + reanimation
+            Effect::DestroyAndReanimate {
+                targets,
+                cant_be_regenerated,
+            } => {
+                85u8.hash_into(hasher);
+                (targets.len() as u64).hash_into(hasher);
+                for t in targets {
+                    t.hash_into(hasher);
+                }
+                cant_be_regenerated.hash_into(hasher);
+            }
+            // PB-LS6: PreventNextUntap (discriminant 86) — CR 502.3
+            Effect::PreventNextUntap { target } => {
+                86u8.hash_into(hasher);
+                target.hash_into(hasher);
             }
         }
     }
