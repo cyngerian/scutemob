@@ -49,6 +49,17 @@ bitflags! {
 /// zones it becomes a new object with a new ObjectId.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ObjectId(pub u64);
+impl ObjectId {
+    /// Sentinel `ObjectId` for `EffectContext` sources that have no real permanent
+    /// behind them. The object-id counter starts at 1 (see `GameState::next_object_id`),
+    /// so `ObjectId(0)` is never assigned to a real object and cannot collide.
+    ///
+    /// Used by effects whose source is not a permanent — e.g. dungeon room abilities
+    /// (CR 309 / CR 701.49), which resolve from the command zone with no source object.
+    /// Effects run with this source must NOT reference `EffectTarget::Source`; doing so
+    /// would resolve against a nonexistent object. See MR-B16-07.
+    pub const SENTINEL: ObjectId = ObjectId(0);
+}
 /// A single hybrid mana symbol (CR 107.4e).
 ///
 /// Hybrid mana symbols represent a cost that can be paid in one of two ways.

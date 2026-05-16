@@ -2184,12 +2184,16 @@ fn test_dimir_guildgate_enters_tapped_via_card_definition() {
             .any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
         "PermanentTapped event should be emitted for Dimir Guildgate's ETB replacement"
     );
-    // Self-ETB replacements do NOT emit ReplacementEffectApplied (no registered ID).
+    // MR-M8-12: self-ETB replacements now route through the replacement-effect
+    // framework — they are registered in `state.replacement_effects` with a real
+    // ReplacementId, so applying one emits ReplacementEffectApplied just like a
+    // global replacement does.
     assert!(
-        !events
+        events
             .iter()
             .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
-        "self-ETB from card definition should NOT emit ReplacementEffectApplied"
+        "MR-M8-12: self-ETB replacement should emit ReplacementEffectApplied \
+         (now framework-registered, not applied inline)"
     );
 }
 
@@ -4155,5 +4159,179 @@ fn test_shockland_uses_pay_life_variant_not_enters_tapped() {
     assert!(
         has_pay_life,
         "Blood Crypt should use EntersTappedUnlessPayLife(2), not EntersTapped"
+    );
+}
+
+// ── MR-M8-12: self-ETB replacements route through the framework ──────────────
+
+/// Helper: a creature card definition with one self-ETB `EntersTapped` replacement
+/// and no `unless_condition` (always enters tapped).
+fn self_etb_tapped_creature_def(id: &str, name: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(id.to_string()),
+        name: name.to_string(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("{name} enters the battlefield tapped."),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldEnterBattlefield {
+                filter: ObjectFilter::Any,
+            },
+            modification: ReplacementModification::EntersTapped,
+            is_self: true,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+/// MR-M8-12 / CR 614.15 — a self-ETB replacement from a card definition is now
+/// registered in `state.replacement_effects` and applied through the
+/// `find_applicable` / `determine_action` framework (not inline).
+fn test_mr_m8_12_self_etb_registered_in_framework() {
+    let p1 = PlayerId(1);
+    let def = self_etb_tapped_creature_def("self-etb-1", "Tapped Walker");
+    let registry = CardRegistry::new(vec![def]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::creature(p1, "Tapped Walker", 1, 1)
+                .with_card_id(CardId("self-etb-1".to_string())),
+        )
+        .build()
+        .unwrap();
+
+    let creature_id = find_cond_etb_by_name(&state, "Tapped Walker");
+    assert!(
+        state.replacement_effects.is_empty(),
+        "no replacement effects registered before ETB processing"
+    );
+
+    let events = replacement::apply_self_etb_from_definition(
+        &mut state,
+        creature_id,
+        p1,
+        Some(&CardId("self-etb-1".to_string())),
+        &registry,
+    );
+
+    // The self-ETB replacement is now a real entry in the framework's registry.
+    let self_entry = state
+        .replacement_effects
+        .iter()
+        .find(|e| e.is_self_replacement)
+        .expect("MR-M8-12: self-ETB replacement must be registered in state.replacement_effects");
+    assert!(
+        matches!(
+            self_entry.trigger,
+            ReplacementTrigger::WouldEnterBattlefield {
+                filter: ObjectFilter::SpecificObject(id),
+            } if id == creature_id
+        ),
+        "MR-M8-12: registered self-ETB trigger must be bound to the entering object"
+    );
+    assert_eq!(
+        self_entry.duration,
+        EffectDuration::WhileSourceOnBattlefield,
+        "MR-M8-12: self-ETB replacement uses WhileSourceOnBattlefield duration"
+    );
+
+    // It was applied via the framework: creature is tapped + a ReplacementEffectApplied
+    // event fired (proving it went through emit_etb_modification with a real id).
+    assert!(
+        state.objects.get(&creature_id).unwrap().status.tapped,
+        "MR-M8-12: self-ETB EntersTapped must still apply"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
+        "MR-M8-12: framework-applied self-ETB replacement emits ReplacementEffectApplied"
+    );
+
+    // find_applicable sees it (CR 614.15 self-replacement partition).
+    let trigger = ReplacementTrigger::WouldEnterBattlefield {
+        filter: ObjectFilter::SpecificObject(creature_id),
+    };
+    let applicable = replacement::find_applicable(&state, &trigger, &HashSet::new());
+    assert_eq!(
+        applicable.len(),
+        1,
+        "MR-M8-12: the registered self-ETB replacement is visible to find_applicable"
+    );
+}
+
+// ── MR-M8-16: stale WhileSourceOnBattlefield effects are GC'd ────────────────
+
+#[test]
+/// MR-M8-16 — a `WhileSourceOnBattlefield` replacement effect is removed from
+/// `state.replacement_effects` when its source leaves the battlefield, so the
+/// vector does not grow unbounded over a long game.
+fn test_mr_m8_16_stale_replacement_effect_gc_on_leave() {
+    let p1 = PlayerId(1);
+    // Non-self global ETB replacement: "creatures enter the battlefield tapped."
+    let global_def = CardDefinition {
+        card_id: CardId("tapper-1".to_string()),
+        name: "Mass Tapper".to_string(),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Creatures enter the battlefield tapped.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldEnterBattlefield {
+                filter: ObjectFilter::AnyCreature,
+            },
+            modification: ReplacementModification::EntersTapped,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    };
+    let registry = CardRegistry::new(vec![global_def]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(PlayerId(2))
+        .with_registry(registry.clone())
+        .object(
+            ObjectSpec::card(p1, "Mass Tapper")
+                .with_types(vec![CardType::Enchantment])
+                .with_card_id(CardId("tapper-1".to_string()))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build()
+        .unwrap();
+
+    let tapper_id = find_cond_etb_by_name(&state, "Mass Tapper");
+    replacement::register_permanent_replacement_abilities(
+        &mut state,
+        tapper_id,
+        p1,
+        Some(&CardId("tapper-1".to_string())),
+        &registry,
+    );
+    assert_eq!(
+        state.replacement_effects.len(),
+        1,
+        "the global ETB replacement is registered while the source is on the battlefield"
+    );
+
+    // Source leaves the battlefield → its WhileSourceOnBattlefield effect is GC'd.
+    state
+        .move_object_to_zone(tapper_id, ZoneId::Graveyard(p1))
+        .expect("move to graveyard");
+    assert!(
+        state.replacement_effects.is_empty(),
+        "MR-M8-16: stale WhileSourceOnBattlefield effect must be removed when its source leaves"
     );
 }

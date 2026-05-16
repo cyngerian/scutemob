@@ -132,8 +132,8 @@ fn cast_test_sorcery(
 #[test]
 fn test_sft_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 24u8,
-        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 25u8,
+        "MR-B12-04 bumped HASH_SCHEMA_VERSION 24→25 (StackObjectKind::TriggeredAbility gains embedded_effect; hash arm folds in embedded_effect.is_some()). If you bumped again, update this test and state/hash.rs history."
     );
 }
 

@@ -271,6 +271,7 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
             source_object: saga_id,
             ability_index: 2, // Chapter 3 ability index
             is_carddef_etb: false,
+            embedded_effect: None,
         },
         targets: vec![],
         cant_be_countered: false,

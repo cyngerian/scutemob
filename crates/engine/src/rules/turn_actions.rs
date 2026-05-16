@@ -103,6 +103,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, instance_count) in vanishing_permanents {
         for _ in 0..instance_count {
             state.pending_triggers.push_back(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index: 0, // unused for vanishing counter triggers
                 controller: active,
@@ -172,6 +173,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, instance_count) in fading_permanents {
         for _ in 0..instance_count {
             state.pending_triggers.push_back(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index: 0, // unused for fading triggers
                 controller: active,
@@ -244,6 +246,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, costs) in echo_permanents {
         for cost in costs {
             state.pending_triggers.push_back(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index: 0, // unused for echo triggers
                 controller: active,
@@ -314,6 +317,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, costs) in cu_permanents {
         for cost in costs {
             state.pending_triggers.push_back(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index: 0, // unused for CU triggers
                 controller: active,
@@ -405,6 +409,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, controller, indices) in carddef_upkeep_triggers {
         for ability_index in indices {
             state.pending_triggers.push_back(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index,
                 controller,
@@ -551,6 +556,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, controller) in unearthed {
         state.pending_triggers.push_back(PendingTrigger {
+            embedded_effect: None,
             source: obj_id,
             ability_index: 0, // unused for unearth triggers
             controller,
@@ -624,6 +630,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, controller) in dashed_permanents {
         state.pending_triggers.push_back(PendingTrigger {
+            embedded_effect: None,
             source: obj_id,
             ability_index: 0, // unused for dash return triggers
             controller,
@@ -669,6 +676,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, controller) in blitzed_permanents {
         state.pending_triggers.push_back(PendingTrigger {
+            embedded_effect: None,
             source: obj_id,
             ability_index: 0, // unused for blitz sacrifice triggers
             controller,
@@ -723,6 +731,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for obj_id in impending_permanents {
         state.pending_triggers.push_back(PendingTrigger {
+            embedded_effect: None,
             source: obj_id,
             ability_index: 0, // unused for impending counter triggers
             controller: active,
@@ -802,6 +811,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, controller, indices) in carddef_end_step_triggers {
         for ability_index in indices {
             state.pending_triggers.push_back(PendingTrigger {
+                embedded_effect: None,
                 source: obj_id,
                 ability_index,
                 controller,

@@ -400,6 +400,23 @@ pub struct PendingTrigger {
     /// Not serialized (same as `kind`) — triggers are transient within a turn.
     #[serde(skip)]
     pub data: Option<TriggerData>,
+    /// MR-B12-04: The triggered ability's effect, captured when the trigger was
+    /// queued (while the source was still in its triggering zone).
+    ///
+    /// CR 400.7: when a trigger's source changes zones before the trigger
+    /// resolves — e.g. a creature that dies from the same combat damage that
+    /// triggered its Enrage ability — the source `ObjectId` is retired and the
+    /// effect can no longer be looked up from `state.objects`. `flush_pending_triggers`
+    /// threads this into `StackObjectKind::TriggeredAbility.embedded_effect` so
+    /// resolution can run the effect even when the source is gone.
+    ///
+    /// `Some` for `PendingTriggerKind::Normal` triggers collected by
+    /// `collect_triggers_for_event`; `None` for trigger kinds that resolve via
+    /// other paths (card-registry lookup, keyword dispatch, etc.).
+    ///
+    /// Not serialized (same as `data`/`kind`) — triggers are transient within a turn.
+    #[serde(skip)]
+    pub embedded_effect: Option<crate::cards::card_definition::Effect>,
     /// CR 603.10a / CR 113.7a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
     /// Captured at trigger queueing time (abilities.rs CreatureDied arm)
     /// from the `GameEvent::CreatureDied.pre_death_counters` payload. Threaded
@@ -464,6 +481,7 @@ impl PendingTrigger {
             damaged_player: None,
             combat_damage_amount: 0,
             data: None,
+            embedded_effect: None,
             lki_counters: im::OrdMap::new(),
             lki_power: None,
         }

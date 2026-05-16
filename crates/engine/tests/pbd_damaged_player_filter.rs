@@ -594,8 +594,8 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel is bumped to 15 (PB-LKI-CC bumped EffectAmount + PendingTrigger + StackObject,
     // CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 24u8,
-        "OOS-LKI-Power-3 bumped HASH_SCHEMA_VERSION 23→24 (4 GameEvent LBA variants now hash pre_lba_counters + pre_lba_power per CR 603.10a). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 25u8,
+        "MR-B12-04 bumped HASH_SCHEMA_VERSION 24→25 (StackObjectKind::TriggeredAbility gains embedded_effect; hash arm folds in embedded_effect.is_some()). If you bumped again, update this test and state/hash.rs history."
     );
 
     let p1 = PlayerId(1);
