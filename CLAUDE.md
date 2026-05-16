@@ -15,14 +15,14 @@
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
 - **Active Milestone**: M9.5 DONE — type consolidation complete; all workstreams unpaused
-- **Tests**: **2819 passing**; build/clippy/fmt clean
+- **Tests**: **2860 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: 2-PB coordinator chain 2026-05-15 (`scutemob-29..30`) — OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**), OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, no change). Prior same-day: 7-PB chain (`scutemob-22..28`, HASH 19→23). Full chain detail: `memory/workstream-state.md`.
+- **Last shipped**: LOW Sweep campaign 2026-05-15/16 (`scutemob-31..38`, 8 fix sessions) — 36 of 42 open LOWs actioned; LOW-OPEN 45→**6** (the 6 remaining are honestly-deferred: 4 M10-gated, 2 permanent perf non-bottlenecks). New DSL: `Effect::DestroyAndReanimate`, `Effect::PreventNextUntap`; BASELINE-LKI-01 fixed (`pre_death_characteristics` snapshot). HASH 24→**27**. Plan/tracker: `memory/low-sweep-plan.md`. Prior same-day: 2-PB chain (`scutemob-29..30`), 7-PB chain (`scutemob-22..28`).
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
-- **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); ~45 LOW open. Full: `docs/mtg-engine-milestone-reviews.md`.
+- **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-05-15 (2-PB chain shipped — HASH 24, 2819 tests)
+- **Last Updated**: 2026-05-16 (LOW Sweep campaign complete — HASH 27, 2860 tests, 6 LOW open)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 

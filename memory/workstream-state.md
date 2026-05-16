@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | — | available | — | W3-LOW sprint-1 + sprint-2 shipped 2026-04-25: 13 LOWs closed. ~45 open. |
+| W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/low-sweep-plan.md`. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **2 PBs shipped 2026-05-15 (coordinator session 2)** — `scutemob-29` OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**, +1 test) merged `e7d01fda`; `scutemob-30` OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, OOS-XA-3/XA2-3 RESOLVED) merged `184162df`. Tests 2818→**2819**. Earlier 2026-05-15: 7-PB chain (`scutemob-22..28`, HASH 19→23). High-confidence primitive backlog now exhausted — see Last Handoff. |
@@ -22,6 +22,38 @@
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
+
+**Date**: 2026-05-16 (coordinator session — W3 LOW Sweep campaign)
+**Workstream**: W3: LOW Remediation
+**Task**: LOW Sweep campaign — 8 dispatched fix sessions (`scutemob-31..38`) closing the entire actionable open-LOW backlog. Plan/tracker: `memory/low-sweep-plan.md`.
+
+**Completed** (all merged to main):
+- **LS-1** `scutemob-31` (`f492f815`): 6 commander/deck-validation LOWs (MR-M9-09/10/11/12/13/16).
+- **LS-2** `scutemob-32` (`93f6d3b5`): 7 replay-viewer/harness LOWs (MR-M9.5-05/09/10/12/13, MR-CKP-01, MR-B12-05). Coordinator resolved a parallel `milestone-reviews.md` stats conflict.
+- **LS-3** `scutemob-33` (`6010b5c9`): 6 combat LOWs (MR-M6-13, SR-TRM-01/02, SR-FS-02/03, MR-M2-16). SR-TRM-01/02 were 0-yield (already correct, stale doc refs).
+- **LS-4** `scutemob-34` (`b760292a`): 5 protection LOWs (SR-PRO-01..04, MR-M9.4-10). New `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`.
+- **LS-5** `scutemob-35` (`e3fbd3da`): 6 replacement-effect LOWs (MR-M8-12/16, MR-B12-03/04, MR-B16-07, PB-Q4-L01).
+- **LS-6** `scutemob-36` (`db49ddee`): PB-T-L01/L02/L03 unblocked — new `Effect::DestroyAndReanimate` + `Effect::PreventNextUntap` DSL primitives; Sorin/Tamiyo riders + Hands of Binding.
+- **LS-7** `scutemob-37` (`d81e107c`): BASELINE-LKI-01 fixed — `pre_death_characteristics` snapshot on `CreatureDied` (CR 603.10a/613.1e). Audit: `memory/primitives/lki-completeness-audit.md`.
+- **LS-8** `scutemob-38` (`9b4ed0d2`): MR-B11-08/09 — authored Insatiable Avarice ({B}-base Spree card) + 2 tests.
+
+**Session totals**: 8 session merges + 1 `chore:` (authoring-report regen `019d6ba6`). 36 of 42 open LOWs closed; LOW-OPEN 45→**6**. Tests 2819→**2860**. HASH 24→**27** (LS-6 +2 effect discs, LS-7 +1). Final `cargo test --all` on main green; build/clippy/fmt clean.
+
+**Residual — 6 LOWs deliberately NOT closed** (documented in `memory/low-sweep-plan.md`):
+- 4 M10-gated: MR-M8-11 (CR 615.7 interactive shield choice), MR-B16-04/05/06 (interactive targeting / ForEach context). Ride M10.
+- 2 permanent perf non-bottlenecks: MR-M1-18 (zone O(n) contains), MR-M6-14 (blockers_for rebuild).
+- 1 follow-up LOW filed by LS-7 audit: continuous-effect-*granted triggered abilities* lost via `SelfDies`/`SelfLeavesBattlefield` (same LKI class) — see `lki-completeness-audit.md`.
+
+**Hazards** (carrying forward):
+- Disk: each worktree builds a ~30G `cargo target/`. 4 parallel worktrees filled the 396G disk to 100% and zeroed `~/.claude.json` (recovered from `~/.claude/backups/`). **Run LOW/PB sessions strictly sequential** — one worktree at a time, peak ~30G.
+- `esm worktree check` reported a false conflict when the `working_branch` attestation didn't match the real branch name (esm worktree create appends `-triggers` etc.). Always read the real branch from `esm worktree list`, not the attestation.
+- Worker `signal-ready` is rejected while the coordinator's lock is held — `esm task unlock <id> --agent primary` right after the in_progress transition so workers can self-transition to in_review.
+
+**Commit prefix used**: worker-side `scutemob-N:`, `merge:` for merges, `chore:` for bookkeeping.
+
+---
+
+## Prior Handoff (preserved for chain context)
 
 **Date**: 2026-05-15 (coordinator session 2 — 2-PB sequential chain)
 **Workstream**: W6: Primitive
