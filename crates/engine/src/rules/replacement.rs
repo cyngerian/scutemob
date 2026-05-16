@@ -922,17 +922,21 @@ pub fn resolve_pending_zone_change(
             // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
             // CR 702.79a: capture counters before move_object_to_zone resets them.
             // CR 603.10a: capture LKI power before move_object_to_zone for SourcePowerAtLKI.
+            // CR 603.10a / CR 613.1d: capture full characteristics for filtered death triggers.
             let oid = pending.object_id;
-            let (pre_move_controller, pre_death_counters, pre_death_power_repl) = state
-                .objects
-                .get(&oid)
-                .map(|o| {
-                    let lki_power = crate::rules::layers::calculate_characteristics(state, oid)
-                        .and_then(|c| c.power)
-                        .or(o.characteristics.power);
-                    (o.controller, o.counters.clone(), lki_power)
-                })
-                .unwrap_or((pending.affected_player, Default::default(), None));
+            let (pre_move_controller, pre_death_counters, pre_death_power_repl, repl_pre_chars) =
+                state
+                    .objects
+                    .get(&oid)
+                    .map(|o| {
+                        let pre_chars = crate::rules::layers::calculate_characteristics(state, oid);
+                        let lki_power = pre_chars
+                            .as_ref()
+                            .and_then(|c| c.power)
+                            .or(o.characteristics.power);
+                        (o.controller, o.counters.clone(), lki_power, pre_chars)
+                    })
+                    .unwrap_or((pending.affected_player, Default::default(), None, None));
             // Do the zone move
             if let Ok((new_id, _old)) = state.move_object_to_zone(pending.object_id, final_dest) {
                 events.extend(zone_change_events(
@@ -944,6 +948,7 @@ pub fn resolve_pending_zone_change(
                     pre_move_controller,
                     &pre_death_counters,
                     pre_death_power_repl,
+                    repl_pre_chars,
                 ));
             }
         }
@@ -1761,6 +1766,8 @@ fn emit_etb_modification(
 /// `pre_death_counters` is the counter state captured before `move_object_to_zone` reset it —
 /// required for CR 702.79a persist/undying intervening-if check in `check_triggers`.
 /// `card_types` is used to choose `CreatureDied` vs `PermanentDestroyed` for graveyard moves.
+/// `pre_death_characteristics` is the full layer-resolved characteristics snapshot (CR 603.10a /
+/// CR 613.1d) captured before the zone move for filtered death trigger evaluation.
 #[allow(clippy::too_many_arguments)]
 fn zone_change_events(
     state: &GameState,
@@ -1771,6 +1778,7 @@ fn zone_change_events(
     pre_move_controller: PlayerId,
     pre_death_counters: &im::OrdMap<crate::state::types::CounterType, u32>,
     pre_death_power: Option<i32>,
+    pre_death_characteristics: Option<crate::state::game_object::Characteristics>,
 ) -> Vec<GameEvent> {
     match dest {
         ZoneId::Graveyard(_) => {
@@ -1791,6 +1799,8 @@ fn zone_change_events(
                     pre_death_counters: pre_death_counters.clone(),
                     // CR 603.10a: LKI power for SourcePowerAtLastKnownInformation.
                     pre_death_power,
+                    // CR 603.10a / CR 613.1d: full LKI characteristics for filtered death triggers.
+                    pre_death_characteristics,
                 }]
             } else {
                 vec![GameEvent::PermanentDestroyed {

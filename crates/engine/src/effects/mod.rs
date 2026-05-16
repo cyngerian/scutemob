@@ -773,11 +773,15 @@ fn execute_effect_inner(
                         pre_death_controller,
                         pre_death_counters,
                         pre_death_power,
+                        destroy_pre_chars,
                     ) = state
                         .objects
                         .get(&id)
                         .map(|o| {
-                            let chars = crate::rules::layers::calculate_characteristics(state, id)
+                            let pre_chars_opt =
+                                crate::rules::layers::calculate_characteristics(state, id);
+                            let chars = pre_chars_opt
+                                .clone()
                                 .unwrap_or_else(|| o.characteristics.clone());
                             let lki_power = chars.power;
                             (
@@ -789,6 +793,8 @@ fn execute_effect_inner(
                                 o.counters.clone(),
                                 // CR 603.10a: capture layer-resolved power before zone move.
                                 lki_power,
+                                // CR 603.10a / CR 613.1d: full LKI characteristics snapshot.
+                                pre_chars_opt,
                             )
                         })
                         .unwrap_or_else(|| {
@@ -797,6 +803,7 @@ fn execute_effect_inner(
                                 ctx.controller,
                                 ctx.controller,
                                 Default::default(),
+                                None,
                                 None,
                             )
                         });
@@ -840,6 +847,8 @@ fn execute_effect_inner(
                                                 // CR 702.79a: last-known counter state.
                                                 pre_death_counters: pre_death_counters.clone(),
                                                 pre_death_power,
+                                                pre_death_characteristics: destroy_pre_chars
+                                                    .clone(),
                                             });
                                         } else {
                                             events.push(GameEvent::PermanentDestroyed {
@@ -887,6 +896,7 @@ fn execute_effect_inner(
                                         // CR 702.79a: last-known counter state.
                                         pre_death_counters: pre_death_counters.clone(),
                                         pre_death_power,
+                                        pre_death_characteristics: destroy_pre_chars.clone(),
                                     });
                                 } else {
                                     events.push(GameEvent::PermanentDestroyed {
@@ -979,31 +989,42 @@ fn execute_effect_inner(
                     }
                 }
                 // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
-                let (card_types, owner, pre_death_controller, pre_death_counters, pre_death_power) =
-                    state
-                        .objects
-                        .get(&id)
-                        .map(|o| {
-                            let chars = crate::rules::layers::calculate_characteristics(state, id)
-                                .unwrap_or_else(|| o.characteristics.clone());
-                            let lki_power = chars.power;
-                            (
-                                chars.card_types,
-                                o.owner,
-                                o.controller,
-                                o.counters.clone(),
-                                lki_power,
-                            )
-                        })
-                        .unwrap_or_else(|| {
-                            (
-                                Default::default(),
-                                ctx.controller,
-                                ctx.controller,
-                                Default::default(),
-                                None,
-                            )
-                        });
+                let (
+                    card_types,
+                    owner,
+                    pre_death_controller,
+                    pre_death_counters,
+                    pre_death_power,
+                    destroy_all_pre_chars,
+                ) = state
+                    .objects
+                    .get(&id)
+                    .map(|o| {
+                        let pre_chars_opt =
+                            crate::rules::layers::calculate_characteristics(state, id);
+                        let chars = pre_chars_opt
+                            .clone()
+                            .unwrap_or_else(|| o.characteristics.clone());
+                        let lki_power = chars.power;
+                        (
+                            chars.card_types,
+                            o.owner,
+                            o.controller,
+                            o.counters.clone(),
+                            lki_power,
+                            pre_chars_opt,
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        (
+                            Default::default(),
+                            ctx.controller,
+                            ctx.controller,
+                            Default::default(),
+                            None,
+                            None,
+                        )
+                    });
                 // CR 614: Check replacement effects before moving to graveyard.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1048,6 +1069,8 @@ fn execute_effect_inner(
                                             controller: pre_death_controller,
                                             pre_death_counters: pre_death_counters.clone(),
                                             pre_death_power,
+                                            pre_death_characteristics: destroy_all_pre_chars
+                                                .clone(),
                                         });
                                     } else {
                                         events.push(GameEvent::PermanentDestroyed {
@@ -1093,6 +1116,7 @@ fn execute_effect_inner(
                                     controller: pre_death_controller,
                                     pre_death_counters: pre_death_counters.clone(),
                                     pre_death_power,
+                                    pre_death_characteristics: destroy_all_pre_chars.clone(),
                                 });
                             } else {
                                 events.push(GameEvent::PermanentDestroyed {
@@ -1176,13 +1200,16 @@ fn execute_effect_inner(
                             pre_death_controller,
                             pre_death_counters,
                             pre_death_power,
+                            dar_pre_chars,
                         ) = state
                             .objects
                             .get(&id)
                             .map(|o| {
-                                let chars =
-                                    crate::rules::layers::calculate_characteristics(state, id)
-                                        .unwrap_or_else(|| o.characteristics.clone());
+                                let pre_chars_opt =
+                                    crate::rules::layers::calculate_characteristics(state, id);
+                                let chars = pre_chars_opt
+                                    .clone()
+                                    .unwrap_or_else(|| o.characteristics.clone());
                                 let lki_power = chars.power;
                                 (
                                     chars.card_types,
@@ -1190,6 +1217,7 @@ fn execute_effect_inner(
                                     o.controller,
                                     o.counters.clone(),
                                     lki_power,
+                                    pre_chars_opt,
                                 )
                             })
                             .unwrap_or_else(|| {
@@ -1198,6 +1226,7 @@ fn execute_effect_inner(
                                     ctx.controller,
                                     ctx.controller,
                                     Default::default(),
+                                    None,
                                     None,
                                 )
                             });
@@ -1238,6 +1267,8 @@ fn execute_effect_inner(
                                                     controller: pre_death_controller,
                                                     pre_death_counters: pre_death_counters.clone(),
                                                     pre_death_power,
+                                                    pre_death_characteristics: dar_pre_chars
+                                                        .clone(),
                                                 });
                                             } else {
                                                 events.push(GameEvent::PermanentDestroyed {
@@ -1294,6 +1325,7 @@ fn execute_effect_inner(
                                             controller: pre_death_controller,
                                             pre_death_counters: pre_death_counters.clone(),
                                             pre_death_power,
+                                            pre_death_characteristics: dar_pre_chars.clone(),
                                         });
                                     } else {
                                         events.push(GameEvent::PermanentDestroyed {
@@ -3003,9 +3035,13 @@ fn execute_effect_inner(
                         pre_sacrifice_controller,
                         pre_death_counters,
                         pre_death_power,
+                        sac_perm_pre_chars,
                     ) = match state.objects.get(&id) {
                         Some(obj) => {
-                            let chars = crate::rules::layers::calculate_characteristics(state, id)
+                            let pre_chars_opt =
+                                crate::rules::layers::calculate_characteristics(state, id);
+                            let chars = pre_chars_opt
+                                .clone()
                                 .unwrap_or_else(|| obj.characteristics.clone());
                             let lki_power = chars.power;
                             (
@@ -3016,6 +3052,7 @@ fn execute_effect_inner(
                                 obj.counters.clone(),
                                 // CR 603.10a: capture layer-resolved power before zone move.
                                 lki_power,
+                                pre_chars_opt,
                             )
                         }
                         None => continue,
@@ -3066,6 +3103,8 @@ fn execute_effect_inner(
                                                 // CR 702.79a: last-known counter state.
                                                 pre_death_counters: pre_death_counters.clone(),
                                                 pre_death_power,
+                                                pre_death_characteristics: sac_perm_pre_chars
+                                                    .clone(),
                                             });
                                         } else {
                                             events.push(GameEvent::PermanentDestroyed {
@@ -3118,6 +3157,7 @@ fn execute_effect_inner(
                                         // CR 702.79a: last-known counter state.
                                         pre_death_counters: pre_death_counters.clone(),
                                         pre_death_power,
+                                        pre_death_characteristics: sac_perm_pre_chars.clone(),
                                     });
                                 } else {
                                     events.push(GameEvent::PermanentDestroyed {
@@ -5543,9 +5583,13 @@ fn execute_effect_inner(
                     pre_sacrifice_controller,
                     pre_death_counters,
                     pre_death_power_ld,
+                    ld_pre_chars,
                 ) = match state.objects.get(&id) {
                     Some(obj) => {
-                        let chars = crate::rules::layers::calculate_characteristics(state, id)
+                        let pre_chars_opt =
+                            crate::rules::layers::calculate_characteristics(state, id);
+                        let chars = pre_chars_opt
+                            .clone()
                             .unwrap_or_else(|| obj.characteristics.clone());
                         let lki_power = chars.power.or(obj.characteristics.power);
                         (
@@ -5554,6 +5598,7 @@ fn execute_effect_inner(
                             obj.controller,
                             obj.counters.clone(),
                             lki_power,
+                            pre_chars_opt,
                         )
                     }
                     None => continue, // already gone (e.g. moved by earlier step)
@@ -5606,6 +5651,7 @@ fn execute_effect_inner(
                                             controller: pre_sacrifice_controller,
                                             pre_death_counters: pre_death_counters.clone(),
                                             pre_death_power: pre_death_power_ld,
+                                            pre_death_characteristics: ld_pre_chars.clone(),
                                         });
                                     } else {
                                         events.push(GameEvent::PermanentDestroyed {
@@ -5656,6 +5702,7 @@ fn execute_effect_inner(
                                     controller: pre_sacrifice_controller,
                                     pre_death_counters: pre_death_counters.clone(),
                                     pre_death_power: pre_death_power_ld,
+                                    pre_death_characteristics: ld_pre_chars.clone(),
                                 });
                             } else {
                                 events.push(GameEvent::PermanentDestroyed {

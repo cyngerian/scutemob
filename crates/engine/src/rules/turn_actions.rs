@@ -1966,13 +1966,21 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for obj_id in decayed_sacrifice_ids {
-        let (owner, controller, pre_death_counters, pre_death_power) =
+        let (owner, controller, pre_death_counters, pre_death_power, decayed_pre_chars) =
             match state.objects.get(&obj_id) {
                 Some(obj) => {
-                    let lki_power = crate::rules::layers::calculate_characteristics(state, obj_id)
+                    let pre_chars = crate::rules::layers::calculate_characteristics(state, obj_id);
+                    let lki_power = pre_chars
+                        .as_ref()
                         .and_then(|c| c.power)
                         .or(obj.characteristics.power);
-                    (obj.owner, obj.controller, obj.counters.clone(), lki_power)
+                    (
+                        obj.owner,
+                        obj.controller,
+                        obj.counters.clone(),
+                        lki_power,
+                        pre_chars,
+                    )
                 }
                 None => continue,
             };
@@ -2013,6 +2021,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 controller,
                                 pre_death_counters,
                                 pre_death_power,
+                                pre_death_characteristics: decayed_pre_chars.clone(),
                             });
                         }
                     }
@@ -2028,6 +2037,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         controller,
                         pre_death_counters,
                         pre_death_power,
+                        pre_death_characteristics: decayed_pre_chars.clone(),
                     });
                 }
             }
@@ -2043,6 +2053,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         controller,
                         pre_death_counters,
                         pre_death_power,
+                        pre_death_characteristics: decayed_pre_chars,
                     });
                 }
             }
@@ -2069,13 +2080,21 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for obj_id in ring_sacrifice_ids {
-        let (owner, controller, pre_death_counters, pre_death_power) =
+        let (owner, controller, pre_death_counters, pre_death_power, ring_pre_chars) =
             match state.objects.get(&obj_id) {
                 Some(obj) => {
-                    let lki_power = crate::rules::layers::calculate_characteristics(state, obj_id)
+                    let pre_chars = crate::rules::layers::calculate_characteristics(state, obj_id);
+                    let lki_power = pre_chars
+                        .as_ref()
                         .and_then(|c| c.power)
                         .or(obj.characteristics.power);
-                    (obj.owner, obj.controller, obj.counters.clone(), lki_power)
+                    (
+                        obj.owner,
+                        obj.controller,
+                        obj.counters.clone(),
+                        lki_power,
+                        pre_chars,
+                    )
                 }
                 None => continue,
             };
@@ -2116,6 +2135,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                                 controller,
                                 pre_death_counters,
                                 pre_death_power,
+                                pre_death_characteristics: ring_pre_chars.clone(),
                             });
                         }
                     }
@@ -2131,6 +2151,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         controller,
                         pre_death_counters,
                         pre_death_power,
+                        pre_death_characteristics: ring_pre_chars.clone(),
                     });
                 }
             }
@@ -2146,6 +2167,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         controller,
                         pre_death_counters,
                         pre_death_power,
+                        pre_death_characteristics: ring_pre_chars,
                     });
                 }
             }

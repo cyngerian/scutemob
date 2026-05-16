@@ -617,7 +617,14 @@ pub fn handle_activate_ability(
     }
     // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.
     if ability_cost.sacrifice_self {
-        let (is_creature, owner, pre_death_controller, pre_death_counters, sac_self_lki_power) = {
+        let (
+            is_creature,
+            owner,
+            pre_death_controller,
+            pre_death_counters,
+            sac_self_lki_power,
+            sac_self_pre_chars,
+        ) = {
             let obj = state.object(source)?;
             // CR 613.1f + CR 603.10a + CR 613.1e: Use layer-resolved card types to determine
             // whether the sacrificed permanent is a creature at the time of sacrifice. A
@@ -627,7 +634,9 @@ pub fn handle_activate_ability(
             // PermanentDestroyed instead of CreatureDied — "whenever a creature dies" triggers
             // would fail to fire. unwrap_or_else fallback handles graveyard/exile objects
             // (LKI path) where calculate_characteristics may return None.
-            let resolved = crate::rules::layers::calculate_characteristics(state, source)
+            let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, source);
+            let resolved = pre_chars_opt
+                .clone()
                 .unwrap_or_else(|| obj.characteristics.clone());
             // CR 603.10a: capture layer-resolved power for SourcePowerAtLastKnownInformation.
             let lki_power = resolved.power.or(obj.characteristics.power);
@@ -641,6 +650,8 @@ pub fn handle_activate_ability(
                 // CR 702.79a: capture counters before move_object_to_zone resets them.
                 obj.counters.clone(),
                 lki_power,
+                // CR 603.10a / CR 613.1d: full LKI characteristics snapshot for filtered death triggers.
+                pre_chars_opt,
             )
         };
         let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
@@ -652,6 +663,7 @@ pub fn handle_activate_ability(
                 pre_death_counters,
                 // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                 pre_death_power: sac_self_lki_power,
+                pre_death_characteristics: sac_self_pre_chars,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {
@@ -771,38 +783,40 @@ pub fn handle_activate_ability(
             }
         }
         // Sacrifice the permanent (move to graveyard).
-        let (is_creature, owner, pre_death_controller, pre_death_counters) = {
+        // CR 603.10a / CR 613.1d: Capture full layer-resolved characteristics BEFORE zone move.
+        // Consolidate into one calculate_characteristics call for type-check, power, and LKI snapshot.
+        let (
+            is_creature,
+            owner,
+            pre_death_controller,
+            pre_death_counters,
+            sac_filter_lki_power,
+            sac_filter_pre_chars,
+        ) = {
             let obj = state.object(sac_id)?;
             // CR 613.1f + CR 603.10a + CR 613.1e: Use layer-resolved card types for the
             // sacrificed permanent. Same reasoning as the sacrifice_self path above: a
             // permanent animated into a creature via Layer 4 must emit CreatureDied when
             // it is sacrificed as a cost, so "whenever a creature dies" triggers fire.
             // unwrap_or_else fallback handles LKI path (object not on battlefield).
-            let resolved_types = crate::rules::layers::calculate_characteristics(state, sac_id)
+            let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, sac_id);
+            let resolved = pre_chars_opt
+                .clone()
                 .unwrap_or_else(|| obj.characteristics.clone());
+            // CR 608.2b: Capture LKI power BEFORE the zone move (CR 400.7 kills old id after).
+            let lki_power = resolved.power.or(obj.characteristics.power);
+            sacrificed_lki_powers.push(lki_power.unwrap_or(0));
             (
-                resolved_types
+                resolved
                     .card_types
                     .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
                 obj.controller,
                 obj.counters.clone(),
+                lki_power,
+                // CR 603.10a / CR 613.1d: full LKI characteristics snapshot for filtered death triggers.
+                pre_chars_opt,
             )
-        };
-        // CR 608.2b: Capture LKI power of the sacrificed creature BEFORE the zone move.
-        // After move_object_to_zone, the OLD sac_id is dead (CR 400.7) and the NEW
-        // graveyard object's characteristics have lost battlefield-gated layer effects.
-        let sac_filter_lki_power = {
-            let lki_chars = crate::rules::layers::calculate_characteristics(state, sac_id)
-                .or_else(|| {
-                    state
-                        .objects
-                        .get(&sac_id)
-                        .map(|o| o.characteristics.clone())
-                })
-                .unwrap_or_default();
-            sacrificed_lki_powers.push(lki_chars.power.unwrap_or(0));
-            lki_chars.power
         };
         let (new_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(owner))?;
         if is_creature {
@@ -813,6 +827,7 @@ pub fn handle_activate_ability(
                 pre_death_counters,
                 // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                 pre_death_power: sac_filter_lki_power,
+                pre_death_characteristics: sac_filter_pre_chars,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {
@@ -4034,7 +4049,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 controller: death_controller,
                 pre_death_counters,
                 pre_death_power,
-                ..
+                pre_death_characteristics,
             } => {
                 // CR 603.6c / CR 603.10a / CR 700.4: "When ~ dies" triggers look back in time.
                 // The creature is now in the graveyard, but its characteristics (including
@@ -4343,22 +4358,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 if creature_filter.is_token && !dying_is_token {
                                     continue;
                                 }
-                                // TODO(BASELINE-LKI-01): this dispatch site re-runs layer filters
-                                // against the graveyard object via calculate_characteristics, which
-                                // causes battlefield-gated filters (SingleObject, AttachedCreature,
-                                // etc.) to drop out. The unwrap_or_else fallback to preserved chars
-                                // is unreachable because calculate_characteristics returns Some(_)
-                                // for valid graveyard objects. Any subtype/color granted via a
-                                // continuous effect while the creature was on the battlefield will
-                                // NOT be matched by this filter. See
-                                // docs/mtg-engine-low-issues-remediation.md — BASELINE-LKI-01.
-                                // Dispatch is intentionally left unchanged in PB-N scope; fix
-                                // belongs to a dedicated LKI-completeness audit session.
-                                let dying_chars = crate::rules::layers::calculate_characteristics(
-                                    state,
-                                    dying_obj_id,
-                                )
-                                .unwrap_or_else(|| dying_obj.characteristics.clone());
+                                // CR 603.10a / CR 613.1d: Use PRE-DEATH characteristics snapshot
+                                // captured before move_object_to_zone (threaded via GameEvent).
+                                // This preserves battlefield-gated layer effects (SingleObject,
+                                // AttachedCreature, etc.) that drop out after zone change per
+                                // CR 400.7. Fixes BASELINE-LKI-01: a creature granted a subtype
+                                // (e.g. Zombie) by a continuous effect while on the battlefield
+                                // must match "whenever a Zombie you control dies" triggers.
+                                // Fallback to graveyard object's preserved characteristics if the
+                                // snapshot is absent (e.g. events deserialized from old recordings).
+                                let dying_chars = pre_death_characteristics
+                                    .clone()
+                                    .unwrap_or_else(|| dying_obj.characteristics.clone());
                                 if !crate::effects::matches_filter(&dying_chars, creature_filter) {
                                     continue;
                                 }

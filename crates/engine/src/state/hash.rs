@@ -192,7 +192,14 @@
 ///   and PB-T-L03 (Tamiyo -2 / Hands of Binding freeze rider). `#[serde(default)]`
 ///   on `skip_untap_steps` ensures pre-bump serialized states still deserialize
 ///   cleanly with `skip_untap_steps: 0`.
-pub const HASH_SCHEMA_VERSION: u8 = 26;
+/// - 27: BASELINE-LKI-01 (2026-05-15) — new `GameEvent::CreatureDied` field
+///   `pre_death_characteristics: Option<Characteristics>` capturing full layer-resolved
+///   characteristics before `move_object_to_zone` (CR 603.10a / CR 613.1d). Fixes
+///   filtered death triggers ("whenever a Zombie you control dies") failing to match
+///   creatures whose subtype was granted by a battlefield-gated continuous effect.
+///   `#[serde(default)]` ensures pre-bump serialized events deserialize cleanly with
+///   `pre_death_characteristics: None` (graceful fallback to graveyard-preserved chars).
+pub const HASH_SCHEMA_VERSION: u8 = 27;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -3507,6 +3514,7 @@ impl HashInto for GameEvent {
                 controller,
                 pre_death_counters,
                 pre_death_power,
+                pre_death_characteristics,
             } => {
                 27u8.hash_into(hasher);
                 object_id.hash_into(hasher);
@@ -3519,6 +3527,8 @@ impl HashInto for GameEvent {
                 }
                 // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
                 pre_death_power.hash_into(hasher);
+                // CR 603.10a / CR 613.1d: full LKI characteristics for filtered death triggers.
+                pre_death_characteristics.hash_into(hasher);
             }
             GameEvent::PlaneswalkerDied {
                 object_id,

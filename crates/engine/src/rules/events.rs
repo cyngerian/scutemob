@@ -3,7 +3,7 @@
 //! Events are the single source of truth for "what happened." The network
 //! layer broadcasts them; the UI consumes them; the history log records them.
 use crate::state::combat::AttackTarget;
-use crate::state::game_object::{ManaCost, ObjectId};
+use crate::state::game_object::{Characteristics, ManaCost, ObjectId};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::turn::{Phase, Step};
@@ -49,6 +49,11 @@ pub enum LossReason {
 ///
 /// Every state transition produces one or more events. Events are appended
 /// to `GameState::history` and can be used by triggers and the UI.
+// CreatureDied carries pre_death_characteristics: Option<Characteristics> (~480B) for LKI
+// correctness (BASELINE-LKI-01 / CR 603.10a). Boxing would require 44+ construction site
+// changes across sba.rs, resolution.rs, effects/mod.rs, and others. The suppress is the
+// established project pattern (see command.rs, script_schema.rs) for large event enums.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GameEvent {
     /// A new turn has started for the given player.
@@ -227,6 +232,17 @@ pub enum GameEvent {
         /// `None` if the dying object had no power characteristic.
         #[serde(default)]
         pre_death_power: Option<i32>,
+        /// CR 603.10a / CR 613.1d: full layer-resolved characteristics of the dying creature
+        /// as they last existed on the battlefield (last known information). Captured by
+        /// `calculate_characteristics` BEFORE `move_object_to_zone`. Used by the
+        /// `AnyCreatureDies` dispatch to evaluate `triggering_creature_filter` against the
+        /// creature's pre-death subtypes/colors/types — including any subtype granted by a
+        /// continuous effect (AddSubtypes via SingleObject/AttachedCreature) that no longer
+        /// applies once the object is in the graveyard.
+        /// `None` when the snapshot is unavailable (defensive fallback to graveyard base
+        /// characteristics, preserving pre-fix behavior).
+        #[serde(default)]
+        pre_death_characteristics: Option<Characteristics>,
     },
     /// A planeswalker was put into its owner's graveyard because its loyalty
     /// reached 0 (CR 704.5i).

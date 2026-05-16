@@ -20,9 +20,10 @@
 
 use mtg_engine::{
     process_command, AttackTarget, CardContinuousEffectDef, CardId, CardRegistry, Color, Command,
-    DeathTriggerFilter, Effect, EffectAmount, EffectDuration, EffectFilter, EffectLayer,
-    GameStateBuilder, LayerModification, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step,
-    SubType, TargetFilter, TriggerEvent, TriggeredAbilityDef, ZoneId, HASH_SCHEMA_VERSION,
+    ContinuousEffect, DeathTriggerFilter, Effect, EffectAmount, EffectDuration, EffectFilter,
+    EffectId, EffectLayer, GameStateBuilder, LayerModification, ObjectSpec, PlayerId, PlayerTarget,
+    StackObjectKind, Step, SubType, TargetFilter, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -390,31 +391,22 @@ fn test_pbn_death_filter_subtype_mismatch_no_fire() {
 /// **LKI wedge (subtype-based, as mandated by fix_phase_directives F3):**
 /// - Dying creature has Vampire subtype in its BASE characteristics.
 /// - Death trigger filter: Vampire subtype.
-/// - Expected: trigger FIRES because `calculate_characteristics` is called on the graveyard
-///   object, which retains the original `characteristics` field (including Vampire subtype)
-///   from `move_object_to_zone` (line 415: `characteristics: old_object.characteristics.clone()`).
+/// - Expected: trigger FIRES because pre-death characteristics are threaded via `GameEvent::CreatureDied`
+///   (`pre_death_characteristics` field, BASELINE-LKI-01) and used at the AnyCreatureDies dispatch site.
 ///
 /// **Discrimination:** This test detects if the death trigger dispatch reads the graveyard
-/// object's characteristics (via `calculate_characteristics`) vs. using a stale pre-death
-/// snapshot or no characteristics at all. The dying creature's Vampire subtype is carried
-/// through `old_object.characteristics.clone()` into the new graveyard object. If the
-/// dispatch code used `dying_obj.characteristics` without the layer call, the subtype
-/// would still be present (same result). If it read zero characteristics (a regression),
-/// the trigger would not fire and this test would catch it.
+/// object's characteristics vs. uses a stale pre-death snapshot or no characteristics at all.
+/// The dying creature's Vampire subtype is carried both in `old_object.characteristics.clone()`
+/// into the new graveyard object AND in `pre_death_characteristics` on the event. If it read
+/// zero characteristics (a regression), the trigger would not fire and this test would catch it.
 ///
-/// **Note on continuous-effect-based LKI (engine limitation, ESCALATED):**
-/// The coordinator's fix_phase_directives specified a wedge where Vampire comes ONLY from
-/// a continuous effect (Layer 4, WhileOnBattlefield) so that pre-death vs post-death evaluation
-/// produces different results. Attempted implementation revealed that `move_object_to_zone`
-/// assigns a NEW ObjectId to the graveyard object (CR 400.7). A continuous effect with
-/// `EffectFilter::SingleObject(old_id)` no longer matches the new graveyard ObjectId after
-/// the zone change, so `calculate_characteristics` on the graveyard object returns base
-/// characteristics (Human, no Vampire) and the trigger does not fire. This is a known
-/// engine limitation (not a bug in PB-N specifically — it's a pre-existing CR 400.7 LKI
-/// gap). The full LKI wedge (continuous-effect-modified subtype surviving zone change) requires
-/// either a pre-death snapshot mechanism or a separate LKI object map — ESCALATED to coordinator
-/// per stop-and-flag protocol. This version uses base characteristics as the strongest available
-/// discriminator within current engine capabilities.
+/// **Note:** The original ESCALATED note about this being an engine limitation is now resolved.
+/// BASELINE-LKI-01 (scutemob-37) added `pre_death_characteristics: Option<Characteristics>` to
+/// `GameEvent::CreatureDied`, captured before `move_object_to_zone` via `calculate_characteristics`.
+/// The dispatch site in `abilities.rs` now uses this snapshot — including subtypes granted by
+/// battlefield-gated continuous effects (SingleObject, AttachedCreature, etc.) that drop out
+/// after zone change (CR 400.7). See `test_lki_death_filter_subtype_granted_via_single_object`
+/// and `test_lki_death_filter_subtype_granted_via_aura` for regression tests of the full fix.
 #[test]
 fn test_pbn_death_filter_pre_death_lki_color() {
     let p1 = PlayerId(1);
@@ -555,8 +547,8 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 26u8,
-        "PB-LS6 bumped HASH_SCHEMA_VERSION 25→26 (Effect::DestroyAndReanimate disc 85, Effect::PreventNextUntap disc 86, GameObject.skip_untap_steps). If you bumped again, update this test and state/hash.rs history."
+        HASH_SCHEMA_VERSION, 27u8,
+        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
 
@@ -1062,5 +1054,207 @@ fn test_sanctum_seeker_flat_gain_4_player() {
         p4_life_after,
         40 - 1,
         "p4 should lose 1 life (was at starting life total)"
+    );
+}
+
+// ── BASELINE-LKI-01 Regression Tests ─────────────────────────────────────────
+
+/// CR 603.10a / CR 613.1d — BASELINE-LKI-01: filtered death trigger fires when the dying
+/// creature's relevant subtype was granted by a `SingleObject` continuous effect while on
+/// the battlefield.
+///
+/// **The bug (pre-fix):** The `AnyCreatureDies` dispatch site called
+/// `calculate_characteristics(state, graveyard_obj_id)`. After `move_object_to_zone`, the
+/// old battlefield ObjectId is dead (CR 400.7) and the new graveyard ObjectId does NOT match
+/// the `EffectFilter::SingleObject(old_battlefield_id)` filter. So the continuous effect
+/// dropped out, and the subtype was absent in the graveyard-side calculation — trigger
+/// silently never fired.
+///
+/// **The fix:** `GameEvent::CreatureDied.pre_death_characteristics` captures the full
+/// layer-resolved characteristics BEFORE `move_object_to_zone`, then the dispatch site
+/// uses this snapshot instead of re-running `calculate_characteristics` on the graveyard object.
+///
+/// **Test setup:**
+/// - Dying creature: base type Human only (no Zombie).
+/// - Continuous effect: `EffectFilter::SingleObject(dying_id)` + `LayerModification::AddSubtypes([Zombie])`
+///   — injected via `state.continuous_effects` after build.
+/// - Watcher: "Whenever a Zombie you control dies, draw a card" (`death_filter.controller_you`).
+/// - Dying creature has toughness 0 → dies via SBA.
+/// - Expected: trigger FIRES (pre_death_characteristics captured Zombie subtype from the effect).
+#[test]
+fn test_lki_death_filter_subtype_granted_via_single_object() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Watcher: "Whenever a Zombie you control dies, draw a card."
+    let watcher = ObjectSpec::creature(p1, "Zombie Watcher", 1, 4)
+        .with_triggered_ability(death_trigger_draw_subtype("Zombie"));
+
+    // Dying creature: base Human only (no Zombie in base characteristics).
+    // Toughness 0 → dies via SBA.
+    let dying_human = ObjectSpec::creature(p1, "Dying Human LKI", 1, 0);
+
+    // Library card to satisfy draw trigger resolution.
+    let lib = library_card(p1, "lib-lki-so", "Library Card LKI-SO");
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(watcher)
+        .object(dying_human)
+        .object(lib)
+        .build()
+        .unwrap();
+
+    // Find the dying creature's battlefield ObjectId to use in the SingleObject filter.
+    let dying_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Dying Human LKI")
+        .map(|(id, _)| *id)
+        .expect("Dying Human LKI must be on battlefield");
+
+    // Inject a battlefield-gated continuous effect: "Dying Human LKI is also a Zombie."
+    // EffectFilter::SingleObject(dying_id) matches only the battlefield object with that id.
+    // After zone change, the new graveyard ObjectId does NOT match — this is what BASELINE-LKI-01 fixes.
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(9001),
+        source: None,
+        timestamp: 999,
+        layer: EffectLayer::TypeChange,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::SingleObject(dying_id),
+        modification: LayerModification::AddSubtypes(
+            [SubType("Zombie".to_string())].into_iter().collect(),
+        ),
+        is_cda: false,
+        condition: None,
+    });
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Confirm the creature actually died (SBA: toughness 0).
+    let creature_gone = !state
+        .objects
+        .values()
+        .any(|o| o.characteristics.name == "Dying Human LKI" && o.zone == ZoneId::Battlefield);
+    assert!(
+        creature_gone,
+        "Dying Human LKI should have left the battlefield (SBA: toughness 0)"
+    );
+
+    // CR 603.10a / CR 613.1d: The trigger MUST fire because pre_death_characteristics
+    // captured the Zombie subtype from the SingleObject continuous effect BEFORE the zone move.
+    // Pre-fix: this would be 0 (calculate_characteristics on graveyard obj returned Human only).
+    assert!(
+        stack_trigger_count(&state) > 0,
+        "BASELINE-LKI-01 regression: Zombie death trigger must fire when subtype was granted \
+         via SingleObject continuous effect on battlefield. pre_death_characteristics snapshot \
+         should have captured Zombie subtype before move_object_to_zone (CR 603.10a / CR 613.1d)."
+    );
+}
+
+/// CR 603.10a / CR 613.1d — BASELINE-LKI-01: filtered death trigger fires when the dying
+/// creature's relevant subtype was granted by an `AttachedCreature` (aura) continuous effect.
+///
+/// Same bug/fix as `test_lki_death_filter_subtype_granted_via_single_object` but using
+/// the `EffectFilter::AttachedCreature` path, which also drops out after zone change because
+/// the `attached_to` relationship is only maintained while both objects are on the battlefield.
+///
+/// **Test setup:**
+/// - Dying creature: base type Human only (no Zombie in base characteristics).
+/// - An enchantment (aura) placed on the battlefield with `attached_to = Some(dying_id)`.
+/// - Continuous effect: `EffectFilter::AttachedCreature` + `LayerModification::AddSubtypes([Zombie])`
+///   sourced from the aura — injected via `state.continuous_effects`.
+/// - Watcher: "Whenever a Zombie you control dies, draw a card" (`death_filter.controller_you`).
+/// - Dying creature has toughness 0 → dies via SBA.
+/// - Expected: trigger FIRES (pre_death_characteristics captured Zombie subtype from the aura effect).
+#[test]
+fn test_lki_death_filter_subtype_granted_via_aura() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Watcher: "Whenever a Zombie you control dies, draw a card."
+    let watcher = ObjectSpec::creature(p1, "Zombie Watcher Aura", 1, 4)
+        .with_triggered_ability(death_trigger_draw_subtype("Zombie"));
+
+    // Dying creature: base Human only (no Zombie in base characteristics).
+    // Toughness 0 → dies via SBA.
+    let dying_human = ObjectSpec::creature(p1, "Dying Human Aura LKI", 1, 0);
+
+    // Aura enchantment: the source of the AddSubtypes continuous effect.
+    let aura = ObjectSpec::enchantment(p1, "Zombie Aura");
+
+    // Library card to satisfy draw trigger resolution.
+    let lib = library_card(p1, "lib-lki-aura", "Library Card LKI-Aura");
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(watcher)
+        .object(dying_human)
+        .object(aura)
+        .object(lib)
+        .build()
+        .unwrap();
+
+    // Find the dying creature's and aura's ObjectIds.
+    let dying_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Dying Human Aura LKI")
+        .map(|(id, _)| *id)
+        .expect("Dying Human Aura LKI must be on battlefield");
+    let aura_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Zombie Aura")
+        .map(|(id, _)| *id)
+        .expect("Zombie Aura must be on battlefield");
+
+    // Set the aura's attached_to relationship so AttachedCreature filter resolves correctly.
+    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+        aura_obj.attached_to = Some(dying_id);
+    }
+
+    // Inject the continuous effect via AttachedCreature filter sourced from the aura.
+    // This grants Zombie subtype to whichever creature the aura is attached to.
+    state.continuous_effects.push_back(ContinuousEffect {
+        id: EffectId(9002),
+        source: Some(aura_id),
+        timestamp: 999,
+        layer: EffectLayer::TypeChange,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::AttachedCreature,
+        modification: LayerModification::AddSubtypes(
+            [SubType("Zombie".to_string())].into_iter().collect(),
+        ),
+        is_cda: false,
+        condition: None,
+    });
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Confirm the creature actually died (SBA: toughness 0).
+    let creature_gone = !state
+        .objects
+        .values()
+        .any(|o| o.characteristics.name == "Dying Human Aura LKI" && o.zone == ZoneId::Battlefield);
+    assert!(
+        creature_gone,
+        "Dying Human Aura LKI should have left the battlefield (SBA: toughness 0)"
+    );
+
+    // CR 603.10a / CR 613.1d: The trigger MUST fire because pre_death_characteristics
+    // captured the Zombie subtype from the AttachedCreature aura effect BEFORE the zone move.
+    // Pre-fix: this would be 0 (calculate_characteristics on graveyard obj returned Human only
+    // because the aura's AttachedCreature filter no longer applied after zone change).
+    assert!(
+        stack_trigger_count(&state) > 0,
+        "BASELINE-LKI-01 regression: Zombie death trigger must fire when subtype was granted \
+         via AttachedCreature aura continuous effect. pre_death_characteristics snapshot should \
+         have captured Zombie subtype before move_object_to_zone (CR 603.10a / CR 613.1d)."
     );
 }
