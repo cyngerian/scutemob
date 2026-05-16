@@ -3,9 +3,9 @@
 //   controller's next untap step.
 // Cipher
 //
-// TODO: "doesn't untap during its controller's next untap step" — no Effect::PreventNextUntap
-//   or EffectDuration::UntilNextUntapStep(target_controller) in DSL. Tap effect is expressed;
-//   the "skip untap" portion is omitted until a DoesntUntapNextTurn effect primitive exists.
+// Freeze rider implemented via Effect::PreventNextUntap + GameObject.skip_untap_steps (PB-LS6).
+// Note: TargetRequirement::TargetCreature does not restrict to "an opponent controls" —
+// that is a pre-existing card-def gap unrelated to this batch; scope deferred.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,11 +18,11 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Spell {
                 // CR 702.27a: Tap target creature an opponent controls.
-                // TODO: "doesn't untap during its controller's next untap step" — DSL gap.
-                //   No Effect::PreventNextUntap or EffectDuration::UntilNextUntapStep.
-                effect: Effect::TapPermanent {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                },
+                // CR 502.3: that creature doesn't untap during its controller's next untap step.
+                effect: Effect::Sequence(vec![
+                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
+                    Effect::PreventNextUntap { target: EffectTarget::DeclaredTarget { index: 0 } },
+                ]),
                 targets: vec![TargetRequirement::TargetCreature],
                 modes: None,
                 cant_be_countered: false,
