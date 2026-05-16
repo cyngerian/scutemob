@@ -18,8 +18,28 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Whenever ~ or another Goblin you control dies" — needs subtype-filtered
-            // death trigger (WheneverCreatureYouControlDies with subtype filter) not in DSL.
+            // CR 603.10a: "Whenever Pashalik Mons or another Goblin you control dies."
+            // exclude_self=false: fires when Pashalik itself dies or another Goblin you control dies.
+            // controller=You, filter=Goblin subtype (covers Pashalik since it is a Goblin).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Goblin".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::DealDamage {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetAny],
+                modes: None,
+                trigger_zone: None,
+            },
             // {3}{R}, Sacrifice a Goblin: Create two 1/1 red Goblin creature tokens.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -52,7 +72,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -14,11 +14,21 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             // CR 603.10a: "Whenever another nontoken Elf or Berserker you control dies."
-            // PB-23: controller_you + exclude_self + nontoken_only via DeathTriggerFilter.
-            // TODO: Elf/Berserker subtype filter not yet in DSL — over-triggers on other creature types.
+            // controller=You, exclude_self=true (another), nontoken_only=true.
+            // has_subtypes OR semantics: fires if dying creature is an Elf OR a Berserker.
             AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: true, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: true,
+                    filter: Some(TargetFilter {
+                        has_subtypes: vec![
+                            SubType("Elf".to_string()),
+                            SubType("Berserker".to_string()),
+                        ],
+                        ..Default::default()
+                    }),
+                },
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,
@@ -31,7 +41,6 @@ pub fn card() -> CardDefinition {
                 ]),
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
