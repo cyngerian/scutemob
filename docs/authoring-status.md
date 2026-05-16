@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-05-14 00:33 UTC  
-**Git:** `e7a9a16c` on `feat/pb-lki-power-lki-source-powertoughness-snapshot-for-whendies`  
+**Generated:** 2026-05-16 00:41 UTC  
+**Git:** `e3fbd3da` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO, non-empty abilities)  — 52.6% | 920 | +2 |
-| With TODO markers | 645 | -2 |
+| Clean (no TODO, non-empty abilities)  — 52.8% | 923 | +3 |
+| With TODO markers | 642 | -3 |
 | Empty `abilities: vec![]` placeholders | 183 | · |
-| Total TODO lines across all defs | 1,176 | -2 |
+| Total TODO lines across all defs | 1,169 | -7 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 7 |
-| last 30 days | 0 | 174 |
-| last 90 days | 1,773 | 1,155 |
-| last 1 year | 1,773 | 1,155 |
+| last 7 days | 0 | 81 |
+| last 30 days | 0 | 238 |
+| last 90 days | 1,773 | 1,165 |
+| last 1 year | 1,773 | 1,165 |
 
 ## Bonus defs outside the plan
 
@@ -70,16 +70,16 @@ are blocked on engine primitives.
 | `draw` | 163 / 169 | 96% | 58 | 80 | 25 |
 | `token-create` | 145 / 155 | 94% | 17 | 64 | 64 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
-| `other` | 108 / 131 | 82% | 61 | 47 | 0 |
+| `other` | 108 / 131 | 82% | 62 | 46 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 25 | 43 | 0 |
-| `mana-land` | 92 / 92 | 100% | 73 | 16 | 3 |
+| `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
 | `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 28 | 0 |
 | `land-fetch` | 45 / 45 | 100% | 25 | 19 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 18 | 16 | 0 |
-| `mana-artifact` | 34 / 34 | 100% | 21 | 10 | 3 |
+| `mana-artifact` | 34 / 34 | 100% | 22 | 9 | 3 |
 | `activated-tap` | 2 / 27 | 7% | 1 | 1 | 0 |
 | `pump-buff` | 27 / 27 | 100% | 16 | 11 | 0 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 9 | 0 |
@@ -169,7 +169,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 678 | -2 |
+| OTHER (unclassified) | 673 | -5 |
 | DSL gap (unspecified) | 148 | · |
 | attack trigger (self / generic) | 31 | · |
 | Cost::* missing variant | 22 | · |
@@ -179,7 +179,7 @@ the next thing to triage when the classifier table is grown.
 | dynamic hexproof / protection | 17 | · |
 | untap-all / untap trigger | 16 | · |
 | sacrifice as cost | 16 | · |
-| TargetFilter missing field | 16 | · |
+| TargetFilter missing field | 15 | -1 |
 | CDA / dynamic P/T | 12 | · |
 | interactive / hidden-info choice | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
@@ -195,11 +195,11 @@ the next thing to triage when the classifier table is grown.
 | conditional static / grant | 5 | · |
 | counter-placed trigger | 5 | · |
 
-_…and 34 more buckets totaling 74 lines._
+_…and 34 more buckets totaling 73 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 678 
+Showing 12 of 673 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -207,14 +207,14 @@ deterministic (sorted by slug).
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bonecrusher_giant: // TODO: "Damage can't be prevented this turn" — no prevention-removal DSL effect.
-deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-enduring_vitality: // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
-glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
-izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
+deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
+eomer_king_of_rohan: // TODO: ETB counter placement (X +1/+1 counters where X = other Humans you control) requires
+gnarlroot_trapper: // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
+izzet_charm: // TODO: "unless its controller pays {2}" — conditional counter not in DSL.
 mana_tithe: // TODO: "Counter unless controller pays {1}" — requires CounterUnlessPays effect.
-oath_of_teferi: // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
-ripples_of_undeath: // TODO: "first main phase" trigger + mill-3 + pay-1-life conditional return.
-smothering_tithe: // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
+omnath_locus_of_creation: // TODO: Blocker — per-ability "this is the Nth time this ability has resolved
+rith_liberated_primeval: // TODO: "At the beginning of your end step, if a creature or planeswalker an
+smugglers_surprise: // TODO: Spree mode 1 — mill 4, put up to two creature/land cards milled into hand.
 teferi_hero_of_dominaria: // TODO: TriggerEvent::WheneverYouDrawCard not in DSL — emblem trigger gap.
 twilight_prophet: // TODO: Upkeep trigger conditioned on HasCitysBlessing requires:
 ```
@@ -222,6 +222,15 @@ twilight_prophet: // TODO: Upkeep trigger conditioned on HasCitysBlessing requir
 ## Recent card-touching commits
 
 ```
+27c1381b scutemob-28: PB-EWC-D — ObjectFilter::CreatureControlledByOfSubtype + bind_object_filter OwnedByOpponentsOf rebind
+9eca57af scutemob-26: PB-XA2 — TargetFilter.is_blocking/is_tapped/is_untapped runtime predicates
+8edf0e8a scutemob-25: PB-EAT — ReplacementModification::EntersAsAdditionalType (Master Biomancer Mutant half)
+d7d8062e scutemob-24: PB-XA — card def cleanup + doc comment update
+92f606d6 scutemob-23: review fix — correct ETB ordering caveat in comment
+2ca4c307 scutemob-23: OOS-EWC-2 — Golgari Grave-Troll dynamic ETB counters
+4d9862f6 scutemob-22: PB-XS-E — trigger-side exclude_self for "Whenever another permanent enters"
+9b679fb8 scutemob-21: PB-XS — TargetFilter.exclude_self for "another target X"
+37f77495 scutemob-20: PB-EWC — EntersWithCounters count u32→Box<EffectAmount> (CR 614.1c)
 e7a9a16c scutemob-19: PB-LKI-Power — LKI source-power snapshot for WhenDies/WhenLeavesBattlefield (CR 603.10a)
 f8d7cdf4 scutemob-18: PB-CD — counter-doubling replacement effects (CR 122.6/614.1)
 34317614 feat(pb-lki-cc): add EffectAmount::CounterCountAtLastKnownInformation (disc 17) + LKI snapshot threading
@@ -238,15 +247,6 @@ b990b867 scutemob-12: PB-CC-B — TargetFilter.has_counter_type field + Armorcra
 01c41cb9 scutemob-10: address /review findings — CR citation fixes + Blasphemous Edict + Vraska's Fall revert + Accursed Marauder Warrior
 0f224094 scutemob-10: PB-SFT — add filter: Option<TargetFilter> to Effect::SacrificePermanents
 3423b194 scutemob-11: fix CR citation in Mossborn Hydra (CR 121.2 → CR 122.1/122.6)
-5237fcfb scutemob-11: PB-CC-W wire up Mossborn Hydra Landfall counter doubling
-173fb5e5 W3: PB-N-L01 — reflow filter:None indentation in 5 card defs (CLOSED)
-39b43f3a task scutemob-5: PB-T update card defs (14 cards)
-872ea5d2 scutemob-4: PB-L — Landfall battlefield dispatch + stale-TODO sweep
-1d7ecbf1 task scutemob-3: PB-P implement — EffectAmount::PowerOfSacrificedCreature (LKI capture-by-value)
-b55ad321 scutemob-2: PB-D cards — 6 card defs use DamagedPlayer filter
-0e5d7cf1 W6-prim: PB-N fix phase — 6 findings (F1+F2 HIGH, F3+F4+F5 MEDIUM, F6 LOW)
-d343e1ba W6-prim: PB-N — SubtypeFilteredAttack + SubtypeFilteredDeath triggers
-fc83d9d0 W6-prim: stale-TODO sweep — PB-N pre-launch (3 cards)
 ```
 
 ## Missing card-defs sidecar
