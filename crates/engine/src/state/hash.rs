@@ -5878,7 +5878,7 @@ impl HashInto for Effect {
                 player.hash_into(hasher);
                 amount.hash_into(hasher);
             }
-            // PB-LS6: DestroyAndReanimate (discriminant 85) — CR 701.7 + reanimation
+            // PB-LS6: DestroyAndReanimate (discriminant 85) — CR 701.8 + reanimation
             Effect::DestroyAndReanimate {
                 targets,
                 cant_be_regenerated,

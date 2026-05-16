@@ -9,7 +9,9 @@
 //!   "doesn't untap during its controller's NEXT untap step", regardless of state).
 //! - Zone change (battlefield → graveyard → battlefield) resets the counter
 //!   because the object becomes a new object with skip_untap_steps = 0 (CR 400.7).
-//! - Integration with Hands of Binding card def (tap + freeze rider).
+//! - Only the permanent's controller's untap step decrements the counter (CR 502.3).
+//!
+//! All tests exercise Effect::PreventNextUntap directly via execute_effect.
 //!
 //! CR refs:
 //!   CR 400.7  — zone change creates a new object; old state does not persist

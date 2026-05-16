@@ -53,7 +53,7 @@ pub fn card() -> CardDefinition {
             },
             // −6: Destroy up to three target creatures and/or other planeswalkers. Return each
             //     card put into a graveyard this way to the battlefield under your control.
-            //     (CR 601.2c / CR 701.7 / CR 400.7)
+            //     (CR 601.2c / CR 701.8 / CR 400.7)
             // DeclaredTarget{index} resolves exactly one target slot, so we list all three
             // indices explicitly to cover the full up-to-3 declared set (PB-LS6).
             AbilityDefinition::LoyaltyAbility {

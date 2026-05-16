@@ -1110,7 +1110,7 @@ fn execute_effect_inner(
             }
             ctx.last_effect_count = destroyed_count;
         }
-        // PB-LS6 / CR 701.7 + reanimation: Destroy each declared target, then return every
+        // PB-LS6 / CR 701.8 + reanimation: Destroy each declared target, then return every
         // card actually put into a graveyard by this destruction to the battlefield under the
         // effect controller's control (CR 400.7 — each is a new object).
         //
@@ -1253,7 +1253,11 @@ fn execute_effect_inner(
                                             // Commander redirect — not reanimated.
                                         }
                                         _ => {
-                                            // Other redirect — not reanimated.
+                                            // Intentional divergence from DestroyPermanent: a card
+                                            // redirected to Hand or Library (or any non-graveyard,
+                                            // non-exile zone) did not die and is therefore not
+                                            // reanimated. No death event is emitted either — the
+                                            // card never reached a graveyard.
                                         }
                                     }
                                 }

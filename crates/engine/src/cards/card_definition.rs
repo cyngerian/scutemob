@@ -1282,7 +1282,7 @@ pub enum Effect {
         #[serde(default)]
         cant_be_regenerated: bool,
     },
-    /// CR 701.7 + reanimation (PB-LS6): destroy each declared-target permanent, then return
+    /// CR 701.8 + reanimation (PB-LS6): destroy each declared-target permanent, then return
     /// every card actually put into a graveyard by this destruction to the battlefield under
     /// the effect's controller's control (CR 400.7 — each is a new object).
     ///

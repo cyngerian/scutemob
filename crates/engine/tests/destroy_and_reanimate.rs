@@ -8,7 +8,8 @@
 //! - Token targets are destroyed but NOT reanimated (CR 704.5d — tokens cease to
 //!   exist when they leave the battlefield; the is_token flag gates phase 2).
 //! - Replacement effects that redirect to exile prevent reanimation (CR 614.1a).
-//! - ETB triggers fire for reanimated permanents (CR 603.6a).
+//! - ETB triggered abilities from a reanimated permanent's CardDefinition are queued
+//!   (CR 603.6a — queue_carddef_etb_triggers is called on the reanimate path).
 //! - The activating player's controller identity overrides the original controller.
 //!
 //! CR refs:
@@ -22,9 +23,10 @@ use mtg_engine::state::replacement_effect::{
     ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
 };
 use mtg_engine::{
-    CardEffectTarget, CardId, Effect, EffectDuration, GameEvent, GameState, GameStateBuilder,
-    KeywordAbility, ObjectId, ObjectSpec, PlayerId, ReplacementId, SpellTarget, Step, Target,
-    ZoneId, ZoneType,
+    AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Effect,
+    EffectAmount, EffectDuration, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, ReplacementId, SpellTarget, Step, Target,
+    TriggerCondition, TypeLine, ZoneId, ZoneType,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -105,7 +107,7 @@ fn run_destroy_and_reanimate(
 
 // ── Test 1: Basic destroy-and-reanimate ───────────────────────────────────────
 
-/// CR 701.7 — DestroyAndReanimate destroys a creature target and reanimates the
+/// CR 701.8 — DestroyAndReanimate destroys a creature target and reanimates the
 /// resulting graveyard card under the activating player's control.
 #[test]
 fn test_l02_destroy_and_reanimate_basic() {
@@ -125,7 +127,7 @@ fn test_l02_destroy_and_reanimate_basic() {
     assert_ne!(
         zone_of(&state_after, target_id),
         ZoneId::Battlefield,
-        "CR 701.7: destroyed creature should leave the battlefield"
+        "CR 701.8: destroyed creature should leave the battlefield"
     );
 
     // A CreatureDied event should have fired.
@@ -134,7 +136,7 @@ fn test_l02_destroy_and_reanimate_basic() {
         .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
     assert!(
         died,
-        "CR 701.7: CreatureDied event should fire for destroyed creature"
+        "CR 701.8: CreatureDied event should fire for destroyed creature"
     );
 
     // The creature should now be on the battlefield again (reanimated).
@@ -159,7 +161,7 @@ fn test_l02_destroy_and_reanimate_basic() {
 
 // ── Test 2: Returns under activating player's control ─────────────────────────
 
-/// CR 701.7 / Sorin -6 oracle text — "return each card put into a graveyard this
+/// CR 701.8 / Sorin -6 oracle text — "return each card put into a graveyard this
 /// way to the battlefield under your control." The reanimated permanent is
 /// controlled by the activating player (P1), not the original controller (P2).
 #[test]
@@ -370,9 +372,9 @@ fn test_l02_indestructible_target_survives() {
 
 // ── Test 6: Multiple targets — partial indestructible ─────────────────────────
 
-/// CR 701.7 — DestroyAndReanimate with 3 targets: one normal creature, one indestructible,
-/// one normal planeswalker. The normal creatures/planeswalkers are destroyed and reanimated;
-/// the indestructible creature is skipped entirely.
+/// CR 701.8 — DestroyAndReanimate with 3 targets: one normal creature (Normal Bear), one
+/// indestructible creature (Adamantine Titan), one own creature (Own Goblin). The two normal
+/// creatures are destroyed and reanimated; the indestructible creature is skipped entirely.
 #[test]
 fn test_l02_multiple_targets_partial_indestructible() {
     let state = GameStateBuilder::new()
@@ -451,4 +453,112 @@ fn test_l02_multiple_targets_partial_indestructible() {
     // No event for the Titan (neither died nor entered).
     let find_opt = find_by_name_opt(&state_after, "Adamantine Titan");
     assert!(find_opt.is_some(), "Titan must still exist");
+}
+
+// ── Test 7: ETB triggered ability fires for reanimated permanent ──────────────
+
+/// CR 603.6a — "A permanent's ability that triggers 'when/whenever [it] enters
+/// the battlefield' triggers when that object enters the battlefield."
+///
+/// The reanimate phase calls queue_carddef_etb_triggers, which queues ETB
+/// triggered abilities from the permanent's CardDefinition. This test verifies
+/// that a creature with a WhenEntersBattlefield triggered ability has that
+/// trigger queued (added to state.pending_triggers) after being destroyed and
+/// reanimated by DestroyAndReanimate.
+#[test]
+fn test_l02_destroy_and_reanimate_runs_etb() {
+    // Build a CardDefinition for a creature with an ETB "gain 1 life" triggered ability.
+    let etb_card_id = CardId("etb-creature".to_string());
+    let etb_def = CardDefinition {
+        card_id: etb_card_id.clone(),
+        name: "ETB Creature".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "When this creature enters the battlefield, gain 1 life.".to_string(),
+        abilities: vec![AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: None,
+        spell_cost_modifiers: vec![],
+        self_cost_reduction: None,
+        starting_loyalty: None,
+        adventure_face: None,
+        meld_pair: None,
+        spell_additional_costs: vec![],
+        activated_ability_cost_reductions: vec![],
+        cant_be_countered: false,
+        self_exile_on_resolution: false,
+        self_shuffle_on_resolution: false,
+    };
+    let registry = CardRegistry::new(vec![etb_def]);
+
+    // Build the game state with the registry so queue_carddef_etb_triggers can look up the def.
+    let state = GameStateBuilder::new()
+        .with_registry(registry)
+        .add_player(p(1))
+        .add_player(p(2))
+        // P2 owns the ETB creature; P1 will destroy-and-reanimate it.
+        .object(ObjectSpec::creature(p(2), "ETB Creature", 2, 2).with_card_id(etb_card_id.clone()))
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    let target_id = find_by_name(&state, "ETB Creature");
+
+    // Run DestroyAndReanimate via execute_effect (not process_command) so we can
+    // inspect state.pending_triggers directly after the effect resolves.
+    let (state_after, events) = run_destroy_and_reanimate(state, p(1), &[target_id], false);
+
+    // Phase 1: creature must have been destroyed.
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(died, "CR 701.8: CreatureDied event must fire in phase 1");
+
+    // Phase 2: creature must be reanimated (PermanentEnteredBattlefield event).
+    let entered = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PermanentEnteredBattlefield { .. }));
+    assert!(
+        entered,
+        "creature must be reanimated (PermanentEnteredBattlefield event)"
+    );
+
+    // CR 603.6a: the reanimate path calls queue_carddef_etb_triggers, which pushes a
+    // PendingTrigger for the WhenEntersBattlefield ability. Assert it was queued.
+    assert!(
+        !state_after.pending_triggers.is_empty(),
+        "CR 603.6a: queue_carddef_etb_triggers must queue the ETB triggered ability \
+         when a creature with a WhenEntersBattlefield ability is reanimated. \
+         Got 0 pending triggers."
+    );
+
+    // Verify the trigger is for the reanimated creature (CardDefETB kind).
+    use mtg_engine::state::stubs::PendingTriggerKind;
+    let has_carddef_etb = state_after
+        .pending_triggers
+        .iter()
+        .any(|t| t.kind == PendingTriggerKind::CardDefETB);
+    assert!(
+        has_carddef_etb,
+        "CR 603.6a: the queued trigger must be a CardDefETB pending trigger"
+    );
 }
