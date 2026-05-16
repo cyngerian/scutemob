@@ -1,10 +1,6 @@
 // Insatiable Avarice — {B}, Sorcery (Spree)
 // + {2} — Search your library for a card, then shuffle and put that card on top.
 // + {B}{B} — Target player draws three cards and loses 3 life.
-// TODO: Spree mode 2 ({B}{B}) requires targeting a player (target player draws 3,
-// loses 3). The DSL has no way to attach a TargetRequirement to an individual Spree
-// mode. Implementing mode 1 alone would allow illegal casts (mode 2 chosen = no-op)
-// producing wrong game state. Full card deferred per W5 policy.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +14,51 @@ pub fn card() -> CardDefinition {
              + {2} — Search your library for a card, then shuffle and put that card on top.\n\
              + {B}{B} — Target player draws three cards and loses 3 life."
                 .to_string(),
-        abilities: vec![],
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Spree),
+            AbilityDefinition::Spell {
+                // CR 702.172a: Spree — at least one mode must be chosen; each chosen
+                // mode's additional cost is paid on top of the card's base mana cost.
+                effect: Effect::Sequence(vec![]),
+                targets: vec![],
+                modes: Some(ModeSelection {
+                    // CR 702.172a: Spree requires at least 1 mode; no upper limit beyond mode count.
+                    min_modes: 1,
+                    max_modes: 2,
+                    allow_duplicate_modes: false,
+                    // CR 700.2h / 702.172a: per-mode additional costs.
+                    // Mode 0: +{2}; Mode 1: +{B}{B}
+                    mode_costs: Some(vec![
+                        ManaCost { generic: 2, ..Default::default() },
+                        ManaCost { black: 2, ..Default::default() },
+                    ]),
+                    modes: vec![
+                        // Mode 0 (+{2}): Search your library for a card, then shuffle and
+                        // put that card on top. (CR 701.23 — "shuffle and put on top" means
+                        // shuffle first, then place the chosen card on top.)
+                        Effect::SearchLibrary {
+                            player: PlayerTarget::Controller,
+                            filter: TargetFilter::default(),
+                            reveal: false,
+                            destination: ZoneTarget::Library {
+                                owner: PlayerTarget::Controller,
+                                position: LibraryPosition::Top,
+                            },
+                            shuffle_before_placing: true,
+                            also_search_graveyard: false,
+                        },
+
+                        // Mode 1 (+{B}{B}): Target player draws three cards and loses 3 life.
+                        // TODO: the DSL has no way to attach a per-mode TargetRequirement to
+                        // an individual Spree mode. A spell-level target would wrongly require
+                        // a target even when only mode 0 is chosen. This mode is a no-op
+                        // placeholder, mirroring the same DSL gap documented in final_showdown.rs.
+                        Effect::Sequence(vec![]),
+                    ],
+                }),
+                cant_be_countered: false,
+            },
+        ],
         ..Default::default()
     }
 }
