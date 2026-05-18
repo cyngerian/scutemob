@@ -14,12 +14,13 @@
 //! - CR 603.10a: death triggers DO look back — regression guard confirms death path unchanged.
 
 use mtg_engine::{
-    process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
-    Command, DeathTriggerFilter, ETBTriggerFilter, Effect, EffectAmount, GameEvent, GameState,
-    GameStateBuilder, ManaCost, ObjectSpec, PlayerId, StackObjectKind, Step, SubType,
-    TargetController, TargetFilter, TokenSpec, TriggerCondition, TriggerEvent, TriggeredAbilityDef,
-    TypeLine, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition, CardId,
+    CardRegistry, CardType, Color, Command, DeathTriggerFilter, ETBTriggerFilter, Effect,
+    EffectAmount, GameEvent, GameState, GameStateBuilder, ManaCost, ObjectSpec, PlayerId,
+    StackObjectKind, Step, SubType, TargetController, TargetFilter, TokenSpec, TriggerCondition,
+    TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
+use std::collections::HashMap;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1336,5 +1337,324 @@ fn test_etb_death_path_unaffected() {
         initial_hand + 1,
         "CR 603.10a: P1 draws 1 card from Dragon-dies trigger (death path unaffected by PB-AC0). \
          Goblin dying must not contribute."
+    );
+}
+
+// ── Tests 12 & 13: enrich_spec_from_def discrimination tests ──────────────────
+//
+// These tests are the discrimination-gate for PB-AC0 Change 1 (replay_harness.rs:2411):
+// the `triggering_creature_filter: filter.clone()` line inside the
+// WheneverCreatureEntersBattlefield conversion arm of `enrich_spec_from_def`.
+//
+// ALL 11 prior tests use `ObjectSpec::with_triggered_ability(<runtime def>)`, which
+// bypasses enrich_spec_from_def entirely — reverting Change 1 leaves them green.
+// Tests 12 and 13 build the watcher via `enrich_spec_from_def` on the actual registered
+// CardDefinition (Ganax, Lathliss), with NO `with_triggered_ability` call on the watcher
+// ObjectSpec. So the WheneverCreatureEntersBattlefield → TriggeredAbilityDef conversion
+// (including Change 1's `triggering_creature_filter: filter.clone()`) runs at
+// `build_initial_state` time, and reverting Change 1 (→ `triggering_creature_filter: None`)
+// causes these tests to fail.
+//
+// Mirror pattern: `crates/engine/tests/pb_l_landfall.rs` (enrich_spec_from_def + load_defs).
+
+fn load_defs() -> HashMap<String, CardDefinition> {
+    let cards = all_cards();
+    cards.iter().map(|d| (d.name.clone(), d.clone())).collect()
+}
+
+// ── Test 12 ───────────────────────────────────────────────────────────────────
+
+/// CR 603.2 / CR 205.3 -- Ganax, Astral Hunter via real CardDefinition:
+/// enrich_spec_from_def discrimination test for Change 1.
+///
+/// The watcher is Ganax built from its registered CardDefinition via
+/// `enrich_spec_from_def`, with NO `with_triggered_ability` call. This exercises the
+/// `WheneverCreatureEntersBattlefield` conversion arm in `enrich_spec_from_def`
+/// (replay_harness.rs:2360-2414), specifically Change 1's
+/// `triggering_creature_filter: filter.clone()` at ~L2411.
+///
+/// Discrimination check: reverting Change 1 to `triggering_creature_filter: None` causes
+/// the subtype filter to be dropped, the trigger fires for any creature, and the
+/// no-fire-on-mismatch assertion below (Goblin → no Treasure) FAILS.
+///
+/// Fire-on-match: a Dragon creature enters → exactly 1 Treasure token created.
+/// No-fire-on-mismatch: a Goblin creature enters → 0 Treasure tokens created.
+#[test]
+fn test_etb_ganax_carddef_integration_via_enrich() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let defs = load_defs();
+
+    // Ganax, Astral Hunter as a watcher on the battlefield — built from the real
+    // registered CardDefinition via enrich_spec_from_def. NO with_triggered_ability call.
+    // enrich_spec_from_def converts the WheneverCreatureEntersBattlefield ability into a
+    // runtime TriggeredAbilityDef, forwarding `triggering_creature_filter: filter.clone()`
+    // (Change 1). Reverting Change 1 → None drops the Dragon filter → over-triggers.
+    let ganax_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Ganax, Astral Hunter").in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    // Entering creatures: a Dragon (should fire) and a Goblin (should NOT fire).
+    let dragon_card = dragon_def("ganax-enrich-dragon", "Ganax Enrich Dragon", 3);
+    let goblin_card = creature_def("ganax-enrich-goblin", "Ganax Enrich Goblin", 2);
+
+    // Registry must include all cards referenced: Ganax itself (for any effect resolution),
+    // plus the entering creatures.
+    let all_named: Vec<CardDefinition> = {
+        let mut v = all_cards();
+        v.push(dragon_card);
+        v.push(goblin_card);
+        v
+    };
+    let registry = CardRegistry::new(all_named);
+
+    let dragon_in_hand = ObjectSpec::creature(p1, "Ganax Enrich Dragon", 3, 3)
+        .with_card_id(CardId("ganax-enrich-dragon".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    let goblin_in_hand = ObjectSpec::creature(p1, "Ganax Enrich Goblin", 2, 2)
+        .with_card_id(CardId("ganax-enrich-goblin".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Goblin".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(ganax_spec)
+        .object(dragon_in_hand)
+        .object(goblin_in_hand)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let count_treasures = |state: &GameState| -> usize {
+        state
+            .objects
+            .values()
+            .filter(|o| o.characteristics.name == "Treasure" && o.is_token)
+            .count()
+    };
+
+    let initial_treasures = count_treasures(&state);
+
+    // Cast Goblin (non-Dragon) — Ganax's Dragon-ETB trigger must NOT fire.
+    // With Change 1 reverted, `triggering_creature_filter` would be None, the
+    // Dragon filter is dropped, and a Treasure would be created (over-trigger bug).
+    let (state, _) = cast_creature(state, p1, "Ganax Enrich Goblin", 2);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        count_treasures(&state),
+        initial_treasures,
+        "CR 603.2 / CR 205.3: Ganax (via enrich_spec_from_def) must NOT create a Treasure \
+         when a Goblin enters. If Change 1 is reverted (triggering_creature_filter: None), \
+         the Dragon filter is dropped and this assertion FAILS (over-trigger bug)."
+    );
+
+    // Cast Dragon — Ganax's trigger MUST fire and create exactly 1 Treasure.
+    // This is the fire-on-match case: with Change 1 in place, the Dragon filter is
+    // forwarded and the trigger fires correctly.
+    let (state, _) = cast_creature(state, p1, "Ganax Enrich Dragon", 3);
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // Resolve Ganax's trigger.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        count_treasures(&state),
+        initial_treasures + 1,
+        "CR 603.2 / CR 205.3: Ganax (via enrich_spec_from_def) MUST create exactly 1 Treasure \
+         when a Dragon enters. Validates Change 1 (triggering_creature_filter: filter.clone())."
+    );
+}
+
+// ── Test 13 ───────────────────────────────────────────────────────────────────
+
+/// CR 111.1 / CR 603.2 -- Lathliss, Dragon Queen via real CardDefinition:
+/// enrich_spec_from_def discrimination test for Change 1 (nontoken path).
+///
+/// The watcher is Lathliss built from its registered CardDefinition via
+/// `enrich_spec_from_def`, with NO `with_triggered_ability` call. This exercises the
+/// `WheneverCreatureEntersBattlefield` conversion arm in `enrich_spec_from_def`, and
+/// specifically the `is_nontoken: true` field forwarded by Change 1's
+/// `triggering_creature_filter: filter.clone()`.
+///
+/// Discrimination check: reverting Change 1 to `triggering_creature_filter: None` drops
+/// the `is_nontoken` filter. A token Dragon entering would then fire the trigger,
+/// causing the no-fire-on-token assertion below to FAIL.
+///
+/// Fire-on-match: a nontoken Dragon enters → trigger fires (dragon token or life-gain
+/// observable). No-fire-on-mismatch: a token Dragon enters → trigger must NOT fire.
+#[test]
+fn test_etb_lathliss_carddef_integration_via_enrich() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let defs = load_defs();
+
+    // Lathliss, Dragon Queen on the battlefield — built from the real CardDefinition
+    // via enrich_spec_from_def. NO with_triggered_ability call.
+    // enrich_spec_from_def runs the WheneverCreatureEntersBattlefield conversion,
+    // forwarding `triggering_creature_filter: Some(TargetFilter { has_subtype: Dragon,
+    // is_nontoken: true, ... })` (Change 1). Reverting → None drops the nontoken filter.
+    let lathliss_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Lathliss, Dragon Queen").in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    // A nontoken Dragon card (cast from hand → is_token: false).
+    let nontoken_dragon = dragon_def("lathliss-enrich-nontoken", "Lathliss Enrich Dragon", 3);
+
+    // A card that creates a Dragon token (is_token: true for the resulting token).
+    let token_creator_def = CardDefinition {
+        card_id: CardId("lathliss-enrich-creator".to_string()),
+        name: "Lathliss Enrich Creator".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "When this enters, create a 5/5 red Dragon creature token with flying."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::CreateToken {
+                spec: TokenSpec {
+                    name: "Dragon".to_string(),
+                    card_types: [CardType::Creature].into_iter().collect(),
+                    subtypes: [SubType("Dragon".to_string())].into_iter().collect(),
+                    colors: [Color::Red].into_iter().collect(),
+                    power: 5,
+                    toughness: 5,
+                    count: EffectAmount::Fixed(1),
+                    supertypes: im::OrdSet::new(),
+                    keywords: [mtg_engine::KeywordAbility::Flying].into_iter().collect(),
+                    tapped: false,
+                    enters_attacking: false,
+                    mana_color: None,
+                    mana_abilities: vec![],
+                    activated_abilities: vec![],
+                    ..Default::default()
+                },
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    };
+
+    let all_named: Vec<CardDefinition> = {
+        let mut v = all_cards();
+        v.push(nontoken_dragon);
+        v.push(token_creator_def);
+        v
+    };
+    let registry = CardRegistry::new(all_named);
+
+    // Nontoken Dragon in hand.
+    let dragon_in_hand = ObjectSpec::creature(p1, "Lathliss Enrich Dragon", 3, 3)
+        .with_card_id(CardId("lathliss-enrich-nontoken".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Dragon".to_string())])
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    // Token creator in hand.
+    let creator_in_hand = ObjectSpec::creature(p1, "Lathliss Enrich Creator", 2, 2)
+        .with_card_id(CardId("lathliss-enrich-creator".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 4,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(lathliss_spec)
+        .object(dragon_in_hand)
+        .object(creator_in_hand)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let lathliss_id = find_object_id(&state, "Lathliss, Dragon Queen");
+
+    let count_dragon_tokens = |state: &GameState| -> usize {
+        state
+            .objects
+            .values()
+            .filter(|o| {
+                o.is_token
+                    && o.characteristics
+                        .subtypes
+                        .contains(&SubType("Dragon".to_string()))
+                    && o.zone == ZoneId::Battlefield
+            })
+            .count()
+    };
+
+    let initial_tokens = count_dragon_tokens(&state);
+
+    // Cast nontoken Dragon → Lathliss's trigger MUST fire (another nontoken Dragon, exclude_self
+    // satisfied because entering creature is a different object than Lathliss).
+    let (state, _) = cast_creature(state, p1, "Lathliss Enrich Dragon", 3);
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // Resolve Lathliss trigger → creates a Dragon token.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let tokens_after_nontoken = count_dragon_tokens(&state);
+    assert_eq!(
+        tokens_after_nontoken,
+        initial_tokens + 1,
+        "CR 603.2 / CR 205.3: Lathliss (via enrich_spec_from_def) MUST fire when a \
+         nontoken Dragon enters. Change 1 forwards triggering_creature_filter with \
+         has_subtype + is_nontoken — reverting it would suppress the trigger."
+    );
+
+    // Cast token creator (non-Dragon) → enters, its ETB fires → creates a token Dragon.
+    // That token Dragon has is_token: true.
+    // Lathliss's is_nontoken filter must block the trigger from chaining off it.
+    // With Change 1 reverted, triggering_creature_filter is None → is_nontoken dropped →
+    // trigger fires on the token Dragon → this assertion FAILS.
+    let (state, _) = cast_creature(state, p1, "Lathliss Enrich Creator", 4);
+    // Creator enters (non-Dragon, so Lathliss doesn't fire on it).
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // Creator's ETB resolves → Dragon token enters (is_token: true).
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        trigger_count_for(&state, lathliss_id),
+        0,
+        "CR 111.1: Lathliss (via enrich_spec_from_def) must NOT fire when a token Dragon \
+         enters. With Change 1 reverted (triggering_creature_filter: None), the is_nontoken \
+         filter is dropped and this assertion FAILS — the infinite-loop guard is lost."
     );
 }

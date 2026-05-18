@@ -6190,8 +6190,10 @@ fn collect_triggers_for_event(
                         // after entry, so we use calculate_characteristics on the live object
                         // (no LKI snapshot needed, unlike the death path which uses CR 603.10a).
                         //
-                        // Scoped INSIDE the etb_filter block so death/attack defs (which also
-                        // carry triggering_creature_filter) are not double-evaluated here.
+                        // Scoped INSIDE the etb_filter block to exclude death/attack defs.
+                        // Death defs are handled in apply_zone_change_triggers (~L4287),
+                        // a separate function; attack/combat-damage defs have etb_filter:None
+                        // so they never enter this block.
                         if let Some(ref creature_filter) = trigger_def.triggering_creature_filter {
                             // is_token / is_nontoken: GameObject runtime fields, not in
                             // Characteristics — checked explicitly (matches_filter cannot see
