@@ -20,14 +20,17 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Ward(2)),
-            // Whenever another nontoken Dragon you control enters, create a token that's
-            // a copy of it, except the token isn't legendary.
-            // TODO: TargetFilter lacks "nontoken" restriction; currently fires on token Dragons too.
+            // CR 603.2: "Whenever another nontoken Dragon you control enters, create a
+            // token that's a copy of it, except the token isn't legendary."
+            // PB-AC0: has_subtype Dragon and is_nontoken are now honored on the
+            // creature-ETB path via triggering_creature_filter forwarding.
+            // exclude_self: true handles "another" (Miirym's own ETB does not fire it).
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),
                         controller: TargetController::You,
+                        is_nontoken: true,
                         ..Default::default()
                     }),
                     exclude_self: true,
@@ -39,7 +42,6 @@ pub fn card() -> CardDefinition {
                     gains_haste: false,
                     delayed_action: None,
                 },
-                // TODO: Condition should exclude self (another creature), but no SourceIsNotSelf condition exists.
                 intervening_if: None,
                 targets: vec![],
 

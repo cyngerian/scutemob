@@ -16,18 +16,46 @@ pub fn card() -> CardDefinition {
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: ENGINE-BLOCKED — "Whenever another nontoken Dragon you control enters,
-            // create a 5/5 red Dragon creature token with flying." The
-            // WheneverCreatureEntersBattlefield trigger converts to an ETBTriggerFilter
-            // (state/game_object.rs:560), which carries NO subtype field and NO token field —
-            // only creature_only/controller_you/exclude_self/color_filter/card_type_filter.
-            // Both the `has_subtype: Dragon` and the `nontoken` constraints would be silently
-            // dropped at replay_harness.rs:2371, so the trigger would fire for every creature
-            // (token or not) entering and mint a 5/5 Dragon each time. Needs ETBTriggerFilter
-            // to carry subtype + nontoken filters (or the creature-ETB path to forward
-            // triggering_creature_filter like the death-trigger path does). Authoring-only
-            // batch — cannot make the engine change. The activated pump ability below IS
-            // expressible and is implemented.
+            // CR 603.2: "Whenever another nontoken Dragon you control enters, create a 5/5
+            // red Dragon creature token with flying." exclude_self: true ("another");
+            // is_nontoken: true ("nontoken Dragon"). Per Gatherer ruling 2024-11-08, fires
+            // once per other nontoken Dragon entering simultaneously. PB-AC0: has_subtype
+            // Dragon and is_nontoken are now honored on the creature-ETB path via
+            // triggering_creature_filter forwarding.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Dragon".to_string())),
+                        controller: TargetController::You,
+                        is_nontoken: true,
+                        ..Default::default()
+                    }),
+                    exclude_self: true,
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Dragon".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Dragon".to_string())].into_iter().collect(),
+                        colors: [Color::Red].into_iter().collect(),
+                        power: 5,
+                        toughness: 5,
+                        count: EffectAmount::Fixed(1),
+                        supertypes: im::OrdSet::new(),
+                        keywords: [KeywordAbility::Flying].into_iter().collect(),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             // CR 613.4c: {1}{R}: Dragons you control get +1/+0 until end of turn.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),

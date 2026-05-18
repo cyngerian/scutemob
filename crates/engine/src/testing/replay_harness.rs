@@ -2402,7 +2402,13 @@ pub fn enrich_spec_from_def(
                 etb_filter: Some(etb_filter),
                 death_filter: None,
                 combat_damage_filter: None,
-                triggering_creature_filter: None,
+                // PB-AC0 (CR 603.2 / CR 205.3 / CR 111.1): forward the full carddef
+                // TargetFilter as triggering_creature_filter so has_subtype /
+                // has_subtypes / is_nontoken / exclude_subtypes are honored on the
+                // creature-ETB trigger path. The ETBTriggerFilter above only carries
+                // creature_only / controller_you / exclude_self / color_filter /
+                // card_type_filter. Mirrors the death-trigger conversion. CR 603.2.
+                triggering_creature_filter: filter.clone(),
                 targets: vec![],
             });
         }
