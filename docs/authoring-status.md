@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-05-16 00:41 UTC  
-**Git:** `e3fbd3da` on `main`  
+**Generated:** 2026-05-18 22:59 UTC  
+**Git:** `a0da201f` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO, non-empty abilities)  — 52.8% | 923 | +3 |
-| With TODO markers | 642 | -3 |
-| Empty `abilities: vec![]` placeholders | 183 | · |
-| Total TODO lines across all defs | 1,169 | -7 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 53.1% | 928 | -10 |
+| With TODO markers | 636 | +10 |
+| Empty `abilities: vec![]` placeholders | 184 | · |
+| Total TODO lines across all defs | 1,155 | +24 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 81 |
-| last 30 days | 0 | 238 |
-| last 90 days | 1,773 | 1,165 |
-| last 1 year | 1,773 | 1,165 |
+| last 7 days | 0 | 106 |
+| last 30 days | 0 | 257 |
+| last 90 days | 1,773 | 1,174 |
+| last 1 year | 1,773 | 1,174 |
 
 ## Bonus defs outside the plan
 
@@ -66,19 +66,19 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 75 | 102 | 10 |
-| `draw` | 163 / 169 | 96% | 58 | 80 | 25 |
-| `token-create` | 145 / 155 | 94% | 17 | 64 | 64 |
+| `combat-keyword` | 187 / 187 | 100% | 76 | 101 | 10 |
+| `draw` | 163 / 169 | 96% | 59 | 79 | 25 |
+| `token-create` | 145 / 155 | 94% | 19 | 61 | 65 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
 | `other` | 108 / 131 | 82% | 62 | 46 | 0 |
-| `modal-choice` | 68 / 105 | 65% | 25 | 43 | 0 |
+| `modal-choice` | 68 / 105 | 65% | 26 | 42 | 0 |
 | `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
 | `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 28 | 0 |
 | `land-fetch` | 45 / 45 | 100% | 25 | 19 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
-| `death-trigger` | 34 / 34 | 100% | 18 | 16 | 0 |
+| `death-trigger` | 34 / 34 | 100% | 18 | 15 | 1 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 9 | 3 |
 | `activated-tap` | 2 / 27 | 7% | 1 | 1 | 0 |
 | `pump-buff` | 27 / 27 | 100% | 16 | 11 | 0 |
@@ -94,7 +94,7 @@ are blocked on engine primitives.
 | `cost-reduction` | 12 / 12 | 100% | 4 | 0 | 8 |
 | `opponent-punish` | 12 / 12 | 100% | 2 | 10 | 0 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
-| `tutor` | 11 / 11 | 100% | 6 | 3 | 2 |
+| `tutor` | 11 / 11 | 100% | 6 | 4 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 5 | 4 | 1 |
 | `static-enchantment` | 0 / 8 | 0% | 0 | 0 | 0 |
 | `discard-effect` | 0 / 7 | 0% | 0 | 0 | 0 |
@@ -169,18 +169,18 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 673 | -5 |
-| DSL gap (unspecified) | 148 | · |
-| attack trigger (self / generic) | 31 | · |
+| OTHER (unclassified) | 669 | +19 |
+| DSL gap (unspecified) | 145 | · |
+| attack trigger (self / generic) | 28 | +2 |
 | Cost::* missing variant | 22 | · |
 | TriggerCondition::* missing variant | 19 | · |
 | replacement effect missing | 18 | · |
 | EffectAmount::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
-| untap-all / untap trigger | 16 | · |
 | sacrifice as cost | 16 | · |
-| TargetFilter missing field | 15 | -1 |
+| untap-all / untap trigger | 13 | · |
 | CDA / dynamic P/T | 12 | · |
+| TargetFilter missing field | 12 | · |
 | interactive / hidden-info choice | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
 | opponent-action trigger | 9 | · |
@@ -188,40 +188,47 @@ the next thing to triage when the classifier table is grown.
 | X-scaled tokens | 7 | · |
 | can't be countered | 7 | · |
 | no-maximum-hand-size | 7 | · |
+| per-player effect dispatch | 6 | +2 |
 | proliferate trigger | 6 | · |
 | per-opponent upkeep | 6 | · |
 | devotion | 5 | · |
 | count-threshold static | 5 | · |
 | conditional static / grant | 5 | · |
-| counter-placed trigger | 5 | · |
 
-_…and 34 more buckets totaling 73 lines._
+_…and 33 more buckets totaling 74 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 673 
+Showing 12 of 669 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bonecrusher_giant: // TODO: "Damage can't be prevented this turn" — no prevention-removal DSL effect.
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
-eomer_king_of_rohan: // TODO: ETB counter placement (X +1/+1 counters where X = other Humans you control) requires
-gnarlroot_trapper: // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
-izzet_charm: // TODO: "unless its controller pays {2}" — conditional counter not in DSL.
+bonecrusher_giant: // TODO(3): "Damage can't be prevented this turn" — no Effect::PreventionShieldRemoval
+dark_petition: // TODO: Condition::SpellMastery (2+ instant/sorcery in graveyard) not in DSL.
+entish_restoration: // TODO: Two DSL gaps prevent faithful implementation:
+glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
+izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
 mana_tithe: // TODO: "Counter unless controller pays {1}" — requires CounterUnlessPays effect.
-omnath_locus_of_creation: // TODO: Blocker — per-ability "this is the Nth time this ability has resolved
-rith_liberated_primeval: // TODO: "At the beginning of your end step, if a creature or planeswalker an
-smugglers_surprise: // TODO: Spree mode 1 — mill 4, put up to two creature/land cards milled into hand.
+ogre_battledriver: // ENGINE-BLOCKED: "that creature gets +2/+0 and gains haste until end of turn" requires
+ripples_of_undeath: // TODO: "first main phase" trigger + mill-3 + pay-1-life conditional return.
+smothering_abomination: // TODO: "At the beginning of your upkeep, sacrifice a creature" — forced sacrifice not expressible.
 teferi_hero_of_dominaria: // TODO: TriggerEvent::WheneverYouDrawCard not in DSL — emblem trigger gap.
-twilight_prophet: // TODO: Upkeep trigger conditioned on HasCitysBlessing requires:
+twilight_prophet: // TODO: Upkeep trigger conditioned on city's blessing, with drain-life based on
 ```
 
 ## Recent card-touching commits
 
 ```
+a1ed95a6 W5-cards: scutemob-42 — address 3 LOW review findings (batch 2)
+2e9af171 W5-cards: scutemob-42 — re-author 12 stale-TODO cards (W-NOW-1 batch 2)
+1f27f39c W6-prim: PB-AC0 — ETBTriggerFilter subtype/nontoken forwarding on creature-ETB path
+c68695ea W5-cards: scutemob-40 — re-author 12 verified-stale-TODO cards
+83695e65 scutemob-38: author Insatiable Avarice + Spree base-cost tests — LS-8
+c3b0e399 scutemob-36: LS-6 review fixes — ETB test, CR 701.8 citations, test headers
+5a8b404e W6-prim: PB-LS6 card defs — Sorin -6, Tamiyo -2, Hands of Binding freeze rider
 27c1381b scutemob-28: PB-EWC-D — ObjectFilter::CreatureControlledByOfSubtype + bind_object_filter OwnedByOpponentsOf rebind
 9eca57af scutemob-26: PB-XA2 — TargetFilter.is_blocking/is_tapped/is_untapped runtime predicates
 8edf0e8a scutemob-25: PB-EAT — ReplacementModification::EntersAsAdditionalType (Master Biomancer Mutant half)
@@ -240,13 +247,6 @@ a48f00e2 scutemob-16: PB-TS engine surface — TokenSpec.count u32 → EffectAmo
 15ca37ce scutemob-15: PB-CC-C-followup card defs — Vishgraz + Fuseling re-authored
 1a04b73d scutemob-14: PB-CC-A — EffectAmount::PlayerCounterCount + Vishgraz deferred
 7dcd6119 scutemob-13: PB-CC-C review fixes — defer Fuseling, ship engine variants for spell use cases (Option B per reviewer)
-f965a783 scutemob-13: PB-CC-C — ModifyPowerDynamic + ModifyToughnessDynamic + Exuberant Fuseling CDA
-f864bc25 scutemob-12: PB-CC-B review fixes — CR 121→122 citations and test library discriminators
-b990b867 scutemob-12: PB-CC-B — TargetFilter.has_counter_type field + Armorcraft Judge ETB
-0a46e1b4 merge: scutemob-11 — PB-CC-W: Mossborn Hydra Landfall counter-doubling wire-up — no engine changes
-01c41cb9 scutemob-10: address /review findings — CR citation fixes + Blasphemous Edict + Vraska's Fall revert + Accursed Marauder Warrior
-0f224094 scutemob-10: PB-SFT — add filter: Option<TargetFilter> to Effect::SacrificePermanents
-3423b194 scutemob-11: fix CR citation in Mossborn Hydra (CR 121.2 → CR 122.1/122.6)
 ```
 
 ## Missing card-defs sidecar

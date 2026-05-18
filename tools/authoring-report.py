@@ -141,7 +141,13 @@ def classify_file(path: Path) -> tuple[str, list[str]]:
     """Return (bucket, todo_lines).
     Bucket ∈ {empty, todo, clean}."""
     text = path.read_text(encoding="utf-8", errors="replace")
-    todos = [ln.strip() for ln in text.splitlines() if re.match(r"\s*//\s*TODO\b", ln)]
+    # Both `// TODO` and `// ENGINE-BLOCKED` mark an incomplete clause. Workers
+    # have used either marker; counting only TODO silently inflates "clean".
+    todos = [
+        ln.strip()
+        for ln in text.splitlines()
+        if re.match(r"\s*//\s*(?:TODO|ENGINE-BLOCKED)\b", ln)
+    ]
     if re.search(r"abilities:\s*vec!\[\s*\]\s*,", text):
         return "empty", todos
     if todos:
@@ -359,7 +365,7 @@ def main() -> int:
         out.append(headline("Plan cards still missing a def file", plan_missing, prev_plan.get("missing")))
         out.append(headline("Bonus defs (on disk, outside plan)", extras_count, prev_plan.get("extras")))
         out.append(f"| Effective coverage vs plan target | **{eff_cov:.0f}%** ({plan_authored + extras_count:,} / {plan_total:,}) |" + (" — |" if has_prev else ""))
-    out.append(headline(f"Clean (no TODO, non-empty abilities)  — {clean_pct:.1f}%", buckets["clean"], prev_buckets.get("clean")))
+    out.append(headline(f"Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — {clean_pct:.1f}%", buckets["clean"], prev_buckets.get("clean")))
     out.append(headline("With TODO markers", buckets["todo"], prev_buckets.get("todo")))
     out.append(headline("Empty `abilities: vec![]` placeholders", buckets["empty"], prev_buckets.get("empty")))
     out.append(headline("Total TODO lines across all defs", total_todos, prev.get("total_todos")))
