@@ -5,8 +5,6 @@
 //
 // TODO: SelfCostReduction::GreatestPowerAmongCreatures — DSL has TotalPowerOfCreatures (Ghalta)
 //   but not greatest-power. Cost reduction deferred.
-// TODO: "nontoken creature" filter — TargetFilter lacks non_token field.
-//   Using unfiltered creature trigger (includes tokens — slightly wrong).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -36,19 +34,22 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
             once_per_turn: false,
             },
-            // Whenever a creature you control enters, +1/+1 counter + draw
-            // TODO: should be nontoken only (TargetFilter lacks non_token)
+            // CR 603.2: "Whenever a nontoken creature you control enters, put a +1/+1
+            // counter on it and draw a card." PB-AC0: is_nontoken now honored on the
+            // creature-ETB path via triggering_creature_filter forwarding.
+            // Counter goes on the entering creature (TriggeringCreature), not on Henge.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
+                        is_nontoken: true,
                         ..Default::default()
                     }),
                     exclude_self: false,
                 },
                 effect: Effect::Sequence(vec![
                     Effect::AddCounter {
-                        target: EffectTarget::Source,
+                        target: EffectTarget::TriggeringCreature,
                         counter: CounterType::PlusOnePlusOne,
                         count: 1,
                     },

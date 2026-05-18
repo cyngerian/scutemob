@@ -15,15 +15,25 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: ENGINE-BLOCKED — "Whenever Ganax or another Dragon you control enters,
-            // create a Treasure token." The WheneverCreatureEntersBattlefield trigger is
-            // converted to an ETBTriggerFilter (state/game_object.rs:560) which has NO
-            // subtype field — only creature_only/controller_you/exclude_self/color_filter/
-            // card_type_filter. The TargetFilter.has_subtype set here is silently dropped at
-            // replay_harness.rs:2371, so the trigger would fire for EVERY creature you control
-            // entering, not just Dragons. Needs ETBTriggerFilter to carry a subtype filter
-            // (or the creature-ETB path to forward triggering_creature_filter like the
-            // death-trigger path does). Authoring-only batch — cannot make the engine change.
+            // CR 603.2: "Whenever Ganax or another Dragon you control enters, create a
+            // Treasure token." "Ganax OR another Dragon" = any Dragon you control, including
+            // itself → exclude_self: false. PB-AC0: has_subtype: Dragon is now honored on
+            // the creature-ETB path via triggering_creature_filter forwarding.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Dragon".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    exclude_self: false,
+                },
+                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             AbilityDefinition::Keyword(KeywordAbility::ChooseABackground),
         ],
         ..Default::default()

@@ -6179,6 +6179,36 @@ fn collect_triggers_for_event(
                                 continue;
                             }
                         }
+                        // PB-AC0 (CR 603.2 / CR 205.3 / CR 111.1): honor
+                        // triggering_creature_filter on the creature-ETB path — subtype /
+                        // nontoken / exclude_subtypes / and any other matches_filter-checked
+                        // constraint on the entering creature. Mirrors the AnyCreatureDies
+                        // block and the combat-damage block.
+                        //
+                        // CR 603.10: ETB is NOT a look-back-in-time trigger — the entering
+                        // permanent's characteristics are evaluated as they exist immediately
+                        // after entry, so we use calculate_characteristics on the live object
+                        // (no LKI snapshot needed, unlike the death path which uses CR 603.10a).
+                        //
+                        // Scoped INSIDE the etb_filter block so death/attack defs (which also
+                        // carry triggering_creature_filter) are not double-evaluated here.
+                        if let Some(ref creature_filter) = trigger_def.triggering_creature_filter {
+                            // is_token / is_nontoken: GameObject runtime fields, not in
+                            // Characteristics — checked explicitly (matches_filter cannot see
+                            // them). Mirrors the death-path explicit guards.
+                            if creature_filter.is_token && !entering_obj.is_token {
+                                continue;
+                            }
+                            if creature_filter.is_nontoken && entering_obj.is_token {
+                                continue;
+                            }
+                            // CR 613.1d (Layer 4): entering_chars is already layer-resolved
+                            // (computed above via calculate_characteristics) — subtypes and
+                            // types for animated / type-granted permanents are correct.
+                            if !crate::effects::matches_filter(&entering_chars, creature_filter) {
+                                continue;
+                            }
+                        }
                     } else {
                         // Entering object not found -- skip conservatively.
                         continue;
