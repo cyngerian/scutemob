@@ -1,7 +1,16 @@
 // Serpent's Soul-Jar — {2}{B}, Artifact
 // Whenever an Elf you control dies, exile it.
 // {T}, Pay 2 life: Until end of turn, you may cast a creature spell from among cards
-// exiled with this artifact.
+//   exiled with this artifact.
+//
+// ENGINE-BLOCKED: Multiple DSL gaps:
+// 1. "Whenever an Elf you control dies, exile it" requires a death trigger that
+//    exiles the dying creature itself (EffectTarget::TriggeringCreature), plus the
+//    exile must be tagged as "exiled with this artifact" for zone tracking.
+//    No "exile dying creature" effect with artifact-tagged exile exists.
+// 2. "{T}, Pay 2 life: ... cast a creature spell from among cards exiled with this
+//    artifact" requires cast-from-exile permission gated on a specific exile source.
+//    No such cast-from-exile permission primitive exists in the DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -10,11 +19,8 @@ pub fn card() -> CardDefinition {
         name: "Serpent's Soul-Jar".to_string(),
         mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever an Elf you control dies, exile it.\nWhenever you cast a spell from exile this way, you may pay {B}. When you do, each opponent loses 2 life and you gain 2 life.".to_string(),
-        abilities: vec![
-            // TODO: DSL gap — death trigger with controller + subtype filter + exile
-            // replacement + cast-from-exile permission. Multiple DSL gaps.
-        ],
+        oracle_text: "Whenever an Elf you control dies, exile it.\n{T}, Pay 2 life: Until end of turn, you may cast a creature spell from among cards exiled with this artifact.".to_string(),
+        abilities: vec![],
         ..Default::default()
     }
 }

@@ -1,6 +1,12 @@
 // Morbid Opportunist — {2}{B}, Creature — Human Rogue 1/3
 // Whenever one or more other creatures die, draw a card. This ability triggers
 // only once each turn.
+//
+// BLOCKED: The once-per-turn limiter on triggered abilities ("This ability triggers
+// only once each turn") is not expressible in the DSL. `once_per_turn: bool` exists
+// only on AbilityDefinition::Activated, not on Triggered. Without the limiter the
+// trigger would fire on every creature death, producing wrong game state (draws
+// multiple cards per turn). Abilities omitted per W5 policy.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,20 +19,8 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
-            // TODO: WheneverCreatureDies overbroad + once-per-turn not in DSL.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
-},
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
-            },
+            // ENGINE-BLOCKED: once-per-turn limiter for triggered abilities is not in the DSL.
+            // Without it, the trigger fires per-death instead of at most once per turn.
         ],
         ..Default::default()
     }

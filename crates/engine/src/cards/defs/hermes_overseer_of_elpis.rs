@@ -3,8 +3,10 @@
 //   with flying and vigilance.
 // Whenever you attack with one or more Birds, scry 2.
 //
-// TODO: "Whenever you attack with one or more Birds" — no trigger condition for
-//   attacking with creatures of a subtype.
+// ENGINE-BLOCKED (second ability): "Whenever you attack with one or more Birds" requires
+// a once-per-combat attack trigger gated on controlling attackers of a specific subtype.
+// WheneverCreatureYouControlAttacks fires once per attacking creature (not once per combat),
+// and WheneverYouAttack has no filter. Neither correctly models the batched subtype attack.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,7 +23,8 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
-            // Whenever you cast a noncreature spell, create a 1/1 blue Bird token with flying and vigilance.
+            // Whenever you cast a noncreature spell, create a 1/1 blue Bird token with
+            // flying and vigilance.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
@@ -50,11 +53,13 @@ pub fn card() -> CardDefinition {
                 },
                 intervening_if: None,
                 targets: vec![],
-
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Whenever you attack with one or more Birds, scry 2" — no subtype filter on attackers.
+            // ENGINE-BLOCKED: "Whenever you attack with one or more Birds, scry 2."
+            // No once-per-combat batched subtype attack trigger exists in DSL.
+            // WheneverCreatureYouControlAttacks fires per-creature (not per-combat),
+            // and WheneverYouAttack has no subtype filter. Omitted per W5 policy.
         ],
         ..Default::default()
     }

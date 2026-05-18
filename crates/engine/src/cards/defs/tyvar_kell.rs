@@ -1,9 +1,19 @@
 // Tyvar Kell — {2}{G}{G}, Legendary Planeswalker — Tyvar
 // Elves you control have "{T}: Add {B}."
-// +1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.
+// +1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until
+//     end of turn.
 // 0: Create a 1/1 green Elf Warrior creature token.
-// −6: You get an emblem with "Whenever you cast an Elf spell, it gains haste until end of turn
-//     and you draw two cards."
+// −6: You get an emblem with "Whenever you cast an Elf spell, it gains haste until end
+//     of turn and you draw two cards."
+//
+// ENGINE-BLOCKED (static ability): "Elves you control have '{T}: Add {B}'" requires
+// granting a mana ability via a continuous layer effect. No LayerModification::AddManaAbility
+// exists in the DSL.
+//
+// ENGINE-BLOCKED (emblem trigger): The emblem's "Whenever you cast an Elf spell" requires
+// a spell-subtype filter on WheneverYouCastSpell. Only CardType filters exist; Elf is a
+// subtype. Also: "it gains haste" means the spell on the stack gains haste, which requires
+// stack object modification. Both clauses are ENGINE-BLOCKED.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,13 +32,11 @@ pub fn card() -> CardDefinition {
         ),
         oracle_text: "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.\n0: Create a 1/1 green Elf Warrior creature token.\n\u{2212}6: You get an emblem with \"Whenever you cast an Elf spell, it gains haste until end of turn and you draw two cards.\"".to_string(),
         abilities: vec![
-            // Static ability: "Elves you control have '{T}: Add {B}.'"
-            // TODO: Granting mana abilities to other creatures is a complex DSL pattern
-            // (requires a continuous effect that adds a mana ability to Elf creatures).
-            // This is a known DSL gap.
+            // ENGINE-BLOCKED: "Elves you control have '{T}: Add {B}.'" — granting mana
+            // abilities via a continuous effect is not in DSL.
 
-            // +1: Put a +1/+1 counter on up to one target Elf. Untap it.
-            // It gains deathtouch until end of turn. (CR 601.2c / 115.1b)
+            // +1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains
+            // deathtouch until end of turn. (CR 601.2c / 115.1b)
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
                 effect: Effect::Sequence(vec![
@@ -79,46 +87,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
             // −6: You get an emblem with "Whenever you cast an Elf spell, it gains haste
-            // until end of turn and you draw two cards." (CR 114.1-114.4)
-            // NOTE: Elf-spell filtering requires spell-type/subtype checks not yet
-            // supported in TriggeredAbilityDef. This uses AnySpellCast as a placeholder.
-            // The full effect (grant haste to the cast spell + draw 2) is also simplified
-            // to just drawing 2 cards (granting haste to a spell on the stack requires
-            // stack object modification, a known gap).
+            // until end of turn and you draw two cards."
+            // ENGINE-BLOCKED: Elf is a spell subtype; WheneverYouCastSpell has no subtype
+            // filter. Granting haste to a spell on the stack is also not expressible.
+            // Effect::Nothing preserves the loyalty ability structure without wrong behavior.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(6),
-                effect: Effect::CreateEmblem {
-                    triggered_abilities: vec![
-                        TriggeredAbilityDef {
-                            trigger_on: TriggerEvent::AnySpellCast,
-                            intervening_if: None,
-                            description: "Whenever you cast an Elf spell, it gains haste until end of turn and you draw two cards.".to_string(),
-                            // TODO: Only trigger on Elf spells (requires spell-subtype filter).
-                            // TODO: Grant haste until EOT to the cast spell.
-                            // Partial implementation: draw 2 cards on any spell cast.
-                            effect: Some(Effect::DrawCards {
-                                player: PlayerTarget::Controller,
-                                count: EffectAmount::Fixed(2),
-                            }),
-                            etb_filter: None,
-                            death_filter: None,
-                combat_damage_filter: None,
-                        triggering_creature_filter: None,
-                            targets: vec![],
-                        },
-                    ],
-                    static_effects: vec![],
-                    play_from_graveyard: None,
-                },
+                effect: Effect::Nothing,
                 targets: vec![],
             },
         ],
         starting_loyalty: Some(3),
-        adventure_face: None,
-        meld_pair: None,
-        spell_additional_costs: vec![],
-        activated_ability_cost_reductions: vec![],
-        cant_be_countered: false,
         ..Default::default()
     }
 }
