@@ -6191,8 +6191,8 @@ fn collect_triggers_for_event(
                         // (no LKI snapshot needed, unlike the death path which uses CR 603.10a).
                         //
                         // Scoped INSIDE the etb_filter block to exclude death/attack defs.
-                        // Death defs are handled in apply_zone_change_triggers (~L4287),
-                        // a separate function; attack/combat-damage defs have etb_filter:None
+                        // Death defs are handled by their own arm in check_triggers
+                        // (~L4287); attack/combat-damage defs have etb_filter:None
                         // so they never enter this block.
                         if let Some(ref creature_filter) = trigger_def.triggering_creature_filter {
                             // is_token / is_nontoken: GameObject runtime fields, not in

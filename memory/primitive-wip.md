@@ -3,7 +3,7 @@
 batch: PB-AC0
 title: ETBTriggerFilter carries + honors creature-subtype and token/nontoken constraints on the WheneverCreatureEntersBattlefield trigger path
 started: 2026-05-18
-phase: fix-complete (DONE)
+phase: re-review-complete (PASS — cleared to close)
 plan_file: memory/primitives/pb-plan-AC0.md
 review_file: memory/primitives/pb-review-AC0.md
 
@@ -55,7 +55,7 @@ mirroring the death path.
 ## Implementation notes (handoff to review phase)
 
 ### Engine changes completed
-1. `crates/engine/src/testing/replay_harness.rs` ~L2405: `triggering_creature_filter: filter.clone()` (was `None`). Forwards full TargetFilter from WheneverCreatureEntersBattlefield carddef via triggering_creature_filter on the creature-ETB harness conversion path. CR 603.2/205.3/111.1 comment added.
+1. `crates/engine/src/testing/replay_harness.rs` ~L2411: `triggering_creature_filter: filter.clone()` (was `None`). Forwards full TargetFilter from WheneverCreatureEntersBattlefield carddef via triggering_creature_filter on the creature-ETB harness conversion path. CR 603.2/205.3/111.1 comment added.
 2. `crates/engine/src/rules/abilities.rs` inside `etb_filter` block (after `card_type_filter` check): new block checks `triggering_creature_filter` — explicit `is_token`/`is_nontoken` guards, then `matches_filter` for subtype and other characteristic filters. Scoped inside etb_filter block to avoid double-consuming on death/attack defs.
 
 ### Card defs completed
@@ -67,79 +67,67 @@ mirroring the death path.
 - `bloomvine_regent.rs`: verified no edit needed (creature-ETB trigger, no subtype restriction).
 
 ### Tests completed
-- New file: `crates/engine/tests/etb_trigger_subtype_filter.rs`, 11 tests all passing.
+- New file: `crates/engine/tests/etb_trigger_subtype_filter.rs`, 11 tests (implement phase) → 13 tests (fix phase).
 
-### Gate results
-- cargo test --all: 2871 passed (was 2860; +11 new)
+### Gate results (final, post-fix-phase)
+- cargo test --all: 2873 passed
 - cargo clippy --all-targets -- -D warnings: 0 warnings
 - cargo build --workspace: clean
 - cargo fmt --check: clean
 - HASH_SCHEMA_VERSION: unchanged at 27 (no new fields)
 
-### Deviations from plan
-- test_etb_exclude_self_with_subtype: rewritten to place Lathliss on battlefield via ObjectSpec::with_triggered_ability() instead of casting from CardDefinition.
-- test_etb_great_henge_counter_on_entering_creature: added `.in_zone(ZoneId::Battlefield)` to Henge ObjectSpec.
-
-## Reviewer checklist (primitive-impl-reviewer, 2026-05-18)
-- [x] CR rules verified independently via mtg-rules MCP — 603.2, 603.10/603.10a, 111.1, 205.3 confirmed; ETB correctly NOT on the 603.10 look-back list
-- [x] Oracle text re-verified via MCP lookup_card for all 6 cards — ganax, lathliss, the_great_henge, miirym, dragons_hoard, bloomvine_regent all match defs exactly
-- [x] Engine Change 1 (harness forwarding) — type-correct, CR-cited, mirrors death conversion
-- [x] Engine Change 2 (abilities.rs matching) — correctly placed inside etb_filter block, reuses layer-resolved entering_chars (CR 613.1d), explicit is_token/is_nontoken guards mirror death path
-- [x] Scoping verified — death path is a separate function; attack/combat-damage defs have etb_filter: None; no double-consumption of triggering_creature_filter
-- [x] EffectTarget::Source→TriggeringCreature (Great Henge) verified correct end-to-end: entering_object_id → stack_obj.triggering_creature_id → ctx.triggering_creature_id → EffectTarget::TriggeringCreature
-- [x] matches_filter confirmed to honor has_subtype; controller field correctly handled by etb_filter.controller_you (not matches_filter)
-- [x] Hash impact confirmed — no schema change, HASH_SCHEMA_VERSION 27 correctly unchanged
-- [x] Test discrimination analyzed — FINDING T1: Change 1 has zero discrimination; all 11 tests bypass enrich_spec_from_def via with_triggered_ability
-- [x] test_etb_death_path_unaffected confirmed to exercise the death-path scoping (death def with etb_filter: None)
-- [x] Review written: memory/primitives/pb-review-AC0.md
-
-## Reviewer verdict: NEEDS-FIX (resolved in fix phase)
+## Reviewer verdict: NEEDS-FIX (original) → resolved in fix phase
 
 - Engine logic: CORRECT (1 LOW comment nit, non-blocking).
 - Card defs: all 6 CORRECT against oracle text, no remaining in-scope TODOs.
-- Tests: FINDING T1 (HIGH, fix-phase per conventions "test-validity MEDIUMs are
-  fix-phase HIGHs") — Change 1 (the `replay_harness.rs` `triggering_creature_filter`
-  forwarding) is provably untested: every test wires the watcher via
-  `with_triggered_ability(<runtime def>)`, so `enrich_spec_from_def`'s
-  `WheneverCreatureEntersBattlefield` conversion arm (the Change 1 site) is never
-  exercised. Reverting Change 1 leaves all 11 tests green. The three "integration"
-  tests do not register/use the actual re-authored card defs.
+- Tests: FINDING T1 (HIGH, fix-phase) — Change 1 (the `replay_harness.rs`
+  `triggering_creature_filter` forwarding) was provably untested.
 
-## Fix phase (2026-05-18)
+## Fix phase (2026-05-18, commit a7ebac79)
 
 ### T1 (HIGH) — Fixed
 
 Added 2 new tests (tests 12 + 13) to `crates/engine/tests/etb_trigger_subtype_filter.rs`:
+- `test_etb_ganax_carddef_integration_via_enrich` — watcher = Ganax via
+  `enrich_spec_from_def(ObjectSpec::card(...).in_zone(Battlefield), &defs)`, NO
+  `with_triggered_ability`. Fire-on-match (Dragon → +1 Treasure) + no-fire-on-mismatch
+  (Goblin → 0 Treasures).
+- `test_etb_lathliss_carddef_integration_via_enrich` — same pattern, Lathliss.
+  Fire-on-match (nontoken Dragon → token) + no-fire-on-mismatch (token Dragon → no trigger).
 
-- `test_etb_ganax_carddef_integration_via_enrich` — watcher is Ganax, Astral Hunter built
-  via `enrich_spec_from_def(ObjectSpec::card(...).in_zone(Battlefield), &defs)` with NO
-  `with_triggered_ability` call. Exercises the WheneverCreatureEntersBattlefield conversion
-  arm in enrich_spec_from_def (Change 1). Fire-on-match: Dragon enters → 1 Treasure.
-  No-fire-on-mismatch: Goblin enters → 0 Treasures.
+### E1 (LOW) — Fixed (with residual LOW)
 
-- `test_etb_lathliss_carddef_integration_via_enrich` — watcher is Lathliss, Dragon Queen
-  via enrich_spec_from_def. Fire-on-match: nontoken Dragon enters → Dragon token created.
-  No-fire-on-mismatch: token Dragon enters → no trigger (is_nontoken filter honored).
+Comment at abilities.rs:6193-6196 tightened. Note: fix names the death path's containing
+function `apply_zone_change_triggers`, which does not exist — actual function is
+`check_triggers`. Non-blocking cosmetic LOW.
 
-Discrimination check CONFIRMED: with `triggering_creature_filter: None` (Change 1 reverted),
-both new tests FAIL (StackNotEmpty error — over-triggered ETB from Ganax/Lathliss stays on
-stack). All 11 original tests remain GREEN with Change 1 reverted, confirming they exercise
-only Change 2. Change 1 was unexercised before this fix.
+## Re-review (2026-05-18, primitive-impl-reviewer, Opus)
 
-With Change 1 restored: all 13 tests pass.
+- [x] Verified tests 12 + 13 build the watcher from the real registered
+  `CardDefinition` (`load_defs()` = `all_cards()` keyed by name) via
+  `enrich_spec_from_def`, with NO `with_triggered_ability` — they genuinely exercise
+  the `WheneverCreatureEntersBattlefield` conversion arm at `replay_harness.rs:2360-2414`
+  and Change 1's `triggering_creature_filter: filter.clone()` at L2411.
+- [x] Confirmed `ganax_astral_hunter.rs` and `lathliss_dragon_queen.rs` carry the
+  matching `AbilityDefinition::Triggered { WheneverCreatureEntersBattlefield { filter, exclude_self } }`.
+- [x] Discrimination logic-traced: reverting Change 1 → `None` makes `abilities.rs:6197`
+  `if let Some(ref creature_filter)` block skip → over-fire → both new tests' no-fire
+  assertions fail. Runner's reported discrimination check is consistent.
+- [x] Fire-on-match AND no-fire-on-mismatch covered for both subtype (Ganax) and
+  nontoken (Lathliss) filters.
+- [x] Scope check: fix touched only `etb_trigger_subtype_filter.rs` (11 → 13 tests,
+  original 11 untouched) and the `abilities.rs:6193-6196` comment. No engine logic,
+  no card defs, no other files. No regressions, no scope creep.
+- [x] E1: comment fixed but names non-existent function `apply_zone_change_triggers`
+  (actual: `check_triggers`) — residual non-blocking LOW logged.
+- [x] Review updated: memory/primitives/pb-review-AC0.md
 
-### E1 (LOW) — Fixed
+## Re-review verdict: PASS — cleared to close
 
-Comment at abilities.rs:6193-6194 tightened from "not double-evaluated here" to clarify
-that the death path is in a *separate function* (`apply_zone_change_triggers` ~L4287) and
-attack/combat-damage defs have `etb_filter: None` so they never enter this block.
-
-### Fix phase gate results
-
-- cargo test --all: 2873 passed (was 2871 post-implement; +2 new tests)
-- cargo clippy --all-targets -- -D warnings: 0 warnings
-- cargo build --workspace: clean
-- cargo fmt --all -- --check: clean
+T1 (the sole blocking finding) is RESOLVED correctly and verifiably. Only residual is
+E1's cosmetic comment inaccuracy (a non-existent function name) — non-blocking LOW,
+recommend trivial follow-up `apply_zone_change_triggers` → `check_triggers` but not
+gating. PB-AC0 is cleared to close.
 
 ## Planner notes (handoff to implement phase)
 - Shape: approach (b). NO struct/enum change -> NO HASH bump.
