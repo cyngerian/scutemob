@@ -1,6 +1,10 @@
 // Crossway Troublemakers — {5}{B}, Creature — Vampire 5/5
 // Attacking Vampires you control have deathtouch and lifelink.
 // Whenever a Vampire you control dies, you may pay 2 life. If you do, draw a card.
+//
+// ENGINE-BLOCKED (draw clause): "you may pay 2 life — if you do, draw a card" requires
+// a beneficial optional-cost wrapper (Effect::MayPayThenEffect). Effect::MayPayOrElse
+// expresses "pay or suffer", NOT "pay to gain benefit". Omitted per W5 policy.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -37,26 +41,12 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // Whenever a Vampire you control dies — simplified (payment optional, draw always).
-            // TODO: "may pay 2 life" optional cost is not expressible — draw fires unconditionally.
-            // TODO: WheneverCreatureDies lacks subtype filter (Vampire only) — fires on all your creatures.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies {
-                    controller: Some(TargetController::You),
-                    exclude_self: false,
-                    nontoken_only: false,
-                                filter: None,
-            },
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
-            },
+            // ENGINE-BLOCKED: "Whenever a Vampire you control dies, you may pay 2 life.
+            // If you do, draw a card." — the trigger fires correctly (Vampire filter now
+            // supported), but the optional-pay-to-draw clause has no DSL primitive.
+            // Effect::MayPayOrElse expresses a tax (pay or suffer), not a benefit rider.
+            // Omitting the entire triggered ability rather than approximating with
+            // unconditional draw (which would produce wrong game state).
         ],
         ..Default::default()
     }

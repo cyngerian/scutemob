@@ -2,6 +2,13 @@
 // Fabricate 1
 // Whenever another creature or artifact you control is put into a graveyard from the
 // battlefield, each opponent loses 1 life.
+//
+// PARTIAL: Fabricate 1 keyword is implemented.
+// ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+// TriggerCondition covering both creatures AND artifacts dying from the battlefield.
+// WheneverCreatureDies only covers creatures; no artifact-dies or permanent-dies trigger
+// variant exists. A creature-only trigger would silently miss artifact deaths = wrong game
+// state. Trigger omitted per W5 policy.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,27 +22,11 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Fabricate(1)),
-            // TODO: "Whenever another creature or artifact dies" — WheneverCreatureDies
-            //   doesn't cover artifacts. Using it as approximation.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies {
-                    controller: Some(TargetController::You),
-                    exclude_self: true,
-                    nontoken_only: false,
-                    filter: None,
-                },
-                effect: Effect::ForEach {
-                    over: ForEachTarget::EachOpponent,
-                    effect: Box::new(Effect::LoseLife {
-                        player: PlayerTarget::DeclaredTarget { index: 0 },
-                        amount: EffectAmount::Fixed(1),
-                    }),
-                },
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
-            },
+            // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
+            // a graveyard from the battlefield, each opponent loses 1 life."
+            // Requires a TriggerCondition for artifact OR creature dying that is currently
+            // absent from the DSL. WheneverCreatureDies covers only creatures; applying it
+            // here would miss artifact deaths and produce incorrect game state.
         ],
         ..Default::default()
     }

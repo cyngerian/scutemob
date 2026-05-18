@@ -1,12 +1,14 @@
 // Yuriko, the Tiger's Shadow — {1}{U}{B}, Legendary Creature — Human Ninja
 // Commander ninjutsu {U}{B}
-// Whenever a Ninja you control deals combat damage to a player, reveal top card of
-// your library, put it in hand. Each opponent loses life equal to that card's mana value.
+// Whenever a Ninja you control deals combat damage to a player, reveal the top card of
+// your library and put that card into your hand. Each opponent loses life equal to that
+// card's mana value.
 //
-// TODO: Ninja-subtype filter for the combat damage trigger not available in DSL
-// (WheneverCreatureYouControlDealsCombatDamageToPlayer filter doesn't support subtype).
-// Also needs reveal-top-card + EffectAmount::LastRevealedManaValue for the life-loss.
-// W5: partial trigger (wrong scope) or wrong amount would produce incorrect game state — omitted.
+// PARTIAL: The combat damage trigger fires correctly filtered to Ninja creatures.
+// RevealAndRoute puts the top card into hand correctly (all cards match → Hand dest).
+// ENGINE-BLOCKED: "each opponent loses life equal to that card's mana value" requires
+// EffectAmount::ManaValueOf pointing at the just-revealed card. No EffectTarget variant
+// for the revealed card exists in the DSL. Life-loss clause omitted.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -27,9 +29,30 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::CommanderNinjutsu {
                 cost: ManaCost { blue: 1, black: 1, ..Default::default() },
             },
-            // TODO: Ninja-subtype filter for WheneverCreatureYouControlDealsCombatDamageToPlayer
-            // not wired in DSL. Also needs reveal-top-card + EffectAmount::LastRevealedManaValue
-            // for the life-loss portion. W5: omitted to avoid wrong game state.
+            // Whenever a Ninja you control deals combat damage to a player, reveal the
+            // top card of your library and put that card into your hand.
+            // ENGINE-BLOCKED (life-loss clause): "each opponent loses life equal to that
+            // card's mana value" — needs EffectAmount::ManaValueOf(revealed card), but no
+            // EffectTarget variant for the card revealed by RevealAndRoute exists.
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Ninja".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::RevealAndRoute {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                    filter: TargetFilter::default(), // all cards match — reveal the top card
+                    matched_dest: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    unmatched_dest: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

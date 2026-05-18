@@ -2,6 +2,14 @@
 // Whenever Miara or another Elf you control dies, you may pay {1} and 1 life.
 // If you do, draw a card.
 // Partner
+//
+// ENGINE-BLOCKED (death trigger): "Whenever Miara or another Elf you control dies"
+// IS expressible (WheneverCreatureDies with an Elf filter), but the effect — "you may
+// pay {1} and 1 life. If you do, draw a card." — is a beneficial optional-pay rider.
+// MayPayOrElse has TAX semantics ("if you DON'T pay, run or_else") and cannot express
+// "if you DO pay, draw". No beneficial-optional-cost construct exists in the DSL.
+// The whole triggered ability is omitted (rather than a do-nothing trigger or an
+// unconditional draw) — consistent with crossway_troublemakers.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,26 +22,15 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Elf", "Scout"],
         ),
-        oracle_text: "Whenever Miara, Thorn of the Glade or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.\nPartner".to_string(),
+        oracle_text: "Whenever Miara, Thorn of the Glade or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.\nPartner (You can have two commanders if both have partner.)".to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Elf you control dies" + "may pay {1} and 1 life" — WheneverCreatureDies
-            //   is overbroad + optional pay-to-draw not expressible. Implementing as
-            //   unconditional draw on creature death (approximation).
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: None,
-},
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
-            },
+            // ENGINE-BLOCKED: "Whenever Miara or another Elf you control dies, you may
+            // pay {1} and 1 life. If you do, draw a card." — the trigger condition is
+            // expressible (WheneverCreatureDies + Elf filter, exclude_self: false), but
+            // the beneficial optional-pay-to-draw rider has no DSL construct. MayPayOrElse
+            // is tax semantics only. The triggered ability is omitted entirely.
             AbilityDefinition::Keyword(KeywordAbility::Partner),
         ],
         ..Default::default()

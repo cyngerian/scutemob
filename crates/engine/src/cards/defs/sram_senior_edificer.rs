@@ -1,7 +1,10 @@
 // Sram, Senior Edificer — {1}{W}, Legendary Creature — Dwarf Advisor 2/2
 // Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.
 //
-// TODO: Aura/Equipment/Vehicle subtype filter on spells not in DSL. Using unfiltered trigger.
+// ENGINE-BLOCKED: "Aura, Equipment, or Vehicle" are spell subtypes, not CardTypes.
+// WheneverYouCastSpell.spell_type_filter accepts Vec<CardType> only. There is no
+// spell-subtype filter in the DSL. The unfiltered approximation (draw on every spell)
+// produces wrong game state and is omitted per W5 policy.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,25 +17,9 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: Aura/Equipment/Vehicle subtype filter on spells not in DSL.
-            // Using unfiltered cast trigger as approximation.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverYouCastSpell {
-                    during_opponent_turn: false,
-                    spell_type_filter: None,
-                    noncreature_only: false,
-                    chosen_subtype_filter: false,
-                },
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
-            },
+            // ENGINE-BLOCKED: WheneverYouCastSpell has no spell-subtype filter.
+            // Aura, Equipment, and Vehicle are subtypes (not CardTypes), so they cannot
+            // be expressed via spell_type_filter: Option<Vec<CardType>>.
         ],
         ..Default::default()
     }
