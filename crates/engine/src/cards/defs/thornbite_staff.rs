@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("thornbite-staff"),
         name: "Thornbite Staff".to_string(),
         mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
-        types: types_sub(&[CardType::Artifact], &["Shaman", "Equipment"]),
+        types: types_sub(&[CardType::Kindred, CardType::Artifact], &["Shaman", "Equipment"]),
         oracle_text: "Equipped creature has \"{2}, {T}: This creature deals 1 damage to any target\" and \"Whenever a creature dies, untap this creature.\"\nWhenever a Shaman creature enters, you may attach Thornbite Staff to it.\nEquip {4}".to_string(),
         abilities: vec![
             // Equip {4}
