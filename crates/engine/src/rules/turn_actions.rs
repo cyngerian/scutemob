@@ -1202,6 +1202,13 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     let mut untapped = Vec::new();
     for id in &ids_on_battlefield {
+        // CR 502.3 (PB-AC1): compute the layer-resolved DoesNotUntap keyword BEFORE
+        // taking a mutable borrow of the object. Using calculate_characteristics (not
+        // base characteristics) means Humility / Dress Down (ability removal, Layer 6)
+        // correctly lets a DoesNotUntap permanent untap again.
+        let does_not_untap = super::layers::calculate_characteristics(state, *id)
+            .map(|chars| chars.keywords.contains(&KeywordAbility::DoesNotUntap))
+            .unwrap_or(false);
         if let Some(obj) = state.objects.get_mut(id) {
             // CR 302.6: Clear summoning sickness for permanents the player now controls.
             obj.has_summoning_sickness = false;
@@ -1210,12 +1217,18 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
             if !obj.goaded_by.is_empty() {
                 obj.goaded_by = im::Vector::new();
             }
-            // CR 502.3 / PB-LS6: a permanent with a pending skip-untap count does not
-            // untap this step; instead the count is decremented by one (Tamiyo -2 /
-            // Hands of Binding). Once the count reaches 0 it untaps normally.
-            // The decrement fires even if the permanent is already untapped — the "next
-            // untap step" is consumed regardless of tapped state.
-            if obj.skip_untap_steps > 0 {
+            if does_not_untap {
+                // CR 502.3 (PB-AC1): "effects can keep one or more of a player's
+                // permanents from untapping." This permanent is kept from untapping
+                // by a static ability (Mana Vault, Goblin Sharpshooter). Distinct from
+                // skip_untap_steps: do NOT decrement that counter here — DoesNotUntap
+                // is a standing restriction, not a one-shot freeze.
+            } else if obj.skip_untap_steps > 0 {
+                // CR 502.3 / PB-LS6: a permanent with a pending skip-untap count does not
+                // untap this step; instead the count is decremented by one (Tamiyo -2 /
+                // Hands of Binding). Once the count reaches 0 it untaps normally.
+                // The decrement fires even if the permanent is already untapped — the "next
+                // untap step" is consumed regardless of tapped state.
                 obj.skip_untap_steps -= 1;
             } else if obj.status.tapped {
                 // CR 502.2: Untap tapped permanents.

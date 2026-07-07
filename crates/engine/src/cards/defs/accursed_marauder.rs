@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // `is_nontoken` is a runtime GameObject field checked explicitly at the
             // SacrificePermanents resolution site (not in matches_filter).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,

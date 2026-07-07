@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // Landfall — Whenever a land you control enters, you gain 1 life.
             // CR 207.2c: Landfall is an ability word; uses WheneverPermanentEntersBattlefield.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

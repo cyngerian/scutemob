@@ -66,7 +66,7 @@ fn single_def(def: CardDefinition) -> (HashMap<String, CardDefinition>, Arc<Card
 #[test]
 fn test_pbxs_hash_schema_version_matches_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 27u8,
+        HASH_SCHEMA_VERSION, 28u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
@@ -506,6 +506,7 @@ fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
         power: Some(3),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenDies,
             effect: Effect::MoveZone {
                 target: EffectTarget::DeclaredTarget { index: 0 },
@@ -671,6 +672,7 @@ fn test_pbxs_death_trigger_skipped_when_only_source_is_legal() {
         power: Some(3),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenDies,
             effect: Effect::MoveZone {
                 target: EffectTarget::DeclaredTarget { index: 0 },

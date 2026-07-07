@@ -193,6 +193,9 @@ fn test_w3lc_toughness_of_uses_layer_resolved_under_humility() {
 #[test]
 fn test_w3lc_humility_suppresses_triggered_abilities() {
     let trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfEntersBattlefield,
         description: "When this enters, gain 3 life.".to_string(),
         effect: Some(Effect::GainLife {

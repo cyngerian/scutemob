@@ -171,6 +171,7 @@ fn test_add_object_to_state() {
     let mut state = GameStateBuilder::four_player().build().unwrap();
 
     let obj = GameObject {
+        triggered_abilities_fired_this_turn: im::OrdSet::new(),
         id: ObjectId(0),
         card_id: None,
         characteristics: Characteristics::default(),

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // exclude_self=false: fires when Pashalik itself dies or another Goblin you control dies.
             // controller=You, filter=Goblin subtype (covers Pashalik since it is a Goblin).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,

@@ -20,6 +20,7 @@ creature dies, each opponent loses 2 life and you gain 2 life."
             AbilityDefinition::Keyword(KeywordAbility::Haunt),
             // ETB trigger: each opponent loses 2, controller gains 2
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,
@@ -30,6 +31,7 @@ creature dies, each opponent loses 2 life and you gain 2 life."
             },
             // CR 702.55c: haunted creature dies trigger (same effect)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::HauntedCreatureDies,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
                 intervening_if: None,

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // EnchantedLand filter: fires when the land this Aura is attached to is tapped.
             // Triggered mana ability — resolves immediately (CR 605.4a).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::EnchantedLand,
                 },

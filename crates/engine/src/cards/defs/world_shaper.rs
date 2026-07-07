@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.2: "Whenever World Shaper attacks, you may mill three cards."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::MillCards {
                     player: PlayerTarget::Controller,
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
             // CR 400.7, 603.6a: "When World Shaper dies, return all land cards from
             // your graveyard to the battlefield tapped."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::ReturnAllFromGraveyardToBattlefield {
                     graveyards: PlayerTarget::Controller,

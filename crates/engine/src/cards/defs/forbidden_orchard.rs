@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
             // "target opponent". No TargetOpponent variant exists yet. Deferred until target
             // validation is fully implemented.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::This,
                 },

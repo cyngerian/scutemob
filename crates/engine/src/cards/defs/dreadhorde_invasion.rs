@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)\nWhenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {

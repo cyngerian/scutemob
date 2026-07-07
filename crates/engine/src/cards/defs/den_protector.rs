@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1: When turned face up, return target card from your GY to hand.
             // Note: "target card" — no type restriction (any card in your GY).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTurnedFaceUp,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

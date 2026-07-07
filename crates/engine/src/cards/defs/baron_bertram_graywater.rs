@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever tokens enter" trigger + "once each turn" not in DSL.
             //   Using generic creature ETB as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

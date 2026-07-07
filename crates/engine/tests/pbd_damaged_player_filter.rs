@@ -62,6 +62,9 @@ fn pass_all(
 /// Uses `TriggeredAbilityDef` + `TriggerEvent::SelfDealsCombatDamageToPlayer` (runtime form).
 fn destroy_target_damaged_players_creature_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,
         description: "Whenever this deals combat damage to a player, destroy target creature \
@@ -354,6 +357,9 @@ fn test_damaged_player_foreach_land_tap_nature_will_pattern() {
 
     // The trigger: tap all lands that the damaged player controls.
     let tap_lands_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,
         description: "Whenever this deals combat damage to a player, tap all lands that player \
@@ -488,6 +494,9 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 
     // Trigger: ForEach over DamagedPlayer's creatures → destroy each.
     let destroy_all_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
         intervening_if: None,
         description: "Whenever this deals combat damage to a player, destroy each creature \
@@ -594,7 +603,7 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel bumped to 27 (BASELINE-LKI-01: GameEvent::CreatureDied.pre_death_characteristics,
     // CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 27u8,
+        HASH_SCHEMA_VERSION, 28u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 
@@ -605,6 +614,9 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Using TriggeredAbilityDef.targets with different TargetController values.
     let make_state = |controller: TargetController| {
         let trigger = TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
             intervening_if: None,
             description: "Hash parity test trigger".to_string(),

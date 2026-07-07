@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureEntersBattlefield with colors=Red + controller=You filter
             // and exclude_self: true (PB-XS-E) so the Denizen's own ETB does not fire it.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Creature),

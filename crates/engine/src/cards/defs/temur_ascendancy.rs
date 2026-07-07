@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // Whenever a creature you control with power 4+ enters, may draw.
             // TODO: "may draw" — optional draw, implementing as mandatory.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

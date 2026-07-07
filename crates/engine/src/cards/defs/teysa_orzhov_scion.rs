@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // PB-N: black color filter via triggering_creature_filter (colors field).
             // exclude_self: true ("another"), controller: You.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: true,

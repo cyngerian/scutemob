@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             // ETB trigger: return permanent card with MV 3 or less from GY to battlefield.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

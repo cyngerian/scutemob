@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -46,6 +47,7 @@ pub fn card() -> CardDefinition {
             // When this creature leaves the battlefield, exile all Serf tokens.
             // TODO: "exile all [named subtype] tokens" — ExileAll with subtype+token filter not in DSL.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenLeavesBattlefield,
                 effect: Effect::ExileAll {
                     filter: TargetFilter {

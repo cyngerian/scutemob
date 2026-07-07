@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Combat damage: create Treasure + impulse draw
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 // TODO: Exile top card + impulse draw not expressible.

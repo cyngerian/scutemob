@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // Whenever you discard a card, deal 1 damage to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDiscard,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,

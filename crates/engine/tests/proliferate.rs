@@ -768,6 +768,9 @@ fn test_whenever_you_proliferate_trigger_fires() {
     // A creature with "Whenever you proliferate, put a +1/+1 counter on this creature."
     let proliferate_watcher = ObjectSpec::creature(p1, "Core Prowler", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,

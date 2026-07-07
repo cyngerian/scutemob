@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
             // Whenever Alesha attacks, put a +1/+1 counter on it.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

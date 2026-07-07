@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // that player discards a card and you untap all lands you control."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::DiscardCards {

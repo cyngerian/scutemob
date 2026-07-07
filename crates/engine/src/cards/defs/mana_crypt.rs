@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 705.1: Upkeep trigger — flip a coin; lose = 3 damage to controller.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::CoinFlip {
                     on_win: Box::new(Effect::Nothing),

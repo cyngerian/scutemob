@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // CR 613.1b: ETB — gain control of target creature or planeswalker
             // for as long as you control Dragonlord Silumgar (WhileSourceOnBattlefield approx).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GainControl {
                     target: EffectTarget::DeclaredTarget { index: 0 },

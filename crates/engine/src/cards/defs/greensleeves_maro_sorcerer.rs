@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             },
             // Landfall: create 3/3 Badger
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

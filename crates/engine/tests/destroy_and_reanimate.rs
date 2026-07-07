@@ -482,6 +482,7 @@ fn test_l02_destroy_and_reanimate_runs_etb() {
         },
         oracle_text: "When this creature enters the battlefield, gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,

@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenAttacks,
             effect: Effect::Sequence(vec![
                 Effect::DrawCards {

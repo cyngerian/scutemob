@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // CR 603.3: ETB trigger — each player sacrifices a creature.
             // PB-SFT (CR 701.21a + CR 109.1): creature-only filter via TargetFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,

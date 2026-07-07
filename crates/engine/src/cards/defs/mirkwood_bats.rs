@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // (Create-a-token half is already covered by TokenCreated event via existing triggers.)
             // TODO: token-only filter on sacrifice (is_token field not in TargetFilter).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: None,
                     player_filter: None,

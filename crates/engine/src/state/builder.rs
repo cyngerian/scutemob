@@ -380,6 +380,9 @@ impl GameStateBuilder {
             for kw in spec.keywords.iter() {
                 if let KeywordAbility::Ward(cost_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -414,6 +417,9 @@ impl GameStateBuilder {
                 // Each keyword instance generates one TriggeredAbilityDef.
                 if matches!(kw, KeywordAbility::Prowess) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                 combat_damage_filter: None,
@@ -440,6 +446,9 @@ impl GameStateBuilder {
                 // not the permanent with exalted (which may not even be a creature).
                 if matches!(kw, KeywordAbility::Exalted) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                 combat_damage_filter: None,
@@ -466,6 +475,9 @@ impl GameStateBuilder {
                 // which is resolved at flush time via PendingTrigger.defending_player_id.
                 if let KeywordAbility::Annihilator(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -491,6 +503,9 @@ impl GameStateBuilder {
                 // time and applies a +1/+0 ModifyPower continuous effect to each.
                 if matches!(kw, KeywordAbility::BattleCry) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -525,6 +540,9 @@ impl GameStateBuilder {
                 // on all attacks.
                 if matches!(kw, KeywordAbility::Dethrone) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -553,6 +571,9 @@ impl GameStateBuilder {
                 // all attacks.
                 if matches!(kw, KeywordAbility::Training) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -580,6 +601,9 @@ impl GameStateBuilder {
                 // time from combat state (ruling 2016-08-23).
                 if matches!(kw, KeywordAbility::Melee) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -607,6 +631,9 @@ impl GameStateBuilder {
                 // CR 702.154d: Each Enlist instance generates one placeholder.
                 if matches!(kw, KeywordAbility::Enlist) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -635,6 +662,9 @@ impl GameStateBuilder {
                 // carried by the CreatureDied event (last known information, CR 603.10a).
                 if matches!(kw, KeywordAbility::Persist) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -673,6 +703,9 @@ impl GameStateBuilder {
                 // carried by the CreatureDied event (last known information, CR 603.10a).
                 if matches!(kw, KeywordAbility::Undying) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -710,6 +743,9 @@ impl GameStateBuilder {
                 // No intervening-if: the trigger always fires on death regardless of counters.
                 if let KeywordAbility::Afterlife(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -751,6 +787,9 @@ impl GameStateBuilder {
                 // deterministic fallback always resolves the drain effect.
                 if matches!(kw, KeywordAbility::Extort) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -774,6 +813,9 @@ impl GameStateBuilder {
                 // to atomically create + attach before SBAs.
                 if matches!(kw, KeywordAbility::LivingWeapon) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -820,6 +862,9 @@ impl GameStateBuilder {
                 // by StackObjectKind::KeywordTrigger (Modular).
                 if let KeywordAbility::Modular(_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -846,6 +891,9 @@ impl GameStateBuilder {
                 // end_combat() in turn_actions.rs.
                 if matches!(kw, KeywordAbility::Myriad) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -877,6 +925,9 @@ impl GameStateBuilder {
                     };
                     // Trigger 1: "Whenever this creature blocks"
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -892,6 +943,9 @@ impl GameStateBuilder {
                     });
                     // Trigger 2: "Whenever this creature becomes blocked"
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -916,6 +970,9 @@ impl GameStateBuilder {
                 // time from combat state (CR 702.23b).
                 if let KeywordAbility::Rampage(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -940,6 +997,9 @@ impl GameStateBuilder {
                 // identify and tag it as a provoke trigger at collection time.
                 if matches!(kw, KeywordAbility::Provoke) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -961,6 +1021,9 @@ impl GameStateBuilder {
                 // which is resolved at flush time via PendingTrigger.defending_player_id.
                 if let KeywordAbility::Afflict(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
                         etb_filter: None,
                         death_filter: None,
                         combat_damage_filter: None,
@@ -1003,6 +1066,7 @@ impl GameStateBuilder {
                 counters.insert(ct, count);
             }
             let object = GameObject {
+                triggered_abilities_fired_this_turn: im::OrdSet::new(),
                 id: ObjectId(0), // Assigned by add_object
                 card_id: spec.card_id,
                 characteristics,

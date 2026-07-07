@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             // but AddCounters does not yet support dynamic EffectAmount (only Fixed).
             // CR 701.6a: Counter placement at ETB time.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 // CR 603.5: "When ~ enters" — ETB trigger.
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![

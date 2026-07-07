@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // deal 2 damage to any target and draw a card."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {

@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // CR 702.140d: "Whenever this creature mutates, destroy target artifact or enchantment
             // an opponent controls."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenMutates,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

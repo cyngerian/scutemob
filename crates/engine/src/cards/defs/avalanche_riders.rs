@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 3, red: 1, ..Default::default() },
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

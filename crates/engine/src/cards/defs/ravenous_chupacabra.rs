@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.1: ETB trigger — destroy target creature an opponent controls.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

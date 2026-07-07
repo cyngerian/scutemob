@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: "At the beginning of your upkeep, sacrifice a creature" — forced sacrifice not expressible.
             // Whenever you sacrifice a creature, draw a card.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Creature),

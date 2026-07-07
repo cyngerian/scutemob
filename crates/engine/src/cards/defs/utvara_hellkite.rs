@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // PB-N: Dragon subtype filter now available via triggering_creature_filter.
             // Fixed: was filter: None (over-triggered on non-Dragon attackers). PB-N closes this gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

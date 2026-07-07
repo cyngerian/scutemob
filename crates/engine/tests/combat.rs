@@ -988,6 +988,9 @@ fn test_603_self_attacks_trigger_fires() {
     let p2 = PlayerId(2);
 
     let triggered_ability = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
@@ -1802,6 +1805,9 @@ fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
     let p2 = PlayerId(2);
 
     let triggered_ability = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
@@ -1897,6 +1903,9 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
     let p2 = PlayerId(2);
 
     let triggered_ability = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
@@ -1997,6 +2006,9 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
     let p2 = PlayerId(2);
 
     let triggered_ability = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,
@@ -2086,6 +2098,9 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
     let p3 = PlayerId(3);
 
     let make_trigger = || TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         etb_filter: None,
         death_filter: None,
         combat_damage_filter: None,

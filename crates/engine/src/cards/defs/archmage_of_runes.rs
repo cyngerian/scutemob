@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // Whenever you cast an instant or sorcery spell, draw a card.
             // Instant/sorcery spell filter applied.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),

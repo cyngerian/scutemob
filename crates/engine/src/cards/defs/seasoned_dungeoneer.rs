@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // Taking the initiative sets has_initiative = Some(controller) and immediately
             // ventures into the Undercity (CR 725.2).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::TakeTheInitiative,
                 intervening_if: None,
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
             // TODO: Complex effect (protection + explore on targeted creature) deferred.
             // Using WheneverYouAttack + VentureIntoDungeon as partial approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouAttack,
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,

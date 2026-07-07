@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // creature's power. EffectTarget::TriggeringCreature resolves from
             // PendingTrigger::entering_object_id at execution.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Creature),

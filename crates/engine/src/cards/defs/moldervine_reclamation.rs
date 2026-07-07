@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever a creature you control dies, you gain 1 life and draw a card."
             // PB-23: controller_you filter applied via DeathTriggerFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: None,
 },
                 effect: Effect::Sequence(vec![

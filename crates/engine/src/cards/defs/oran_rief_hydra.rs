@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // Landfall — put +1/+1 counter (or 2 if Forest).
             // Implementing the base case (1 counter) — Forest check is a DSL gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

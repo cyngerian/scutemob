@@ -634,6 +634,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // (resolution.rs:620-679) when the creature dies via any path.
                         obj.characteristics.triggered_abilities.push(
                             crate::state::game_object::TriggeredAbilityDef {
+                                counter_filter: None,
+                                counter_on_self: false,
+                                once_per_turn: false,
                                 etb_filter: None,
                                 death_filter: None,
                                 combat_damage_filter: None,
@@ -4508,6 +4511,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 111.10: Tokens enter the battlefield as the stated kind of object.
                     // CR 707.2: Copy uses copiable values of the source creature.
                     let token_obj = crate::state::game_object::GameObject {
+                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: None,
                         characteristics: state
@@ -4714,6 +4718,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 })
                 .unwrap_or_default();
             let token_obj = crate::state::game_object::GameObject {
+                triggered_abilities_fired_this_turn: im::OrdSet::new(),
                 id: crate::state::game_object::ObjectId(0), // replaced by add_object
                 card_id: None,
                 characteristics: source_characteristics,
@@ -5420,6 +5425,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 111.10: Tokens enter the battlefield as the stated kind of object.
                 // CR 707.2: Copy uses copiable values of the source creature.
                 let token_obj = crate::state::game_object::GameObject {
+                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: None,
                     characteristics: state
@@ -6093,6 +6099,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     defense: None,
                 };
                 let token_obj = crate::state::game_object::GameObject {
+                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: source_card_id.clone(),
                     characteristics,
@@ -6306,6 +6313,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     defense: None,
                 };
                 let token_obj = crate::state::game_object::GameObject {
+                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: source_card_id.clone(),
                     characteristics,
@@ -6533,6 +6541,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         defense: None,
                     };
                     let token_obj = crate::state::game_object::GameObject {
+                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: source_card_id.clone(),
                         characteristics,

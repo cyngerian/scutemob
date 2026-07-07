@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a / CR 603.2c: "Whenever one or more creatures you control deal combat
             // damage to a player, create a Treasure token." — batch trigger (fires once).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),

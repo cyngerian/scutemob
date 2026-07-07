@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.1: "When Dreadhound enters, mill three cards."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MillCards {
                     player: PlayerTarget::Controller,
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
             // Partial: only creature deaths fire (WheneverCreatureDies). "Creature card put
             // into GY from library" (mill trigger) is a known DSL gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: None,
                     exclude_self: false,

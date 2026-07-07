@@ -70,6 +70,7 @@ Everywhere that is every basic land type."
             // Modeled as two separate triggers (WhenEntersBattlefield + WhenAttacks),
             // both producing the same Everywhere token effect.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: everywhere_token_spec() },
                 intervening_if: None,
@@ -80,6 +81,7 @@ Everywhere that is every basic land type."
             },
             // "Whenever this permanent attacks" — attack trigger.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken { spec: everywhere_token_spec() },
                 intervening_if: None,

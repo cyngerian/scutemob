@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever a Goblin you control enters, you may put a quest counter on ~.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

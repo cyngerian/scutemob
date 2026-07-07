@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // Also, the noncombat damage path (combat_only: false) is not yet dispatched from
             // GameEvent::DamageDealt — deferred to PB-37.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
                     combat_only: false,
                 },

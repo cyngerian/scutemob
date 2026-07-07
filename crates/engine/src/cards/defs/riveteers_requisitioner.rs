@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 603.1: When Riveteers Requisitioner dies, create a Treasure token.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),

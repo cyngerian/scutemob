@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Enrage is an ability word, not a KeywordAbility variant.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealtDamage,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

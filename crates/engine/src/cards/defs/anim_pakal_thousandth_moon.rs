@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Whenever you attack, put a +1/+1 counter on Anim Pakal.
             // TODO: "with non-Gnome creatures" condition and counter-based token count not in DSL.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouAttack,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

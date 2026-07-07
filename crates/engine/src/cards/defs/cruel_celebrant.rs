@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // Note: "or planeswalker" portion not covered — WheneverCreatureDies only
             // fires on creature deaths, not planeswalker deaths. Known DSL gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,

@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // At the beginning of combat on your turn, create a token that's a copy of
             // equipped creature, except the token isn't legendary. That token gains haste.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfCombat,
                 effect: Effect::CreateTokenCopy {
                     source: EffectTarget::EquippedCreature,

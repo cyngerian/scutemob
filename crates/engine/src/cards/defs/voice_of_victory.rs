@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Mobilize 2: create 2 tokens on attack
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

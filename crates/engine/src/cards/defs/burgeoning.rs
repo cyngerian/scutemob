@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
             // CR 305.1: Whenever an opponent plays a land (special action, not via effect).
             // CR 305.4: Effect puts land onto battlefield without counting as a land play.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentPlaysLand,
                 effect: Effect::PutLandFromHandOntoBattlefield { tapped: false },
                 intervening_if: None,

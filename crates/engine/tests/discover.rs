@@ -68,6 +68,7 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Discover),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Discover {
                     player: PlayerTarget::Controller,

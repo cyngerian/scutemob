@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             // deals damage to that player equal to cards in their hand; gain 1 life per card in
             // your hand." DamagedPlayer resolves from ctx.damaged_player at resolution.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1: fires only during opponent turns (during_opponent_turn: true).
             // "First spell per turn" tracking deferred to later session.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: true,
                     spell_type_filter: None,
@@ -63,6 +64,7 @@ pub fn card() -> CardDefinition {
             // with Faerie subtype filter. DamagedPlayer scopes target selection to the specific
             // player dealt damage (PB-D).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Faerie".to_string())),

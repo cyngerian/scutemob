@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // ETB: target opponent discards a card.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DiscardCards {
                     player: PlayerTarget::DeclaredTarget { index: 0 },
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever an opponent discards a card, that player loses 2 life.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentDiscards,
                 effect: Effect::LoseLife {
                     player: PlayerTarget::TriggeringPlayer,

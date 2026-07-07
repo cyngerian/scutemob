@@ -3495,6 +3495,69 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,
                 );
             }
+            // CR 502.3 / 603.2e (PB-AC1): a single permanent became untapped (effect-driven,
+            // e.g. Effect::UntapPermanent / Effect::UntapAll). Dispatch globally; the
+            // untapped permanent is carried via the entering_object parameter.
+            GameEvent::PermanentUntapped { object_id, .. } => {
+                collect_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::AnyPermanentUntaps,
+                    None,
+                    Some(*object_id),
+                );
+            }
+            // CR 502.3 / 502.4: untap-step batch untap. One dispatch per untapped permanent;
+            // per CR 502.4 these triggers are held (pending_triggers) and put on the stack
+            // at the next priority window (usually upkeep) — the existing pending-trigger
+            // queue already provides this hold.
+            GameEvent::PermanentsUntapped { objects, .. } => {
+                for id in objects {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::AnyPermanentUntaps,
+                        None,
+                        Some(*id),
+                    );
+                }
+            }
+            // CR 122.6 / 122.7 (PB-AC1): one or more counters were put on a permanent.
+            // Dispatch globally; the receiving permanent is carried via entering_object.
+            // Post-filter by counter kind: collect_triggers_for_event cannot see the placed
+            // counter's kind (it only sees the trigger_def), so we retain only the triggers
+            // whose `counter_filter` is None (any kind) or matches the placed kind.
+            GameEvent::CounterAdded {
+                object_id, counter, ..
+            } => {
+                let pre_len = triggers.len();
+                collect_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::CounterPlaced,
+                    None,
+                    Some(*object_id),
+                );
+                // Drop newly-pushed CounterPlaced triggers whose ability's counter_filter
+                // doesn't match the counter kind actually placed (collect_triggers_for_event
+                // cannot see the placed counter's kind, only the trigger_def).
+                let mut kept: Vec<PendingTrigger> = Vec::with_capacity(triggers.len());
+                for (i, t) in triggers.into_iter().enumerate() {
+                    if i >= pre_len && t.triggering_event == Some(TriggerEvent::CounterPlaced) {
+                        let source_filter =
+                            crate::rules::layers::calculate_characteristics(state, t.source)
+                                .and_then(|c| c.triggered_abilities.get(t.ability_index).cloned())
+                                .and_then(|def| def.counter_filter);
+                        if let Some(required) = source_filter {
+                            if required != *counter {
+                                continue;
+                            }
+                        }
+                    }
+                    kept.push(t);
+                }
+                triggers = kept;
+            }
             GameEvent::AttackersDeclared {
                 attacking_player,
                 attackers,
@@ -6136,6 +6199,82 @@ fn collect_triggers_for_event(
                     continue;
                 }
             }
+            // CR 502.3 / 603.2e (PB-AC1): AnyPermanentUntaps — a GLOBAL trigger. The
+            // untapped permanent's id is carried via `entering_object`. If
+            // `triggering_creature_filter` is set, the untapped permanent must match it
+            // (layer-resolved) AND, if the filter sets a controller scope, the untapped
+            // permanent's controller must satisfy it relative to the trigger source's
+            // controller ("you control" / "an opponent controls").
+            if event_type == TriggerEvent::AnyPermanentUntaps {
+                let Some(untapped_id) = entering_object else {
+                    continue;
+                };
+                let Some(untapped_obj) = state.objects.get(&untapped_id) else {
+                    continue;
+                };
+                if let Some(ref filter) = trigger_def.triggering_creature_filter {
+                    match filter.controller {
+                        TargetController::Any => {}
+                        TargetController::You => {
+                            if untapped_obj.controller != obj.controller {
+                                continue;
+                            }
+                        }
+                        TargetController::Opponent => {
+                            if untapped_obj.controller == obj.controller {
+                                continue;
+                            }
+                        }
+                        TargetController::DamagedPlayer => {}
+                    }
+                    let untapped_chars =
+                        crate::rules::layers::calculate_characteristics(state, untapped_id)
+                            .unwrap_or_else(|| untapped_obj.characteristics.clone());
+                    if !crate::effects::matches_filter(&untapped_chars, filter) {
+                        continue;
+                    }
+                }
+            }
+            // CR 122.6 / 122.7 (PB-AC1): CounterPlaced — a GLOBAL trigger. The receiving
+            // permanent's id is carried via `entering_object`. `counter_filter` restricts
+            // which counter kind fires; `counter_on_self` restricts the trigger to firing
+            // only when the trigger source itself received the counter(s); otherwise
+            // `triggering_creature_filter` (if set) restricts which OTHER permanent's
+            // counter-placement fires the trigger.
+            if event_type == TriggerEvent::CounterPlaced {
+                let Some(receiving_id) = entering_object else {
+                    continue;
+                };
+                if trigger_def.counter_on_self {
+                    if receiving_id != obj_id {
+                        continue;
+                    }
+                } else if let Some(ref filter) = trigger_def.triggering_creature_filter {
+                    let Some(receiving_obj) = state.objects.get(&receiving_id) else {
+                        continue;
+                    };
+                    match filter.controller {
+                        TargetController::Any => {}
+                        TargetController::You => {
+                            if receiving_obj.controller != obj.controller {
+                                continue;
+                            }
+                        }
+                        TargetController::Opponent => {
+                            if receiving_obj.controller == obj.controller {
+                                continue;
+                            }
+                        }
+                        TargetController::DamagedPlayer => {}
+                    }
+                    let receiving_chars =
+                        crate::rules::layers::calculate_characteristics(state, receiving_id)
+                            .unwrap_or_else(|| receiving_obj.characteristics.clone());
+                    if !crate::effects::matches_filter(&receiving_chars, filter) {
+                        continue;
+                    }
+                }
+            }
             // CR 603.2 / CR 207.2c: Apply ETB filter for Alliance and similar
             // "whenever [another] [creature] [you control] enters" triggers.
             // All filter conditions must pass (AND logic).
@@ -6532,9 +6671,69 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
     });
     let mut events = Vec::new();
     for trigger in sorted {
+        // CR 603.2c/603.2h (PB-AC1): once-per-turn gate. Determine whether this
+        // trigger's ability is marked `once_per_turn` (card text "This ability
+        // triggers only once each turn"). Look up the layer-resolved runtime
+        // TriggeredAbilityDef first (mirrors the target-requirement fallback below);
+        // fall back to the card registry definition when the runtime characteristics
+        // lookup misses (e.g. PendingTriggerKind other than Normal never populates
+        // `characteristics.triggered_abilities`).
+        let once_per_turn_flag: bool = {
+            let obj = state.objects.get(&trigger.source);
+            if let Some(obj) = obj {
+                let from_runtime = if trigger.kind == PendingTriggerKind::Normal {
+                    obj.characteristics
+                        .triggered_abilities
+                        .get(trigger.ability_index)
+                        .map(|ab| ab.once_per_turn)
+                } else {
+                    None
+                };
+                from_runtime.unwrap_or_else(|| {
+                    obj.card_id
+                        .as_ref()
+                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .and_then(|def| def.abilities.get(trigger.ability_index))
+                        .map(|abil| {
+                            matches!(
+                                abil,
+                                crate::cards::card_definition::AbilityDefinition::Triggered {
+                                    once_per_turn: true,
+                                    ..
+                                }
+                            )
+                        })
+                        .unwrap_or(false)
+                })
+            } else {
+                false
+            }
+        };
+        if once_per_turn_flag {
+            // CR 603.2c: skip entirely if the ability already fired this turn — do not
+            // put a second instance on the stack, and do not let trigger doublers
+            // multiply it.
+            let already_fired = state
+                .objects
+                .get(&trigger.source)
+                .map(|o| {
+                    o.triggered_abilities_fired_this_turn
+                        .contains(&trigger.ability_index)
+                })
+                .unwrap_or(false);
+            if already_fired {
+                continue;
+            }
+        }
         // CR 603.2d: Check for Panharmonicon-style trigger doublers.
         // Compute how many times this trigger fires (1 base + additional from doublers).
-        let additional_count = compute_trigger_doubling(state, &trigger);
+        // CR 603.2h (PB-AC1): a once-per-turn ability is never multiplied by doublers —
+        // it goes on the stack exactly once.
+        let additional_count = if once_per_turn_flag {
+            0
+        } else {
+            compute_trigger_doubling(state, &trigger)
+        };
         // CR 702.21a: For Ward triggers, the targeting stack object ID is carried
         // through PendingTrigger.targeting_stack_id. Set it as the triggered
         // ability's target so CounterSpell resolution can find the right stack entry.
@@ -7770,6 +7969,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 source_object_id: trigger.source,
                 stack_object_id: stack_id,
             });
+        }
+        // CR 603.2c/603.2h (PB-AC1): mark this once-per-turn ability as fired now that
+        // it has been put on the stack (exactly once, per the additional_count == 0
+        // override above).
+        if once_per_turn_flag {
+            if let Some(obj) = state.objects.get_mut(&trigger.source) {
+                obj.triggered_abilities_fired_this_turn
+                    .insert(trigger.ability_index);
+            }
         }
     }
     if !events.is_empty() {

@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             // CR 603.10a / Ruling 2020-06-23: power read from LKI snapshot
             // (boosted-on-battlefield value, not printed 2/2).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

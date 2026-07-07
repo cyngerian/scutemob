@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             )),
             // CR 702.101a: DrainLife — each opponent loses N, controller gains total lost.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrainLife {
                     amount: EffectAmount::PermanentCount {

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Reach),
             // Landfall — deal 1 damage to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

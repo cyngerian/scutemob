@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: Discarded-card type filter (creature/land/noncreature-nonland) not in DSL.
             // Using single trigger as approximation (fires on any opponent discard, creates Zombie).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentDiscards,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

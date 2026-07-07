@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: "X = number of Soldiers" — count-based EffectAmount not in DSL.
             //   Using fixed 2 as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

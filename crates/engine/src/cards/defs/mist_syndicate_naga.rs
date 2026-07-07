@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Whenever this creature deals combat damage to a player, create a token
             // copy of this creature.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::CreateTokenCopy {
                     source: EffectTarget::Source,

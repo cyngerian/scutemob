@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             },
             // Combat damage trigger: search for a Ninja card.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::SearchLibrary {
                     filter: TargetFilter {

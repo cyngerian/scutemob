@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // Note: trigger fires on controller's upkeep only (AtBeginningOfYourUpkeep fires for
             // the controller). "Each player" via EachPlayer still applies to all players' choices.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,

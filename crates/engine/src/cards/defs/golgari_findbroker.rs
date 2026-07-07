@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // (creature, artifact, enchantment, land, planeswalker). Instants and sorceries are
             // excluded. Battle is not yet in the CardType enum, so the approximation is close.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // CR 603.3: ETB trigger — each opponent loses X life, you gain that much.
             // DrainLife with DevotionTo(Black) handles the lose+gain pattern.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrainLife {
                     amount: EffectAmount::DevotionTo(Color::Black),

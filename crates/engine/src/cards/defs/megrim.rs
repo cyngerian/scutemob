@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // Whenever an opponent discards a card, deal 2 damage to that player.
             // Using LoseLife as approximation (damage vs life-loss semantic difference minor).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentDiscards,
                 effect: Effect::LoseLife {
                     player: PlayerTarget::TriggeringPlayer,

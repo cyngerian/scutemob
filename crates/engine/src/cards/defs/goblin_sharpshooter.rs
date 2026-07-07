@@ -14,9 +14,11 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: "doesn't untap during your untap step" — static restriction not in DSL.
+            // CR 502.3: "This creature doesn't untap during your untap step."
+            AbilityDefinition::Keyword(KeywordAbility::DoesNotUntap),
             // CR 603.10a: "Whenever a creature dies, untap Goblin Sharpshooter."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: None,
                     exclude_self: false,

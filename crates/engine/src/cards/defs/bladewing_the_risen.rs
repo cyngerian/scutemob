@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 603.1: ETB trigger — return target Dragon permanent from your GY to BF.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

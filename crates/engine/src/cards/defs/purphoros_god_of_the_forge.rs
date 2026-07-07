@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever another creature you control enters, Purphoros deals 2 damage to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

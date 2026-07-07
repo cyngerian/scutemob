@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
             // TODO: Effect::ReturnFromGraveyard with total-power constraint does not exist (DSL gap).
             //       This trigger stub fires but has no executable effect at resolution.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenMutates,
                 effect: Effect::Nothing,
                 intervening_if: None,

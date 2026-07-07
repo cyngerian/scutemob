@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // Landfall: create Treasure (Food or Treasure — using Treasure as default)
             // TODO: Player choice "Food or Treasure" not in DSL.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

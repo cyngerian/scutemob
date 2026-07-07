@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // and per PB-D plan R7). TODO(MayEffect): "you may" optionality deferred to a future
             // MayEffect primitive; authoring as mandatory is correct for the DamagedPlayer scoping.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

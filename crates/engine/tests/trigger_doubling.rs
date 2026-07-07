@@ -89,6 +89,9 @@ fn panharmonicon_def(id: &str, name: &str) -> CardDefinition {
 /// Build a triggered ability: "Whenever any permanent enters the battlefield..."
 fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
         description: description.to_string(),
@@ -869,6 +872,9 @@ fn test_panharmonicon_doubles_self_etb_trigger() {
             ObjectSpec::creature(p1, "Self-ETB Creature", 2, 2)
                 .with_card_id(self_etb_card_id)
                 .with_triggered_ability(TriggeredAbilityDef {
+                    counter_filter: None,
+                    counter_on_self: false,
+                    once_per_turn: false,
                     trigger_on: TriggerEvent::SelfEntersBattlefield,
                     intervening_if: None,
                     description: "When this enters, do something (self-ETB test)".to_string(),
@@ -1547,6 +1553,7 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
         // AbilityDefinition::Triggered routes through queue_carddef_etb_triggers
         // (not ObjectSpec runtime triggers / check_triggers).
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,

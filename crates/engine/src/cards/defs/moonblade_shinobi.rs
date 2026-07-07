@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

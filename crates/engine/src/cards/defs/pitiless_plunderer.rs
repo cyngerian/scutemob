@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever another creature you control dies, create a Treasure token."
             // PB-23: controller_you + exclude_self filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: true,

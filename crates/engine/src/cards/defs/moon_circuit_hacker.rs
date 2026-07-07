@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             // Combat damage: draw (conditional discard simplified away)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

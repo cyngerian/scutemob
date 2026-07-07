@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // When this creature enters, exile target creature an opponent controls until
             // this creature leaves the battlefield (CR 610.3).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ExileWithDelayedReturn {
                     target: EffectTarget::DeclaredTarget { index: 0 },

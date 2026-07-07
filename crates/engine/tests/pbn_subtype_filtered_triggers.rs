@@ -62,6 +62,9 @@ fn library_card(player: PlayerId, id: &str, name: &str) -> ObjectSpec {
 /// Build an attack trigger that draws a card, filtered by the given subtype.
 fn attack_trigger_draw_subtype(subtype: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description: format!(
@@ -88,6 +91,9 @@ fn attack_trigger_draw_color(color: Color) -> TriggeredAbilityDef {
     let mut color_set = im::OrdSet::new();
     color_set.insert(color);
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description:
@@ -111,6 +117,9 @@ fn attack_trigger_draw_color(color: Color) -> TriggeredAbilityDef {
 /// Build a death trigger that draws a card, filtered by the given subtype.
 fn death_trigger_draw_subtype(subtype: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureDies,
         intervening_if: None,
         description: format!(
@@ -473,6 +482,9 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     // Build two states: identical except one watcher has triggering_creature_filter set.
     let watcher_no_filter =
         ObjectSpec::creature(p1, "Watcher", 1, 1).with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
             intervening_if: None,
             description: "Hash parity test trigger (no filter)".to_string(),
@@ -489,6 +501,9 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
 
     let watcher_with_filter =
         ObjectSpec::creature(p1, "Watcher", 1, 1).with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
             intervening_if: None,
             description: "Hash parity test trigger (no filter)".to_string(),
@@ -547,7 +562,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 27u8,
+        HASH_SCHEMA_VERSION, 28u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
@@ -568,6 +583,9 @@ fn test_pbn_kolaghan_end_to_end() {
     });
 
     let kolaghan_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description: "Kolaghan: Whenever a Dragon you control attacks, creatures you control get +1/+0. (CR 508.1m / PB-N)"
@@ -627,6 +645,9 @@ fn test_pbn_kolaghan_end_to_end() {
 
     // Test B: a non-Dragon attacks with the Kolaghan trigger (Dragon filter) → NO trigger.
     let goblin_trigger_def = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         triggering_creature_filter: dragon_filter,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
@@ -725,6 +746,9 @@ fn test_pbn_combat_damage_filter_not_consulted_on_attack_events() {
     // Post-fix: combat_damage_filter is ignored on attack events → trigger fires.
     // Pre-fix: combat_damage_filter was checked on attack events → Goblin ≠ Ninja → trigger suppressed.
     let attack_trigger_with_damage_filter = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description:
@@ -820,6 +844,9 @@ fn test_utvara_hellkite_dragon_filter() {
         ..Default::default()
     });
     let utvara_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description: "Utvara Hellkite: Whenever a Dragon you control attacks, create a 6/6 red \
@@ -941,6 +968,9 @@ fn test_sanctum_seeker_flat_gain_4_player() {
     // Oracle: "Whenever a Vampire you control attacks, each opponent loses 1 life and you gain 1 life."
     // Fix: ForEach(EachOpponent, LoseLife 1) → GainLife(Controller, 1). NOT DrainLife (gains total_lost).
     let sanctum_seeker_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description:

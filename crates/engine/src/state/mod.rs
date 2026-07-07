@@ -410,6 +410,7 @@ impl GameState {
         // Create new object with fresh ID (CR 400.7)
         let new_id = self.next_object_id();
         let mut new_object = GameObject {
+            triggered_abilities_fired_this_turn: im::OrdSet::new(),
             id: new_id,
             card_id: old_object.card_id.clone(),
             characteristics: old_object.characteristics.clone(),
@@ -599,6 +600,7 @@ impl GameState {
                 let component_id = self.next_object_id();
                 self.timestamp_counter += 1;
                 let component_obj = GameObject {
+                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
                     id: component_id,
                     card_id: component.card_id,
                     characteristics: component.characteristics,
@@ -719,6 +721,7 @@ impl GameState {
                     let component_id = self.next_object_id();
                     self.timestamp_counter += 1;
                     let component_obj = GameObject {
+                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
                         id: component_id,
                         card_id: Some(component_card_id.clone()),
                         characteristics: component_chars,
@@ -894,6 +897,7 @@ impl GameState {
         // Create new object with fresh ID (CR 400.7).
         let new_id = self.next_object_id();
         let mut new_object = GameObject {
+            triggered_abilities_fired_this_turn: im::OrdSet::new(),
             id: new_id,
             card_id: old_object.card_id.clone(),
             characteristics: old_object.characteristics.clone(),

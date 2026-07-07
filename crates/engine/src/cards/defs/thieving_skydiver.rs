@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // Approximation: "with mana value X or less" filter and Equipment attach omitted
             // (mana-value variable filter and Equipment-attach not in DSL).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GainControl {
                     target: EffectTarget::DeclaredTarget { index: 0 },

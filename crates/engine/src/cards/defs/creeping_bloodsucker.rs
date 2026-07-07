@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // Upkeep trigger: drain 1 from each opponent.
             // DrainLife handles "deal damage to each opponent, gain life equal to damage dealt".
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
                 intervening_if: None,

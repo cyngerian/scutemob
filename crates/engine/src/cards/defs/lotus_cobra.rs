@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Landfall — Whenever a land you control enters, add one mana of any color.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

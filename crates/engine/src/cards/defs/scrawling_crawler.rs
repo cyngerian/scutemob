@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // At the beginning of your upkeep, each player draws a card
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::EachPlayer,
@@ -33,6 +34,7 @@ pub fn card() -> CardDefinition {
             // Whenever an opponent draws a card, that player loses 1 life.
             // TriggeringPlayer will be the drawing opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                     player_filter: Some(TargetController::Opponent),
                 },

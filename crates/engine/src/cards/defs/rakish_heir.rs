@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // put a +1/+1 counter on it." — per-creature trigger with Vampire subtype filter.
             // "it" = the dealing creature (TriggeringCreature).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Vampire".to_string())),

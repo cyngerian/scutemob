@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // Whenever an opponent casts a noncreature spell, draw a card
             // Noncreature filter applied.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
                     spell_type_filter: None,
                     noncreature_only: true,

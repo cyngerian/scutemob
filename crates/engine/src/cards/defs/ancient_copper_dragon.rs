@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // Combat damage: roll d20, create that many Treasures
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::CreateToken { spec: treasure_token_spec(10) },
                 // TODO: d20 roll for variable count — using fixed 10 as average approximation.

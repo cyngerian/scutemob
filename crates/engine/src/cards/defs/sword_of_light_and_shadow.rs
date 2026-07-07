@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // gain 3 life and return up to one target creature card from your graveyard to hand."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::GainLife {

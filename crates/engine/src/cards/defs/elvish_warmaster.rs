@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Once each turn" + "other Elves entering" — both not in DSL.
             // Using generic creature ETB (overbroad but token is correct type).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

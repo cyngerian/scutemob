@@ -1,9 +1,5 @@
 // Mesmeric Orb — {2}, Artifact
 // Whenever a permanent becomes untapped, that permanent's controller mills a card.
-//
-// TODO: "Whenever a permanent becomes untapped" — no TriggerCondition::WheneverPermanentUntaps
-//   exists in DSL. This fires for every permanent (opponent's and your own) on untap steps and
-//   from other effects. No WhenUntaps trigger condition exists. Omitted per W5 policy.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,10 +10,24 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Artifact]),
         oracle_text: "Whenever a permanent becomes untapped, that permanent's controller mills a card.".to_string(),
         abilities: vec![
-            // TODO: TriggerCondition::WheneverPermanentUntaps not in DSL.
-            //   This would be a global trigger firing on every untap event.
-            //   DSL gap: need WheneverAnyPermanentUntaps + Effect::Mill targeting the
-            //   untapped permanent's controller. Omitted per W5 policy.
+            // CR 502.3 / 603.2e: "Whenever a permanent becomes untapped, that permanent's
+            // controller mills a card." Global trigger (filter: None = any permanent, any
+            // controller). The milling player is the CONTROLLER OF the untapped permanent
+            // (the trigger's "TriggeringCreature", resolved via entering_object_id --
+            // the field name is legacy and applies to any triggering object, not just
+            // creatures).
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverPermanentUntaps { filter: None },
+                effect: Effect::MillCards {
+                    player: PlayerTarget::ControllerOf(Box::new(EffectTarget::TriggeringCreature)),
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

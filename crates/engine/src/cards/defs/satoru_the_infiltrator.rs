@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: Complex ETB condition "if none were cast or no mana spent" not in DSL.
             //   Using generic creature ETB as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

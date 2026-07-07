@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

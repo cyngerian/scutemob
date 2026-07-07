@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // CR 614.1c note: "look at the top card" is a hidden-info peek; deterministic engine
             // sees all. Per ruling, if you don't put it into your hand it stays on top unrevealed.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Conditional {
                     condition: Condition::TopCardIsCreatureOfChosenType,

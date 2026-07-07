@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // Dragon and is_nontoken are now honored on the creature-ETB path via
             // triggering_creature_filter forwarding.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // (2) untap all lands you control (You ForEach).
             // DeclaredTarget { index: 0 } inside ForEach resolves to the current iteration object.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
                 effect: Effect::Sequence(vec![
                     // Tap all lands that the damaged player controls.

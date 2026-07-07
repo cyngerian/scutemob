@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             // ETB: enters with a +1/+1 counter
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
             // to the number it already has"). CR 207.2c (Landfall) +
             // CR 122.1/122.6 (counters; counters being put on an object).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

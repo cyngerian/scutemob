@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // Mode 0: Create a Treasure token.
             // Mode 1: Put a -1/-1 counter on target creature an opponent controls.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::Nothing,
                 intervening_if: None,

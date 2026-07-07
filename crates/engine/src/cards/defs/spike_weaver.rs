@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // ETB: enters with three +1/+1 counters.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

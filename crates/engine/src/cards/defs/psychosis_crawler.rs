@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever you draw a card, each opponent loses 1 life.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::LoseLife {
                     player: PlayerTarget::EachOpponent,

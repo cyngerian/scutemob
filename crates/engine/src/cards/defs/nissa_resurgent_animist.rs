@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // Landfall — add one mana of any color.
             // TODO: "second resolution" conditional — reveal Elf/Elemental from library.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // a 1/1 colorless Eldrazi Scion token."
             // PB-23: controller_you + exclude_self + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: true,

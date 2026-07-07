@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Reach),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenMutates,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

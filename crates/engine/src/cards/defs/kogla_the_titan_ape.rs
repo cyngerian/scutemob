@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1 / CR 601.2c / 115.1b: ETB trigger — fight up to one target creature
             // you don't control. "Up to one" means the target is optional (0 targets = no fight).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Fight {
                     attacker: EffectTarget::Source,
@@ -43,6 +44,7 @@ pub fn card() -> CardDefinition {
             // "defending player controls" is approximated as opponent; full defender-tracking
             // is not in DSL (TargetController::Opponent is accurate in most multiplayer contexts).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

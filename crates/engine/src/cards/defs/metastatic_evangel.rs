@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // this trigger today (until ETBTriggerFilter gains a token-only/nontoken-only
             // axis). Tracked elsewhere.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

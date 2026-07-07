@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // CR 603.1: ETB trigger — suspect this creature (CR 701.60a).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Suspect { target: EffectTarget::Source },
                 intervening_if: None,

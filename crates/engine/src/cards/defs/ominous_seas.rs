@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever you draw a card, put a foreshadow counter on this.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

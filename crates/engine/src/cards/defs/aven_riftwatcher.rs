@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Vanishing { count: 3 },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,
@@ -29,6 +30,7 @@ pub fn card() -> CardDefinition {
             },
             // When this creature leaves the battlefield, you gain 2 life. (CR 603.10a)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenLeavesBattlefield,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 // "nonlegendary green creature with mana value 3 or less"
                 // TODO: TargetFilter lacks non_legendary — this searches any green creature

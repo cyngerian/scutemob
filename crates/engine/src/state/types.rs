@@ -1672,6 +1672,17 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 161.
     CantBeBlockedExceptBy(BlockingExceptionFilter),
+    /// CR 502.3: Engine-internal pseudo-keyword (NOT a CR keyword) representing the static
+    /// "This permanent doesn't untap during its controller's untap step." Modeled as a
+    /// keyword (rather than a `LayerModification` + `Characteristics` bool) so it lives in
+    /// layer-resolved `Characteristics.keywords` and is therefore removed by Humility /
+    /// Dress Down (`LayerModification::RemoveAllAbilities` clears keywords). Mirrors
+    /// `KeywordAbility::CantBlock` exactly. Enforced in `untap_active_player_permanents`
+    /// (turn_actions.rs) via layer-resolved characteristics. Canonical cards: Goblin
+    /// Sharpshooter, Mana Vault.
+    ///
+    /// Discriminant 162.
+    DoesNotUntap,
 }
 /// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.
 ///

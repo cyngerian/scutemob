@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,
@@ -30,6 +31,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever you sacrifice a Treasure, get +1/+0 until end of turn.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Treasure".to_string())),

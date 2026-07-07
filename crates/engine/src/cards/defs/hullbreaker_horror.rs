@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // min_modes: 0 = "up to one" (may choose zero modes).
             // Bot: auto-selects mode 0 (bounce opponent's spell). If no legal target, 0 modes.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     spell_type_filter: None,
                     noncreature_only: false,

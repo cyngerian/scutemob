@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever another creature you control enters, deal 1 to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

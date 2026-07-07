@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // Whenever you cast a noncreature spell, gets +2/+0 until end of turn.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: None,

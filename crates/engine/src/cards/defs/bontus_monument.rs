@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever you cast a creature spell, each opponent loses 1 life and you gain 1 life.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

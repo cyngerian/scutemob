@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Crew(1)),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenBlocks,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },

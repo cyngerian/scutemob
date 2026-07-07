@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1: When this creature enters, target creature you control gains
             // deathtouch and lifelink until end of turn.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::ApplyContinuousEffect {

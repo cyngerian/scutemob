@@ -69,6 +69,9 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
 /// Triggered ability: fires when the source permanent enters the battlefield.
 fn etb_trigger(description: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfEntersBattlefield,
         intervening_if: None,
         description: description.to_string(),
@@ -84,6 +87,9 @@ fn etb_trigger(description: &str) -> TriggeredAbilityDef {
 /// Triggered ability: fires whenever any permanent enters the battlefield.
 fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
         description: description.to_string(),
@@ -797,6 +803,9 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
     // "Whenever ~ enters, if your life total is 50 or more, do something."
     let conditional_creature = ObjectSpec::creature(p1, "High Life Watcher", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -868,6 +877,9 @@ fn test_triggered_ability_intervening_if_true_triggers() {
     // "When ~ enters, if your life total is 30 or more, do something."
     let conditional_creature = ObjectSpec::creature(p1, "Sanctuary Warden", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -1469,6 +1481,9 @@ fn test_sacrifice_filter_missing_target_errors() {
 /// Triggered ability: fires when the source permanent dies (CR 700.4).
 fn dies_trigger(description: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfDies,
         intervening_if: None,
         description: description.to_string(),
@@ -1484,6 +1499,9 @@ fn dies_trigger(description: &str) -> TriggeredAbilityDef {
 /// Dies trigger with a DrawCards effect for functional (resolution) testing.
 fn dies_draw_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::SelfDies,
         intervening_if: None,
@@ -2301,6 +2319,9 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
 /// Attack trigger: fires when THIS creature is declared as an attacker (CR 508.3a).
 fn attack_trigger(description: &str) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::SelfAttacks,
         intervening_if: None,
         description: description.to_string(),
@@ -2316,6 +2337,9 @@ fn attack_trigger(description: &str) -> TriggeredAbilityDef {
 /// Attack trigger with a DrawCards effect for functional (resolution) testing.
 fn attack_draw_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::SelfAttacks,
         intervening_if: None,
@@ -2425,6 +2449,7 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenAttacks,
             effect: mtg_engine::Effect::DrawCards {
                 player: mtg_engine::PlayerTarget::Controller,

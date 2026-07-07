@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // 2. Creature card put into graveyard from non-battlefield (mill, discard) — no DSL trigger
             // 3. Creature card leaves your graveyard (exile, return) — no DSL trigger
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: None,
                     exclude_self: true,

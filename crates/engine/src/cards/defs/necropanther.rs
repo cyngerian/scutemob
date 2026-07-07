@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             // CR 702.140d: "Whenever this creature mutates, return target creature card with
             // mana value 3 or less from your graveyard to the battlefield."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenMutates,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

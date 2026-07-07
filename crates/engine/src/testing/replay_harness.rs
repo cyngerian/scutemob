@@ -2095,6 +2095,9 @@ pub fn enrich_spec_from_def(
                 effect.clone()
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2129,6 +2132,9 @@ pub fn enrich_spec_from_def(
                 effect.clone()
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2152,6 +2158,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2185,6 +2194,9 @@ pub fn enrich_spec_from_def(
                 effect.clone()
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2209,6 +2221,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2235,6 +2250,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2258,6 +2276,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2282,6 +2303,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2305,6 +2329,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2330,6 +2357,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2391,6 +2421,9 @@ pub fn enrich_spec_from_def(
                 card_type_filter: None,
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
                 // Intervening-if conditions (card_definition::Condition) are a different
                 // type from runtime InterveningIf; conversion is deferred. None is safe
@@ -2499,6 +2532,9 @@ pub fn enrich_spec_from_def(
                 card_type_filter,
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
                 // card_definition::Condition ↔ runtime InterveningIf conversion is
                 // deferred (same rationale as Alliance). None is safe for all
@@ -2527,6 +2563,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2550,6 +2589,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2558,6 +2600,72 @@ pub fn enrich_spec_from_def(
                 intervening_if: None,
                 targets: vec![],
                 description: "Whenever this permanent becomes tapped".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 502.3 / 603.2e (PB-AC1): Convert "Whenever a permanent becomes untapped" card-definition
+    // triggers into runtime TriggeredAbilityDef entries so check_triggers can dispatch them via
+    // AnyPermanentUntaps events. The optional filter is forwarded to `triggering_creature_filter`
+    // (a legacy field name reused for any triggering object, not just creatures) and applied at
+    // trigger-collection time in `collect_triggers_for_event`.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverPermanentUntaps { filter },
+            effect,
+            once_per_turn,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: *once_per_turn,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: filter.clone(),
+                trigger_on: TriggerEvent::AnyPermanentUntaps,
+                intervening_if: None,
+                targets: vec![],
+                description: "Whenever a permanent becomes untapped (CR 502.3/603.2e)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 122.6 / 122.7 (PB-AC1): Convert "When/Whenever counter(s) are put on [this
+    // permanent] / [a permanent you control]" card-definition triggers into runtime
+    // TriggeredAbilityDef entries so check_triggers can dispatch them via CounterPlaced
+    // events. `counter` and `on_self` are forwarded directly to the runtime `counter_filter` /
+    // `counter_on_self` fields; `filter` (for the on_self:false "a creature you control" case)
+    // is forwarded to `triggering_creature_filter`.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WhenCounterPlaced {
+                    counter,
+                    filter,
+                    on_self,
+                },
+            effect,
+            once_per_turn,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: counter.clone(),
+                counter_on_self: *on_self,
+                once_per_turn: *once_per_turn,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: filter.clone(),
+                trigger_on: TriggerEvent::CounterPlaced,
+                intervening_if: None,
+                targets: vec![],
+                description:
+                    "Whenever one or more counters are put on a permanent (CR 122.6/122.7)"
+                        .to_string(),
                 effect: Some(effect.clone()),
             });
         }
@@ -2583,6 +2691,7 @@ pub fn enrich_spec_from_def(
                     filter,
                 },
             effect,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2593,6 +2702,11 @@ pub fn enrich_spec_from_def(
                 nontoken_only: *nontoken_only,
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                // CR 603.2c/603.2h (PB-AC1): forward "triggers only once each turn" (Morbid
+                // Opportunist) from the card def.
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureDies,
                 intervening_if: None,
                 description: "Whenever a creature dies (CR 603.10a)".to_string(),
@@ -2621,6 +2735,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
                 intervening_if: None,
                 description: "Whenever a creature you control attacks (CR 508.1m)".to_string(),
@@ -2649,6 +2766,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
                 intervening_if: None,
                 description:
@@ -2674,6 +2794,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
                 intervening_if: None,
                 description:
@@ -2697,6 +2820,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
                 intervening_if: None,
                 description:
@@ -2720,6 +2846,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
                 intervening_if: None,
                 description: "Whenever enchanted creature deals damage to a player (CR 510.3a)"
@@ -2743,6 +2872,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
                 intervening_if: None,
                 description:
@@ -2766,6 +2898,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::ControllerDiscards,
                 intervening_if: None,
                 description: "Whenever you discard a card (CR 701.9a)".to_string(),
@@ -2787,6 +2922,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::OpponentDiscards,
                 intervening_if: None,
                 description: "Whenever an opponent discards a card (CR 701.9a)".to_string(),
@@ -2808,6 +2946,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::OpponentPlaysLand,
                 intervening_if: None,
                 etb_filter: None,
@@ -2831,6 +2972,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::ControllerSacrifices,
                 intervening_if: None,
                 description: "Whenever you sacrifice a permanent (CR 701.21a)".to_string(),
@@ -2852,6 +2996,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::ControllerAttacks,
                 intervening_if: None,
                 description: "Whenever you attack (CR 508.1)".to_string(),
@@ -2873,6 +3020,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::SelfLeavesBattlefield,
                 intervening_if: None,
                 description: "When ~ leaves the battlefield (CR 603.10a)".to_string(),
@@ -2895,6 +3045,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::ControllerDrawsCard,
                 intervening_if: None,
                 description: "Whenever you draw a card (CR 603.2)".to_string(),
@@ -2928,6 +3081,9 @@ pub fn enrich_spec_from_def(
                 _ => "Whenever a player draws a card (CR 603.2)",
             };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on,
                 intervening_if: None,
                 description: desc.to_string(),
@@ -2950,6 +3106,9 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
                 trigger_on: TriggerEvent::ControllerGainsLife,
                 intervening_if: None,
                 description: "Whenever you gain life (CR 603.2)".to_string(),

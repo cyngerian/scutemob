@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: EffectAmount lacks "count of lands you control" variant.
             //   Using fixed 5 as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

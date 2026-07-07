@@ -837,6 +837,9 @@ fn test_split_second_triggered_abilities_still_fire() {
     // P1 has a creature on the battlefield with a "whenever a spell is cast" trigger.
     let creature = ObjectSpec::creature(p1, "Spell Watcher", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,

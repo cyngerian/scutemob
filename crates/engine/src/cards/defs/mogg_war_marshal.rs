@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             })),
             // "When this creature enters" — ETB trigger
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -48,6 +49,7 @@ pub fn card() -> CardDefinition {
             },
             // "or dies" — death trigger
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

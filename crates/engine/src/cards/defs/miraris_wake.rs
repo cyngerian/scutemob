@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // CR 605.1b / CR 106.12a: "Whenever you tap a land for mana, add one mana of
             // any type that land produced." Triggered mana ability — resolves immediately.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::Land,
                 },

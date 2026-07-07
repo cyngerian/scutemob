@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // Whenever you gain life, target opponent loses 1 life.
             // TODO: "that much life" — needs EffectAmount::TriggeringAmount. Using Fixed(1) as partial.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouGainLife,
                 effect: Effect::LoseLife {
                     player: PlayerTarget::EachOpponent,

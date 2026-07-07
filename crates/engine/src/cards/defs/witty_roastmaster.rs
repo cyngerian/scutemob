@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Alliance — same pattern as Impact Tremors.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

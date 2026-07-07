@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever another nontoken creature you control dies, draw a card."
             // PB-23: controller_you + exclude_self + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: true,

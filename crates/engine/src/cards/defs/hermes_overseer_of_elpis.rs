@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // Whenever you cast a noncreature spell, create a 1/1 blue Bird token with
             // flying and vigilance.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: None,

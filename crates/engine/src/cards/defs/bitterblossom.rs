@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "At the beginning of your upkeep, you lose 1 life and create a 1/1 black Faerie Rogue creature token with flying.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {

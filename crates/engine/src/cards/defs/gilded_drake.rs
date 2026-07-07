@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // requires a Condition for whether the exchange actually occurred at resolution.
             // No such Condition variant (ExchangeHappened / TargetWasDeclared) exists in the DSL.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ExchangeControl {
                     target_a: EffectTarget::Source,

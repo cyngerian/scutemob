@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
             // Opponent-draw filter applied.
             // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                     player_filter: Some(TargetController::Opponent),
                 },

@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                 filter: Some(TargetFilter {
                     controller: TargetController::You,

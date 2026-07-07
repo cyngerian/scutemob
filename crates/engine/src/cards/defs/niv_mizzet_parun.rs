@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // Whenever you draw a card, Niv-Mizzet deals 1 damage to any target.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::DealDamage {
                     target: EffectTarget::DeclaredTarget { index: 0 },

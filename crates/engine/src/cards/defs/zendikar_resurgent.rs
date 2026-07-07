@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // any type that land produced."
             // Triggered mana ability — resolves immediately (CR 605.4a).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::Land,
                 },
@@ -28,6 +29,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 603.1: "Whenever you cast a creature spell, draw a card."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

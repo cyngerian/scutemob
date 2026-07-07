@@ -199,7 +199,18 @@
 ///   creatures whose subtype was granted by a battlefield-gated continuous effect.
 ///   `#[serde(default)]` ensures pre-bump serialized events deserialize cleanly with
 ///   `pre_death_characteristics: None` (graceful fallback to graveyard-preserved chars).
-pub const HASH_SCHEMA_VERSION: u8 = 27;
+/// - 28: PB-AC1 (2026-07-07) — Counter/untap/once-per-turn primitives. New `Effect`
+///   variant `UntapAll { filter }` (discriminant 87). New `TriggerCondition` variants
+///   `WheneverPermanentUntaps { filter }` (discriminant 42) and `WhenCounterPlaced
+///   { counter, filter, on_self }` (discriminant 43). New runtime `TriggerEvent`
+///   variants `AnyPermanentUntaps` (discriminant 45) and `CounterPlaced` (discriminant
+///   46). New `KeywordAbility::DoesNotUntap` pseudo-keyword (discriminant 162, CR
+///   502.3). New fields: `AbilityDefinition::Triggered.once_per_turn` /
+///   `TriggeredAbilityDef.once_per_turn` (CR 603.2c/603.2h), `TriggeredAbilityDef
+///   .counter_filter` / `.counter_on_self` (CR 122.6/122.7), and `GameObject
+///   .triggered_abilities_fired_this_turn: OrdSet<usize>`. `#[serde(default)]` on all
+///   new fields ensures pre-bump serialized states/defs deserialize cleanly.
+pub const HASH_SCHEMA_VERSION: u8 = 28;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -925,6 +936,8 @@ impl HashInto for KeywordAbility {
                 161u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
+            // DoesNotUntap (discriminant 162) -- CR 502.3 (PB-AC1)
+            KeywordAbility::DoesNotUntap => 162u8.hash_into(hasher),
         }
     }
 }
@@ -2435,6 +2448,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::AnyCreatureDealsCombatDamageToOpponent => 43u8.hash_into(hasher),
             // CR 305.1: "Whenever an opponent plays a land" — discriminant 44
             TriggerEvent::OpponentPlaysLand => 44u8.hash_into(hasher),
+            // CR 502.3 / 603.2e: any permanent becomes untapped — discriminant 45 (PB-AC1)
+            TriggerEvent::AnyPermanentUntaps => 45u8.hash_into(hasher),
+            // CR 122.6/122.7: counter(s) placed on a permanent — discriminant 46 (PB-AC1)
+            TriggerEvent::CounterPlaced => 46u8.hash_into(hasher),
         }
     }
 }
@@ -4922,6 +4939,22 @@ impl HashInto for TriggerCondition {
                 41u8.hash_into(hasher);
                 source_filter.hash_into(hasher);
             }
+            // CR 502.3 / 603.2e: "Whenever a permanent becomes untapped" — discriminant 42 (PB-AC1)
+            TriggerCondition::WheneverPermanentUntaps { filter } => {
+                42u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            // CR 122.6 / 122.7: "When/Whenever counter(s) are put on ..." — discriminant 43 (PB-AC1)
+            TriggerCondition::WhenCounterPlaced {
+                counter,
+                filter,
+                on_self,
+            } => {
+                43u8.hash_into(hasher);
+                counter.hash_into(hasher);
+                filter.hash_into(hasher);
+                on_self.hash_into(hasher);
+            }
         }
     }
 }
@@ -5905,6 +5938,11 @@ impl HashInto for Effect {
                 86u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
+            // PB-AC1: UntapAll (discriminant 87) — CR 701.26b
+            Effect::UntapAll { filter } => {
+                87u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
         }
     }
 }
@@ -5936,6 +5974,7 @@ impl HashInto for AbilityDefinition {
                 targets,
                 modes,
                 trigger_zone,
+                once_per_turn,
             } => {
                 1u8.hash_into(hasher);
                 trigger_condition.hash_into(hasher);
@@ -5944,6 +5983,8 @@ impl HashInto for AbilityDefinition {
                 targets.hash_into(hasher);
                 modes.hash_into(hasher);
                 trigger_zone.hash_into(hasher);
+                // PB-AC1: once_per_turn (CR 603.2c/603.2h)
+                once_per_turn.hash_into(hasher);
             }
             AbilityDefinition::Static { continuous_effect } => {
                 2u8.hash_into(hasher);

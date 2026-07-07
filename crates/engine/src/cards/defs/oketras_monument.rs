@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever you cast a creature spell, create a 1/1 white Warrior token with vigilance.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // CR 603.3: ETB trigger — each player sacrifices a creature or planeswalker.
             // PB-SFT (CR 701.21a + CR 109.1): creature-or-planeswalker OR-type filter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,

@@ -885,5 +885,7 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::CantBlock => "Can't Block".to_string(),
         // PB-36: CantBeBlockedExceptBy (discriminant 161) -- CR 509.1b
         KeywordAbility::CantBeBlockedExceptBy(_) => "Evasion (filtered)".to_string(),
+        // PB-AC1: DoesNotUntap (discriminant 162) -- CR 502.3
+        KeywordAbility::DoesNotUntap => "Doesn't Untap".to_string(),
     }
 }

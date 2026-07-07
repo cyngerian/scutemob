@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Mode 0: Deal 3 damage to each opponent.
             // Mode 1: Impulse draw (exile top 2, play 1) — DSL gap, Nothing placeholder.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::Nothing,
                 intervening_if: None,

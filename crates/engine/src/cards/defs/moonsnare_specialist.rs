@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1 / CR 601.2c / 115.1b: ETB trigger — return up to one target creature
             // to its owner's hand. "Up to one" means the target is optional.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

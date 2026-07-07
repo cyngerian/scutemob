@@ -114,6 +114,7 @@ fn make_test_creature(
     chars.card_types.insert(CT::Creature);
 
     GameObject {
+        triggered_abilities_fired_this_turn: im::OrdSet::new(),
         id: ObjectId(0),
         card_id: None,
         characteristics: chars,

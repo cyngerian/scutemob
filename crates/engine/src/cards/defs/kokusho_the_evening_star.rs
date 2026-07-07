@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // the life lost this way" — simplified to drain 5 from each opponent.
             // DrainLife handles the lose+gain pattern.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::DrainLife { amount: EffectAmount::Fixed(5) },
                 intervening_if: None,

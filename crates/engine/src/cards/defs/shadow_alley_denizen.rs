@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureEntersBattlefield with color filter (black) + controller_you.
             // ETBTriggerFilter is built from this in replay_harness enrichment.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

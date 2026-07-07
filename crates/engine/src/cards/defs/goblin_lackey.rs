@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
                 // hand with subtype filter. Using Nothing stub.

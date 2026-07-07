@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // UntapPermanent only untaps a single target (EffectTarget). Use DrawCards(0) as
             // structural placeholder until UntapAll is added.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

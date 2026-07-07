@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
             // ETB: draw 2, then discard 1
             // TODO: "then discard a card" — forced discard not easily expressible.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

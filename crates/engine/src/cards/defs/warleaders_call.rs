@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever a creature you control enters, deal 1 to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

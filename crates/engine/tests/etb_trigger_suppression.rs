@@ -48,6 +48,7 @@ fn etb_draw_creature_def() -> CardDefinition {
         },
         oracle_text: "When this creature enters, draw a card.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,
@@ -128,6 +129,7 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
         },
         oracle_text: "When this enchantment enters, gain 3 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,

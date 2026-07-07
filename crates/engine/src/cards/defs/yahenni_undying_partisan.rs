@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever a creature an opponent controls dies, put a +1/+1
             // counter on Yahenni." — controller_opponent filter on WheneverCreatureDies.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::Opponent),
                     exclude_self: false,

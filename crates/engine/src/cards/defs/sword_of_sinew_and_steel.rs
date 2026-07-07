@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             // damage to a player, destroy up to one target planeswalker and up to one
             // target artifact." Two parallel UpToN slots (different inner types).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {

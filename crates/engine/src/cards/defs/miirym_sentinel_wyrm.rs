@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // creature-ETB path via triggering_creature_filter forwarding.
             // exclude_self: true handles "another" (Miirym's own ETB does not fire it).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

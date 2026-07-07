@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // at execution time; PlayerId(0) in UntilYourNextTurn is resolved to
             // ctx.controller (Lightning's controller).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::RegisterReplacementEffect {
                     trigger: ReplacementTrigger::DamageWouldBeDealt {

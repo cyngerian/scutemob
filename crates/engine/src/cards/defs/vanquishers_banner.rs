@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // "Whenever you cast a creature spell of the chosen type, draw a card."
             // CR 603.1: chosen_subtype_filter fires only for spells matching source's chosen type.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

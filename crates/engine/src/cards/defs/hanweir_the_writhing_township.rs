@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 // CR 508.4: Attack trigger — create two 3/2 colorless Eldrazi Horror tokens
                 // tapped and attacking. Tokens inherit the attack target (CR 508.4).
                 AbilityDefinition::Triggered {
+                    once_per_turn: false,
                     trigger_condition: TriggerCondition::WhenAttacks,
                     effect: Effect::CreateToken {
                         spec: TokenSpec {

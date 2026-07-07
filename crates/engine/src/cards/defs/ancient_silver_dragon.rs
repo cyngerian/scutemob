@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 706.2: Roll d20 on combat damage to a player, draw cards equal to result.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::RollDice {
                     sides: 20,

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // PB-23: controller_you + nontoken_only filters via DeathTriggerFilter.
             // Note: "Pawn of Ulamog or another" = self included, so exclude_self: false.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: true, filter: None,
 },
                 effect: Effect::CreateToken {

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Creature filter + non-Elf exclusion expressible but trigger gap remains;
             // keeping unfiltered until the trigger primitive is shipped.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::SacrificePermanents {
                     player: PlayerTarget::EachPlayer,

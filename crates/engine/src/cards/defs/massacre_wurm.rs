@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.1 / CR 613.4c (Layer 7c): ETB trigger — opponents' creatures get -2/-2 until EOT.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {

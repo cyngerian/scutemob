@@ -58,6 +58,9 @@ fn library_card(player: PlayerId, id: &str, name: &str) -> ObjectSpec {
 /// Build a per-creature "you control" combat damage trigger that draws a card.
 fn per_creature_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
         intervening_if: None,
         description: "Whenever a creature you control deals combat damage to a player, draw a card. (CR 510.3a)".to_string(),
@@ -76,6 +79,9 @@ fn per_creature_draw() -> TriggeredAbilityDef {
 /// Build a per-creature "Ninja you control" combat damage trigger (subtype filter).
 fn ninja_combat_damage_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
         intervening_if: None,
         description:
@@ -99,6 +105,9 @@ fn ninja_combat_damage_draw() -> TriggeredAbilityDef {
 /// Build a "one or more creatures you control" batch combat damage trigger that draws.
 fn batch_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
         intervening_if: None,
         description: "Whenever one or more creatures you control deal combat damage to a player, draw a card. (CR 510.3a, CR 603.2c)".to_string(),
@@ -117,6 +126,9 @@ fn batch_draw() -> TriggeredAbilityDef {
 /// Build an equipped creature combat damage trigger that draws a card.
 fn equipped_creature_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
         intervening_if: None,
         description:
@@ -137,6 +149,9 @@ fn equipped_creature_draw() -> TriggeredAbilityDef {
 /// Build an enchanted creature damage trigger that draws a card.
 fn enchanted_creature_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
         intervening_if: None,
         description:

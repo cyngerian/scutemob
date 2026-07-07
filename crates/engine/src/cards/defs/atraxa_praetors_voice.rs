@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
                 effect: Effect::Proliferate,
                 intervening_if: None,

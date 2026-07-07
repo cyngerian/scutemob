@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // text. Aura Shards is an enchantment and cannot be the entering creature anyway,
             // so the setting is moot in practice but kept faithful to oracle (PB-XS-E).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

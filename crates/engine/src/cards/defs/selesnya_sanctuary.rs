@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 603.1: When this land enters, return a land you control to its owner's hand.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

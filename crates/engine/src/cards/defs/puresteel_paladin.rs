@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever an Equipment enters — approximation with subtype filter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Equipment".to_string())),

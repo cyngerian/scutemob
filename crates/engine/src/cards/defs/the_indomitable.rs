@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
             // draw a card." — per-creature trigger.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

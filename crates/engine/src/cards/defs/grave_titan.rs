@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             // ETB trigger: "Whenever this creature enters ... create two 2/2 black Zombie tokens"
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
             },
             // Attack trigger: same token creation
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

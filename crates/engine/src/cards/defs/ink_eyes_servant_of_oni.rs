@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             },
             // Combat damage trigger: reanimate from opponent's graveyard.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 // TODO: "target creature from that player's graveyard" — needs
                 // TargetCardInOpponentGraveyard + "under your control" zone move.

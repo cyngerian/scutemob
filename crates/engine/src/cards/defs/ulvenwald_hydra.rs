@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // DSL has no CountLandsCDA variant. Power/toughness left as None
             // (treated as 0/0 until CDA support is added).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     // "may search" — modeled as unconditional (deterministic fallback).

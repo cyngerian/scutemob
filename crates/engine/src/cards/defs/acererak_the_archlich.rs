@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // Tomb of Annihilation, return Acererak to its owner's hand and venture."
             // Condition is re-evaluated at resolution (CR 603.4).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     // CR 400.7: Return to owner's hand — zone change creates new object identity.
@@ -65,6 +66,7 @@ pub fn card() -> CardDefinition {
             // or a CreateTokenUnderTargetControl effect variant.
             // TODO(M10+): tokens should be created under each opponent's control.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,

@@ -63,7 +63,7 @@ fn test_pb_oos_lki_power_3_lba_variants_hash_pre_lba_fields() {
     // addition to the per-PB sweep files. If this assertion fails, update this
     // file's sentinel AND add a new history entry in state/hash.rs.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 27u8,
+        HASH_SCHEMA_VERSION, 28u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 

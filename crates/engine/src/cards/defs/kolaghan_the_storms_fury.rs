@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // CR 508.1m / CR 603.2: "Whenever a Dragon you control attacks, creatures you control get +1/+0."
             // PB-N: Dragon subtype filter now in DSL via filter: Some(TargetFilter { has_subtype }).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

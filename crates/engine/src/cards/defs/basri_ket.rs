@@ -65,6 +65,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![
                         TriggeredAbilityDef {
+                            counter_filter: None,
+                            counter_on_self: false,
+                            once_per_turn: false,
                             trigger_on: TriggerEvent::AtBeginningOfCombat,
                             intervening_if: None,
                             description: "At the beginning of combat on your turn, create a 1/1 white Soldier creature token, then put a +1/+1 counter on each creature you control.".to_string(),

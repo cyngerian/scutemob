@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever a creature you control enters, put a +1/+1 counter on each creature you control.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

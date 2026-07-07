@@ -266,6 +266,11 @@ pub enum AbilityDefinition {
         /// Used for abilities like Bloodghast's landfall trigger from the graveyard.
         #[serde(default)]
         trigger_zone: Option<TriggerZone>,
+        /// CR 603.2c/603.2h: "This ability triggers only once each turn." When `true`, the
+        /// ability is put on the stack at most once per turn regardless of how many times
+        /// its trigger condition is met that turn. Canonical card: Morbid Opportunist.
+        #[serde(default)]
+        once_per_turn: bool,
     },
     /// Static ability that generates a continuous effect while the source is on the battlefield
     /// (CR 604). Handled via the layer system (see `rules/layers.rs`).
@@ -1343,6 +1348,14 @@ pub enum Effect {
     /// Used by Tamiyo, Field Researcher -2 and Hands of Binding. Stacks: applying this
     /// twice makes the permanent skip two untap steps.
     PreventNextUntap { target: EffectTarget },
+    /// CR 701.26b: Untap all permanents on the battlefield matching the filter. Only
+    /// already-tapped permanents are actually untapped (mirrors CR 701.26b's guard that
+    /// only tapped permanents can be untapped). `filter.controller` supplies the "you
+    /// control"/"an opponent controls"/"any" scoping — there is no separate controller flag.
+    /// Stores the count of actually-untapped permanents in ctx.last_effect_count.
+    /// Emits `GameEvent::PermanentUntapped` per untapped permanent (drives
+    /// `TriggerCondition::WheneverPermanentUntaps`, CR 603.2e).
+    UntapAll { filter: TargetFilter },
     // ── Mana ────────────────────────────────────────────────────────────────
     /// Add mana to a player's pool (CR 106).
     AddMana {
@@ -3060,6 +3073,35 @@ pub enum TriggerCondition {
     /// mana ability (CR 605.1b) that resolves immediately (CR 605.4a). If it targets
     /// (e.g. Forbidden Orchard), it's a normal triggered ability (CR 605.5a).
     WhenTappedForMana { source_filter: ManaSourceFilter },
+    /// CR 502.3 / 603.2e: "Whenever a permanent becomes untapped" — a GLOBAL trigger that
+    /// fires when ANY permanent matching `filter` becomes untapped, regardless of controller
+    /// (unless `filter` scopes controller). `filter: None` = any permanent, any controller.
+    /// Per CR 603.2e, an ability that triggers on a permanent "becoming untapped" does NOT
+    /// trigger if the permanent enters the battlefield already untapped — this variant only
+    /// fires from real untap events (`GameEvent::PermanentUntapped`), never from ETB.
+    /// Canonical card: Mesmeric Orb.
+    WheneverPermanentUntaps {
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+    },
+    /// CR 122.6 / 122.7: "When/Whenever one or more counters are put on [this
+    /// creature/permanent] / [a creature/permanent you control]."
+    ///
+    /// `counter: None` = any counter kind; `Some(kind)` = only that kind.
+    /// `on_self: true` = "on this creature/permanent" (fires only when the trigger source
+    /// itself receives the counter(s)). `on_self: false` + `filter` = "on a [creature you
+    /// control]" style (fires when any OTHER matching permanent receives the counter(s)).
+    /// Fires once per counter-placement event where ≥1 counter of the matching kind lands
+    /// (CR 122.7: N=1 case). Canonical cards: Fathom Mage, Dusk Legion Duelist, Sharktocrab,
+    /// Simic Ascendancy.
+    WhenCounterPlaced {
+        #[serde(default)]
+        counter: Option<CounterType>,
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+        #[serde(default)]
+        on_self: bool,
+    },
 }
 /// Filter for "whenever you tap a [type] for mana" trigger conditions.
 /// CR 106.12a: triggers whenever such a mana ability resolves and produces mana.

@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // CR 508.4: Attack trigger — create two 1/1 red Human tokens tapped and attacking.
             // Tokens inherit the attack target of the source creature (CR 508.4).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

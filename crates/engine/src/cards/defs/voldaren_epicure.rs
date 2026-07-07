@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.3: ETB trigger — create one Blood token.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: blood_token_spec(1) },
                 intervening_if: None,

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: "Other Goblins must attack" forced-attack restriction not in DSL.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfCombat,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

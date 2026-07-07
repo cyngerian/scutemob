@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.3: ETB trigger — draw a card, then put a land from hand onto battlefield.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {

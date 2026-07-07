@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.1: ETB trigger — deal damage equal to number of Goblins you control.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DealDamage {
                     target: EffectTarget::DeclaredTarget { index: 0 },

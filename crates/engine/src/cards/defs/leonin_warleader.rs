@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             // Whenever an opponent draws a card, deal 1 damage to them.
             // Using LoseLife as approximation for "deals 1 damage."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                     player_filter: Some(TargetController::Opponent),
                 },

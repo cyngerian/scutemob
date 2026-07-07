@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // from any graveyard to the battlefield without the {2}{B} payment. This produces wrong
             // game state — Teneb should only reanimate when the controller pays the additional cost.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

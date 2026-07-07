@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Tribute(1)),
             // CR 702.104b: fires inline at ETB only if tribute_was_paid == false.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::TributeNotPaid,
                 effect: Effect::Sequence(vec![
                     // +1/+1 counter on self

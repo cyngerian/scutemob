@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever a creature you control with power 3 or greater enters, draw a card.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

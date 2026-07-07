@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // untap all other creatures you control and add an additional combat phase.
             // Missing: exert "won't untap" tracking, once-per-turn exert limit.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 intervening_if: Some(Condition::IsFirstCombatPhase),
                 effect: Effect::Sequence(vec![

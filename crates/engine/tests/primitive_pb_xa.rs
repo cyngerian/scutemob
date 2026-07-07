@@ -89,7 +89,7 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 27u8,
+        HASH_SCHEMA_VERSION, 28u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
@@ -558,6 +558,7 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenDies,
             effect: Effect::CreateTokenCopy {
                 source: EffectTarget::DeclaredTarget { index: 0 },
@@ -714,6 +715,7 @@ fn test_pbxa_trigger_picker_skipped_when_no_attacker() {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenDies,
             effect: Effect::CreateTokenCopy {
                 source: EffectTarget::DeclaredTarget { index: 0 },

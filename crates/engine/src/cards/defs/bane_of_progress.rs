@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             // CR 701.8: Destroy all artifacts and enchantments (has_card_types: OR semantics).
             // AddCounterAmount uses EffectAmount::LastEffectCount set by the preceding DestroyAll.

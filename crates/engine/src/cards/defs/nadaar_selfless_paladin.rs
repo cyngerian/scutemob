@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             // CR 701.49a-c: ETB trigger — venture into the dungeon when Nadaar enters.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 701.49a-c: Attack trigger — venture into the dungeon when Nadaar attacks.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,

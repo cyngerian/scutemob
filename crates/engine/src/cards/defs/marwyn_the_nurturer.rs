@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever another Elf you control enters, put a +1/+1 counter on this.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Elf".to_string())),
