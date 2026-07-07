@@ -1303,6 +1303,10 @@ impl HashInto for GameObject {
         self.return_to_hand_at_end_step.hash_into(hasher);
         // PB-LS6: skip-untap counter (CR 502.3 — Tamiyo -2 / Hands of Binding)
         self.skip_untap_steps.hash_into(hasher);
+        // PB-AC1: once-per-turn triggered-ability firing tracker (CR 603.2h) — mutable
+        // runtime field; must be hashed or two states differing only in whether a
+        // once-per-turn trigger has already fired this turn collide.
+        self.triggered_abilities_fired_this_turn.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::game_object::MergedComponent {
@@ -2539,6 +2543,10 @@ impl HashInto for TriggeredAbilityDef {
         self.combat_damage_filter.hash_into(hasher);
         // PB-N: triggering_creature_filter — subtype/color/type filter for attack and death triggers
         self.triggering_creature_filter.hash_into(hasher);
+        // PB-AC1: once-per-turn limiter + counter-placement trigger fields (CR 603.2h, 122.6)
+        self.once_per_turn.hash_into(hasher);
+        self.counter_filter.hash_into(hasher);
+        self.counter_on_self.hash_into(hasher);
     }
 }
 impl HashInto for TriggerData {

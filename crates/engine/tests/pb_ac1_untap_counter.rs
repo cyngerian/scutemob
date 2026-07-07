@@ -1061,8 +1061,9 @@ fn test_goblin_sharpshooter_does_not_untap_via_carddef() {
 /// that's given counters as it enters the battlefield." Current engine behavior:
 /// PermanentEnteredBattlefield with counters already set does NOT emit a
 /// `GameEvent::CounterAdded`, so `WhenCounterPlaced` does not fire for
-/// enters-with-counters. This test documents CURRENT behavior (a known fidelity
-/// gap, not fixed in this PB -- see plan risk notes).
+/// enters-with-counters. This test documents CURRENT (WRONG) behavior -- a
+/// known fidelity gap tracked as MR-AC1-01 in docs/mtg-engine-milestone-reviews.md,
+/// not fixed in this PB (see plan risk notes and PB-AC1 review Finding 3).
 #[test]
 fn test_whencounterplaced_enters_with_counters_current_behavior() {
     let p1 = p(1);

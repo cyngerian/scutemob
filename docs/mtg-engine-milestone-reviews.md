@@ -1781,6 +1781,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-TC-23 | TC | AltCostKind hash relies on implicit discriminants -- reordering silently changes hashes | CLOSED — W3 LOW S5 |
 | MR-TC-24 | TC | AdditionalCost extraction allocates on every CastSpell (iterator scans + clone) | CLOSED — W3 LOW S4 |
 | MR-TC-25 | TC | Boilerplate StackObject construction for triggers (~400 lines of identical false fields) | CLOSED — W3 LOW S4 |
+| MR-AC1-01 | PB-AC1 | `WhenCounterPlaced` does not fire for counters an object enters the battlefield with (CR 122.6) — no `CounterAdded` event is emitted on the ETB-with-counters path, so `WhenCounterPlaced` triggers (e.g. Fathom Mage, Dusk Legion Duelist, Simic Ascendancy, Sharktocrab if forced to enter with a counter) never fire for that case. No currently-shipped card is affected (none enter with matching counters in normal play). Pre-existing ETB-emission gap, not introduced by PB-AC1. **Fix:** emit `CounterAdded` (or equivalent) from the ETB-with-counters zone-transition path once counters-on-ETB is generalized; deferred to M10+. | OPEN |
 
 ### INFO
 
@@ -2323,7 +2324,7 @@ Cross-session review of the complete Dungeon mini-milestone (4 sessions). Covers
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 319 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate + 26 TC + 9 B16) |
+| Total unique issue IDs | 320 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate + 26 TC + 9 B16 + 1 PB-AC1) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 36 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03 + 1 B10 inline: MR-B10-01 + 2 B11 inline: MR-B11-01, MR-B11-02) |
@@ -2331,7 +2332,7 @@ Cross-session review of the complete Dungeon mini-milestone (4 sessions). Covers
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 -- deferred to M10+) |
 | MEDIUM (CLOSED) | 68 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02 + 2 B14 inline: MR-B14-01, MR-B14-02 + 1 B14 inline: MR-B14-04 + 2 TC inline: MR-TC-01, MR-TC-18 + 2 B16 fix session 1: MR-B16-01, MR-B16-02) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 6 (pre-M8 era: MR-M1-18, MR-M6-14 + M8: MR-M8-11 + B16: MR-B16-04, MR-B16-05, MR-B16-06) |
+| LOW (OPEN) | 7 (pre-M8 era: MR-M1-18, MR-M6-14 + M8: MR-M8-11 + B16: MR-B16-04, MR-B16-05, MR-B16-06 + PB-AC1: MR-AC1-01) |
 | LOW (CLOSED) | 142 (6 LS-1 scutemob-31: MR-M9-09 through MR-M9-13, MR-M9-16 + 7 LS-2 scutemob-32: MR-CKP-01, MR-M9.5-05, MR-M9.5-09, MR-M9.5-10, MR-M9.5-12, MR-M9.5-13, MR-B12-05 + 2 LS-3 scutemob-33: MR-M2-16, MR-M6-13 + 1 LS-4 scutemob-34: MR-M9.4-10 + 5 LS-5 scutemob-35: MR-M8-12, MR-M8-16, MR-B12-03, MR-B12-04, MR-B16-07 + 2 LS-8 scutemob-38: MR-B11-08, MR-B11-09 + 41 prior + 20 W3 LOW S1: MR-TC-02 through MR-TC-17, MR-TC-19, MR-TC-20, MR-TC-22, MR-W3-01 + 3 W3 LOW S2: MR-M6-08, MR-M7-16, MR-M9.4-15 + 8 W3 LOW S3: MR-M0-08, MR-M0-09, MR-M0-10, MR-M0-15, MR-M0-16, MR-M4-09, MR-M4-10, MR-M9.5-06 + 4 W3 LOW S4: MR-TC-24, MR-TC-25, MR-B12-07, MR-B12-08 + 8 W3 LOW S5: MR-M1-13, MR-M9.4-12, MR-TC-23, MR-B12-06, MR-B12-09, MR-B15-02, MR-Mutate-01, MR-Mutate-02 + 1 W3 LOW S6: MR-TC-21 + 7 W3 T1 (2026-03-03): MR-M1-06, MR-M1-19, MR-M1-20, MR-M2-07, MR-M2-08, MR-M2-17, MR-M5-06 + 7 W3 T2 (2026-03-03): MR-M1-16, MR-M1-17, MR-M2-09, MR-M3-11, MR-M3-12, MR-M4-11, MR-M5-08 + 20 confirmed prior work: MR-M8-14, MR-M8-15, MR-M9-14, MR-M9-15, MR-M9.4-09, MR-M9.4-13, MR-M9.4-14, MR-M4-13, MR-M9.5-07, MR-M9.5-11, MR-M7-13, MR-M7-14, MR-M1-07, MR-M1-15, MR-B15-01, MR-B12-10, MR-B13-01, MR-B13-02, MR-B14-03, MR-M9-17) |
 | LOW (DEFERRED) | 6 (incl. MR-M6-06 — combat refactor risk) |
 | INFO | 69 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19 + 1 TC: MR-TC-26 + 1 B16: MR-B16-09) |

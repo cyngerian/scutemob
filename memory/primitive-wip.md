@@ -4,7 +4,7 @@ batch: PB-AC1
 title: Counter / untap / once-per-turn primitives
 cards_affected: ~22 (discounted; real roster to be identified from oracle text)
 started: 2026-07-07
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-AC1.md
 
 ## Task reference
@@ -61,6 +61,20 @@ none applicable
 - [x] 5. Workspace build verification — `cargo build --workspace`, `cargo test --all`
   (2893 passed, 0 failed), `cargo clippy --workspace --all-targets -- -D warnings`
   (clean), `cargo fmt --check` (clean).
+
+## Fix phase complete (2026-07-07)
+- All HIGH/MEDIUM findings from `memory/primitives/pb-review-AC1.md` resolved:
+  1. HIGH — `state/hash.rs`: `GameObject::triggered_abilities_fired_this_turn` now hashed
+     (end of `HashInto for GameObject`, after `skip_untap_steps`).
+  2. MEDIUM — `state/hash.rs`: `TriggeredAbilityDef::hash_into` now hashes `once_per_turn`,
+     `counter_filter`, `counter_on_self`.
+  3. MEDIUM — CR 122.6 enters-with-counters gap tracked as new issue `MR-AC1-01` (LOW, OPEN)
+     in `docs/mtg-engine-milestone-reviews.md`; test comment in
+     `crates/engine/tests/pb_ac1_untap_counter.rs` updated to cite it.
+- LOW findings 4-6 left open (non-blocking per task instructions).
+- `cargo build --workspace`, `cargo test -p mtg-engine` (all pass, HASH_SCHEMA_VERSION
+  still 28), `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`
+  all clean.
 
 ## Known residual (flagged, not fixed in this phase)
 - `test-data/generated-scripts/baseline/105_sharktocrab_adapt.json` demoted from
