@@ -7,12 +7,60 @@ type: plan
 # Card Authoring Campaign Plan — 2026-05-16
 
 **Companion doc**: `dsl-gap-audit-2026-05-16.md` (the gap analysis this plan costs).
-**Status**: PROPOSED — awaiting oversight review before launch.
-**Ground truth**: `docs/authoring-status.md` (git `08825d09`).
+**Status**: LAUNCHED (`scutemob-39..42` + PB-AC0) — **RECALIBRATED 2026-07-07** against measured batch data. See §0.
+**Ground truth**: `docs/authoring-status.md` — regenerate with `python3 tools/authoring-report.py`. Clean coverage 928/1,748 = 53.1% as of 2026-07-07.
 
 ---
 
-## 1. Headline split
+## 0. Recalibration — 2026-07-07 (measured data overrides §1 estimates)
+
+Two derisking batches (W-NOW-1 batches 1–2, `scutemob-40`/`scutemob-42`, 24 cards
+from the *strongest* "verified-stale" cohort) measured the actual disposition mix:
+
+| Measured (24 cards) | Count | Rate |
+| --- | ---: | ---: |
+| Fully CLEAN by re-authoring alone | 4 | **17%** |
+| PARTIAL (expressible parts authored; ≥1 `ENGINE-BLOCKED` clause remains) | 13 | 54% |
+| Fully BLOCKED | 7 | 29% |
+
+And batch 1's "clean" ETB-subtype cards only became clean because **PB-AC0**
+(merge `df997fd2`) fixed the creature-ETB path silently dropping
+`has_subtype`/nontoken filters — i.e. even the flagship stale cohort needed an
+engine fix first.
+
+**What this changes:**
+
+1. **The ~435 "AUTHORABLE NOW" estimate is wrong.** Gap-audit "NOW-EXPRESSIBLE"
+   claims must be verified per card. Extrapolating the measured 17% over the
+   ~210 stale-TODO files yields only **~35–50 fully-clean cards** from pure
+   re-authoring. The ~110 empties and ~115 missing files were classified by the
+   same audit — apply the same discount until a derisking batch measures them.
+2. **Engine primitives are the bottleneck, not authoring throughput.** Most
+   cards carry ≥1 genuinely blocked clause. The PB track (PB-AC1..AC9) is the
+   critical path; §4's "two equal parallel tracks" framing is superseded —
+   run **PB-first**, with each PB's unblocked cohort authored immediately behind
+   it (the PB-AC0 rhythm: one engine fix flips a whole cohort).
+3. **ETB-subtype cluster: RESOLVED** by PB-AC0. `WheneverCreatureEntersBattlefield`
+   now honors `has_subtype` + nontoken on the creature-ETB path (+13 tests, 2873 total).
+4. **W-NOW batches 3+ are PAUSED.** Re-authoring partials produces fidelity but
+   not clean-coverage movement (batch 2: 0/12 clean). Resume stale-TODO authoring
+   as post-PB cohort backfill. Optionally run one 12-card derisking batch each of
+   W-EMPTY and W-MISS to measure those cohorts before scheduling them.
+5. **Measured blocked-clause themes confirm the PB definitions** (no redesign
+   needed): beneficial-pay riders ("you may pay/sac/discard, if you do…") → PB-AC2;
+   once-per-turn limiter → PB-AC1; static ability-grants to filtered permanents +
+   spell-subtype filters (Aura/Equipment/Vehicle) → PB-AC7; batched/filtered
+   attack triggers → PB-AC6; death-trigger "exile it"/LKI riders → PB-AC2/AC9 review.
+6. **Dual markers**: incomplete clauses are marked `// TODO` **or**
+   `// ENGINE-BLOCKED` — all tooling/greps must match both (`fa4d593f` fixed
+   `authoring-report.py` for this).
+
+**Next action**: dispatch **PB-AC1**, author its cohort behind it, repeat down
+the PB chain. Coverage math: PB track + backfill is now the only route to 100%.
+
+---
+
+## 1. Headline split — ⚠️ SUPERSEDED by §0 (kept for the original reasoning)
 
 Card authoring is at **52.9% clean** (924 / 1,748 def files). To reach 100% clean
 we must resolve: 642 TODO-bearing files, 182 empty placeholders, and 194 missing
@@ -26,9 +74,9 @@ Classifying every card by what it needs:
 | **ENGINE-BLOCKED** — needs a new primitive | **~470** | One of 9 proposed PBs unblocks it, then author. |
 | **DEFER** — honestly out of scope | **~110** | Hidden-info, cosmetic-only, post-alpha. Many already function; TODO is a fidelity note. |
 
-The single most important finding: **~435 cards are free** — they were blocked by
-primitives that have since shipped (the `scutemob-22..38` chain plus PB-23..37),
-or are empty placeholders nobody got to. No engine risk, only authoring throughput.
+~~The single most important finding: **~435 cards are free**~~ — **FALSIFIED by
+measurement** (see §0): the fully-clean rate on the strongest stale cohort was 17%,
+and even those needed PB-AC0 first. Engine primitives are the bottleneck.
 
 ---
 
@@ -43,6 +91,7 @@ documented PB-overcount bias (`feedback_pb_yield_calibration.md`).
 
 | PB | Name | Primitives added | CR refs | Card yield (disc.) | Effort |
 | --- | --- | --- | --- | ---: | --- |
+| **PB-AC0** ✅ DONE | Creature-ETB filter forwarding (unplanned, found by batch 1) | `ETBTriggerFilter` subtype/nontoken fields forwarded on the creature-ETB path (`replay_harness.rs`, `abilities.rs`) | 603.2 | ETB-subtype cohort | merged `df997fd2`, +13 tests |
 | **PB-AC1** | Counter / untap / once-per-turn | `Effect::UntapAll { filter }`; `TriggerCondition::WheneverPermanentUntaps`; `WhenCounterPlaced`; generic `once_per_turn` limiter on triggered abilities; "doesn't untap" static | 701.20, 701.21, 603.2 | ~22 | M |
 | **PB-AC2** | Optional-cost & counter-tax | optional-cost wrapper on triggered effects (general "you may pay/sacrifice/discard, if you do…"); `Effect::CounterUnlessPays { cost }` (caster-side, vs existing `MayPayOrElse`) | 118.8, 603.2, 701.5 | ~20 | M |
 | **PB-AC3** | Dynamic P/T & count amounts (CDA residual) | `LayerModification::ModifyBoth` accepting `EffectAmount`; `EffectAmount::{AttackingCreatureCount, TappedCreatureCount, HandSize}` + power-based token count | 613, 107.3 | ~14 | L |
@@ -83,7 +132,7 @@ agents, with a `card-batch-reviewer` pass per batch (per `/author-wave`).
 
 ---
 
-## 4. Critical path & sequencing
+## 4. Critical path & sequencing — ⚠️ SUPERSEDED by §0.2: run PB-first; Track A is paused, not parallel
 
 ```
    PARALLEL TRACK A (authoring, no engine dep) ── launch day 1 ──────────────►
@@ -141,7 +190,7 @@ worker sessions** end to end. Treat ~105 as the total *work*, ~75 as the
 
 ---
 
-## 6. DO-NOW section — launchable immediately, zero engine work
+## 6. DO-NOW section — ⚠️ EXECUTED (batches 1–2 = `scutemob-40`/`42`); batches 3+ PAUSED per §0.4
 
 The user can launch this **today**, before reviewing any PB design:
 
@@ -167,9 +216,9 @@ the campaign cadence with zero engine risk.
 
 ---
 
-## 7. Recommended first step
+## 7. Recommended first step — ⚠️ SUPERSEDED: the derisking run happened; next step is PB-AC1 per §0
 
-**Launch W-NOW-1 (the DO-NOW wave) and PB-AC1 in parallel.**
+**~~Launch W-NOW-1 (the DO-NOW wave) and PB-AC1 in parallel.~~**
 
 1. `/dispatch` the first W-NOW-1 batch (12 subtype-filtered-trigger cards) — pure
    authoring, no engine risk, immediately demonstrates the stale-TODO thesis.
