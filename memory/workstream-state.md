@@ -15,13 +15,46 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/low-sweep-plan.md`. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **2 PBs shipped 2026-05-15 (coordinator session 2)** — `scutemob-29` OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**, +1 test) merged `e7d01fda`; `scutemob-30` OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, OOS-XA-3/XA2-3 RESOLVED) merged `184162df`. Tests 2818→**2819**. Earlier 2026-05-15: 7-PB chain (`scutemob-22..28`, HASH 19→23). High-confidence primitive backlog now exhausted — see Last Handoff. |
+| W6: Primitive + Card Authoring | — | available | — | **Card Authoring Campaign ACTIVE** — plan: `memory/card-authoring/campaign-plan-2026-05-16.md`. Launched via `scutemob-39..42` + PB-AC0. Next: recalibrate plan, dispatch PB-AC1. Prior: 2 PBs 2026-05-15 (`scutemob-29..30`) — `scutemob-29` OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**, +1 test) merged `e7d01fda`; `scutemob-30` OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, OOS-XA-3/XA2-3 RESOLVED) merged `184162df`. Tests 2818→**2819**. Earlier 2026-05-15: 7-PB chain (`scutemob-22..28`, HASH 19→23). High-confidence primitive backlog now exhausted — see Last Handoff. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
+
+**Date**: 2026-07-07 session close (work merged under 2026-05-16/18 commit stamps)
+**Workstream**: W6: Primitive + Card Authoring — **Card Authoring Campaign launched**
+**Task**: Campaign triage + two derisking batches + one engine PB — `scutemob-39..42` + 1 chore, 5 merges, all local (origin 14 behind).
+
+**Completed** (all merged to main):
+- **scutemob-39** (merge `941e557e`): triage & scope — refreshed DSL gap audit (`memory/card-authoring/dsl-gap-audit-2026-05-16.md`) + campaign plan (`memory/card-authoring/campaign-plan-2026-05-16.md`). Plan estimate: ~435 authorable-now / ~470 engine-blocked behind 9 PBs (PB-AC1..AC9) / ~110 defer; ~75-session critical path.
+- **scutemob-40** (merge `80b7cc44`): W-NOW-1 batch 1, 12 stale-TODO cards. Disposition **4 CLEAN / 5 PARTIAL / 3 BLOCKED**. Surfaced that the creature-ETB harness path silently dropped `has_subtype`/nontoken filters (review: `memory/card-authoring/review-scutemob-40.md`).
+- **scutemob-41 / PB-AC0** (merge `df997fd2`): engine fix — creature-ETB path forwards `triggering_creature_filter` (`replay_harness.rs:2411`) and `abilities.rs` honors subtype + nontoken. Ganax + Lathliss ETB clauses now live; Miirym + The Great Henge latent over-triggers fixed. Reviewer NEEDS-FIX → PASS. Tests 2860→**2873** (+13).
+- **scutemob-42** (merge `a0da201f`): W-NOW-1 batch 2, 12 cards. Disposition **0 CLEAN / 8 PARTIAL / 4 BLOCKED** (review 0 HIGH / 0 MEDIUM / 3 LOW, all addressed).
+- **chore** (`fa4d593f`): `tools/authoring-report.py` counts `// ENGINE-BLOCKED` as incomplete — batch-2 cards had been miscounted clean (true clean 928 / 53.1%, not the false 938).
+
+**Not done / deferred**:
+- **Push to origin** — local main 14 commits ahead; a month of work exists only locally.
+- **Campaign plan recalibration** — measured fully-clean rate is 4/24 (~17%), well under the audit's NOW-EXPRESSIBLE estimate; plan still lists the ETB cluster as "stale" (resolved by PB-AC0) and overstates free-card yield.
+- PB-AC1..AC9 not started; W-NOW batches 3+ paused pending recalibration.
+
+**Next session candidates** (highest-yield first):
+- Push the 14 commits to origin (backup first).
+- Recalibrate `campaign-plan-2026-05-16.md`: mark ETB cluster resolved by PB-AC0; discount authorable-now using the measured 17%-clean / 67%-partial mix; reorder PB-track-first (engine primitives are the bottleneck, not authoring throughput).
+- Dispatch **PB-AC1** (untap / counter-placed / once-per-turn — highest-yield PB in the plan), then author its unblocked cohort behind it (the PB-AC0 rhythm: engine fix flips a whole cohort).
+
+**Hazards** (carrying forward):
+- Card authors mark incomplete clauses with `// TODO` OR `// ENGINE-BLOCKED` — any tooling or grep for incomplete cards must match BOTH markers (report tool fixed in `fa4d593f`).
+- Gap-audit "NOW-EXPRESSIBLE" claims must be verified per card: measured batches show most stale-TODO cards still carry ≥1 genuinely blocked clause.
+- Fresh worktrees show phantom `.claude/skills/*` deletions in `git status` — do NOT commit them (both workers correctly excluded; they vanish with the worktree).
+- Disk hazard from the LOW-sweep note still applies: run dispatches strictly sequential, one worktree at a time.
+
+**Commit prefix used**: worker `scutemob-N:` / `W5-cards:` / `W6-prim:`, `merge:` for merges, coordinator `chore:`.
+
+---
+
+## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-05-16 (coordinator session — W3 LOW Sweep campaign)
 **Workstream**: W3: LOW Remediation
@@ -53,75 +86,15 @@
 
 ---
 
-## Prior Handoff (preserved for chain context)
-
-**Date**: 2026-05-15 (coordinator session 2 — 2-PB sequential chain)
-**Workstream**: W6: Primitive
-**Task**: 2 PBs dispatched in sequence — `scutemob-29` (HASH-bumping, serialized first), then `scutemob-30` (audit). Both worker-delegated per dispatch policy; both spawned a reviewer before signal-ready.
-
-**Completed**:
-- **OOS-LKI-Power-3** (`scutemob-29`, merge `e7d01fda`): hashed `pre_lba_power` on 4 `GameEvent` variants (AuraFellOff, ObjectExiled, PermanentDestroyed, ObjectReturnedToHand) — previously skipped via `..` in `HashInto for GameEvent`. CR 603.10a/113.7a determinism + replay correctness. HASH 23→**24** + history entry. Sentinel sweep across all `primitive_pb_*.rs` canaries 23u8→24u8. +1 determinism test. Review verdict PASS. Sub-bullet (AnyCreatureDies `pre_lba_power: None` promotion) decision documented in `memory/primitives/pb-plan-OOS-LKI-Power-3.md`.
-- **OOS-XA2-3** (`scutemob-30`, merge `184162df`): `is_nontoken` target-side enforcement audit. **0-yield** — the only `is_nontoken` in `defs/` (accursed_marauder.rs:26) is effect-side, not inside a `TargetRequirement::Target*WithFilter` block. No target-side consumer → no engine change. OOS-XA-3 and OOS-XA2-3 both marked RESOLVED in `pb-retriage-CC.md`. Audit-only signal-ready (OOS-XS-E-1 precedent).
-
-**Session totals**: 2 PB merges. Tests 2818→**2819** (+1). HASH 23→**24** (1 schema bump). Build/clippy/fmt clean at every merge.
-
-**Not done / deferred**:
-- OOS-EWCD-1/2/3 — explicitly NOT dispatched: `pb-retriage-CC.md` says "no in-scope card currently needs this; file for future batch when a card surfaces." Dispatching speculative receiver-filter variants would violate the W6 "no primitive until a card needs it" policy.
-- OOS-XA2-4 (CombatRole enum refactor), OOS-XA2-5 (runtime-predicate helper extraction) — LOW refactors, no correctness gap.
-- Older OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — 0-yield defensives.
-
-**Next session candidates**:
-- High-confidence primitive backlog is exhausted; remaining OOS seeds are 0-yield defensives or card-gated. Recommend pivoting workstream: W2 TUI hardening, W3 LOW remediation (~45 open), or W6 card-authoring waves (Wave B re-triage / Wave C).
-
-**Hazards** (carrying forward):
-- Bash CWD-stickiness: coordinator shell drifted into a worktree after a verification `cd`; had to `cd` back to repo root before `/collect` (which requires being on main). Always `cd` back explicitly after entering a worktree.
-- Both workers correctly spawned a reviewer before signal-ready — the PB-XA2 self-collect hazard did not recur.
-
-**Commit prefix used**: worker-side `scutemob-N:`, `merge:` for merges, `chore:` for end-session.
-
----
-
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-05-15 (coordinator/oversight session, 7-PB autonomous chain)
-**Workstream**: W6: Primitive + Card Authoring
-**Task**: 7 PBs shipped — `scutemob-22..28`. Each was dispatched in sequence (HASH-bumping work serialized), each worker delegated to `primitive-impl-runner` / `primitive-impl-reviewer` / `bulk-card-author` per the dispatch policy. Coordinator pushed 33 stale commits at session start (`9938ed90..c7580376`); session merged 7 new PBs + 1 stray-artifact commit on top.
-
-**Completed (chain order)**:
-- **PB-XS-E** (`scutemob-22`, merge `e0f3f5b0`): `TriggerCondition::WheneverCreatureEntersBattlefield/WheneverPermanentEntersBattlefield.exclude_self: bool` mirroring PB-23's `WheneverCreatureDies.exclude_self`. 3 cards (Metastatic Evangel, Shadow Alley Denizen, Forerunner of the Legion). 3 dies-side cards (Boggart Shenanigans, Athreos, Meren) routed to OOS-XS-E-1 follow-up (later closed as audit-only). HASH 19→**20**. Tests 2764→**2775** (+11). Filed OOS-XS-E-1, -2.
-- **OOS-EWC-2** (`scutemob-23`, merge `87c3a306`): pure card-authoring. Golgari Grave-Troll — self-ETB `EntersWithCounters` with `EffectAmount::CardCount { zone: Graveyard(Controller), filter: creature }`. Dredge 6 keyword. No engine work (PB-EWC already shipped the count-EffectAmount path). Trample CORRECTION: original printing does NOT have trample per MCP — task description was wrong; worker caught and didn't add it. Tests 2775→**2779** (+4).
-- **PB-XA** (`scutemob-24`, merge `b42e06bb`): `TargetFilter.is_attacking` enforcement at 4 validate sites (V1-V4) + 6 trigger auto-target picker sites (T1-T6) in `casting.rs`/`abilities.rs`. Mirrors PB-XS `exclude_self` pattern. Thousand-Faced Shadow inline TODO removed. HASH unchanged (pre-existing field). Tests 2779→**2789** (+10). Filed OOS-XA-1 (`is_blocking`), OOS-XA-2 (`is_tapped`/`is_untapped`), OOS-XA-3 (`is_nontoken` target-side audit).
-- **PB-EAT** (`scutemob-25`, merge `75302138`): new `ReplacementModification::EntersAsAdditionalType { subtype: SubType }` variant. Resolver in `emit_etb_modification` pushes subtype into `state.objects[new_id].characteristics.subtypes` BEFORE `PermanentEnteredBattlefield` (CR 614.1c entry modification, NOT Layer 4). Master Biomancer Mutant half authored — closes OOS-EWC-1. HASH 20→**21**. Tests 2789→**2794** (+5). Filed OOS-EAT-1/2/3 (CardType/Color/Supertype — all 0-yield defensive).
-- **PB-XA2** (`scutemob-26`, merge `f3905b62`): `TargetFilter.is_blocking` + `is_tapped` + `is_untapped` runtime predicates. Same 10-site enforcement pattern as PB-XA. OR-semantics for "attacking or blocking" implemented as two-bool with explicit 4-way match on `(is_attacking, is_blocking)`: `(F,F)→true, (T,F)→attackers, (F,T)→blockers, (T,T)→attackers||blockers`. Added `CombatState::is_blocking(id)` helper. 1 card (Eiganjo Seat of the Empire Channel half). HASH 21→**22**. Tests 2794→**2811** (+17). Filed OOS-XA2-1..5. **Worker self-collected without spawning pre-merge reviewer**; post-merge review captured in `memory/primitives/pb-review-XA2.md` (committed separately `45f6bac5`). Verdict 0 HIGH / 0 MEDIUM / 3 LOW.
-- **OOS-XS-E-1** (`scutemob-27`, merge `a78e8481`): pure audit of Boggart Shenanigans / Athreos / Meren `WheneverCreatureDies` triggers. **Audit result**: all 3 cards LACK the trigger entirely — they're DSL gaps for unrelated reasons (subtype filter, Layer-4 RemoveCardTypes static). No `exclude_self` fix needed. Plan file `pb-plan-XSE1.md` documents oracle wording for each card. Tests 2811 → **2811** (+0). HASH unchanged.
-- **PB-EWC-D** (`scutemob-28`, merge `0a84badc`): new `ObjectFilter::CreatureControlledByOfSubtype { controller, subtype }` variant + `bind_object_filter` extension for `OwnedByOpponentsOf(PlayerId(0)) → OwnedByOpponentsOf(controller)` on `WouldEnterBattlefield` triggers (closes E2 from `pb-review-EWC.md`). Dragonstorm Globe authored ("Each Dragon you control enters with an additional +1/+1 counter"). HASH 22→**23**. Tests 2811→**2818** (+7). Filed OOS-EWCD-1/2/3.
-
-**Session totals**: 7 PB merges + 1 chore commit. Tests 2764 → **2818** (+54). HASH 19→**23** (4 schema bumps in one session). Build / clippy / fmt clean at every merge. Branch pushed before session (`origin/main` at `c7580376`) — local now 8 commits ahead at session end.
-
-**Not done / deferred**:
-- All filed OOS seeds (XS-E-2, XA-1/2/3 closed via PB-XA2, XA2-1..5, EAT-1/2/3, EWCD-1/2/3) — except XA-1/2 which were closed by PB-XA2.
-- Older OOS-LKI-Power-1/3/4/5 (0-yield defensive), OOS-LKI-1..4, OOS-TS-1..4 still untouched.
-- High-complexity defers: OOS-XS-1 (inter-target distinctness), OOS-XS-3 (Olivia multi-effect — blocked on AddSubtype Layer 4), OOS-XS-4 (Skrelv ChooseColor + protection-from-color).
-- `docs/project-status.md` Card Health still stale (use `tools/authoring-report.py`).
-
-**Next session candidates** (highest yield first):
-- **OOS-XA2-3 carry-forward `is_nontoken` target-side audit** — small re-audit. Likely 0-yield but resolves an ambiguity.
-- **OOS-EWCD-1/2/3 receiver-filter expansion** — byte-for-byte parallel of PB-EWC-D. Defensive; defer until a real card surfaces (none in corpus today).
-- **OOS-LKI-Power-3 hash-arm inconsistency sweep** — 4 `GameEvent` variants don't hash their `pre_lba_*` fields. Pre-existing engine-consistency cleanup. Bumps HASH 23→24.
-- **Skip 0-yield defensives** until a card surfaces. The high-confidence backlog is exhausted for now.
-
-**Hazards** (carrying forward):
-- **Worker self-collect without independent review**: PB-XA2 worker (`scutemob-26`) shipped without spawning a separate `primitive-impl-reviewer` agent before signaling ready. Post-merge review caught 3 LOW issues but found 0 HIGH/MEDIUM. **Coordinator should explicitly include "spawn primitive-impl-reviewer before signal-ready"** in the dispatch prompt for runner-led PBs, OR check `git log <branch> --oneline` for a `fix-phase` commit before collecting.
-- **OOS-XS-E-1 audit-only outcome**: a "verify and fix if needed" task can resolve to "no fix needed" — that's a valid signal-ready state. Worker correctly documented and signal-readied with N=0 test additions.
-- **Task description accuracy drift**: the Golgari Grave-Troll dispatch criterion incorrectly claimed the card had Trample. Worker caught via MCP verification and ignored the false claim. Reinforces `feedback_oversight_primitive_category_not_cards` — oversight describes the PRIMITIVE; worker verifies card-level attributes from oracle text.
-- **CWD-stickiness in Bash tool**: no incidents this session.
-- **`feedback_worker_satisfy_before_signal_ready`**: enforced — all workers satisfied all criteria before `signal-ready`.
-
-**Commit prefix used**: worker-side `scutemob-N:` (with `scutemob-N: fix-phase` for review fixes), `merge:` for merge commits, coordinator-side `chore:` for end-session bookkeeping and the stray PB-XA2 review artifact.
-
----
-
 ## Handoff History
+
+### 2026-05-15 (coordinator session 2 — 2-PB chain) — W6: Primitive
+
+- **2 PBs shipped**: `scutemob-29` OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**, +1 test, merged `e7d01fda`); `scutemob-30` OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, OOS-XA-3/XA2-3 RESOLVED, merged `184162df`). Tests 2818→**2819**. High-confidence primitive backlog exhausted at session end.
+
+### 2026-05-15 (7-PB autonomous chain) — W6: Primitive
+
+- **7 PBs shipped** (`scutemob-22..28`): PB-XS-E (ETB `exclude_self`, HASH 19→20), OOS-EWC-2 (Golgari Grave-Troll), PB-XA (`is_attacking` enforcement, 10 sites), PB-EAT (`EntersAsAdditionalType`, HASH 20→21), PB-XA2 (`is_blocking`/`is_tapped`/`is_untapped`, HASH 21→22), OOS-XS-E-1 (audit-only, 0-yield), PB-EWC-D (`CreatureControlledByOfSubtype` + Dragonstorm Globe, HASH 22→23). Tests 2764→**2818** (+54). All worker-delegated; PB-XA2 worker self-collected without pre-merge reviewer (post-merge review 0 HIGH/0 MEDIUM/3 LOW). Full detail in git history + `memory/primitives/`.
 
 ### 2026-05-14 (PB-XS) — W6: Primitive
 
@@ -137,17 +110,4 @@
 - **PB-CD shipped** (`scutemob-18`, merged `36816e0f`). Counter-doubling replacement effects (CR 122.6 / 614.1). Engine: `ReplacementTrigger::WouldPlaceCounters.counter_filter: Option<CounterType>` + `ObjectFilter::CreatureControlledBy(PlayerId)` disc 8 (layer-resolved creature type per CR 613.1d). Existing Vorinclex/Pir/Lae'zel preserved via `counter_filter: None`. 3 cards: Hardened Scales, Corpsejack Menace, Conclave Mentor (replacement half only — death trigger deferred as OOS-LKI-Power seed, closed by PB-LKI-Power). HASH 15→16. Tests +11. Review PASS (3 LOW: 1 CR-citation fix, 2 false-positives).
 - **PB-LKI-Power shipped** (`scutemob-19`, merged `12218638`). LKI source-power snapshot for SelfDies/SelfLeavesBattlefield triggers (CR 603.10a / 122.2 / 400.7). `EffectAmount::SourcePowerAtLastKnownInformation` disc 18 (disc 19 reserved for toughness variant) + `lki_power: Option<i32>` through `PendingTrigger`/`StackObject`/`EffectContext`. Snapshot at `sba.rs:540` via `calculate_characteristics(state, source_id).power` BEFORE `move_object_to_zone`. 5 `GameEvent` variants extended (CreatureDied.pre_death_power HASHED; AuraFellOff/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand.pre_lba_power NOT hashed, mirrors PB-LKI-CC LBA precedent). 21-site dispatch chain. 2 cards: Conclave Mentor death-trigger life-gain + Juri Master of the Revue death-trigger damage. HASH 16→17. Tests +4. Review PASS-WITH-NITS → PASS after fix-phase. 5 OOS-LKI-Power seeds filed (-1..-5).
 - Tests 2734→**2749** (+15 overall). HASH: 15→17 (two bumps).
-
-### 2026-04-30 ~01:00–05:00 EDT (PB-TS + PB-LKI-CC chain) — W6: Primitive
-
-- **PB-TS shipped** (`scutemob-16`, merged `68f4bfbc`). `TokenSpec.count: u32 → EffectAmount` — dynamic token count via `resolve_amount` integration at `effects/mod.rs:540-590` + `601-668` before `apply_token_creation_replacement` boundary. 4 cards re-authored: Phyrexian Swarmlord, Krenko Mob Boss, Izoni Thousand-Eyed, Chasm Skulker (reverted in fix-phase pending PB-LKI-CC). HASH 13→14. Tests +5. Review NEEDS-FIX → PASS. 4 OOS-TS seeds filed.
-- **PB-LKI-CC shipped** (`scutemob-17`, merged `a2b24e42`). `EffectAmount::CounterCountAtLastKnownInformation { counter }` (disc 17) — LKI snapshot threaded `pre_death_counters → PendingTrigger.lki_counters → StackObject.lki_counters → EffectContext.lki_counters → resolve_amount`. Fix-phase E1 swept all 5 `SelfLeavesBattlefield` dispatch arms (~35 emit sites across 5 engine files). 2 cards: Chasm Skulker re-authored from PB-TS revert + Toothy Imaginary Friend retroactive correctness fix. HASH 14→15. Tests +9. Review PASS (1 HIGH + 3 LOW resolved). 2 OOS-LKI seeds filed.
-- Tests 2720→**2734** (+14). New hazard: worker forgot satisfy step before signal-ready (captured in feedback memory `feedback_worker_satisfy_before_signal_ready.md`).
-
-### 2026-04-29 evening – 2026-04-30 ~00:50 EDT (PB-CC-C-followup + canonical authoring-status tooling) — W6: Primitive + tooling
-
-- **PB-CC-C-followup shipped** (`scutemob-15`, merged `7182a4c8`). Worker chose Shape A+D hybrid: new `AbilityDefinition::CdaModifyPowerToughness` variant + live-eval branch reusing `resolve_cda_amount`. Substitution path (CR 608.2h) untouched. Static-ability path (CR 611.3a) re-resolves dynamic EffectAmount in `calculate_characteristics()`. HASH 12→13. Tests 2716→2720 (+4). Vishgraz + Exuberant Fuseling re-authored, TODO citations cleared. Fuseling's `WheneverCreatureOrArtifactDies` death-trigger half remains TODO (separate primitive).
-- **Review verdict PASS-WITH-NITS**: 0 HIGH, 1 MEDIUM (E1 — asymmetric P/T amounts dispatch dropped one component; fix-phase split variant into two-effect dispatch). All LOWs resolved.
-- **Authoring-status tooling shipped** (committed `faf1c7e8`, 5 files / 1,323 lines): `tools/authoring-report.py` (deterministic stdlib-only generator), `docs/authoring-status.md` (auto-regenerated), `docs/authoring-status-guide.md` (reading guide), `docs/authoring-status-missing.txt` (worklist), `docs/authoring-status-prev.json` (Δ snapshot). Headline at commit: 1748 def files; 88.1% plan coverage; 321 bonus defs; 915 clean / 652 todo / 181 empty.
-- Coordinator data-correction: earlier "10 cards added in last month" claim was wrong by order of magnitude; actual `git log` shows 278 new + 332 modified in last 30 days.
 

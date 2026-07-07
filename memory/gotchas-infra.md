@@ -488,3 +488,13 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
   timeouts (loop skips already-completed entries). Workers typically signal `in_review`
   in 5-30 minutes (PB-CC-W ~30s, PB-CC-B ~9 min, PB-SFT ~28 min, PB-CC-C ~3 min,
   PB-CC-A ~8 min observed in the 2026-04-29 chain).
+- **Incomplete-clause markers are `// TODO` OR `// ENGINE-BLOCKED`** — batch-2 authoring
+  workers (scutemob-42) used `// ENGINE-BLOCKED` for genuinely blocked clauses, which
+  `tools/authoring-report.py` originally didn't count, silently inflating "clean" by 10
+  cards. Fixed `fa4d593f` (classifier matches both). Any new tooling, grep, or audit
+  that hunts incomplete card defs MUST match both markers.
+- **Gap-audit "NOW-EXPRESSIBLE" claims need per-card verification** — measured
+  disposition of the first 24 W-NOW cards: 4 fully clean / 13 partial / 7 blocked
+  (~17% fully clean vs the audit's optimistic estimate). A stale-looking TODO is a
+  prior, not a guarantee; most cards carry ≥1 genuinely blocked clause. Discount
+  authoring-wave yield estimates the same way PB yields are discounted.
