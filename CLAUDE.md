@@ -14,15 +14,15 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md`; clean coverage 928/1,748 = 53.1% per `tools/authoring-report.py`)
-- **Tests**: **2873 passing**; build/clippy/fmt clean
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 934/1,748 = 53.4% per `tools/authoring-report.py`)
+- **Tests**: **2893 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: Card Authoring Campaign launch (`scutemob-39..42` + PB-AC0) — triage & campaign plan; 2 derisking batches (24 cards, measured **4 clean / 13 partial / 7 blocked** — discount "NOW-EXPRESSIBLE" audit claims); **PB-AC0** fixed creature-ETB path dropping `has_subtype`/nontoken filters (+13 tests). Next: recalibrate plan, dispatch PB-AC1. Prior: LOW Sweep 2026-05-15/16 (`scutemob-31..38`, LOW-OPEN 45→6, HASH 27, tracker `memory/low-sweep-plan.md`).
+- **Last shipped**: **PB-AC1** (`scutemob-43`, merge `5cd9a662`) — UntapAll effect, WheneverPermanentUntaps + WhenCounterPlaced triggers, once_per_turn limiter, DoesNotUntap static (+20 tests); backfill 13 cards (8 CLEAN / 5 PARTIAL, review clean). Plan recalibrated 2026-07-07 (§0: measured 17%-clean rate falsifies "~435 free" estimate; PB-first sequencing). Next: PB-AC2 (optional-cost & counter-tax). Prior: campaign launch `scutemob-39..42` + PB-AC0.
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-07-07 (Card Authoring Campaign launched — 2873 tests, clean coverage 53.1%, 14 commits unpushed)
+- **Last Updated**: 2026-07-07 (PB-AC1 collected — 2893 tests, clean coverage 53.4%, plan recalibrated, origin in sync)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
