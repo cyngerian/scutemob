@@ -4,8 +4,26 @@ batch: PB-AC3
 title: Dynamic P/T & count amounts (CDA residual)
 cards_affected: ~14 (discounted; real roster to be identified from oracle text)
 started: 2026-07-08
-phase: review
+phase: closed
 plan_file: memory/primitives/pb-plan-AC3.md
+
+## Close-out (2026-07-08)
+- Primitive review (primitive-impl-reviewer): 0 HIGH, 1 MEDIUM, 4 LOW. MEDIUM
+  fixed inline (Mirror Entity `AddAllCreatureTypes` moved Layer 6 -> Layer 4
+  `TypeChange`, CR 613.1d). 4 LOW pre-existing/out-of-scope. `pb-review-AC3.md`.
+- Card review (card-batch-reviewer, `pb-review-AC3-cards.md`): 7 CLEAN backfill
+  cards oracle-accurate; found 4 HIGH wrong-game-state on PARTIAL cards. ALL FIXED
+  (author now-expressible clause via PB-AC3 primitives, TODO the truly-blocked one):
+  mishra (Fixed(1)->AttackingCreatureCount), multani (dying 0/0 -> CdaModify Sum),
+  ashaya (dying */* -> CdaPowerToughness; removed overbroad token type-grant),
+  wight (omitted self-sac ability per vampire_gourmand precedent).
+- +2 CDA regression tests (Ashaya, Multani) -> 21 tests in pb_ac3 file, 2940 total.
+- Coverage: clean 946 -> 951 (54.1% -> 54.4%). Krenko misclassified 'empty' by a
+  pre-existing authoring-report.py regex bug (documented, out of scope).
+- Gates ALL GREEN: build --workspace, test --all (2940/0), clippy --all-targets
+  -D warnings, fmt --check.
+- Commits: 6daf98bc, 0f30d81e, af4ee811 (engine+backfill+gates), 0d274517 (MED fix),
+  d771b795 (card-review HIGH fixes + regression tests).
 
 ## Coordinator decisions on plan (2026-07-08)
 - **HandSize**: ADD it (criterion 4225 names it literally) as a thin alias

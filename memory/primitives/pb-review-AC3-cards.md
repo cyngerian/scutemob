@@ -20,4 +20,13 @@
 
 ## Galadhrim Ambush — CLEAN (correctly fully-blocked `vec![]`)
 
-## Verdict: NOT READY TO CLOSE until 4 HIGH addressed (see coordinator resolution appended below).
+## Verdict: NOT READY TO CLOSE until 4 HIGH addressed
+
+## RESOLUTION (2026-07-08) — all 4 HIGH fixed (commit d771b795)
+- **F5 Mishra**: replaced KNOWN-WRONG `Fixed(1)` drain with `AttackingCreatureCount{EachPlayer,None}` on both lose-life (EachOpponent) and gain-life (Controller); Meld stays TODO.
+- **F7 Multani**: added `CdaModifyPowerToughness{ Sum(PermanentCount{Land}, CardCount{Graveyard,Land}) }` on both axes (was a dying base 0/0); GY-return activated ability stays TODO.
+- **F6 Ashaya**: added `CdaPowerToughness{PermanentCount{Land}}` (was a dying */* with no CDA); REMOVED the two overbroad `AddCardTypes(Land)`/`AddSubtypes(Forest)` statics that wrongly animated tokens (oracle "Nontoken") — TODO nontoken-scoped `EffectFilter`.
+- **F3 Wight**: omitted the `{T},Sacrifice(TargetFilter{Creature})` ability (could self-sacrifice to "another creature"; no `Cost::SacrificeAnother`) per `vampire_gourmand.rs` precedent; Vigilance + CDA modify retained.
+- +2 regression tests (`test_ashaya_pt_equals_lands_you_control`, `test_multani_pt_sums_lands_and_graveyard_lands`) confirm the previously-dying bodies compute correct P/T.
+- LOW findings (Krenko oracle text, Ulvenwald may-search, Storm-Kiln copy-magecraft, authoring-report.py Krenko regex) left as pre-existing/out-of-scope.
+- **Verdict: RESOLVED — ready to close.**
