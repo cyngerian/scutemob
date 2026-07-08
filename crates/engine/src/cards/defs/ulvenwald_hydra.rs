@@ -5,8 +5,6 @@
 // battlefield tapped, then shuffle.
 //
 // CDA (*/*): power: None, toughness: None per KI-4.
-// P/T = number of lands you control is a characteristic-defining ability (CDA) —
-// DSL does not support CDA P/T. Use power: None, toughness: None.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,9 +19,23 @@ pub fn card() -> CardDefinition {
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Reach),
-            // TODO: CDA — P/T equals the number of lands you control.
-            // DSL has no CountLandsCDA variant. Power/toughness left as None
-            // (treated as 0/0 until CDA support is added).
+            // CR 604.3, 613.4a: CDA — P/T each equal to the number of lands you control.
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::Controller,
+                },
+                toughness: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::Controller,
+                },
+            },
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,

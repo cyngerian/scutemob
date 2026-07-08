@@ -1,9 +1,6 @@
 // Storm-Kiln Artist — {3}{R}, Creature — Dwarf Shaman 2/2
-// Gets +1/+0 for each artifact you control (CDA — TODO).
+// Gets +1/+0 for each artifact you control.
 // Magecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token.
-//
-// TODO: "This creature gets +1/+0 for each artifact you control." — CDA based on artifact count,
-// not expressible in DSL (no EffectAmount::CountArtifactsYouControl for P/T modification).
 //
 // Note: Magecraft triggers on cast OR copy. WheneverYouCastSpell does not cover copies.
 // Using approximation (cast only) per W5 — the copy half is a known gap.
@@ -19,7 +16,18 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: +1/+0 per artifact CDA — see comment above
+            // CR 611.3a, 613.4c: +1/+0 for each artifact you control — static Layer 7c
+            // modify on top of the base 2/2 (PB-AC3 CdaModifyPowerToughness, power only).
+            AbilityDefinition::CdaModifyPowerToughness {
+                power: Some(EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Artifact),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::Controller,
+                }),
+                toughness: None,
+            },
             // Magecraft — instant/sorcery filter applied. "or copy" half is a known gap.
             AbilityDefinition::Triggered {
                 once_per_turn: false,

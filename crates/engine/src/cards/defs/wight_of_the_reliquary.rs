@@ -4,8 +4,6 @@
 // {T}, Sacrifice another creature: Search your library for a land card,
 // put it onto the battlefield tapped, then shuffle.
 //
-// TODO: CDA — "gets +1/+1 for each creature card in your graveyard" requires
-// EffectAmount::CountInGraveyard or similar dynamic P/T modification; no DSL support yet.
 // TODO: "Sacrifice another creature" cost requires Cost::SacrificeAnother with creature filter;
 // only Cost::SacrificeSelf and Cost::Sacrifice(TargetFilter) exist. The current
 // Cost::Sacrifice is ambiguous (could sacrifice self). Implemented below using
@@ -24,9 +22,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // TODO: +1/+1 for each creature card in your graveyard — CDA requires dynamic P/T
-            // based on graveyard count. No DSL equivalent. Use abilities: partial, CDA omitted.
-
+            // CR 611.3a, 613.4c: +1/+1 for each creature card in your graveyard —
+            // static Layer 7c modify on top of the base 2/2 (PB-AC3 CdaModifyPowerToughness).
+            AbilityDefinition::CdaModifyPowerToughness {
+                power: Some(EffectAmount::CardCount {
+                    zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                    player: PlayerTarget::Controller,
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                }),
+                toughness: Some(EffectAmount::CardCount {
+                    zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                    player: PlayerTarget::Controller,
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                }),
+            },
             // {T}, Sacrifice another creature: Search your library for a land card,
             // put it onto the battlefield tapped, then shuffle.
             AbilityDefinition::Activated {

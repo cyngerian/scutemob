@@ -1,8 +1,5 @@
 // Keep Watch — {2}{U}, Instant
 // Draw a card for each attacking creature.
-//
-// TODO: "Each attacking creature" count — EffectAmount lacks AttackingCreatureCount.
-//   Using Fixed(3) as rough approximation.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,10 +10,14 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Draw a card for each attacking creature.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // TODO: AttackingCreatureCount not in DSL. Using Fixed(1) placeholder.
+            // CR 508.1/509: PB-AC3 AttackingCreatureCount. EachPlayer gives the CR-correct
+            // "number of attacking creatures" reading (unrestricted by controller).
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,
-                count: EffectAmount::Fixed(1),
+                count: EffectAmount::AttackingCreatureCount {
+                    controller: PlayerTarget::EachPlayer,
+                    filter: None,
+                },
             },
             targets: vec![],
             modes: None,

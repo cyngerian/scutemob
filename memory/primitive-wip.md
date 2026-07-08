@@ -31,11 +31,21 @@ plan_file: memory/primitives/pb-plan-AC3.md
 - [x] Hash collision verdict: CONFIRMED REAL — `RemoveSuperType` and `ModifyPowerDynamic`
       both hashed prefix `26u8`. Fixed: `RemoveSuperType` reassigned to discriminant 29.
       Updated all 21 test files asserting `HASH_SCHEMA_VERSION, 29u8` -> `30u8`.
-- [ ] Card fixes (keep_watch, throne, mirror_entity, krenko, ulvenwald_hydra, wight,
-      storm_kiln_artist) — in progress.
-- [ ] PARTIAL/OOS TODO updates.
-- [ ] Unit tests file `pb_ac3_dynamic_pt_counts.rs`.
-- [ ] Gates.
+- [x] Card fixes: keep_watch (AttackingCreatureCount), throne_of_the_god_pharaoh
+      (Triggered end-step + TappedCreatureCount), mirror_entity (SetBothDynamic +
+      AddAllCreatureTypes), krenko_tin_street_kingpin (PowerOf(Source) token count),
+      ulvenwald_hydra (CdaPowerToughness lands), wight_of_the_reliquary
+      (CdaModifyPowerToughness graveyard-creature-count; SacrificeAnother TODO
+      intentionally left — separate pre-existing DSL gap, out of PB-AC3 scope),
+      storm_kiln_artist (CdaModifyPowerToughness artifact count).
+- [x] PARTIAL TODOs updated (galadhrim_ambush, mishra_claimed_by_gix,
+      ashaya_soul_of_the_wild, multani_yavimayas_avatar) — functional code untouched
+      per coordinator instruction, comments updated to name remaining gap.
+      OOS cards (grand_warlord_radha, harvest_season, commissar_severina_raine,
+      dawnstrike_vanguard, opposition, springleaf_drum, mothdust_changeling,
+      glare_of_subdual, iroas_god_of_victory, dolmen_gate, reconnaissance) left alone.
+- [x] Unit tests file `pb_ac3_dynamic_pt_counts.rs` — 19 tests, all passing.
+- [ ] Gates — running.
 
 ## Task reference
 - ESM task: scutemob-45

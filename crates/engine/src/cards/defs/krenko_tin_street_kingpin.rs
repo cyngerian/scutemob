@@ -26,8 +26,9 @@ pub fn card() -> CardDefinition {
                         counter: CounterType::PlusOnePlusOne,
                         count: 1,
                     },
-                    // TODO: "Tokens equal to power" — EffectAmount lacks power-based count.
-                    //   Using fixed 2 as approximation.
+                    // CR 111.1: "a number of tokens equal to Krenko's power" — the +1/+1
+                    // counter above resolves first in the Sequence, so PowerOf(Source)
+                    // sees the freshly-added counter via calculate_characteristics.
                     Effect::CreateToken {
                         spec: TokenSpec {
                             name: "Goblin".to_string(),
@@ -36,7 +37,7 @@ pub fn card() -> CardDefinition {
                             colors: [Color::Red].into_iter().collect(),
                             power: 1,
                             toughness: 1,
-                            count: EffectAmount::Fixed(2),
+                            count: EffectAmount::PowerOf(EffectTarget::Source),
                             supertypes: im::OrdSet::new(),
                             keywords: im::OrdSet::new(),
                             tapped: false,

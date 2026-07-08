@@ -3,9 +3,16 @@
 // Nontoken creatures you control are Forest lands in addition to their other types.
 //
 // CDA (*/*): power: None, toughness: None per KI-4.
-// TODO: CDA — P/T equals the number of lands you control. DSL has no CountLandsCDA.
+// PB-AC3: the "P/T = lands you control" CDA is expressible via the already-shipped
+// AbilityDefinition::CdaPowerToughness{PermanentCount{Land}} (see Ulvenwald Hydra for the
+// pattern) — NOT a new PB-AC3 primitive and NOT the blocker for this card.
 // Static: Nontoken creatures you control gain Land + Forest types.
-// TODO: "nontoken" filter — EffectFilter::CreaturesYouControl includes tokens.
+// TODO: "nontoken" filter — EffectFilter has no nontoken-exclusion variant
+// (EffectFilter::CreaturesYouControl includes tokens). This is the remaining blocker:
+// authoring the CDA without fixing the nontoken-scoped type-grant below would leave the
+// static ability granting Forest/Land types to token creatures too (wrong game state per
+// oracle text "Nontoken creatures you control..."). Card stays blocked under W6
+// no-partials policy until a nontoken-scoped EffectFilter (or equivalent) ships.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

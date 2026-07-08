@@ -15,15 +15,33 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Changeling),
-            // CR 107.3k: {X}: Until EOT, creatures you control have base P/T X/X and gain all creature types.
-            // x_value is now passed through ActivateAbility command and into the EffectContext.
-            // TODO: Dynamic P/T setting (base X/X) requires LayerModification::SetBothDynamic(EffectAmount)
-            // which does not exist. LayerModification::SetBoth(power, toughness) takes fixed i32.
-            // Deferred until dynamic P/T layer modification is added.
-            // TODO: "gain all creature types" has no DSL representation (AddAllCreatureTypes variant missing).
+            // CR 107.3k / 613.4b / 205.3m: {X}: Until EOT, creatures you control have base
+            // P/T X/X (Layer 7b, PB-AC3 SetBothDynamic — locked in at resolution) and gain
+            // all creature types (Layer 6, AddAllCreatureTypes).
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
-                effect: Effect::Nothing,
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtSet,
+                            modification: LayerModification::SetBothDynamic {
+                                amount: Box::new(EffectAmount::XValue),
+                            },
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddAllCreatureTypes,
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
