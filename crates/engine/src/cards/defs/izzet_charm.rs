@@ -28,10 +28,10 @@ pub fn card() -> CardDefinition {
                 mode_costs: None,
                 modes: vec![
                     // Mode 0: Counter target noncreature spell unless its controller pays {2}.
-                    // TODO: "unless its controller pays {2}" — conditional counter not in DSL.
-                    // Using unconditional counter as approximation (stronger than intended).
-                    Effect::CounterSpell {
+                    // PB-AC2 (CR 118.12a): CounterUnlessPays — controller declines -> countered.
+                    Effect::CounterUnlessPays {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                        cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
                     },
                     // Mode 1: Deal 2 damage to target creature.
                     Effect::DealDamage {

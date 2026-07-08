@@ -2,14 +2,6 @@
 // Whenever Miara or another Elf you control dies, you may pay {1} and 1 life.
 // If you do, draw a card.
 // Partner
-//
-// ENGINE-BLOCKED (death trigger): "Whenever Miara or another Elf you control dies"
-// IS expressible (WheneverCreatureDies with an Elf filter), but the effect — "you may
-// pay {1} and 1 life. If you do, draw a card." — is a beneficial optional-pay rider.
-// MayPayOrElse has TAX semantics ("if you DON'T pay, run or_else") and cannot express
-// "if you DO pay, draw". No beneficial-optional-cost construct exists in the DSL.
-// The whole triggered ability is omitted (rather than a do-nothing trigger or an
-// unconditional draw) — consistent with crossway_troublemakers.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,12 +18,38 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
-            // ENGINE-BLOCKED: "Whenever Miara or another Elf you control dies, you may
-            // pay {1} and 1 life. If you do, draw a card." — the trigger condition is
-            // expressible (WheneverCreatureDies + Elf filter, exclude_self: false), but
-            // the beneficial optional-pay-to-draw rider has no DSL construct. MayPayOrElse
-            // is tax semantics only. The triggered ability is omitted entirely.
             AbilityDefinition::Keyword(KeywordAbility::Partner),
+            // PB-AC2 (CR 118.12): "Whenever Miara or another Elf you control dies, you may
+            // pay {1} and 1 life. If you do, draw a card." The Elf filter matches Miara
+            // herself (she is an Elf) so exclude_self: false correctly covers "Miara or
+            // another Elf".
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Elf".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::MayPayThenEffect {
+                    cost: Cost::Sequence(vec![
+                        Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                        Cost::PayLife(1),
+                    ]),
+                    payer: PlayerTarget::Controller,
+                    then: Box::new(Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

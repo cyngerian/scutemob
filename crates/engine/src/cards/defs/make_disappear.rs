@@ -2,8 +2,6 @@
 // with power 1 or greater. When you do, copy this spell and you may choose a new target.)
 // Counter target spell unless its controller pays {2}.
 // CR 702.153: Casualty — additional cost triggers a copy of the spell.
-// NOTE: "unless controller pays {2}" (ward-like effect) is not yet in the DSL.
-// The keyword + copy trigger are correctly encoded; the counter-unless effect is stubbed.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,9 +13,16 @@ pub fn card() -> CardDefinition {
         oracle_text: "Casualty 1 (As an additional cost to cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell, and you may choose a new target for the copy.)\nCounter target spell unless its controller pays {2}.".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Casualty(1)),
-            // TODO: "Counter target spell unless its controller pays {2}" — requires
-            // Effect::CounterUnlessPays or Effect::CounterSpell with cost-branch.
-            // Stub until CounterSpell + PayCost effects are in the DSL.
+            AbilityDefinition::Spell {
+                // PB-AC2 (CR 118.12a): CounterUnlessPays — controller declines -> countered.
+                effect: Effect::CounterUnlessPays {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                },
+                targets: vec![TargetRequirement::TargetSpellWithFilter(TargetFilter::default())],
+                modes: None,
+                cant_be_countered: false,
+            },
         ],
         ..Default::default()
     }

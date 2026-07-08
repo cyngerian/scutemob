@@ -10,10 +10,10 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Counter target noncreature spell unless its controller pays {2}.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // TODO: "unless controller pays {2}" — CounterUnlessPay not in DSL.
-            // Using unconditional counter (stronger than intended).
-            effect: Effect::CounterSpell {
+            // PB-AC2 (CR 118.12a): CounterUnlessPays — controller declines -> countered.
+            effect: Effect::CounterUnlessPays {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
             },
             targets: vec![TargetRequirement::TargetSpellWithFilter(TargetFilter {
                 non_creature: true,

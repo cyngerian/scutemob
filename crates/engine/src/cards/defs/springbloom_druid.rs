@@ -1,17 +1,7 @@
 // Springbloom Druid — {2}{G} Creature — Elf Druid 1/1.
-// "When this creature enters, you may sacrifice a land. If you do, search your
+// When this creature enters, you may sacrifice a land. If you do, search your
 // library for up to two basic land cards, put them onto the battlefield tapped,
-// then shuffle."
-//
-// TODO: ETB trigger with optional sacrifice cost ("you may sacrifice a land. If
-// you do, ...") is not expressible in the DSL. There is no AbilityDefinition::Triggered
-// variant that can express an optional sacrifice as part of the trigger's resolution
-// with a conditional follow-on effect. The pattern requires:
-//   1. ETB trigger fires
-//   2. Player chooses whether to sacrifice a land
-//   3. If they did, search for up to two basic lands
-// Neither the TriggerCondition nor Effect enums have an "optional sacrifice then
-// conditional search" primitive. W5: wrong implementation omitted — abilities: vec![].
+// then shuffle.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,9 +14,44 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // TODO: ETB optional-sacrifice-then-search pattern not in DSL.
-            // Needs: Effect::OptionalSacrifice { filter: land_filter, then: Box<Effect> }
-            // or SpellAdditionalCost::OptionalSacrificeLand equivalent for triggered abilities.
+            // PB-AC2 (CR 118.12): "you may sacrifice a land. If you do, search your
+            // library for up to two basic land cards, put them onto the battlefield
+            // tapped, then shuffle." Springbloom Druid is not itself a land, so the
+            // sacrifice-cost filter cannot accidentally target the source.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::MayPayThenEffect {
+                    cost: Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    }),
+                    payer: PlayerTarget::Controller,
+                    then: Box::new(Effect::Sequence(vec![
+                        Effect::SearchLibrary {
+                            player: PlayerTarget::Controller,
+                            filter: basic_land_filter(),
+                            reveal: false,
+                            destination: ZoneTarget::Battlefield { tapped: true },
+                            shuffle_before_placing: false,
+                            also_search_graveyard: false,
+                        },
+                        Effect::SearchLibrary {
+                            player: PlayerTarget::Controller,
+                            filter: basic_land_filter(),
+                            reveal: false,
+                            destination: ZoneTarget::Battlefield { tapped: true },
+                            shuffle_before_placing: false,
+                            also_search_graveyard: false,
+                        },
+                        Effect::Shuffle { player: PlayerTarget::Controller },
+                    ])),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

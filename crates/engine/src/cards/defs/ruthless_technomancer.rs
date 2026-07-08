@@ -4,13 +4,21 @@
 // {2}{B}, Sacrifice X artifacts: Return target creature card with power X or less from
 // your graveyard to the battlefield. X can't be 0.
 //
-// TODO: ETB trigger "you may sacrifice another creature you control. If you do, create
-// Treasure tokens equal to that creature's power." — optional sacrifice with conditional
-// effect and EffectAmount based on sacrificed creature's power not in DSL.
+// ENGINE-BLOCKED (ETB): "you may sacrifice another creature you control. If you do,
+// create a number of Treasure tokens equal to that creature's power." PB-AC2's
+// Effect::MayPayThenEffect (CR 118.12) can express the "may sacrifice -> then"
+// shape, but (1) Cost::Sacrifice(filter) has no "another" / exclude-self semantics
+// (can_pay_optional_cost/pay_optional_cost thread only a PlayerId, not a source
+// ObjectId, so the source itself -- a creature -- could be offered as the
+// sacrifice), and (2) there is no EffectAmount/context plumbing that captures the
+// sacrificed permanent's power for a dynamically-sized CreateToken count. Both
+// gaps are genuine (verified against card_definition.rs / effects/mod.rs).
 //
-// TODO: "{2}{B}, Sacrifice X artifacts: Return target creature card with power X or less
-// from your graveyard to the battlefield." — Cost::Sacrifice with variable X count, and
-// TargetFilter::CreatureInGraveyardWithPowerXOrLess not in DSL.
+// ENGINE-BLOCKED (activated ability): "{2}{B}, Sacrifice X artifacts: Return target
+// creature card with power X or less from your graveyard to the battlefield. X
+// can't be 0." No Cost variant supports a player-chosen variable-X sacrifice count,
+// and TargetFilter has no "power <= X" (dynamic, tied to the chosen X) graveyard
+// target filter. Out of PB-AC2 scope.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,8 +31,8 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
-            // TODO: ETB optional sacrifice + create Treasure equal to sacrificed creature's power
-            // TODO: Activated {2}{B} + Sacrifice X artifacts, graveyard recursion with power filter
+            // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
+            // and the activated variable-X ability are both blocked on real DSL gaps.
         ],
         ..Default::default()
     }

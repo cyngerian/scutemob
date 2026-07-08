@@ -23,13 +23,16 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: "Whenever you cast an Elf spell, you may pay {G}. If you do, draw a card."
-            // Two DSL gaps prevent faithful implementation:
-            // 1. WheneverYouCastSpell has no fixed subtype filter (only chosen_subtype_filter for
-            //    dynamic types like Vanquisher's Banner); cannot restrict to "Elf" spells specifically.
-            // 2. The "may pay {G}" optional cost on a triggered ability is not in the DSL
-            //    (triggered abilities cannot have intervening optional mana costs).
-            // Per W5 policy: omitted rather than approximated with wrong behavior.
+            // ENGINE-BLOCKED: "Whenever you cast an Elf spell, you may pay {G}. If you
+            // do, draw a card." PB-AC2's Effect::MayPayThenEffect (CR 118.12) now covers
+            // the "may pay {G} -> draw" rider, but the trigger condition itself is still
+            // blocked: TriggerCondition::WheneverYouCastSpell only supports
+            // spell_type_filter (Vec<CardType>) and chosen_subtype_filter (dynamic,
+            // reads ctx.chosen_creature_type) — there is no fixed-subtype ("Elf")
+            // filter field. Casting an Elf spell cannot be distinguished from casting
+            // any other creature spell. Genuine remaining gap (PB-AC7 territory per
+            // pb-plan-AC2.md); per W5 policy, omitted rather than firing on every
+            // creature spell.
         ],
         ..Default::default()
     }

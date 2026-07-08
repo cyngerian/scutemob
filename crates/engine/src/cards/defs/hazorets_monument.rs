@@ -21,8 +21,10 @@ pub fn card() -> CardDefinition {
             colored_mana_reduction: None,
         }],
         abilities: vec![
-            // TODO: "may discard, if you do draw" — optional loot on cast trigger (DSL gap).
-            // Creature spell filter applied.
+            // PB-AC2 (CR 118.12): "Whenever you cast a creature spell, you may discard a
+            // card. If you do, draw a card." Beneficial optional-pay wrapper — the draw
+            // only happens if a card is discarded (was previously modeled as an
+            // unconditional draw, which was wrong game state).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
@@ -31,9 +33,13 @@ pub fn card() -> CardDefinition {
                     noncreature_only: false,
                     chosen_subtype_filter: false,
                 },
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
+                effect: Effect::MayPayThenEffect {
+                    cost: Cost::DiscardCard,
+                    payer: PlayerTarget::Controller,
+                    then: Box::new(Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    }),
                 },
                 intervening_if: None,
                 targets: vec![],
