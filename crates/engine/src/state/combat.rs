@@ -122,6 +122,11 @@ impl CombatState {
     pub fn is_blocking(&self, id: ObjectId) -> bool {
         self.blockers.contains_key(&id)
     }
+    /// PB-AC3: Returns true if `id` is currently declared as an attacker
+    /// (CR 508.1 — keys into `CombatState.attackers`).
+    pub fn is_attacking(&self, id: ObjectId) -> bool {
+        self.attackers.contains_key(&id)
+    }
     /// Returns the set of players being attacked directly (not via a planeswalker).
     pub fn players_being_attacked(&self) -> OrdSet<PlayerId> {
         let mut players = OrdSet::new();
