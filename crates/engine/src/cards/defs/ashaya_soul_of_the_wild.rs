@@ -3,9 +3,14 @@
 // Nontoken creatures you control are Forest lands in addition to their other types.
 //
 // CDA (*/*): power: None, toughness: None per KI-4.
-// TODO: CDA — P/T equals the number of lands you control. DSL has no CountLandsCDA.
-// Static: Nontoken creatures you control gain Land + Forest types.
-// TODO: "nontoken" filter — EffectFilter::CreaturesYouControl includes tokens.
+// CR 613.4c: PB-AC3 CdaPowerToughness{PermanentCount{Land}} (see Ulvenwald Hydra for the
+// pattern) — now authored below.
+// TODO: "Nontoken creatures you control are Forest lands in addition to their other
+// types" — EffectFilter has no nontoken-exclusion variant (EffectFilter::CreaturesYouControl
+// includes tokens). Authoring the type-grant statics as-is would grant Forest/Land types to
+// token creatures too (wrong game state per oracle text "Nontoken creatures you control...").
+// Omitted until a nontoken-scoped EffectFilter (or equivalent) ships; this is a capability
+// gap, not wrong state, since the statics are simply absent.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,29 +27,27 @@ pub fn card() -> CardDefinition {
         power: None,
         toughness: None,
         abilities: vec![
-            // Layer 4: Add Land + Forest types to creatures you control.
-            AbilityDefinition::Static {
-                continuous_effect: ContinuousEffectDef {
-                    layer: EffectLayer::TypeChange,
-                    modification: LayerModification::AddCardTypes(
-                        [CardType::Land].into_iter().collect(),
-                    ),
-                    filter: EffectFilter::CreaturesYouControl,
-                    duration: EffectDuration::WhileSourceOnBattlefield,
-                    condition: None,
+            // CR 613.4c: CDA — power and toughness each equal to the number of lands you
+            // control.
+            AbilityDefinition::CdaPowerToughness {
+                power: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::Controller,
+                },
+                toughness: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                    controller: PlayerTarget::Controller,
                 },
             },
-            AbilityDefinition::Static {
-                continuous_effect: ContinuousEffectDef {
-                    layer: EffectLayer::TypeChange,
-                    modification: LayerModification::AddSubtypes(
-                        [SubType("Forest".to_string())].into_iter().collect(),
-                    ),
-                    filter: EffectFilter::CreaturesYouControl,
-                    duration: EffectDuration::WhileSourceOnBattlefield,
-                    condition: None,
-                },
-            },
+            // TODO: "Nontoken creatures you control are Forest lands in addition to their
+            // other types" — no nontoken-scoped EffectFilter exists yet. See file-header
+            // comment for full disposition.
         ],
         ..Default::default()
     }

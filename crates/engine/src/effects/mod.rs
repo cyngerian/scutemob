@@ -2846,6 +2846,18 @@ fn execute_effect_inner(
                     let v = if *negate { -raw } else { raw };
                     LM::ModifyToughness(v)
                 }
+                // CR 613.4b / CR 608.2h / CR 107.3k: SetBothDynamic (Layer 7b "set base P/T
+                // to X") is locked in at resolution the same way ModifyBothDynamic is —
+                // substitute to a concrete SetPowerToughness(v, v) here so X does not
+                // silently re-evaluate to 0 via resolve_cda_amount later (PB-AC3, Mirror
+                // Entity: "creatures you control have base power and toughness X/X").
+                LM::SetBothDynamic { amount } => {
+                    let v = resolve_amount(state, amount, ctx);
+                    LM::SetPowerToughness {
+                        power: v,
+                        toughness: v,
+                    }
+                }
                 other => other.clone(),
             };
             // Build a ContinuousEffect from the definition and add it to state.
@@ -6715,6 +6727,93 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
         // Juri deals no damage" — this is handled at the Effect::DealDamage boundary
         // (clamping); the resolver returns the raw value (which may be negative).
         EffectAmount::SourcePowerAtLastKnownInformation => ctx.lki_power.unwrap_or(0),
+        // PB-AC3 (discriminant 19): CR 508.1/509 — count creatures currently declared as
+        // attackers, controlled by the resolved player(s), optionally narrowed by `filter`.
+        // Attacking status lives on `state.combat.attackers` (CombatState), NOT on
+        // `Characteristics`, so `PermanentCount` cannot express this. Returns 0 outside
+        // combat (state.combat == None). Filter matching uses layer-resolved characteristics
+        // (CR 613.1d), mirroring `PermanentCount`. Phased-out permanents excluded (CR 702.26d).
+        EffectAmount::AttackingCreatureCount { controller, filter } => {
+            let players = resolve_player_target_list(state, controller, ctx);
+            let Some(combat) = state.combat.as_ref() else {
+                return 0;
+            };
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && combat.is_attacking(obj.id)
+                        && filter
+                            .as_ref()
+                            .map(|f| {
+                                let chars =
+                                    crate::rules::layers::calculate_characteristics(state, obj.id)
+                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                matches_filter(&chars, f)
+                                    && check_chosen_subtype_filter(state, ctx, f, &chars)
+                                    && check_has_counter_type(obj, f)
+                                    // CR 109.1/603.2: "another attacking creature" excludes source.
+                                    && (!f.exclude_self || obj.id != ctx.source)
+                            })
+                            .unwrap_or(true)
+                })
+                .count() as i32
+        }
+        // PB-AC3 (discriminant 20): CR 613 / status — count creatures on the battlefield
+        // that are TAPPED (`GameObject.status.tapped`), controlled by the resolved
+        // player(s), optionally narrowed by `filter`. Tapped status is NOT a
+        // `Characteristics` field, so `PermanentCount` cannot express this. Phased-out
+        // permanents excluded (CR 702.26d).
+        EffectAmount::TappedCreatureCount { controller, filter } => {
+            let players = resolve_player_target_list(state, controller, ctx);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && obj.status.tapped
+                        && {
+                            // CR 613.1d / W3-LC discipline: battlefield type/filter reads
+                            // must go through calculate_characteristics, not base chars.
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            chars
+                                .card_types
+                                .contains(&crate::state::types::CardType::Creature)
+                                && filter
+                                    .as_ref()
+                                    .map(|f| {
+                                        matches_filter(&chars, f)
+                                            && check_chosen_subtype_filter(state, ctx, f, &chars)
+                                            && check_has_counter_type(obj, f)
+                                            && (!f.exclude_self || obj.id != ctx.source)
+                                    })
+                                    .unwrap_or(true)
+                        }
+                })
+                .count() as i32
+        }
+        // PB-AC3 (discriminant 21): CR 400 — number of cards in a player's hand.
+        // Convenience alias for `CardCount { zone: Hand{owner: player}, .. }`: delegates
+        // to the identical CardCount evaluation to avoid duplicating counting logic (see
+        // the doc-comment on `EffectAmount::HandSize` in card_definition.rs).
+        EffectAmount::HandSize { player } => resolve_amount(
+            state,
+            &EffectAmount::CardCount {
+                zone: ZoneTarget::Hand {
+                    owner: player.clone(),
+                },
+                player: PlayerTarget::Controller,
+                filter: None,
+            },
+            ctx,
+        ),
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────

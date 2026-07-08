@@ -4,13 +4,13 @@
 // {T}, Sacrifice another creature: Search your library for a land card,
 // put it onto the battlefield tapped, then shuffle.
 //
-// TODO: CDA — "gets +1/+1 for each creature card in your graveyard" requires
-// EffectAmount::CountInGraveyard or similar dynamic P/T modification; no DSL support yet.
-// TODO: "Sacrifice another creature" cost requires Cost::SacrificeAnother with creature filter;
-// only Cost::SacrificeSelf and Cost::Sacrifice(TargetFilter) exist. The current
-// Cost::Sacrifice is ambiguous (could sacrifice self). Implemented below using
-// Cost::Sacrifice(TargetFilter { creature: true, ..Default::default() }) as best approximation,
-// but this may allow sacrificing self. When Cost::SacrificeAnother is added, update this.
+// TODO: "Sacrifice another creature" cost requires exclude-self semantics that don't exist
+// on Cost::Sacrifice(TargetFilter) (it has no "another" / exclude-self variant, and this
+// card is itself a creature that would match a bare creature filter, allowing illegal
+// self-sacrifice). Same gap documented on vampire_gourmand.rs (Cost::SacrificeAnother does
+// not exist); that card sets the project precedent of omitting the ability entirely rather
+// than risking the self-sacrifice edge case (W5 policy). Omitted here for the same reason.
+// The CDA power/toughness modifier below is unaffected and correctly authored.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -24,40 +24,30 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // TODO: +1/+1 for each creature card in your graveyard — CDA requires dynamic P/T
-            // based on graveyard count. No DSL equivalent. Use abilities: partial, CDA omitted.
-
-            // {T}, Sacrifice another creature: Search your library for a land card,
-            // put it onto the battlefield tapped, then shuffle.
-            AbilityDefinition::Activated {
-                cost: Cost::Sequence(vec![
-                    Cost::Tap,
-                    // TODO: Should be Cost::SacrificeAnother (creature) not Cost::Sacrifice
-                    Cost::Sacrifice(TargetFilter {
+            // CR 611.3a, 613.4c: +1/+1 for each creature card in your graveyard —
+            // static Layer 7c modify on top of the base 2/2 (PB-AC3 CdaModifyPowerToughness).
+            AbilityDefinition::CdaModifyPowerToughness {
+                power: Some(EffectAmount::CardCount {
+                    zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                    player: PlayerTarget::Controller,
+                    filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Creature),
                         ..Default::default()
                     }),
-                ]),
-                effect: Effect::Sequence(vec![
-                    Effect::SearchLibrary {
-                        player: PlayerTarget::Controller,
-                        filter: TargetFilter {
-                            has_card_type: Some(CardType::Land),
-                            ..Default::default()
-                        },
-                        reveal: false,
-                        destination: ZoneTarget::Battlefield { tapped: true },
-                        shuffle_before_placing: false,
-                        also_search_graveyard: false,
-                    },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
-                ]),
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-                once_per_turn: false,
+                }),
+                toughness: Some(EffectAmount::CardCount {
+                    zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                    player: PlayerTarget::Controller,
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                }),
             },
+            // TODO: "{T}, Sacrifice another creature: Search your library for a land card,
+            // put it onto the battlefield tapped, then shuffle." — omitted; see file-header
+            // comment for the exclude-self sacrifice-cost gap and vampire_gourmand.rs
+            // precedent.
         ],
         ..Default::default()
     }

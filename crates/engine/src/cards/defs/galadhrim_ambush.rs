@@ -11,10 +11,14 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Create X 1/1 green Elf Warrior creature tokens, where X is the number of attacking creatures.\nPrevent all combat damage that would be dealt this turn by non-Elf creatures.".to_string(),
         abilities: vec![
-            // TODO: "Create X tokens where X = number of attacking creatures" — EffectAmount
-            // lacks an attacking-creature-count variant. DSL gap.
-            // TODO: "Prevent all combat damage by non-Elf creatures" — damage prevention with
-            // subtype-exclusion filter not in DSL. Per W5 policy, leaving empty.
+            // PB-AC3: "X = number of attacking creatures" is now expressible via
+            // EffectAmount::AttackingCreatureCount — NOT the remaining blocker.
+            // TODO: "Prevent all combat damage that would be dealt this turn by non-Elf
+            // creatures" — a filtered (subtype-exclusion) damage-prevention shield is still
+            // a DSL gap (no prevention-effect primitive accepts a TargetFilter). Under W6
+            // no-partials policy this two-clause instant stays fully blocked rather than
+            // authoring only the token-creation half (which would silently drop the
+            // prevention clause the card's text promises).
         ],
         ..Default::default()
     }

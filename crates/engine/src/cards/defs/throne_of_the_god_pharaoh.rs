@@ -1,11 +1,6 @@
 // Throne of the God-Pharaoh — {2}, Legendary Artifact
 // At the beginning of your end step, each opponent loses life equal to the number
 // of tapped creatures you control.
-//
-// TODO: "loses life equal to the number of tapped creatures you control" —
-// EffectAmount::TappedCreatureCount is not in the DSL. The amount is dynamic
-// (count of tapped creatures at trigger resolution) and no equivalent variant exists.
-// W5: omitted — Fixed(0) or Fixed(1) would produce wrong game state.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,9 +11,22 @@ pub fn card() -> CardDefinition {
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
         oracle_text: "At the beginning of your end step, each opponent loses life equal to the number of tapped creatures you control.".to_string(),
         abilities: vec![
-            // TODO: EffectAmount::TappedCreatureCount not in DSL.
-            // Needed to express "loses life equal to the number of tapped creatures you control".
-            // W5: omitted to avoid wrong game state.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                // CR 613 / status.tapped: PB-AC3 TappedCreatureCount.
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::EachOpponent,
+                    amount: EffectAmount::TappedCreatureCount {
+                        controller: PlayerTarget::Controller,
+                        filter: None,
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

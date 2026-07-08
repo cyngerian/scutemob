@@ -2491,13 +2491,65 @@ pub enum EffectAmount {
     ///   the battlefield to determine how much damage is dealt. If that power was 0 or
     ///   less, Juri deals no damage.")
     ///
-    /// Discriminant 18 (state/hash.rs). Discriminant 19 reserved for a future
-    /// `SourceToughnessAtLastKnownInformation` if a real card surfaces it (none in scope
-    /// for PB-LKI-Power).
+    /// Discriminant 18 (state/hash.rs). NOTE (PB-AC3): discriminant 19 was previously
+    /// reserved in this comment for a future `SourceToughnessAtLastKnownInformation`,
+    /// but that variant was never shipped. PB-AC3 reassigns 19/20/21 to
+    /// `AttackingCreatureCount`/`TappedCreatureCount`/`HandSize` below. A future
+    /// `SourceToughnessAtLastKnownInformation` should take the next free discriminant
+    /// after 21 (currently 22) if a real card surfaces the need.
     SourcePowerAtLastKnownInformation,
-    // TODO (OOS-LKI-Power-1): SourceToughnessAtLastKnownInformation — discriminant 19
-    // reserved. No in-scope card requires toughness LKI in PB-LKI-Power sweep (2026-05-13).
-    // Ship when a real "When ~ dies, [effect] equal to its toughness" card surfaces.
+    // TODO (OOS-LKI-Power-1): SourceToughnessAtLastKnownInformation — no in-scope card
+    // requires toughness LKI yet. Ship when a real "When ~ dies, [effect] equal to its
+    // toughness" card surfaces (PB-LKI-Power sweep, 2026-05-13; reconfirmed PB-AC3).
+    /// CR 508.1 / 509: Count creatures that are currently attacking, controlled by the
+    /// resolved player(s), optionally narrowed by `filter`. Reads `state.combat.attackers`
+    /// (a `CombatState` map keyed by attacker ObjectId) — NOT a `Characteristics` field —
+    /// so it is unavailable via `PermanentCount`. Returns 0 when `state.combat` is `None`
+    /// (outside combat) or no attackers match.
+    ///
+    /// `controller = PlayerTarget::EachPlayer` gives the unrestricted "number of attacking
+    /// creatures" reading (Keep Watch — all attackers belong to the active player in normal
+    /// combat, but EachPlayer is the CR-correct "all" scope). `controller =
+    /// PlayerTarget::Controller` + `filter = Some(<subtype>)` gives "attacking [Dragons] you
+    /// control" (The Ur-Dragon — out of primary scope). `filter` with `exclude_self: true`
+    /// gives "other attacking creatures" (Commissar Severina Raine).
+    ///
+    /// Filter matching uses layer-resolved characteristics in the effect path
+    /// (`resolve_amount`) and BASE characteristics in the CDA path (`resolve_cda_amount`,
+    /// to avoid layer recursion). Phased-out permanents are excluded (CR 702.26d).
+    ///
+    /// Discriminant 19 (state/hash.rs).
+    AttackingCreatureCount {
+        controller: PlayerTarget,
+        filter: Option<TargetFilter>,
+    },
+    /// CR 613 / status: Count creatures on the battlefield that are TAPPED
+    /// (`GameObject.status.tapped`), controlled by the resolved player(s), optionally
+    /// narrowed by `filter`. Tapped status is NOT a `Characteristics` field, so this is
+    /// unavailable via `PermanentCount`. Phased-out permanents excluded.
+    ///
+    /// `controller = PlayerTarget::Controller`, `filter = None` gives "tapped creatures you
+    /// control" (Throne of the God-Pharaoh). Same base-vs-layer-resolved filter split as
+    /// `AttackingCreatureCount`.
+    ///
+    /// Discriminant 20 (state/hash.rs).
+    TappedCreatureCount {
+        controller: PlayerTarget,
+        filter: Option<TargetFilter>,
+    },
+    /// CR 400: Number of cards in a player's hand.
+    ///
+    /// **Convenience alias for `CardCount { zone: ZoneTarget::Hand { owner: player },
+    /// player: PlayerTarget::Controller, filter: None }`.** This variant introduces NO new
+    /// counting logic — both `resolve_amount` and `resolve_cda_amount` implement it by
+    /// delegating to the exact same `CardCount` evaluation path (constructing an equivalent
+    /// `CardCount` and re-dispatching). It exists only because acceptance criterion 4225
+    /// names `EffectAmount::HandSize` literally; authors may use either `HandSize { player }`
+    /// or the equivalent `CardCount` form interchangeably — they always produce identical
+    /// results by construction.
+    ///
+    /// Discriminant 21 (state/hash.rs).
+    HandSize { player: PlayerTarget },
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

@@ -364,6 +364,24 @@ pub enum LayerModification {
     ///
     /// Used by Humility ("All creatures have base power and toughness 1/1").
     SetPowerToughness { power: i32, toughness: i32 },
+    /// Layer 7b: SET base power and toughness to a single dynamic value (CR 613.4b).
+    ///
+    /// **Spell/ability path (CR 608.2h, CR 107.3k)**: `Effect::ApplyContinuousEffect`
+    /// substitutes this into a concrete `SetPowerToughness { power: v, toughness: v }` at
+    /// resolution so X is *locked in* at resolution (mirrors the `ModifyBothDynamic ->
+    /// ModifyBoth` substitution). If `SetBothDynamic` reaches `apply_layer_modification`
+    /// unsubstituted it means substitution was skipped — the layer arm degrades to a live
+    /// `resolve_cda_amount` eval (correct only for CDA-safe amounts; `XValue` would read 0,
+    /// same documented residual behavior as `ModifyBothDynamic`).
+    ///
+    /// Used by Mirror Entity: "{X}: Until end of turn, creatures you control have base power
+    /// and toughness X/X ...". Distinct from `SetPtDynamic` (Layer 7a CDA, live re-eval, for
+    /// static `*/*` creatures) and from `ModifyBothDynamic` (Layer 7c, +X/+X modify).
+    ///
+    /// Boxed to avoid `large_enum_variant`.
+    SetBothDynamic {
+        amount: Box<crate::cards::card_definition::EffectAmount>,
+    },
     // --- Layer 7c: P/T-modifying effects ---
     /// Adds to power only (e.g., "+1/+0" effects).
     ModifyPower(i32),

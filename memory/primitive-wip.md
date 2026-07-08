@@ -1,86 +1,135 @@
-# Primitive WIP: PB-AC1 — Counter / Untap / Once-per-turn
+# Primitive WIP: PB-AC3 — Dynamic P/T & count amounts (CDA residual)
 
-batch: PB-AC1
-title: Counter / untap / once-per-turn primitives
-cards_affected: ~22 (discounted; real roster to be identified from oracle text)
-started: 2026-07-07
+batch: PB-AC3
+title: Dynamic P/T & count amounts (CDA residual)
+cards_affected: ~14 (discounted; real roster to be identified from oracle text)
+started: 2026-07-08
 phase: closed
-plan_file: memory/primitives/pb-plan-AC1.md
+plan_file: memory/primitives/pb-plan-AC3.md
+
+## Close-out (2026-07-08)
+- Primitive review (primitive-impl-reviewer): 0 HIGH, 1 MEDIUM, 4 LOW. MEDIUM
+  fixed inline (Mirror Entity `AddAllCreatureTypes` moved Layer 6 -> Layer 4
+  `TypeChange`, CR 613.1d). 4 LOW pre-existing/out-of-scope. `pb-review-AC3.md`.
+- Card review (card-batch-reviewer, `pb-review-AC3-cards.md`): 7 CLEAN backfill
+  cards oracle-accurate; found 4 HIGH wrong-game-state on PARTIAL cards. ALL FIXED
+  (author now-expressible clause via PB-AC3 primitives, TODO the truly-blocked one):
+  mishra (Fixed(1)->AttackingCreatureCount), multani (dying 0/0 -> CdaModify Sum),
+  ashaya (dying */* -> CdaPowerToughness; removed overbroad token type-grant),
+  wight (omitted self-sac ability per vampire_gourmand precedent).
+- +2 CDA regression tests (Ashaya, Multani) -> 21 tests in pb_ac3 file, 2940 total.
+- Coverage: clean 946 -> 951 (54.1% -> 54.4%). Krenko misclassified 'empty' by a
+  pre-existing authoring-report.py regex bug (documented, out of scope).
+- Gates ALL GREEN: build --workspace, test --all (2940/0), clippy --all-targets
+  -D warnings, fmt --check.
+- Commits: 6daf98bc, 0f30d81e, af4ee811 (engine+backfill+gates), 0d274517 (MED fix),
+  d771b795 (card-review HIGH fixes + regression tests).
+
+## Coordinator decisions on plan (2026-07-08)
+- **HandSize**: ADD it (criterion 4225 names it literally) as a thin alias
+  `EffectAmount::HandSize { player }` delegating to the same counting logic as
+  `CardCount{Hand}` in BOTH resolve_amount and resolve_cda_amount; doc-comment flags
+  it as a convenience alias. Discriminant 21.
+- **Hash collision at LayerModification disc 26** (RemoveSuperType vs ModifyPowerDynamic):
+  FIX in-batch — reassign RemoveSuperType → next free disc; schema is already bumping.
+
+## Implementation progress (2026-07-08)
+- [x] `EffectAmount::AttackingCreatureCount` (disc 19), `TappedCreatureCount` (disc 20) —
+      `crates/engine/src/cards/card_definition.rs` (enum def), `resolve_amount`
+      (`effects/mod.rs`) and `resolve_cda_amount` (`rules/layers.rs`) both wired (lockstep).
+- [x] `EffectAmount::HandSize { player }` (disc 21) — thin alias delegating to
+      `CardCount{Hand}` in both resolve_amount and resolve_cda_amount, per coordinator decision.
+- [x] `LayerModification::SetBothDynamic { amount: Box<EffectAmount> }` (disc 28, Layer 7b) —
+      `state/continuous_effect.rs` enum def; substitution arm in `effects/mod.rs`
+      `ApplyContinuousEffect`; apply arm in `rules/layers.rs` `apply_layer_modification`.
+- [x] `CombatState::is_attacking` helper — `state/combat.rs`; wired into both count arms
+      (not left dead).
+- [x] hash.rs: 3 new `EffectAmount` HashInto arms (19/20/21) + 1 `LayerModification` arm
+      (28) + `HASH_SCHEMA_VERSION` 29 -> 30 with changelog block.
+- [x] Hash collision verdict: CONFIRMED REAL — `RemoveSuperType` and `ModifyPowerDynamic`
+      both hashed prefix `26u8`. Fixed: `RemoveSuperType` reassigned to discriminant 29.
+      Updated all 21 test files asserting `HASH_SCHEMA_VERSION, 29u8` -> `30u8`.
+- [x] Card fixes: keep_watch (AttackingCreatureCount), throne_of_the_god_pharaoh
+      (Triggered end-step + TappedCreatureCount), mirror_entity (SetBothDynamic +
+      AddAllCreatureTypes), krenko_tin_street_kingpin (PowerOf(Source) token count),
+      ulvenwald_hydra (CdaPowerToughness lands), wight_of_the_reliquary
+      (CdaModifyPowerToughness graveyard-creature-count; SacrificeAnother TODO
+      intentionally left — separate pre-existing DSL gap, out of PB-AC3 scope),
+      storm_kiln_artist (CdaModifyPowerToughness artifact count).
+- [x] PARTIAL TODOs updated (galadhrim_ambush, mishra_claimed_by_gix,
+      ashaya_soul_of_the_wild, multani_yavimayas_avatar) — functional code untouched
+      per coordinator instruction, comments updated to name remaining gap.
+      OOS cards (grand_warlord_radha, harvest_season, commissar_severina_raine,
+      dawnstrike_vanguard, opposition, springleaf_drum, mothdust_changeling,
+      glare_of_subdual, iroas_god_of_victory, dolmen_gate, reconnaissance) left alone.
+- [x] Unit tests file `pb_ac3_dynamic_pt_counts.rs` — 19 tests, all passing.
+- [x] Gates — ALL GREEN:
+      `cargo build --workspace` clean; `cargo test --all` 2938 passed / 0 failed
+      (2919 baseline + 19 new); `cargo clippy --all-targets -- -D warnings` clean;
+      `cargo fmt --check` clean (after one `cargo fmt` auto-fix pass).
+      `python3 tools/authoring-report.py`: clean 946->951 (54.1%->54.4%), todo
+      621->616, total_todos 1122->1106.
+      **Finding for coordinator**: expected +6 clean (6 CLEAN-roster cards fixed)
+      but delta is +5. Root cause: `tools/authoring-report.py`'s `classify_file`
+      empty-abilities regex `abilities:\s*vec!\[\s*\]\s*,` has NO word boundary, so
+      it false-positive-matches the substring in `activated_abilities: vec![],` /
+      `mana_abilities: vec![],` (present in Krenko's TokenSpec literal, pre-existing,
+      unrelated to this batch's edit). Krenko is misclassified "empty" both before
+      and after this batch's fix — its card def is functionally correct and covered
+      by `test_krenko_tokens_equal_power` (loads the actual shipped CardDefinition).
+      This is a pre-existing tooling defect, not a PB-AC3 regression; left unfixed
+      (out of declared PB-AC3 scope — tooling change, not engine/card/test).
 
 ## Task reference
-- ESM task: scutemob-43
-- Branch: feat/pb-ac1-counter-untap-once-per-turn-primitives
+- ESM task: scutemob-45
+- Branch: feat/pb-ac3-dynamic-pt-count-amounts-cda-residual
 - Acceptance criteria:
-  - 4154: Engine primitives implemented (UntapAll, WheneverPermanentUntaps +
-    WhenCounterPlaced triggers, once-per-turn limiter, doesn't-untap static) each
-    with tests citing CR sections
-  - 4155: Review pass complete; all HIGH/MEDIUM findings fixed
-  - 4156: Backfill complete; all unblocked cards re-authored, TODO/ENGINE-BLOCKED
-    markers removed, reviewed by card-batch-reviewer
-  - 4157: All gates green; authoring-report rerun and coverage delta posted
+  - 4225: Engine primitives implemented — `LayerModification::ModifyBoth` accepting
+    `EffectAmount`; `EffectAmount::{AttackingCreatureCount, TappedCreatureCount,
+    HandSize}`; power-based token count — each with tests citing CR sections (layer
+    interactions covered)
+  - 4226: Review pass complete; primitive-impl-reviewer findings written; all
+    HIGH/MEDIUM fixed
+  - 4227: Backfill complete; all cards unblocked by PB-AC3 re-authored, stale
+    TODO/ENGINE-BLOCKED markers removed, reviewed by card-batch-reviewer
+  - 4228: All gates green; authoring-report rerun and coverage delta posted as
+    task comment
 
-## Scope (from campaign-plan-2026-05-16.md §2)
+## Scope (from campaign-plan-2026-05-16.md §2, PB-AC3 row)
 Primitives to add:
-- `Effect::UntapAll { filter }` — untap all permanents matching a filter (CR 701.20/701.21)
-- `TriggerCondition::WheneverPermanentUntaps` (CR 603.2)
-- `TriggerCondition::WhenCounterPlaced` (CR 603.2, 122)
-- Generic `once_per_turn` limiter on triggered abilities (e.g. Morbid Opportunist
-  "triggers only once each turn") (CR 603.2)
-- "Doesn't untap during untap step" static (CR 502.4 / 702.x)
+- `LayerModification::ModifyBoth` accepting `EffectAmount` — dynamic P/T set/modify
+  (CDA residual). Layer 7a (CDA), dependency-ordered per CR 613.4.
+- `EffectAmount::{AttackingCreatureCount, TappedCreatureCount, HandSize}` — dynamic
+  count amounts.
+- Power-based token count (token count = a creature's power / some dynamic value).
 
-CR refs (701.20, 701.21, 603.2) are ADVISORY — verify against the CR via the
-mtg-rules MCP. Card rosters in the plan are advisory; identify the real roster
-from oracle text (feedback_oversight_primitive_category_not_cards).
+CR refs (613 layers, 107.3) are ADVISORY — verify against the CR via the mtg-rules
+MCP. Card rosters in the plan are advisory; identify the real roster from oracle
+text (feedback_oversight_primitive_category_not_cards). Grep card defs for BOTH
+`// TODO` and `// ENGINE-BLOCKED` markers citing dynamic-P/T / CDA / count-amount
+patterns.
 
 ## Hazards (from task description)
-1. Verify KW/AbilDef/SOK discriminant chain from current code before adding variants.
-2. Exhaustive matches in tools/tui/src/play/panels/stack_view.rs AND
-   tools/replay-viewer/src/view_model.rs must gain arms for every new enum variant —
+1. **LAYER SYSTEM batch** — load `memory/gotchas-rules.md` before planning. CDA P/T
+   is Layer 7a; characteristic-defining abilities apply in the CDA sublayer,
+   dependency-ordered (CR 613.4). All battlefield characteristic reads must go
+   through `calculate_characteristics()` (W3-LC discipline).
+2. Card DSL gotcha: `*/*` CDA creatures use `power: None, toughness: None`
+   (NOT `Some(0)`).
+3. Verify KW/AbilDef/SOK discriminant chain from current code before adding variants.
+4. New struct fields / mutable runtime fields MUST be added to `state/hash.rs`
+   HashInto impls (PB-AC1 review HIGH was exactly this).
+5. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs` AND
+   `tools/replay-viewer/src/view_model.rs` need arms for every new enum variant —
    verify with `cargo build --workspace`.
-3. Do NOT commit phantom `.claude/skills/*/SKILL.md` deletions in the worktree.
+6. Do NOT commit phantom `.claude/skills/*/SKILL.md` deletions in the worktree.
 
-## Deferred from Prior PBs
-none applicable
+## Gates
+- cargo build --workspace
+- cargo test --all
+- cargo clippy --all-targets -- -D warnings
+- cargo fmt --check
+- python3 tools/authoring-report.py → post clean-coverage delta as task comment
 
-## Step Checklist
-- [x] 1. Engine changes (new types/variants/dispatch) — Effect::UntapAll (disc 87),
-  TriggerCondition::WheneverPermanentUntaps (disc 42) + WhenCounterPlaced (disc 43),
-  runtime TriggerEvent::AnyPermanentUntaps (disc 45) + CounterPlaced (disc 46),
-  KeywordAbility::DoesNotUntap (disc 162), once_per_turn limiter (flush_pending_triggers
-  gate + turn-reset sweep), DoesNotUntap untap-step enforcement (layer-resolved).
-  HASH_SCHEMA_VERSION 27->28 + all 20 scattered parity-sentinel tests updated.
-- [x] 2. Card definition fixes / backfill — ONLY the 4 integration cards done this
-  phase (Morbid Opportunist, Mesmeric Orb, Goblin Sharpshooter, Sharktocrab); full
-  backfill roster (partial-clean + blocked cards from the plan) is OUT OF SCOPE for
-  this engine-primitives phase per task instructions — deferred to the backfill phase.
-- [x] 3. New card definitions (if any) — none (all 4 integration cards pre-existed
-  as TODO/ENGINE-BLOCKED stubs; re-authored in place).
-- [x] 4. Unit tests — crates/engine/tests/pb_ac1_untap_counter.rs, 20 tests, all
-  passing (full plan test list covered + a direct-construction wiring test + a
-  matches_filter sanity test).
-- [x] 5. Workspace build verification — `cargo build --workspace`, `cargo test --all`
-  (2893 passed, 0 failed), `cargo clippy --workspace --all-targets -- -D warnings`
-  (clean), `cargo fmt --check` (clean).
-
-## Fix phase complete (2026-07-07)
-- All HIGH/MEDIUM findings from `memory/primitives/pb-review-AC1.md` resolved:
-  1. HIGH — `state/hash.rs`: `GameObject::triggered_abilities_fired_this_turn` now hashed
-     (end of `HashInto for GameObject`, after `skip_untap_steps`).
-  2. MEDIUM — `state/hash.rs`: `TriggeredAbilityDef::hash_into` now hashes `once_per_turn`,
-     `counter_filter`, `counter_on_self`.
-  3. MEDIUM — CR 122.6 enters-with-counters gap tracked as new issue `MR-AC1-01` (LOW, OPEN)
-     in `docs/mtg-engine-milestone-reviews.md`; test comment in
-     `crates/engine/tests/pb_ac1_untap_counter.rs` updated to cite it.
-- LOW findings 4-6 left open (non-blocking per task instructions).
-- `cargo build --workspace`, `cargo test -p mtg-engine` (all pass, HASH_SCHEMA_VERSION
-  still 28), `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`
-  all clean.
-
-## Known residual (flagged, not fixed in this phase)
-- `test-data/generated-scripts/baseline/105_sharktocrab_adapt.json` demoted from
-  `approved` to `pending_review`: Sharktocrab's newly-authored WhenCounterPlaced
-  ability (tap target opponent creature + PreventNextUntap) now fires during the
-  script's Phase 1 Adapt resolution and lingers on the stack into Phase 2, breaking
-  the script's `zones.stack.count` assertions. Needs script regeneration (extra
-  priority_round + stack_resolve steps) before re-approval — tracked in the script's
-  `generation_notes`.
+## Commit prefix
+W6-prim:

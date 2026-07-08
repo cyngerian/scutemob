@@ -1140,6 +1140,18 @@ fn apply_layer_modification(
             chars.power = Some(*power);
             chars.toughness = Some(*toughness);
         }
+        // Layer 7b: residual live-eval SET (spell path substitutes to SetPowerToughness
+        // before reaching here; this arm handles any direct/static registration). CR 613.4b.
+        LayerModification::SetBothDynamic { amount } => {
+            let controller = state
+                .objects
+                .get(&object_id)
+                .map(|o| o.controller)
+                .unwrap_or(crate::state::player::PlayerId(0));
+            let v = resolve_cda_amount(state, amount, object_id, controller);
+            chars.power = Some(v);
+            chars.toughness = Some(v);
+        }
         // Layer 7c: P/T-modifying
         LayerModification::ModifyPower(delta) => {
             if let Some(p) = &mut chars.power {
@@ -1641,6 +1653,80 @@ pub(crate) fn resolve_cda_amount(
         // while on the battlefield. Returns 0 as defensive default.
         // Card authors should not pair SourcePowerAtLastKnownInformation with a CDA.
         EffectAmount::SourcePowerAtLastKnownInformation => 0,
+        // PB-AC3 (discriminant 19, LOCKSTEP with resolve_amount): CR 508.1/509. Combat/tap
+        // state are not layer-derived (CR 122/613), so reading `state.combat.attackers`
+        // here introduces no CDA recursion. Filter matching uses BASE characteristics
+        // (mirrors the existing `PermanentCount` CDA arm) to avoid layer recursion.
+        EffectAmount::AttackingCreatureCount {
+            controller: pt,
+            filter,
+        } => {
+            let players = resolve_cda_player_target(state, pt, controller);
+            let Some(combat) = state.combat.as_ref() else {
+                return 0;
+            };
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && combat.is_attacking(obj.id)
+                        && filter
+                            .as_ref()
+                            .map(|f| {
+                                crate::effects::matches_filter(&obj.characteristics, f)
+                                    && crate::effects::check_has_counter_type(obj, f)
+                                    && (!f.exclude_self || obj.id != object_id)
+                            })
+                            .unwrap_or(true)
+                })
+                .count() as i32
+        }
+        // PB-AC3 (discriminant 20, LOCKSTEP with resolve_amount): tapped status lives on
+        // `GameObject.status`, not layer-derived — no CDA recursion. Base characteristics
+        // for filter matching (mirrors `PermanentCount` CDA arm).
+        EffectAmount::TappedCreatureCount {
+            controller: pt,
+            filter,
+        } => {
+            let players = resolve_cda_player_target(state, pt, controller);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && players.contains(&obj.controller)
+                        && obj.status.tapped
+                        && obj.characteristics.card_types.contains(&CardType::Creature)
+                        && filter
+                            .as_ref()
+                            .map(|f| {
+                                crate::effects::matches_filter(&obj.characteristics, f)
+                                    && crate::effects::check_has_counter_type(obj, f)
+                                    && (!f.exclude_self || obj.id != object_id)
+                            })
+                            .unwrap_or(true)
+                })
+                .count() as i32
+        }
+        // PB-AC3 (discriminant 21): convenience alias for
+        // `CardCount { zone: Hand{owner: player}, .. }` — delegates to the identical
+        // CardCount CDA evaluation (see doc-comment on `EffectAmount::HandSize`).
+        EffectAmount::HandSize { player } => resolve_cda_amount(
+            state,
+            &EffectAmount::CardCount {
+                zone: ZoneTarget::Hand {
+                    owner: player.clone(),
+                },
+                player: PlayerTarget::Controller,
+                filter: None,
+            },
+            object_id,
+            controller,
+        ),
         _ => {
             debug_assert!(
                 false,

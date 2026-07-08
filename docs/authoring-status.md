@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-08 01:31 UTC  
-**Git:** `456a0bd7` on `feat/pb-ac2-optional-cost-wrapper-counter-tax-primitives`  
+**Generated:** 2026-07-08 02:55 UTC  
+**Git:** `d771b795` on `feat/pb-ac3-dynamic-pt-count-amounts-cda-residual`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 54.1% | 946 | +12 |
-| With TODO markers | 621 | -10 |
-| Empty `abilities: vec![]` placeholders | 181 | -2 |
-| Total TODO lines across all defs | 1,122 | -18 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 54.4% | 951 | · |
+| With TODO markers | 616 | · |
+| Empty `abilities: vec![]` placeholders | 181 | · |
+| Total TODO lines across all defs | 1,107 | +1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 474 |
-| last 30 days | 0 | 474 |
-| last 90 days | 14 | 582 |
-| last 1 year | 1,773 | 1,231 |
+| last 7 days | 0 | 481 |
+| last 30 days | 0 | 481 |
+| last 90 days | 14 | 589 |
+| last 1 year | 1,773 | 1,236 |
 
 ## Bonus defs outside the plan
 
@@ -67,8 +67,8 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 77 | 100 | 10 |
-| `draw` | 163 / 169 | 96% | 65 | 73 | 25 |
-| `token-create` | 145 / 155 | 94% | 19 | 61 | 65 |
+| `draw` | 163 / 169 | 96% | 66 | 72 | 25 |
+| `token-create` | 145 / 155 | 94% | 20 | 60 | 65 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
 | `other` | 108 / 131 | 82% | 65 | 43 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 27 | 41 | 0 |
@@ -76,7 +76,7 @@ are blocked on engine primitives.
 | `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 28 | 0 |
-| `land-fetch` | 45 / 45 | 100% | 26 | 18 | 1 |
+| `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 18 | 15 | 1 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
@@ -92,7 +92,7 @@ are blocked on engine primitives.
 | `removal-exile` | 13 / 14 | 93% | 5 | 2 | 6 |
 | `untap-phase` | 1 / 13 | 8% | 0 | 1 | 0 |
 | `cost-reduction` | 12 / 12 | 100% | 4 | 0 | 8 |
-| `opponent-punish` | 12 / 12 | 100% | 2 | 10 | 0 |
+| `opponent-punish` | 12 / 12 | 100% | 3 | 9 | 0 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 6 | 4 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 5 | 4 | 1 |
@@ -108,7 +108,7 @@ are blocked on engine primitives.
 | `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
 | `exile-play` | 0 / 1 | 0% | 0 | 0 | 0 |
 | `protection` | 1 / 1 | 100% | 0 | 1 | 0 |
-| `x-spell` | 1 / 1 | 100% | 0 | 1 | 0 |
+| `x-spell` | 1 / 1 | 100% | 1 | 0 | 0 |
 
 ### Lagging groups (≥5 cards in plan, <50% authored)
 
@@ -169,59 +169,62 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 657 | -13 |
-| DSL gap (unspecified) | 140 | -2 |
+| OTHER (unclassified) | 655 | +1 |
+| DSL gap (unspecified) | 140 | · |
 | attack trigger (self / generic) | 28 | · |
-| Cost::* missing variant | 22 | · |
+| Cost::* missing variant | 21 | -1 |
 | TriggerCondition::* missing variant | 19 | · |
 | replacement effect missing | 18 | · |
-| EffectAmount::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
-| sacrifice as cost | 15 | -1 |
-| CDA / dynamic P/T | 12 | · |
+| sacrifice as cost | 16 | +1 |
+| EffectAmount::* missing variant | 15 | · |
 | TargetFilter missing field | 12 | · |
 | interactive / hidden-info choice | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
 | opponent-action trigger | 9 | · |
 | can't / must block-attack | 8 | · |
-| X-scaled tokens | 7 | · |
 | can't be countered | 7 | · |
 | no-maximum-hand-size | 7 | · |
 | per-player effect dispatch | 6 | · |
 | per-opponent upkeep | 6 | · |
+| X-scaled tokens | 5 | · |
 | devotion | 5 | · |
 | count-threshold static | 5 | · |
 | conditional static / grant | 5 | · |
 | equipment grants ability | 5 | · |
 | delayed triggers | 4 | · |
+| untap-all / untap trigger | 4 | · |
 
 _…and 33 more buckets totaling 69 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 657 
+Showing 12 of 655 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bonecrusher_giant: // TODO(2): Effect target is WRONG — should deal 2 damage to "that spell's controller"
-dark_petition: // TODO: Condition::SpellMastery (2+ instant/sorcery in graveyard) not in DSL.
-entish_restoration: // TODO: Two DSL gaps prevent faithful implementation:
-glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
-izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
-mana_vault: // ENGINE-BLOCKED: "{T}: Add {C}{C}{C}." — per W5 policy (KI-13 class), this mana ability's
+bonecrusher_giant: // TODO(1): Trigger condition WhenBecomesTargetByOpponent is WRONG — should be
+dark_petition: // TODO: Spell mastery conditional mana bonus ({B}{B}{B} if 2+ instant/sorcery in
+enduring_curiosity: // TODO: Glimmer death return mechanic (becomes non-creature enchantment) not in DSL.
+glimmer_lens: // TODO: "Equipped creature + another attack" trigger not expressible.
+ixhel_scion_of_atraxa: // TODO: Corrupted trigger — "each opponent who has 3+ poison counters exiles top card face down;
+mana_vault: // ENGINE-BLOCKED: "At the beginning of your draw step, if this artifact is tapped, it deals
 open_the_vaults: // TODO(M10+): Add Aura placement choice so Auras can attach to valid targets.
-roil_elemental: // TODO: Blocker — EffectDuration::WhileYouControlSource variant for "for as long as you
+rith_liberated_primeval: // TODO: "At the beginning of your end step, if a creature or planeswalker an
 smothering_abomination: // TODO: "At the beginning of your upkeep, sacrifice a creature" — forced sacrifice not expressible.
-teferi_master_of_time: // TODO: "−3: phases out" — no Effect::PhaseOut variant.
+teferi_master_of_time: // TODO: "Discard a card" after draw — WheneverYouDiscard gap. Using draw-only.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## Recent card-touching commits
 
 ```
+d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutions
+0d274517 W6-prim: PB-AC3 review fix — Mirror Entity AddAllCreatureTypes to Layer 4 (TypeChange)
+0f30d81e W6-prim: PB-AC3 card backfill — Keep Watch, Throne, Mirror Entity, Krenko, CDA residuals + tests
 456a0bd7 W6-prim: PB-AC2 card review + real-card integration tests (closes MEDIUM #4)
 507a476f W6-prim: PB-AC2 backfill — 12 clean + 8 partial card defs
 34bee37c W6-prim: PB-AC1 backfill — re-author cards unblocked by untap/counter/once-per-turn
@@ -244,9 +247,6 @@ d7d8062e scutemob-24: PB-XA — card def cleanup + doc comment update
 37f77495 scutemob-20: PB-EWC — EntersWithCounters count u32→Box<EffectAmount> (CR 614.1c)
 e7a9a16c scutemob-19: PB-LKI-Power — LKI source-power snapshot for WhenDies/WhenLeavesBattlefield (CR 603.10a)
 f8d7cdf4 scutemob-18: PB-CD — counter-doubling replacement effects (CR 122.6/614.1)
-34317614 feat(pb-lki-cc): add EffectAmount::CounterCountAtLastKnownInformation (disc 17) + LKI snapshot threading
-4fde5d66 scutemob-16: PB-TS fix-phase — E1 Krenko sorcery-speed + C1 Chasm Skulker revert + OOS-TS-4 seed
-418976c9 scutemob-16: PB-TS card defs — 4 dynamic token-count cards re-authored
 ```
 
 ## Missing card-defs sidecar

@@ -214,7 +214,20 @@
 ///   `Effect` variants `MayPayThenEffect { cost, payer, then }` (discriminant 88, CR
 ///   118.12 beneficial-pay) and `CounterUnlessPays { target, cost }` (discriminant 89,
 ///   CR 118.12a counter-tax). No new runtime fields.
-pub const HASH_SCHEMA_VERSION: u8 = 29;
+/// - 30: PB-AC3 (2026-07-08) — Dynamic P/T & count amounts (CDA residual). New
+///   `EffectAmount` variants `AttackingCreatureCount { controller, filter }`
+///   (discriminant 19, CR 508.1/509), `TappedCreatureCount { controller, filter }`
+///   (discriminant 20, CR 613/status.tapped), and `HandSize { player }` (discriminant
+///   21, CR 400 — convenience alias for `CardCount{Hand}`, no new counting logic). New
+///   `LayerModification::SetBothDynamic { amount }` (discriminant 28, Layer 7b dynamic
+///   base-P/T set, CR 613.4b — substituted to `SetPowerToughness` at resolution per CR
+///   608.2h/107.3k). **Pre-existing defect fixed**: `LayerModification::RemoveSuperType`
+///   was previously hashed at discriminant 26, colliding with `ModifyPowerDynamic`
+///   (also 26) — two distinct effects could produce identical hash contributions.
+///   Reassigned `RemoveSuperType` to discriminant 29. All additions/reassignments are
+///   enum-variant/discriminant shape changes only; no new struct fields, so no
+///   `#[serde(default)]` needed.
+pub const HASH_SCHEMA_VERSION: u8 = 30;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1572,9 +1585,11 @@ impl HashInto for LayerModification {
                 subtypes.hash_into(hasher);
             }
             LayerModification::LoseAllSubtypes => 5u8.hash_into(hasher),
-            // CR 707.9b: RemoveSuperType (discriminant 26)
+            // CR 707.9b: RemoveSuperType (discriminant 29 — PB-AC3 reassignment; was
+            // previously 26, which collided with ModifyPowerDynamic's discriminant 26
+            // below. See HASH_SCHEMA_VERSION changelog entry 30.)
             LayerModification::RemoveSuperType(st) => {
-                26u8.hash_into(hasher);
+                29u8.hash_into(hasher);
                 // Hash by ordinal of the SuperType
                 match st {
                     crate::state::types::SuperType::Legendary => 0u8.hash_into(hasher),
@@ -1675,6 +1690,12 @@ impl HashInto for LayerModification {
                 27u8.hash_into(hasher);
                 amount.hash_into(hasher);
                 negate.hash_into(hasher);
+            }
+            // SetBothDynamic (discriminant 28) -- PB-AC3: Layer 7b dynamic base P/T set,
+            // resolved at Effect::ApplyContinuousEffect time (CR 613.4b, CR 608.2h).
+            LayerModification::SetBothDynamic { amount } => {
+                28u8.hash_into(hasher);
+                amount.hash_into(hasher);
             }
         }
     }
@@ -4759,6 +4780,25 @@ impl HashInto for EffectAmount {
             // PB-LKI-Power (discriminant 18) — LKI source-power snapshot for WhenDies /
             // WhenLeavesBattlefield triggers. CR 603.10a / CR 113.7a.
             EffectAmount::SourcePowerAtLastKnownInformation => 18u8.hash_into(hasher),
+            // PB-AC3 (discriminant 19) — count of currently-attacking creatures.
+            // CR 508.1/509. Reads state.combat.attackers, not layer-derived.
+            EffectAmount::AttackingCreatureCount { controller, filter } => {
+                19u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            // PB-AC3 (discriminant 20) — count of tapped creatures. CR 613 / status.tapped.
+            EffectAmount::TappedCreatureCount { controller, filter } => {
+                20u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            // PB-AC3 (discriminant 21) — HandSize, convenience alias for
+            // CardCount{zone: Hand}. CR 400.
+            EffectAmount::HandSize { player } => {
+                21u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
