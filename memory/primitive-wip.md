@@ -4,7 +4,7 @@ batch: PB-AC1
 title: Counter / untap / once-per-turn primitives
 cards_affected: ~22 (discounted; real roster to be identified from oracle text)
 started: 2026-07-07
-phase: fix
+phase: backfill
 plan_file: memory/primitives/pb-plan-AC1.md
 
 ## Task reference

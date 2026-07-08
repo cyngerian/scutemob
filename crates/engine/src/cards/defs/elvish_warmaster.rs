@@ -14,10 +14,12 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Once each turn" + "other Elves entering" — both not in DSL.
-            // Using generic creature ETB (overbroad but token is correct type).
+            // CR 603.2h: "Whenever one or more other Elves you control enter, create a 1/1
+            // green Elf Warrior creature token. This ability triggers only once each turn."
+            // PB-AC0 wired `has_subtype` through the creature-ETB filter path, so this is a
+            // precise Elf-subtype filter (not an overbroad generic-creature approximation).
             AbilityDefinition::Triggered {
-                once_per_turn: false,
+                once_per_turn: true,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

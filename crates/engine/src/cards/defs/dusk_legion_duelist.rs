@@ -15,7 +15,24 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-            // TODO: "Whenever +1/+1 counters are put on this" + "once each turn" not in DSL.
+            // CR 122.6 / 122.7 / 603.2h: "Whenever one or more +1/+1 counters are put on
+            // this creature, draw a card. This ability triggers only once each turn."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenCounterPlaced {
+                    counter: Some(CounterType::PlusOnePlusOne),
+                    filter: None,
+                    on_self: true,
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+                once_per_turn: true,
+            },
         ],
         ..Default::default()
     }

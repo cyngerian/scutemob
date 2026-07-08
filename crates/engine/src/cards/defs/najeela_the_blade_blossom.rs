@@ -16,13 +16,15 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
-            // TODO: DSL gap — "Whenever a Warrior attacks" requires a creature-type-filtered
+            // ENGINE-BLOCKED: "Whenever a Warrior attacks" requires a creature-type-filtered
             // attack trigger (WheneverCreatureWithSubtypeAttacks) that does not exist in the DSL.
-            // TODO: DSL gap — the activated ability untaps all attacking creatures, grants
-            // trample/lifelink/haste to all attacking creatures, and adds an additional combat
-            // phase. ForEach over EachAttackingCreature for untap + multi-keyword grant exists,
-            // but the activation requires Cost::Sequence with one of each color mana and
-            // TimingRestriction::CombatOnly, which is not a supported timing restriction.
+            // ENGINE-BLOCKED: the {W}{U}{B}{R}{G} activated ability is a SINGLE ability whose
+            // effect sequence is "untap all attacking creatures" (now expressible via PB-AC1's
+            // `Effect::UntapAll { filter: attacking creatures }`) + grant trample/lifelink/haste
+            // to all attacking creatures + "after this phase, there is an additional combat
+            // phase" + `TimingRestriction::CombatOnly` gating (no such timing restriction
+            // variant exists). Per W5 policy this single ability cannot be partially authored;
+            // stays fully blocked until the additional-combat-phase timing gate exists.
         ],
         ..Default::default()
     }

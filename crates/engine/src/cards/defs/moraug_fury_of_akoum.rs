@@ -19,15 +19,21 @@ pub fn card() -> CardDefinition {
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
-            // TODO: DSL gap — dynamic +1/+0 per attack count per creature this turn.
+            // ENGINE-BLOCKED: dynamic +1/+0 per attack count per creature this turn.
             // Needs per-creature attack tracking + dynamic LayerModification (continuous
             // effect scaled by a per-object counter). Separate from the Landfall ability.
-            // TODO: Blocker — main-phase intervening-if + additional combat phase + "untap all
-            // creatures at the beginning of that combat" chaining. Landfall trigger itself is
-            // covered (TriggerCondition::WheneverPermanentEntersBattlefield + Land + You +
-            // intervening_if: Condition::MainPhase, CR 207.2c). The additional-combat-phase-
-            // plus-chained-delayed-trigger combo is the gap (no Effect::AdditionalCombatPhase
-            // with a nested delayed "untap all" trigger in the DSL).
+            // ENGINE-BLOCKED: Landfall's own trigger condition is now fully coverable
+            // (TriggerCondition::WheneverPermanentEntersBattlefield + Land + You +
+            // intervening_if: Condition::MainPhase, CR 207.2c) and PB-AC1's `Effect::UntapAll`
+            // covers the "untap all creatures you control" part in isolation. The blocker is
+            // chaining: "there's an additional combat phase after this phase. At the beginning
+            // of THAT combat, untap all creatures you control" requires the untap to fire as a
+            // nested delayed trigger keyed to the start of the newly-created combat phase, not
+            // immediately on Landfall resolution — no Effect::AdditionalCombatPhase with a
+            // nested delayed "untap all" trigger exists in the DSL. Authoring the untap
+            // immediately (instead of at the start of the added combat) would be wrong timing
+            // (e.g. combat tricks/instants cast between Landfall and the new combat would see
+            // stale tap state) — stays fully blocked.
         ],
         ..Default::default()
     }
