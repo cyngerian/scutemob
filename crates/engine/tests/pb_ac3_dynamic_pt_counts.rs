@@ -843,7 +843,9 @@ fn test_mirror_entity_pumps_and_types() {
     let chars_source = calculate_characteristics(&state, source).unwrap();
     assert_eq!(chars_source.power, Some(4));
     assert_eq!(chars_source.toughness, Some(4));
-    assert!(chars_source.subtypes.contains(&SubType("Merfolk".to_string())));
+    assert!(chars_source
+        .subtypes
+        .contains(&SubType("Merfolk".to_string())));
 
     let chars_ally = calculate_characteristics(&state, ally).unwrap();
     assert_eq!(
@@ -851,7 +853,9 @@ fn test_mirror_entity_pumps_and_types() {
         Some(4),
         "the ability pumps ALL creatures you control, not just Mirror Entity itself"
     );
-    assert!(chars_ally.subtypes.contains(&SubType("Merfolk".to_string())));
+    assert!(chars_ally
+        .subtypes
+        .contains(&SubType("Merfolk".to_string())));
 }
 
 // ── Hash schema ─────────────────────────────────────────────────────────────
@@ -914,7 +918,10 @@ fn test_hash_distinguishes_new_variants_and_fixes_collision() {
         controller: PlayerTarget::Controller,
         filter: None,
     };
-    assert_ne!(hash_amount(&attacking), hash_amount(&attacking_controller_scoped));
+    assert_ne!(
+        hash_amount(&attacking),
+        hash_amount(&attacking_controller_scoped)
+    );
 
     // SetBothDynamic hashes deterministically and distinctly from its sibling
     // pre-existing *Dynamic variants (same amount, different variant tag).

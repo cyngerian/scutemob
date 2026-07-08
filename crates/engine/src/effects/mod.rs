@@ -6749,10 +6749,9 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && filter
                             .as_ref()
                             .map(|f| {
-                                let chars = crate::rules::layers::calculate_characteristics(
-                                    state, obj.id,
-                                )
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                                let chars =
+                                    crate::rules::layers::calculate_characteristics(state, obj.id)
+                                        .unwrap_or_else(|| obj.characteristics.clone());
                                 matches_filter(&chars, f)
                                     && check_chosen_subtype_filter(state, ctx, f, &chars)
                                     && check_has_counter_type(obj, f)
@@ -6781,10 +6780,9 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && {
                             // CR 613.1d / W3-LC discipline: battlefield type/filter reads
                             // must go through calculate_characteristics, not base chars.
-                            let chars = crate::rules::layers::calculate_characteristics(
-                                state, obj.id,
-                            )
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, obj.id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
                             chars
                                 .card_types
                                 .contains(&crate::state::types::CardType::Creature)

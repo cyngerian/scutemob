@@ -45,7 +45,22 @@ plan_file: memory/primitives/pb-plan-AC3.md
       dawnstrike_vanguard, opposition, springleaf_drum, mothdust_changeling,
       glare_of_subdual, iroas_god_of_victory, dolmen_gate, reconnaissance) left alone.
 - [x] Unit tests file `pb_ac3_dynamic_pt_counts.rs` — 19 tests, all passing.
-- [ ] Gates — running.
+- [x] Gates — ALL GREEN:
+      `cargo build --workspace` clean; `cargo test --all` 2938 passed / 0 failed
+      (2919 baseline + 19 new); `cargo clippy --all-targets -- -D warnings` clean;
+      `cargo fmt --check` clean (after one `cargo fmt` auto-fix pass).
+      `python3 tools/authoring-report.py`: clean 946->951 (54.1%->54.4%), todo
+      621->616, total_todos 1122->1106.
+      **Finding for coordinator**: expected +6 clean (6 CLEAN-roster cards fixed)
+      but delta is +5. Root cause: `tools/authoring-report.py`'s `classify_file`
+      empty-abilities regex `abilities:\s*vec!\[\s*\]\s*,` has NO word boundary, so
+      it false-positive-matches the substring in `activated_abilities: vec![],` /
+      `mana_abilities: vec![],` (present in Krenko's TokenSpec literal, pre-existing,
+      unrelated to this batch's edit). Krenko is misclassified "empty" both before
+      and after this batch's fix — its card def is functionally correct and covered
+      by `test_krenko_tokens_equal_power` (loads the actual shipped CardDefinition).
+      This is a pre-existing tooling defect, not a PB-AC3 regression; left unfixed
+      (out of declared PB-AC3 scope — tooling change, not engine/card/test).
 
 ## Task reference
 - ESM task: scutemob-45
