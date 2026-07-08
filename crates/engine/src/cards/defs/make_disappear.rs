@@ -10,7 +10,7 @@ pub fn card() -> CardDefinition {
         name: "Make Disappear".to_string(),
         mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Casualty 1 (As an additional cost to cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell, and you may choose a new target for the copy.)\nCounter target spell unless its controller pays {2}.".to_string(),
+        oracle_text: "Casualty 1 (As you cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell and you may choose a new target for the copy.)\nCounter target spell unless its controller pays {2}.".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Casualty(1)),
             AbilityDefinition::Spell {
