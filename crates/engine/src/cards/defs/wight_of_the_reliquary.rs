@@ -4,11 +4,13 @@
 // {T}, Sacrifice another creature: Search your library for a land card,
 // put it onto the battlefield tapped, then shuffle.
 //
-// TODO: "Sacrifice another creature" cost requires Cost::SacrificeAnother with creature filter;
-// only Cost::SacrificeSelf and Cost::Sacrifice(TargetFilter) exist. The current
-// Cost::Sacrifice is ambiguous (could sacrifice self). Implemented below using
-// Cost::Sacrifice(TargetFilter { creature: true, ..Default::default() }) as best approximation,
-// but this may allow sacrificing self. When Cost::SacrificeAnother is added, update this.
+// TODO: "Sacrifice another creature" cost requires exclude-self semantics that don't exist
+// on Cost::Sacrifice(TargetFilter) (it has no "another" / exclude-self variant, and this
+// card is itself a creature that would match a bare creature filter, allowing illegal
+// self-sacrifice). Same gap documented on vampire_gourmand.rs (Cost::SacrificeAnother does
+// not exist); that card sets the project precedent of omitting the ability entirely rather
+// than risking the self-sacrifice edge case (W5 policy). Omitted here for the same reason.
+// The CDA power/toughness modifier below is unaffected and correctly authored.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -42,37 +44,10 @@ pub fn card() -> CardDefinition {
                     }),
                 }),
             },
-            // {T}, Sacrifice another creature: Search your library for a land card,
-            // put it onto the battlefield tapped, then shuffle.
-            AbilityDefinition::Activated {
-                cost: Cost::Sequence(vec![
-                    Cost::Tap,
-                    // TODO: Should be Cost::SacrificeAnother (creature) not Cost::Sacrifice
-                    Cost::Sacrifice(TargetFilter {
-                        has_card_type: Some(CardType::Creature),
-                        ..Default::default()
-                    }),
-                ]),
-                effect: Effect::Sequence(vec![
-                    Effect::SearchLibrary {
-                        player: PlayerTarget::Controller,
-                        filter: TargetFilter {
-                            has_card_type: Some(CardType::Land),
-                            ..Default::default()
-                        },
-                        reveal: false,
-                        destination: ZoneTarget::Battlefield { tapped: true },
-                        shuffle_before_placing: false,
-                        also_search_graveyard: false,
-                    },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
-                ]),
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-                once_per_turn: false,
-            },
+            // TODO: "{T}, Sacrifice another creature: Search your library for a land card,
+            // put it onto the battlefield tapped, then shuffle." — omitted; see file-header
+            // comment for the exclude-self sacrifice-cost gap and vampire_gourmand.rs
+            // precedent.
         ],
         ..Default::default()
     }

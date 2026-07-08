@@ -14,10 +14,10 @@
 use mtg_engine::cards::card_definition::{ContinuousEffectDef, EffectTarget};
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
-    all_cards, calculate_characteristics, AbilityDefinition, AttackTarget, CardType, Color,
-    CombatState, CounterType, Effect, EffectAmount, EffectDuration, EffectFilter, EffectLayer,
-    GameStateBuilder, LayerModification, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step,
-    SubType, TokenSpec, ZoneId,
+    all_cards, calculate_characteristics, enrich_spec_from_def, AbilityDefinition, AttackTarget,
+    CardType, Color, CombatState, CounterType, Effect, EffectAmount, EffectDuration, EffectFilter,
+    EffectLayer, GameStateBuilder, LayerModification, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
+    Step, SubType, TokenSpec, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -31,6 +31,14 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
         .unwrap_or_else(|| panic!("object '{}' not found in state", name))
+}
+
+/// Build a name -> `CardDefinition` map for `enrich_spec_from_def` (mirrors builder_tests).
+fn defs_map() -> std::collections::HashMap<String, mtg_engine::CardDefinition> {
+    all_cards()
+        .into_iter()
+        .map(|c| (c.name.clone(), c))
+        .collect()
 }
 
 /// Look up a shipped `CardDefinition` by exact name from the full card registry list.
@@ -949,5 +957,115 @@ fn test_hash_distinguishes_new_variants_and_fixes_collision() {
         hash_lm(&modify_power_dynamic),
         "PB-AC3 collision fix: RemoveSuperType and ModifyPowerDynamic must hash \
          distinctly (previously both hashed discriminant prefix 26u8)"
+    );
+}
+
+// ── PB-AC3 card backfill regression: dying-0/0 CDA fixes ──────────────────────
+
+/// CR 613.4c / 107.3 — Ashaya, Soul of the Wild is a `*/*` whose power and toughness
+/// each equal the number of lands you control. Regression guard: this card previously
+/// shipped with `power/toughness: None` but NO CDA ability, so it resolved to 0/0 and
+/// died to SBA on entry. The `CdaPowerToughness { PermanentCount{Land, Controller} }`
+/// ability must yield P/T = land count.
+#[test]
+fn test_ashaya_pt_equals_lands_you_control() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = defs_map();
+    let registry = mtg_engine::CardRegistry::new(all_cards());
+
+    let ashaya_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Ashaya, Soul of the Wild")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(mtg_engine::card_name_to_id("Ashaya, Soul of the Wild")),
+        &defs,
+    );
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(std::sync::Arc::clone(&registry))
+        .object(ashaya_spec);
+    // Three lands you control; one land an opponent controls (must NOT count).
+    for _ in 0..3 {
+        builder = builder.object(ObjectSpec::land(p1, "Forest"));
+    }
+    builder = builder.object(ObjectSpec::land(p2, "Forest"));
+    let mut state = builder.build().unwrap();
+
+    let ashaya = find_object(&state, "Ashaya, Soul of the Wild");
+    // Builder bypasses the ETB path; register the CDA static effect manually.
+    let card_id = state.objects.get(&ashaya).and_then(|o| o.card_id.clone());
+    mtg_engine::rules::replacement::register_static_continuous_effects(
+        &mut state,
+        ashaya,
+        card_id.as_ref(),
+        &registry,
+    );
+
+    let chars = calculate_characteristics(&state, ashaya).unwrap();
+    assert_eq!(
+        chars.power,
+        Some(3),
+        "Ashaya power = 3 lands you control (opponent's land excluded)"
+    );
+    assert_eq!(
+        chars.toughness,
+        Some(3),
+        "Ashaya toughness = lands you control"
+    );
+}
+
+/// CR 613.4c — Multani, Yavimaya's Avatar is a base 0/0 that gets +1/+1 for each land you
+/// control AND each land card in your graveyard (a `Sum` of two counts). Regression guard:
+/// previously shipped as a base 0/0 with no pump (dying to SBA). Setup: 2 lands on the
+/// battlefield + 2 land cards in the graveyard -> +4/+4 -> 4/4.
+#[test]
+fn test_multani_pt_sums_lands_and_graveyard_lands() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = defs_map();
+    let registry = mtg_engine::CardRegistry::new(all_cards());
+
+    let multani_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Multani, Yavimaya's Avatar")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(mtg_engine::card_name_to_id("Multani, Yavimaya's Avatar")),
+        &defs,
+    );
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(std::sync::Arc::clone(&registry))
+        .object(multani_spec);
+    // Two lands on the battlefield.
+    for _ in 0..2 {
+        builder = builder.object(ObjectSpec::land(p1, "Forest"));
+    }
+    // Two land cards in the graveyard.
+    for _ in 0..2 {
+        builder = builder.object(ObjectSpec::land(p1, "Forest").in_zone(ZoneId::Graveyard(p1)));
+    }
+    let mut state = builder.build().unwrap();
+
+    let multani = find_object(&state, "Multani, Yavimaya's Avatar");
+    // Builder bypasses the ETB path; register the CDA static effect manually.
+    let card_id = state.objects.get(&multani).and_then(|o| o.card_id.clone());
+    mtg_engine::rules::replacement::register_static_continuous_effects(
+        &mut state,
+        multani,
+        card_id.as_ref(),
+        &registry,
+    );
+
+    let chars = calculate_characteristics(&state, multani).unwrap();
+    assert_eq!(
+        chars.power,
+        Some(4),
+        "Multani power = 2 battlefield lands + 2 graveyard land cards = 4"
+    );
+    assert_eq!(
+        chars.toughness,
+        Some(4),
+        "Multani toughness = 2 battlefield lands + 2 graveyard land cards = 4"
     );
 }
