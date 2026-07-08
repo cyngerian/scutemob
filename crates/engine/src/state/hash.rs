@@ -210,7 +210,11 @@
 ///   .counter_filter` / `.counter_on_self` (CR 122.6/122.7), and `GameObject
 ///   .triggered_abilities_fired_this_turn: OrdSet<usize>`. `#[serde(default)]` on all
 ///   new fields ensures pre-bump serialized states/defs deserialize cleanly.
-pub const HASH_SCHEMA_VERSION: u8 = 28;
+/// - 29: PB-AC2 (2026-07-07) — Optional-cost wrapper & counter-tax primitives. New
+///   `Effect` variants `MayPayThenEffect { cost, payer, then }` (discriminant 88, CR
+///   118.12 beneficial-pay) and `CounterUnlessPays { target, cost }` (discriminant 89,
+///   CR 118.12a counter-tax). No new runtime fields.
+pub const HASH_SCHEMA_VERSION: u8 = 29;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -5950,6 +5954,19 @@ impl HashInto for Effect {
             Effect::UntapAll { filter } => {
                 87u8.hash_into(hasher);
                 filter.hash_into(hasher);
+            }
+            // PB-AC2: MayPayThenEffect (discriminant 88) — CR 118.12
+            Effect::MayPayThenEffect { cost, payer, then } => {
+                88u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                payer.hash_into(hasher);
+                then.hash_into(hasher);
+            }
+            // PB-AC2: CounterUnlessPays (discriminant 89) — CR 118.12a
+            Effect::CounterUnlessPays { target, cost } => {
+                89u8.hash_into(hasher);
+                target.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }
