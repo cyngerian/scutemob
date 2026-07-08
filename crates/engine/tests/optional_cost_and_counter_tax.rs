@@ -571,6 +571,287 @@ fn test_may_pay_then_effect_sequence_declines_all_when_any_unavailable() {
     );
 }
 
+// ── Beneficial-pay: Sequence cumulative-depletion atomicity (review fix) ────────
+//
+// CR 118.12: "the entire cost must be paid" -- a `Sequence` is atomic across its
+// FULL combined demand, not just checked sub-cost-by-sub-cost against the
+// untouched starting state. A homogeneous-resource sequence (two sub-costs
+// drawing on the SAME pool: life, the same sacrificeable-permanent set, or the
+// same floating mana) must fail the pre-check -- and pay nothing -- when the
+// combined demand exceeds what's available, even though each sub-cost checked
+// in isolation against the starting state would appear payable.
+
+#[test]
+/// CR 118.12 (negative, cumulative depletion): `Sequence[Sacrifice(creature),
+/// Sacrifice(creature)]` with only ONE eligible creature on the battlefield.
+/// Checked independently against the untouched state, both sub-costs "look"
+/// payable (1 >= 1 eligible target, twice) -- but only one creature actually
+/// exists, so the combined demand (2 distinct sacrifices) is not satisfiable.
+/// The whole cost must be declined: `then` does not run and the creature survives.
+fn test_may_pay_then_effect_sequence_sacrifice_sacrifice_one_eligible_declines() {
+    let p1 = p(1);
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::creature(p1, "Only Fodder", 1, 1))
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let filter = TargetFilter {
+        has_card_type: Some(CardType::Creature),
+        ..Default::default()
+    };
+    let cost = Cost::Sequence(vec![
+        Cost::Sacrifice(filter.clone()),
+        Cost::Sacrifice(filter),
+    ]);
+    let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
+
+    assert!(
+        events.is_empty(),
+        "CR 118.12: only 1 eligible creature exists for a 2-sacrifice Sequence -- \
+         cumulative demand is unsatisfiable, so NOTHING should be paid and `then` \
+         should not run; got events: {:?}",
+        events
+    );
+    assert!(
+        state
+            .objects
+            .values()
+            .any(|o| o.characteristics.name == "Only Fodder" && o.zone == ZoneId::Battlefield),
+        "the sole creature must survive -- atomicity means no partial sacrifice"
+    );
+}
+
+#[test]
+/// CR 118.12 (positive control): `Sequence[Sacrifice(creature), Sacrifice(creature)]`
+/// with TWO eligible creatures -- the combined demand is satisfiable, so both are
+/// sacrificed and `then` runs.
+fn test_may_pay_then_effect_sequence_sacrifice_sacrifice_two_eligible_pays() {
+    let p1 = p(1);
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::creature(p1, "Fodder A", 1, 1))
+        .object(ObjectSpec::creature(p1, "Fodder B", 1, 1))
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let filter = TargetFilter {
+        has_card_type: Some(CardType::Creature),
+        ..Default::default()
+    };
+    let cost = Cost::Sequence(vec![
+        Cost::Sacrifice(filter.clone()),
+        Cost::Sacrifice(filter),
+    ]);
+    let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
+
+    let sac_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::PermanentSacrificed { .. }))
+        .count();
+    assert_eq!(
+        sac_count, 2,
+        "CR 118.12: 2 eligible creatures satisfy the combined demand -- both should \
+         be sacrificed; got events: {:?}",
+        events
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "CR 118.12: full cost paid -- `then` should run"
+    );
+    assert!(
+        !state.objects.values().any(|o| o.zone == ZoneId::Battlefield
+            && (o.characteristics.name == "Fodder A" || o.characteristics.name == "Fodder B")),
+        "both creatures should have left the battlefield"
+    );
+}
+
+#[test]
+/// CR 118.12 / 119.4 (negative, cumulative depletion): `Sequence[PayLife(5),
+/// PayLife(5)]` at life 6. Each sub-cost checked independently against the
+/// untouched state looks payable (6 >= 5, twice) -- but the combined demand (10)
+/// exceeds the life total. The whole cost must be declined: life is unchanged and
+/// `then` does not run.
+fn test_may_pay_then_effect_sequence_paylife_paylife_insufficient_declines() {
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+    state.players.get_mut(&p1).unwrap().life_total = 6;
+
+    let cost = Cost::Sequence(vec![Cost::PayLife(5), Cost::PayLife(5)]);
+    let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
+
+    assert!(
+        events.is_empty(),
+        "CR 119.4: life total (6) cannot cover the combined demand of a \
+         PayLife(5)+PayLife(5) Sequence (10) -- nothing should be paid and `then` \
+         should not run; got events: {:?}",
+        events
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().life_total,
+        6,
+        "life must be unchanged -- atomicity means no partial life payment"
+    );
+}
+
+#[test]
+/// CR 118.12 / 119.4 (positive control): `Sequence[PayLife(5), PayLife(5)]` at life
+/// 20 -- the combined demand (10) is satisfiable, so both sub-costs are paid and
+/// `then` runs.
+fn test_may_pay_then_effect_sequence_paylife_paylife_sufficient_pays() {
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+    state.players.get_mut(&p1).unwrap().life_total = 20;
+
+    let cost = Cost::Sequence(vec![Cost::PayLife(5), Cost::PayLife(5)]);
+    let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
+
+    let life_lost_total: u32 = events
+        .iter()
+        .filter_map(|e| match e {
+            GameEvent::LifeLost { amount, .. } => Some(*amount),
+            _ => None,
+        })
+        .sum();
+    assert_eq!(
+        life_lost_total, 10,
+        "CR 119.4: both PayLife(5) sub-costs should be paid in full; got events: {:?}",
+        events
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "CR 118.12: full cost paid -- `then` should run"
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().life_total,
+        10,
+        "life should be reduced by the combined 10 total"
+    );
+}
+
+#[test]
+/// CR 118.12 / 118.8 (negative, cumulative depletion): `Sequence[Mana{1}, Mana{1}]`
+/// with only 1 floating colorless mana. Each sub-cost checked independently
+/// against the untouched pool looks payable (1 >= 1, twice) -- but the combined
+/// demand (2) exceeds what's floating. The whole cost must be declined: the pool
+/// is unchanged and `then` does not run.
+fn test_may_pay_then_effect_sequence_mana_mana_one_floating_declines() {
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+
+    let mana_one = || {
+        Cost::Mana(ManaCost {
+            generic: 1,
+            ..Default::default()
+        })
+    };
+    let cost = Cost::Sequence(vec![mana_one(), mana_one()]);
+    let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
+
+    assert!(
+        events.is_empty(),
+        "CR 118.8/118.12: only 1 floating mana for a Mana{{1}}+Mana{{1}} Sequence \
+         (combined demand 2) -- nothing should be paid and `then` should not run; \
+         got events: {:?}",
+        events
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().mana_pool.colorless,
+        1,
+        "the floating mana must be untouched -- atomicity means no partial spend"
+    );
+}
+
+#[test]
+/// CR 118.12 / 118.8 (positive control): `Sequence[Mana{1}, Mana{1}]` with 2
+/// floating colorless mana -- the combined demand (2) is satisfiable, so both
+/// sub-costs are paid and `then` runs.
+fn test_may_pay_then_effect_sequence_mana_mana_two_floating_pays() {
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::card(p1, "Library Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+
+    let mana_one = || {
+        Cost::Mana(ManaCost {
+            generic: 1,
+            ..Default::default()
+        })
+    };
+    let cost = Cost::Sequence(vec![mana_one(), mana_one()]);
+    let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
+
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "CR 118.12: 2 floating mana satisfies the combined demand -- `then` should \
+         run; got events: {:?}",
+        events
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().mana_pool.colorless,
+        0,
+        "both floating mana should have been spent"
+    );
+}
+
 // ── Counter-tax: CounterUnlessPays ──────────────────────────────────────────────
 
 #[test]

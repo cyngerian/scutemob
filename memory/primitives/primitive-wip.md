@@ -63,7 +63,15 @@ review_file: memory/primitives/pb-review-AC2.md
   - Gates: `cargo build --workspace` clean (no TUI/replay-viewer arms needed, confirmed),
     `cargo test --all` 2908 passed / 0 failed, `cargo clippy --all-targets -- -D warnings`
     clean, `cargo fmt --check` clean.
-- [ ] review (primitive-impl-reviewer → pb-review-AC2.md)
-- [ ] fix (primitive-impl-runner)
-- [ ] backfill (bulk-card-author + card-batch-reviewer)
+- [x] review (primitive-impl-reviewer → pb-review-AC2.md, 2026-07-07)
+  - 0 HIGH, 2 MEDIUM, 2 LOW. Hash/PayLife-doubling/resolution-timing/CounterSpell
+    delegation all CR-correct. MEDIUM #1: Cost::Sequence pre-check ignored cumulative
+    resource depletion. MEDIUM #4: no real-card integration tests (deferred to backfill).
+- [x] fix (primitive-impl-runner, 2026-07-07)
+  - MEDIUM #1 FIXED: Sequence payability probe now simulates against a scratch GameState
+    clone with cumulative depletion; all-or-nothing preserved. +6 tests (2914 total).
+  - LOW #2 FIXED: `then` runs with ctx.controller rebound to the actual payer.
+  - LOW #3: note-only, left as-is. MEDIUM #4: deferred to backfill.
+- [ ] backfill (bulk-card-author + card-batch-reviewer) — incl. real-card integration
+      tests to close MEDIUM #4
 - [ ] close

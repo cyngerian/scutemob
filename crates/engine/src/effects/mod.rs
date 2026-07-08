@@ -2998,11 +2998,22 @@ fn execute_effect_inner(
         // invariant #9); `then` runs only if the cost was actually paid.
         Effect::MayPayThenEffect { cost, payer, then } => {
             let payer_ids = resolve_player_target_list(state, payer, ctx);
+            // Rebind `then`'s implicit controller (`ctx.controller`) to the actual
+            // payer for the duration of `then`'s execution. For the common single
+            // `PlayerTarget::Controller` payer this is a no-op (pid == the original
+            // controller); for a non-Controller payer target ("each opponent may pay
+            // X; if they do, they draw") this ensures PlayerFilter::Controller-based
+            // effects inside `then` (e.g. DrawCards) benefit the payer who actually
+            // paid, not always the spell/ability's controller. Restored afterward so
+            // sibling effects in the same resolution see the original controller.
+            let original_controller = ctx.controller;
             for pid in payer_ids {
                 if try_pay_optional_cost(state, pid, cost, events) {
+                    ctx.controller = pid;
                     execute_effect_inner(state, then, ctx, events);
                 }
             }
+            ctx.controller = original_controller;
         }
         // CR 118.12a: "Counter target spell unless its controller pays [cost]." Deterministic
         // path: the controller declines (or the mana/etc. is unavailable) -> counter.
@@ -7178,9 +7189,30 @@ fn can_pay_optional_cost(state: &GameState, pid: PlayerId, cost: &Cost) -> bool 
         Cost::Sacrifice(filter) => {
             !eligible_sacrifice_targets(state, pid, &Some(filter.clone())).is_empty()
         }
-        // CR 118.12 / CR 601.2g: a Sequence cost is atomic -- payable only if EVERY
-        // sub-cost is independently payable.
-        Cost::Sequence(costs) => costs.iter().all(|c| can_pay_optional_cost(state, pid, c)),
+        // CR 118.12 / CR 601.2g: a Sequence cost is atomic -- payable only if the
+        // FULL sequence can be paid in order. Checking every sub-cost independently
+        // against the untouched `state` overreports payability for homogeneous
+        // sequences that draw on the same resource pool (e.g. Sacrifice+Sacrifice
+        // with only one eligible permanent, or PayLife(5)+PayLife(5) at life 6) --
+        // both sub-checks would pass individually even though the combined demand
+        // isn't satisfiable. Simulate cumulative depletion against a scratch clone
+        // of `state` (cheap: `im`-backed structural sharing): pay each sub-cost in
+        // order, re-checking payability against the depleted scratch state before
+        // each pay. The scratch state and its events are discarded -- this is a
+        // pure payability probe, not the actual payment (that happens later against
+        // the real state in `pay_optional_cost`, guaranteed to succeed once this
+        // probe returns true).
+        Cost::Sequence(costs) => {
+            let mut scratch = state.clone();
+            let mut scratch_events = Vec::new();
+            costs.iter().all(|c| {
+                if !can_pay_optional_cost(&scratch, pid, c) {
+                    return false;
+                }
+                pay_optional_cost(&mut scratch, pid, c, &mut scratch_events);
+                true
+            })
+        }
         Cost::Tap
         | Cost::SacrificeSelf
         | Cost::ExileSelf
