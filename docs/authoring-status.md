@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-05-18 22:59 UTC  
-**Git:** `a0da201f` on `main`  
+**Generated:** 2026-07-08 00:05 UTC  
+**Git:** `34bee37c` on `feat/pb-ac1-counter-untap-once-per-turn-primitives`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 53.1% | 928 | -10 |
-| With TODO markers | 636 | +10 |
-| Empty `abilities: vec![]` placeholders | 184 | · |
-| Total TODO lines across all defs | 1,155 | +24 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 53.4% | 934 | +6 |
+| With TODO markers | 631 | -5 |
+| Empty `abilities: vec![]` placeholders | 183 | -1 |
+| Total TODO lines across all defs | 1,140 | -15 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 106 |
-| last 30 days | 0 | 257 |
-| last 90 days | 1,773 | 1,174 |
-| last 1 year | 1,773 | 1,174 |
+| last 7 days | 0 | 458 |
+| last 30 days | 0 | 458 |
+| last 90 days | 17 | 569 |
+| last 1 year | 1,773 | 1,219 |
 
 ## Bonus defs outside the plan
 
@@ -67,10 +67,10 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 76 | 101 | 10 |
-| `draw` | 163 / 169 | 96% | 59 | 79 | 25 |
+| `draw` | 163 / 169 | 96% | 62 | 76 | 25 |
 | `token-create` | 145 / 155 | 94% | 19 | 61 | 65 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
-| `other` | 108 / 131 | 82% | 62 | 46 | 0 |
+| `other` | 108 / 131 | 82% | 63 | 45 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 26 | 42 | 0 |
 | `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
 | `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
@@ -79,11 +79,11 @@ are blocked on engine primitives.
 | `land-fetch` | 45 / 45 | 100% | 25 | 19 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 18 | 15 | 1 |
-| `mana-artifact` | 34 / 34 | 100% | 22 | 9 | 3 |
+| `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
 | `activated-tap` | 2 / 27 | 7% | 1 | 1 | 0 |
 | `pump-buff` | 27 / 27 | 100% | 16 | 11 | 0 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 9 | 0 |
-| `removal-damage-target` | 23 / 23 | 100% | 4 | 14 | 5 |
+| `removal-damage-target` | 23 / 23 | 100% | 5 | 13 | 5 |
 | `activated-sacrifice` | 3 / 19 | 16% | 1 | 2 | 0 |
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 7 | 11 | 0 |
@@ -169,16 +169,15 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 669 | +19 |
-| DSL gap (unspecified) | 145 | · |
-| attack trigger (self / generic) | 28 | +2 |
+| OTHER (unclassified) | 670 | +1 |
+| DSL gap (unspecified) | 142 | -3 |
+| attack trigger (self / generic) | 28 | · |
 | Cost::* missing variant | 22 | · |
 | TriggerCondition::* missing variant | 19 | · |
 | replacement effect missing | 18 | · |
 | EffectAmount::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
 | sacrifice as cost | 16 | · |
-| untap-all / untap trigger | 13 | · |
 | CDA / dynamic P/T | 12 | · |
 | TargetFilter missing field | 12 | · |
 | interactive / hidden-info choice | 11 | · |
@@ -188,18 +187,19 @@ the next thing to triage when the classifier table is grown.
 | X-scaled tokens | 7 | · |
 | can't be countered | 7 | · |
 | no-maximum-hand-size | 7 | · |
-| per-player effect dispatch | 6 | +2 |
+| per-player effect dispatch | 6 | · |
 | proliferate trigger | 6 | · |
 | per-opponent upkeep | 6 | · |
 | devotion | 5 | · |
 | count-threshold static | 5 | · |
 | conditional static / grant | 5 | · |
+| equipment grants ability | 5 | · |
 
-_…and 33 more buckets totaling 74 lines._
+_…and 33 more buckets totaling 69 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 669 
+Showing 12 of 670 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -208,20 +208,22 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bonecrusher_giant: // TODO(3): "Damage can't be prevented this turn" — no Effect::PreventionShieldRemoval
 dark_petition: // TODO: Condition::SpellMastery (2+ instant/sorcery in graveyard) not in DSL.
-entish_restoration: // TODO: Two DSL gaps prevent faithful implementation:
+eomer_king_of_rohan: // TODO: ETB counter placement (X +1/+1 counters where X = other Humans you control) requires
 glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
-izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
-mana_tithe: // TODO: "Counter unless controller pays {1}" — requires CounterUnlessPays effect.
-ogre_battledriver: // ENGINE-BLOCKED: "that creature gets +2/+0 and gains haste until end of turn" requires
-ripples_of_undeath: // TODO: "first main phase" trigger + mill-3 + pay-1-life conditional return.
-smothering_abomination: // TODO: "At the beginning of your upkeep, sacrifice a creature" — forced sacrifice not expressible.
-teferi_hero_of_dominaria: // TODO: TriggerEvent::WheneverYouDrawCard not in DSL — emblem trigger gap.
-twilight_prophet: // TODO: Upkeep trigger conditioned on city's blessing, with drain-life based on
+jade_orb_of_dragonkind: // TODO: "When you spend this mana to cast a Dragon creature spell" trigger — no
+mana_vault: // ENGINE-BLOCKED: "At the beginning of your draw step, if this artifact is tapped, it deals
+oath_of_teferi: // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
+rings_of_brighthearth: // TODO: whenever you activate a non-mana ability, may pay {2} to copy it
+smoke_shroud: // TODO: "When a Ninja you control enters, you may return this from your graveyard
+tectonic_reformation: // TODO: Grant cycling to hand lands not expressible.
+transcendent_dragon: // TODO: "When this creature enters, if you cast it, counter target spell."
 ```
 
 ## Recent card-touching commits
 
 ```
+34bee37c W6-prim: PB-AC1 backfill — re-author cards unblocked by untap/counter/once-per-turn
+19b1f364 W6-prim: PB-AC1 implement — counter / untap / once-per-turn primitives
 a1ed95a6 W5-cards: scutemob-42 — address 3 LOW review findings (batch 2)
 2e9af171 W5-cards: scutemob-42 — re-author 12 stale-TODO cards (W-NOW-1 batch 2)
 1f27f39c W6-prim: PB-AC0 — ETBTriggerFilter subtype/nontoken forwarding on creature-ETB path
@@ -245,8 +247,6 @@ f8d7cdf4 scutemob-18: PB-CD — counter-doubling replacement effects (CR 122.6/6
 418976c9 scutemob-16: PB-TS card defs — 4 dynamic token-count cards re-authored
 a48f00e2 scutemob-16: PB-TS engine surface — TokenSpec.count u32 → EffectAmount
 15ca37ce scutemob-15: PB-CC-C-followup card defs — Vishgraz + Fuseling re-authored
-1a04b73d scutemob-14: PB-CC-A — EffectAmount::PlayerCounterCount + Vishgraz deferred
-7dcd6119 scutemob-13: PB-CC-C review fixes — defer Fuseling, ship engine variants for spell use cases (Option B per reviewer)
 ```
 
 ## Missing card-defs sidecar
