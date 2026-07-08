@@ -566,8 +566,9 @@ fn test_set_both_dynamic_then_anthem() {
     assert_eq!(chars.toughness, Some(4));
 }
 
-/// Full-dispatch: creatures gain all creature types (Layer 6 AddAllCreatureTypes)
-/// alongside the base-P/T set (Layer 7b), mirroring Mirror Entity's full ability text.
+/// Full-dispatch: creatures gain all creature types (Layer 4 type-changing
+/// AddAllCreatureTypes, CR 613.1d) alongside the base-P/T set (Layer 7b),
+/// mirroring Mirror Entity's full ability text.
 #[test]
 fn test_set_both_dynamic_with_all_creature_types() {
     let p1 = p(1);
@@ -597,7 +598,7 @@ fn test_set_both_dynamic_with_all_creature_types() {
     };
     let types_effect = Effect::ApplyContinuousEffect {
         effect_def: Box::new(ContinuousEffectDef {
-            layer: EffectLayer::Ability,
+            layer: EffectLayer::TypeChange,
             modification: LayerModification::AddAllCreatureTypes,
             filter: EffectFilter::CreaturesYouControl,
             duration: EffectDuration::UntilEndOfTurn,

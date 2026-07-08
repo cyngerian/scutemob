@@ -4,7 +4,7 @@ batch: PB-AC3
 title: Dynamic P/T & count amounts (CDA residual)
 cards_affected: ~14 (discounted; real roster to be identified from oracle text)
 started: 2026-07-08
-phase: implement
+phase: review
 plan_file: memory/primitives/pb-plan-AC3.md
 
 ## Coordinator decisions on plan (2026-07-08)

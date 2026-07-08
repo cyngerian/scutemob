@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Changeling),
             // CR 107.3k / 613.4b / 205.3m: {X}: Until EOT, creatures you control have base
             // P/T X/X (Layer 7b, PB-AC3 SetBothDynamic — locked in at resolution) and gain
-            // all creature types (Layer 6, AddAllCreatureTypes).
+            // all creature types (Layer 4 type-changing, AddAllCreatureTypes — CR 613.1d).
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
                 effect: Effect::Sequence(vec![
@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
                     },
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
-                            layer: EffectLayer::Ability,
+                            layer: EffectLayer::TypeChange,
                             modification: LayerModification::AddAllCreatureTypes,
                             filter: EffectFilter::CreaturesYouControl,
                             duration: EffectDuration::UntilEndOfTurn,
