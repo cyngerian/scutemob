@@ -23,9 +23,13 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Whenever you choose a creature as your Ring-bearer, you may pay 2 life.
-            // If you do, draw a card." — requires TriggerCondition::WhenRingBearerChosen
-            // and optional cost payment (may pay 2 life → draw). Deferred.
+            // ENGINE-BLOCKED: "Whenever you choose a creature as your Ring-bearer, you
+            // may pay 2 life. If you do, draw a card." PB-AC2's Effect::MayPayThenEffect
+            // (CR 118.12) now covers the "may pay 2 life -> draw" rider, but
+            // TriggerCondition::WhenRingBearerChosen does not exist (verified: the only
+            // Ring-related trigger in the enum is WheneverRingTemptsYou, which fires on
+            // temptation, not on choosing a Ring-bearer). Genuine remaining gap, out of
+            // PB-AC2 scope.
         ],
         ..Default::default()
     }

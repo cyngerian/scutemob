@@ -1599,6 +1599,23 @@ pub enum Effect {
         payer: PlayerTarget,
         or_else: Box<Effect>,
     },
+    /// CR 118.12: "[player] may pay [cost]. If they do, [then]." Beneficial optional cost.
+    /// Counterpart to `MayPayOrElse` (CR 118.12a tax semantics). `then` runs ONLY IF the
+    /// cost is paid. Deterministic non-interactive path: the payer pays when able (life >=
+    /// n, a matching permanent to sacrifice, a card to discard, or floating mana), then
+    /// `then` runs; otherwise nothing happens. Cost is paid at resolution (CR 118.12).
+    /// Interactive pay-vs-decline choice deferred to M10+.
+    MayPayThenEffect {
+        cost: Cost,
+        payer: PlayerTarget,
+        then: Box<Effect>,
+    },
+    /// CR 118.12a / CR 701.5: "Counter target spell unless its controller pays [cost]."
+    /// Equivalent to "controller may pay [cost]; if they don't, counter [target]."
+    /// Deterministic non-interactive path: controller does NOT pay -> [target] is countered
+    /// (delegates to `Effect::CounterSpell`, inheriting flashback-exile-at-counter behavior).
+    /// Interactive payment deferred to M10+. `cost` retained for M10+ / hashing / display.
+    CounterUnlessPays { target: EffectTarget, cost: Cost },
     /// CR 701.21a: The specified player sacrifices `count` permanents they control.
     ///
     /// If the player controls fewer than `count` permanents, they sacrifice all

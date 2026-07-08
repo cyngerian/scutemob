@@ -13,10 +13,10 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Storm),
             AbilityDefinition::Spell {
-                // TODO: "unless its controller pays {1}" — CounterUnlessPay not in DSL.
-                // Using unconditional counter (stronger than intended).
-                effect: Effect::CounterSpell {
+                // PB-AC2 (CR 118.12a): CounterUnlessPays — controller declines -> countered.
+                effect: Effect::CounterUnlessPays {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
                 },
                 targets: vec![TargetRequirement::TargetSpellWithFilter(TargetFilter {
                     has_card_types: vec![CardType::Instant, CardType::Sorcery],

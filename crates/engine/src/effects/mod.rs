@@ -20,8 +20,8 @@
 //! and reduces life for players. Death from lethal damage is handled by SBAs
 //! AFTER the effect resolves — the caller (resolution.rs) runs SBA checks.
 use crate::cards::card_definition::{
-    Condition, Effect, EffectAmount, EffectTarget, ForEachTarget, ManaRestriction, PlayerTarget,
-    TargetController, TargetFilter, ZoneTarget,
+    Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, ManaRestriction,
+    PlayerTarget, TargetController, TargetFilter, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{
@@ -2993,6 +2993,45 @@ fn execute_effect_inner(
             // M9+: interactive choice to pay or not. For M7, don't pay → apply or_else.
             execute_effect_inner(state, or_else, ctx, events);
         }
+        // CR 118.12: beneficial optional cost. Deterministic path: the payer pays when
+        // able (pay-when-able is a legal, deterministic game choice — architecture
+        // invariant #9); `then` runs only if the cost was actually paid.
+        Effect::MayPayThenEffect { cost, payer, then } => {
+            let payer_ids = resolve_player_target_list(state, payer, ctx);
+            // Rebind `then`'s implicit controller (`ctx.controller`) to the actual
+            // payer for the duration of `then`'s execution. For the common single
+            // `PlayerTarget::Controller` payer this is a no-op (pid == the original
+            // controller); for a non-Controller payer target ("each opponent may pay
+            // X; if they do, they draw") this ensures PlayerFilter::Controller-based
+            // effects inside `then` (e.g. DrawCards) benefit the payer who actually
+            // paid, not always the spell/ability's controller. Restored afterward so
+            // sibling effects in the same resolution see the original controller.
+            let original_controller = ctx.controller;
+            for pid in payer_ids {
+                if try_pay_optional_cost(state, pid, cost, events) {
+                    ctx.controller = pid;
+                    execute_effect_inner(state, then, ctx, events);
+                }
+            }
+            ctx.controller = original_controller;
+        }
+        // CR 118.12a: "Counter target spell unless its controller pays [cost]." Deterministic
+        // path: the controller declines (or the mana/etc. is unavailable) -> counter.
+        // Delegates to Effect::CounterSpell so flashback-exile-at-counter (CR 702.34a) and
+        // all other CounterSpell behavior apply identically. `cost` is retained on the
+        // variant for M10+ interactive payment / hashing / display, but the deterministic
+        // path always counters (the payer never has an incentive to voluntarily tax
+        // themselves without interactive choice).
+        Effect::CounterUnlessPays { target, cost: _ } => {
+            execute_effect_inner(
+                state,
+                &Effect::CounterSpell {
+                    target: target.clone(),
+                },
+                ctx,
+                events,
+            );
+        }
         // CR 701.21a: Sacrifice permanents — the specified player sacrifices N permanents.
         //
         // Sacrifice is NOT destruction: it bypasses indestructible (CR 701.21a).
@@ -3013,215 +3052,7 @@ fn execute_effect_inner(
             let player_ids = resolve_player_target_list(state, player, ctx);
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             for pid in player_ids {
-                // Collect the player's battlefield permanents sorted by ObjectId ascending
-                // for deterministic ordering (interactive choice deferred to M10+).
-                // CR 702.26b: phased-out permanents are treated as nonexistent.
-                // PB-SFT: apply filter using layer-resolved characteristics (CR 613.1d).
-                let mut controlled: Vec<ObjectId> = state
-                    .objects
-                    .iter()
-                    .filter(|(id, obj)| {
-                        if obj.zone != ZoneId::Battlefield
-                            || !obj.is_phased_in()
-                            || obj.controller != pid
-                        {
-                            return false;
-                        }
-                        if let Some(tf) = filter {
-                            // CR 613.1d: use layer-resolved characteristics for filter check.
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, **id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
-                            // Check Characteristics-based fields via matches_filter.
-                            if !matches_filter(&chars, tf) {
-                                return false;
-                            }
-                            // Runtime GameObject fields: is_token / is_nontoken (not in Characteristics).
-                            // `is_token: true` means "must be a token"; default false = no restriction.
-                            if tf.is_token && !obj.is_token {
-                                return false;
-                            }
-                            // `is_nontoken: true` means "must NOT be a token" (nontoken permanent).
-                            if tf.is_nontoken && obj.is_token {
-                                return false;
-                            }
-                            // Runtime field: is_attacking (checked via CombatState.attackers).
-                            // `is_attacking: true` means "must be attacking".
-                            // If no active combat phase, no permanent is attacking.
-                            if tf.is_attacking {
-                                let is_attacking = state
-                                    .combat
-                                    .as_ref()
-                                    .map(|c| c.attackers.contains_key(id))
-                                    .unwrap_or(false);
-                                if !is_attacking {
-                                    return false;
-                                }
-                            }
-                            // CR 122.1: counter check must be against GameObject (not Characteristics).
-                            if !check_has_counter_type(obj, tf) {
-                                return false;
-                            }
-                        }
-                        true
-                    })
-                    .map(|(id, _)| *id)
-                    .collect();
-                controlled.sort_unstable();
-                // Sacrifice min(n, count) permanents.
-                let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
-                for id in to_sacrifice {
-                    // CR 701.21a: sacrifice is NOT destruction — no indestructible check.
-                    // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
-                    let (
-                        card_types,
-                        owner,
-                        pre_sacrifice_controller,
-                        pre_death_counters,
-                        pre_death_power,
-                        sac_perm_pre_chars,
-                    ) = match state.objects.get(&id) {
-                        Some(obj) => {
-                            let pre_chars_opt =
-                                crate::rules::layers::calculate_characteristics(state, id);
-                            let chars = pre_chars_opt
-                                .clone()
-                                .unwrap_or_else(|| obj.characteristics.clone());
-                            let lki_power = chars.power;
-                            (
-                                chars.card_types,
-                                obj.owner,
-                                obj.controller,
-                                // CR 702.79a: capture counters before move_object_to_zone resets them.
-                                obj.counters.clone(),
-                                // CR 603.10a: capture layer-resolved power before zone move.
-                                lki_power,
-                                pre_chars_opt,
-                            )
-                        }
-                        None => continue,
-                    };
-                    // CR 614: Check replacement effects before moving to graveyard.
-                    let action = crate::rules::replacement::check_zone_change_replacement(
-                        state,
-                        id,
-                        ZoneType::Battlefield,
-                        ZoneType::Graveyard,
-                        owner,
-                        &std::collections::HashSet::new(),
-                    );
-                    match action {
-                        crate::rules::replacement::ZoneChangeAction::Redirect {
-                            to: dest,
-                            events: repl_events,
-                            ..
-                        } => {
-                            events.extend(repl_events);
-                            if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
-                                match dest {
-                                    ZoneId::Exile => {
-                                        events.push(GameEvent::ObjectExiled {
-                                            player: owner,
-                                            object_id: id,
-                                            new_exile_id: new_id,
-                                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
-                                            pre_lba_counters: pre_death_counters.clone(),
-                                            pre_lba_power: pre_death_power,
-                                        });
-                                        // CR 701.21a: PermanentSacrificed alongside exile.
-                                        events.push(GameEvent::PermanentSacrificed {
-                                            player: pid,
-                                            object_id: id,
-                                            new_id,
-                                        });
-                                    }
-                                    ZoneId::Command(_) => {
-                                        // Commander redirected to command zone — no sacrifice event.
-                                    }
-                                    _ => {
-                                        if card_types.contains(&CardType::Creature) {
-                                            events.push(GameEvent::CreatureDied {
-                                                object_id: id,
-                                                new_grave_id: new_id,
-                                                controller: pre_sacrifice_controller,
-                                                // CR 702.79a: last-known counter state.
-                                                pre_death_counters: pre_death_counters.clone(),
-                                                pre_death_power,
-                                                pre_death_characteristics: sac_perm_pre_chars
-                                                    .clone(),
-                                            });
-                                        } else {
-                                            events.push(GameEvent::PermanentDestroyed {
-                                                object_id: id,
-                                                new_grave_id: new_id,
-                                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
-                                                pre_lba_counters: pre_death_counters.clone(),
-                                                pre_lba_power: pre_death_power,
-                                            });
-                                        }
-                                        // CR 701.21a: PermanentSacrificed alongside death/destroy.
-                                        events.push(GameEvent::PermanentSacrificed {
-                                            player: pid,
-                                            object_id: id,
-                                            new_id,
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                        crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
-                            player,
-                            choices,
-                            event_description,
-                        } => {
-                            use crate::state::replacement_effect::PendingZoneChange;
-                            state.pending_zone_changes.push_back(PendingZoneChange {
-                                object_id: id,
-                                original_from: ZoneType::Battlefield,
-                                original_destination: ZoneType::Graveyard,
-                                affected_player: player,
-                                already_applied: Vec::new(),
-                            });
-                            events.push(GameEvent::ReplacementChoiceRequired {
-                                player,
-                                event_description,
-                                choices,
-                            });
-                        }
-                        crate::rules::replacement::ZoneChangeAction::Proceed => {
-                            // No replacement — sacrifice to graveyard normally.
-                            if let Ok((new_id, _old)) =
-                                state.move_object_to_zone(id, ZoneId::Graveyard(owner))
-                            {
-                                if card_types.contains(&CardType::Creature) {
-                                    events.push(GameEvent::CreatureDied {
-                                        object_id: id,
-                                        new_grave_id: new_id,
-                                        controller: pre_sacrifice_controller,
-                                        // CR 702.79a: last-known counter state.
-                                        pre_death_counters: pre_death_counters.clone(),
-                                        pre_death_power,
-                                        pre_death_characteristics: sac_perm_pre_chars.clone(),
-                                    });
-                                } else {
-                                    events.push(GameEvent::PermanentDestroyed {
-                                        object_id: id,
-                                        new_grave_id: new_id,
-                                        // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
-                                        pre_lba_counters: pre_death_counters.clone(),
-                                        pre_lba_power: pre_death_power,
-                                    });
-                                }
-                                // CR 701.21a: PermanentSacrificed alongside death/destroy.
-                                events.push(GameEvent::PermanentSacrificed {
-                                    player: pid,
-                                    object_id: id,
-                                    new_id,
-                                });
-                            }
-                        }
-                    }
-                }
+                sacrifice_permanents_for_player(state, pid, n, filter, events);
             }
         }
         // CR 701.15a: Goad — mark the target creature as goaded until the start of
@@ -7094,6 +6925,370 @@ pub fn make_token(
 
         skip_untap_steps: 0,
     }
+}
+// ── Sacrifice-as-cost helpers (CR 701.21a / PB-SFT / PB-AC2) ───────────────────
+/// Collect the battlefield permanents `pid` controls that are eligible to be
+/// sacrificed, optionally restricted by `filter` (layer-resolved characteristics,
+/// CR 613.1d, plus runtime `GameObject` fields not present on `Characteristics`).
+/// `None` filter = any battlefield permanent `pid` controls. Not sorted — callers
+/// that need deterministic ordering sort the result themselves.
+///
+/// Shared by `Effect::SacrificePermanents` and the PB-AC2 optional-cost "sacrifice
+/// a permanent" path (`try_pay_optional_cost`) so eligibility logic is defined once.
+fn eligible_sacrifice_targets(
+    state: &GameState,
+    pid: PlayerId,
+    filter: &Option<TargetFilter>,
+) -> Vec<ObjectId> {
+    state
+        .objects
+        .iter()
+        .filter(|(id, obj)| {
+            if obj.zone != ZoneId::Battlefield || !obj.is_phased_in() || obj.controller != pid {
+                return false;
+            }
+            if let Some(tf) = filter {
+                // CR 613.1d: use layer-resolved characteristics for filter check.
+                let chars = crate::rules::layers::calculate_characteristics(state, **id)
+                    .unwrap_or_else(|| obj.characteristics.clone());
+                // Check Characteristics-based fields via matches_filter.
+                if !matches_filter(&chars, tf) {
+                    return false;
+                }
+                // Runtime GameObject fields: is_token / is_nontoken (not in Characteristics).
+                // `is_token: true` means "must be a token"; default false = no restriction.
+                if tf.is_token && !obj.is_token {
+                    return false;
+                }
+                // `is_nontoken: true` means "must NOT be a token" (nontoken permanent).
+                if tf.is_nontoken && obj.is_token {
+                    return false;
+                }
+                // Runtime field: is_attacking (checked via CombatState.attackers).
+                // `is_attacking: true` means "must be attacking".
+                // If no active combat phase, no permanent is attacking.
+                if tf.is_attacking {
+                    let is_attacking = state
+                        .combat
+                        .as_ref()
+                        .map(|c| c.attackers.contains_key(id))
+                        .unwrap_or(false);
+                    if !is_attacking {
+                        return false;
+                    }
+                }
+                // CR 122.1: counter check must be against GameObject (not Characteristics).
+                if !check_has_counter_type(obj, tf) {
+                    return false;
+                }
+            }
+            true
+        })
+        .map(|(id, _)| *id)
+        .collect()
+}
+/// Sacrifice up to `n` permanents controlled by `pid`, optionally restricted by
+/// `filter`. Deterministic selection: ObjectId ascending (interactive choice
+/// deferred to M10+). If fewer than `n` eligible permanents exist, sacrifices all
+/// of them (not an error). Sacrifice is NOT destruction — no indestructible check
+/// (CR 701.21a). Fires "dies"/"leaves the battlefield" triggers normally via the
+/// same replacement-effect-aware zone-move path used elsewhere in the engine.
+///
+/// Shared by `Effect::SacrificePermanents` and the PB-AC2 optional-cost "sacrifice
+/// a permanent" path (`try_pay_optional_cost`) so dies triggers and replacement
+/// effects apply identically in both paths.
+fn sacrifice_permanents_for_player(
+    state: &mut GameState,
+    pid: PlayerId,
+    n: usize,
+    filter: &Option<TargetFilter>,
+    events: &mut Vec<GameEvent>,
+) {
+    let mut controlled = eligible_sacrifice_targets(state, pid, filter);
+    controlled.sort_unstable();
+    let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
+    for id in to_sacrifice {
+        // CR 701.21a: sacrifice is NOT destruction — no indestructible check.
+        // CR 613.1d: Use layer-resolved types for pre-zone-move type capture.
+        let (
+            card_types,
+            owner,
+            pre_sacrifice_controller,
+            pre_death_counters,
+            pre_death_power,
+            sac_perm_pre_chars,
+        ) = match state.objects.get(&id) {
+            Some(obj) => {
+                let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, id);
+                let chars = pre_chars_opt
+                    .clone()
+                    .unwrap_or_else(|| obj.characteristics.clone());
+                let lki_power = chars.power;
+                (
+                    chars.card_types,
+                    obj.owner,
+                    obj.controller,
+                    // CR 702.79a: capture counters before move_object_to_zone resets them.
+                    obj.counters.clone(),
+                    // CR 603.10a: capture layer-resolved power before zone move.
+                    lki_power,
+                    pre_chars_opt,
+                )
+            }
+            None => continue,
+        };
+        // CR 614: Check replacement effects before moving to graveyard.
+        let action = crate::rules::replacement::check_zone_change_replacement(
+            state,
+            id,
+            ZoneType::Battlefield,
+            ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+        match action {
+            crate::rules::replacement::ZoneChangeAction::Redirect {
+                to: dest,
+                events: repl_events,
+                ..
+            } => {
+                events.extend(repl_events);
+                if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                    match dest {
+                        ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: owner,
+                                object_id: id,
+                                new_exile_id: new_id,
+                                // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                pre_lba_counters: pre_death_counters.clone(),
+                                pre_lba_power: pre_death_power,
+                            });
+                            // CR 701.21a: PermanentSacrificed alongside exile.
+                            events.push(GameEvent::PermanentSacrificed {
+                                player: pid,
+                                object_id: id,
+                                new_id,
+                            });
+                        }
+                        ZoneId::Command(_) => {
+                            // Commander redirected to command zone — no sacrifice event.
+                        }
+                        _ => {
+                            if card_types.contains(&CardType::Creature) {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: id,
+                                    new_grave_id: new_id,
+                                    controller: pre_sacrifice_controller,
+                                    // CR 702.79a: last-known counter state.
+                                    pre_death_counters: pre_death_counters.clone(),
+                                    pre_death_power,
+                                    pre_death_characteristics: sac_perm_pre_chars.clone(),
+                                });
+                            } else {
+                                events.push(GameEvent::PermanentDestroyed {
+                                    object_id: id,
+                                    new_grave_id: new_id,
+                                    // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                                    pre_lba_counters: pre_death_counters.clone(),
+                                    pre_lba_power: pre_death_power,
+                                });
+                            }
+                            // CR 701.21a: PermanentSacrificed alongside death/destroy.
+                            events.push(GameEvent::PermanentSacrificed {
+                                player: pid,
+                                object_id: id,
+                                new_id,
+                            });
+                        }
+                    }
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                player,
+                choices,
+                event_description,
+            } => {
+                use crate::state::replacement_effect::PendingZoneChange;
+                state.pending_zone_changes.push_back(PendingZoneChange {
+                    object_id: id,
+                    original_from: ZoneType::Battlefield,
+                    original_destination: ZoneType::Graveyard,
+                    affected_player: player,
+                    already_applied: Vec::new(),
+                });
+                events.push(GameEvent::ReplacementChoiceRequired {
+                    player,
+                    event_description,
+                    choices,
+                });
+            }
+            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                // No replacement — sacrifice to graveyard normally.
+                if let Ok((new_id, _old)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                {
+                    if card_types.contains(&CardType::Creature) {
+                        events.push(GameEvent::CreatureDied {
+                            object_id: id,
+                            new_grave_id: new_id,
+                            controller: pre_sacrifice_controller,
+                            // CR 702.79a: last-known counter state.
+                            pre_death_counters: pre_death_counters.clone(),
+                            pre_death_power,
+                            pre_death_characteristics: sac_perm_pre_chars.clone(),
+                        });
+                    } else {
+                        events.push(GameEvent::PermanentDestroyed {
+                            object_id: id,
+                            new_grave_id: new_id,
+                            // CR 603.10a: pass LKI counters for WhenLeavesBattlefield triggers.
+                            pre_lba_counters: pre_death_counters.clone(),
+                            pre_lba_power: pre_death_power,
+                        });
+                    }
+                    // CR 701.21a: PermanentSacrificed alongside death/destroy.
+                    events.push(GameEvent::PermanentSacrificed {
+                        player: pid,
+                        object_id: id,
+                        new_id,
+                    });
+                }
+            }
+        }
+    }
+}
+// ── PB-AC2: optional-cost (beneficial-pay) helper ──────────────────────────────
+/// CR 118.12 / 118.8: check whether `pid` can pay `cost` right now, without mutating
+/// state. Used both as the pre-check gate in `try_pay_optional_cost` and to make
+/// `Cost::Sequence` atomic (CR 118.12 -- the whole cost is paid or none of it is).
+///
+/// Supported cost kinds: `Mana`, `PayLife`, `DiscardCard`, `Sacrifice`, `Sequence`.
+/// Other `Cost` variants (`Tap`/`SacrificeSelf`/`ExileSelf`/`Forage`/`RemoveCounter`/
+/// `DiscardSelf`) are out of PB-AC2 scope and report unpayable (`false`).
+fn can_pay_optional_cost(state: &GameState, pid: PlayerId, cost: &Cost) -> bool {
+    match cost {
+        // CR 118.8: mana costs are payable only from the floating mana pool at
+        // resolution time (mana pools empty between steps, CR 500.4).
+        Cost::Mana(mc) => state
+            .players
+            .get(&pid)
+            .map(|ps| crate::rules::casting::can_pay_cost(&ps.mana_pool, mc))
+            .unwrap_or(false),
+        // CR 119.4: a player can pay life only if their life total is >= the amount.
+        Cost::PayLife(n) => state
+            .players
+            .get(&pid)
+            .map(|ps| ps.life_total >= *n as i32)
+            .unwrap_or(false),
+        // Payable iff the player has at least one card in hand to discard.
+        Cost::DiscardCard => {
+            let hand_id = ZoneId::Hand(pid);
+            state.objects.values().any(|o| o.zone == hand_id)
+        }
+        // CR 613.1d: payable iff at least one eligible permanent exists.
+        Cost::Sacrifice(filter) => {
+            !eligible_sacrifice_targets(state, pid, &Some(filter.clone())).is_empty()
+        }
+        // CR 118.12 / CR 601.2g: a Sequence cost is atomic -- payable only if the
+        // FULL sequence can be paid in order. Checking every sub-cost independently
+        // against the untouched `state` overreports payability for homogeneous
+        // sequences that draw on the same resource pool (e.g. Sacrifice+Sacrifice
+        // with only one eligible permanent, or PayLife(5)+PayLife(5) at life 6) --
+        // both sub-checks would pass individually even though the combined demand
+        // isn't satisfiable. Simulate cumulative depletion against a scratch clone
+        // of `state` (cheap: `im`-backed structural sharing): pay each sub-cost in
+        // order, re-checking payability against the depleted scratch state before
+        // each pay. The scratch state and its events are discarded -- this is a
+        // pure payability probe, not the actual payment (that happens later against
+        // the real state in `pay_optional_cost`, guaranteed to succeed once this
+        // probe returns true).
+        Cost::Sequence(costs) => {
+            let mut scratch = state.clone();
+            let mut scratch_events = Vec::new();
+            costs.iter().all(|c| {
+                if !can_pay_optional_cost(&scratch, pid, c) {
+                    return false;
+                }
+                pay_optional_cost(&mut scratch, pid, c, &mut scratch_events);
+                true
+            })
+        }
+        Cost::Tap
+        | Cost::SacrificeSelf
+        | Cost::ExileSelf
+        | Cost::Forage
+        | Cost::RemoveCounter { .. }
+        | Cost::DiscardSelf => false,
+    }
+}
+/// CR 118.12 / 118.8: pay `cost` for `pid`, assuming `can_pay_optional_cost` already
+/// returned `true` for it. Mutates state and emits the same events the equivalent
+/// mandatory-cost effects emit (`LoseLife`, discard, sacrifice) so downstream watcher
+/// triggers behave identically to a mandatory payment of the same shape.
+fn pay_optional_cost(
+    state: &mut GameState,
+    pid: PlayerId,
+    cost: &Cost,
+    events: &mut Vec<GameEvent>,
+) {
+    match cost {
+        Cost::Mana(mc) => {
+            if let Some(ps) = state.players.get_mut(&pid) {
+                crate::rules::casting::pay_cost(&mut ps.mana_pool, mc);
+            }
+        }
+        Cost::PayLife(n) => {
+            // CR 119.4: "If a player pays life, ... the player loses that much life" --
+            // apply life-loss doubling replacement effects exactly as Effect::LoseLife does.
+            let (final_loss, doubling_events) =
+                crate::rules::replacement::apply_life_loss_doubling(state, pid, *n);
+            events.extend(doubling_events);
+            if let Some(ps) = state.players.get_mut(&pid) {
+                ps.life_total -= final_loss as i32;
+                // CR 702.137a: track life lost this turn for Spectacle.
+                ps.life_lost_this_turn += final_loss;
+            }
+            events.push(GameEvent::LifeLost {
+                player: pid,
+                amount: final_loss,
+            });
+        }
+        Cost::DiscardCard => discard_cards(state, pid, 1, events),
+        Cost::Sacrifice(filter) => {
+            sacrifice_permanents_for_player(state, pid, 1, &Some(filter.clone()), events)
+        }
+        Cost::Sequence(costs) => {
+            for c in costs {
+                pay_optional_cost(state, pid, c, events);
+            }
+        }
+        Cost::Tap
+        | Cost::SacrificeSelf
+        | Cost::ExileSelf
+        | Cost::Forage
+        | Cost::RemoveCounter { .. }
+        | Cost::DiscardSelf => {
+            // Out of PB-AC2 scope -- can_pay_optional_cost never returns true for these,
+            // so this arm is unreachable in practice.
+        }
+    }
+}
+/// CR 118.12 / 118.8: attempt to pay an optional cost non-interactively (deterministic).
+/// Returns `true` and mutates state iff the cost was fully paid; returns `false` (no
+/// mutation) if the payer can't/doesn't pay. "Pay when able" is the deterministic
+/// default until M10+ adds interactive pay-vs-decline choice (architecture invariant
+/// #9 -- a legal, replayable game choice, not state corruption).
+fn try_pay_optional_cost(
+    state: &mut GameState,
+    pid: PlayerId,
+    cost: &Cost,
+    events: &mut Vec<GameEvent>,
+) -> bool {
+    if !can_pay_optional_cost(state, pid, cost) {
+        return false;
+    }
+    pay_optional_cost(state, pid, cost, events);
+    true
 }
 // ── Card draw helper ──────────────────────────────────────────────────────────
 /// Draw one card for a player (CR 121.1). Returns events.
