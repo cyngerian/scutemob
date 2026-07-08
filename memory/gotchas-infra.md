@@ -498,3 +498,12 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
   (~17% fully clean vs the audit's optimistic estimate). A stale-looking TODO is a
   prior, not a guarantee; most cards carry ≥1 genuinely blocked clause. Discount
   authoring-wave yield estimates the same way PB yields are discounted.
+- **`authoring-report.py` empty-abilities regex lacks a word boundary** — it matches
+  `mana_abilities: vec![],` as if it were `abilities: vec![],`, misclassifying Krenko
+  (functionally complete + tested) as "empty". Found by the PB-AC3 worker 2026-07-08;
+  one-line fix still pending. Until fixed, "empty" counts may be off by a card or two.
+- **`esm worktree check` false `conflicts: True`** — seen again on scutemob-45 even
+  though the branch's merge-base was main's exact tip (merge then succeeded cleanly).
+  Triggered by phantom `.claude/skills` deletions and/or attestation branch-name drift.
+  Before trusting the flag, run `git merge-base main <branch>`: if it equals main's
+  tip, the merged tree is byte-identical to the worker tree where gates ran.

@@ -15,13 +15,47 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/low-sweep-plan.md`. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **Card Authoring Campaign ACTIVE** — plan: `memory/card-authoring/campaign-plan-2026-05-16.md`. Launched via `scutemob-39..42` + PB-AC0. Next: recalibrate plan, dispatch PB-AC1. Prior: 2 PBs 2026-05-15 (`scutemob-29..30`) — `scutemob-29` OOS-LKI-Power-3 (hash `pre_lba_power` on 4 `GameEvent` variants, HASH 23→**24**, +1 test) merged `e7d01fda`; `scutemob-30` OOS-XA2-3 (`is_nontoken` target-side audit — 0-yield, OOS-XA-3/XA2-3 RESOLVED) merged `184162df`. Tests 2818→**2819**. Earlier 2026-05-15: 7-PB chain (`scutemob-22..28`, HASH 19→23). High-confidence primitive backlog now exhausted — see Last Handoff. |
+| W6: Primitive + Card Authoring | — | available | — | **Card Authoring Campaign ACTIVE** — plan: `memory/card-authoring/campaign-plan-2026-05-16.md` (§0 recalibration 2026-07-07 is authoritative; PB-first sequencing). PB-AC1/AC2/AC3 shipped 2026-07-07/08 (`scutemob-43..45`). Next: dispatch PB-AC4 (modal & optional targeting), then AC5..AC9 in chain order. Clean coverage 951/1,748 = 54.4%. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
+
+**Date**: 2026-07-08 (oversight session 2026-07-07/08 — coordinator dispatching)
+**Workstream**: W6: Primitive + Card Authoring — Card Authoring Campaign, PB chain
+**Task**: Plan recalibration + PB-AC1/AC2/AC3 dispatched, verified, collected (`scutemob-43..45`)
+
+**Completed** (all merged to main AND pushed — origin in sync at `684e51c0`):
+- **Origin push**: cleared the 15-commit unpushed backlog as first act; every merge since pushed same-day.
+- **Plan recalibration** (`5c5dccb5`): campaign plan §0 added — measured 4/24 clean (17%) falsifies the "~435 free cards" estimate; **PB-first sequencing**; ETB cluster marked RESOLVED by PB-AC0; W-NOW batches 3+ paused; §1/§4/§6/§7 marked superseded.
+- **PB-AC1** (`scutemob-43`, merge `5cd9a662`): `Effect::UntapAll`, `WheneverPermanentUntaps` + `WhenCounterPlaced` triggers, `once_per_turn` limiter, `DoesNotUntap` static. +20 tests (2893). Review 1 HIGH (`triggered_abilities_fired_this_turn` unhashed) + 2 MED — all fixed. Backfill 13 cards: 8 CLEAN / 5 PARTIAL. Coverage 928→934.
+- **PB-AC2** (`scutemob-44`, merge `4d819ef4`): `Effect::MayPayThenEffect` (beneficial-pay wrapper — distinct from `MayPayOrElse` tax semantics) + `Effect::CounterUnlessPays`. CR corrected to 118.12/118.12a. +26 tests (2919). Review 0 HIGH / 2 MED — fixed. Backfill 20 cards: 12 CLEAN / 8 PARTIAL (Crossway Troublemakers + Miara riders live). Coverage 934→946.
+- **PB-AC3** (`scutemob-45`, merge `0bd7c7a3`): `EffectAmount::{AttackingCreatureCount(19), TappedCreatureCount(20), HandSize(21)}` + `LayerModification::SetBothDynamic(28, Layer 7b)`; fixed pre-existing hash disc-26 collision (`RemoveSuperType`→29); schema 29→30. +21 tests (**2940**). Engine review clean; card review found **4 HIGH wrong-game-state** on PARTIALs (Mishra `Fixed(1)` drain, Ashaya/Multani dying 0/0, Wight self-sac) — all fixed, verdict RESOLVED. Coverage 946→**951 (54.4%)**, todo 621→616.
+
+**Not done / deferred**:
+- `tools/authoring-report.py` regex bug (pre-existing, found by AC3 worker): no word boundary, so `mana_abilities: vec![],` matches the empty-abilities pattern — Krenko misclassified "empty" though functionally correct + tested. One-line chore candidate (+1 honest clean).
+- PB-AC4..AC9 not started; W-EMPTY / W-MISS derisking batches not run.
+
+**Next session candidates** (highest-yield first):
+- Dispatch **PB-AC4** (modal & optional targeting, ~20 cards), then AC5..AC9 in chain order. The AC1-3 rhythm is proven: task brief with hazards → worker runs `/implement-primitive` + backfill → coordinator verifies reviews/commits independently → collect. ~60-90 min per PB.
+- Fold the authoring-report.py word-boundary fix into a chore commit.
+- Optionally one 12-card derisking batch each of W-EMPTY / W-MISS to measure those cohorts before scheduling them (plan §0.4).
+
+**Hazards** (carrying forward):
+- Disk: each worktree builds ~30G `target/` — run dispatches **strictly sequential**, one worktree at a time.
+- `esm worktree check` false `conflicts: True` again (scutemob-45) even though merge-base == main tip; caused by the phantom `.claude/skills` deletions and/or attestation branch-name drift. Verify with `git merge-base <main> <branch>` — if base == main tip, the merged tree is byte-identical to the worker tree where gates ran.
+- Run `esm task unlock <id> --agent primary` right after the in_progress transition — coordinator lock blocks worker `signal-ready`.
+- New struct fields / mutable runtime fields MUST be added to `state/hash.rs` `HashInto` impls (PB-AC1's HIGH was exactly this). Keep it in every PB task brief.
+- Phantom `.claude/skills/*` deletions in fresh worktrees — do NOT commit (all 3 workers complied).
+- Dual incomplete markers: grep BOTH `// TODO` and `// ENGINE-BLOCKED`.
+
+**Commit prefix used**: worker `W6-prim:`, `merge:` for merges, coordinator `chore:`.
+
+---
+
+## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-07-07 session close (work merged under 2026-05-16/18 commit stamps)
 **Workstream**: W6: Primitive + Card Authoring — **Card Authoring Campaign launched**
@@ -54,39 +88,11 @@
 
 ---
 
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-05-16 (coordinator session — W3 LOW Sweep campaign)
-**Workstream**: W3: LOW Remediation
-**Task**: LOW Sweep campaign — 8 dispatched fix sessions (`scutemob-31..38`) closing the entire actionable open-LOW backlog. Plan/tracker: `memory/low-sweep-plan.md`.
-
-**Completed** (all merged to main):
-- **LS-1** `scutemob-31` (`f492f815`): 6 commander/deck-validation LOWs (MR-M9-09/10/11/12/13/16).
-- **LS-2** `scutemob-32` (`93f6d3b5`): 7 replay-viewer/harness LOWs (MR-M9.5-05/09/10/12/13, MR-CKP-01, MR-B12-05). Coordinator resolved a parallel `milestone-reviews.md` stats conflict.
-- **LS-3** `scutemob-33` (`6010b5c9`): 6 combat LOWs (MR-M6-13, SR-TRM-01/02, SR-FS-02/03, MR-M2-16). SR-TRM-01/02 were 0-yield (already correct, stale doc refs).
-- **LS-4** `scutemob-34` (`b760292a`): 5 protection LOWs (SR-PRO-01..04, MR-M9.4-10). New `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`.
-- **LS-5** `scutemob-35` (`e3fbd3da`): 6 replacement-effect LOWs (MR-M8-12/16, MR-B12-03/04, MR-B16-07, PB-Q4-L01).
-- **LS-6** `scutemob-36` (`db49ddee`): PB-T-L01/L02/L03 unblocked — new `Effect::DestroyAndReanimate` + `Effect::PreventNextUntap` DSL primitives; Sorin/Tamiyo riders + Hands of Binding.
-- **LS-7** `scutemob-37` (`d81e107c`): BASELINE-LKI-01 fixed — `pre_death_characteristics` snapshot on `CreatureDied` (CR 603.10a/613.1e). Audit: `memory/primitives/lki-completeness-audit.md`.
-- **LS-8** `scutemob-38` (`9b4ed0d2`): MR-B11-08/09 — authored Insatiable Avarice ({B}-base Spree card) + 2 tests.
-
-**Session totals**: 8 session merges + 1 `chore:` (authoring-report regen `019d6ba6`). 36 of 42 open LOWs closed; LOW-OPEN 45→**6**. Tests 2819→**2860**. HASH 24→**27** (LS-6 +2 effect discs, LS-7 +1). Final `cargo test --all` on main green; build/clippy/fmt clean.
-
-**Residual — 6 LOWs deliberately NOT closed** (documented in `memory/low-sweep-plan.md`):
-- 4 M10-gated: MR-M8-11 (CR 615.7 interactive shield choice), MR-B16-04/05/06 (interactive targeting / ForEach context). Ride M10.
-- 2 permanent perf non-bottlenecks: MR-M1-18 (zone O(n) contains), MR-M6-14 (blockers_for rebuild).
-- 1 follow-up LOW filed by LS-7 audit: continuous-effect-*granted triggered abilities* lost via `SelfDies`/`SelfLeavesBattlefield` (same LKI class) — see `lki-completeness-audit.md`.
-
-**Hazards** (carrying forward):
-- Disk: each worktree builds a ~30G `cargo target/`. 4 parallel worktrees filled the 396G disk to 100% and zeroed `~/.claude.json` (recovered from `~/.claude/backups/`). **Run LOW/PB sessions strictly sequential** — one worktree at a time, peak ~30G.
-- `esm worktree check` reported a false conflict when the `working_branch` attestation didn't match the real branch name (esm worktree create appends `-triggers` etc.). Always read the real branch from `esm worktree list`, not the attestation.
-- Worker `signal-ready` is rejected while the coordinator's lock is held — `esm task unlock <id> --agent primary` right after the in_progress transition so workers can self-transition to in_review.
-
-**Commit prefix used**: worker-side `scutemob-N:`, `merge:` for merges, `chore:` for bookkeeping.
-
----
-
 ## Handoff History
+
+### 2026-05-16 (coordinator session — LOW Sweep campaign) — W3: LOW Remediation
+
+- **8 fix sessions** (`scutemob-31..38`, plan `memory/low-sweep-plan.md`): 36 of 42 open LOWs closed, LOW-OPEN 45→**6** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). New DSL: `Effect::DestroyAndReanimate`, `Effect::PreventNextUntap`, `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`; BASELINE-LKI-01 fixed (`pre_death_characteristics` snapshot, CR 603.10a/613.1e — audit `memory/primitives/lki-completeness-audit.md`, which filed +1 follow-up LOW: continuous-effect-granted triggered abilities lost via SelfDies). Tests 2819→**2860**; HASH 24→**27**. Origin hazards recorded: 4 parallel worktrees filled the disk to 100% (hence strictly-sequential rule); attestation-vs-real-branch-name drift causes false `esm worktree check` conflicts.
 
 ### 2026-05-15 (coordinator session 2 — 2-PB chain) — W6: Primitive
 
@@ -105,9 +111,4 @@
 - **PB-EWC shipped** (`scutemob-20`, merged `9ea3ba8c`). `ReplacementModification::EntersWithCounters.count: u32 → Box<EffectAmount>` per CR 614.1c. Resolver builds `EffectContext` pinned to the replacement source and calls live-arm `resolve_amount` (handles `PowerOf(Source)`, `XValue`, `Fixed`). Zero pre-existing call-site reshapes — no live cards used the static u32. 2 cards: Master Biomancer counter half (Mutant-grant deferred to PB-EAT 2026-05-15) + Ingenious Prodigy (refactored from DEVIATION trigger stub to true replacement). HASH 17→**18**. Tests 2749→**2754** (+5). 3 OOS-EWC seeds filed; EWC-1 closed by 2026-05-15 PB-EAT, EWC-2 closed by 2026-05-15 OOS-EWC-2 dispatch, EWC-3 closed by 2026-05-15 PB-EWC-D.
 - Review: PASS-WITH-NITS (0 HIGH, 0 MEDIUM, 7 LOW). E1 (defensive-default + race comment) fixed inline; 6 LOW triaged.
 
-### 2026-05-13 (PB-CD + PB-LKI-Power chain — same oversight, two PBs) — W6: Primitive
-
-- **PB-CD shipped** (`scutemob-18`, merged `36816e0f`). Counter-doubling replacement effects (CR 122.6 / 614.1). Engine: `ReplacementTrigger::WouldPlaceCounters.counter_filter: Option<CounterType>` + `ObjectFilter::CreatureControlledBy(PlayerId)` disc 8 (layer-resolved creature type per CR 613.1d). Existing Vorinclex/Pir/Lae'zel preserved via `counter_filter: None`. 3 cards: Hardened Scales, Corpsejack Menace, Conclave Mentor (replacement half only — death trigger deferred as OOS-LKI-Power seed, closed by PB-LKI-Power). HASH 15→16. Tests +11. Review PASS (3 LOW: 1 CR-citation fix, 2 false-positives).
-- **PB-LKI-Power shipped** (`scutemob-19`, merged `12218638`). LKI source-power snapshot for SelfDies/SelfLeavesBattlefield triggers (CR 603.10a / 122.2 / 400.7). `EffectAmount::SourcePowerAtLastKnownInformation` disc 18 (disc 19 reserved for toughness variant) + `lki_power: Option<i32>` through `PendingTrigger`/`StackObject`/`EffectContext`. Snapshot at `sba.rs:540` via `calculate_characteristics(state, source_id).power` BEFORE `move_object_to_zone`. 5 `GameEvent` variants extended (CreatureDied.pre_death_power HASHED; AuraFellOff/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand.pre_lba_power NOT hashed, mirrors PB-LKI-CC LBA precedent). 21-site dispatch chain. 2 cards: Conclave Mentor death-trigger life-gain + Juri Master of the Revue death-trigger damage. HASH 16→17. Tests +4. Review PASS-WITH-NITS → PASS after fix-phase. 5 OOS-LKI-Power seeds filed (-1..-5).
-- Tests 2734→**2749** (+15 overall). HASH: 15→17 (two bumps).
 
