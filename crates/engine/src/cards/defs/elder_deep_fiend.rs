@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             // When you cast this spell, tap up to four target permanents. (CR 601.2c)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenYouCastThisSpell,
                 effect: Effect::Sequence(vec![
                     Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },

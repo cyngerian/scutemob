@@ -662,6 +662,9 @@ fn test_whenever_you_surveil_trigger() {
     // Build a creature with WheneverYouSurveil -> AddCounter(+1/+1).
     let surveil_creature = ObjectSpec::creature(p1, "Spybug", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -776,6 +779,9 @@ fn test_surveil_zero_does_not_fire_trigger() {
     // Build a creature with WheneverYouSurveil -> AddCounter(+1/+1).
     let surveil_creature = ObjectSpec::creature(p1, "Spybug", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,

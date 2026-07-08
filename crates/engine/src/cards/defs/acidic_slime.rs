@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1: ETB trigger — destroy target artifact, enchantment, or land.
             // Three card types with OR semantics via has_card_types.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

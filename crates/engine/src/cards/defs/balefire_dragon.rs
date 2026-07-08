@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // inner context at effects/mod.rs:2419). DamagedPlayer scopes the ForEach to creatures
             // controlled by the specific player dealt damage.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {

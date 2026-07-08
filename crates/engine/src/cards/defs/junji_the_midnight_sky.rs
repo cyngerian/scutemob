@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // Mode 1: Reanimate target non-Dragon creature card from any graveyard;
             //         you lose 2 life.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::Nothing,
                 intervening_if: None,

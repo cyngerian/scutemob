@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // Note: oracle text is NOT targeted ("a land" not "target land") — engine uses
             // declared target as a proxy for resolution-time choice (deterministic fallback).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

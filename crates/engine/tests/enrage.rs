@@ -83,6 +83,7 @@ fn enrage_creature_def(card_id: &str, name: &str, power: i32, toughness: i32) ->
         power: Some(power),
         toughness: Some(toughness),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenDealtDamage,
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,
@@ -145,6 +146,9 @@ fn test_enrage_combat_damage_triggers() {
     let enrage_creature = ObjectSpec::creature(p1, "Raptor Blocker", 4, 5)
         .with_card_id(CardId("enrage-test-1".to_string()))
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -272,6 +276,9 @@ fn test_enrage_noncombat_damage_triggers() {
     let enrage_creature = ObjectSpec::creature(p1, "Raptor Target", 4, 5)
         .with_card_id(CardId("enrage-test-2".to_string()))
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -407,6 +414,9 @@ fn test_enrage_zero_damage_no_trigger() {
 
     let enrage_creature = ObjectSpec::creature(p1, "Raptor NoTrigger", 4, 5)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -500,6 +510,9 @@ fn test_enrage_multiple_blockers_triggers_once() {
 
     let enrage_creature = ObjectSpec::creature(p1, "Enrage Attacker", 5, 5).with_triggered_ability(
         TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -623,6 +636,9 @@ fn test_enrage_lethal_damage_still_triggers() {
     // 2/3 creature: lethal = 3 or more damage.
     let enrage_creature = ObjectSpec::creature(p1, "Doomed Raptor", 2, 3).with_triggered_ability(
         TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,
@@ -764,6 +780,9 @@ fn test_enrage_prevention_reduces_to_zero_no_trigger() {
 
     let enrage_creature = ObjectSpec::creature(p1, "Raptor Shielded", 4, 5).with_triggered_ability(
         TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,

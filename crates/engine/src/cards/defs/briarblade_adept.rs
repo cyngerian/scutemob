@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever this creature attacks, target creature an opponent controls gets -1/-1 until EOT.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {

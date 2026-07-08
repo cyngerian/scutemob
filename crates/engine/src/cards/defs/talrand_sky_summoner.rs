@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Instant/sorcery spell filter applied.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),

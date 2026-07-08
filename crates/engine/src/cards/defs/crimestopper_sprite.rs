@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             //   Effect::AddCounter { target: EffectTarget::DeclaredTarget { index: 0 },
             //                        counter: CounterType::Stun, count: 1 }
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::TapPermanent {

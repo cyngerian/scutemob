@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Regent could target itself, which is cosmetically wrong but resolved correctly by
             // MoveZone to own hand). Tracked as LOW.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::MoveZone {

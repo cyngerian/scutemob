@@ -124,6 +124,7 @@ fn mulldrifter_def() -> CardDefinition {
                 },
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: mtg_engine::TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

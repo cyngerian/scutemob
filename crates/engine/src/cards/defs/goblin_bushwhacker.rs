@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 is_multikicker: false,
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Conditional {
                     condition: Condition::WasKicked,

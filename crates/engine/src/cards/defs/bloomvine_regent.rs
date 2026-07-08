@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // which includes the source itself entering. Dragon subtype + controller_you filter
             // correctly matches self (a Dragon) and other Dragons you control.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

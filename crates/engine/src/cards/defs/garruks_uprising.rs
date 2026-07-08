@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: "If you control creature with power 4+" intervening-if on ETB.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
@@ -36,6 +37,7 @@ pub fn card() -> CardDefinition {
                 },
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

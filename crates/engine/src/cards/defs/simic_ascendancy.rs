@@ -30,9 +30,17 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
             once_per_turn: false,
             },
-            // TODO: DSL gap — "Whenever +1/+1 counters are put on a creature you control"
-            // trigger condition does not exist.
-            // TODO: DSL gap — upkeep trigger with 20+ growth counter win condition.
+            // ENGINE-BLOCKED: "Whenever one or more +1/+1 counters are put on a creature you
+            // control, put that many growth counters on this enchantment." PB-AC1 shipped
+            // `TriggerCondition::WhenCounterPlaced { on_self: false, filter: creature you
+            // control }`, which covers the TRIGGER half. The EFFECT half is still blocked:
+            // "that many" requires an `EffectAmount` that reads the count of counters from the
+            // triggering event (e.g. a Master Biomancer-style multi-counter placement), and no
+            // such `EffectAmount` variant exists — only `EffectAmount::Fixed`/`XValue`/etc.
+            // Authoring with `Fixed(1)` would be wrong whenever 2+ counters land at once.
+            // ENGINE-BLOCKED: "At the beginning of your upkeep, if this enchantment has twenty
+            // or more growth counters on it, you win the game." — win-the-game effect gated on
+            // a counter-count condition is a separate primitive (PB-AC8).
         ],
         ..Default::default()
     }

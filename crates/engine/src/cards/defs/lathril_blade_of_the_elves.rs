@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever Lathril deals combat damage to a player, create that many
             // 1/1 green Elf Warrior creature tokens." — self combat damage trigger with Repeat.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::Repeat {
                     effect: Box::new(Effect::CreateToken {

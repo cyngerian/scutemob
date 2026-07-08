@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Landfall \u{2014} Whenever a land you control enters, create a 2/2 green Elemental creature token.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

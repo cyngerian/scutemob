@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // CR 603.1: Corrupted — When this creature enters, if an opponent has 3+
             // poison counters, destroy target creature or planeswalker an opponent controls.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

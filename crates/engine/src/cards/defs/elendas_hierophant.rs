@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // Whenever you gain life, put a +1/+1 counter on this creature.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouGainLife,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

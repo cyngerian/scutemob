@@ -393,6 +393,7 @@ fn test_commander_damage_survives_zone_change() {
     state
         .add_object(
             mtg_engine::state::game_object::GameObject {
+                triggered_abilities_fired_this_turn: im::OrdSet::new(),
                 id: mtg_engine::ObjectId(0), // will be assigned
                 card_id: Some(cmd_id.clone()),
                 characteristics: mtg_engine::state::game_object::Characteristics {

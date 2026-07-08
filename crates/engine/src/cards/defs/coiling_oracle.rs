@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // CR 701.20: ETB — reveal top card of library; if land → battlefield (untapped),
             // else → hand. Uses RevealAndRoute with CardType::Land filter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::RevealAndRoute {
                     player: PlayerTarget::Controller,

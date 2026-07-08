@@ -57,6 +57,9 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// CR 207.2c: "Whenever another creature you control enters, you gain 1 life."
 fn alliance_gain_life_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
@@ -299,6 +302,7 @@ fn test_alliance_does_not_fire_on_self_etb() {
         oracle_text: "Alliance -- Whenever another creature you control enters, you gain 1 life."
             .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: mtg_engine::TriggerCondition::WheneverCreatureEntersBattlefield {
                 filter: Some(mtg_engine::TargetFilter {
                     controller: mtg_engine::TargetController::You,
@@ -670,6 +674,7 @@ fn test_alliance_fires_on_create_token_effect() {
         oracle_text: "When Token Creator enters, create a 1/1 green Saproling creature token."
             .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::CreateToken {
                 spec: TokenSpec {

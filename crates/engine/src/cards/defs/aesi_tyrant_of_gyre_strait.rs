@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::AdditionalLandPlays { count: 1 },
             // Landfall — Whenever a land you control enters, draw a card.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

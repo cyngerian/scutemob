@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // create that many Treasure tokens." — equipment trigger with Repeat for amount.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Repeat {
                     effect: Box::new(Effect::CreateToken {

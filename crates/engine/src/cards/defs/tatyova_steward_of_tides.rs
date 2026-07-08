@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // target land becomes a 3/3 Elemental creature with haste until end of turn.
             // (Approximation: "7+ lands" → ControlAtLeastNOtherLands(6) intervening-if)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

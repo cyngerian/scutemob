@@ -50,6 +50,7 @@ pub fn card() -> CardDefinition {
             // unconditional — the DSL has no way to make "remove counter as cost" optional
             // without MayPayOrElse integration that is out of scope for PB-27.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Sequence(vec![
                     Effect::RemoveCounter {

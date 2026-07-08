@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "If you control no Snakes" intervening-if — Condition lacks
             //   "you control no permanents with subtype X" variant.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfEachUpkeep,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

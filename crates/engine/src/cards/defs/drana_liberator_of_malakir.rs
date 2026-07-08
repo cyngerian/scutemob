@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
             // Whenever Drana deals combat damage to a player, +1/+1 on each attacker you control.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachAttackingCreature,

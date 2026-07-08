@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
 
             // ETB: put an oil counter on this creature.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

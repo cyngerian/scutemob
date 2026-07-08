@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             )),
             // Whenever you discard a card, put a +1/+1 counter on Brallin and deal 1 to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDiscard,
                 effect: Effect::Sequence(vec![
                     Effect::AddCounter {

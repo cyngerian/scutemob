@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             },
             // Landfall — gain 1 life
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

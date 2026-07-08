@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // deal combat damage to a player, create a Treasure token." — batch trigger with
             // Ninja OR Rogue subtype filter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
                     filter: Some(TargetFilter {
                         has_subtypes: vec![SubType("Ninja".to_string()), SubType("Rogue".to_string())],

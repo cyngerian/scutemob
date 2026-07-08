@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // Note: "Elf spell" needs subtype filter on spells (not yet in DSL).
             // Using creature spell as approximation (Elf creature spells only).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

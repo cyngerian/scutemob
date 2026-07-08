@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // ETB: mill three cards (CR 603.1).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MillCards {
                     player: PlayerTarget::Controller,
@@ -26,6 +27,7 @@ pub fn card() -> CardDefinition {
             },
             // Death trigger: mill three cards (CR 603.10a).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::MillCards {
                     player: PlayerTarget::Controller,

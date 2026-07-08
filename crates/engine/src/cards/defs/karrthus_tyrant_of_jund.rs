@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // then untap all Dragons." — ETB triggered ability. Gain control is indefinite
             // (no stated duration). Untap follows immediately (Sequence).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::GainControl {

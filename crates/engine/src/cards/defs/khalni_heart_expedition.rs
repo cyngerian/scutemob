@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 207.2c: "Landfall" is an ability word; trigger uses WheneverPermanentEntersBattlefield.
             // Note: "you may" — bot always takes counter; harmless optimization.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

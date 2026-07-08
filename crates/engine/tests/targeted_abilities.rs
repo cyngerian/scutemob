@@ -306,6 +306,9 @@ fn triggered_ability_targets_propagate_to_runtime() {
 
     let source = ObjectSpec::creature(p1, "ETB Trigger Source", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: None,
             description: "Target creature gets -1/-1 until EOT".to_string(),
@@ -349,6 +352,9 @@ fn triggered_ability_target_player_propagates() {
 
     let source = ObjectSpec::creature(p1, "Damage Trigger", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
             intervening_if: None,
             description: "Target player discards a card".to_string(),
@@ -387,6 +393,9 @@ fn triggered_ability_no_targets_backward_compatible() {
 
     let source = ObjectSpec::creature(p1, "Untargeted Trigger", 3, 3)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: None,
             description: "Draw a card".to_string(),

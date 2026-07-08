@@ -32,9 +32,15 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — "Whenever this creature attacks, untap all lands you control"
-            // granted to enchanted creature. Requires grant-triggered-ability-to-attached-creature
-            // pattern not in DSL.
+            // ENGINE-BLOCKED: "Whenever this creature attacks, untap all lands you control"
+            // is a triggered ability GRANTED to the enchanted creature (not to Bear Umbra
+            // itself). PB-AC1 shipped `Effect::UntapAll` (usable for the untap-lands effect
+            // once the trigger fires) but there is still no grant-triggered-ability-to-
+            // attached-object primitive in the DSL — the same gap blocks Diamond Pick-Axe's
+            // "Whenever this creature attacks, create a Treasure token." Left blocked; when a
+            // grant-trigger primitive ships, wire the trigger to
+            // `Effect::UntapAll { filter: TargetFilter { has_card_type: Some(CardType::Land),
+            // controller: You, .. } }`.
             AbilityDefinition::Keyword(KeywordAbility::UmbraArmor),
         ],
         ..Default::default()

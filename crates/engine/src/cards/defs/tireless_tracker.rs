@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever you sacrifice a Clue, put a +1/+1 counter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Clue".to_string())),

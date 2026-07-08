@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             },
             // "When Beloved Beggar dies, you gain 3 life."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

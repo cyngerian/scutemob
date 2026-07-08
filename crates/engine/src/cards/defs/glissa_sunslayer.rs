@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             // Mode 2: Remove up to three counters from target permanent.
             //         DSL gap: no any-type counter removal. Nothing placeholder.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::Nothing,
                 intervening_if: None,

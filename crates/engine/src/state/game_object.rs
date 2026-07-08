@@ -509,6 +509,16 @@ pub enum TriggerEvent {
     /// "At the beginning of combat on your turn." — fires for the active player's emblems.
     /// CR 603: Triggers at the start of the active player's beginning of combat step.
     AtBeginningOfCombat,
+    /// CR 502.3 / 603.2e: Fires GLOBALLY on ALL battlefield permanents when any permanent
+    /// becomes untapped (effect-driven or untap-step). The untapped permanent's ObjectId
+    /// is carried via the `entering_object` dispatch parameter (reused as "triggering
+    /// object"). Never fires for a permanent entering the battlefield already untapped
+    /// (CR 603.2e — this variant is only dispatched from real untap events).
+    AnyPermanentUntaps,
+    /// CR 122.6 / 122.7: Fires GLOBALLY on ALL battlefield permanents when one or more
+    /// counters are put on a permanent. The receiving permanent's ObjectId is carried via
+    /// the `entering_object` dispatch parameter.
+    CounterPlaced,
 }
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
 ///
@@ -623,6 +633,23 @@ pub struct TriggeredAbilityDef {
     /// Empty = no targets required.
     #[serde(default)]
     pub targets: Vec<crate::cards::card_definition::TargetRequirement>,
+    /// CR 603.2c/603.2h: If true, this ability is put on the stack at most once per turn
+    /// regardless of how many times its trigger condition is met. Card text: "This ability
+    /// triggers only once each turn." Gated in `flush_pending_triggers` against
+    /// `GameObject::triggered_abilities_fired_this_turn`. Canonical card: Morbid Opportunist.
+    #[serde(default)]
+    pub once_per_turn: bool,
+    /// CR 122.6/122.7: For `TriggerEvent::CounterPlaced` dispatch — restricts which counter
+    /// kind causes this trigger to fire. `None` = any counter kind.
+    #[serde(default)]
+    pub counter_filter: Option<crate::state::types::CounterType>,
+    /// CR 122.6/122.7: For `TriggerEvent::CounterPlaced` dispatch — if true, the trigger
+    /// only fires when the counter(s) are placed on the trigger source itself ("on this
+    /// creature/permanent"). If false, `triggering_creature_filter` (if set) restricts
+    /// which OTHER permanent's counter-placement fires the trigger ("on a [creature you
+    /// control]").
+    #[serde(default)]
+    pub counter_on_self: bool,
 }
 /// The observable characteristics of a game object (CR 109.3).
 ///
@@ -1173,6 +1200,15 @@ pub struct GameObject {
     /// Reset to 0 on zone changes (CR 400.7) — a new object has no memory of the freeze.
     #[serde(default)]
     pub skip_untap_steps: u32,
+    /// CR 603.2c/603.2h: Indices (into the layer-resolved `triggered_abilities` list) of
+    /// once-per-turn triggered abilities that have already been put on the stack this turn.
+    /// Gates further triggers of the same ability index from being flushed to the stack
+    /// (see `flush_pending_triggers`). Used by "This ability triggers only once each turn"
+    /// (Morbid Opportunist, etc.). Reset each untap step (same sweep as
+    /// `abilities_activated_this_turn`). Reset to empty on zone changes (CR 400.7 — a new
+    /// object has no memory of prior triggers).
+    #[serde(default)]
+    pub triggered_abilities_fired_this_turn: im::OrdSet<usize>,
 }
 /// CR 729.2: A single component in a merged permanent.
 ///

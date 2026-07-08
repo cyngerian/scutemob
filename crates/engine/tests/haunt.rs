@@ -89,6 +89,7 @@ fn haunt_creature_def() -> CardDefinition {
             // The second triggered ability fires from exile (CR 702.55c).
             // Uses a trivial GainLife(0) effect to keep the card definition simple.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::HauntedCreatureDies,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

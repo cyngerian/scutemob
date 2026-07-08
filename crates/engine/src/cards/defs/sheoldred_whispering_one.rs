@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // CR 603.3: At the beginning of your upkeep, return target creature card from
             // your graveyard to the battlefield under your control.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice another permanent" on ETB/attack — forced sacrifice not expressible.
             // Whenever you sacrifice a permanent, put +1/+1 counter on Korvold and draw a card.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: None,
                     player_filter: None,

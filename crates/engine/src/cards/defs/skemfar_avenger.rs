@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // controller=You, exclude_self=true (another), nontoken_only=true.
             // has_subtypes OR semantics: fires if dying creature is an Elf OR a Berserker.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: true,

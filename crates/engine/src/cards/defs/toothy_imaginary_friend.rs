@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             )),
             // Whenever you draw a card, put a +1/+1 counter on Toothy.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
@@ -43,6 +44,7 @@ pub fn card() -> CardDefinition {
             // CR 603.10a / 122.2: counter count must be read from the LKI snapshot (PendingTrigger.lki_counters)
             // because move_object_to_zone resets the GameObject's counters to empty.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenLeavesBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

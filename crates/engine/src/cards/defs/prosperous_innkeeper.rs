@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.1: ETB trigger — create a Treasure token.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,
@@ -27,6 +28,7 @@ pub fn card() -> CardDefinition {
             // Fires whenever another creature you control enters; exclude_self: true
             // (PB-XS-E) prevents Prosperous Innkeeper from triggering its own Alliance.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

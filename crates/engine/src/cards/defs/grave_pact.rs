@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
             // sacrifices a creature."
             // PB-SFT (CR 701.21a + CR 109.1): creature-only filter applied.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,

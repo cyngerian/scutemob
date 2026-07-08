@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // Whenever a player sacrifices a permanent, put +1/+1 counter and gain 1 life.
             // player_filter: Any = fires for all players (the dispatch already sends for any player).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: None,
                     player_filter: Some(TargetController::Any),

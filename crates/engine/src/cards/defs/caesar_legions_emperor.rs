@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: "may sacrifice + choose two modal" — complex reflexive trigger not expressible.
             // Partial: create Soldiers on attack as approximation of one modal option.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouAttack,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

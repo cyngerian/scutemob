@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // green Squirrel creature token." Per-sacrifice firing (not batched) is the engine-wide
             // approximation; "one or more" is not enforceable with per-event triggers.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Food".to_string())),

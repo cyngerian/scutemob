@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // Landfall — Whenever a land you control enters, create a 5/5 red and green
             // Elemental creature token. CR 207.2c: Landfall is an ability word.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),
@@ -56,6 +57,7 @@ pub fn card() -> CardDefinition {
             // exclude_self=false: fires when Omnath itself dies or another Elemental you control dies.
             // controller=You, filter=Elemental subtype (Omnath is an Elemental, so this covers it).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // CR 603.2: "Whenever Ayara or another black creature you control enters,
             // each opponent loses 1 life and you gain 1 life."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

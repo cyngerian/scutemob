@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "When this land enters, sacrifice it. When you do, search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle and you gain 1 life.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     // TODO: Sacrifice self from triggered ability — reflexive trigger pattern

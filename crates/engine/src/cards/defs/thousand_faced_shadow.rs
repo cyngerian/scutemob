@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // ETB trigger: create a token copy of another target attacking creature,
             // tapped and attacking. CR 707.2 + CR 508.4.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateTokenCopy {
                     source: EffectTarget::DeclaredTarget { index: 0 },

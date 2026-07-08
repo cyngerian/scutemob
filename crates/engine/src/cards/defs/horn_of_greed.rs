@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: DrawCards targets Controller (Horn's controller), not land's controller.
             // Needs PlayerTarget::TriggeringPermanentController or similar.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

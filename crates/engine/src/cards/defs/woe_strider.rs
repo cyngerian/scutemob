@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // ETB: create a 0/1 white Goat token
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // When this land enters, you may put target creature card from your graveyard on top of your library.
             // TODO: DSL gap — "you may" optional trigger not expressible. Currently mandatory if valid target exists.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

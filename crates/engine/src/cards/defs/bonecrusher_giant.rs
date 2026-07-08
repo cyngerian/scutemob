@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // DSL variant exists. Currently omitted.
             // Using EachOpponent as approximation until (1) and (2) are resolved.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenBecomesTargetByOpponent,
                 effect: Effect::DealDamage {
                     target: EffectTarget::EachOpponent,

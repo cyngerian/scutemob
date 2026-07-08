@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // creature token with toxic 1 and "can't block".
             // Toxic 1 keyword and CantBlock restriction both applied to tokens.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {

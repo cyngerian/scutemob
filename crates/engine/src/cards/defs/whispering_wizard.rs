@@ -13,9 +13,10 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
-            // Whenever you cast a noncreature spell, create a 1/1 white Spirit token with flying.
-            // TODO: "once each turn" limiter not in DSL.
+            // CR 603.2h: "Whenever you cast a noncreature spell, create a 1/1 white Spirit
+            // creature token with flying. This ability triggers only once each turn."
             AbilityDefinition::Triggered {
+                once_per_turn: true,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: None,

@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // implemented. The condition is deferred — trigger fires unconditionally for now,
             // producing wrong game state (free reanimation every upkeep regardless of Plains count).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

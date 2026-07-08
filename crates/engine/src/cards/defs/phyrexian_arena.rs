@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "At the beginning of your upkeep, you draw a card and you lose 1 life.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // ETB: Exile target nonland, nontoken permanent opponent controls with MV ≤ 4.
             // TODO: "nontoken" and "mana value 4 or less" filters not in TargetFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ExileObject {
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
             // TODO: Token with dynamic P/T = MV of exiled card. Needs ExiledBySource
             // tracking + ManaValueOf(exiled card) for token P/T. Leaving as Nothing.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenLeavesBattlefield,
                 effect: Effect::Nothing,
                 intervening_if: None,

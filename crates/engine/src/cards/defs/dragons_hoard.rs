@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever a Dragon you control enters, put a gold counter on this.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

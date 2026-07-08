@@ -172,6 +172,9 @@ fn dragon_def(card_id: &str, name: &str, generic: u32) -> CardDefinition {
 /// CR 603.2 / CR 205.3.
 fn dragon_etb_gain_life_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
@@ -203,6 +206,9 @@ fn dragon_etb_gain_life_trigger() -> TriggeredAbilityDef {
 /// CR 603.2 / CR 205.3 / CR 111.1.
 fn nontoken_dragon_etb_draw_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
@@ -467,6 +473,7 @@ fn test_etb_nontoken_filter_no_fire_on_token() {
         oracle_text: "When this enters, create a 5/5 red Dragon creature token with flying."
             .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::CreateToken {
                 spec: TokenSpec {
@@ -828,6 +835,9 @@ fn test_etb_ganax_treasure_integration() {
 
     // Ganax-equivalent permanent: Dragon-ETB → create a Treasure token.
     let ganax_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
@@ -945,6 +955,7 @@ fn test_etb_lathliss_token_integration() {
         },
         oracle_text: "When this enters, create a 5/5 red Dragon creature token.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::CreateToken {
                 spec: TokenSpec {
@@ -979,6 +990,9 @@ fn test_etb_lathliss_token_integration() {
 
     // Lathliss-equivalent: nontoken-Dragon-ETB → create 5/5 Dragon token.
     let lathliss_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
@@ -1119,6 +1133,9 @@ fn test_etb_great_henge_counter_on_entering_creature() {
     // Great Henge equivalent: nontoken-creature-ETB → AddCounter(TriggeringCreature) + DrawCards.
     // Uses EffectTarget::TriggeringCreature (corrected from Source in PB-AC0).
     let henge_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         targets: vec![],
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
@@ -1247,6 +1264,9 @@ fn test_etb_death_path_unaffected() {
     // Watcher: "whenever a Dragon you control dies, draw a card"
     let watcher = ObjectSpec::creature(p1, "Death Watcher", 1, 4).with_triggered_ability(
         TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             targets: vec![],
             trigger_on: TriggerEvent::AnyCreatureDies,
             intervening_if: None,
@@ -1534,6 +1554,7 @@ fn test_etb_lathliss_carddef_integration_via_enrich() {
         oracle_text: "When this enters, create a 5/5 red Dragon creature token with flying."
             .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::CreateToken {
                 spec: TokenSpec {

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // Whenever you draw a card, deal 1 damage to any target.
             // TODO: "any target" means player or creature — using each opponent as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,

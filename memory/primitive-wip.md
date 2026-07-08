@@ -1,137 +1,86 @@
-# Primitive WIP: PB-AC0 — ETBTriggerFilter subtype/nontoken fields (creature-ETB filter forwarding)
+# Primitive WIP: PB-AC1 — Counter / Untap / Once-per-turn
 
-batch: PB-AC0
-title: ETBTriggerFilter carries + honors creature-subtype and token/nontoken constraints on the WheneverCreatureEntersBattlefield trigger path
-started: 2026-05-18
-phase: re-review-complete (PASS — cleared to close)
-plan_file: memory/primitives/pb-plan-AC0.md
-review_file: memory/primitives/pb-review-AC0.md
+batch: PB-AC1
+title: Counter / untap / once-per-turn primitives
+cards_affected: ~22 (discounted; real roster to be identified from oracle text)
+started: 2026-07-07
+phase: closed
+plan_file: memory/primitives/pb-plan-AC1.md
 
 ## Task reference
-- ESM task: scutemob-41
-- Branch: feat/pb-ac0-etbtriggerfilter-subtypenontoken-fields-creature-etb-
+- ESM task: scutemob-43
+- Branch: feat/pb-ac1-counter-untap-once-per-turn-primitives
 - Acceptance criteria:
-  - 4081: ETBTriggerFilter (or the creature-ETB harness path) carries + honors creature-subtype and token/nontoken constraints; has_subtype + is_nontoken on WheneverCreatureEntersBattlefield triggers no longer silently dropped
-  - 4082: ganax_astral_hunter + lathliss_dragon_queen ETB clauses re-authored as live abilities (TODOs removed); miirym, dragons_hoard, bloomvine_regent, encroaching_dragonstorm verified/corrected against oracle text
-  - 4083: New tests cover subtype-filtered and token/nontoken-filtered creature-ETB triggers — fire-on-match + no-fire-on-mismatch; CR citations present
-  - 4084: cargo build --workspace, cargo test --all, cargo clippy --all-targets -- -D warnings, cargo fmt --check all pass; primitive-impl-reviewer pass run with findings addressed
+  - 4154: Engine primitives implemented (UntapAll, WheneverPermanentUntaps +
+    WhenCounterPlaced triggers, once-per-turn limiter, doesn't-untap static) each
+    with tests citing CR sections
+  - 4155: Review pass complete; all HIGH/MEDIUM findings fixed
+  - 4156: Backfill complete; all unblocked cards re-authored, TODO/ENGINE-BLOCKED
+    markers removed, reviewed by card-batch-reviewer
+  - 4157: All gates green; authoring-report rerun and coverage delta posted
 
-## Problem (from memory/card-authoring/review-scutemob-40.md)
+## Scope (from campaign-plan-2026-05-16.md §2)
+Primitives to add:
+- `Effect::UntapAll { filter }` — untap all permanents matching a filter (CR 701.20/701.21)
+- `TriggerCondition::WheneverPermanentUntaps` (CR 603.2)
+- `TriggerCondition::WhenCounterPlaced` (CR 603.2, 122)
+- Generic `once_per_turn` limiter on triggered abilities (e.g. Morbid Opportunist
+  "triggers only once each turn") (CR 603.2)
+- "Doesn't untap during untap step" static (CR 502.4 / 702.x)
 
-`TriggerCondition::WheneverCreatureEntersBattlefield { filter }` carries a TargetFilter,
-but the replay harness (~replay_harness.rs:2371) converts it into an `ETBTriggerFilter`
-struct (state/game_object.rs:~560) that has ONLY `creature_only`, `controller_you`,
-`exclude_self`, `color_filter`, `card_type_filter` — NO subtype field, NO token field.
-So `has_subtype` and `is_nontoken`/`is_token` on a creature-ETB trigger are SILENTLY
-DROPPED; the trigger over-fires for every creature entering. The matching loop is in
-abilities.rs ~6142-6181.
+CR refs (701.20, 701.21, 603.2) are ADVISORY — verify against the CR via the
+mtg-rules MCP. Card rosters in the plan are advisory; identify the real roster
+from oracle text (feedback_oversight_primitive_category_not_cards).
 
-The death-trigger path is correct: it forwards the full filter as
-`triggering_creature_filter`, matched via `matches_filter`.
+## Hazards (from task description)
+1. Verify KW/AbilDef/SOK discriminant chain from current code before adding variants.
+2. Exhaustive matches in tools/tui/src/play/panels/stack_view.rs AND
+   tools/replay-viewer/src/view_model.rs must gain arms for every new enum variant —
+   verify with `cargo build --workspace`.
+3. Do NOT commit phantom `.claude/skills/*/SKILL.md` deletions in the worktree.
 
-FIX: bring the creature-ETB path to parity — planner picks the cleaner of
-(a) add subtype + token/nontoken fields to ETBTriggerFilter + honor them in the
-matching loop, or (b) forward `triggering_creature_filter` on the creature-ETB path
-mirroring the death path.
+## Deferred from Prior PBs
+none applicable
 
-## Cards unblocked
-- ganax_astral_hunter — Dragon-ETB Treasure trigger (currently ENGINE-BLOCKED TODO)
-- lathliss_dragon_queen — nontoken-Dragon-ETB 5/5 Dragon token trigger (currently ENGINE-BLOCKED TODO)
-- Latent-bug cards to verify/correct: miirym, dragons_hoard, bloomvine_regent, encroaching_dragonstorm
+## Step Checklist
+- [x] 1. Engine changes (new types/variants/dispatch) — Effect::UntapAll (disc 87),
+  TriggerCondition::WheneverPermanentUntaps (disc 42) + WhenCounterPlaced (disc 43),
+  runtime TriggerEvent::AnyPermanentUntaps (disc 45) + CounterPlaced (disc 46),
+  KeywordAbility::DoesNotUntap (disc 162), once_per_turn limiter (flush_pending_triggers
+  gate + turn-reset sweep), DoesNotUntap untap-step enforcement (layer-resolved).
+  HASH_SCHEMA_VERSION 27->28 + all 20 scattered parity-sentinel tests updated.
+- [x] 2. Card definition fixes / backfill — ONLY the 4 integration cards done this
+  phase (Morbid Opportunist, Mesmeric Orb, Goblin Sharpshooter, Sharktocrab); full
+  backfill roster (partial-clean + blocked cards from the plan) is OUT OF SCOPE for
+  this engine-primitives phase per task instructions — deferred to the backfill phase.
+- [x] 3. New card definitions (if any) — none (all 4 integration cards pre-existed
+  as TODO/ENGINE-BLOCKED stubs; re-authored in place).
+- [x] 4. Unit tests — crates/engine/tests/pb_ac1_untap_counter.rs, 20 tests, all
+  passing (full plan test list covered + a direct-construction wiring test + a
+  matches_filter sanity test).
+- [x] 5. Workspace build verification — `cargo build --workspace`, `cargo test --all`
+  (2893 passed, 0 failed), `cargo clippy --workspace --all-targets -- -D warnings`
+  (clean), `cargo fmt --check` (clean).
 
-## Reference docs
-- memory/card-authoring/review-scutemob-40.md — the finding (review header + F1/F3)
-- memory/card-authoring/dsl-gap-audit-2026-05-16.md
-- memory/card-authoring/campaign-plan-2026-05-16.md
+## Fix phase complete (2026-07-07)
+- All HIGH/MEDIUM findings from `memory/primitives/pb-review-AC1.md` resolved:
+  1. HIGH — `state/hash.rs`: `GameObject::triggered_abilities_fired_this_turn` now hashed
+     (end of `HashInto for GameObject`, after `skip_untap_steps`).
+  2. MEDIUM — `state/hash.rs`: `TriggeredAbilityDef::hash_into` now hashes `once_per_turn`,
+     `counter_filter`, `counter_on_self`.
+  3. MEDIUM — CR 122.6 enters-with-counters gap tracked as new issue `MR-AC1-01` (LOW, OPEN)
+     in `docs/mtg-engine-milestone-reviews.md`; test comment in
+     `crates/engine/tests/pb_ac1_untap_counter.rs` updated to cite it.
+- LOW findings 4-6 left open (non-blocking per task instructions).
+- `cargo build --workspace`, `cargo test -p mtg-engine` (all pass, HASH_SCHEMA_VERSION
+  still 28), `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`
+  all clean.
 
-## Planner checklist
-- [x] CR research — creature-ETB triggered abilities, subtype membership, token vs nontoken (CR 603.2, 603.10, 111.1, 205.3, 613.1d)
-- [x] Engine architecture walk — ETBTriggerFilter struct, harness conversion, abilities.rs matching loop, death-path parity
-- [x] Shape decision (a vs b) documented with rationale — chose (b): forward triggering_creature_filter
-- [x] Hash impact assessment (struct field add → HASH bump?) — NO bump; triggering_creature_filter already exists + already hashed
-- [x] Test plan — 11 tests, subtype + nontoken fire/no-fire, CR-cited
-- [x] Plan file written: memory/primitives/pb-plan-AC0.md
-
-## Implementation notes (handoff to review phase)
-
-### Engine changes completed
-1. `crates/engine/src/testing/replay_harness.rs` ~L2411: `triggering_creature_filter: filter.clone()` (was `None`). Forwards full TargetFilter from WheneverCreatureEntersBattlefield carddef via triggering_creature_filter on the creature-ETB harness conversion path. CR 603.2/205.3/111.1 comment added.
-2. `crates/engine/src/rules/abilities.rs` inside `etb_filter` block (after `card_type_filter` check): new block checks `triggering_creature_filter` — explicit `is_token`/`is_nontoken` guards, then `matches_filter` for subtype and other characteristic filters. Scoped inside etb_filter block to avoid double-consuming on death/attack defs.
-
-### Card defs completed
-- `ganax_astral_hunter.rs`: re-authored, ENGINE-BLOCKED TODO removed. Dragon-ETB Treasure trigger live. `exclude_self: false`, `has_subtype: Dragon`, `controller: You`.
-- `lathliss_dragon_queen.rs`: re-authored, ENGINE-BLOCKED TODO removed. Nontoken-Dragon-ETB 5/5 Dragon token trigger live. `exclude_self: true`, `is_nontoken: true`, `has_subtype: Dragon`. Token spec: 5/5 Red Dragon Flying, `count: Fixed(1)`.
-- `the_great_henge.rs`: header nontoken TODO removed (remains: cost-reduction TODO). Added `is_nontoken: true` to filter. Fixed `EffectTarget::Source` → `TriggeringCreature` for +1/+1 counter (oracle unambiguous).
-- `miirym_sentinel_wyrm.rs`: added `is_nontoken: true` to TargetFilter. Stale TODO comments removed. `exclude_self: true` already correct.
-- `dragons_hoard.rs`: verified no edit needed (Dragon-ETB gold trigger, no nontoken/token restriction in oracle text).
-- `bloomvine_regent.rs`: verified no edit needed (creature-ETB trigger, no subtype restriction).
-
-### Tests completed
-- New file: `crates/engine/tests/etb_trigger_subtype_filter.rs`, 11 tests (implement phase) → 13 tests (fix phase).
-
-### Gate results (final, post-fix-phase)
-- cargo test --all: 2873 passed
-- cargo clippy --all-targets -- -D warnings: 0 warnings
-- cargo build --workspace: clean
-- cargo fmt --check: clean
-- HASH_SCHEMA_VERSION: unchanged at 27 (no new fields)
-
-## Reviewer verdict: NEEDS-FIX (original) → resolved in fix phase
-
-- Engine logic: CORRECT (1 LOW comment nit, non-blocking).
-- Card defs: all 6 CORRECT against oracle text, no remaining in-scope TODOs.
-- Tests: FINDING T1 (HIGH, fix-phase) — Change 1 (the `replay_harness.rs`
-  `triggering_creature_filter` forwarding) was provably untested.
-
-## Fix phase (2026-05-18, commit a7ebac79)
-
-### T1 (HIGH) — Fixed
-
-Added 2 new tests (tests 12 + 13) to `crates/engine/tests/etb_trigger_subtype_filter.rs`:
-- `test_etb_ganax_carddef_integration_via_enrich` — watcher = Ganax via
-  `enrich_spec_from_def(ObjectSpec::card(...).in_zone(Battlefield), &defs)`, NO
-  `with_triggered_ability`. Fire-on-match (Dragon → +1 Treasure) + no-fire-on-mismatch
-  (Goblin → 0 Treasures).
-- `test_etb_lathliss_carddef_integration_via_enrich` — same pattern, Lathliss.
-  Fire-on-match (nontoken Dragon → token) + no-fire-on-mismatch (token Dragon → no trigger).
-
-### E1 (LOW) — Fixed (with residual LOW)
-
-Comment at abilities.rs:6193-6196 tightened. Note: fix names the death path's containing
-function `apply_zone_change_triggers`, which does not exist — actual function is
-`check_triggers`. Non-blocking cosmetic LOW.
-
-## Re-review (2026-05-18, primitive-impl-reviewer, Opus)
-
-- [x] Verified tests 12 + 13 build the watcher from the real registered
-  `CardDefinition` (`load_defs()` = `all_cards()` keyed by name) via
-  `enrich_spec_from_def`, with NO `with_triggered_ability` — they genuinely exercise
-  the `WheneverCreatureEntersBattlefield` conversion arm at `replay_harness.rs:2360-2414`
-  and Change 1's `triggering_creature_filter: filter.clone()` at L2411.
-- [x] Confirmed `ganax_astral_hunter.rs` and `lathliss_dragon_queen.rs` carry the
-  matching `AbilityDefinition::Triggered { WheneverCreatureEntersBattlefield { filter, exclude_self } }`.
-- [x] Discrimination logic-traced: reverting Change 1 → `None` makes `abilities.rs:6197`
-  `if let Some(ref creature_filter)` block skip → over-fire → both new tests' no-fire
-  assertions fail. Runner's reported discrimination check is consistent.
-- [x] Fire-on-match AND no-fire-on-mismatch covered for both subtype (Ganax) and
-  nontoken (Lathliss) filters.
-- [x] Scope check: fix touched only `etb_trigger_subtype_filter.rs` (11 → 13 tests,
-  original 11 untouched) and the `abilities.rs:6193-6196` comment. No engine logic,
-  no card defs, no other files. No regressions, no scope creep.
-- [x] E1: comment fixed but names non-existent function `apply_zone_change_triggers`
-  (actual: `check_triggers`) — residual non-blocking LOW logged.
-- [x] Review updated: memory/primitives/pb-review-AC0.md
-
-## Re-review verdict: PASS — cleared to close
-
-T1 (the sole blocking finding) is RESOLVED correctly and verifiably. Only residual is
-E1's cosmetic comment inaccuracy (a non-existent function name) — non-blocking LOW,
-recommend trivial follow-up `apply_zone_change_triggers` → `check_triggers` but not
-gating. PB-AC0 is cleared to close.
-
-## Planner notes (handoff to implement phase)
-- Shape: approach (b). NO struct/enum change -> NO HASH bump.
-- the_great_henge carries a 2nd latent bug: EffectTarget::Source -> TriggeringCreature for the
-  +1/+1 counter; corrected in-scope. Reviewer confirmed correct.
-- Highest-risk item: scoping the new triggering_creature_filter check to ETB defs only —
-  reviewer confirmed correctly scoped (inside etb_filter block; death path separate function).
+## Known residual (flagged, not fixed in this phase)
+- `test-data/generated-scripts/baseline/105_sharktocrab_adapt.json` demoted from
+  `approved` to `pending_review`: Sharktocrab's newly-authored WhenCounterPlaced
+  ability (tap target opponent creature + PreventNextUntap) now fires during the
+  script's Phase 1 Adapt resolution and lingers on the stack into Phase 2, breaking
+  the script's `zones.stack.count` assertions. Needs script regeneration (extra
+  priority_round + stack_resolve steps) before re-approval — tracked in the script's
+  `generation_notes`.

@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // TODO: "that player's graveyard" → TargetController::DamagedPlayer not in DSL.
             // TODO: "up to two" → no UpToN target variant; using two required targets.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::ExileObject {

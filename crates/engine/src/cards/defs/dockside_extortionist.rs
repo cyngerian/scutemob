@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "X = artifacts + enchantments opponents control" — count-based
             //   EffectAmount not in DSL. Using fixed 3 as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken { spec: treasure_token_spec(3) },
                 intervening_if: None,

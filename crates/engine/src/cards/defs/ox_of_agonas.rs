@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             },
             // ETB: discard hand then draw 3.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 intervening_if: None,
                 targets: vec![],

@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 // TODO: "any number" of Goblins and "put on top in any order" not expressible.
                 // Approximated as one Goblin to top of library (shuffle before placing).

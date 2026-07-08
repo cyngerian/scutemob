@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "When Solemn Simulacrum enters the battlefield, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.\nWhen Solemn Simulacrum dies, you may draw a card.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::SearchLibrary {
@@ -32,6 +33,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

@@ -124,6 +124,7 @@ fn tribute_2_def() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Tribute(2)),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::TributeNotPaid,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,
@@ -160,6 +161,7 @@ fn tribute_3_def() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Tribute(3)),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::TributeNotPaid,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

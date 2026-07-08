@@ -1445,6 +1445,25 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
             obj.abilities_activated_this_turn = 0;
         }
     }
+    // CR 603.2c/603.2h (PB-AC1): Reset triggered_abilities_fired_this_turn on all
+    // battlefield objects. Same cadence as abilities_activated_this_turn above -- this
+    // runs at every untap step, for all objects (not just the active player's), which
+    // matches the "once each turn" semantics of "This ability triggers only once each
+    // turn" (Morbid Opportunist, etc.).
+    let trigger_reset_ids: Vec<crate::state::game_object::ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| {
+            obj.zone == crate::state::ZoneId::Battlefield
+                && !obj.triggered_abilities_fired_this_turn.is_empty()
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    for id in trigger_reset_ids {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.triggered_abilities_fired_this_turn = im::OrdSet::new();
+        }
+    }
 }
 
 // ── CDA evaluation helpers (PB-28) ───────────────────────────────────────────

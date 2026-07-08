@@ -31,6 +31,7 @@ When it attacks, sacrifice it at end of combat.)"
             // Implemented as an unconditional end-step trigger (no intervening_if).
             // This is a known DSL gap: Condition::NoTokensNamedX does not exist.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
                 effect: Effect::CreateToken { spec: zombie_decayed_token_spec(1) },
                 intervening_if: None,

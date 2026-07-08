@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
             // creature-ETB path via triggering_creature_filter forwarding.
             // Counter goes on the entering creature (TriggeringCreature), not on Henge.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
             // create that many Treasure tokens." — per-creature trigger with Repeat for variable count.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
                 effect: Effect::Repeat {
                     effect: Box::new(Effect::CreateToken {

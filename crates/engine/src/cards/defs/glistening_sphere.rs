@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             // When this artifact enters, proliferate.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Proliferate,
                 intervening_if: None,

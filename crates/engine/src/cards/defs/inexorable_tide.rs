@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Whenever you cast a spell, proliferate. (You choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: None,

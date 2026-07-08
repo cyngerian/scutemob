@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Menace),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

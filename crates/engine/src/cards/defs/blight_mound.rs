@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             // Note: TokenSpec cannot carry nested triggered abilities; the death-trigger
             // lifegain on the Pest token is a known DSL gap (token_triggered_abilities).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,

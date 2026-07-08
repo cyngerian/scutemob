@@ -240,6 +240,7 @@ fn when_turned_face_up_def() -> CardDefinition {
                 },
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTurnedFaceUp,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

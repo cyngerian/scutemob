@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Correct resolution needs PlayerTarget::ControllerOf(TriggeringCreature), which
             // requires PB-37 DamagedPlayer/TriggeringCreature target support.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

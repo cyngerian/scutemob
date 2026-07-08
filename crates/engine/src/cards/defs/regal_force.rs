@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // TODO: "green creature" filter — PermanentCount with color filter.
             //   Using all creatures as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

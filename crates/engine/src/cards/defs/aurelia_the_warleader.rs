@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // "Whenever Aurelia attacks for the first time each turn" maps to WhenAttacks
             // with Condition::IsFirstCombatPhase (same pattern as Karlach).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 intervening_if: Some(Condition::IsFirstCombatPhase),
                 effect: Effect::Sequence(vec![

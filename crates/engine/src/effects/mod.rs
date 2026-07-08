@@ -1909,6 +1909,50 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 701.26b: Untap all permanents on the battlefield matching the filter.
+        // Only already-tapped permanents are actually untapped (only tapped permanents
+        // can be untapped). Emits PermanentUntapped per untapped permanent, which
+        // drives TriggerCondition::WheneverPermanentUntaps (CR 603.2e).
+        Effect::UntapAll { filter } => {
+            let ids_to_untap: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(id, obj)| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.status.tapped
+                        && {
+                            let chars =
+                                crate::rules::layers::calculate_characteristics(state, **id)
+                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            matches_filter(&chars, filter)
+                                && check_chosen_subtype_filter(state, ctx, filter, &chars)
+                        }
+                        && match filter.controller {
+                            TargetController::Any => true,
+                            TargetController::You => obj.controller == ctx.controller,
+                            TargetController::Opponent => obj.controller != ctx.controller,
+                            TargetController::DamagedPlayer => {
+                                obj.controller == ctx.damaged_player.unwrap_or(ctx.controller)
+                            }
+                        }
+                })
+                .map(|(&id, _)| id)
+                .collect();
+            let mut untapped_count: u32 = 0;
+            for id in &ids_to_untap {
+                if let Some(obj) = state.objects.get_mut(id) {
+                    obj.status.tapped = false;
+                    let player = obj.controller;
+                    events.push(GameEvent::PermanentUntapped {
+                        player,
+                        object_id: *id,
+                    });
+                    untapped_count += 1;
+                }
+            }
+            ctx.last_effect_count = untapped_count;
+        }
         // ── Mana ──────────────────────────────────────────────────────────
         Effect::AddMana { player, mana } => {
             let players = resolve_player_target_list(state, player, ctx);
@@ -3736,6 +3780,7 @@ fn execute_effect_inner(
                         // Start with default characteristics — the layer system
                         // will replace them with the melded back face (CR 712.8g).
                         let melded_obj = crate::state::game_object::GameObject {
+                            triggered_abilities_fired_this_turn: im::OrdSet::new(),
                             id: melded_id,
                             card_id: Some(source_card_id),
                             characteristics: crate::state::game_object::Characteristics::default(),
@@ -4611,6 +4656,7 @@ fn execute_effect_inner(
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
                 let token_obj = crate::state::game_object::GameObject {
+                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: None,
                     characteristics: base_chars,
@@ -4782,6 +4828,7 @@ fn execute_effect_inner(
                 ..crate::state::game_object::Characteristics::default()
             };
             let emblem_obj = crate::state::game_object::GameObject {
+                triggered_abilities_fired_this_turn: im::OrdSet::new(),
                 id: crate::state::game_object::ObjectId(0), // replaced by add_object
                 card_id: None,
                 characteristics: emblem_chars,
@@ -6968,6 +7015,7 @@ pub fn make_token(
         ..ObjectStatus::default()
     };
     GameObject {
+        triggered_abilities_fired_this_turn: im::OrdSet::new(),
         id: ObjectId(0), // will be replaced by add_object
         card_id: None,
         characteristics,

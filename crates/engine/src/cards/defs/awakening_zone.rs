@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // Eldrazi Spawn creature token with 'Sacrifice this creature: Add {C}.'"
             // Note: "you may" optional not in DSL — always creates (bot always opts in).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

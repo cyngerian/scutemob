@@ -55,6 +55,9 @@ fn death_trigger_you_draw(
     controller: mtg_engine::TargetController,
 ) -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: trigger_event,
         intervening_if: None,
         description: "Whenever a creature you control dies, draw a card. (CR 603.10a)".to_string(),
@@ -78,6 +81,9 @@ fn death_trigger_you_draw(
 /// Build the "draw on any creature dies" ability (no filter).
 fn death_trigger_any_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureDies,
         intervening_if: None,
         description: "Whenever any creature dies, draw a card. (CR 603.10a)".to_string(),
@@ -96,6 +102,9 @@ fn death_trigger_any_draw() -> TriggeredAbilityDef {
 /// Build the "draw when creature you control attacks" ability.
 fn attack_trigger_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
         intervening_if: None,
         description: "Whenever a creature you control attacks, draw a card. (CR 508.1m)"
@@ -115,6 +124,9 @@ fn attack_trigger_draw() -> TriggeredAbilityDef {
 /// Build the "draw when creature you control deals combat damage to a player" ability.
 fn combat_damage_trigger_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
         intervening_if: None,
         description: "Whenever a creature you control deals combat damage to a player, draw a card. (CR 510.3a)".to_string(),

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // EffectAmount::PlayerCounterCount with EachOpponent sums across all opponents
             // (PB-CC-A + PB-TS unblock: PlayerCounterCount exists, TokenSpec.count now EffectAmount).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

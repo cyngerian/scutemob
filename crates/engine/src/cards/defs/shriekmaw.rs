@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Fear),
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 // "nonartifact, nonblack creature" — exclude_colors handles nonblack;
                 // TODO: no non_artifact filter on TargetFilter — this targets any nonblack

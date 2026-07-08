@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever a Vampire you control deals combat damage to a player,
             // put a +1/+1 counter on it." — per-creature trigger with Vampire filter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Vampire".to_string())),

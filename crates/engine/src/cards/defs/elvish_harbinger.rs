@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // ETB: search library for an Elf card, reveal, shuffle, put on top
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SearchLibrary {
                     player: PlayerTarget::Controller,

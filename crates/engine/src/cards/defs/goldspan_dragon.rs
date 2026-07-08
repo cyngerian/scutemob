@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // Attack trigger: create Treasure
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 effect: Effect::CreateToken { spec: treasure_token_spec(1) },
                 intervening_if: None,

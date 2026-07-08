@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // distinct from DrainLife, which gains total_lost across all opponents
             // (wrong in 3+ player games per effects/mod.rs:493-504).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Vampire".to_string())),

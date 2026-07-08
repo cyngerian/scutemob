@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             // Whenever a land you control enters the battlefield while this is in your
             // graveyard, return it to the battlefield.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

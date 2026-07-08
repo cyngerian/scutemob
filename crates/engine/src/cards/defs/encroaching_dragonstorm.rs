@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // When this enchantment enters, search for up to two basic lands tapped, then shuffle.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::SearchLibrary {

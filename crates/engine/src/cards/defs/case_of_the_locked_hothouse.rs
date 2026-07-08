@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // yet solved, it becomes solved (set SOLVED designation via SolveCase effect).
             // The intervening-if combines both conditions (CR 603.4).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
                 effect: Effect::SolveCase,
                 intervening_if: Some(Condition::And(

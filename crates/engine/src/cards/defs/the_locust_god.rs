@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // Whenever you draw a card, create 1/1 U/R Insect with flying + haste.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -67,6 +68,7 @@ pub fn card() -> CardDefinition {
             // When The Locust God dies, return it to its owner's hand at the beginning
             // of the next end step. Sets return_to_hand_at_end_step flag on graveyard object.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::SetReturnToHandAtEndStep,
                 intervening_if: None,

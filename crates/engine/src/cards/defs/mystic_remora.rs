@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // Noncreature filter applied.
             // TODO: "may draw unless that player pays {4}" — MayPayOrElse still a gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
                     spell_type_filter: None,
                     noncreature_only: true,

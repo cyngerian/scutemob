@@ -18,41 +18,19 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
-            // TODO: "Whenever tokens enter" trigger + "once each turn" not in DSL.
-            //   Using generic creature ETB as approximation.
-            AbilityDefinition::Triggered {
-                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
-                    filter: Some(TargetFilter {
-                        controller: TargetController::You,
-                        ..Default::default()
-                    }),
-                    exclude_self: false,
-                },
-                effect: Effect::CreateToken {
-                    spec: TokenSpec {
-                        name: "Vampire Rogue".to_string(),
-                        card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Vampire".to_string()), SubType("Rogue".to_string())].into_iter().collect(),
-                        colors: [Color::Black].into_iter().collect(),
-                        power: 1,
-                        toughness: 1,
-                        count: EffectAmount::Fixed(1),
-                        supertypes: im::OrdSet::new(),
-                        keywords: [KeywordAbility::Lifelink].into_iter().collect(),
-                        tapped: false,
-                        enters_attacking: false,
-                        mana_color: None,
-                        mana_abilities: vec![],
-                        activated_abilities: vec![],
-                        ..Default::default()
-                    },
-                },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
-            },
+            // ENGINE-BLOCKED: "Whenever one or more tokens you control enter, create a 1/1
+            // black Vampire Rogue creature token with lifelink. This ability triggers only
+            // once each turn." PB-AC1 shipped the `once_per_turn` limiter, but the trigger
+            // needs a TOKEN-restricted ETB filter (not "any creature entering"). `TargetFilter
+            // .is_token` is documented as a runtime `GameObject` field that is checked only in
+            // the `combat_damage_filter` path (card_definition.rs) — it is NOT confirmed wired
+            // into the creature-ETB trigger dispatch (unlike `has_subtype`/`is_nontoken`,
+            // which PB-AC0 specifically wired through for Characteristics-level matching).
+            // Approximating with an unfiltered `WheneverCreatureEntersBattlefield` (any
+            // creature you control, not just tokens — nontoken Vampire Nobles, Soldiers, etc.
+            // would wrongly trigger it) is a KI-1-class overbroad filter and would produce
+            // wrong game state. Left fully blocked until `is_token` is verified wired for ETB
+            // triggers (or an equivalent primitive ships).
             // {1}{B}, Sacrifice: Draw a card
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![

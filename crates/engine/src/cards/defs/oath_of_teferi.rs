@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "When Oath of Teferi enters, exile another target permanent you control. Return it to the battlefield under its owner's control at the beginning of the next end step.\nYou may activate loyalty abilities of planeswalkers you control twice each turn rather than only once.".to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ExileWithDelayedReturn {
                     target: EffectTarget::DeclaredTarget { index: 0 },

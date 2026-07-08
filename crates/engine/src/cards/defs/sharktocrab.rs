@@ -1,8 +1,7 @@
 // Sharktocrab — {2}{G}{U}, Creature — Shark Octopus Crab 4/4 (Ravnica Allegiance)
 // Adapt 1: {2}{G}{U}, {T}: if no +1/+1 counters, put 1 +1/+1 counter on it.
-// TODO: "Whenever one or more +1/+1 counters are put on this creature, tap target creature
-// an opponent controls. That creature doesn't untap during its controller's next untap step."
-// — requires a targeted triggered ability with a "doesn't untap" replacement; no DSL support yet.
+// Whenever one or more +1/+1 counters are put on this creature, tap target creature
+// an opponent controls. That creature doesn't untap during its controller's next untap step.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -39,6 +38,32 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,
+            },
+            // CR 122.6 / 122.7 / 502.3: "Whenever one or more +1/+1 counters are put on
+            // this creature, tap target creature an opponent controls. That creature
+            // doesn't untap during its controller's next untap step."
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenCounterPlaced {
+                    counter: Some(CounterType::PlusOnePlusOne),
+                    filter: None,
+                    on_self: true,
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::TapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::PreventNextUntap {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::Opponent,
+                    ..Default::default()
+                })],
+                modes: None,
+                trigger_zone: None,
+                once_per_turn: false,
             },
         ],
         power: Some(4),

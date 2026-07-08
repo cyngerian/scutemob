@@ -16,6 +16,7 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             // "Whenever another creature you control enters" — ETB trigger.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
@@ -36,6 +37,7 @@ Whenever another creature you control dies, each opponent loses 1 life.".to_stri
             // CR 603.10a: "Whenever another creature you control dies, each opponent loses 1 life."
             // PB-23: controller_you + exclude_self filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: true,

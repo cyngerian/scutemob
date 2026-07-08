@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever an opponent discards a card, that player loses 2 life.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverOpponentDiscards,
                 effect: Effect::LoseLife {
                     player: PlayerTarget::TriggeringPlayer,

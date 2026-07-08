@@ -59,6 +59,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![
                         TriggeredAbilityDef {
+                            counter_filter: None,
+                            counter_on_self: false,
+                            once_per_turn: false,
                             trigger_on: TriggerEvent::AnySpellCast,
                             intervening_if: None,
                             description: "Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters.".to_string(),

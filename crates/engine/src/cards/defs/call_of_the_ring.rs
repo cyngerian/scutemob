@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 701.54a: At the beginning of your upkeep, the Ring tempts you.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::TheRingTemptsYou,
                 intervening_if: None,

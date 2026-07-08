@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever you draw a card, put a loyalty counter on Teferi.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

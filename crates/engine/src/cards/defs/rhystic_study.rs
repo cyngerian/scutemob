@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
                 spell_type_filter: None,
                 noncreature_only: false,

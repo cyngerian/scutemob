@@ -164,6 +164,9 @@ fn test_emblem_creation_basic() {
 fn test_emblem_triggered_ability_fires() {
     // Emblem ability: "Whenever you cast a spell, draw a card."
     let draw_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnySpellCast,
         intervening_if: None,
         description: "Whenever you cast a spell, draw a card.".to_string(),
@@ -376,6 +379,9 @@ fn test_multiple_emblems_stack() {
     // Build a state with two emblems already in the command zone.
     // This simulates what two -6 activations (across two turns) would produce.
     let draw_trigger = TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnySpellCast,
         intervening_if: None,
         description: "Whenever you cast a spell, draw a card.".to_string(),
@@ -429,6 +435,7 @@ fn test_multiple_emblems_stack() {
     };
 
     let second_emblem = mtg_engine::state::game_object::GameObject {
+        triggered_abilities_fired_this_turn: im::OrdSet::new(),
         id: mtg_engine::ObjectId(0), // replaced by add_object
         card_id: None,
         characteristics: second_chars,

@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // creature that player controls." — DamagedPlayer scopes the target to the specific
             // player dealt damage (precision fix: multiplayer correctness).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
                 effect: Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },

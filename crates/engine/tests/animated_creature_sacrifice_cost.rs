@@ -81,6 +81,9 @@ fn animate_all_permanents(eff_id: u64, ts: u64) -> ContinuousEffect {
 /// artifact dies.
 fn creature_dies_witness_trigger() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
         trigger_on: TriggerEvent::AnyCreatureDies,
         intervening_if: None,
         description: "Whenever a creature dies, deal 1 damage to each opponent".to_string(),

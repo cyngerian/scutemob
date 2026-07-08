@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // the duration. The PlayerId in UntilYourNextTurn is only meaningful for
             // ApplyContinuousEffect (which resolves it to ctx.controller at execution time).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GrantPlayerProtection {
                     player: PlayerTarget::Controller,
@@ -46,6 +47,7 @@ pub fn card() -> CardDefinition {
             },
             // At the beginning of your upkeep, lose 1 life for each burden counter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::LoseLife {
                     player: PlayerTarget::Controller,

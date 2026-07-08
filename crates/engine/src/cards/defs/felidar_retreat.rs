@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // Mode 0: Create a 2/2 white Cat Beast token.
             // Mode 1: +1/+1 counter on each creature you control + vigilance until EOT.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

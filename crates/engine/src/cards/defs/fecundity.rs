@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
             // TODO: "that creature's controller" — needs ControllerOf(dying creature)
             //   as PlayerTarget. WheneverCreatureDies gives controller draw as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false, filter: None,
 },
                 effect: Effect::DrawCards {

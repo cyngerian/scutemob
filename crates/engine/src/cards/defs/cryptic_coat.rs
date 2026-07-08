@@ -25,6 +25,7 @@ it's a creature card.)\nEquipped creature gets +1/+0 and can't be blocked.\n\
         abilities: vec![
             // CR 701.58a: ETB trigger — cloak the top card, then attach this Equipment to it.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::Cloak { player: PlayerTarget::Controller },

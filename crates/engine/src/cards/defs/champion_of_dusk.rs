@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // PermanentCount with Vampire subtype filter gives the count of Vampires you control,
             // including Champion of Dusk itself (which has just entered the battlefield).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {

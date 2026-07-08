@@ -88,6 +88,7 @@ fn test_whenever_you_cast_creature_spell_filter_stored() {
         },
         oracle_text: "Whenever you cast a creature spell, draw a card.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouCastSpell {
                 during_opponent_turn: false,
                 spell_type_filter: Some(vec![CardType::Creature]),
@@ -136,6 +137,7 @@ fn test_whenever_you_cast_noncreature_spell_filter_stored() {
         },
         oracle_text: "Whenever you cast a noncreature spell, create a token.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouCastSpell {
                 during_opponent_turn: false,
                 spell_type_filter: None,
@@ -182,6 +184,7 @@ fn test_whenever_opponent_casts_noncreature_filter_stored() {
         },
         oracle_text: "Whenever an opponent casts a noncreature spell, draw a card.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
                 spell_type_filter: None,
                 noncreature_only: true,
@@ -228,6 +231,7 @@ fn test_whenever_you_discard_trigger_variant() {
         },
         oracle_text: "Whenever you discard a card, gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouDiscard,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
@@ -264,6 +268,7 @@ fn test_whenever_opponent_discards_trigger_variant() {
         },
         oracle_text: "Whenever an opponent discards a card, that player loses 2 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverOpponentDiscards,
             effect: Effect::LoseLife {
                 player: PlayerTarget::TriggeringPlayer,
@@ -302,6 +307,7 @@ fn test_whenever_you_sacrifice_trigger_variant() {
         },
         oracle_text: "Whenever you sacrifice a permanent, put a +1/+1 counter on this.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouSacrifice {
                 filter: None,
                 player_filter: None,
@@ -344,6 +350,7 @@ fn test_whenever_you_sacrifice_with_filter() {
         },
         oracle_text: "Whenever a player sacrifices a permanent, put a +1/+1 counter.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouSacrifice {
                 filter: None,
                 player_filter: Some(TargetController::Any),
@@ -390,6 +397,9 @@ fn test_sacrifice_trigger_not_on_destruction() {
     // Watcher: WheneverYouSacrifice { filter: None } → ControllerSacrifices event
     let sac_watcher_obj = ObjectSpec::creature(p1, "Sacrifice Watcher", 0, 0)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::ControllerSacrifices,
             etb_filter: None,
             death_filter: None,
@@ -451,6 +461,7 @@ fn test_whenever_you_attack_trigger_variant() {
         },
         oracle_text: "Whenever you attack, gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouAttack,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
@@ -483,6 +494,9 @@ fn test_whenever_you_attack_fires_once_per_combat() {
     // Watcher fires ControllerAttacks event → gains 1 life per attack trigger
     let watcher_obj = ObjectSpec::creature(p1, "Attack Watcher", 0, 0).with_triggered_ability(
         TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::ControllerAttacks,
             etb_filter: None,
             death_filter: None,
@@ -566,6 +580,7 @@ fn test_when_leaves_battlefield_trigger_variant() {
         },
         oracle_text: "When this leaves the battlefield, gain 2 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenLeavesBattlefield,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
@@ -600,6 +615,9 @@ fn test_when_leaves_battlefield_fires_on_death() {
     // Creature with SelfLeavesBattlefield trigger (wired directly for test)
     let ltb_obj =
         ObjectSpec::creature(p1, "LTB Tester", 1, 1).with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfLeavesBattlefield,
             etb_filter: None,
             death_filter: None,
@@ -657,6 +675,9 @@ fn test_when_leaves_battlefield_fires_on_destruction() {
     // A creature that gains life when it leaves the battlefield
     let ltb_obj = ObjectSpec::creature(p1, "LTB Destruction Tester", 2, 2).with_triggered_ability(
         TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfLeavesBattlefield,
             etb_filter: None,
             death_filter: None,
@@ -720,6 +741,7 @@ fn test_whenever_you_draw_card_trigger_variant() {
         },
         oracle_text: "Whenever you draw a card, put a +1/+1 counter on this.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverYouDrawACard,
             effect: Effect::AddCounter {
                 target: CardEffectTarget::Source,
@@ -754,6 +776,9 @@ fn test_whenever_you_draw_card_trigger_fires() {
     // Use direct ControllerDrawsCard event wiring
     let draw_counter_obj = ObjectSpec::creature(p1, "Draw Counter Watcher", 0, 0)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::ControllerDrawsCard,
             etb_filter: None,
             death_filter: None,
@@ -814,6 +839,7 @@ fn test_whenever_opponent_draws_card_trigger_variant() {
         },
         oracle_text: "Whenever an opponent draws a card, gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                 player_filter: Some(TargetController::Opponent),
             },
@@ -853,6 +879,9 @@ fn test_whenever_you_gain_life_trigger_fires() {
     // Watcher: whenever P1 gains life, P2 loses 1 life
     let lifegain_watcher = ObjectSpec::creature(p1, "Lifegain Watcher", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::ControllerGainsLife,
             etb_filter: None,
             death_filter: None,
@@ -887,6 +916,7 @@ fn test_whenever_you_gain_life_trigger_fires() {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
@@ -968,6 +998,7 @@ fn test_when_you_cast_this_spell_trigger_variant() {
         },
         oracle_text: "When you cast this spell, you gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenYouCastThisSpell,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
@@ -1015,6 +1046,7 @@ fn test_when_you_cast_this_spell_fires_from_stack() {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenYouCastThisSpell,
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,

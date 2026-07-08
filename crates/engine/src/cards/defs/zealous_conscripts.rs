@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 613.1b: ETB — gain control of target permanent until end of turn,
             // untap it, it gains haste until end of turn.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::GainControl {

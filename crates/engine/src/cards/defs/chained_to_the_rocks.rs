@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             ))),
             // ETB: exile target creature opponent controls until this leaves.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ExileWithDelayedReturn {
                     target: EffectTarget::DeclaredTarget { index: 0 },

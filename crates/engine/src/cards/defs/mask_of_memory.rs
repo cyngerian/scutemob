@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // draw two cards, then discard a card." (approximation — "may" draw 2 not in DSL)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {

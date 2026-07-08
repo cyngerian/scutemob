@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // 2. Each attacking creature gains first strike until end of turn.
             // 3. After this phase, there is an additional combat phase.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
                 intervening_if: Some(Condition::IsFirstCombatPhase),
                 effect: Effect::Sequence(vec![

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever you sacrifice a permanent, put a +1/+1 counter on Juri.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: None,
                     player_filter: None,
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
             // (boosted by accumulated +1/+1 counters before death).
             // CR 120.4: damage of 0 or less is reduced to 0 — Juri ruling explicitly notes this.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::DealDamage {
                     target: EffectTarget::DeclaredTarget { index: 0 },

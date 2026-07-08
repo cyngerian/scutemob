@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 603.2: "Whenever an opponent draws a card, you may draw two cards."
             // Note: "you may" optional not in DSL — always draws (bot always opts in).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                     player_filter: Some(TargetController::Opponent),
                 },

@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Triggered: whenever this becomes tapped (any source), deal 1 damage to controller.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
                 effect: Effect::DealDamage {
                     target: EffectTarget::Controller,

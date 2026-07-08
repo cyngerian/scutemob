@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
 
             // Whenever another creature you control enters, General Kreat deals 1 damage to each opponent.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

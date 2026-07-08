@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 107.3m: "When this enchantment enters, it deals X damage to each creature."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachCreature,

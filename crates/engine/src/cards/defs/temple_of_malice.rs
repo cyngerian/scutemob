@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 701.18: Scry 1 on ETB.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Scry {
                     player: PlayerTarget::Controller,

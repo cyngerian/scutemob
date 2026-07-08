@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // Returns Squee from the graveyard to its controller's hand.
             // TODO: Oracle says "you may" — currently non-optional (bot always returns).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,

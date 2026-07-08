@@ -853,6 +853,7 @@ fn test_whenever_ring_tempts_you_trigger() {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverRingTemptsYou,
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,

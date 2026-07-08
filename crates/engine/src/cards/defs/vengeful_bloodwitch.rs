@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // PB-23: controller_you filter applied via DeathTriggerFilter.
             // "Target opponent" is approximated as DeclaredTarget { index: 0 }.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
                     exclude_self: false,

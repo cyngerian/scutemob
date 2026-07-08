@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // Using "any player" semantic via player_filter: Any.
             // TODO: "any target" — using each opponent as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouSacrifice {
                     filter: None,
                     player_filter: Some(TargetController::Any),

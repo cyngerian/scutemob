@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a / CR 603.2c: "Whenever one or more creatures you control deal combat
             // damage to one or more players, proliferate." — batch trigger.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
                 effect: Effect::Proliferate,
                 intervening_if: None,
@@ -32,6 +33,7 @@ pub fn card() -> CardDefinition {
             // Corrupted — at the beginning of your end step, if an opponent has 3+ poison counters,
             // draw a card, then you may put a land card from your hand onto the battlefield.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {

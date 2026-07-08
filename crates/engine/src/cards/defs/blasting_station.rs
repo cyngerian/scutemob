@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // CR 603.2: "Whenever a creature enters, you may untap Blasting Station."
             // Note: "you may" optional not in DSL — always untaps (bot always opts in).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: None,
                     exclude_self: false,

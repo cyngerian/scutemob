@@ -106,6 +106,7 @@ fn connive_etb_creature_def(card_id_str: &str, name: &str) -> CardDefinition {
         power: Some(2),
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
             effect: Effect::Connive {
                 target: CardEffectTarget::Source,
@@ -702,6 +703,9 @@ fn test_connive_self_trigger_fires_on_connive() {
     // modeled as SourceConnives -> AddCounter.
     let connive_trigger_creature = ObjectSpec::creature(p1, "Ledger Shredder Stand-in", 2, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             etb_filter: None,
             death_filter: None,
             combat_damage_filter: None,

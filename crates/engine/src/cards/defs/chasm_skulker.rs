@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Whenever you draw a card, put a +1/+1 counter on Chasm Skulker.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
@@ -31,6 +32,7 @@ pub fn card() -> CardDefinition {
             // where X is the number of +1/+1 counters on it.
             // CR 603.10a: counter count read from LKI snapshot (counters cease on zone change per CR 122.2).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

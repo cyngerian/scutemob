@@ -3,7 +3,10 @@
 // Whenever a card leaves your graveyard during your turn, draw a card.
 // This ability triggers only once each turn.
 //
-// TODO: "Card leaves graveyard" trigger + once-per-turn not in DSL.
+// ENGINE-BLOCKED: "Whenever a card leaves your graveyard during your turn, draw a card."
+// PB-AC1 shipped the `once_per_turn` limiter, but there is no `TriggerCondition` for a card
+// leaving the graveyard (mill/exile-from-graveyard/cast-from-graveyard/etc. as a single
+// unified "leaves graveyard" event) anywhere in the DSL. Stays fully blocked.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,7 +20,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: Graveyard-leave trigger + once-per-turn not in DSL.
+            // ENGINE-BLOCKED: see header — no "leaves graveyard" TriggerCondition in the DSL.
         ],
         ..Default::default()
     }

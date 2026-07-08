@@ -156,7 +156,7 @@ fn triggers_for(state: &GameState, source: ObjectId) -> usize {
 #[test]
 fn test_pbxse_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 27u8,
+        HASH_SCHEMA_VERSION, 28u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
@@ -278,6 +278,7 @@ fn build_watcher_def(card_id: &str, name: &str, exclude_self: bool) -> CardDefin
             "Whenever a creature you control enters, you gain 1 life.".to_string()
         },
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                 filter: Some(TargetFilter {
                     controller: TargetController::You,
@@ -493,6 +494,7 @@ fn build_permanent_watcher_def(card_id: &str, name: &str, exclude_self: bool) ->
             "Whenever a red permanent you control enters, you gain 1 life.".to_string()
         },
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                 filter: Some(TargetFilter {
                     controller: TargetController::You,
@@ -738,6 +740,7 @@ fn test_pbxse_subtype_exclude_self_suppresses_source_match() {
         },
         oracle_text: "Whenever another Vampire you control enters, you gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                 filter: Some(TargetFilter {
                     controller: TargetController::You,

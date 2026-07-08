@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: "may discard, if you do draw" — optional loot on cast trigger (DSL gap).
             // Creature spell filter applied.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

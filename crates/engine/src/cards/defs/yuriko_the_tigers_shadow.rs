@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // card's mana value" — needs EffectAmount::ManaValueOf(revealed card), but no
             // EffectTarget variant for the card revealed by RevealAndRoute exists.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Ninja".to_string())),

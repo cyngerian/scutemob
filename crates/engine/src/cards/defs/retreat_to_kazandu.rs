@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // Mode 0: Put a +1/+1 counter on target creature.
             // Mode 1: You gain 2 life.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

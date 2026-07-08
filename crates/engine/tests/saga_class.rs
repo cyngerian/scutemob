@@ -352,6 +352,7 @@ fn test_class_def() -> CardDefinition {
         abilities: vec![
             // Level 1 ability (always active — this is NOT a ClassLevel, it's a regular ability)
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

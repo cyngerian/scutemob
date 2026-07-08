@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // ETB: search library for a Vampire, put on top.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::SearchLibrary {
                     filter: TargetFilter {
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
             },
             // Whenever another Vampire you control enters, target creature gets +1/+1 until EOT.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

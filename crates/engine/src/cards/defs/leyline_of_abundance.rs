@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // CR 605.1b / CR 106.12a: "Whenever you tap a creature for mana, add {G}."
             // Triggered mana ability — resolves immediately (CR 605.4a).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::Creature,
                 },

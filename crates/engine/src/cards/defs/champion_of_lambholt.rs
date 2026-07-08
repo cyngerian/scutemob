@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Creatures with power less than ~'s power can't block creatures
             // you control." Dynamic blocking restriction based on source power not in DSL.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,

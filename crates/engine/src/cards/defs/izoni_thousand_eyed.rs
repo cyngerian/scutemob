@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // zone: Graveyard { owner: Controller } counts creature cards in the controller's
             // graveyard (including any that died previously this turn).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

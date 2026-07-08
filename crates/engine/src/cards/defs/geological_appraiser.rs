@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 // CR 603.4: WasCast intervening-if — only fires when cast, not on flicker/reanimate.
                 intervening_if: Some(Condition::WasCast),

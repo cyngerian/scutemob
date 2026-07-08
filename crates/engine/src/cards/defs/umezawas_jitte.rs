@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // Needs WhenEquippedCreatureDealsCombatDamage variant. Current trigger is the closest
             // available approximation (misses damage dealt to creatures).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,

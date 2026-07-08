@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             },
             // CR 701.25: Surveil 1 on ETB.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Surveil {
                     player: PlayerTarget::Controller,

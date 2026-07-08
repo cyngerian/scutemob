@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
             // TODO: "X = number of attacking creatures" — EffectAmount::AttackingCreatureCount not in DSL.
             // Using Fixed(1) as partial approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouAttack,
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {

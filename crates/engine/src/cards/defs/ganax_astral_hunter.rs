@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // itself → exclude_self: false. PB-AC0: has_subtype: Dragon is now honored on
             // the creature-ETB path via triggering_creature_filter forwarding.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Dragon".to_string())),

@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // CR 603.3, 603.6a: ETB triggered ability — exile all cards from all graveyards.
             // Queued as PendingTrigger by queue_carddef_etb_triggers; resolves via stack.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachCardInAllGraveyards,

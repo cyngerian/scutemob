@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // Mode 0: You may tap or untap target creature (approximated as untap).
             // Mode 1: Scry 1.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Land),

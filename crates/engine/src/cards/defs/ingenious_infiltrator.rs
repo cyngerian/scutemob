@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // CR 510.3a: "Whenever a Ninja you control deals combat damage to a player,
             // draw a card." — per-creature trigger with Ninja subtype filter.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
                     filter: Some(TargetFilter {
                         has_subtype: Some(SubType("Ninja".to_string())),

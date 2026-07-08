@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             // CR 603.10a: "Whenever another creature dies, put a +1/+1 counter on Elenda."
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
 },
                 effect: Effect::AddCounter {
@@ -38,6 +39,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When dies, create X tokens where X = power" — EffectAmount lacks
             //   power-based count. Using fixed 3 as approximation.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

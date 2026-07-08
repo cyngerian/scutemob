@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             //   while paired) is not expressible in the DSL; only the direct ability is.
             // TODO: "loses soulbond" on copy token not expressible.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfCombat,
                 effect: Effect::CreateTokenCopy {
                     source: EffectTarget::Source,

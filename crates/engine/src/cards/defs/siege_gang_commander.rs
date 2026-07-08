@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // When this creature enters, create three 1/1 red Goblin creature tokens.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

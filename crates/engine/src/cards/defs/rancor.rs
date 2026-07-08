@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             // return it to its owner's hand. This trigger fires on the WhenDies
             // zone-change event (battlefield → graveyard).
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,

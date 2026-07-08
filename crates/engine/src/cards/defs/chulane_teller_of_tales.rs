@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // Whenever you cast a creature spell, draw a card, then you may put a land card
             // from your hand onto the battlefield.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Creature]),

@@ -106,6 +106,7 @@ fn test_clone_independence_object_modification() {
 
             // Add a new object to the modified state
             let new_obj = GameObject {
+                triggered_abilities_fired_this_turn: im::OrdSet::new(),
                 id: ObjectId(0),
                 card_id: None,
                 characteristics: Characteristics {

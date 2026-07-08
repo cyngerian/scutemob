@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — no "rearrange top N" effect. Scry 3 is wrong (allows bottoming).
             // Need Effect::RearrangeTopN or similar. Using empty effect until DSL supports this.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![]),
                 intervening_if: None,

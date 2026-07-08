@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 // TODO: X = greatest number of creatures sharing a creature type.
                 // No EffectAmount variant for this. Using Fixed(0) stub.

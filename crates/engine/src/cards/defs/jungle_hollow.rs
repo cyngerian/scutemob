@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,

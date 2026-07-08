@@ -688,6 +688,9 @@ fn test_mutate_trigger_fires() {
         })
         // CR 702.140d: "whenever this creature mutates" trigger
         .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
             trigger_on: TriggerEvent::SelfMutates,
             intervening_if: None,
             description: "Whenever this creature mutates (CR 702.140d)".to_string(),

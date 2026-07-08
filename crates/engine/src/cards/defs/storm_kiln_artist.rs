@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: +1/+0 per artifact CDA — see comment above
             // Magecraft — instant/sorcery filter applied. "or copy" half is a known gap.
             AbilityDefinition::Triggered {
+                once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouCastSpell {
                     during_opponent_turn: false,
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
