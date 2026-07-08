@@ -13,7 +13,13 @@ PB-AC2 backfill phase (primitive-wip.md). `mana_leak.rs` / `mana_tithe.rs` / etc
 their pre-AC2 TODO stubs (confirmed via grep). Card-def review is therefore N/A for this
 implement-phase commit.
 
-## Verdict: needs-fix
+## Verdict: RESOLVED (was needs-fix)
+
+**Resolution (commits 50edcbcf, 456a0bd7):** MEDIUM #1 (Sequence atomicity) FIXED via
+cumulative-depletion scratch-clone probe; MEDIUM #4 (real-card coverage) CLOSED by
+`crates/engine/tests/pb_ac2_card_integration.rs` (5 real-CardDefinition tests); LOW #2
+(multi-payer ctx scope) FIXED (payer rebind). LOW #3 note-only, left as-is. All HIGH/MEDIUM
+findings addressed; 2919 tests pass.
 
 Engine change is CR-correct on every point the brief flagged as high-risk: the hash covers
 **all** fields of both new variants and bumps the schema (PB-AC1's HIGH miss is NOT repeated);

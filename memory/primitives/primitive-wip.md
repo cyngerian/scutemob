@@ -1,7 +1,7 @@
 ---
 pb: PB-AC2
 title: Optional-cost wrapper & counter-tax primitives
-phase: review
+phase: closed
 plan_file: memory/primitives/pb-plan-AC2.md
 review_file: memory/primitives/pb-review-AC2.md
 ---
@@ -72,6 +72,16 @@ review_file: memory/primitives/pb-review-AC2.md
     clone with cumulative depletion; all-or-nothing preserved. +6 tests (2914 total).
   - LOW #2 FIXED: `then` runs with ctx.controller rebound to the actual payer.
   - LOW #3: note-only, left as-is. MEDIUM #4: deferred to backfill.
-- [ ] backfill (bulk-card-author + card-batch-reviewer) — incl. real-card integration
-      tests to close MEDIUM #4
-- [ ] close
+- [x] backfill (bulk-card-author + card-batch-reviewer, 2026-07-07)
+  - 12 CLEAN cards authored (crossway_troublemakers, miara, hazorets_monument [was
+    wrong-state unconditional draw], tainted_observer, springbloom_druid, nadir_kraken,
+    mana_leak, mana_tithe, spell_pierce, flusterstorm, make_disappear, izzet_charm);
+    8 PARTIAL with precise ENGINE-BLOCKED markers (ezuri [no proliferate-trigger DSL
+    variant], stubborn_denial [Ferocious authored], ruthless_technomancer, vampire_gourmand,
+    mana_vault, temur_sabertooth [bounce-as-cost out of scope], leaf_crowned_visionary,
+    call_of_the_ring).
+  - card-batch-reviewer: 0 HIGH / 0 MEDIUM / 1 LOW (make_disappear Casualty reminder text — fixed).
+  - MEDIUM #4 closed: crates/engine/tests/pb_ac2_card_integration.rs (5 real-card tests).
+  - Authoring-report: clean 934→946 (+12), 53.4%→54.1%.
+- [x] close (2026-07-07) — /review PASS on all 4 acceptance criteria; gates green
+      (build/clippy/fmt clean, 2919 tests pass).
