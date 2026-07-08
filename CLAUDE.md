@@ -14,15 +14,15 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 946/1,748 = 54.1% per `tools/authoring-report.py`)
-- **Tests**: **2919 passing**; build/clippy/fmt clean
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 951/1,748 = 54.4% per `tools/authoring-report.py`)
+- **Tests**: **2940 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: **PB-AC2** (`scutemob-44`, merge `4d819ef4`) — `Effect::MayPayThenEffect` (beneficial-pay wrapper) + `Effect::CounterUnlessPays` (+26 tests); backfill 20 cards (12 CLEAN / 8 PARTIAL, review 0 HIGH/MED) — Crossway Troublemakers + Miara riders now live. Prior: PB-AC1 (`scutemob-43`, +20 tests, 8 clean) and plan recalibration §0 (PB-first sequencing). Next: PB-AC3 (dynamic P/T & count amounts).
+- **Last shipped**: **PB-AC3** (`scutemob-45`, merge `0bd7c7a3`) — `EffectAmount::{AttackingCreatureCount,TappedCreatureCount,HandSize}` + `LayerModification::SetBothDynamic` (Layer 7b); fixed pre-existing hash disc-26 collision; backfill incl. 4 HIGH wrong-game-state fixes (Mishra, Ashaya, Multani, Wight). Prior same-day: PB-AC2 (`scutemob-44`, MayPayThenEffect + CounterUnlessPays, 12 clean) and PB-AC1 (`scutemob-43`, untap/counter/once-per-turn, 8 clean). Next: PB-AC4 (modal & optional targeting). Known tooling nit: authoring-report.py regex misclassifies Krenko as 'empty' (no word boundary on `abilities: vec![]` match).
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-07-07 (PB-AC2 collected — 2919 tests, clean coverage 54.1%)
+- **Last Updated**: 2026-07-07 (PB-AC3 collected — 2940 tests, clean coverage 54.4%)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
