@@ -3355,24 +3355,53 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     TriggerEvent::ControllerCastsSpell,
                     Some(*player),
                 );
-                // G-4: spell_type_filter post-processing for ControllerCastsSpell and
-                // OpponentCastsSpell triggers that have a WheneverYouCastSpell or
-                // WheneverOpponentCastsSpell CardDef with a spell_type_filter/noncreature_only.
-                // Get the cast spell's card types from the stack object.
+                // G-4 / index-namespace fix (2026-07-09): post-processing for
+                // ControllerCastsSpell and OpponentCastsSpell triggers that carry a
+                // spell_type_filter / noncreature_only / spell_subtype_filter (from a
+                // WheneverYouCastSpell or WheneverOpponentCastsSpell CardDef condition).
+                //
+                // BUG HISTORY: this used to look the ability up via
+                // `def.abilities.get(t.ability_index)` -- an index into the RAW
+                // `CardDefinition::abilities` Vec (which also contains Keyword/Static/
+                // Activated abilities). `t.ability_index` is actually a dense index into
+                // the object's runtime `characteristics.triggered_abilities` list (set by
+                // `collect_triggers_for_event` from `resolved_chars.triggered_abilities
+                // .iter().enumerate()`). These two index spaces only coincide by accident
+                // when the card's Triggered ability happens to sit at the same position in
+                // both lists. On any multi-ability card where they don't (e.g. Monastery
+                // Mentor: Keyword(Prowess) at abilities[0], Triggered at abilities[1] but
+                // dense index 0; Leaf-Crowned Visionary: Static at abilities[0], Triggered
+                // at abilities[1] but dense index 0), the lookup landed on a non-Triggered
+                // ability and fell through the `_ => true` catch-all, silently skipping the
+                // filter and firing on every spell cast.
+                //
+                // FIX: re-resolve the SAME dense runtime list the trigger was built from
+                // (`t.source`'s `triggered_abilities[t.ability_index]`, layer-resolved per
+                // CR 613.1f) and read the filter off `triggering_creature_filter`
+                // (`TargetFilter`), which `enrich_spec_from_def` now populates for
+                // WheneverYouCastSpell / WheneverOpponentCastsSpell from
+                // spell_type_filter/noncreature_only/spell_subtype_filter --
+                // `has_card_types`/`non_creature`/`has_subtypes` are exact semantic
+                // equivalents, so this reuses existing hashed struct fields (no new field,
+                // no HASH_SCHEMA_VERSION bump). Because `t.ability_index` is guaranteed (by
+                // construction in `collect_triggers_for_event`/
+                // `collect_emblem_triggers_for_event`) to index the entry whose `trigger_on`
+                // matches `t.triggering_event`, this lookup cannot collide with an unrelated
+                // ability the way the CardDef lookup did.
+                //
+                // NOTE: `chosen_subtype_filter` (CR 603.1 "of the chosen type", used only by
+                // Vanquisher's Banner) is NOT carried by `triggering_creature_filter` -- it's
+                // a dynamic per-source condition (checked against the source's
+                // `chosen_creature_type`), not a static TargetFilter predicate. It remains
+                // unenforced here, same as before this fix. Vanquisher's Banner is out of
+                // scope for this fix (see task scope discipline); it now correctly narrows to
+                // creature spells via spell_type_filter but does not further narrow to the
+                // chosen type.
                 {
-                    let spell_card_types: Vec<crate::state::types::CardType> = state
+                    let spell_chars = state
                         .objects
                         .get(source_object_id)
-                        .map(|obj| obj.characteristics.card_types.iter().cloned().collect())
-                        .unwrap_or_default();
-                    let spell_subtypes: Vec<crate::state::types::SubType> = state
-                        .objects
-                        .get(source_object_id)
-                        .map(|obj| obj.characteristics.subtypes.iter().cloned().collect())
-                        .unwrap_or_default();
-                    let spell_is_creature =
-                        spell_card_types.contains(&crate::state::types::CardType::Creature);
-                    // Retain only triggers whose spell_type_filter matches.
+                        .map(|o| &o.characteristics);
                     triggers.retain(|t| {
                         // Only post-filter ControllerCastsSpell and OpponentCastsSpell triggers.
                         let te = t.triggering_event.as_ref();
@@ -3381,82 +3410,29 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         {
                             return true;
                         }
-                        // Look up the trigger source's CardDef triggered ability.
-                        let source_card_id =
-                            state.objects.get(&t.source).and_then(|o| o.card_id.clone());
-                        let def = source_card_id.and_then(|cid| state.card_registry.get(cid));
-                        let Some(def) = def else { return true };
-                        // Find the matching ability in the CardDef.
-                        let ability = def.abilities.get(t.ability_index);
-                        let Some(ability) = ability else { return true };
-                        match ability {
-                            AbilityDefinition::Triggered {
-                                trigger_condition:
-                                    TriggerCondition::WheneverYouCastSpell {
-                                        spell_type_filter,
-                                        noncreature_only,
-                                        chosen_subtype_filter,
-                                        spell_subtype_filter,
-                                        ..
-                                    },
-                                ..
-                            } => {
-                                if *noncreature_only && spell_is_creature {
-                                    return false;
-                                }
-                                if let Some(filter) = spell_type_filter {
-                                    if !filter.iter().any(|ft: &crate::state::types::CardType| {
-                                        spell_card_types.contains(ft)
-                                    }) {
-                                        return false;
-                                    }
-                                }
-                                // CR 603.1: chosen_subtype_filter — only fire for spells whose
-                                // subtype matches the trigger source's chosen_creature_type.
-                                if *chosen_subtype_filter {
-                                    let source_chosen = state
+                        // Resolve the exact TriggeredAbilityDef this trigger was built from.
+                        let resolved_chars =
+                            crate::rules::layers::calculate_characteristics(state, t.source)
+                                .or_else(|| {
+                                    state
                                         .objects
                                         .get(&t.source)
-                                        .and_then(|o| o.chosen_creature_type.as_ref());
-                                    let spell_has_chosen = source_chosen
-                                        .map(|ct| spell_subtypes.contains(ct))
-                                        .unwrap_or(false);
-                                    if !spell_has_chosen {
-                                        return false;
-                                    }
-                                }
-                                // CR 205.1a: spell_subtype_filter — OR-semantics fixed-subtype
-                                // filter (Aura/Equipment/Vehicle for Sram, Elf for
-                                // Leaf-Crowned Visionary). `None` = no restriction.
-                                if let Some(sub_filter) = spell_subtype_filter {
-                                    if !sub_filter.iter().any(|st| spell_subtypes.contains(st)) {
-                                        return false;
-                                    }
-                                }
-                                true
-                            }
-                            AbilityDefinition::Triggered {
-                                trigger_condition:
-                                    TriggerCondition::WheneverOpponentCastsSpell {
-                                        spell_type_filter,
-                                        noncreature_only,
-                                    },
-                                ..
-                            } => {
-                                if *noncreature_only && spell_is_creature {
-                                    return false;
-                                }
-                                if let Some(filter) = spell_type_filter {
-                                    if !filter.iter().any(|ft: &crate::state::types::CardType| {
-                                        spell_card_types.contains(ft)
-                                    }) {
-                                        return false;
-                                    }
-                                }
-                                true
-                            }
-                            _ => true,
-                        }
+                                        .map(|o| o.characteristics.clone())
+                                });
+                        let Some(chars) = resolved_chars else {
+                            return true;
+                        };
+                        let Some(trigger_def) = chars.triggered_abilities.get(t.ability_index)
+                        else {
+                            return true;
+                        };
+                        let Some(ref filter) = trigger_def.triggering_creature_filter else {
+                            return true;
+                        };
+                        let Some(spell_chars) = spell_chars else {
+                            return true;
+                        };
+                        crate::effects::matches_filter(spell_chars, filter)
                     });
                 }
                 // G-15: WhenYouCastThisSpell — fires when the spell itself is put on the stack.

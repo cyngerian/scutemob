@@ -9,7 +9,7 @@ use crate::{
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, DeathTriggerFilter,
     Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
     KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController,
-    TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    TargetFilter, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use im::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -2324,11 +2324,29 @@ pub fn enrich_spec_from_def(
     // not here -- this only wires the TriggerEvent.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverOpponentCastsSpell { .. },
+            trigger_condition:
+                TriggerCondition::WheneverOpponentCastsSpell {
+                    spell_type_filter,
+                    noncreature_only,
+                },
             effect,
             ..
         } = ability
         {
+            // Index-namespace fix (2026-07-09): carry spell_type_filter/noncreature_only
+            // on the runtime TriggeredAbilityDef itself (reusing TargetFilter's
+            // has_card_types/non_creature) instead of leaving the post-filter in
+            // rules/abilities.rs to re-look the ability up via CardDefinition::abilities
+            // (a different, non-dense index space -- see abilities.rs G-4 comment).
+            let spell_filter = if spell_type_filter.is_some() || *noncreature_only {
+                Some(TargetFilter {
+                    has_card_types: spell_type_filter.clone().unwrap_or_default(),
+                    non_creature: *noncreature_only,
+                    ..Default::default()
+                })
+            } else {
+                None
+            };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
@@ -2336,7 +2354,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
-                triggering_creature_filter: None,
+                triggering_creature_filter: spell_filter,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
                 targets: vec![],
@@ -2431,11 +2449,46 @@ pub fn enrich_spec_from_def(
     // done at trigger-collection time in abilities.rs via ControllerCastsSpell.
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouCastSpell { .. },
+            trigger_condition:
+                TriggerCondition::WheneverYouCastSpell {
+                    spell_type_filter,
+                    noncreature_only,
+                    spell_subtype_filter,
+                    // chosen_subtype_filter (CR 603.1 "of the chosen type", Vanquisher's
+                    // Banner only) is a dynamic per-source condition (compared against
+                    // the source's `chosen_creature_type` at trigger time) rather than a
+                    // static TargetFilter predicate, so it cannot be folded into
+                    // `triggering_creature_filter` below. It remains unenforced by this
+                    // conversion — same as before this fix — and is out of scope here
+                    // (see rules/abilities.rs G-4 comment; Vanquisher's Banner card-level
+                    // fix is explicitly deferred).
+                    chosen_subtype_filter: _,
+                    ..
+                },
             effect,
             ..
         } = ability
         {
+            // Index-namespace fix (2026-07-09): carry spell_type_filter/
+            // noncreature_only/spell_subtype_filter on the runtime TriggeredAbilityDef
+            // itself (reusing TargetFilter's has_card_types/non_creature/has_subtypes)
+            // instead of leaving the post-filter in rules/abilities.rs to re-look the
+            // ability up via CardDefinition::abilities (a different, non-dense index
+            // space -- see abilities.rs G-4 comment; this was the root cause of the
+            // Monastery Mentor / Leaf-Crowned Visionary filter bypass bug).
+            let spell_filter = if spell_type_filter.is_some()
+                || *noncreature_only
+                || spell_subtype_filter.is_some()
+            {
+                Some(TargetFilter {
+                    has_card_types: spell_type_filter.clone().unwrap_or_default(),
+                    non_creature: *noncreature_only,
+                    has_subtypes: spell_subtype_filter.clone().unwrap_or_default(),
+                    ..Default::default()
+                })
+            } else {
+                None
+            };
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
@@ -2443,7 +2496,7 @@ pub fn enrich_spec_from_def(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
-                triggering_creature_filter: None,
+                triggering_creature_filter: spell_filter,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
                 targets: vec![],
