@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // Card types become exactly {Artifact, Creature} (Layer 4, CR 205.1b) —
+            // Card types become exactly {Artifact, Creature} (Layer 4, CR 205.1a) —
             // preserves supertypes.
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -55,7 +55,7 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // Creature-type subtypes become exactly {Insect} (Layer 4, CR 205.1b).
+            // Creature-type subtypes become exactly {Insect} (Layer 4, CR 205.1a).
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::TypeChange,
