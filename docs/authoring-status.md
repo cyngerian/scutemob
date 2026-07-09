@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-09 01:01 UTC  
-**Git:** `e9025936` on `feat/pb-ac4-modal-optional-targeting`  
+**Generated:** 2026-07-09 03:05 UTC  
+**Git:** `5920a5eb` on `feat/pb-ac5-alt-costs-timing-keywords`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 54.6% | 954 | +3 |
-| With TODO markers | 613 | -3 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 54.9% | 960 | +6 |
+| With TODO markers | 607 | -6 |
 | Empty `abilities: vec![]` placeholders | 181 | · |
-| Total TODO lines across all defs | 1,102 | -5 |
+| Total TODO lines across all defs | 1,088 | -14 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 512 |
-| last 30 days | 0 | 512 |
-| last 90 days | 14 | 610 |
-| last 1 year | 1,773 | 1,252 |
+| last 7 days | 0 | 534 |
+| last 30 days | 0 | 534 |
+| last 90 days | 13 | 627 |
+| last 1 year | 1,773 | 1,269 |
 
 ## Bonus defs outside the plan
 
@@ -66,12 +66,12 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 77 | 100 | 10 |
+| `combat-keyword` | 187 / 187 | 100% | 78 | 99 | 10 |
 | `draw` | 163 / 169 | 96% | 66 | 72 | 25 |
 | `token-create` | 145 / 155 | 94% | 20 | 60 | 65 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
 | `other` | 108 / 131 | 82% | 65 | 43 | 0 |
-| `modal-choice` | 68 / 105 | 65% | 27 | 41 | 0 |
+| `modal-choice` | 68 / 105 | 65% | 30 | 38 | 0 |
 | `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
 | `body-only` | 55 / 70 | 79% | 24 | 9 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
@@ -88,13 +88,13 @@ are blocked on engine primitives.
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 7 | 11 | 0 |
 | `removal-damage-each` | 17 / 17 | 100% | 10 | 7 | 0 |
-| `counter` | 16 / 16 | 100% | 7 | 5 | 4 |
+| `counter` | 16 / 16 | 100% | 8 | 4 | 4 |
 | `removal-exile` | 13 / 14 | 93% | 5 | 2 | 6 |
 | `untap-phase` | 1 / 13 | 8% | 0 | 1 | 0 |
 | `cost-reduction` | 12 / 12 | 100% | 4 | 0 | 8 |
 | `opponent-punish` | 12 / 12 | 100% | 3 | 9 | 0 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
-| `tutor` | 11 / 11 | 100% | 6 | 4 | 1 |
+| `tutor` | 11 / 11 | 100% | 7 | 3 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
 | `static-enchantment` | 0 / 8 | 0% | 0 | 0 | 0 |
 | `discard-effect` | 0 / 7 | 0% | 0 | 0 | 0 |
@@ -169,14 +169,14 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 651 | -4 |
-| DSL gap (unspecified) | 139 | -1 |
+| OTHER (unclassified) | 648 | -3 |
+| DSL gap (unspecified) | 138 | -1 |
 | attack trigger (self / generic) | 28 | · |
-| Cost::* missing variant | 21 | · |
 | TriggerCondition::* missing variant | 19 | · |
 | replacement effect missing | 18 | · |
 | dynamic hexproof / protection | 17 | · |
 | sacrifice as cost | 16 | · |
+| Cost::* missing variant | 16 | -5 |
 | EffectAmount::* missing variant | 15 | · |
 | TargetFilter missing field | 12 | · |
 | interactive / hidden-info choice | 11 | · |
@@ -195,11 +195,11 @@ the next thing to triage when the classifier table is grown.
 | delayed triggers | 4 | · |
 | untap-all / untap trigger | 4 | · |
 
-_…and 33 more buckets totaling 69 lines._
+_…and 32 more buckets totaling 64 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 651 
+Showing 12 of 648 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -208,20 +208,23 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bonecrusher_giant: // TODO(2): Effect target is WRONG — should deal 2 damage to "that spell's controller"
 dark_petition: // TODO: Condition::SpellMastery (2+ instant/sorcery in graveyard) not in DSL.
-enduring_vitality: // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
-glimmer_lens: // TODO: For Mirrodin! + equipped attack trigger not expressible.
-izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
-mana_vault: // ENGINE-BLOCKED: "{T}: Add {C}{C}{C}." — per W5 policy (KI-13 class), this mana ability's
-open_the_vaults: // TODO(M10+): Add Aura placement choice so Auras can attach to valid targets.
+eomer_king_of_rohan: // TODO: ETB counter placement (X +1/+1 counters where X = other Humans you control) requires
+glint_horn_buccaneer: // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
+jade_orb_of_dragonkind: // TODO: "When you spend this mana to cast a Dragon creature spell" trigger — no
+mangara_the_diplomat: // TODO: Both triggers require opponent-action tracking not in DSL.
+ophidian_eye: // TODO(PB-37): approximation — oracle says "an opponent" but
 roil_elemental: // TODO: Blocker — EffectDuration::WhileYouControlSource variant for "for as long as you
 smothering_tithe: // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
-teferi_master_of_time: // TODO: "−3: phases out" — no Effect::PhaseOut variant.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+teferi_master_of_time: // TODO: "then discard a card" — forced discard on self not easily expressible.
+tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
 ```
 
 ## Recent card-touching commits
 
 ```
+5920a5eb W6-prim: PB-AC5 review fixes — 2 HIGH hash-corruption defects
+32bd607d W6-prim: PB-AC5 — Warp, Transmute, Exert, pitch alt-costs
+5df8ed1a W6-cards: PB-AC4 — precise rakdos_charm ENGINE-BLOCKED marker
 e9025936 W6-cards: PB-AC4 — fix 2 HIGH card review findings (golgari regenerate, abzan target filter)
 6947ec36 W6-cards: PB-AC4 backfill — migrate modal cards to per-mode targeting
 81fec080 W6-prim: PB-AC4 — per-mode target requirements on ModeSelection (CR 700.2c/700.2f)
@@ -244,9 +247,6 @@ c3b0e399 scutemob-36: LS-6 review fixes — ETB test, CR 701.8 citations, test h
 8edf0e8a scutemob-25: PB-EAT — ReplacementModification::EntersAsAdditionalType (Master Biomancer Mutant half)
 d7d8062e scutemob-24: PB-XA — card def cleanup + doc comment update
 92f606d6 scutemob-23: review fix — correct ETB ordering caveat in comment
-2ca4c307 scutemob-23: OOS-EWC-2 — Golgari Grave-Troll dynamic ETB counters
-4d9862f6 scutemob-22: PB-XS-E — trigger-side exclude_self for "Whenever another permanent enters"
-9b679fb8 scutemob-21: PB-XS — TargetFilter.exclude_self for "another target X"
 ```
 
 ## Missing card-defs sidecar
