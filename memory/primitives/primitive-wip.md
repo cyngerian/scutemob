@@ -1,7 +1,7 @@
 ---
 pb: PB-AC6
 title: Phase & opponent-action conditions
-phase: implement
+phase: close
 plan_file: memory/primitives/pb-plan-AC6.md
 review_file: memory/primitives/pb-review-AC6.md
 ---
@@ -177,3 +177,69 @@ are deleted.
 - [ ] fix (primitive-impl-runner)
 - [ ] backfill (bulk-card-author + card-batch-reviewer)
 - [ ] close
+
+- [x] review (primitive-impl-reviewer -> pb-review-AC6.md, 2026-07-09) — verdict:
+      **0 HIGH, 0 MEDIUM, 2 LOW**. All three recurring-HIGH risk areas verified clean:
+      hash completeness (all 3 trackers in HashInto, 3 genuinely mutation-verified tests,
+      0 stale `32u8` sentinels), all-players turn-boundary reset, and
+      `spells_cast_this_game_turn` increment-site completeness (reviewer independently
+      grepped and confirmed exactly 5 sites, incl. the `casting.rs` primary-cast site the
+      plan omitted). No fix phase required.
+- [x] backfill (2026-07-09) — **6 clean**: searslicer_goblin, chart_a_course,
+      bloodsoaked_champion, idol_of_oblivion, dark_petition, land_tax. Plus black_market,
+      goldspan_dragon (becomes-target half), kaito_shizuki (+1).
+      `venerated_rotpriest` demoted CLEAN -> PARTIAL on oracle check: real text is
+      "**target** opponent gets a poison counter", not "each opponent". Marker narrowed.
+      Marker-correction sweep over 13 blocked/partial cards — every one blamed a primitive
+      PB-AC6 shipped, so all were stale and misleading.
+      New `crates/engine/tests/pb_ac6_card_integration.rs` (6 tests, real card defs).
+- [x] card review (card-batch-reviewer -> memory/card-authoring/review-pb-ac6-backfill.md)
+      — 2 HIGH + 1 MEDIUM, **all fixed**; 5 LOW (2 fixed, 3 wording nits left).
+- [x] close (2026-07-09) — clean coverage 960 -> 965 (+5), 54.9% -> 55.2%.
+      Gates independently re-verified by the worker, not taken from agent reports:
+      `cargo build --workspace` clean, `cargo test --all` **3009 passed / 0 failed**
+      (2984 baseline, +25), `cargo clippy --all-targets -- -D warnings` clean,
+      `cargo fmt --check` clean.
+
+## Process notes (for the next PB)
+- **Agent reports were unreliable this batch.** The first backfill agent reported nothing
+  and wrote zero files; a second wrote 7 card defs then died before its tests, leaving all
+  6 integration tests FAILING while `cargo build --workspace` stayed green — because
+  **`cargo build --workspace` does not compile test targets**. Always run `cargo test --all`
+  before believing a gate report. Three agents in a row terminated mid-thought.
+- **The `ObjectSpec::card()` naked-object gotcha bit every integration test.** Unenriched
+  specs have `mana_cost: None`, so `mana_value() == 0` short-circuits payment and a cast pays
+  NOTHING; they also have no `activated_abilities`, so `ActivateAbility` returns
+  `InvalidAbilityIndex` (and a graveyard-activation card falls through to the battlefield
+  branch, yielding a confusing `ObjectNotOnBattlefield`). Route every spec through
+  `enrich_spec_from_def`.
+
+## Residual / follow-up seeds
+- **OOS-AC6-1**: `storm_count` is multiplayer-incorrect (pre-existing, NOT fixed).
+  CR 702.40a counts spells cast by ANY player this turn; `copy.rs` reads only the caster's
+  `spells_cast_this_turn`. Compounding, that field resets only for the incoming active
+  player, so an instant-speed storm spell (Brain Freeze) also over-counts the caster's stale
+  previous-turn spells. Fixing requires deciding reset semantics jointly with CR 730.2
+  (`previous_turn_spells_cast`, Daybound). PB-AC6 sidesteps it via a separate
+  all-players-reset `spells_cast_this_game_turn`.
+- **OOS-AC6-2**: CR 603.4 intervening-if is evaluated at RESOLUTION, not at trigger time.
+  The generic upkeep/end-step/main-phase sweeps queue the trigger unconditionally. Strictly,
+  such an ability should not trigger at all when the condition is false, so the trigger
+  should never hit the stack. Pre-existing, shared by every CardDef phase trigger.
+- **OOS-AC6-3**: no player-declared mode choice on triggered abilities —
+  `abilities.rs` hardcodes `stack_obj.modes_chosen = vec![0]`. Blocks
+  `black_market_connections` ("choose one or more") and `tectonic_giant`.
+- **OOS-AC6-4**: `EffectTarget` has no `ControllerOf` / `TriggeringPlayer` (both exist only
+  on `PlayerTarget`), so `Effect::DealDamage` cannot reach "that spell's controller".
+  Blocks `bonecrusher_giant`. Same family: no `TargetFilter` scoping to the triggering
+  spell's controller (blocks `scalelord_reckoner`).
+- **OOS-AC6-5**: `TargetRequirement` has `TargetPlayer` but no `TargetOpponent`
+  (blocks `raiders_wake`), and no variable/any-number target counts (blocks `mindbreak_trap`).
+- **OOS-AC6-6**: `WhenBecomesTarget.by_opponent` is a bool (any-controller / opponent-only).
+  No you-control-only scope, so Valiant (`flowerfoot_swordmaster`) is unauthorable.
+- **OOS-AC6-7**: no count/total-power attacked conditions — `YouAttackedThisTurn` is a bool.
+  Blocks `minas_tirith` (2+ creatures) and `battle_cry_goblin` (pack tactics, total power 6+).
+- **OOS-AC6-8**: no player-targeting poison-counter Effect (`Effect::AddCounter` ignores
+  `ResolvedTarget::Player`). Blocks `venerated_rotpriest`.
+- **OOS-AC6-9**: no dynamic `mana value <= source's power` TargetFilter comparison
+  (`max_cmc` is a fixed u32). Blocks `alesha_who_laughs_at_fate`.
