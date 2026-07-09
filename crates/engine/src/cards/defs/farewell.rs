@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                     // permanents. Needs a zone-scoped ExileAll or separate effect.
                     Effect::Nothing,
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

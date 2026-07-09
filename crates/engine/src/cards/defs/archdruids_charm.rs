@@ -68,6 +68,7 @@ pub fn card() -> CardDefinition {
                         target: EffectTarget::DeclaredTarget { index: 2 },
                     },
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

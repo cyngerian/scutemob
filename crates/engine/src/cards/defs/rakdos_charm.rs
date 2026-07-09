@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                     // TODO: "each creature deals 1 damage to its controller" — no per-creature self-damage effect
                     Effect::Nothing,
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

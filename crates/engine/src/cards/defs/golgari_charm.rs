@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                     // with the correct Effect variant filtered to CreaturesYouControl.
                     Effect::Sequence(vec![]),
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

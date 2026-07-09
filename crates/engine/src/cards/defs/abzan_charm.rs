@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                         count: 2,
                     },
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

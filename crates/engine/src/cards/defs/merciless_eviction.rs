@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                         },
                     },
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

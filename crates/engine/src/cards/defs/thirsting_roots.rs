@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                     // Mode 1: Proliferate.
                     Effect::Proliferate,
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

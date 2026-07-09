@@ -69,6 +69,7 @@ pub fn card() -> CardDefinition {
                     ],
                     allow_duplicate_modes: false,
                     mode_costs: None,
+                    mode_targets: None,
                 }),
                 trigger_zone: None,
             },

@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                         // placeholder, mirroring the same DSL gap documented in final_showdown.rs.
                         Effect::Sequence(vec![]),
                     ],
+                    mode_targets: None,
                 }),
                 cant_be_countered: false,
             },

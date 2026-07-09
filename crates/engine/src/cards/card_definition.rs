@@ -3411,6 +3411,23 @@ pub struct ModeSelection {
     /// `None` for standard modal spells (no per-mode costs).
     #[serde(default)]
     pub mode_costs: Option<Vec<ManaCost>>,
+    /// CR 700.2c / 700.2f: Per-mode target requirements. When `Some`,
+    /// `mode_targets[i]` is the (fixed-length) target-requirement list for mode
+    /// `i`; each mode's effects use `DeclaredTarget { index }` values LOCAL to that
+    /// mode's target slice (index 0 = that mode's first target). `Spell.targets`
+    /// MUST be empty when this is `Some` — targets live entirely in
+    /// `mode_targets` for these spells. `None` = legacy behavior (flat union
+    /// targets declared via `Spell.targets`, single shared resolution context).
+    /// Length must equal `modes.len()`.
+    ///
+    /// **Author invariant**: a `mode_targets[i]` entry must NOT itself contain
+    /// `TargetRequirement::UpToN` — that would make the slice length variable and
+    /// the flat-announcement split ambiguous (PB-AC4 scope boundary; see
+    /// `memory/primitives/pb-plan-AC4.md`). Use `Spell.targets` with a flat
+    /// `UpToN` (existing, unrelated mechanism) for "up to N target X" spells that
+    /// are not modal, or keep the mode's target count fixed.
+    #[serde(default)]
+    pub mode_targets: Option<Vec<Vec<TargetRequirement>>>,
 }
 // ── Token Specification ───────────────────────────────────────────────────────
 /// Everything needed to create a token (CR 111).

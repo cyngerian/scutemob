@@ -103,6 +103,7 @@ fn entwine_test_spell_def() -> CardDefinition {
                             count: EffectAmount::Fixed(2),
                         },
                     ],
+                    mode_targets: None,
                 }),
                 cant_be_countered: false,
             },
