@@ -1,7 +1,7 @@
 ---
 pb: PB-AC7
 title: Type-changing & ability-removal
-phase: review
+phase: closed
 plan_file: memory/primitives/pb-plan-AC7.md
 review_file: memory/primitives/pb-review-AC7.md
 ---
@@ -116,13 +116,16 @@ type override with duration); only `SetCreatureTypes`/`SetCardTypes` and
   same three files, discriminant 31. Adopted (not skipped) — makes both variants
   load-bearing for the CR-faithful Kenrith/Eaten-by-Piranhas/Darksteel-Mutation backfill
   (preserves Legendary supertype, which `SetTypeLine` would wipe).
-- [x] `depends_on` (CR 613.8) — NO new dependency arm added for `SetCreatureTypes`/
+- [x] ~~`depends_on` (CR 613.8) — NO new dependency arm added for `SetCreatureTypes`/
   `SetCardTypes` vs `AddSubtypes`/`AddCardTypes`. Decision documented inline at
   `rules/layers.rs::depends_on`: both new variants only replace ONE subset of the type
   line, so a co-resident `AddSubtypes` targeting a disjoint subtype set (e.g. a land
-  subtype) is order-independent — pure timestamp order is correct. Locked in by
-  `test_set_creature_types_layer4_dependency_with_add_subtypes` (both orders assert the
-  same union result).
+  subtype) is order-independent — pure timestamp order is correct.~~
+  **SUPERSEDED BY REVIEW FINDING M1 — this reasoning was WRONG.** It only holds when the
+  co-resident `AddSubtypes` adds a subtype from a *different* set. `SetCreatureTypes({Elk})`
+  + `AddSubtypes({Zombie})` (Zombie IS a creature type) is order-dependent, so per CR 613.8a
+  a dependency exists. The original test asserted only the disjoint case, which is why it
+  passed. 3 payload-aware `depends_on` arms were added in the fix pass. See "Fix progress".
 - [x] `TriggerCondition::WheneverYouCastSpell.spell_subtype_filter: Option<Vec<SubType>>` —
   `cards/card_definition.rs` (field + doc), `rules/abilities.rs` (post-processing OR-match
   against `spell_subtypes`, already computed at line ~3368), `state/hash.rs` (destructure +
