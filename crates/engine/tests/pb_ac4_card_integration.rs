@@ -257,9 +257,9 @@ fn test_casualties_of_war_castable_choosing_creature_subset() {
 
 /// CR 700.2c — Izzet Charm: "Choose one — Counter target noncreature spell unless
 /// its controller pays {2}. / Izzet Charm deals 2 damage to target creature. / Draw
-/// two cards, then discard two cards." Casting choosing ONLY the damage mode (index
-/// 1) succeeds with NO spell on the stack to counter -- proving the unchosen
-/// counter-mode's `TargetSpellWithFilter` requirement is not enforced.
+/// two cards, then discard two cards." Casting choosing ONLY the damage mode
+/// (index 1) succeeds with NO spell on the stack to counter -- proving the
+/// unchosen counter-mode's `TargetSpellWithFilter` requirement is not enforced.
 #[test]
 fn test_izzet_charm_damage_mode_needs_no_spell_target() {
     let p1 = p(1);
