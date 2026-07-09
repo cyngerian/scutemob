@@ -3475,14 +3475,30 @@ pub fn handle_cast_spell(
     //
     // NOTE: Escalate + per-mode targets is not a combination any AC4-scoped card uses; the
     // active-mode computation below only covers Entwine (all modes), explicit
-    // `validated_modes_chosen`, and the auto-select-mode-0 backward-compat path. A future
-    // spell combining Escalate with `mode_targets` would need this extended (flag, do not
-    // silently extend — see `memory/conventions.md` "implement-phase default-to-defer").
+    // `validated_modes_chosen`, and the auto-select-mode-0 backward-compat path — it has NO
+    // Escalate branch, while resolution's `chosen_mode_indices` (resolution.rs) DOES. The
+    // combination is hard-rejected below (PB-AC4 fix-phase Finding 1, MEDIUM) rather than
+    // silently under-resolving escalated modes with empty target slices. A future spell
+    // combining Escalate with `mode_targets` needs both ladders extended together (flag, do
+    // not silently extend — see `memory/conventions.md` "implement-phase default-to-defer").
     let mode_targets_active: Option<Vec<TargetRequirement>> = if casting_with_aftermath {
         None
     } else {
         mode_selection_opt.as_ref().and_then(|ms| {
             ms.mode_targets.as_ref().map(|mt| {
+                // LOW #2 (PB-AC4 fix-phase): `mode_targets.len() == modes.len()` is a
+                // documented author invariant. Enforce it defensively — a debug_assert
+                // catches authoring bugs in tests/CI, while `unwrap_or_default()` keeps the
+                // release build fail-safe (a too-short mode_targets yields an empty slice for
+                // the missing mode, not a panic or a mis-slice).
+                debug_assert_eq!(
+                    mt.len(),
+                    ms.modes.len(),
+                    "ModeSelection.mode_targets.len() ({}) must equal modes.len() ({}) \
+                     (CR 700.2c author invariant)",
+                    mt.len(),
+                    ms.modes.len()
+                );
                 let indices: Vec<usize> = if entwine_paid {
                     (0..ms.modes.len()).collect()
                 } else if !validated_modes_chosen.is_empty() {
@@ -3499,6 +3515,20 @@ pub fn handle_cast_spell(
             })
         })
     };
+    // CR 700.2c/702.120a (PB-AC4 fix-phase Finding 1, MEDIUM): Escalate + `mode_targets` is
+    // not a supported combination. Cast-time `mode_targets_active` (above) has no Escalate
+    // branch, while resolution's `chosen_mode_indices` (resolution.rs) does — a spell
+    // combining Escalate's backward-compat path (empty `modes_chosen`) with `mode_targets`
+    // would validate targets for mode 0 only, then resolve modes `0..=escalate_modes`,
+    // silently under-resolving every escalated mode beyond 0 with an empty target slice. No
+    // shipped card uses this combination; hard-reject it here so the failure is a typed
+    // error, never silent wrong game state.
+    if mode_targets_active.is_some() && escalate_modes > 0 {
+        return Err(GameStateError::InvalidCommand(
+            "Escalate combined with ModeSelection.mode_targets is not supported (CR 700.2c/702.120a)"
+                .into(),
+        ));
+    }
     // CR 601.2c: Validate and record targets at cast time.
     // Pass source characteristics for protection-from checks (CR 702.16b).
     // Pass card (the casting spell's own ObjectId) for self-targeting prevention (CR 115.7a).

@@ -33,8 +33,8 @@ use mtg_engine::cards::card_definition::{
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::{CardId, CardType, GameStateBuilder, ObjectSpec, PlayerId, Target, ZoneId};
 use mtg_engine::{
-    CardRegistry, EffectAmount, GameState, ModeSelection, ObjectId, PlayerTarget,
-    HASH_SCHEMA_VERSION,
+    AdditionalCost, CardRegistry, EffectAmount, GameState, KeywordAbility, ManaCost, ModeSelection,
+    ObjectId, PlayerTarget, HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -264,6 +264,60 @@ fn mandatory_destroy_creature_def() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        ..Default::default()
+    }
+}
+
+/// "Escalate Modal Strike" — Instant (matches `build_state`'s hardcoded object type), no base
+/// mana cost, Escalate {0} (no mana required so the test doesn't need to fund a mana pool — the
+/// cast is expected to be REJECTED before mana payment is ever attempted). Modal with
+/// `mode_targets: Some(...)` AND the Escalate keyword — the unsupported combination from PB-AC4
+/// fix-phase Finding 1 (MEDIUM).
+fn escalate_modal_strike_def() -> CardDefinition {
+    CardDefinition {
+        name: "Escalate Modal Strike".to_string(),
+        card_id: CardId("test-escalate-modal-strike".to_string()),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: im::ordset![CardType::Instant],
+            ..Default::default()
+        },
+        oracle_text: "Choose one or more —\n\
+             • Destroy target creature.\n\
+             • Destroy target artifact.\n\
+             Escalate — Pay no mana."
+            .to_string(),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Escalate),
+            AbilityDefinition::Escalate {
+                cost: ManaCost::default(),
+            },
+            AbilityDefinition::Spell {
+                effect: Effect::Nothing,
+                targets: vec![],
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 2,
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                    modes: vec![
+                        Effect::DestroyPermanent {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            cant_be_regenerated: false,
+                        },
+                        Effect::DestroyPermanent {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            cant_be_regenerated: false,
+                        },
+                    ],
+                    mode_targets: Some(vec![
+                        vec![TargetRequirement::TargetCreature],
+                        vec![TargetRequirement::TargetArtifact],
+                    ]),
+                }),
+                cant_be_countered: false,
+            },
+        ],
         ..Default::default()
     }
 }
@@ -755,5 +809,104 @@ fn test_700_2c_multiplayer_choose_subset_across_opponents() {
     assert!(
         obj_on_battlefield(&state, "P4 Untouched Creature"),
         "P4's creature must be untouched — it was never targeted"
+    );
+}
+
+// ── T11: Fix-phase Finding 1 (MEDIUM) — Escalate + mode_targets is fail-safe ───────────
+
+/// CR 700.2c / 702.120a — PB-AC4 fix-phase Finding 1 (MEDIUM). Cast-time
+/// `mode_targets_active` (casting.rs) has no Escalate branch, while resolution's
+/// `chosen_mode_indices` (resolution.rs) does. Casting a spell that combines Escalate's
+/// backward-compat path (Escalate paid via `AdditionalCost::EscalateModes`, `modes_chosen`
+/// left empty) with `ModeSelection.mode_targets: Some(...)` must be REJECTED at cast time
+/// with a typed error — not accepted and left to silently under-resolve mode 1 with an
+/// empty target slice at resolution.
+#[test]
+fn test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = escalate_modal_strike_def();
+    let registry: Arc<CardRegistry> = CardRegistry::new(vec![def.clone()]);
+    let creature = ObjectSpec::creature(p2, "Escalate Target Creature", 2, 2);
+    let spell = ObjectSpec::card(p1, "Escalate Modal Strike")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(def.card_id.clone())
+        .with_types(vec![CardType::Instant])
+        .with_keyword(KeywordAbility::Escalate);
+    let mut state = GameStateBuilder::new()
+        .with_registry(registry)
+        .add_player(p1)
+        .add_player(p2)
+        .object(spell)
+        .object(creature)
+        .build()
+        .expect("GameStateBuilder::build must succeed");
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_obj(&state, "Escalate Modal Strike");
+    let creature_id = find_obj(&state, "Escalate Target Creature");
+
+    // Pay Escalate for 1 extra mode (count: 1) via the backward-compat path (modes_chosen
+    // left empty) — this is exactly the ambiguous combination Finding 1 identified.
+    let result = process_command(
+        state.clone(),
+        Command::CastSpell {
+            player: p1,
+            card: spell_id,
+            targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![AdditionalCost::EscalateModes { count: 1 }],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+    let err = result.expect_err(
+        "Finding 1 (MEDIUM): Escalate + ModeSelection.mode_targets must be rejected at cast \
+         time (fail-safe), not accepted and silently under-resolved at resolution",
+    );
+    let err_msg = format!("{:?}", err);
+    assert!(
+        err_msg.contains("Escalate") && err_msg.contains("mode_targets"),
+        "the rejection must be the Finding-1 typed error (Escalate combined with \
+         ModeSelection.mode_targets is not supported), not an unrelated validation failure: got {}",
+        err_msg
+    );
+
+    // Sanity check: WITHOUT Escalate paid, the same card (which also has ordinary
+    // `mode_targets`) casts normally — proving the reject is specific to the Escalate
+    // combination, not a defect in the base `mode_targets` path.
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: spell_id,
+            targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![0],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect("without Escalate paid, the same mode_targets spell must cast normally");
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert!(
+        obj_in_graveyard(&state, "Escalate Target Creature", p2),
+        "mode 0's target must have been destroyed on the non-Escalate cast"
     );
 }

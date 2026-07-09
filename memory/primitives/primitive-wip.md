@@ -1,7 +1,7 @@
 ---
 pb: PB-AC4
 title: Modal & optional targeting
-phase: implement
+phase: backfill
 plan_file: memory/primitives/pb-plan-AC4.md
 review_file: memory/primitives/pb-review-AC4.md
 ---
@@ -134,7 +134,46 @@ Card rosters in the plan doc are advisory — oracle text via MCP is authoritati
     2950 passed / 0 failed (2940 baseline + 10 new; all pre-existing modal/entwine/
     spree/escalate/UpToN regression suites re-verified green). `cargo clippy --all-targets
     -- -D warnings` clean. `cargo fmt --check` clean.
-- [ ] review (primitive-impl-reviewer → pb-review-AC4.md)
-- [ ] fix (primitive-impl-runner)
+- [x] review (primitive-impl-reviewer → pb-review-AC4.md, 2026-07-08) — verdict needs-fix:
+  1 MEDIUM + 3 LOW findings (no HIGH).
+- [x] fix (primitive-impl-runner, 2026-07-08)
+  - **Finding 1 (MEDIUM)** — Escalate + `ModeSelection.mode_targets` not fail-safe (cast-time
+    `mode_targets_active` had no Escalate branch; resolution's `chosen_mode_indices` did,
+    which would silently under-resolve escalated modes past 0 with empty target slices).
+    **Fixed**: hard-rejected the combination at cast time
+    (`crates/engine/src/rules/casting.rs:3526-3530`) —
+    `if mode_targets_active.is_some() && escalate_modes > 0 { return
+    Err(GameStateError::InvalidCommand("Escalate combined with ModeSelection.mode_targets is
+    not supported (CR 700.2c/702.120a)")) }`, placed after `mode_targets_active` is computed
+    and before mana payment. New test
+    `test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast`
+    (`crates/engine/tests/pb_ac4_per_mode_targeting.rs`, new "Escalate Modal Strike" card def)
+    asserts the rejection AND that the identical card casts/resolves normally without
+    Escalate paid (proves the reject is scoped to the Escalate combination only).
+  - **Finding 2 (LOW)** — `.expect()` in engine logic at `resolution.rs:446` (provably
+    unreachable but violated the no-`expect()` convention). **Fixed**: restructured to
+    nested `if let Some(modes_ref) = spell_modes.as_ref() { if let Some(mode_targets) =
+    modes_ref.mode_targets.as_ref() { ... } else { <effects_to_run fallback> } } else {
+    <effects_to_run fallback> }` (`resolution.rs:441-486`) — both fallback arms preserve the
+    original `effects_to_run` loop behavior.
+  - **Finding 3 (LOW)** — `mode_targets.len() == modes.len()` author invariant documented but
+    unenforced at `casting.rs:3497` / `resolution.rs:450`. **Fixed**: added
+    `debug_assert_eq!(mt.len(), ms.modes.len(), ...)` at both the cast-time
+    (`casting.rs:3491-3498`) and resolution-time (`resolution.rs:449-456`) sites, matching
+    the engine's existing `debug_assert!`-plus-fail-safe-fallback pattern (e.g.
+    `layers.rs:1731`, `abilities.rs:8001`). Release builds keep the pre-existing
+    `unwrap_or_default()`/`unwrap_or(0)` fallback — no panic possible outside debug/test
+    builds.
+  - **Finding 4 (LOW)** — existence-vs-zone-match route-around; reviewer's own verdict was
+    "Fix (optional): none required." **Deferred/note-only** — no code change; documentation
+    already present in-code per the review.
+  - **Concern 5** (other author invariants: no nested `UpToN` in `mode_targets`;
+    `Spell.targets` empty when `mode_targets` is `Some`) — verified already hard-enforced at
+    cast time (`casting.rs:3513-3525`, pre-existing from the implement phase); no action
+    needed.
+  - **Gates**: `cargo build --workspace` clean (0 new match-arm gaps — no new enum variants
+    were introduced by the fix phase). `cargo test --all` (mtg-engine crate): **2951 passed /
+    0 failed** (2950 implement-phase baseline + 1 new Finding-1 regression test).
+    `cargo clippy --all-targets -- -D warnings` clean. `cargo fmt --check` clean.
 - [ ] backfill (bulk-card-author + card-batch-reviewer)
 - [ ] close

@@ -438,28 +438,45 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 // checks the target object/player still exists — equivalent to the
                                 // CR 608.2b zone-match check, since any zone change kills the old
                                 // ObjectId (CR 400.7).
-                                if let Some(mode_targets) =
-                                    spell_modes.as_ref().and_then(|m| m.mode_targets.as_ref())
-                                {
-                                    let modes_ref = spell_modes
-                                        .as_ref()
-                                        .expect("mode_targets is Some implies spell_modes is Some");
-                                    let mut offset = 0usize;
-                                    for &idx in &chosen_mode_indices {
-                                        let slice_len =
-                                            mode_targets.get(idx).map(|v| v.len()).unwrap_or(0);
-                                        let slice: Vec<SpellTarget> = stack_obj
-                                            .targets
-                                            .get(offset..offset + slice_len)
-                                            .map(|s| s.to_vec())
-                                            .unwrap_or_default();
-                                        ctx.targets = slice;
-                                        if let Some(effect) = modes_ref.modes.get(idx) {
+                                if let Some(modes_ref) = spell_modes.as_ref() {
+                                    if let Some(mode_targets) = modes_ref.mode_targets.as_ref() {
+                                        // LOW #2 (PB-AC4 fix-phase): `mode_targets.len() ==
+                                        // modes.len()` is a documented author invariant.
+                                        // debug_assert catches authoring bugs in tests/CI;
+                                        // `unwrap_or(0)` below keeps release builds fail-safe
+                                        // (a too-short mode_targets resolves the missing mode
+                                        // with an empty target slice, not a panic).
+                                        debug_assert_eq!(
+                                            mode_targets.len(),
+                                            modes_ref.modes.len(),
+                                            "ModeSelection.mode_targets.len() ({}) must equal \
+                                             modes.len() ({}) (CR 700.2c author invariant)",
+                                            mode_targets.len(),
+                                            modes_ref.modes.len()
+                                        );
+                                        let mut offset = 0usize;
+                                        for &idx in &chosen_mode_indices {
+                                            let slice_len =
+                                                mode_targets.get(idx).map(|v| v.len()).unwrap_or(0);
+                                            let slice: Vec<SpellTarget> = stack_obj
+                                                .targets
+                                                .get(offset..offset + slice_len)
+                                                .map(|s| s.to_vec())
+                                                .unwrap_or_default();
+                                            ctx.targets = slice;
+                                            if let Some(effect) = modes_ref.modes.get(idx) {
+                                                let effect_events =
+                                                    execute_effect(state, effect, &mut ctx);
+                                                events.extend(effect_events);
+                                            }
+                                            offset += slice_len;
+                                        }
+                                    } else {
+                                        for effect in &effects_to_run {
                                             let effect_events =
                                                 execute_effect(state, effect, &mut ctx);
                                             events.extend(effect_events);
                                         }
-                                        offset += slice_len;
                                     }
                                 } else {
                                     for effect in &effects_to_run {
