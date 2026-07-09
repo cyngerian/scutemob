@@ -1,7 +1,7 @@
 ---
 pb: PB-AC4
 title: Modal & optional targeting
-phase: backfill
+phase: close
 plan_file: memory/primitives/pb-plan-AC4.md
 review_file: memory/primitives/pb-review-AC4.md
 ---
@@ -175,5 +175,50 @@ Card rosters in the plan doc are advisory — oracle text via MCP is authoritati
     were introduced by the fix phase). `cargo test --all` (mtg-engine crate): **2951 passed /
     0 failed** (2950 implement-phase baseline + 1 new Finding-1 regression test).
     `cargo clippy --all-targets -- -D warnings` clean. `cargo fmt --check` clean.
-- [ ] backfill (bulk-card-author + card-batch-reviewer)
-- [ ] close
+- [x] backfill (bulk-card-author + card-batch-reviewer, 2026-07-08)
+  - **Migrated to `mode_targets`** (11): `casualties_of_war` (was **UNCASTABLE** — the
+    flat-union validator demanded a target for all 5 modes), `cryptic_command` and
+    `archmages_charm` (both replaced `Effect::Nothing` stubs; `archmages_charm` mode 2
+    gain-control turned out to be fully expressible via existing `Effect::GainControl` +
+    `TargetFilter.max_cmc`/`.non_land`, contradicting the plan's "likely blocked" guess),
+    `izzet_charm`, `boros_charm`, `golgari_charm`, `rakdos_charm`, `evolution_charm`,
+    `archdruids_charm`, `abzan_charm`, `incendiary_command`.
+  - **UpToN stale-TODO cleanup, card-only** (2): `bridgeworks_battle`, `skullsnatcher`.
+  - **Deliberately NOT migrated** (2): `blessed_alliance`, `collective_resistance` — the
+    fix-phase Escalate + `mode_targets` hard-reject would make multi-mode Escalate casts
+    uncastable. Left on the flat-target path with precise `ENGINE-BLOCKED` markers. This
+    is the correct call, independently confirmed by the card-batch-reviewer.
+  - New `crates/engine/tests/pb_ac4_card_integration.rs` — 6 real-card tests (incl. the
+    `casualties_of_war` subset-castable regression guard).
+  - **card-batch-reviewer**: 2 HIGH / 0 MEDIUM / 5 LOW → `memory/card-authoring/review-pb-ac4-backfill.md`.
+    Both HIGH **FIXED**: (H1) `golgari_charm` mode 2 was a no-op `Sequence(vec![])` behind a
+    marker falsely claiming no bulk-regenerate variant exists — `Effect::Regenerate` resolves
+    a target *list*, so it was expressible all along (cast vs. a board wipe, it protected
+    nothing); (H2) `abzan_charm` mode 2 wrongly restricted "one or two target creatures" to
+    `TargetController::You`, making opponents' creatures illegal targets. Reviewer confirmed
+    the highest-risk class — stale GLOBAL `DeclaredTarget` indices after migration — is clean
+    across all 11 cards.
+  - Residual gaps documented, NOT approximated: abzan counter-split distribute,
+    incendiary wheel effect, skullsnatcher triggered-`UpToN` auto-select-0.
+  - Authoring-report: clean 951→954 (+3), 54.4%→54.6%. (Modest vs the ~20 discounted
+    estimate — most migrated charms keep honest residual markers, so they remain `todo`.)
+- [x] close (2026-07-08) — all 4 acceptance criteria satisfied; gates independently
+      re-verified by the worker rather than taken from agent reports: `cargo build
+      --workspace` clean, `cargo test --all` **2957 passed / 0 failed** (2940 baseline,
+      +17), `cargo clippy --all-targets -- -D warnings` clean (this caught a
+      `doc_lazy_continuation` error the backfill agent's own gate run missed),
+      `cargo fmt --check` clean.
+
+## Residual / follow-up seeds
+- **OOS-AC4-1**: Escalate + `mode_targets` unsupported (hard-rejected at cast). Blocks
+  `blessed_alliance` and any future Escalate card with per-mode targets. Needs an
+  Escalate-aware `mode_targets_active` that maps escalated modes to their target slices.
+- **OOS-AC4-2**: triggered-ability `UpToN` with a non-player inner auto-selects 0 targets
+  (`abilities.rs:6996-6999`) — legal (0 is allowed) but never exercises the optional target.
+  Affects `skullsnatcher`, kogla, marang, `sword_of_*`. Needs player-declared trigger targeting.
+- **OOS-AC4-3**: variable-count / distribute target slots ("distribute two +1/+1 counters
+  among one or two target creatures", "untap up to two target creatures") — blocks
+  `abzan_charm` mode 2 and `blessed_alliance` mode 1.
+- **OOS-AC4-4**: wheel effect ("each player discards their hand, then draws that many
+  cards") — blocks `incendiary_command` mode 3. `EffectAmount::HandSize` (PB-AC3) is
+  evaluated at execution time, after the discard, so it reads 0.
