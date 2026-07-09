@@ -3217,6 +3217,35 @@ pub enum TriggerCondition {
     /// generic `collect_triggers_for_event` dispatch, because the effect is card-specific
     /// (Combat Celebrant: untap + extra combat).
     WhenExertedAsAttacks,
+    /// CR 505.1a / 603.2b: "At the beginning of your first main phase." Fires ONCE per
+    /// turn, on `Step::PreCombatMain` (which occurs exactly once per turn per CR 505.1a).
+    /// Queued by the generic CardDef sweep in `precombat_main_actions`.
+    AtBeginningOfFirstMainPhase,
+    /// CR 505.1a / 603.2b: "At the beginning of [each of] your postcombat main
+    /// phase[s]." Fires on every `Step::PostCombatMain`, including extra main phases
+    /// created by effects (CR 505.1a). Queued by `postcombat_main_actions`.
+    AtBeginningOfPostcombatMain,
+    /// CR 601.2c / 602.2b / 603.2: "Whenever [this permanent / a <filter> you control]
+    /// becomes the target of a spell [or ability] [an opponent controls]." Fires at
+    /// target-ANNOUNCEMENT (not resolution), driven by `GameEvent::PermanentTargeted`.
+    /// Distinct from `WhenBecomesTargetByOpponent` (Ward-only: self + spell-or-ability +
+    /// opponent).
+    WhenBecomesTarget {
+        /// `None` = the trigger source itself must be the target ("Whenever this
+        /// creature becomes the target..."). `Some(filter)` = any permanent the source's
+        /// controller controls that matches `filter` becoming a target ("a creature/Dragon
+        /// you control"). Boxed per `large_enum_variant` (clippy) -- mirrors
+        /// `AllPermanentsMatching(Box<TargetFilter>)`.
+        #[serde(default)]
+        scope: Option<Box<TargetFilter>>,
+        /// If true, only fires when the targeting spell/ability is controlled by an
+        /// opponent of the source's controller. If false, any controller.
+        #[serde(default)]
+        by_opponent: bool,
+        /// If true, fires on a spell OR ability. If false, spell only.
+        #[serde(default)]
+        include_abilities: bool,
+    },
 }
 /// Filter for "whenever you tap a [type] for mana" trigger conditions.
 /// CR 106.12a: triggers whenever such a mana ability resolves and produces mana.
@@ -3436,6 +3465,26 @@ pub enum Condition {
     /// Does not care about net life change — only whether ANY life was gained.
     /// Ruling 2018-01-19: if you gained life and lost life this turn, you still qualify.
     ControllerGainedLifeThisTurn,
+    /// Raid (ability word) / CR 508.1: "if you attacked this turn." True when the effect
+    /// controller's `PlayerState::attacked_this_turn` is set (declaring one or more
+    /// attackers; CR 508.4 tokens-entering-attacking does not count).
+    YouAttackedThisTurn,
+    /// CR 111.10: "if you created a token this turn." True when the controller's
+    /// `PlayerState::created_token_this_turn` is set.
+    CreatedATokenThisTurn,
+    /// "if an opponent cast N or more spells this turn." True if ANY living opponent of
+    /// the controller has `PlayerState::spells_cast_this_game_turn >= n`. Reads the
+    /// all-players-reset counter (PB-AC6), NOT `spells_cast_this_turn` (storm-scoped,
+    /// reset only for the active player -- see OOS-AC6-1).
+    OpponentCastNSpells(u32),
+    /// Spell mastery (ability word, CR 207.2c): "if there are two or more instant and/or
+    /// sorcery cards in your graveyard." Graveyard cards use printed characteristics
+    /// (CR 400.2), mirroring `CardTypesInGraveyardAtLeast`.
+    SpellMastery,
+    /// "if an opponent controls more lands than you." True if ANY living opponent
+    /// controls strictly more lands than the controller. Land counts use layer-resolved
+    /// types (`calculate_characteristics`) and exclude phased-out permanents.
+    OpponentControlsMoreLandsThanYou,
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

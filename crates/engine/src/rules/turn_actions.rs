@@ -28,6 +28,7 @@ pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent
         Step::Cleanup => Ok(cleanup_actions(state)),
         Step::End => Ok(end_step_actions(state)),
         Step::PreCombatMain => Ok(precombat_main_actions(state)),
+        Step::PostCombatMain => Ok(postcombat_main_actions(state)),
         _ => Ok(Vec::new()),
     }
 }
@@ -538,7 +539,125 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
             events.extend(chapter_evts);
         }
     }
+    // PB-AC6 / CR 505.1a / 603.2b: Generic CardDef first-main-phase trigger sweep.
+    //
+    // "At the beginning of your first main phase" triggers only for the active
+    // player's battlefield permanents. `Step::PreCombatMain` occurs exactly once per
+    // turn (CR 505.1a), so no per-turn dedup bookkeeping is needed -- this sweep runs
+    // once, on entry to that step.
+    //
+    // Mirrors the carddef_upkeep_triggers / carddef_end_step_triggers sweeps
+    // (MR-B9-01 / B14) so CardDef-defined first-main triggers actually fire.
+    let carddef_first_main_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
+        let registry = &state.card_registry;
+        state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_phased_in())
+            .filter_map(|obj| {
+                let card_id = obj.card_id.as_ref()?;
+                let def = registry.get(card_id.clone())?;
+                let controller = obj.controller;
+                if controller != active {
+                    return None;
+                }
+                let indices: Vec<usize> = def
+                    .abilities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, abil)| {
+                        let AbilityDefinition::Triggered {
+                            trigger_condition, ..
+                        } = abil
+                        else {
+                            return None;
+                        };
+                        matches!(
+                            trigger_condition,
+                            TriggerCondition::AtBeginningOfFirstMainPhase
+                        )
+                        .then_some(idx)
+                    })
+                    .collect();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some((obj.id, controller, indices))
+                }
+            })
+            .collect()
+    };
+    for (obj_id, controller, indices) in carddef_first_main_triggers {
+        for ability_index in indices {
+            state.pending_triggers.push_back(PendingTrigger {
+                ability_index,
+                ..PendingTrigger::blank(obj_id, controller, PendingTriggerKind::CardDefETB)
+            });
+        }
+    }
     events
+}
+/// PB-AC6 / CR 505.1a / 603.2b: Postcombat main phase turn-based actions.
+///
+/// Fires `AbilityDefinition::Triggered` abilities with
+/// `TriggerCondition::AtBeginningOfPostcombatMain` for the active player's battlefield
+/// permanents. Runs on EVERY entry to `Step::PostCombatMain`, including extra main
+/// phases created by effects (CR 505.1a: "It is also true of a turn in which an
+/// effect has caused an additional combat phase and an additional main phase to be
+/// created" -- every additional main phase is a postcombat main phase, and the
+/// engine represents all of them as `Step::PostCombatMain`), so no per-turn dedup is
+/// needed -- the sweep runs once per occurrence of the step by construction.
+fn postcombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
+    let active = state.turn.active_player;
+    let carddef_postcombat_main_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
+        let registry = &state.card_registry;
+        state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_phased_in())
+            .filter_map(|obj| {
+                let card_id = obj.card_id.as_ref()?;
+                let def = registry.get(card_id.clone())?;
+                let controller = obj.controller;
+                if controller != active {
+                    return None;
+                }
+                let indices: Vec<usize> = def
+                    .abilities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, abil)| {
+                        let AbilityDefinition::Triggered {
+                            trigger_condition, ..
+                        } = abil
+                        else {
+                            return None;
+                        };
+                        matches!(
+                            trigger_condition,
+                            TriggerCondition::AtBeginningOfPostcombatMain
+                        )
+                        .then_some(idx)
+                    })
+                    .collect();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some((obj.id, controller, indices))
+                }
+            })
+            .collect()
+    };
+    for (obj_id, controller, indices) in carddef_postcombat_main_triggers {
+        for ability_index in indices {
+            state.pending_triggers.push_back(PendingTrigger {
+                ability_index,
+                ..PendingTrigger::blank(obj_id, controller, PendingTriggerKind::CardDefETB)
+            });
+        }
+    }
+    // No direct events; queued triggers are flushed by `enter_step`.
+    Vec::new()
 }
 /// "Exile it at the beginning of the next end step."
 /// At the beginning of the end step, scan all battlefield permanents with
@@ -1582,6 +1701,17 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             // CR 702.54a: per-turn damage-received counter resets at the start of each
             // turn for all players (Bloodthirst eligibility is scoped to the current game turn).
             p.damage_received_this_turn = 0;
+            // PB-AC6 / CR 508.1 (Raid): per-turn attacked-flag resets at the start of each
+            // turn for all players (Condition::YouAttackedThisTurn is scoped to the
+            // current game turn for any player, not just the active player).
+            p.attacked_this_turn = false;
+            // PB-AC6 / CR 111.10: per-turn created-a-token flag resets at the start of
+            // each turn for all players (Condition::CreatedATokenThisTurn).
+            p.created_token_this_turn = false;
+            // PB-AC6: per-turn spell count (all-players-reset, unlike spells_cast_this_turn
+            // above which is deliberately reset only for the incoming active player for
+            // storm scoping -- see OOS-AC6-1). Used by Condition::OpponentCastNSpells.
+            p.spells_cast_this_game_turn = 0;
         }
     }
     // CR 702.69a: Global permanents-to-graveyard count resets at the start of each turn.

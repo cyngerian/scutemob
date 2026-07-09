@@ -5131,6 +5131,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Increment spells_cast_this_turn for the controller.
                 if let Some(ps) = state.players.get_mut(&controller) {
                     ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+                    // PB-AC6: all-players-reset "this game turn" spell count.
+                    ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
                 }
                 // CR 116.3b: Casting a spell resets priority (all players must pass again).
                 state.turn.players_passed = im::OrdSet::new();
@@ -5785,6 +5787,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.62a: suspend triggers "whenever you cast a spell".
                         if let Some(ps) = state.players.get_mut(&owner) {
                             ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+                            // PB-AC6: all-players-reset "this game turn" spell count.
+                            ps.spells_cast_this_game_turn =
+                                ps.spells_cast_this_game_turn.saturating_add(1);
                         }
                         events.push(GameEvent::SpellCast {
                             player: owner,

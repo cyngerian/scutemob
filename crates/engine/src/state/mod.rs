@@ -360,6 +360,12 @@ impl GameState {
         // (which use None to represent "pre-existing before current turn").
         if zone_id == ZoneId::Battlefield && object.is_token {
             object.entered_turn = Some(self.turn.turn_number);
+            // PB-AC6 / CR 111.10: mark that this player created a token this turn.
+            // Single chokepoint -- every GameEvent::TokenCreated emission site funnels
+            // a token GameObject through add_object before emitting.
+            if let Some(ps) = self.players.get_mut(&object.controller) {
+                ps.created_token_this_turn = true;
+            }
         }
         // Add to zone — MR-M1-01/MR-M1-04: single access, no redundant guard.
         let zone = self

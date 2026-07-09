@@ -269,6 +269,9 @@ impl GameStateBuilder {
                 ring_level: 0,
                 ring_bearer_id: None,
                 temporary_protection_qualities: vec![],
+                attacked_this_turn: false,
+                created_token_this_turn: false,
+                spells_cast_this_game_turn: 0,
             };
             players.insert(config.id, player_state);
         }

@@ -8078,6 +8078,67 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 _ => false,
             }
         }
+        // PB-AC6 / Raid, CR 508.1: "if you attacked this turn."
+        Condition::YouAttackedThisTurn => state
+            .players
+            .get(&ctx.controller)
+            .map(|p| p.attacked_this_turn)
+            .unwrap_or(false),
+        // PB-AC6 / CR 111.10: "if you created a token this turn."
+        Condition::CreatedATokenThisTurn => state
+            .players
+            .get(&ctx.controller)
+            .map(|p| p.created_token_this_turn)
+            .unwrap_or(false),
+        // PB-AC6: "if an opponent cast N or more spells this turn." Reads the
+        // all-players-reset spells_cast_this_game_turn counter (NOT
+        // spells_cast_this_turn, which is storm-scoped and reset only for the active
+        // player -- see OOS-AC6-1 in memory/primitives/pb-plan-AC6.md). True if ANY
+        // living opponent meets the threshold.
+        Condition::OpponentCastNSpells(n) => state.players.iter().any(|(pid, ps)| {
+            *pid != ctx.controller && !ps.has_lost && ps.spells_cast_this_game_turn >= *n
+        }),
+        // Spell mastery (ability word, CR 207.2c): "two or more instant and/or sorcery
+        // cards in your graveyard." CR 400.2: graveyard cards use printed
+        // characteristics (no layer calculation), mirroring CardTypesInGraveyardAtLeast.
+        Condition::SpellMastery => {
+            let gy = ZoneId::Graveyard(ctx.controller);
+            state
+                .objects
+                .values()
+                .filter(|o| {
+                    o.zone == gy
+                        && (o.characteristics.card_types.contains(&CardType::Instant)
+                            || o.characteristics.card_types.contains(&CardType::Sorcery))
+                })
+                .count()
+                >= 2
+        }
+        // "if an opponent controls more lands than you." Multiplayer: true if ANY
+        // living opponent controls strictly more lands than the controller. Land
+        // counts use layer-resolved types (CR 613.1d) and exclude phased-out
+        // permanents (CR 702.26b) — W3-LC layer discipline.
+        Condition::OpponentControlsMoreLandsThanYou => {
+            let count_lands = |pid: crate::state::player::PlayerId| -> usize {
+                state
+                    .objects
+                    .values()
+                    .filter(|o| {
+                        o.zone == ZoneId::Battlefield && o.is_phased_in() && o.controller == pid
+                    })
+                    .filter(|o| {
+                        let chars = crate::rules::layers::calculate_characteristics(state, o.id)
+                            .unwrap_or_else(|| o.characteristics.clone());
+                        chars.card_types.contains(&CardType::Land)
+                    })
+                    .count()
+            };
+            let mine = count_lands(ctx.controller);
+            state
+                .players
+                .iter()
+                .any(|(pid, ps)| *pid != ctx.controller && !ps.has_lost && count_lands(*pid) > mine)
+        }
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).

@@ -460,6 +460,8 @@ pub fn resolve_cascade(
             // Use saturating_add to match defensive overflow handling used elsewhere (CR 702.85).
             if let Some(ps) = state.players.get_mut(&caster) {
                 ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+                // PB-AC6: all-players-reset "this game turn" spell count.
+                ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
             }
             events.push(GameEvent::SpellCast {
                 player: caster,
@@ -686,6 +688,8 @@ pub fn resolve_discover(
             // Discover free-cast triggers "whenever you cast a spell".
             if let Some(ps) = state.players.get_mut(&player) {
                 ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+                // PB-AC6: all-players-reset "this game turn" spell count.
+                ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
             }
             events.push(GameEvent::SpellCast {
                 player,

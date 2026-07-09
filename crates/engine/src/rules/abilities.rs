@@ -4178,6 +4178,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
+                // PB-AC6 / CR 601.2c / 602.2b / 603.2: global "becomes the target of a
+                // spell/ability" dispatch. Distinct from the Ward block above (which is
+                // self + spell-or-ability + opponent-only, hardcoded). This dispatch
+                // reads per-card scope/by_opponent/include_abilities params directly off
+                // each candidate source's `TriggerEvent::PermanentBecomesTarget` variant
+                // -- it cannot use the generic `collect_triggers_for_event` equality scan
+                // because those params differ per card.
+                collect_permanent_becomes_target_triggers(
+                    state,
+                    &mut triggers,
+                    *target_id,
+                    *targeting_stack_id,
+                    *targeting_controller,
+                );
             }
             GameEvent::CreatureDied {
                 object_id: pre_death_object_id,
@@ -6151,6 +6165,126 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
         }
     }
     triggers
+}
+/// PB-AC6 / CR 601.2c / 602.2b / 603.2: Collect `WhenBecomesTarget`-derived
+/// (`TriggerEvent::PermanentBecomesTarget`) triggers for a single targeting event.
+///
+/// Scans all battlefield permanents for a `PermanentBecomesTarget { scope,
+/// by_opponent, include_abilities }` runtime trigger def and applies the per-card
+/// params:
+/// - `include_abilities`: `false` restricts to spells only (CR 601.2c); `true` also
+///   fires for abilities (CR 602.2b). Determined by looking up the stack object for
+///   `targeting_stack_id` and checking `StackObjectKind::Spell`.
+/// - `by_opponent`: `true` restricts to targeting sources controlled by an opponent
+///   of the trigger source's controller (CR 702.21a-style gate).
+/// - `scope`: `None` = the trigger source itself must be the target ("Whenever this
+///   creature becomes the target..."); `Some(filter)` = the target must be a
+///   DIFFERENT permanent controlled by the trigger source's controller matching
+///   `filter` ("a creature/Dragon you control").
+///
+/// `targeting_stack_id` is recorded on the pushed `PendingTrigger` so
+/// `flush_pending_triggers` can resolve `EffectTarget::DeclaredTarget { index: 0 }`
+/// to the targeting spell/ability's controller (Bonecrusher Giant-style effects) --
+/// same tagging convention as the Ward block above.
+fn collect_permanent_becomes_target_triggers(
+    state: &GameState,
+    triggers: &mut Vec<PendingTrigger>,
+    target_id: ObjectId,
+    targeting_stack_id: ObjectId,
+    targeting_controller: PlayerId,
+) {
+    let targeting_is_spell = state
+        .stack_objects
+        .iter()
+        .find(|so| so.id == targeting_stack_id)
+        .map(|so| matches!(so.kind, StackObjectKind::Spell { .. }))
+        .unwrap_or(false);
+    let target_controller = state.objects.get(&target_id).map(|o| o.controller);
+    for src in state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+    {
+        let resolved_chars = crate::rules::layers::calculate_characteristics(state, src.id)
+            .unwrap_or_else(|| src.characteristics.clone());
+        for (idx, trigger_def) in resolved_chars.triggered_abilities.iter().enumerate() {
+            let TriggerEvent::PermanentBecomesTarget {
+                scope,
+                by_opponent,
+                include_abilities,
+            } = &trigger_def.trigger_on
+            else {
+                continue;
+            };
+            // CR 601.2c vs 602.2b: spell-only unless include_abilities is set.
+            if !*include_abilities && !targeting_is_spell {
+                continue;
+            }
+            // CR 702.21a-style opponent gate.
+            if *by_opponent && targeting_controller == src.controller {
+                continue;
+            }
+            // Scope gate.
+            match scope {
+                None => {
+                    if src.id != target_id {
+                        continue;
+                    }
+                }
+                Some(filter) => {
+                    if target_controller != Some(src.controller) {
+                        continue;
+                    }
+                    let Some(target_obj) = state.objects.get(&target_id) else {
+                        continue;
+                    };
+                    let target_chars =
+                        crate::rules::layers::calculate_characteristics(state, target_id)
+                            .unwrap_or_else(|| target_obj.characteristics.clone());
+                    if !crate::effects::matches_filter(&target_chars, filter) {
+                        continue;
+                    }
+                }
+            }
+            // CR 603.4: Check intervening-if at trigger time.
+            if let Some(ref cond) = trigger_def.intervening_if {
+                if !check_intervening_if(state, cond, src.controller, None) {
+                    continue;
+                }
+            }
+            triggers.push(PendingTrigger {
+                embedded_effect: trigger_def.effect.clone(),
+                source: src.id,
+                ability_index: idx,
+                controller: src.controller,
+                kind: PendingTriggerKind::Normal,
+                triggering_event: Some(trigger_def.trigger_on.clone()),
+                entering_object_id: None,
+                targeting_stack_id: Some(targeting_stack_id),
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                recover_cost: None,
+                recover_card: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
+                damaged_player: None,
+                combat_damage_amount: 0,
+                lki_counters: im::OrdMap::new(),
+                lki_power: None,
+                data: None,
+            });
+        }
+    }
 }
 /// Collect triggered abilities of type `event_type` from battlefield permanents.
 ///

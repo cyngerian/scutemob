@@ -536,6 +536,23 @@ pub enum TriggerEvent {
     /// counters are put on a permanent. The receiving permanent's ObjectId is carried via
     /// the `entering_object` dispatch parameter.
     CounterPlaced,
+    /// PB-AC6 / CR 601.2c / 602.2b / 603.2: A permanent became the target of a spell (or
+    /// ability). Global becomes-target event dispatched INLINE from the
+    /// `GameEvent::PermanentTargeted` handler in `rules/abilities.rs` (NOT via the generic
+    /// `collect_triggers_for_event` equality scan -- the params here are read directly by
+    /// that inline dispatch). Distinct from the Ward-only `SelfBecomesTargetByOpponent`.
+    PermanentBecomesTarget {
+        /// `None` = the trigger source itself must be the target ("Whenever this creature
+        /// becomes the target..."). `Some(filter)` = any permanent the source's controller
+        /// controls that matches `filter` becoming a target ("a creature/Dragon you control").
+        /// Boxed per `large_enum_variant` (clippy).
+        scope: Option<Box<crate::cards::card_definition::TargetFilter>>,
+        /// If true, only fires when the targeting spell/ability is controlled by an opponent
+        /// of the source's controller. If false, any controller.
+        by_opponent: bool,
+        /// If true, fires on a spell OR an ability. If false, spell only (CR 601.2c).
+        include_abilities: bool,
+    },
 }
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
 ///
