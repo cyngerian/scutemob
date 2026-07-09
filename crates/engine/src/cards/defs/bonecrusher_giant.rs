@@ -6,10 +6,18 @@
 // Adventure face: "Stomp" {1}{R} Instant — Adventure
 // "Damage can't be prevented this turn. Stomp deals 2 damage to any target."
 //
-// TODO(1): Trigger condition WhenBecomesTargetByOpponent is WRONG — should be
-// WhenBecomesTargetBySpell (any spell, not just opponent spells). DSL gap.
-// TODO(2): Effect should target "that spell's controller" — needs EffectTarget::TriggeringPlayer.
-// TODO(3): "Damage can't be prevented this turn" — DSL gap: no Effect::PreventionShieldRemoval.
+// PB-AC6 fixed the trigger condition: it is now TriggerCondition::WhenBecomesTarget
+// { scope: None (the source itself), by_opponent: false (any controller), include_abilities:
+// false (spells only) }, which matches the oracle exactly. The previous
+// WhenBecomesTargetByOpponent is the Ward-only condition and fired only on opponents' spells.
+//
+// ENGINE-BLOCKED(1): the effect must deal 2 damage to "that spell's controller".
+// Effect::DealDamage takes an EffectTarget, and EffectTarget has no ControllerOf /
+// TriggeringPlayer variant (both exist only on PlayerTarget). The previous
+// EffectTarget::EachOpponent was a wrong-game-state approximation: in multiplayer it damaged
+// every opponent, not just the caster, and it damaged opponents even when the controller
+// targeted their own Bonecrusher Giant. Replaced with Effect::Nothing rather than approximated.
+// ENGINE-BLOCKED(2): "Damage can't be prevented this turn" — no prevention-removal Effect.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,25 +30,20 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
-            // CR 603.5: Triggered ability — "Whenever Bonecrusher Giant becomes the target of
-            // a spell, Bonecrusher Giant deals 2 damage to that spell's controller."
-            // TODO(1): TriggerCondition::WhenBecomesTargetByOpponent is WRONG — fires only when
-            // an opponent targets it. Oracle says "becomes the target of a spell" with no
-            // controller restriction; trigger should fire for ANY spell (including one controlled
-            // by the same player). Requires TriggerCondition::WhenBecomesTargetBySpell (DSL gap).
-            // TODO(2): Effect target is WRONG — should deal 2 damage to "that spell's controller"
-            // (the triggering player), not all opponents. Requires EffectTarget::TriggeringPlayer
-            // DSL variant (does not exist yet).
-            // TODO(3): "Damage can't be prevented this turn" — no Effect::PreventionShieldRemoval
-            // DSL variant exists. Currently omitted.
-            // Using EachOpponent as approximation until (1) and (2) are resolved.
+            // CR 603.2 / 601.2c: Triggered ability — "Whenever Bonecrusher Giant becomes the
+            // target of a spell, Bonecrusher Giant deals 2 damage to that spell's controller."
+            // The trigger condition is exact (PB-AC6). The effect stays unauthored: see
+            // ENGINE-BLOCKED(1) in the file header — "that spell's controller" is not an
+            // expressible EffectTarget, and the old EachOpponent approximation produced wrong
+            // game state in multiplayer.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenBecomesTargetByOpponent,
-                effect: Effect::DealDamage {
-                    target: EffectTarget::EachOpponent,
-                    amount: EffectAmount::Fixed(2),
+                trigger_condition: TriggerCondition::WhenBecomesTarget {
+                    scope: None,
+                    by_opponent: false,
+                    include_abilities: false,
                 },
+                effect: Effect::Nothing,
                 intervening_if: None,
                 targets: vec![],
 

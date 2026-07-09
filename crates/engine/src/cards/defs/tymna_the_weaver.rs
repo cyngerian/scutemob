@@ -17,11 +17,11 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Partner),
-            // TODO: DSL gap — "At the beginning of each of your postcombat main phases" trigger
-            // condition does not exist (AtBeginningOfPostcombatMainPhase). Additionally, the
-            // life payment and draw count depend on a dynamic count of opponents dealt combat
-            // damage this turn, which requires tracking opponent damage state not available in
-            // effect targets.
+            // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
+            // opponents dealt combat damage this turn. No "opponents dealt combat damage this
+            // turn" tracker exists on GameState/PlayerState, and no EffectAmount reads it.
+            // (The "at the beginning of your postcombat main phase" trigger itself is now
+            // available as TriggerCondition::AtBeginningOfPostcombatMain — PB-AC6.)
         ],
         ..Default::default()
     }

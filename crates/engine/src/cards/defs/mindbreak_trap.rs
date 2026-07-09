@@ -12,8 +12,12 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.\nExile any number of target spells.".to_string(),
         abilities: vec![
-            // TODO: Conditional free-cast (opponent cast 3+ spells) not in DSL.
-            // TODO: "any number of target spells" — variable targets not supported.
+            // ENGINE-BLOCKED: (1) Trap alternative cost — no AltCostKind::Trap, so the
+            // "if an opponent cast three or more spells this turn, you may pay {0}" alt-cost
+            // cannot be paid. (2) "any number of target spells" — variable target counts are
+            // not supported.
+            // (The condition itself is now available as Condition::OpponentCastNSpells(3) —
+            // PB-AC6. It is the alt-cost wrapper that is missing, not the count.)
             AbilityDefinition::Spell {
                 effect: Effect::ExileObject {
                     target: EffectTarget::DeclaredTarget { index: 0 },

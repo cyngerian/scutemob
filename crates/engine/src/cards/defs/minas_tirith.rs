@@ -27,7 +27,10 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
             once_per_turn: false,
             },
-            // TODO: Activated — {1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.
+            // ENGINE-BLOCKED: "{1}{W}, {T}: Draw a card. Activate only if you attacked with two
+            // or more creatures this turn." Needs a count-based attacked condition
+            // (Condition::AttackedWithNCreatures(2)). PB-AC6's Condition::YouAttackedThisTurn is
+            // a bool and is insufficient — it cannot distinguish one attacker from two.
         ],
         ..Default::default()
     }

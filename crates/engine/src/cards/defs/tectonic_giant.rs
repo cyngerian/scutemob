@@ -15,8 +15,12 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
-            // TODO: Dual trigger condition (attacks OR becomes target of opponent's spell)
-            // not in DSL. Only WhenAttacks fires currently.
+            // ENGINE-BLOCKED: modal ("choose one") on a *triggered* ability is not
+            // expressible — ModeSelection is only wired for spells, not triggered abilities.
+            // (The becomes-target half of the dual trigger is now expressible as
+            // TriggerCondition::WhenBecomesTarget { scope: None, by_opponent: true,
+            // include_abilities: false } — PB-AC6. It stays unauthored only because the
+            // modal effect below cannot be represented.)
             // CR 700.2b / PB-35: Modal triggered ability.
             // Mode 0: Deal 3 damage to each opponent.
             // Mode 1: Impulse draw (exile top 2, play 1) — DSL gap, Nothing placeholder.

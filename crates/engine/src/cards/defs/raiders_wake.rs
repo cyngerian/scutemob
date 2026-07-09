@@ -3,11 +3,13 @@
 // Raid — At the beginning of your end step, if you attacked this turn, target opponent
 // discards a card.
 //
-// TODO: First ability requires TriggerCondition::WheneverOpponentDiscards which does not
-// exist in the DSL. The "that player" reference also needs discard trigger target passing.
-// Second ability (Raid — end step discard) requires Condition::YouAttackedThisTurn as an
-// intervening-if plus a targeted discard effect on an opponent; Condition::YouAttackedThisTurn
-// is not confirmed to exist in the DSL. Both abilities omitted per W5 policy.
+// The first ability IS authored below (TriggerCondition::WheneverOpponentDiscards and
+// PlayerTarget::TriggeringPlayer both exist — the old marker claiming otherwise was stale).
+//
+// ENGINE-BLOCKED: the Raid half needs "target OPPONENT discards a card". PB-AC6 supplies the
+// intervening-if (Condition::YouAttackedThisTurn), but TargetRequirement has TargetPlayer and
+// no TargetOpponent, so authoring it would let the controller target themselves — an illegal
+// target per the oracle, i.e. wrong game state. Omitted rather than approximated.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,7 +34,8 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: Raid end-step discard — Condition::YouAttackedThisTurn not in DSL.
+            // ENGINE-BLOCKED: see file header — Raid end-step discard needs
+            // TargetRequirement::TargetOpponent, which does not exist.
         ],
         ..Default::default()
     }

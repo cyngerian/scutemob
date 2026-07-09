@@ -36,9 +36,12 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: DSL gap — Raid: end step trigger with "if you attacked this turn"
-            // intervening-if (Condition::YouAttackedThisTurn) + return creature from GY
-            // with MV <= source power (TargetFilter with dynamic mana value comparison).
+            // ENGINE-BLOCKED: the Raid reanimation targets a creature card in your graveyard
+            // with "mana value less than or equal to Alesha's power". TargetFilter's max_cmc is
+            // a fixed u32; there is no dynamic comparison against the source's (layer-resolved,
+            // counter-modified) power. Authoring it with a fixed bound would allow or forbid the
+            // wrong targets — wrong game state.
+            // (The intervening-if is now available: Condition::YouAttackedThisTurn — PB-AC6.)
         ],
         ..Default::default()
     }

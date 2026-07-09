@@ -14,10 +14,11 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "At the beginning of your first main phase, choose one or more —\n• Sell Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life.".to_string(),
         abilities: vec![
-            // TODO: "At the beginning of your first main phase" trigger not in DSL —
-            // TriggerCondition has no AtBeginningOfFirstMainPhase variant.
-            // Additionally, "choose one or more" modal on a triggered ability is not
-            // expressible in DSL. Needs both a new trigger condition and modal trigger support.
+            // ENGINE-BLOCKED: "choose one or more" modal on a *triggered* ability is not
+            // expressible — ModeSelection is only wired for spells (CastSpell.modes_chosen),
+            // not for triggered abilities. Needs modal-on-trigger support.
+            // (The "at the beginning of your first main phase" trigger itself is now
+            // available as TriggerCondition::AtBeginningOfFirstMainPhase — PB-AC6.)
         ],
         ..Default::default()
     }
