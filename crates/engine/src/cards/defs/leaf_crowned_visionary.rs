@@ -1,6 +1,9 @@
 // Leaf-Crowned Visionary — {G}{G}, Creature — Elf Druid 1/1
 // Other Elves you control get +1/+1.
 // Whenever you cast an Elf spell, you may pay {G}. If you do, draw a card.
+//
+// PB-AC7: unblocked by TriggerCondition::WheneverYouCastSpell.spell_subtype_filter
+// (CR 205.1a) combined with PB-AC2's Effect::MayPayThenEffect (CR 118.12).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,16 +26,29 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // ENGINE-BLOCKED: "Whenever you cast an Elf spell, you may pay {G}. If you
-            // do, draw a card." PB-AC2's Effect::MayPayThenEffect (CR 118.12) now covers
-            // the "may pay {G} -> draw" rider, but the trigger condition itself is still
-            // blocked: TriggerCondition::WheneverYouCastSpell only supports
-            // spell_type_filter (Vec<CardType>) and chosen_subtype_filter (dynamic,
-            // reads ctx.chosen_creature_type) — there is no fixed-subtype ("Elf")
-            // filter field. Casting an Elf spell cannot be distinguished from casting
-            // any other creature spell. Genuine remaining gap (PB-AC7 territory per
-            // pb-plan-AC2.md); per W5 policy, omitted rather than firing on every
-            // creature spell.
+            // Whenever you cast an Elf spell, you may pay {G}. If you do, draw a card.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: None,
+                    noncreature_only: false,
+                    chosen_subtype_filter: false,
+                    spell_subtype_filter: Some(vec![SubType("Elf".to_string())]),
+                },
+                effect: Effect::MayPayThenEffect {
+                    cost: Cost::Mana(ManaCost { green: 1, ..Default::default() }),
+                    payer: PlayerTarget::Controller,
+                    then: Box::new(Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

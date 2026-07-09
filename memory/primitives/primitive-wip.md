@@ -1,245 +1,324 @@
 ---
-pb: PB-AC6
-title: Phase & opponent-action conditions
-phase: close
-plan_file: memory/primitives/pb-plan-AC6.md
-review_file: memory/primitives/pb-review-AC6.md
+pb: PB-AC7
+title: Type-changing & ability-removal
+phase: closed
+plan_file: memory/primitives/pb-plan-AC7.md
+review_file: memory/primitives/pb-review-AC7.md
 ---
 
-# PB-AC6 — Phase & opponent-action conditions
+# PB-AC7 — Type-changing & ability-removal
 
-## Scope (task scutemob-49, campaign-plan §2 PB-AC6 row)
+## Scope (task scutemob-50, campaign-plan §2 PB-AC7 row)
 
-**3 new `TriggerCondition` variants:**
-1. `AtBeginningOfFirstMainPhase` — needs a generic CardDef sweep in turn
-   structure code, analogous to the existing `upkeep_actions()` /
-   `end_step_actions()` sweeps. **The B9 lesson**: hardcoded keyword-only sweeps
-   silently drop CardDef triggers.
-2. `AtBeginningOfPostcombatMain` — ditto. Must distinguish FIRST main from
-   postcombat main precisely (CR 505.1).
-3. `WhenBecomesTarget` — fires on **ANNOUNCEMENT** of the targeting spell/ability
-   (CR 603.2), NOT on resolution.
-
-**5 new `Condition` variants:**
-1. `YouAttackedThisTurn`
-2. `CreatedATokenThisTurn`
-3. `OpponentCastNSpells`
-4. `SpellMastery` — an **ability word** (two or more instants/sorceries in your
-   graveyard), not a keyword ability
-5. `OpponentControlsMoreLandsThanYou`
+**4 primitives:**
+1. `Effect::LoseAbilities` — Layer 6 ability removal, typically "until end of
+   turn" ("loses all abilities"). Timestamp-ordered against ability *grants*
+   in the same layer (CR 613.1f / 613.7).
+2. `Effect::SetCreatureTypes` — Layer 4 "changes to" semantics. **SETS** the new
+   creature type(s), *removing* all prior creature types (CR 205.1b). Distinct
+   from the additive `AddAllCreatureTypes` / `AddCreatureType` already present.
+3. **One-shot Layer-4 type override with duration** — a resolution-time effect
+   that registers a Layer-4 continuous effect with a duration (until end of
+   turn / permanently), as opposed to a static ability's Layer-4 modification.
+4. **Aura/Equipment/Vehicle subtype filter** — spell/permanent subtype filter
+   usable for targeting (`TargetFilter`) and effect selection (`EffectFilter`).
 
 ## CR refs — ADVISORY ONLY, verify each via mtg-rules MCP
-500 (turn structure), 505.1 (main phase), 603.2 (triggered abilities /
-becomes-target timing), 700.2 (modal). Do **not** grep the CR file: it has bare
-`\r` line endings, so rule-number greps silently match nothing. Use the
-mtg-rules MCP for all CR verification.
+613.1 (layer order), 205.1b / 205.3 (subtypes; changing types), 613.1d (Layer 4),
+613.1f (Layer 6), 613.6/613.7 (timestamps & dependency), 611.2c (continuous
+effects from resolved spells/abilities), 708 (face-down objects).
+
+**Do NOT grep the CR file** — it has bare `\r` line endings, so rule-number greps
+silently match nothing. Use the mtg-rules MCP for all CR verification.
 
 ## Hazards (from task brief)
-1. **NEW MUTABLE TRACKING FIELDS are the core of this batch.** Every one MUST be
-   added to `state/hash.rs` `HashInto` impls AND get a correct turn-boundary
-   reset. This exact omission was a review HIGH in **both PB-AC1 and PB-AC5**
-   (twice!). Mutation-verify the hash tests — flip each field, assert the hash
-   actually changes.
-2. Verify the KW/AbilDef/SOK discriminant chain from *current code* before adding
-   variants — do not trust remembered numbers.
-3. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs`
+1. **THIS BATCH TOUCHES THE LAYER SYSTEM.** Load `memory/gotchas-rules.md`
+   before planning. Type-changing is Layer 4; ability add/remove is Layer 6;
+   timestamp/dependency ordering per CR 613. Study how existing until-end-of-turn
+   layer modifications register duration and expiry.
+   **Precedent**: `AddAllCreatureTypes` (Mirror Entity) was moved Layer 6 → Layer 4
+   `TypeChange` in a PB-AC3 review fix. Follow that placement.
+2. **LoseAbilities interactions to test**: granted-then-removed ordering by
+   timestamp; face-down 2/2-no-text override (the face-down layer override runs
+   *before* the layer loop — verify LoseAbilities composes with it, not against
+   it); W3-LC discipline (all battlefield characteristic reads through
+   `calculate_characteristics()`).
+3. **Any new mutable/runtime fields MUST be added to `state/hash.rs` `HashInto`
+   impls with mutation-verified tests.** This was a review HIGH in PB-AC1 *and*
+   PB-AC5. One-shot layer effects with durations often add stack/object state.
+   Also: every new enum variant needs a hash arm, and `HASH_SCHEMA_VERSION`
+   (currently 33) bumps with a changelog entry + sentinel update across test files.
+4. Verify the KW/AbilDef/SOK discriminant chain **from current code** before
+   adding variants — do not trust remembered numbers.
+5. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs`
    (`StackObjectKind`) and `tools/replay-viewer/src/view_model.rs`
    (`StackObjectKind` + `KeywordAbility`). Run `cargo build --workspace` after
-   every impl phase — runners miss this ~50% of the time.
-4. Harness: new trigger conditions may need `script_schema.rs` /
-   `translate_player_action` wiring.
-5. Do NOT commit phantom `.claude/skills/*` deletions that appear in fresh
-   worktrees (restored at session start).
-6. Load `memory/gotchas-rules.md` before planning — this batch touches turn
-   structure, triggers, and targeting.
-
-## Implementation pointers
-- This-turn trackers need new `GameState`/`PlayerState` fields.
-  `previous_turn_spells_cast` (Daybound) already exists — study its reset pattern.
-- `OpponentControlsMoreLandsThanYou` battlefield counts must respect
-  `is_phased_in()` and W3-LC `calculate_characteristics()` discipline.
+   every impl phase. **`cargo build` does NOT compile test targets** — gate on
+   `cargo test --all` actually running (PB-AC6 process note).
+6. Harness wiring (`testing/replay_harness.rs`, `script_schema.rs`) if scripts
+   need the new effects.
+7. Do NOT commit phantom `.claude/skills/*` deletions in fresh worktrees.
 
 ## Roster
-Discounted yield ~18 cards. The **planner** identifies the real roster from
+Discounted yield ~14 cards. The **planner** identifies the real roster from
 oracle text — grep card defs for BOTH `// TODO` and `// ENGINE-BLOCKED` markers
-citing main-phase / becomes-target / spell-mastery / attacked-this-turn /
-token-this-turn / opponent-cast / land-count patterns. Card rosters in plan docs
-are advisory; oracle text via MCP is authoritative.
+citing lose-abilities / becomes-type / type-change / aura-equipment-vehicle-filter
+patterns. PB-AC6 just ran a marker-correction sweep, so markers should be current.
+Card rosters in plan docs are advisory; oracle text via MCP is authoritative
+(feedback_oversight_primitive_category_not_cards).
 
 ## Close includes backfill
 PB is not done until every unblocked card is re-authored and its stale markers
-are deleted.
+are deleted, and reviewed by card-batch-reviewer.
 
 ## Phases
-- [x] plan (primitive-impl-planner → pb-plan-AC6.md)
-- [x] implement (primitive-impl-runner, 2026-07-09)
-  - **PLAN CORRECTION APPLIED** (per task brief, overrides plan Change 10): added
-    a dedicated `PlayerState::spells_cast_this_game_turn: u32`, reset for ALL
-    players in `reset_turn_state` (NOT the storm-scoped `spells_cast_this_turn`,
-    which is deliberately reset only for the incoming active player). Verified in
-    code: `turn_actions.rs` resets `spells_cast_this_turn` only for the incoming
-    active player (storm scoping); reading it for a non-active opponent would
-    accumulate across intervening turns — rejected as wrong game state.
-  - **DEVIATION FROM PLAN**: the plan's correction cited 4 increment sites
-    (`resolution.rs:5133`, `resolution.rs:5787`, `copy.rs:462`, `copy.rs:688`).
-    Grepped ALL `spells_cast_this_turn +=`/`saturating_add` sites and found a
-    **5th, uncited site**: `casting.rs:4709` — the PRIMARY normal-cast path (every
-    ordinary `CastSpell`). The plan's 4 sites are all secondary/free-cast paths
-    (cipher, suspend, cascade, discover). Incremented
-    `spells_cast_this_game_turn` at all 5 sites; omitting `casting.rs:4709` would
-    have made `OpponentCastNSpells` never fire for ordinary spell casts — the
-    single most common case. Flagged for reviewer verification.
-  - **Engine changes**:
-    - `state/player.rs`: +3 `PlayerState` fields — `attacked_this_turn: bool`,
-      `created_token_this_turn: bool`, `spells_cast_this_game_turn: u32`.
-    - `state/builder.rs`: init all 3 fields to `false`/`false`/`0`.
-    - `state/hash.rs`: hash all 3 new `PlayerState` fields; `HASH_SCHEMA_VERSION`
-      32→33 + changelog entry; hash arms for `TriggerCondition` disc 45
-      (`AtBeginningOfFirstMainPhase`), 46 (`AtBeginningOfPostcombatMain`), 47
-      (`WhenBecomesTarget`); `Condition` disc 43-47 (`YouAttackedThisTurn`,
-      `CreatedATokenThisTurn`, `OpponentCastNSpells`, `SpellMastery`,
-      `OpponentControlsMoreLandsThanYou`); `TriggerEvent` disc 47
-      (`PermanentBecomesTarget`). Updated the `HASH_SCHEMA_VERSION, 32u8`
-      sentinel to `33u8` in 24 test files (grep-and-replace).
-    - `cards/card_definition.rs`: +3 `TriggerCondition` variants
-      (`AtBeginningOfFirstMainPhase`, `AtBeginningOfPostcombatMain`,
-      `WhenBecomesTarget { scope: Option<Box<TargetFilter>>, by_opponent,
-      include_abilities }` — `scope` boxed per clippy `large_enum_variant`); +5
-      `Condition` variants (`YouAttackedThisTurn`, `CreatedATokenThisTurn`,
-      `OpponentCastNSpells(u32)`, `SpellMastery`,
-      `OpponentControlsMoreLandsThanYou`).
-    - `state/game_object.rs`: +1 `TriggerEvent::PermanentBecomesTarget { scope:
-      Option<Box<TargetFilter>>, by_opponent, include_abilities }` (boxed, same
-      clippy reason).
-    - `rules/turn_actions.rs`: `execute_turn_based_actions` +
-      `Step::PostCombatMain => Ok(postcombat_main_actions(state))` arm (was
-      falling to `_ => Ok(Vec::new())`); generic CardDef sweep added to
-      `precombat_main_actions` for `AtBeginningOfFirstMainPhase` (mirrors the
-      B9/B14 upkeep/end-step sweep template, gated `controller == active`); new
-      `postcombat_main_actions` fn with the same sweep pattern for
-      `AtBeginningOfPostcombatMain` (fires on every `Step::PostCombatMain`
-      including extra mains — no per-turn dedup needed, CR 505.1a); all-players
-      loop in `reset_turn_state` resets the 3 new fields.
-    - `rules/combat.rs`: `handle_declare_attackers` sets `attacked_this_turn =
-      true` for the attacking player when `!attackers.is_empty()`, right after
-      attackers are recorded in combat state. Explicitly does NOT touch the
-      token-enters-attacking path (CR 508.4, Bloodsoaked Champion ruling).
-    - `state/mod.rs`: `add_object` sets `created_token_this_turn = true` inside
-      the existing `zone_id == Battlefield && object.is_token` block (single
-      chokepoint for all 13 `TokenCreated` emission sites).
-    - `rules/casting.rs`, `rules/copy.rs` (x2), `rules/resolution.rs` (x2):
-      increment `spells_cast_this_game_turn` alongside `spells_cast_this_turn` at
-      all 5 sites (see deviation note above).
-    - `effects/mod.rs`: 5 new `check_condition` arms. `OpponentControlsMoreLandsThanYou`
-      uses `calculate_characteristics` (layer-resolved, W3-LC discipline) +
-      `is_phased_in()` exclusion. `SpellMastery` uses printed graveyard
-      characteristics (CR 400.2), mirroring `CardTypesInGraveyardAtLeast`.
-      `check_static_condition`'s existing `_ =>` fallback covers all 5 with no
-      changes needed there.
-    - `rules/abilities.rs`: new `collect_permanent_becomes_target_triggers` fn,
-      called from the `GameEvent::PermanentTargeted` arm of `check_triggers`
-      immediately after the existing Ward block. Scans all battlefield
-      permanents' layer-resolved `triggered_abilities` for
-      `TriggerEvent::PermanentBecomesTarget`, applies per-card
-      scope/by_opponent/include_abilities gates (spell-vs-ability determined by
-      looking up `targeting_stack_id` in `state.stack_objects` and checking
-      `StackObjectKind::Spell`), tags `targeting_stack_id` on the pushed
-      `PendingTrigger` (same convention as Ward, enables
-      `DeclaredTarget{index:0}` to resolve to the targeting spell/ability).
-    - `testing/replay_harness.rs`: `enrich_spec_from_def` gains one new
-      conversion block for `TriggerCondition::WhenBecomesTarget` →
-      `TriggeredAbilityDef { trigger_on: TriggerEvent::PermanentBecomesTarget {
-      .. }, .. }`. `AtBeginningOfFirstMainPhase`/`AtBeginningOfPostcombatMain` do
-      NOT get enrich blocks (fire via registry-scan sweeps, like upkeep/end-step).
-  - **Tests**: new file `crates/engine/tests/pb_ac6_phase_action_conditions.rs`
-    — 19 tests (hash sentinel + 3 mutation-verified hash tests for all 3 new
-    fields; first-main/postcombat-main trigger firing + step-discrimination +
-    active-player-only; 4 becomes-target tests covering spell-vs-ability scope,
-    you-control scope, by-opponent gate, announcement-vs-resolution timing; 5
-    condition tests (YouAttackedThisTurn incl. CR 508.4 negative case,
-    CreatedATokenThisTurn, SpellMastery, OpponentControlsMoreLandsThanYou incl.
-    phased-out exclusion, OpponentCastNSpells); 1 multiplayer turn-boundary
-    reset test (4-player, verifies a NON-active player's trackers reset via
-    direct `reset_turn_state` call); 1 filter-discrimination sanity check).
-  - **Scope deviation (per task instructions)**: card-definition backfill
-    (Searslicer Goblin, Bloodsoaked Champion, Idol of Oblivion, Dark Petition,
-    Land Tax, Venerated Rotpriest, etc.) explicitly NOT done — that is a later
-    phase run by a different agent. Card-integration tests from the plan's test
-    list are replaced with synthetic `CardDefinition`/`TriggeredAbilityDef`
-    fixtures that validate the primitives directly.
-  - Gates: `cargo build --workspace` clean (0 new StackObjectKind/KeywordAbility
-    variants, as predicted — TUI/replay-viewer untouched, verified not just
-    assumed), `cargo test --all` 3003 passed / 0 failed (2984 baseline + 19
-    new), `cargo clippy --all-targets -- -D warnings` clean (1 `large_enum_variant`
-    finding self-fixed by boxing `scope` in both new enum variants),
-    `cargo fmt --check` clean (ran `cargo fmt` once to apply formatter output).
-- [ ] review (primitive-impl-reviewer → pb-review-AC6.md)
-- [ ] fix (primitive-impl-runner)
-- [ ] backfill (bulk-card-author + card-batch-reviewer)
-- [ ] close
+- [x] plan (primitive-impl-planner → pb-plan-AC7.md)
+- [x] implement (primitive-impl-runner) — ENGINE PHASE ONLY, see below. Card backfill
+  (Kenrith's Transformation, Eaten by Piranhas, Darksteel Mutation, Sram, Leaf-Crowned
+  Visionary, Final Showdown mode 0, Vraska −2) deliberately NOT done — out of scope
+  per coordinator brief; deferred to the `backfill` phase.
+- [x] review (primitive-impl-reviewer → pb-review-AC7.md) — 1 HIGH, 2 MEDIUM, 2 LOW found
+- [x] fix (primitive-impl-runner) — H1, M1, M2 resolved; see "Fix progress" below and
+  `memory/primitives/pb-review-AC7.md` "Fix pass" section
+- [x] backfill (bulk-card-author + card-batch-reviewer) — 5 clean, 2 partial. Card review
+  0 HIGH / 1 MEDIUM (F-VR1) / 4 LOW; the MEDIUM was fixed.
+  `memory/card-authoring/review-pb-ac7-backfill.md`
+- [x] close (2026-07-09) — see "Close-out" at the bottom of this file
 
-- [x] review (primitive-impl-reviewer -> pb-review-AC6.md, 2026-07-09) — verdict:
-      **0 HIGH, 0 MEDIUM, 2 LOW**. All three recurring-HIGH risk areas verified clean:
-      hash completeness (all 3 trackers in HashInto, 3 genuinely mutation-verified tests,
-      0 stale `32u8` sentinels), all-players turn-boundary reset, and
-      `spells_cast_this_game_turn` increment-site completeness (reviewer independently
-      grepped and confirmed exactly 5 sites, incl. the `casting.rs` primary-cast site the
-      plan omitted). No fix phase required.
-- [x] backfill (2026-07-09) — **6 clean**: searslicer_goblin, chart_a_course,
-      bloodsoaked_champion, idol_of_oblivion, dark_petition, land_tax. Plus black_market,
-      goldspan_dragon (becomes-target half), kaito_shizuki (+1).
-      `venerated_rotpriest` demoted CLEAN -> PARTIAL on oracle check: real text is
-      "**target** opponent gets a poison counter", not "each opponent". Marker narrowed.
-      Marker-correction sweep over 13 blocked/partial cards — every one blamed a primitive
-      PB-AC6 shipped, so all were stale and misleading.
-      New `crates/engine/tests/pb_ac6_card_integration.rs` (6 tests, real card defs).
-- [x] card review (card-batch-reviewer -> memory/card-authoring/review-pb-ac6-backfill.md)
-      — 2 HIGH + 1 MEDIUM, **all fixed**; 5 LOW (2 fixed, 3 wording nits left).
-- [x] close (2026-07-09) — clean coverage 960 -> 965 (+5), 54.9% -> 55.2%.
-      Gates independently re-verified by the worker, not taken from agent reports:
-      `cargo build --workspace` clean, `cargo test --all` **3009 passed / 0 failed**
-      (2984 baseline, +25), `cargo clippy --all-targets -- -D warnings` clean,
-      `cargo fmt --check` clean.
+## Fix progress (2026-07-09, primitive-impl-runner)
+
+H1/M1/M2 all resolved. `cargo test --all` = 3034 passed / 0 failed (3032 baseline + 2 new
+tests). `cargo build --workspace` / `cargo clippy --all-targets -- -D warnings` / `cargo fmt
+--check` all clean. No `HASH_SCHEMA_VERSION` bump (only `LazyLock` statics + a pure helper
+fn added, no new field/variant). Full details in `memory/primitives/pb-review-AC7.md` "Fix
+pass" section — summary:
+- H1: `SetCardTypes` now applies CR 205.1a correlated-subtype removal via 6 new CR-205.3
+  subtype-set statics (`state/types.rs`) + `correlated_card_types()` helper.
+- M1: 3 payload-aware `depends_on` arms added in `rules/layers.rs` (not blanket — each
+  justified against the CR 613.8a test individually).
+- M2: 2 new tests + 1 strengthened integration test; both H1 and M1 fixes proven non-vacuous
+  by temporarily reverting each and confirming the targeted tests fail, then restoring.
+
+## Implementation progress (engine phase, this session)
+
+**Scope decision applied exactly as briefed** — 2 of 4 brief-named primitives were
+already expressible and were NOT re-added (`Effect::LoseAbilities`, one-shot Layer-4
+type override with duration); only `SetCreatureTypes`/`SetCardTypes` and
+`spell_subtype_filter` are net-new.
+
+### Engine changes
+- [x] `LayerModification::SetCreatureTypes(OrdSet<SubType>)` — Layer 4 (CR 205.1a).
+  `crates/engine/src/state/continuous_effect.rs` (variant), `crates/engine/src/rules/layers.rs`
+  `apply_layer_modification` (Reconfigure-idiom filter-and-replace-creature-subset arm),
+  `crates/engine/src/state/hash.rs` (discriminant 30, verified next-free against current
+  code — RemoveSuperType was 29, nothing used 30/31).
+- [x] `LayerModification::SetCardTypes(OrdSet<CardType>)` — Layer 4 companion (CR 205.1a),
+  same three files, discriminant 31. Adopted (not skipped) — makes both variants
+  load-bearing for the CR-faithful Kenrith/Eaten-by-Piranhas/Darksteel-Mutation backfill
+  (preserves Legendary supertype, which `SetTypeLine` would wipe).
+- [x] ~~`depends_on` (CR 613.8) — NO new dependency arm added for `SetCreatureTypes`/
+  `SetCardTypes` vs `AddSubtypes`/`AddCardTypes`. Decision documented inline at
+  `rules/layers.rs::depends_on`: both new variants only replace ONE subset of the type
+  line, so a co-resident `AddSubtypes` targeting a disjoint subtype set (e.g. a land
+  subtype) is order-independent — pure timestamp order is correct.~~
+  **SUPERSEDED BY REVIEW FINDING M1 — this reasoning was WRONG.** It only holds when the
+  co-resident `AddSubtypes` adds a subtype from a *different* set. `SetCreatureTypes({Elk})`
+  + `AddSubtypes({Zombie})` (Zombie IS a creature type) is order-dependent, so per CR 613.8a
+  a dependency exists. The original test asserted only the disjoint case, which is why it
+  passed. 3 payload-aware `depends_on` arms were added in the fix pass. See "Fix progress".
+- [x] `TriggerCondition::WheneverYouCastSpell.spell_subtype_filter: Option<Vec<SubType>>` —
+  `cards/card_definition.rs` (field + doc), `rules/abilities.rs` (post-processing OR-match
+  against `spell_subtypes`, already computed at line ~3368), `state/hash.rs` (destructure +
+  hash arm). CR 205.1a.
+- [x] 21 explicit `WheneverYouCastSpell {` construction sites across `cards/defs/` updated
+  with `spell_subtype_filter: None` (verified via compiler errors — matched the plan's
+  count exactly). 2 additional sites found in `crates/engine/tests/trigger_variants.rs`
+  (not in the plan's list — plan's file inventory covered `cards/defs/` only, not
+  `tests/`) — fixed. `sram_senior_edificer.rs` / `leaf_crowned_visionary.rs` /
+  `tyvar_kell.rs` untouched (comment-only mentions, no construction site — backfill scope).
+- [x] `HASH_SCHEMA_VERSION` 33 → 34, changelog entry added. All 26 `HASH_SCHEMA_VERSION,
+  33u8` sentinel occurrences across 25 test files bulk-updated to `34u8` (verified no
+  stray `33u8` sentinel assertions remain; unrelated discriminant-33 literals in hash.rs
+  for other enums left untouched).
+
+### Tests — `crates/engine/tests/pb_ac7_type_change_ability_removal.rs` (new, 14 tests, all passing)
+1. `test_set_creature_types_replaces_creature_subtypes_keeps_card_types` — CR 205.1a
+2. `test_set_creature_types_preserves_noncreature_subtypes` — CR 205.1a
+3. `test_set_card_types_replaces_card_types_preserves_supertypes` — CR 205.1a
+4. `test_darksteel_mutation_keeps_indestructible` — CR 205.1b + 613.7 (full integration:
+   RemoveAllAbilities + later-timestamp AddKeyword(Indestructible) + SetCardTypes +
+   SetCreatureTypes + SetPowerToughness, composed)
+5. `test_granted_then_removed_ordering_by_timestamp` — CR 613.7, both orders
+6. `test_lose_abilities_vs_face_down_override` — CR 708.2
+7. `test_lose_abilities_one_shot_until_eot` — CR 514.2/611.2a, via real
+   `Effect::ApplyContinuousEffect` + real `rules::layers::expire_end_of_turn_effects`
+8. `test_set_creature_types_layer4_dependency_with_add_subtypes` — CR 613.8, both orders
+9. `test_spell_subtype_filter_positive` — CR 205.1a, full CastSpell integration
+   (Equipment/Vehicle/Aura spells, stack-inspection assertion)
+10. `test_spell_subtype_filter_negative` — CR 205.1a, vanilla creature spell does not fire
+11. `test_spell_subtype_filter_none_matches_all` — regression guard for the 21 `None` sites
+12. `test_hash_schema_version_is_34` — sentinel
+13. `test_hash_distinguishes_set_creature_types_payload` — discriminant 30 vs SetTypeLine's
+    discriminant 2, plus payload distinctness
+14. `test_hash_distinguishes_spell_subtype_filter` — None vs Some(vec![Elf]) hash distinctly
+
+### Gates (all run, real output)
+- `cargo build --workspace` — clean
+- `cargo test --all` — 3023 passed (3009 baseline + 14 new), 0 failed
+- `cargo clippy --all-targets -- -D warnings` — clean (2 doc-comment `doc_lazy_continuation`
+  findings fixed: hash.rs changelog entry needed a `- 34:` list marker matching the
+  established style; a test doc-comment's mid-paragraph `+` was read as a list item)
+- `cargo fmt --check` — clean (ran `cargo fmt` once, mechanical reformatting only)
+
+### Deviations from plan
+- None in engine scope. Plan's "21 sites" count was exact; the 2 extra `trigger_variants.rs`
+  test-file sites were not enumerated in the plan (file inventory scoped to `cards/defs/`)
+  but were mechanically required for `cargo test --all` to compile — fixed in-scope per the
+  runner brief ("only where a construction site mechanically needs the field to compile").
+- Card backfill (7 cards in the plan's roster) intentionally NOT done — coordinator scope
+  says a later agent handles backfill. No TODOs were deleted from card defs this session.
+
+## Gates
+- cargo build --workspace
+- cargo test --all
+- cargo clippy --all-targets -- -D warnings
+- cargo fmt --check
+- python3 tools/authoring-report.py → post clean-coverage delta as task comment
+
+## Task reference
+- ESM task: scutemob-50
+- Branch: feat/pb-ac7-type-changing-ability-removal
+- Commit prefix: `W6-prim:` (engine) / `W6-cards:` (backfill)
+- Acceptance criteria: 4395 (primitives+tests), 4396 (review+hash), 4397 (backfill),
+  4398 (gates+coverage delta)
+
+---
+
+## Close-out (2026-07-09)
+
+**Scope correction — 2 of the 4 brief-named primitives already existed.** Verified in code
+before implementing, per `feedback_verify_cr_before_implement`:
+- `Effect::LoseAbilities` → `LayerModification::RemoveAllAbilities` already existed
+  (Layer 6, `continuous_effect.rs:311`, applied `layers.rs:1093`). NOT re-added.
+- One-shot Layer-4 type override with duration → `Effect::ApplyContinuousEffect` is
+  already generic over layer + duration. NOT re-added.
+- `TargetFilter` subtype matching already worked (`SubType` is a `String` newtype).
+Net-new: `LayerModification::{SetCreatureTypes, SetCardTypes}` (Layer 4, disc 30/31) and
+`TriggerCondition::WheneverYouCastSpell.spell_subtype_filter`.
+
+**CR correction**: the brief's and plan's `205.1b` is WRONG. **205.1a** is the rule for
+*setting* subtypes/card types ("the new subtype(s) replaces any existing subtypes from the
+appropriate set"). 205.1b is the opposite — the "in addition to its other types" retention
+rule. The runner caught this independently; reviewer confirmed.
+
+**Why `SetTypeLine` was not reused**: it clobbers `chars.supertypes`. Both Darksteel Mutation
+and Kenrith's Transformation rulings explicitly state the enchanted creature KEEPS its
+supertypes (stays Legendary, stays a commander). `SetCreatureTypes`+`SetCardTypes` preserve them.
+
+### Review outcomes
+- Primitive review (`pb-review-AC7.md`): **1 HIGH, 2 MEDIUM, 2 LOW**. All HIGH/MEDIUM fixed.
+  - **H1** — `SetCardTypes` violated CR 205.1a correlated-subtype removal (bare
+    `chars.card_types = new_types.clone()`, never dropping subtypes whose correlated card
+    type was removed). Reachable by all 3 roster Auras. Fixed in the engine arm: added the
+    six CR 205.3 subtype-set statics (`ALL_{ARTIFACT,ENCHANTMENT,LAND,PLANESWALKER,SPELL,
+    BATTLE}_TYPES`) + `correlated_card_types()` classifier in `state/types.rs`; a subtype
+    now survives iff uncorrelated, or a correlated card type is still present.
+  - **M1** — missing CR 613.8 dependency arms. Counterexample: `SetCreatureTypes({Elk})` +
+    `AddSubtypes({Zombie})` is order-dependent. Added 3 payload-aware `depends_on` arms.
+  - **M2** — test gap masking H1 (target had no droppable subtypes). Strengthened.
+  - Verified independently by the worker: reverting the H1 arm makes both new tests FAIL.
+- Card review (`review-pb-ac7-backfill.md`): **0 HIGH, 1 MEDIUM, 4 LOW**. MEDIUM fixed.
+  - **F-VR1** — Vraska −2's `RemoveAllAbilities` + `AddManaAbility` share one timestamp
+    (`ApplyContinuousEffect` reads `state.timestamp_counter` without advancing it), so
+    ordering relied on stable-sort insertion order, untested. Traced and confirmed CORRECT,
+    not merely plausible; locked in with a regression test + comments at both sites warning
+    against replacing the stable sort.
+
+### Engine bug found and fixed (pre-existing, outside declared scope)
+**`ability_index` namespace desync silently skipped cast-trigger filters.** `PendingTrigger.
+ability_index` is a dense index into runtime `characteristics.triggered_abilities`
+(`abilities.rs` `collect_triggers_for_event`), but the cast-trigger post-filter resolved it
+against the raw `CardDefinition::abilities` Vec. They coincide only for single-ability cards.
+On multi-ability cards the lookup landed on a `Keyword`/`Static` ability, fell through the
+`_ => true` catch-all, and `spell_type_filter` / `noncreature_only` / `spell_subtype_filter`
+were **never enforced**.
+
+Shipped-code impact (wrong game state): `monastery_mentor` (`Keyword(Prowess)` at
+`abilities[0]`, `noncreature_only` trigger at `[1]`) created a Monk token on EVERY spell,
+including creature spells. Also broke PB-AC7's own `spell_subtype_filter` on
+`leaf_crowned_visionary`.
+
+Fixed by resolving the filter against the same dense runtime list the trigger was indexed
+from, and populating `TriggeredAbilityDef.triggering_creature_filter` from the CardDef's
+filter fields in `enrich_spec_from_def`. Reused the existing already-hashed field → **no
+HASH_SCHEMA_VERSION bump** for this fix. Regression tests independently verified to FAIL
+against the pre-fix engine.
+
+**User decision**: fix the mechanism in-batch (PB-AC7's primitive is non-functional without
+it); defer the blast-radius audit sweep of other affected cards to a separate task.
+
+### Numbers
+- Tests: 3009 baseline → **3035 passing / 0 failed** (+26).
+- Hash schema: 33 → **34** (the two new `LayerModification` variants). No further bump needed.
+- Clean coverage: **965 → 970 (+5)**, 55.2% → **55.5%**. Matches the 5 clean cards exactly.
+- Gates ALL GREEN, independently re-run by the worker (not taken from agent reports):
+  `cargo build --workspace`, `cargo test --all` (3035/0),
+  `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+- Commits: `1caa8cc1` (engine), `e90a3a2c` (desync fix), `cbcc02d8` (backfill),
+  `ebdbb1f5` (review fixes), `9d98a2b8` (F-VR1).
+
+### Cards
+- **Clean (5)**: kenriths_transformation, eaten_by_piranhas, darksteel_mutation,
+  sram_senior_edificer, leaf_crowned_visionary.
+- **Partial, narrowed markers (2)**: final_showdown (mode 0 authored; mode 1 blocked),
+  vraska_betrayals_sting (−2 authored; −9 and Compleated blocked).
+- Advisory yield was ~14; real discounted yield **5 clean** — consistent with
+  `feedback_pb_yield_calibration` (planners overcount 2-3x).
 
 ## Process notes (for the next PB)
-- **Agent reports were unreliable this batch.** The first backfill agent reported nothing
-  and wrote zero files; a second wrote 7 card defs then died before its tests, leaving all
-  6 integration tests FAILING while `cargo build --workspace` stayed green — because
-  **`cargo build --workspace` does not compile test targets**. Always run `cargo test --all`
-  before believing a gate report. Three agents in a row terminated mid-thought.
-- **The `ObjectSpec::card()` naked-object gotcha bit every integration test.** Unenriched
-  specs have `mana_cost: None`, so `mana_value() == 0` short-circuits payment and a cast pays
-  NOTHING; they also have no `activated_abilities`, so `ActivateAbility` returns
-  `InvalidAbilityIndex` (and a graveyard-activation card falls through to the battlefield
-  branch, yielding a confusing `ObjectNotOnBattlefield`). Route every spec through
-  `enrich_spec_from_def`.
+- **Agent reports remain unreliable — verify every gate yourself.** The backfill agent died
+  mid-thought having written 7 card defs and a 17KB test file that had never been compiled;
+  2 of its 5 tests failed. `cargo build --workspace` was green the whole time because
+  **`cargo build` does not compile test targets**. Gate on `cargo test --all`.
+- **Negative-case assertions are what find real bugs.** The `ability_index` desync had gone
+  undetected because no test asserted that a filtered cast-trigger *fails to fire*. Both
+  engine bugs this batch were surfaced by adding negative cases.
+- **`GameStateBuilder` permanents never enter the battlefield**, so
+  `register_static_continuous_effects()` (called only at ETB sites) never runs and
+  `AbilityDefinition::Static` continuous effects silently don't apply. Call it manually in
+  tests. This cost one full debugging cycle; it is a sibling of the `enrich_spec_from_def`
+  naked-object gotcha.
+- **Revert-and-rerun is the cheapest way to prove a test isn't vacuous.** Used it three
+  times this batch (desync fix, H1 arm, F-VR1 ordering); every time it confirmed the test
+  genuinely bound the behavior.
 
 ## Residual / follow-up seeds
-- **OOS-AC6-1**: `storm_count` is multiplayer-incorrect (pre-existing, NOT fixed).
-  CR 702.40a counts spells cast by ANY player this turn; `copy.rs` reads only the caster's
-  `spells_cast_this_turn`. Compounding, that field resets only for the incoming active
-  player, so an instant-speed storm spell (Brain Freeze) also over-counts the caster's stale
-  previous-turn spells. Fixing requires deciding reset semantics jointly with CR 730.2
-  (`previous_turn_spells_cast`, Daybound). PB-AC6 sidesteps it via a separate
-  all-players-reset `spells_cast_this_game_turn`.
-- **OOS-AC6-2**: CR 603.4 intervening-if is evaluated at RESOLUTION, not at trigger time.
-  The generic upkeep/end-step/main-phase sweeps queue the trigger unconditionally. Strictly,
-  such an ability should not trigger at all when the condition is false, so the trigger
-  should never hit the stack. Pre-existing, shared by every CardDef phase trigger.
-- **OOS-AC6-3**: no player-declared mode choice on triggered abilities —
-  `abilities.rs` hardcodes `stack_obj.modes_chosen = vec![0]`. Blocks
-  `black_market_connections` ("choose one or more") and `tectonic_giant`.
-- **OOS-AC6-4**: `EffectTarget` has no `ControllerOf` / `TriggeringPlayer` (both exist only
-  on `PlayerTarget`), so `Effect::DealDamage` cannot reach "that spell's controller".
-  Blocks `bonecrusher_giant`. Same family: no `TargetFilter` scoping to the triggering
-  spell's controller (blocks `scalelord_reckoner`).
-- **OOS-AC6-5**: `TargetRequirement` has `TargetPlayer` but no `TargetOpponent`
-  (blocks `raiders_wake`), and no variable/any-number target counts (blocks `mindbreak_trap`).
-- **OOS-AC6-6**: `WhenBecomesTarget.by_opponent` is a bool (any-controller / opponent-only).
-  No you-control-only scope, so Valiant (`flowerfoot_swordmaster`) is unauthorable.
-- **OOS-AC6-7**: no count/total-power attacked conditions — `YouAttackedThisTurn` is a bool.
-  Blocks `minas_tirith` (2+ creatures) and `battle_cry_goblin` (pack tactics, total power 6+).
-- **OOS-AC6-8**: no player-targeting poison-counter Effect (`Effect::AddCounter` ignores
-  `ResolvedTarget::Player`). Blocks `venerated_rotpriest`.
-- **OOS-AC6-9**: no dynamic `mana value <= source's power` TargetFilter comparison
-  (`max_cmc` is a fixed u32). Blocks `alesha_who_laughs_at_fate`.
+- **OOS-AC7-1 (HIGH PRIORITY — recommend a coordinator task at collection)**: blast-radius
+  audit of the `ability_index` desync. The mechanism is fixed, but every card combining a
+  filtered `WheneverYouCastSpell` with a non-Triggered ability earlier in `def.abilities`
+  should get a negative-case regression test: `monastery_mentor`, `vanquishers_banner`,
+  `chulane_teller_of_tales`, `storm_kiln_artist`, and any others found by sweeping.
+- **OOS-AC7-2**: the *same bug class* survives at four more sites, found but NOT fixed
+  (out of scope): (1) `abilities.rs` `WheneverYouSacrifice`/`ControllerSacrifices`
+  post-filter uses `def.abilities.get(t.ability_index)` against a dense-indexed trigger;
+  (2) `abilities.rs` `flush_pending_triggers` modal-mode auto-selection; (3)
+  `resolution.rs` the same modal lookup at resolution time; (4) `mana.rs`
+  `fire_mana_triggered_abilities` pushes a `PendingTriggerKind::Normal` whose
+  `ability_index` is a raw CardDef index. `PendingTriggerKind::Normal` being overloaded to
+  mean two different index spaces is a design smell worth a dedicated fix.
+- **OOS-AC7-3**: `Effect::ApplyContinuousEffect` reads `state.timestamp_counter` without
+  advancing it. Within one resolution this is correct (stable-sort insertion order). Across
+  two *separate* resolutions that land on the same counter value, ordering would fall back
+  to Vec insertion order rather than true CR 613.7 timestamp order. Not reachable today;
+  worth a future investigation.
+- **OOS-AC7-4**: `chosen_subtype_filter` remains unenforced — it is a dynamic per-source
+  condition, not a static `TargetFilter` predicate, so it could not ride the
+  `triggering_creature_filter` reuse. `vanquishers_banner` now correctly narrows to creature
+  spells but still not to the chosen type.
+- **OOS-AC7-5**: `SetCardTypes` ignores the CR 205.1a instant/sorcery retention clause
+  (unreachable for battlefield permanents). LOW.
+- **OOS-AC7-6**: no `Effect` grants poison counters to a player, and no
+  `KeywordAbility::Compleated` exists — together these block Vraska −9 and its Compleated
+  cost. (Related to OOS-AC6-8.)
+- **OOS-AC7-7**: `EffectTarget` has no resolution-time "choose a permanent you control"
+  variant, blocking Final Showdown mode 1.

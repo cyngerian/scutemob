@@ -2991,6 +2991,12 @@ pub enum TriggerCondition {
         /// CR 603.1: Condition checked at trigger time using the source permanent's current type.
         #[serde(default)]
         chosen_subtype_filter: bool,
+        /// OR-semantics spell-subtype filter (CR 205.1a subtypes). Fires only if the cast
+        /// spell has at least one of these subtypes. `None` = no subtype restriction.
+        /// Enables "Whenever you cast an Aura/Equipment/Vehicle spell" (Sram) and
+        /// "Whenever you cast an Elf spell" (Leaf-Crowned Visionary).
+        #[serde(default)]
+        spell_subtype_filter: Option<Vec<SubType>>,
     },
     /// "Whenever you gain life."
     WheneverYouGainLife,

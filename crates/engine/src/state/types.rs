@@ -1849,3 +1849,118 @@ pub static ALL_CREATURE_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
         ];
         types.iter().map(|s| SubType(s.to_string())).collect()
     });
+/// All artifact subtypes from CR 205.3g. Correlated card type: `CardType::Artifact`.
+pub static ALL_ARTIFACT_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &[
+            "Attraction", "Blood", "Bobblehead", "Clue", "Contraption", "Equipment",
+            "Food", "Fortification", "Gold", "Incubator", "Infinity", "Junk", "Lander",
+            "Map", "Powerstone", "Spacecraft", "Stone", "Treasure", "Vehicle",
+        ];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });
+/// All enchantment subtypes from CR 205.3h. Correlated card type: `CardType::Enchantment`.
+pub static ALL_ENCHANTMENT_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &[
+            "Aura", "Background", "Cartouche", "Case", "Class", "Curse", "Role",
+            "Room", "Rune", "Saga", "Shard", "Shrine",
+        ];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });
+/// All land subtypes (basic + nonbasic) from CR 205.3i. Correlated card type:
+/// `CardType::Land`.
+pub static ALL_LAND_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &[
+            "Cave", "Desert", "Forest", "Gate", "Island", "Lair", "Locus", "Mine",
+            "Mountain", "Plains", "Planet", "Power-Plant", "Sphere", "Swamp",
+            "Tower", "Town", "Urza's",
+        ];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });
+/// All planeswalker subtypes from CR 205.3j. Correlated card type:
+/// `CardType::Planeswalker`. (These are used for the legend rule / uniqueness,
+/// not gameplay type-checking, but are included for completeness of the CR
+/// 205.1a correlated-subtype-removal categories.)
+pub static ALL_PLANESWALKER_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &[
+            "Ajani", "Aminatou", "Angrath", "Arlinn", "Ashiok", "Bahamut", "Basri",
+            "Bolas", "Calix", "Chandra", "Comet", "Dack", "Dakkon", "Daretti",
+            "Davriel", "Dihada", "Domri", "Dovin", "Ellywick", "Elminster",
+            "Elspeth", "Estrid", "Freyalise", "Garruk", "Gideon", "Grist", "Guff",
+            "Huatli", "Jace", "Jared", "Jaya", "Jeska", "Kaito", "Karn", "Kasmina",
+            "Kaya", "Kiora", "Koth", "Liliana", "Lolth", "Lukka", "Minsc",
+            "Mordenkainen", "Nahiri", "Narset", "Niko", "Nissa", "Nixilis", "Oko",
+            "Quintorius", "Ral", "Rowan", "Saheeli", "Samut", "Sarkhan", "Serra",
+            "Sivitri", "Sorin", "Szat", "Tamiyo", "Tasha", "Teferi", "Teyo",
+            "Tezzeret", "Tibalt", "Tyvar", "Ugin", "Urza", "Venser", "Vivien",
+            "Vraska", "Vronos", "Will", "Windgrace", "Wrenn", "Xenagos", "Yanggu",
+            "Yanling", "Zariel",
+        ];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });
+/// All spell (instant/sorcery) subtypes from CR 205.3k. Correlated card types:
+/// BOTH `CardType::Instant` and `CardType::Sorcery` — CR 205.3k: spell
+/// subtypes are shared between the two card types (e.g. an instant AND a
+/// sorcery can each be "Arcane").
+pub static ALL_SPELL_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &["Adventure", "Arcane", "Lesson", "Omen", "Trap"];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });
+/// All battle subtypes from CR 205.3q. Correlated card type: `CardType::Battle`.
+pub static ALL_BATTLE_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &["Siege"];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });
+/// CR 205.1a: returns the card type(s) a subtype is correlated with, per its
+/// CR 205.3 "appropriate set" category (creature types, land types, artifact
+/// types, enchantment types, planeswalker types, spell types — plus battle
+/// types per 205.3q, added to the CR after 205.1a's text was written but
+/// following the same correlation principle).
+///
+/// Spell subtypes correlate with BOTH `Instant` and `Sorcery` (CR 205.3k).
+/// All other categories correlate with exactly one card type.
+///
+/// Returns an empty `Vec` for a subtype that isn't recognized in any of these
+/// categories (a custom/unrecognized subtype). Such subtypes are treated as
+/// uncorrelated and therefore always survive a card-type removal — this is
+/// the conservative choice: we only drop a subtype when we can positively
+/// identify its correlated card type as no longer present (CR 205.1a: "the
+/// subtypes correlated with that card type ... are also removed").
+///
+/// Used by `LayerModification::SetCardTypes`'s correlated-subtype-removal
+/// clause (`rules/layers.rs`).
+pub fn correlated_card_types(subtype: &SubType) -> Vec<CardType> {
+    if ALL_CREATURE_TYPES.contains(subtype) {
+        return vec![CardType::Creature];
+    }
+    if ALL_LAND_TYPES.contains(subtype) {
+        return vec![CardType::Land];
+    }
+    if ALL_ARTIFACT_TYPES.contains(subtype) {
+        return vec![CardType::Artifact];
+    }
+    if ALL_ENCHANTMENT_TYPES.contains(subtype) {
+        return vec![CardType::Enchantment];
+    }
+    if ALL_PLANESWALKER_TYPES.contains(subtype) {
+        return vec![CardType::Planeswalker];
+    }
+    if ALL_SPELL_TYPES.contains(subtype) {
+        return vec![CardType::Instant, CardType::Sorcery];
+    }
+    if ALL_BATTLE_TYPES.contains(subtype) {
+        return vec![CardType::Battle];
+    }
+    Vec::new()
+}

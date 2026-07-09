@@ -37,15 +37,35 @@ pub fn card() -> CardDefinition {
                     ]),
                     modes: vec![
                         // Mode 0 (+{1}): All creatures lose all abilities until end of turn.
-                        // TODO: no Effect::LoseAbilities variant exists in the DSL.
-                        // This mode has no effect when resolved (no-op placeholder).
-                        Effect::Sequence(vec![]),
+                        // PB-AC7: unblocked — already-expressible via
+                        // Effect::ApplyContinuousEffect { layer: Ability,
+                        // modification: RemoveAllAbilities, filter: AllCreatures,
+                        // duration: UntilEndOfTurn } (CR 613.1f).
+                        Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::Ability,
+                                modification: LayerModification::RemoveAllAbilities,
+                                filter: EffectFilter::AllCreatures,
+                                duration: EffectDuration::UntilEndOfTurn,
+                                condition: None,
+                            }),
+                        },
 
                         // Mode 1 (+{1}): Choose a creature you control. It gains
                         // indestructible until end of turn.
-                        // TODO: no Effect::GainKeyword / GrantKeyword variant exists.
-                        // Per the ruling, the creature is chosen on resolution (not targeting).
-                        // This mode has no effect when resolved (no-op placeholder).
+                        // ENGINE-BLOCKED (still, per PB-AC7 roster review): the ruling
+                        // clarifies this is a non-target selection made on resolution
+                        // ("The second mode of Final Showdown doesn't target the
+                        // creature. You don't choose which creature will gain
+                        // indestructible until the spell is resolving."). The DSL has
+                        // no "choose a permanent you control" resolution-time selection
+                        // primitive (no EffectTarget::ChosenPermanentYouControl or
+                        // equivalent) — only declared (cast-time) targets or fixed
+                        // target sets (AllCreatures, etc.) exist. Using a real target
+                        // would be CR-wrong (it must not be targeted); using AllCreatures
+                        // you control would be wrong game state if you control more than
+                        // one creature. This mode has no effect when resolved
+                        // (no-op placeholder) — OOS-AC7-2.
                         Effect::Sequence(vec![]),
 
                         // Mode 2 (+{3}{W}{W}): Destroy all creatures (CR 701.8).

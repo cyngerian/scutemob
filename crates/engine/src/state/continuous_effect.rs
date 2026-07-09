@@ -294,6 +294,28 @@ pub enum LayerModification {
     /// ("creatures you control are every creature type").
     /// No payload needed — the engine's `ALL_CREATURE_TYPES` constant supplies the list.
     AddAllCreatureTypes,
+    /// Layer 4 (CR 205.1a): SETS the object's creature subtypes to exactly this set,
+    /// removing all prior creature types but PRESERVING card types, supertypes, and
+    /// non-creature subtypes (land/artifact/enchantment/planeswalker/spell types).
+    /// Distinct from `AddAllCreatureTypes`/`AddSubtypes` (additive) and `SetTypeLine`
+    /// (replaces card types & supertypes too). Used by "becomes a [creature type]"
+    /// effects that keep the object's other types (PB-AC7: Frodo-style partial resets,
+    /// CR-faithful Kenrith's Transformation / Eaten by Piranhas / Darksteel Mutation).
+    SetCreatureTypes(OrdSet<SubType>),
+    /// Layer 4 (CR 205.1a): SETS the object's card types to exactly this set, leaving
+    /// supertypes untouched. Companion to `SetCreatureTypes` — together they let
+    /// "becomes a [creature type] creature" effects preserve supertypes (e.g. Legendary)
+    /// that `SetTypeLine` would otherwise wipe (CR 205.1a: "loses all OTHER card types"
+    /// does not mention supertypes).
+    ///
+    /// Subtypes are NOT untouched: per CR 205.1a, "if an object's card type is removed,
+    /// the subtypes correlated with that card type will remain if they are also the
+    /// subtypes of a card type the object currently has; otherwise, they are also
+    /// removed." The `layers.rs` arm applies that filter via
+    /// `crate::state::types::correlated_card_types`. This is why Darksteel Mutation keeps
+    /// an `Equipment` subtype (Artifact survives) but drops a `Shrine` subtype
+    /// (Enchantment is removed).
+    SetCardTypes(OrdSet<CardType>),
     // --- Layer 5: Color-changing ---
     /// Replaces all colors with the given set.
     SetColors(OrdSet<Color>),

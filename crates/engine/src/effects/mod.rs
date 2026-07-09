@@ -2869,6 +2869,24 @@ fn execute_effect_inner(
             };
             // Build a ContinuousEffect from the definition and add it to state.
             let id_inner = state.next_object_id().0;
+            // NOTE (F-VR1, PB-AC7 card review): `ts` is read here but NOT advanced —
+            // every `ApplyContinuousEffect` executed within one `Effect::Sequence`
+            // (e.g. a single resolving spell/loyalty ability's effect, as with
+            // Vraska, Betrayal's Sting's -2: `RemoveAllAbilities` then a granted
+            // `AddManaAbility`) shares the SAME timestamp. Ordering between such
+            // same-timestamp effects then falls back to the stable sort in
+            // `rules::layers::toposort_with_timestamp_fallback`, which preserves
+            // *push order into this Vec* (i.e. the order the effects appear in the
+            // card def's `Sequence`). This is intentional and matches the existing
+            // Darksteel Mutation pattern (`RemoveAllAbilities` listed before
+            // `AddKeyword`), but it means correctness for "gain X, lose all other
+            // abilities" idioms depends on write-order in the card def, not on CR
+            // 613.7 timestamp math. See `test_vraska_betrayals_sting_minus2_full_integration`
+            // in `crates/engine/tests/pb_ac7_card_integration.rs` for a regression
+            // guard. If multiple *separate* resolutions could ever push
+            // `ApplyContinuousEffect`s in the same execution window without an
+            // intervening timestamp bump, they would collide on this same `ts` too —
+            // that broader risk is out of scope here (see OOS note in the review doc).
             let ts = state.timestamp_counter;
             let source = ctx.source;
             // CR 611.2a: Resolve UntilYourNextTurn placeholder to the actual controller.

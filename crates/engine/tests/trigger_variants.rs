@@ -94,6 +94,7 @@ fn test_whenever_you_cast_creature_spell_filter_stored() {
                 spell_type_filter: Some(vec![CardType::Creature]),
                 noncreature_only: false,
                 chosen_subtype_filter: false,
+                spell_subtype_filter: None,
             },
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,
@@ -143,6 +144,7 @@ fn test_whenever_you_cast_noncreature_spell_filter_stored() {
                 spell_type_filter: None,
                 noncreature_only: true,
                 chosen_subtype_filter: false,
+                spell_subtype_filter: None,
             },
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
