@@ -110,6 +110,7 @@ fn escalate_test_spell_def() -> CardDefinition {
                             amount: EffectAmount::Fixed(2),
                         },
                     ],
+                    mode_targets: None,
                 }),
                 cant_be_countered: false,
             },

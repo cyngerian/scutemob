@@ -22,23 +22,10 @@ pub fn card() -> CardDefinition {
         oracle_text: "Choose one —\n• Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand. Then shuffle.\n• Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.\n• Exile target artifact or enchantment.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            targets: vec![
-                // Mode 1 target 0: creature you control (AddCounters + Bite source)
-                TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::You,
-                    ..Default::default()
-                }),
-                // Mode 1 target 1: creature you don't control (Bite target)
-                TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::Opponent,
-                    ..Default::default()
-                }),
-                // Mode 2 target 0: artifact or enchantment
-                TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                    has_card_types: vec![CardType::Artifact, CardType::Enchantment],
-                    ..Default::default()
-                }),
-            ],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 1 (two targets) and mode 2
+            // (one target) each declare their own targets, LOCAL to that mode.
+            // `Spell.targets` is empty. Mode 0 has no targets (library search).
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 1,
@@ -46,9 +33,10 @@ pub fn card() -> CardDefinition {
                 mode_costs: None,
                 modes: vec![
                     // Mode 0: Search for creature or land, conditional destination.
-                    // TODO: DSL gap — SearchLibrary does not support conditional routing
-                    // (land → battlefield tapped, creature → hand). Cannot be faithfully
-                    // implemented without a ConditionalDestination variant.
+                    // ENGINE-BLOCKED: SearchLibrary does not support conditional routing
+                    // (land -> battlefield tapped, creature -> hand). Cannot be faithfully
+                    // implemented without a ConditionalDestination variant. Unrelated to
+                    // AC4's per-mode-targeting scope.
                     Effect::Sequence(vec![]),
                     // Mode 1: +1/+1 counter on creature you control, then it deals damage
                     // equal to its power to a creature you don't control (Bite).
@@ -65,9 +53,28 @@ pub fn card() -> CardDefinition {
                     ]),
                     // Mode 2: Exile target artifact or enchantment.
                     Effect::ExileObject {
-                        target: EffectTarget::DeclaredTarget { index: 2 },
+                        target: EffectTarget::DeclaredTarget { index: 0 },
                     },
                 ],
+                mode_targets: Some(vec![
+                    vec![],
+                    vec![
+                        // Mode 1 target 0: creature you control (AddCounters + Bite source)
+                        TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                            controller: TargetController::You,
+                            ..Default::default()
+                        }),
+                        // Mode 1 target 1: creature you don't control (Bite target)
+                        TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                            controller: TargetController::Opponent,
+                            ..Default::default()
+                        }),
+                    ],
+                    vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                        has_card_types: vec![CardType::Artifact, CardType::Enchantment],
+                        ..Default::default()
+                    })],
+                ]),
             }),
             cant_be_countered: false,
         }],

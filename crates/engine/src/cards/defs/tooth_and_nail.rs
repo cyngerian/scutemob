@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
                         // TODO: "from hand onto battlefield" — needs MoveZone from hand.
                         Effect::Nothing,
                     ],
+                    mode_targets: None,
                 }),
                 cant_be_countered: false,
             },

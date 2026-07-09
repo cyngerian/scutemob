@@ -3338,6 +3338,82 @@ pub fn handle_cast_spell(
             return Err(GameStateError::StackNotEmpty);
         }
     }
+    // CR 700.2a / 601.2b: Validate explicit mode choices for modal spells.
+    // Moved before target-requirement lookup (was originally validated much later in this
+    // function) so that CR 700.2c/700.2f per-mode target validation below can use the
+    // fully-validated, ascending-sorted chosen-mode list (PB-AC4). If modes_chosen is
+    // non-empty, the spell must be modal and the indices must be valid. When entwine_paid
+    // is true, modes_chosen is ignored (all modes are chosen).
+    //
+    // `mode_selection_opt` is looked up regardless of whether modes_chosen is empty, so
+    // that ModeSelection.mode_targets is available below even for the auto-select-mode-0
+    // and entwine backward-compat paths.
+    let mode_selection_opt: Option<crate::cards::card_definition::ModeSelection> =
+        card_id.as_ref().and_then(|cid| {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+                        Some(m.clone())
+                    } else {
+                        None
+                    }
+                })
+            })
+        });
+    let validated_modes_chosen: Vec<usize> = if !modes_chosen.is_empty() && !entwine_paid {
+        match &mode_selection_opt {
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "modes_chosen specified but spell has no modal structure (modes: Some(...)) (CR 700.2a)".into(),
+                ));
+            }
+            Some(ms) => {
+                // CR 700.2a: Each chosen index must be within range.
+                for &idx in &modes_chosen {
+                    if idx >= ms.modes.len() {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "mode index {} is out of range (spell has {} modes) (CR 700.2a)",
+                            idx,
+                            ms.modes.len()
+                        )));
+                    }
+                }
+                // CR 700.2d: Duplicate modes are only allowed when allow_duplicate_modes is set.
+                if !ms.allow_duplicate_modes {
+                    let mut seen = std::collections::HashSet::new();
+                    for &idx in &modes_chosen {
+                        if !seen.insert(idx) {
+                            return Err(GameStateError::InvalidCommand(format!(
+                                "mode index {} chosen more than once; use allow_duplicate_modes: true to allow (CR 700.2d)",
+                                idx
+                            )));
+                        }
+                    }
+                }
+                // CR 700.2a: Count must be between min_modes and max_modes.
+                let chosen_count = modes_chosen.len();
+                if chosen_count < ms.min_modes {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "must choose at least {} mode(s); only {} chosen (CR 700.2a)",
+                        ms.min_modes, chosen_count
+                    )));
+                }
+                if chosen_count > ms.max_modes {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "may choose at most {} mode(s); {} chosen (CR 700.2a)",
+                        ms.max_modes, chosen_count
+                    )));
+                }
+                // CR 700.2a: modes always execute in ascending printed order.
+                modes_chosen.sort_unstable();
+                modes_chosen
+            }
+        }
+    } else {
+        // Empty = non-modal spell or auto-select mode[0] (backward compatible).
+        // Also used when entwine_paid overrides mode selection.
+        modes_chosen
+    };
     // Look up target requirements and cant_be_countered from the card definition (CR 601.2c).
     // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
     // target requirements instead of the first half's Spell targets.
@@ -3390,11 +3466,104 @@ pub fn handle_cast_spell(
     } else {
         requirements
     };
+    // CR 700.2c/700.2f (PB-AC4): If the spell has per-mode target requirements
+    // (ModeSelection.mode_targets is Some), targets are announced/validated ONLY for the
+    // chosen modes' requirements, concatenated in ascending chosen-mode order — not the
+    // flat union of every mode's targets. This fixes wrong-game-state casting restrictions
+    // for cards like Casualties of War (previously required declaring a target for every
+    // mode, including unchosen ones).
+    //
+    // NOTE: Escalate + per-mode targets is not a combination any AC4-scoped card uses; the
+    // active-mode computation below only covers Entwine (all modes), explicit
+    // `validated_modes_chosen`, and the auto-select-mode-0 backward-compat path — it has NO
+    // Escalate branch, while resolution's `chosen_mode_indices` (resolution.rs) DOES. The
+    // combination is hard-rejected below (PB-AC4 fix-phase Finding 1, MEDIUM) rather than
+    // silently under-resolving escalated modes with empty target slices. A future spell
+    // combining Escalate with `mode_targets` needs both ladders extended together (flag, do
+    // not silently extend — see `memory/conventions.md` "implement-phase default-to-defer").
+    let mode_targets_active: Option<Vec<TargetRequirement>> = if casting_with_aftermath {
+        None
+    } else {
+        mode_selection_opt.as_ref().and_then(|ms| {
+            ms.mode_targets.as_ref().map(|mt| {
+                // LOW #2 (PB-AC4 fix-phase): `mode_targets.len() == modes.len()` is a
+                // documented author invariant. Enforce it defensively — a debug_assert
+                // catches authoring bugs in tests/CI, while `unwrap_or_default()` keeps the
+                // release build fail-safe (a too-short mode_targets yields an empty slice for
+                // the missing mode, not a panic or a mis-slice).
+                debug_assert_eq!(
+                    mt.len(),
+                    ms.modes.len(),
+                    "ModeSelection.mode_targets.len() ({}) must equal modes.len() ({}) \
+                     (CR 700.2c author invariant)",
+                    mt.len(),
+                    ms.modes.len()
+                );
+                let indices: Vec<usize> = if entwine_paid {
+                    (0..ms.modes.len()).collect()
+                } else if !validated_modes_chosen.is_empty() {
+                    validated_modes_chosen.clone()
+                } else if !ms.modes.is_empty() {
+                    vec![0]
+                } else {
+                    vec![]
+                };
+                indices
+                    .into_iter()
+                    .flat_map(|idx| mt.get(idx).cloned().unwrap_or_default())
+                    .collect::<Vec<TargetRequirement>>()
+            })
+        })
+    };
+    // CR 700.2c/702.120a (PB-AC4 fix-phase Finding 1, MEDIUM): Escalate + `mode_targets` is
+    // not a supported combination. Cast-time `mode_targets_active` (above) has no Escalate
+    // branch, while resolution's `chosen_mode_indices` (resolution.rs) does — a spell
+    // combining Escalate's backward-compat path (empty `modes_chosen`) with `mode_targets`
+    // would validate targets for mode 0 only, then resolve modes `0..=escalate_modes`,
+    // silently under-resolving every escalated mode beyond 0 with an empty target slice. No
+    // shipped card uses this combination; hard-reject it here so the failure is a typed
+    // error, never silent wrong game state.
+    if mode_targets_active.is_some() && escalate_modes > 0 {
+        return Err(GameStateError::InvalidCommand(
+            "Escalate combined with ModeSelection.mode_targets is not supported (CR 700.2c/702.120a)"
+                .into(),
+        ));
+    }
     // CR 601.2c: Validate and record targets at cast time.
     // Pass source characteristics for protection-from checks (CR 702.16b).
     // Pass card (the casting spell's own ObjectId) for self-targeting prevention (CR 115.7a).
-    let spell_targets =
-        validate_targets_with_source(state, &targets, &requirements, player, Some(&chars), card)?;
+    let spell_targets = if let Some(active_reqs) = &mode_targets_active {
+        // CR 700.2c/700.2f: per-mode target validation is POSITIONAL, not best-fit — slice
+        // offsets computed at resolution time (resolution.rs) depend on declaration order
+        // matching active_reqs order exactly.
+        //
+        // Author invariants (ModeSelection.mode_targets doc comment): the flat Spell.targets
+        // list must be empty (targets live entirely in mode_targets for these spells), and no
+        // per-mode requirement may be UpToN (variable-count per-mode targets are unsupported).
+        if !requirements.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "modal spell has both Spell.targets and ModeSelection.mode_targets set; only one may be used (CR 700.2c author invariant)".into(),
+            ));
+        }
+        if active_reqs
+            .iter()
+            .any(|r| matches!(r, TargetRequirement::UpToN { .. }))
+        {
+            return Err(GameStateError::InvalidCommand(
+                "ModeSelection.mode_targets may not contain UpToN (variable-count per-mode targets are unsupported) (CR 700.2c)".into(),
+            ));
+        }
+        validate_targets_positional(
+            state,
+            &targets,
+            active_reqs,
+            player,
+            Some(&chars),
+            Some(card),
+        )?
+    } else {
+        validate_targets_with_source(state, &targets, &requirements, player, Some(&chars), card)?
+    };
     // CR 702.5a / 303.4a: Aura spells require exactly one target matching the Enchant restriction.
     // The Enchant keyword defines the target restriction — it is derived from the card's
     // keywords rather than from an explicit TargetRequirement (which applies to instants/sorceries).
@@ -4065,76 +4234,10 @@ pub fn handle_cast_spell(
     } else {
         vec![]
     };
-    // CR 700.2a / 601.2b: Validate explicit mode choices for modal spells.
-    // If modes_chosen is non-empty, the spell must be modal and the indices must be valid.
-    // When entwine_paid is true, modes_chosen is ignored (all modes are chosen).
-    let validated_modes_chosen: Vec<usize> = if !modes_chosen.is_empty() && !entwine_paid {
-        // Look up ModeSelection from the card definition.
-        let mode_selection = card_id.as_ref().and_then(|cid| {
-            state.card_registry.get(cid.clone()).and_then(|def| {
-                def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
-                        Some(m.clone())
-                    } else {
-                        None
-                    }
-                })
-            })
-        });
-        match mode_selection {
-            None => {
-                return Err(GameStateError::InvalidCommand(
-                    "modes_chosen specified but spell has no modal structure (modes: Some(...)) (CR 700.2a)".into(),
-                ));
-            }
-            Some(ms) => {
-                // CR 700.2a: Each chosen index must be within range.
-                for &idx in &modes_chosen {
-                    if idx >= ms.modes.len() {
-                        return Err(GameStateError::InvalidCommand(format!(
-                            "mode index {} is out of range (spell has {} modes) (CR 700.2a)",
-                            idx,
-                            ms.modes.len()
-                        )));
-                    }
-                }
-                // CR 700.2d: Duplicate modes are only allowed when allow_duplicate_modes is set.
-                if !ms.allow_duplicate_modes {
-                    let mut seen = std::collections::HashSet::new();
-                    for &idx in &modes_chosen {
-                        if !seen.insert(idx) {
-                            return Err(GameStateError::InvalidCommand(format!(
-                                "mode index {} chosen more than once; use allow_duplicate_modes: true to allow (CR 700.2d)",
-                                idx
-                            )));
-                        }
-                    }
-                }
-                // CR 700.2a: Count must be between min_modes and max_modes.
-                let chosen_count = modes_chosen.len();
-                if chosen_count < ms.min_modes {
-                    return Err(GameStateError::InvalidCommand(format!(
-                        "must choose at least {} mode(s); only {} chosen (CR 700.2a)",
-                        ms.min_modes, chosen_count
-                    )));
-                }
-                if chosen_count > ms.max_modes {
-                    return Err(GameStateError::InvalidCommand(format!(
-                        "may choose at most {} mode(s); {} chosen (CR 700.2a)",
-                        ms.max_modes, chosen_count
-                    )));
-                }
-                // CR 700.2a: modes always execute in ascending printed order.
-                modes_chosen.sort_unstable();
-                modes_chosen
-            }
-        }
-    } else {
-        // Empty = non-modal spell or auto-select mode[0] (backward compatible).
-        // Also used when entwine_paid overrides mode selection.
-        modes_chosen
-    };
-    // TODO(CR 700.2c): per-mode targeting — each mode may have its own targets; currently deferred, all targets treated uniformly
+    // CR 700.2a / 601.2b: mode-choice validation (`validated_modes_chosen`) and
+    // CR 700.2c/700.2f per-mode target computation now happen earlier — see
+    // `mode_selection_opt` / `validated_modes_chosen` above (PB-AC4), used by the
+    // target-requirements lookup below.
     // CR 702.140a / CR 729.2: If casting with the mutate cost, the spell goes on the stack
     // as a MutatingCreatureSpell rather than a plain Spell. The `target` field is the
     // validated non-Human creature the spell will merge with on resolution.
@@ -5479,7 +5582,67 @@ fn validate_targets_inner(
             .collect()
     };
 
-    // Now validate each target against its mapped requirement (protection, hexproof, type).
+    validate_mapped_targets(
+        state,
+        targets,
+        &req_for_target,
+        caster,
+        source_chars,
+        self_id,
+    )
+}
+
+/// CR 700.2c/700.2f (PB-AC4): Validate targets for a per-mode-targeted modal spell.
+///
+/// Unlike `validate_targets_inner`'s two-pass best-fit assignment, requirements here are
+/// matched POSITIONALLY: `targets[i]` must satisfy `requirements[i]`. This is required
+/// because the caller (`handle_cast_spell`) computes per-mode target slice offsets from
+/// `ModeSelection.mode_targets` based on declaration order — a best-fit reassignment could
+/// silently reorder which announced target belongs to which mode, corrupting those offsets.
+///
+/// `requirements` is the concatenation of `mode_targets[m]` for every chosen mode `m`, in
+/// ascending mode-index order (see `mode_targets_active` at the call site). The caller
+/// guarantees `requirements` contains no `TargetRequirement::UpToN` (author invariant on
+/// `ModeSelection.mode_targets` — variable-count per-mode targets are unsupported).
+pub(crate) fn validate_targets_positional(
+    state: &GameState,
+    targets: &[Target],
+    requirements: &[TargetRequirement],
+    caster: PlayerId,
+    source_chars: Option<&Characteristics>,
+    self_id: Option<ObjectId>,
+) -> Result<Vec<SpellTarget>, GameStateError> {
+    // CR 601.2c: exact count required — per-mode target lists are fixed-length (no UpToN).
+    if targets.len() != requirements.len() {
+        return Err(GameStateError::InvalidTarget(format!(
+            "modal spell with per-mode targets requires exactly {} target(s) for the chosen mode(s) but got {} (CR 700.2c)",
+            requirements.len(),
+            targets.len()
+        )));
+    }
+    let req_for_target: Vec<Option<&TargetRequirement>> = requirements.iter().map(Some).collect();
+    validate_mapped_targets(
+        state,
+        targets,
+        &req_for_target,
+        caster,
+        source_chars,
+        self_id,
+    )
+}
+
+/// Shared tail of `validate_targets_inner` / `validate_targets_positional`: validate each
+/// target against its already-mapped `TargetRequirement` (protection, hexproof, type), in
+/// declaration order. The returned `Vec<SpellTarget>` preserves declaration order (positions
+/// are NOT reordered to match requirement/slot order).
+fn validate_mapped_targets(
+    state: &GameState,
+    targets: &[Target],
+    req_for_target: &[Option<&TargetRequirement>],
+    caster: PlayerId,
+    source_chars: Option<&Characteristics>,
+    self_id: Option<ObjectId>,
+) -> Result<Vec<SpellTarget>, GameStateError> {
     let mut spell_targets = Vec::with_capacity(targets.len());
     for (i, target) in targets.iter().enumerate() {
         let req = req_for_target.get(i).and_then(|r| *r);

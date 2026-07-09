@@ -14,13 +14,10 @@ pub fn card() -> CardDefinition {
         oracle_text: "Choose one —\n• Counter target noncreature spell unless its controller pays {2}.\n• Izzet Charm deals 2 damage to target creature.\n• Draw two cards, then discard two cards.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            targets: vec![
-                TargetRequirement::TargetSpellWithFilter(TargetFilter {
-                    non_creature: true,
-                    ..Default::default()
-                }),
-                TargetRequirement::TargetCreature,
-            ],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — targets are declared only for
+            // the chosen mode. `Spell.targets` is empty; each mode's requirements live in
+            // `mode_targets`, and effects use LOCAL (0-based) DeclaredTarget indices.
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 1,
@@ -35,10 +32,10 @@ pub fn card() -> CardDefinition {
                     },
                     // Mode 1: Deal 2 damage to target creature.
                     Effect::DealDamage {
-                        target: EffectTarget::DeclaredTarget { index: 1 },
+                        target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(2),
                     },
-                    // Mode 2: Draw two cards, then discard two cards.
+                    // Mode 2: Draw two cards, then discard two cards. No target.
                     Effect::Sequence(vec![
                         Effect::DrawCards {
                             player: PlayerTarget::Controller,
@@ -50,6 +47,14 @@ pub fn card() -> CardDefinition {
                         },
                     ]),
                 ],
+                mode_targets: Some(vec![
+                    vec![TargetRequirement::TargetSpellWithFilter(TargetFilter {
+                        non_creature: true,
+                        ..Default::default()
+                    })],
+                    vec![TargetRequirement::TargetCreature],
+                    vec![],
+                ]),
             }),
             cant_be_countered: false,
         }],

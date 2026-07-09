@@ -23,10 +23,20 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Escalate { cost: ManaCost { green: 1, ..Default::default() } },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
-                // Targets across all modes:
+                // Targets across all modes (flat, NOT migrated to `mode_targets` — PB-AC4):
                 //   index 0: TargetArtifact (mode 0)
                 //   index 1: TargetEnchantment (mode 1)
                 //   index 2: TargetCreature (mode 2)
+                //
+                // ENGINE-BLOCKED: this card has Escalate, and the engine HARD-REJECTS
+                // casting a spell that pays Escalate for 2+ modes when its
+                // `ModeSelection.mode_targets` is `Some` (`casting.rs`, PB-AC4 fix-phase
+                // Finding 1 — "Escalate combined with ModeSelection.mode_targets is not
+                // supported"). Migrating this card would make choosing more than one mode
+                // via Escalate uncastable, which is worse than the current flat-target
+                // approximation. Escalate's "choose one or more" + per-mode-targets
+                // combination is unsupported by design (see pb-plan-AC4.md scope
+                // boundary) — do not migrate. Same reasoning as `blessed_alliance`.
                 targets: vec![
                     TargetRequirement::TargetArtifact,
                     TargetRequirement::TargetEnchantment,
@@ -74,6 +84,7 @@ pub fn card() -> CardDefinition {
                             },
                         ]),
                     ],
+                    mode_targets: None,
                 }),
                 cant_be_countered: false,
             },

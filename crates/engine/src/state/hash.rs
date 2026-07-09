@@ -227,7 +227,12 @@
 ///   Reassigned `RemoveSuperType` to discriminant 29. All additions/reassignments are
 ///   enum-variant/discriminant shape changes only; no new struct fields, so no
 ///   `#[serde(default)]` needed.
-pub const HASH_SCHEMA_VERSION: u8 = 30;
+/// - 31: PB-AC4 (2026-07-08) — Modal & optional targeting. New field
+///   `ModeSelection.mode_targets: Option<Vec<Vec<TargetRequirement>>>` (CR 700.2c/700.2f
+///   per-mode target requirements). No new enum variants/discriminants; `TargetRequirement`
+///   already implements `HashInto`. `#[serde(default)]` on the new field ensures
+///   pre-bump serialized card defs deserialize cleanly.
+pub const HASH_SCHEMA_VERSION: u8 = 31;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -5257,6 +5262,18 @@ impl HashInto for ModeSelection {
             true.hash_into(hasher);
             for cost in costs {
                 cost.hash_into(hasher);
+            }
+        } else {
+            false.hash_into(hasher);
+        }
+        // PB-AC4 / CR 700.2c / 700.2f: per-mode target requirements.
+        if let Some(mode_targets) = &self.mode_targets {
+            true.hash_into(hasher);
+            for reqs in mode_targets {
+                reqs.len().hash_into(hasher);
+                for req in reqs {
+                    req.hash_into(hasher);
+                }
             }
         } else {
             false.hash_into(hasher);

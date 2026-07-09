@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                         cant_be_regenerated: false,
                     },
                 ],
+                mode_targets: None,
             }),
             cant_be_countered: false,
         }],

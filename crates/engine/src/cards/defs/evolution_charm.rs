@@ -14,17 +14,10 @@ pub fn card() -> CardDefinition {
         oracle_text: "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Return target creature card from your graveyard to your hand.\n• Target creature gains flying until end of turn.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            // Targets:
-            //   index 0: mode 1 — target creature card from your graveyard
-            //   index 1: mode 2 — target creature (gains flying)
-            // Mode 0 has no targets (library search, self-referential).
-            targets: vec![
-                TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
-                    has_card_type: Some(CardType::Creature),
-                    ..Default::default()
-                }),
-                TargetRequirement::TargetCreature,
-            ],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 1 and mode 2 each declare
+            // their own single target, LOCAL to that mode. `Spell.targets` is empty. Mode 0
+            // has no targets (library search, self-referential).
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 1,
@@ -54,12 +47,20 @@ pub fn card() -> CardDefinition {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
                             modification: LayerModification::AddKeyword(KeywordAbility::Flying),
-                            filter: EffectFilter::DeclaredTarget { index: 1 },
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),
                     },
                 ],
+                mode_targets: Some(vec![
+                    vec![],
+                    vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    })],
+                    vec![TargetRequirement::TargetCreature],
+                ]),
             }),
             cant_be_countered: false,
         }],

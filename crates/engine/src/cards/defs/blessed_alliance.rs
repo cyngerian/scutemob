@@ -22,14 +22,27 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Escalate { cost: ManaCost { generic: 2, ..Default::default() } },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
-                // Targets are shared across all modes. Declared targets:
+                // Targets are shared across all modes (flat, NOT migrated to
+                // `mode_targets` — PB-AC4). Declared targets:
                 //   index 0: TargetPlayer (mode 0 — gains 4 life)
                 //   index 1: TargetCreature (mode 1 — first creature to untap)
                 //   index 2: TargetCreature (mode 1 — second creature, "up to two")
                 //   index 3: TargetPlayer (mode 2 — opponent who sacrifices)
-                // TODO: per-mode target lists are not supported; all targets are declared
-                // up front. When mode-scoped targeting is added, refactor so each mode
-                // only demands its own targets.
+                //
+                // ENGINE-BLOCKED (two independent reasons, either alone would block this):
+                // 1. This card has Escalate, and the engine HARD-REJECTS casting a spell
+                //    that pays Escalate for 2+ modes when its `ModeSelection.mode_targets`
+                //    is `Some` (`casting.rs`, PB-AC4 fix-phase Finding 1 — "Escalate
+                //    combined with ModeSelection.mode_targets is not supported"). Migrating
+                //    this card to `mode_targets` would make choosing more than one mode via
+                //    Escalate uncastable, which is worse than the current flat-target
+                //    approximation. Escalate's mandatory "choose one or more" +
+                //    per-mode-targets combination is unsupported by design (see
+                //    pb-plan-AC4.md scope boundary) — do not migrate.
+                // 2. Independently, mode 1 ("up to two target creatures") is a
+                //    variable-count target slot; the AC4 `mode_targets` design is
+                //    fixed-count per mode and explicitly forbids nesting `UpToN` inside a
+                //    `mode_targets[m]` entry (would make the flat-slice split ambiguous).
                 targets: vec![
                     TargetRequirement::TargetPlayer,   // mode 0
                     TargetRequirement::TargetCreature, // mode 1 creature 1
@@ -73,6 +86,7 @@ pub fn card() -> CardDefinition {
                             }),
                         },
                     ],
+                    mode_targets: None,
                 }),
                 cant_be_countered: false,
             },

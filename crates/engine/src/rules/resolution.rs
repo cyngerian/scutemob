@@ -298,60 +298,64 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 // 2. Explicit modes_chosen — execute chosen modes in index order (CR 700.2a).
                                 // 3. Escalate backward compat — execute modes 0..=escalate_modes_paid.
                                 // 4. Auto-select mode[0] (default for bots/backward compat).
+                                // `chosen_mode_indices` records the ascending chosen-mode index list
+                                // itself (not the resolved effects) so that PB-AC4 per-mode target
+                                // slicing below can look up each chosen mode's target-slice length
+                                // from `ModeSelection.mode_targets[idx]`.
+                                let stack_entwine_paid = stack_obj
+                                    .additional_costs
+                                    .iter()
+                                    .any(|c| matches!(c, AdditionalCost::Entwine));
+                                let chosen_mode_indices: Vec<usize> = if let Some(modes) =
+                                    &spell_modes
+                                {
+                                    if stack_entwine_paid {
+                                        // CR 702.42b: "follow the text of each of the modes in
+                                        // the order written on the card"
+                                        (0..modes.modes.len()).collect()
+                                    } else if !stack_obj.modes_chosen.is_empty() {
+                                        // CR 700.2a: execute the explicitly chosen modes in index
+                                        // order (already validated + sorted at cast time).
+                                        stack_obj.modes_chosen.clone()
+                                    } else if let Some(escalate_count) = stack_obj
+                                        .additional_costs
+                                        .iter()
+                                        .find_map(|c| match c {
+                                            AdditionalCost::EscalateModes { count } => Some(*count),
+                                            _ => None,
+                                        })
+                                        .filter(|&c| c > 0)
+                                    {
+                                        // CR 702.120a: backward compat — escalate without explicit
+                                        // modes_chosen executes modes 0..=escalate_modes_paid.
+                                        let count =
+                                            ((escalate_count as usize) + 1).min(modes.modes.len());
+                                        (0..count).collect()
+                                    } else if !modes.modes.is_empty() {
+                                        // Auto-select first mode (default for bots and backward
+                                        // compat with existing scripts/tests).
+                                        vec![0]
+                                    } else {
+                                        vec![]
+                                    }
+                                } else {
+                                    vec![]
+                                };
                                 // If no modes, execute the spell's main effect as before.
+                                // If modes has mode_targets set (PB-AC4), effects_to_run is unused —
+                                // the per-mode loop below executes modes.modes[idx] directly with a
+                                // per-mode ctx.targets slice.
                                 let effects_to_run: Vec<crate::cards::card_definition::Effect> =
-                                    if let Some(modes) = spell_modes {
-                                        if stack_obj
-                                            .additional_costs
-                                            .iter()
-                                            .any(|c| matches!(c, AdditionalCost::Entwine))
-                                        {
-                                            // CR 702.42b: "follow the text of each of the modes in
-                                            // the order written on the card"
-                                            modes.modes.clone()
-                                        } else if !stack_obj.modes_chosen.is_empty() {
-                                            // CR 700.2a: execute the explicitly chosen modes in index
-                                            // order. Invalid indices are silently skipped (validated
-                                            // at cast time in casting.rs).
-                                            stack_obj
-                                                .modes_chosen
+                                    if let Some(modes) = &spell_modes {
+                                        if modes.mode_targets.is_none() {
+                                            chosen_mode_indices
                                                 .iter()
                                                 .filter_map(|&idx| modes.modes.get(idx).cloned())
                                                 .collect()
-                                        } else if stack_obj
-                                            .additional_costs
-                                            .iter()
-                                            .find_map(|c| match c {
-                                                AdditionalCost::EscalateModes { count } => {
-                                                    Some(*count)
-                                                }
-                                                _ => None,
-                                            })
-                                            .unwrap_or(0)
-                                            > 0
-                                        {
-                                            // CR 702.120a: backward compat — escalate without explicit
-                                            // modes_chosen executes modes 0..=escalate_modes_paid.
-                                            let count = (stack_obj
-                                                .additional_costs
-                                                .iter()
-                                                .find_map(|c| match c {
-                                                    AdditionalCost::EscalateModes { count } => {
-                                                        Some(*count)
-                                                    }
-                                                    _ => None,
-                                                })
-                                                .unwrap_or(0)
-                                                as usize
-                                                + 1)
-                                            .min(modes.modes.len());
-                                            modes.modes[..count].to_vec()
                                         } else {
-                                            // Auto-select first mode (default for bots and backward
-                                            // compat with existing scripts/tests).
-                                            modes.modes.into_iter().take(1).collect()
+                                            vec![]
                                         }
-                                    } else if let Some(effect) = spell_effect {
+                                    } else if let Some(effect) = spell_effect.clone() {
                                         vec![effect]
                                     } else {
                                         vec![]
@@ -424,9 +428,61 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 }
                                 // CR 702.42b: Execute each effect in order. For entwined spells,
                                 // state changes from earlier modes are visible to later modes.
-                                for effect in &effects_to_run {
-                                    let effect_events = execute_effect(state, effect, &mut ctx);
-                                    events.extend(effect_events);
+                                //
+                                // CR 700.2c/700.2f (PB-AC4): per-mode-targeted modal spells slice
+                                // the RAW `stack_obj.targets` list per chosen mode (not the
+                                // pre-filtered `legal_targets`) so that slice offsets stay stable —
+                                // filtering `legal_targets` first would compact the list and shift
+                                // indices for later modes. Illegal targets are instead skipped
+                                // per-target inside `resolve_effect_target_list_indexed`, which
+                                // checks the target object/player still exists — equivalent to the
+                                // CR 608.2b zone-match check, since any zone change kills the old
+                                // ObjectId (CR 400.7).
+                                if let Some(modes_ref) = spell_modes.as_ref() {
+                                    if let Some(mode_targets) = modes_ref.mode_targets.as_ref() {
+                                        // LOW #2 (PB-AC4 fix-phase): `mode_targets.len() ==
+                                        // modes.len()` is a documented author invariant.
+                                        // debug_assert catches authoring bugs in tests/CI;
+                                        // `unwrap_or(0)` below keeps release builds fail-safe
+                                        // (a too-short mode_targets resolves the missing mode
+                                        // with an empty target slice, not a panic).
+                                        debug_assert_eq!(
+                                            mode_targets.len(),
+                                            modes_ref.modes.len(),
+                                            "ModeSelection.mode_targets.len() ({}) must equal \
+                                             modes.len() ({}) (CR 700.2c author invariant)",
+                                            mode_targets.len(),
+                                            modes_ref.modes.len()
+                                        );
+                                        let mut offset = 0usize;
+                                        for &idx in &chosen_mode_indices {
+                                            let slice_len =
+                                                mode_targets.get(idx).map(|v| v.len()).unwrap_or(0);
+                                            let slice: Vec<SpellTarget> = stack_obj
+                                                .targets
+                                                .get(offset..offset + slice_len)
+                                                .map(|s| s.to_vec())
+                                                .unwrap_or_default();
+                                            ctx.targets = slice;
+                                            if let Some(effect) = modes_ref.modes.get(idx) {
+                                                let effect_events =
+                                                    execute_effect(state, effect, &mut ctx);
+                                                events.extend(effect_events);
+                                            }
+                                            offset += slice_len;
+                                        }
+                                    } else {
+                                        for effect in &effects_to_run {
+                                            let effect_events =
+                                                execute_effect(state, effect, &mut ctx);
+                                            events.extend(effect_events);
+                                        }
+                                    }
+                                } else {
+                                    for effect in &effects_to_run {
+                                        let effect_events = execute_effect(state, effect, &mut ctx);
+                                        events.extend(effect_events);
+                                    }
                                 }
                                 // CR 702.47b: Execute spliced effects after the main spell effect.
                                 // "The effects of the main spell must happen first." (CR 702.47b)

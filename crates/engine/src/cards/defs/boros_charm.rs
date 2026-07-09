@@ -13,10 +13,10 @@ pub fn card() -> CardDefinition {
         oracle_text: "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            targets: vec![
-                TargetRequirement::TargetPlayerOrPlaneswalker,
-                TargetRequirement::TargetCreature,
-            ],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 0 and mode 2 each declare
+            // their own single target, LOCAL to that mode. `Spell.targets` is empty. Mode 1
+            // has no targets ("permanents you control" — mass grant, not a declared target).
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 1,
@@ -29,20 +29,28 @@ pub fn card() -> CardDefinition {
                         amount: EffectAmount::Fixed(4),
                     },
                     // Mode 1: Permanents you control gain indestructible until EOT.
-                    // TODO: Mass indestructible grant to all permanents you control
-                    // not expressible as a single ApplyContinuousEffect (needs all-permanents filter).
+                    // ENGINE-BLOCKED: `EffectFilter`/`ContinuousEffectDef` has no catch-all
+                    // "all permanents you control" variant — only type-scoped variants exist
+                    // (`CreaturesYouControl`, `ArtifactsYouControl`, `LandsYouControl`, etc.).
+                    // A generic "permanents you control" filter would need a new EffectFilter
+                    // variant; unrelated to AC4's per-mode-targeting scope.
                     Effect::Nothing,
                     // Mode 2: Target creature gains double strike until EOT.
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
                             modification: LayerModification::AddKeyword(KeywordAbility::DoubleStrike),
-                            filter: EffectFilter::DeclaredTarget { index: 1 },
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),
                     },
                 ],
+                mode_targets: Some(vec![
+                    vec![TargetRequirement::TargetPlayerOrPlaneswalker],
+                    vec![],
+                    vec![TargetRequirement::TargetCreature],
+                ]),
             }),
             cant_be_countered: false,
         }],

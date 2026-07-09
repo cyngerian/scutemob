@@ -17,8 +17,9 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            // Mode 1: target enchantment (index 0). Modes 0 and 2 have no declared targets.
-            targets: vec![TargetRequirement::TargetEnchantment],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 1 declares its target,
+            // LOCAL to that mode. `Spell.targets` is empty. Modes 0 and 2 have no targets.
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 1,
@@ -38,14 +39,22 @@ pub fn card() -> CardDefinition {
                     // Mode 1: Destroy target enchantment.
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                     // Mode 2: Regenerate each creature you control.
-                    // TODO: Effect::RegenerateAll (or bulk regenerate for your creatures) does
-                    // not exist in the DSL. When a regenerate-all effect is added, replace this
-                    // with the correct Effect variant filtered to CreaturesYouControl.
-                    Effect::Sequence(vec![]),
+                    // `Effect::Regenerate` resolves a target *list* via
+                    // `resolve_effect_target_list` and applies a regeneration shield to
+                    // every resolved object (effects/mod.rs), so an `AllPermanentsMatching`
+                    // target list is sufficient — no bulk-specific primitive needed.
+                    Effect::Regenerate {
+                        target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            controller: TargetController::You,
+                            ..Default::default()
+                        })),
+                    },
                 ],
+                mode_targets: Some(vec![vec![], vec![TargetRequirement::TargetEnchantment], vec![]]),
             }),
             cant_be_countered: false,
         }],
