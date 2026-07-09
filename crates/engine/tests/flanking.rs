@@ -91,6 +91,7 @@ fn test_702_25_flanking_basic_minus_one_minus_one() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -197,6 +198,7 @@ fn test_702_25_flanking_does_not_trigger_on_flanking_blocker() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -286,6 +288,7 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -416,6 +419,7 @@ fn test_702_25b_flanking_multiple_instances() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -528,6 +532,7 @@ fn test_702_25_flanking_multiple_blockers() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -635,6 +640,7 @@ fn test_702_25_flanking_effect_expires_at_end_of_turn() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -740,6 +746,7 @@ fn test_702_25_flanking_multiplayer() {
                 (attacker_b, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");

@@ -1785,7 +1785,10 @@ fn execute_effect_inner(
                 }
             }
         }
-        Effect::CounterSpell { target } => {
+        Effect::CounterSpell {
+            target,
+            exile_instead,
+        } => {
             // CR 701.5: Counter target spell on the stack.
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
@@ -1818,7 +1821,11 @@ fn execute_effect_inner(
                                 // CR 702.34a: If cast with flashback, exile instead of
                                 // graveyard when countered by an effect.
                                 // CR 702.133a: Jump-start also exiles when countered by an effect.
-                                let destination = if stack_obj.cast_with_flashback
+                                // PB-AC5 add-on: `exile_instead` (Force of Negation: "exile it
+                                // instead of putting it into its owner's graveyard") takes the
+                                // same exile destination regardless of how the spell was cast.
+                                let destination = if *exile_instead
+                                    || stack_obj.cast_with_flashback
                                     || stack_obj.cast_with_jump_start
                                 {
                                     crate::state::zone::ZoneId::Exile
@@ -3039,6 +3046,7 @@ fn execute_effect_inner(
                 state,
                 &Effect::CounterSpell {
                     target: target.clone(),
+                    exile_instead: false,
                 },
                 ctx,
                 events,
@@ -3645,6 +3653,7 @@ fn execute_effect_inner(
                             kicker_times_paid: 0,
                             cast_alt_cost: None,
                             foretold_turn: 0,
+                            warped_turn: 0,
                             was_unearthed: false,
                             myriad_exile_at_eoc: false,
                             decayed_sacrifice_at_eoc: false,
@@ -4524,6 +4533,7 @@ fn execute_effect_inner(
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
+                    warped_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
@@ -4693,6 +4703,7 @@ fn execute_effect_inner(
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
                 foretold_turn: 0,
+                warped_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
@@ -6967,6 +6978,7 @@ pub fn make_token(
         kicker_times_paid: 0,
         cast_alt_cost: None,
         foretold_turn: 0,
+        warped_turn: 0,
         was_unearthed: false,
         myriad_exile_at_eoc: false,
         decayed_sacrifice_at_eoc: false,
@@ -7317,7 +7329,9 @@ fn can_pay_optional_cost(state: &GameState, pid: PlayerId, cost: &Cost) -> bool 
         | Cost::ExileSelf
         | Cost::Forage
         | Cost::RemoveCounter { .. }
-        | Cost::DiscardSelf => false,
+        | Cost::DiscardSelf
+        | Cost::ExileFromHand { .. }
+        | Cost::Exert => false,
     }
 }
 /// CR 118.12 / 118.8: pay `cost` for `pid`, assuming `can_pay_optional_cost` already
@@ -7366,7 +7380,9 @@ fn pay_optional_cost(
         | Cost::ExileSelf
         | Cost::Forage
         | Cost::RemoveCounter { .. }
-        | Cost::DiscardSelf => {
+        | Cost::DiscardSelf
+        | Cost::ExileFromHand { .. }
+        | Cost::Exert => {
             // Out of PB-AC2 scope -- can_pay_optional_cost never returns true for these,
             // so this arm is unreachable in practice.
         }

@@ -328,6 +328,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -473,6 +474,7 @@ fn test_initiative_combat_damage_steal() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");

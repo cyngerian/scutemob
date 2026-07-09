@@ -206,6 +206,7 @@ fn test_per_creature_you_control_combat_damage_trigger() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -265,6 +266,7 @@ fn test_per_creature_triggers_fire_per_creature() {
                 (a2_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -334,6 +336,7 @@ fn test_per_creature_subtype_filter_combat_damage() {
                 (non_ninja_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -398,6 +401,7 @@ fn test_batch_one_or_more_trigger_fires_once() {
                 (a3_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -465,6 +469,7 @@ fn test_batch_trigger_per_damaged_player() {
                 (a2_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -544,6 +549,7 @@ fn test_equipped_creature_combat_damage_trigger() {
             player: p1,
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -599,6 +605,7 @@ fn test_equipped_creature_unequipped_no_trigger() {
             player: p1,
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -676,6 +683,7 @@ fn test_enchanted_creature_damage_trigger() {
             player: p1,
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");

@@ -32,6 +32,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
             sacrifice_filter: None,
             remove_counter_cost: None,
             exile_self: false,
+            exert: false,
         },
         description: description.to_string(),
         effect: None,
@@ -56,6 +57,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
             sacrifice_filter: None,
             remove_counter_cost: None,
             exile_self: false,
+            exert: false,
         },
         description: description.to_string(),
         effect: None,
@@ -1061,6 +1063,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
                 sacrifice_filter: None,
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "Sacrifice: Draw a card.".into(),
             effect: Some(draw_effect),
@@ -1189,6 +1192,7 @@ fn test_sacrifice_filter_creature_valid() {
                 sacrifice_filter: Some(SacrificeFilter::Creature),
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1277,6 +1281,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
                 sacrifice_filter: Some(SacrificeFilter::Creature),
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1352,6 +1357,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
                 sacrifice_filter: Some(SacrificeFilter::Creature),
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1427,6 +1433,7 @@ fn test_sacrifice_filter_missing_target_errors() {
                 sacrifice_filter: Some(SacrificeFilter::Creature),
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1789,6 +1796,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
                 sacrifice_filter: None,
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "Sacrifice: trigger dies".to_string(),
             effect: None,
@@ -2390,6 +2398,7 @@ fn test_attack_trigger_fires_on_declare_attackers() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -2506,6 +2515,7 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed for enriched card-def creature");
@@ -2568,6 +2578,7 @@ fn test_attack_trigger_resolves_draws_card() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -2662,6 +2673,7 @@ fn test_attack_trigger_does_not_fire_for_non_attacker() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -2730,6 +2742,7 @@ fn test_attack_trigger_multiple_attackers() {
                 (attacker_b_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with two attackers should succeed");

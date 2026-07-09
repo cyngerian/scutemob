@@ -707,6 +707,31 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             data: None,
         });
     }
+    // CR 702.185a: Queue exile triggers for all warped permanents.
+    // "If this spell's warp cost was paid, exile the permanent this spell becomes at
+    // the beginning of the next end step."
+    // Each warp-cast permanent has `cast_alt_cost == Some(AltCostKind::Warp)` set when
+    // the warp spell resolves (resolution.rs). At end step, we queue a delayed exile
+    // trigger reusing the KeywordTrigger consolidation (RC-2) — no new PendingTriggerKind
+    // or StackObjectKind variant needed, mirroring Dash/Blitz's DelayedZoneChange data.
+    let warped_permanents: Vec<(ObjectId, crate::state::player::PlayerId)> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield && obj.cast_alt_cost == Some(AltCostKind::Warp)
+        })
+        .map(|obj| (obj.id, obj.controller))
+        .collect();
+    for (obj_id, controller) in warped_permanents {
+        state.pending_triggers.push_back(PendingTrigger::blank(
+            obj_id,
+            controller,
+            PendingTriggerKind::KeywordTrigger {
+                keyword: KeywordAbility::Warp,
+                data: crate::state::stack::TriggerData::DelayedZoneChange,
+            },
+        ));
+    }
     // CR 702.176a: Queue counter-removal triggers for all impending permanents.
     // "At the beginning of your end step, if this permanent's impending cost was
     // paid and it has a time counter on it, remove a time counter from it."
@@ -1217,7 +1242,15 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
             if !obj.goaded_by.is_empty() {
                 obj.goaded_by = im::Vector::new();
             }
-            if does_not_untap {
+            // CR 701.43a/b (PB-AC5): Exert -- "choose to have it not untap during your
+            // next untap step." Checked BEFORE does_not_untap/skip_untap_steps: exert is
+            // a one-shot boolean designation, distinct from both. It expires during THIS
+            // untap step regardless of how many times the permanent was exerted before
+            // now (701.43b) -- clearing the flag here (rather than decrementing a
+            // counter) is what makes repeated exerts collapse to a single skipped step.
+            if obj.designations.contains(Designations::EXERTED) {
+                obj.designations.remove(Designations::EXERTED);
+            } else if does_not_untap {
                 // CR 502.3 (PB-AC1): "effects can keep one or more of a player's
                 // permanents from untapping." This permanent is kept from untapping
                 // by a static ability (Mana Vault, Goblin Sharpshooter). Distinct from

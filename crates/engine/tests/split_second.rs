@@ -256,6 +256,7 @@ fn test_split_second_blocks_activated_abilities() {
                 sacrifice_filter: None,
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{T}: Does something".to_string(),
             effect: None,

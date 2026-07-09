@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // variant. CounterSpell currently sends to graveyard (default CR 701.5a).
             effect: Effect::CounterSpell {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                exile_instead: false,
             },
             targets: vec![TargetRequirement::TargetSpell],
             modes: None,

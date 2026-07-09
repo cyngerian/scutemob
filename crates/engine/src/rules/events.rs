@@ -436,6 +436,10 @@ pub enum GameEvent {
         player: PlayerId,
         object_id: ObjectId,
     },
+    /// CR 701.43a: A permanent was exerted (as an attack cost or an activation cost).
+    /// It will not untap during its controller's next untap step; `Designations::EXERTED`
+    /// is cleared at that point (701.43a/b).
+    PermanentExerted { object_id: ObjectId },
     /// A card was discarded from a player's hand (CR 701.8).
     CardDiscarded {
         player: PlayerId,

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 }),
                 if_true: Box::new(Effect::CounterSpell {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    exile_instead: false,
                 }),
                 if_false: Box::new(Effect::CounterUnlessPays {
                     target: EffectTarget::DeclaredTarget { index: 0 },

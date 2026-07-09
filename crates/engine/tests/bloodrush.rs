@@ -162,6 +162,7 @@ fn setup_combat_state(
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -538,6 +539,7 @@ fn test_bloodrush_insufficient_mana_fails() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -603,6 +605,7 @@ fn test_bloodrush_not_in_hand_fails() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

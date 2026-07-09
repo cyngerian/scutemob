@@ -84,6 +84,7 @@ fn test_battle_cry_basic_other_attackers_get_plus_one_power() {
                 (b_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -184,6 +185,7 @@ fn test_battle_cry_source_only_attacker_no_bonus() {
             player: p1,
             attackers: vec![(bc_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -254,6 +256,7 @@ fn test_battle_cry_does_not_affect_toughness() {
                 (att_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -315,6 +318,7 @@ fn test_battle_cry_multiple_instances_stack() {
                 (b_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -426,6 +430,7 @@ fn test_battle_cry_multiplayer_all_attackers_benefit() {
                 (a3_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -508,6 +513,7 @@ fn test_battle_cry_bonus_expires_at_end_of_turn() {
                 (att_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -587,6 +593,7 @@ fn test_battle_cry_does_not_trigger_on_opponent_attack() {
             player: p2,
             attackers: vec![(p2_atk_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

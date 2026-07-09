@@ -155,6 +155,14 @@ pub enum Command {
         /// Validated in handle_declare_attackers.
         #[serde(default)]
         enlist_choices: Vec<(ObjectId, ObjectId)>,
+        /// CR 701.43d / CR 508.1g: Optional exert choices ("you may exert [this creature]
+        /// as it attacks"). Each entry is the ObjectId of a declared attacker the player
+        /// chooses to exert. The attacker must have `KeywordAbility::Exert` and must not
+        /// already be `Designations::EXERTED` this turn.
+        ///
+        /// Empty vec for no exert choices. Validated in handle_declare_attackers.
+        #[serde(default)]
+        exert_choices: Vec<ObjectId>,
     },
     /// Declare blocking creatures (CR 509.1).
     ///

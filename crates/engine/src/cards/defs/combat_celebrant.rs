@@ -4,11 +4,13 @@
 // is an additional combat phase. (An exerted creature won't untap during your
 // next untap step.)
 //
-// NOTE: Exert mechanic is not yet implemented (future primitive). This card def
-// uses a simplified trigger: whenever this creature attacks (first combat phase
-// only), untap all other creatures you control and create an additional combat
-// phase. The "hasn't been exerted this turn" check and "won't untap next turn"
-// enforcement are TODO pending an Exert primitive.
+// PB-AC5: Full Exert mechanic implemented (CR 701.43). KeywordAbility::Exert marks
+// the "may exert as it attacks" optional cost (CR 508.1g); combat.rs's exert_choices
+// validation enforces "hasn't been exerted this turn" (rejects an already-EXERTED
+// attacker) and sets Designations::EXERTED (cleared + skips untap at the controller's
+// next untap step, CR 701.43a/b). The linked "when you do" trigger below
+// (TriggerCondition::WhenExertedAsAttacks, CR 607.2h) fires ONLY when the player
+// actually chose to exert this attack -- not on every attack.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,14 +23,11 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(1),
         abilities: vec![
-            // TODO: Full Exert mechanic not yet implemented.
-            // Simplified as: whenever this creature attacks (first combat phase),
-            // untap all other creatures you control and add an additional combat phase.
-            // Missing: exert "won't untap" tracking, once-per-turn exert limit.
+            AbilityDefinition::Keyword(KeywordAbility::Exert),
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenAttacks,
-                intervening_if: Some(Condition::IsFirstCombatPhase),
+                trigger_condition: TriggerCondition::WhenExertedAsAttacks,
+                intervening_if: None,
                 effect: Effect::Sequence(vec![
                     // Untap all other creatures you control (excludes Combat Celebrant itself).
                     Effect::ForEach {

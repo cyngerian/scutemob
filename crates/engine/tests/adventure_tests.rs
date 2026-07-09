@@ -404,6 +404,7 @@ fn counterspell_def() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::CounterSpell {
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
+                exile_instead: false,
             },
             targets: vec![TargetRequirement::TargetSpell],
             modes: None,

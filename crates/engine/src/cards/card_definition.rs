@@ -1075,6 +1075,22 @@ pub enum AltCastDetails {
     Escape { exile_count: u32 },
     /// CR 702.160 / CR 718: Prototype overrides power and toughness.
     Prototype { power: i32, toughness: i32 },
+    /// CR 702.185a: Warp — non-mana components of the warp cost (e.g. `PayLife(2)`).
+    /// The mana component lives in the enclosing `AltCastAbility.cost: ManaCost`.
+    /// `from_graveyard: true` additionally grants permission to cast this card from the
+    /// graveyard using its warp ability (Timeline Culler); `false` = hand/exile only.
+    Warp {
+        costs: Vec<Cost>,
+        from_graveyard: bool,
+    },
+    /// CR 118.9: Pitch — the alternative-cost components (life payment, exile-from-hand,
+    /// etc.) paid INSTEAD of the mana cost. `opponents_turn_only: true` restricts the
+    /// alternative cost to when it is not the caster's turn (Force of Vigor/Negation/
+    /// Despair's "If it's not your turn" clause).
+    Pitch {
+        costs: Vec<Cost>,
+        opponents_turn_only: bool,
+    },
 }
 /// CR 702.167b: Describes what can be exiled as materials for a Craft activated ability.
 ///
@@ -1154,6 +1170,19 @@ pub enum Cost {
     /// Remove N counters of the specified type from the source permanent as a cost (CR 602.2).
     /// CR 118.3: The permanent must have at least `count` counters of that type before activation.
     RemoveCounter { counter: CounterType, count: u32 },
+    /// CR 118.9: Exile a card of `color` from hand as (part of) a pitch alternative cost
+    /// (Force of Will, Force of Vigor, Force of Negation). The specific card chosen is
+    /// carried on `CastSpell.additional_costs` as `AdditionalCost::ExileFromHand { card }`
+    /// and validated (in hand, color matches, not the spell being cast) at cast time.
+    /// Composes with other `Cost` components via `Cost::Sequence` (e.g. Force of Will's
+    /// "pay 1 life and exile a blue card").
+    ExileFromHand { color: Color },
+    /// CR 701.43a/c: Exert the source permanent as an activation cost. The source must be
+    /// on the battlefield; `Designations::EXERTED` is set, and the permanent will not
+    /// untap during its controller's next untap step (CR 701.43a), at which point the
+    /// designation is cleared (CR 701.43b: expires during that untap step regardless of
+    /// how many times it was exerted before then).
+    Exert,
 }
 /// Required additional cost on a spell card definition (CR 118.8).
 ///
@@ -1336,7 +1365,16 @@ pub enum Effect {
     /// CR 701.5: Put an object into exile.
     ExileObject { target: EffectTarget },
     /// CR 701.5: Counter a spell or ability on the stack.
-    CounterSpell { target: EffectTarget },
+    ///
+    /// `exile_instead` (PB-AC5 add-on): if true, the countered spell is exiled instead of
+    /// put into its owner's graveyard (CR 701.5f-style effect; Force of Negation: "If that
+    /// spell is countered this way, exile it instead of putting it into its owner's
+    /// graveyard"). Defaults to false (standard CR 701.5b destination).
+    CounterSpell {
+        target: EffectTarget,
+        #[serde(default)]
+        exile_instead: bool,
+    },
     /// CR 701.16: Tap a permanent.
     TapPermanent { target: EffectTarget },
     /// CR 701.17: Untap a permanent.
@@ -3171,6 +3209,14 @@ pub enum TriggerCondition {
         #[serde(default)]
         on_self: bool,
     },
+    /// CR 701.43d / CR 607.2h: "When you do" — the linked triggered ability for an
+    /// optional "you may exert [this creature] as it attacks" cost (CR 508.1g). Fires
+    /// ONLY when the player chose to exert this creature as it attacked this combat —
+    /// NOT on every attack (contrast with `WhenAttacks`). Queued directly at
+    /// declare-attackers time (`combat.rs` exert_choices validation), not via the
+    /// generic `collect_triggers_for_event` dispatch, because the effect is card-specific
+    /// (Combat Celebrant: untap + extra combat).
+    WhenExertedAsAttacks,
 }
 /// Filter for "whenever you tap a [type] for mana" trigger conditions.
 /// CR 106.12a: triggers whenever such a mana ability resolves and produces mana.
@@ -3552,6 +3598,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 sacrifice_filter: None,
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -3601,6 +3648,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 sacrifice_filter: None,
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -3653,6 +3701,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 sacrifice_filter: None,
                 remove_counter_cost: None,
                 exile_self: false,
+                exert: false,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

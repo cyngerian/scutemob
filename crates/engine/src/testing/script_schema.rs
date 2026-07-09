@@ -215,6 +215,13 @@ pub enum ScriptAction {
         /// Example: [{"attacker": "Coalition Skyknight", "enlisted": "Llanowar Elves"}]
         #[serde(default)]
         enlist: Vec<EnlistDeclaration>,
+        /// CR 701.43d / CR 508.1g: For `declare_attackers` with exert. Names of declared
+        /// attackers the player chooses to exert as an optional attack cost. Each name
+        /// must be a creature with the "you may exert this creature as it attacks"
+        /// static ability that is not already exerted this turn.
+        /// Example: ["Combat Celebrant"]
+        #[serde(default)]
+        exert: Vec<String>,
         /// CR 702.51: For `cast_spell` with convoke. Names of untapped creatures on the
         /// battlefield to tap as part of cost payment. Empty for non-convoke casts.
         /// Example: ["Llanowar Elves", "Saproling Token", "Saproling Token"]
@@ -355,6 +362,13 @@ pub enum ScriptAction {
         /// Ignored for all other action types.
         #[serde(default)]
         gift_opponent: Option<String>,
+        /// CR 118.9: For `cast_spell_pitch`. Name of the card in the caster's hand to
+        /// exile as (part of) the pitch alternative cost (Force of Will, Force of Vigor,
+        /// Force of Negation). `None` for pitch spells with no `ExileFromHand` component
+        /// or all other action types.
+        /// Example: "Island"
+        #[serde(default)]
+        pitch_exile_card: Option<String>,
         /// CR 702.37e / CR 701.40b / CR 701.58b: For `turn_face_up`. Which turn-face-up
         /// method to use. One of: "morph_cost" (default), "disguise_cost", "mana_cost".
         /// "morph_cost" uses the card's Morph or Megamorph cost.

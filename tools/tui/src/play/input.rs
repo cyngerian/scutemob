@@ -510,6 +510,7 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
                     player: app.human_player,
                     attackers,
                     enlist_choices: Vec::new(),
+                    exert_choices: Vec::new(),
                 };
                 app.execute_command(cmd)?;
                 app.mode = InputMode::Normal;
@@ -523,6 +524,7 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
                     player: app.human_player,
                     attackers,
                     enlist_choices: Vec::new(),
+                    exert_choices: Vec::new(),
                 };
                 app.execute_command(cmd)?;
             }
@@ -554,6 +556,7 @@ fn handle_attacker_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> 
                         player: app.human_player,
                         attackers,
                         enlist_choices: Vec::new(),
+                        exert_choices: Vec::new(),
                     };
                     app.execute_command(cmd)?;
                 }

@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // at next main phase — requires delayed triggers + mana-value tracking.
             effect: Effect::CounterSpell {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                exile_instead: false,
             },
             targets: vec![TargetRequirement::TargetSpell],
             modes: None,

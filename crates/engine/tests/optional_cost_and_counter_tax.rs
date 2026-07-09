@@ -102,6 +102,7 @@ fn push_spell_stack_object(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -1129,7 +1130,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 /// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
 /// If you bumped again, update this test and the `state/hash.rs` history block.
 fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 31u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 32u8);
 }
 
 #[test]

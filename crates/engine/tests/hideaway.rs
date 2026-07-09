@@ -103,6 +103,7 @@ fn make_hideaway_trigger_stack_obj(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -585,6 +586,7 @@ fn test_hideaway_play_exiled_card() {
             sacrifice_filter: None,
             remove_counter_cost: None,
             exile_self: false,
+            exert: false,
         },
         description: "{T}: Play the exiled card without paying its mana cost.".to_string(),
         effect: Some(Effect::Conditional {

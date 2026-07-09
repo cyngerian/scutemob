@@ -186,6 +186,18 @@ pub enum AltCostKind {
     /// original mana value is deducted during cost payment.
     /// 2019-05-03 ruling: X must be 0 when using this alternative cost.
     PayLifeForManaValue,
+    /// CR 702.185a: Warp -- cast from hand for the warp cost rather than the mana cost.
+    /// The permanent this spell becomes is exiled at the beginning of the next end step
+    /// (if the warp cost was paid); it may be cast from exile after the current turn ends.
+    /// Some warp cards (e.g. Timeline Culler) also grant graveyard-cast permission via
+    /// `AltCastDetails::Warp.from_graveyard`.
+    Warp,
+    /// CR 118.9: Pitch -- "You may exile a [color] card from your hand rather than pay
+    /// this spell's mana cost" (optionally combined with paying life or another
+    /// non-mana cost component, per `AltCastDetails::Pitch.costs`). The exiled card is
+    /// recorded via `AdditionalCost::ExileFromHand`. CR 118.9c: does not change the
+    /// spell's mana cost/value for effects that read it.
+    Pitch,
 }
 /// Consolidated additional costs for spell casting (CR 601.2b, 601.2f-h).
 ///
@@ -239,6 +251,11 @@ pub enum AdditionalCost {
     Gift { opponent: PlayerId },
     /// Target a non-Human creature to mutate onto (Mutate — CR 702.140).
     Mutate { target: ObjectId, on_top: bool },
+    /// CR 118.9: The specific card exiled from hand as (part of) a pitch alternative cost
+    /// (Force of Will, Force of Vigor, Force of Negation). The `card` is the ObjectId of
+    /// the exiled card at the time it was exiled (dead after the zone change, kept for
+    /// event/audit purposes only).
+    ExileFromHand { card: ObjectId },
 }
 /// Counter types that can be placed on objects or players (CR 122).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1683,6 +1700,40 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 162.
     DoesNotUntap,
+    /// CR 702.185: Warp -- "You may cast this card from your hand by paying [cost] rather
+    /// than its mana cost. If this spell's warp cost was paid, exile the permanent this
+    /// spell becomes at the beginning of the next end step. Its owner may cast this card
+    /// after the current turn has ended for as long as it remains exiled."
+    ///
+    /// Marker keyword for display; the actual mechanics are driven by
+    /// `AbilityDefinition::AltCastAbility { kind: AltCostKind::Warp, .. }` (the alt cast
+    /// itself) plus the exile-then-recast machinery in `casting.rs`/`turn_actions.rs`/
+    /// `resolution.rs` (modeled after Dash/Blitz's end-step delayed trigger).
+    ///
+    /// Discriminant 163.
+    Warp,
+    /// CR 702.53: Transmute -- "[Cost], Discard this card: Search your library for a card
+    /// with the same mana value as the discarded card, reveal that card, and put it into
+    /// your hand. Then shuffle your library. Activate only as a sorcery."
+    ///
+    /// CR 702.53a: an activated ability functioning only while the card is in a player's
+    /// hand. CR 702.53b: the ability continues to exist in all other zones -- objects with
+    /// transmute count as "having an activated ability" for effects that care.
+    ///
+    /// Marker keyword for display/presence; fully expressed via the existing
+    /// `AbilityDefinition::Activated { cost: Cost::Sequence([Cost::Mana(..), Cost::DiscardSelf]),
+    /// timing_restriction: Some(SorcerySpeed), effect: Effect::SearchLibrary { min_cmc: Some(mv),
+    /// max_cmc: Some(mv), .. }, .. }` -- no new Cost/Effect surface needed.
+    ///
+    /// Discriminant 164.
+    Transmute,
+    /// CR 701.43: Exert -- "As this creature attacks, you may exert it." / "[Cost], Exert
+    /// this permanent: ..." Marker keyword indicating the source has an "as it attacks, you
+    /// may exert" optional attack cost (CR 508.1g / 701.43d). NOT used for the activation-
+    /// cost shape (`Cost::Exert`), which is card-specific and requires no marker keyword.
+    ///
+    /// Discriminant 165.
+    Exert,
 }
 /// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.
 ///

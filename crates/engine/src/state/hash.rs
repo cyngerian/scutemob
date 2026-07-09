@@ -232,7 +232,26 @@
 ///   per-mode target requirements). No new enum variants/discriminants; `TargetRequirement`
 ///   already implements `HashInto`. `#[serde(default)]` on the new field ensures
 ///   pre-bump serialized card defs deserialize cleanly.
-pub const HASH_SCHEMA_VERSION: u8 = 31;
+/// - 32: PB-AC5 (2026-07-08) — Alt-costs & timing keywords: Warp (CR 702.185),
+///   Transmute (CR 702.53), Exert (CR 701.43), Pitch (CR 118.9). New `KeywordAbility`
+///   variants `Warp` (163), `Transmute` (164), `Exert` (165). New `AltCostKind` variants
+///   `Warp` (30), `Pitch` (31). New `AltCastDetails` variants `Warp { costs, from_graveyard
+///   }` (disc 3) and `Pitch { costs, opponents_turn_only }` (disc 4). New `AdditionalCost`
+///   variant `ExileFromHand { card }` (disc 14). New `Cost` variants `ExileFromHand {
+///   color }` (disc 11) and `Exert` (disc 12). New `TriggerCondition::WhenExertedAsAttacks`
+///   (disc 44, CR 607.2h linked "when you do" exert trigger). New `GameEvent::
+///   PermanentExerted { object_id }` (disc 127). New fields: `GameObject.warped_turn: u32`
+///   (mirrors `foretold_turn`), `Designations::EXERTED` (1<<10) / `Designations::WARPED`
+///   (1<<11) bits (already covered by the existing bitfield hash), `StackObject.
+///   was_warped: bool` (hashed in `impl HashInto for StackObject`, alongside
+///   `was_blitzed`), `ActivationCost.exert: bool` (hashed in `impl HashInto for
+///   ActivationCost`, alongside `exile_self`), `CombatState.exerted_attackers:
+///   OrdSet<ObjectId>`. Warp's exile-then-recast machinery reuses the existing
+///   `PendingTriggerKind::KeywordTrigger` / `StackObjectKind::KeywordTrigger` /
+///   `TriggerData::DelayedZoneChange` consolidation (RC-2) — no new SOK/PendingTriggerKind
+///   variant. `#[serde(default)]` on all new struct fields ensures pre-bump serialized
+///   states/defs deserialize cleanly.
+pub const HASH_SCHEMA_VERSION: u8 = 32;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -960,6 +979,12 @@ impl HashInto for KeywordAbility {
             }
             // DoesNotUntap (discriminant 162) -- CR 502.3 (PB-AC1)
             KeywordAbility::DoesNotUntap => 162u8.hash_into(hasher),
+            // Warp (discriminant 163) -- CR 702.185 (PB-AC5)
+            KeywordAbility::Warp => 163u8.hash_into(hasher),
+            // Transmute (discriminant 164) -- CR 702.53 (PB-AC5)
+            KeywordAbility::Transmute => 164u8.hash_into(hasher),
+            // Exert (discriminant 165) -- CR 701.43 (PB-AC5)
+            KeywordAbility::Exert => 165u8.hash_into(hasher),
         }
     }
 }
@@ -1207,10 +1232,13 @@ impl HashInto for GameObject {
         } else {
             false.hash_into(hasher);
         }
-        // Designations bitfield (Renowned, Suspected, Saddled, Echo, Bestow, Foretold, Suspended, Reconfigured)
+        // Designations bitfield (Renowned, Suspected, Saddled, Echo, Bestow, Foretold, Suspended,
+        // Reconfigured, RingBearer, Solved, Exerted, Warped)
         (self.designations.bits() as u32).hash_into(hasher);
         // Foretell turn number
         self.foretold_turn.hash_into(hasher);
+        // Warp turn number (CR 702.185a/b) — PB-AC5
+        self.warped_turn.hash_into(hasher);
         // Unearth (CR 702.84a) — permanent was returned to battlefield via unearth
         self.was_unearthed.hash_into(hasher);
         // Myriad (CR 702.116a) — token copy must be exiled at end of combat
@@ -2377,6 +2405,10 @@ impl HashInto for ActivationCost {
         // Must be present or two ActivationCosts differing only in exile_self
         // would produce identical hashes (PB-S H1 failure mode).
         self.exile_self.hash_into(hasher);
+        // CR 701.43a/c: exert field — PB-AC5 H2 fix (was omitted). Must be present or
+        // two ActivationCosts differing only in exert would produce identical hashes
+        // (the exact PB-S H1 failure mode the comment above warns about).
+        self.exert.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {
@@ -3175,6 +3207,9 @@ impl HashInto for StackObject {
         self.was_dashed.hash_into(hasher);
         // Blitz (CR 702.152a) — alternative cost paid; haste + draw-on-death + sacrifice trigger
         self.was_blitzed.hash_into(hasher);
+        // Warp (CR 702.185a) — alternative cost paid; end-step delayed trigger exiles the
+        // permanent, recastable from exile on a later turn (PB-AC5 H1 fix — was omitted).
+        self.was_warped.hash_into(hasher);
         // Plot (CR 702.170d) — spell was cast from exile as a plotted card
         self.was_plotted.hash_into(hasher);
         // Prototype (CR 718.3b) — spell was cast as a prototyped spell
@@ -3259,6 +3294,8 @@ impl HashInto for CombatState {
         }
         // CR 509.1h: blocked_attackers -- set at declare-blockers, never cleared
         self.blocked_attackers.hash_into(hasher);
+        // CR 701.43d (PB-AC5): exerted_attackers -- exert choices made during declare-attackers
+        self.exerted_attackers.hash_into(hasher);
     }
 }
 /// TC-23: Explicit hash discriminants for AltCostKind to prevent silent hash changes
@@ -3299,6 +3336,9 @@ impl HashInto for crate::state::types::AltCostKind {
             AltCostKind::CommanderFreeCast => 28,
             // PB-A: Bolas's Citadel pay-life-instead-of-mana cost (CR 118.9)
             AltCostKind::PayLifeForManaValue => 29,
+            // PB-AC5: Warp (CR 702.185) / Pitch (CR 118.9)
+            AltCostKind::Warp => 30,
+            AltCostKind::Pitch => 31,
         };
         disc.hash_into(hasher);
     }
@@ -3376,6 +3416,10 @@ impl HashInto for AdditionalCost {
                 11u8.hash_into(hasher);
                 target.hash_into(hasher);
                 on_top.hash_into(hasher);
+            }
+            AdditionalCost::ExileFromHand { card } => {
+                14u8.hash_into(hasher);
+                card.hash_into(hasher);
             }
         }
     }
@@ -4491,6 +4535,11 @@ impl HashInto for GameEvent {
                 old_targets.hash_into(hasher);
                 new_targets.hash_into(hasher);
             }
+            // PB-AC5: PermanentExerted -- CR 701.43a (discriminant 127)
+            GameEvent::PermanentExerted { object_id } => {
+                127u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -5012,6 +5061,8 @@ impl HashInto for TriggerCondition {
                 filter.hash_into(hasher);
                 on_self.hash_into(hasher);
             }
+            // CR 701.43d / CR 607.2h: linked "when you do" exert trigger — discriminant 44 (PB-AC5)
+            TriggerCondition::WhenExertedAsAttacks => 44u8.hash_into(hasher),
         }
     }
 }
@@ -5231,6 +5282,13 @@ impl HashInto for Cost {
             }
             // CR 118.12 + CR 406 + CR 602.2c: Exile self as activation cost — discriminant 10
             Cost::ExileSelf => 10u8.hash_into(hasher),
+            // PB-AC5: CR 118.9 pitch cost — exile a card of `color` from hand.
+            Cost::ExileFromHand { color } => {
+                11u8.hash_into(hasher);
+                color.hash_into(hasher);
+            }
+            // PB-AC5: CR 701.43 Exert as an activation cost.
+            Cost::Exert => 12u8.hash_into(hasher),
         }
     }
 }
@@ -5329,9 +5387,14 @@ impl HashInto for Effect {
                 8u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
-            Effect::CounterSpell { target } => {
+            Effect::CounterSpell {
+                target,
+                exile_instead,
+            } => {
                 9u8.hash_into(hasher);
                 target.hash_into(hasher);
+                // PB-AC5: exile_instead (CR 701.5f-style Force of Negation clause)
+                exile_instead.hash_into(hasher);
             }
             Effect::TapPermanent { target } => {
                 10u8.hash_into(hasher);
@@ -6137,6 +6200,30 @@ impl HashInto for AbilityDefinition {
                         2u8.hash_into(hasher);
                         power.hash_into(hasher);
                         toughness.hash_into(hasher);
+                    }
+                    // PB-AC5: Warp (CR 702.185) — non-mana warp cost components + graveyard permission.
+                    Some(crate::cards::card_definition::AltCastDetails::Warp {
+                        costs,
+                        from_graveyard,
+                    }) => {
+                        3u8.hash_into(hasher);
+                        (costs.len() as u64).hash_into(hasher);
+                        for c in costs {
+                            c.hash_into(hasher);
+                        }
+                        from_graveyard.hash_into(hasher);
+                    }
+                    // PB-AC5: Pitch (CR 118.9) — alt cost components + opponent's-turn-only gate.
+                    Some(crate::cards::card_definition::AltCastDetails::Pitch {
+                        costs,
+                        opponents_turn_only,
+                    }) => {
+                        4u8.hash_into(hasher);
+                        (costs.len() as u64).hash_into(hasher);
+                        for c in costs {
+                            c.hash_into(hasher);
+                        }
+                        opponents_turn_only.hash_into(hasher);
                     }
                     None => {
                         0u8.hash_into(hasher);

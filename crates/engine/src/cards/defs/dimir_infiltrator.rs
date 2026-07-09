@@ -1,9 +1,11 @@
 // Dimir Infiltrator — {U}{B}, Creature — Spirit 1/3
 // This creature can't be blocked.
 // Transmute {1}{U}{B} — search for card with same mana value, reveal, to hand.
-// TODO: KeywordAbility::Transmute does not exist in the DSL. The transmute activated
-// ability (discard this card + pay mana, search for card with equal mana value) has no
-// corresponding Cost or Effect variant. Leaving transmute unimplemented per W5 policy.
+// PB-AC5: Transmute implemented via KeywordAbility::Transmute (marker) + a normal
+// Cost::Sequence([Mana, DiscardSelf]) activated ability (CR 702.53). Dimir Infiltrator's
+// own mana value ({U}{B} = 2) is a fixed property, so the search filter hardcodes
+// min_cmc = max_cmc = 2 (faithful for this card; a general "same MV as source, dynamic"
+// filter is out of PB-AC5 scope — see plan Risks).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,8 +24,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::CantBeBlocked),
-            // TODO: Transmute is not implemented in the DSL (no KeywordAbility::Transmute,
-            // no mana-value-matching filter for SearchLibrary, no discard-this-card cost).
+            AbilityDefinition::Keyword(KeywordAbility::Transmute),
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost { generic: 1, blue: 1, black: 1, ..Default::default() }),
+                    Cost::DiscardSelf,
+                ]),
+                effect: Effect::SearchLibrary {
+                    player: PlayerTarget::Controller,
+                    filter: TargetFilter { min_cmc: Some(2), max_cmc: Some(2), ..Default::default() },
+                    reveal: true,
+                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    shuffle_before_placing: false,
+                    also_search_graveyard: false,
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
         ..Default::default()
     }

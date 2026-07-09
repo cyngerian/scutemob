@@ -586,6 +586,7 @@ fn test_ring_level_2_loot_trigger_fires_on_attack() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

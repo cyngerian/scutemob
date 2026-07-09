@@ -287,6 +287,13 @@ pub fn translate_player_action(
     // CR 602.2: For `activate_ability` with sacrifice-another-permanent cost. The name of
     // the permanent to sacrifice. `None` for abilities without sacrifice-other cost.
     sacrifice_card_name: Option<&str>,
+    // CR 701.43d / CR 508.1g: For `declare_attackers`, names of declared attackers the
+    // player chooses to exert. Empty for no exert choices or all other action types.
+    exert_names: &[String],
+    // CR 118.9: For `cast_spell_pitch`, the name of the card in hand to exile as (part
+    // of) the pitch alternative cost. `None` for pitch spells with no ExileFromHand
+    // component, or for all other action types.
+    pitch_exile_card_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -541,7 +548,15 @@ pub fn translate_player_action(
             })
         }
         "activate_ability" => {
-            let source_id = find_on_battlefield(state, player, card_name?)?;
+            // PB-AC5: Some activated abilities function from zones other than the
+            // battlefield (Channel/DiscardSelf from hand -- CR 702.34 -- and Transmute
+            // from hand -- CR 702.53a; graveyard-activated abilities like Reassembling
+            // Skeleton). Try battlefield first (the common case), then hand, then
+            // graveyard, so a single harness action covers all activation zones.
+            let name = card_name?;
+            let source_id = find_on_battlefield(state, player, name)
+                .or_else(|| find_in_hand(state, player, name))
+                .or_else(|| find_in_graveyard(state, player, name))?;
             let target_list = resolve_targets(targets, state, players);
             // If the action specifies a discard_card_name (for Blood token activation),
             // resolve it to an ObjectId from the player's hand.
@@ -761,10 +776,16 @@ pub fn translate_player_action(
                 let enlisted_id = find_on_battlefield_by_name(state, &edecl.enlisted)?;
                 enlist_choices.push((attacker_id, enlisted_id));
             }
+            // CR 701.43d / CR 508.1g: Resolve exert declarations to attacker ObjectIds.
+            let exert_choices: Vec<crate::state::ObjectId> = exert_names
+                .iter()
+                .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
+                .collect();
             Some(Command::DeclareAttackers {
                 player,
                 attackers: atk_pairs,
                 enlist_choices,
+                exert_choices,
             })
         }
         // CR 509.1: Declare blockers. Resolve creature names to ObjectIds on the
@@ -914,6 +935,64 @@ pub fn translate_player_action(
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            })
+        }
+        // CR 702.185a: Cast a spell by paying its warp cost. Tries hand (first cast),
+        // then warped-in-exile (recast on a later turn), then graveyard (Timeline
+        // Culler's `from_graveyard` permission) -- in that order.
+        "cast_spell_warp" => {
+            let name = card_name?;
+            let card_id = find_in_hand(state, player, name)
+                .or_else(|| find_warped_in_exile(state, player, name))
+                .or_else(|| find_in_graveyard(state, player, name))?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Warp),
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            })
+        }
+        // CR 118.9: Cast a spell by paying its pitch cost -- exile a card of the
+        // required color from hand (pitch_exile_card_name) instead of paying the mana
+        // cost, optionally combined with a life payment (Force of Will).
+        "cast_spell_pitch" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let pitch_id = pitch_exile_card_name.and_then(|name| find_in_hand(state, player, name));
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Pitch),
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: {
+                    let mut costs = vec![];
+                    if let Some(pid) = pitch_id {
+                        costs.push(AdditionalCost::ExileFromHand { card: pid });
+                    }
+                    costs
+                },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
             })
@@ -2060,6 +2139,7 @@ pub fn enrich_spec_from_def(
                     sacrifice_filter: None,
                     remove_counter_cost: None,
                     exile_self: false,
+                    exert: false,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -3262,6 +3342,27 @@ fn find_plotted_in_exile(
         }
     })
 }
+/// CR 702.185a/b: Find a named warped card in exile owned by the given player.
+///
+/// Warped cards are in ZoneId::Exile with `Designations::WARPED` set. Unlike general
+/// exile (which is a shared zone), warped cards are filtered by owner.
+fn find_warped_in_exile(
+    state: &GameState,
+    player: PlayerId,
+    name: &str,
+) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name
+            && obj.zone == ZoneId::Exile
+            && obj.designations.contains(Designations::WARPED)
+            && obj.owner == player
+        {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
 fn find_on_battlefield(
     state: &GameState,
     controller: PlayerId,
@@ -3443,6 +3544,8 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::Forage => ac.forage = true,
         Cost::ExileSelf => ac.exile_self = true,
         Cost::PayLife(_) => {} // no ActivationCost representation yet
+        Cost::ExileFromHand { .. } => {} // pitch is a spell alt cost, not an activation cost
+        Cost::Exert => ac.exert = true,
         Cost::RemoveCounter { counter, count } => {
             ac.remove_counter_cost = Some((counter.clone(), *count));
         }

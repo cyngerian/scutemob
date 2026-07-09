@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
             // permanents with land filter and "up to" choice.
             effect: Effect::CounterSpell {
                 target: EffectTarget::DeclaredTarget { index: 0 },
+                exile_instead: false,
             },
             targets: vec![TargetRequirement::TargetSpell],
             modes: None,

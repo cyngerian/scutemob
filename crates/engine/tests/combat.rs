@@ -62,6 +62,7 @@ fn test_510_unblocked_attacker_deals_damage_to_player() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -144,6 +145,7 @@ fn test_509_blocked_attacker_no_player_damage() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -223,6 +225,7 @@ fn test_510_mutual_combat_damage_both_die() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -300,6 +303,7 @@ fn test_702_7_first_strike_kills_blocker_before_regular_damage() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -381,6 +385,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -492,6 +497,7 @@ fn test_702_19_trample_excess_to_player() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -582,6 +588,7 @@ fn test_702_deathtouch_with_trample() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -674,6 +681,7 @@ fn test_509_2_multiple_blockers_damage_order() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -798,6 +806,7 @@ fn test_702_19b_trample_multiple_blockers_excess_to_player() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -922,6 +931,7 @@ fn test_702_19d_trample_blockers_removed_before_damage() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -1026,6 +1036,7 @@ fn test_603_self_attacks_trigger_fires() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -1084,6 +1095,7 @@ fn test_903_10a_commander_damage_tracked() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -1160,6 +1172,7 @@ fn test_506_multiplayer_simultaneous_attacks() {
                 (att2_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -1224,6 +1237,7 @@ fn test_508_attack_self_rejected() {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
     assert!(
@@ -1260,6 +1274,7 @@ fn test_508_attack_nonexistent_player_rejected() {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Player(PlayerId(99)))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
     assert!(
@@ -1303,6 +1318,7 @@ fn test_508_attack_own_planeswalker_rejected() {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
     assert!(
@@ -1346,6 +1362,7 @@ fn test_508_attack_opponent_planeswalker_accepted() {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
     assert!(
@@ -1403,6 +1420,7 @@ fn test_509_duplicate_blocker_rejected() {
                 (attacker2_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1470,6 +1488,7 @@ fn test_509_incomplete_blocker_order_rejected() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1551,6 +1570,7 @@ fn test_509_cross_player_block_rejected() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1609,6 +1629,7 @@ fn test_509_redeclare_blockers_rejected() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1701,6 +1722,7 @@ fn test_cc20_first_strike_blocks_double_strike() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -1844,6 +1866,7 @@ fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -1949,6 +1972,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -2045,6 +2069,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -2146,6 +2171,7 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
                 (att_b_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -2267,6 +2293,7 @@ fn test_702_7b_first_strike_snapshot_populated_and_excludes_regular_step() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -2373,6 +2400,7 @@ fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -2503,6 +2531,7 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -2663,6 +2692,7 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
                 (latecomer_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -2809,6 +2839,7 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -2942,6 +2973,7 @@ fn test_sr_trm01_planeswalker_combat_damage_removes_loyalty() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();

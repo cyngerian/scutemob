@@ -81,6 +81,7 @@ fn test_702_154a_enlist_basic_power_addition() {
             player: p1,
             attackers: vec![(enlist_id, AttackTarget::Player(p2))],
             enlist_choices: vec![(enlist_id, vanilla_id)],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with enlist should succeed");
@@ -164,6 +165,7 @@ fn test_702_154a_enlist_no_choice_no_trigger() {
             player: p1,
             attackers: vec![(enlist_id, AttackTarget::Player(p2))],
             enlist_choices: vec![], // No enlist choice
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with no enlist should succeed");
@@ -243,6 +245,7 @@ fn test_702_154a_enlist_enlisted_must_not_be_attacking() {
                 (also_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![(enlist_id, also_id)],
+            exert_choices: vec![],
         },
     );
 
@@ -299,6 +302,7 @@ fn test_702_154a_enlist_summoning_sickness_rejected() {
             player: p1,
             attackers: vec![(enlist_id, AttackTarget::Player(p2))],
             enlist_choices: vec![(enlist_id, sick_id)],
+            exert_choices: vec![],
         },
     );
 
@@ -357,6 +361,7 @@ fn test_702_154a_enlist_summoning_sickness_with_haste_allowed() {
             player: p1,
             attackers: vec![(enlist_id, AttackTarget::Player(p2))],
             enlist_choices: vec![(enlist_id, hasty_id)],
+            exert_choices: vec![],
         },
     )
     .expect("CR 702.154a: enlisting hasty creature with summoning sickness should succeed");
@@ -413,6 +418,7 @@ fn test_702_154c_enlist_cannot_enlist_self() {
             player: p1,
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![(creature_id, creature_id)],
+            exert_choices: vec![],
         },
     );
 
@@ -472,6 +478,7 @@ fn test_702_154_enlist_creature_used_once_only() {
                 (e2_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![(e1_id, big_id), (e2_id, big_id)],
+            exert_choices: vec![],
         },
     );
 
@@ -527,6 +534,7 @@ fn test_702_154a_enlist_multiplayer_four_player() {
             player: p1,
             attackers: vec![(enlist_id, AttackTarget::Player(p2))],
             enlist_choices: vec![(enlist_id, big_id)],
+            exert_choices: vec![],
         },
     )
     .expect("4-player enlist should succeed");

@@ -428,6 +428,7 @@ fn test_protection_from_red_blocks_red_blocker() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

@@ -377,6 +377,7 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -559,6 +560,7 @@ fn test_combat_damage_to_planeswalker_removes_loyalty_cr306_8() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");

@@ -1,9 +1,7 @@
 // Timeline Culler — {B}{B}, Creature — Drix Warlock 2/2
 // Haste
 // You may cast this card from your graveyard using its warp ability.
-// Warp—{B}, Pay 2 life.
-// TODO: DSL gap — Warp is not an implemented AltCostKind variant. The "cast from exile on
-// a later turn" loop and the "exile at next end step" replacement have no DSL support.
+// Warp—{B}, Pay 2 life. (PB-AC5: Warp implemented via AltCostKind::Warp.)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,7 +15,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: Warp {B}, Pay 2 life — not an implemented AltCostKind
+            AbilityDefinition::Keyword(KeywordAbility::Warp),
+            // CR 702.185a: Warp—{B}, Pay 2 life. `from_graveyard: true` grants the
+            // "You may cast this card from your graveyard using its warp ability" permission.
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Warp,
+                cost: ManaCost { black: 1, ..Default::default() },
+                details: Some(AltCastDetails::Warp {
+                    costs: vec![Cost::PayLife(2)],
+                    from_graveyard: true,
+                }),
+            },
         ],
         ..Default::default()
     }

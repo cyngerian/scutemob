@@ -87,6 +87,7 @@ fn test_702_130a_afflict_basic_life_loss() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -175,6 +176,7 @@ fn test_702_130a_afflict_not_blocked_no_trigger() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -252,6 +254,7 @@ fn test_509_3c_afflict_multiple_blockers_single_trigger() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -332,6 +335,7 @@ fn test_702_130b_afflict_multiple_instances_trigger_separately() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -429,6 +433,7 @@ fn test_afflict_multiplayer_correct_defending_player() {
                 (plain_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -526,6 +531,7 @@ fn test_afflict_life_loss_not_damage() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

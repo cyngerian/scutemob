@@ -746,6 +746,7 @@ fn test_exile_self_cost_moves_source_to_exile() {
             targets: vec![],
             cost: ActivationCost {
                 exile_self: true,
+                exert: false,
                 ..Default::default()
             },
             description: "Exile this: Draw a card.".to_string(),
@@ -829,6 +830,7 @@ fn test_exile_self_ability_resolves_after_source_gone() {
             targets: vec![],
             cost: ActivationCost {
                 exile_self: true,
+                exert: false,
                 ..Default::default()
             },
             description: "Exile this: Draw a card.".to_string(),
@@ -918,6 +920,7 @@ fn test_exile_self_with_mana_fails_without_mana() {
                     ..Default::default()
                 }),
                 exile_self: true,
+                exert: false,
                 ..Default::default()
             },
             description: "{3}, Exile this: Draw a card.".to_string(),
@@ -981,11 +984,13 @@ fn test_exile_self_field_participates_in_hash() {
 
     let cost_no_exile = ActivationCost {
         exile_self: false,
+        exert: false,
         ..Default::default()
     };
 
     let cost_with_exile = ActivationCost {
         exile_self: true,
+        exert: false,
         ..Default::default()
     };
 
@@ -1142,6 +1147,7 @@ fn test_balthor_activated_reanimates_black_and_red() {
                     ..Default::default()
                 }),
                 exile_self: true,
+                exert: false,
                 ..Default::default()
             },
             description: "{B}{B}{B}, Exile Balthor the Defiled: Each player returns all black and all red creature cards from their graveyard to the battlefield.".to_string(),

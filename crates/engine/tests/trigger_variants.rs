@@ -541,6 +541,7 @@ fn test_whenever_you_attack_fires_once_per_combat() {
                 (attacker2_id, mtg_engine::AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");

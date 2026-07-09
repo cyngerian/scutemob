@@ -188,6 +188,7 @@ fn test_pbn_attack_filter_subtype_match_fires() {
             player: p1,
             attackers: vec![(dragon_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -242,6 +243,7 @@ fn test_pbn_attack_filter_subtype_mismatch_no_fire() {
             player: p1,
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -295,6 +297,7 @@ fn test_pbn_attack_filter_color_match_fires() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -562,7 +565,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 31u8,
+        HASH_SCHEMA_VERSION, 32u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }
@@ -634,6 +637,7 @@ fn test_pbn_kolaghan_end_to_end() {
             player: p1,
             attackers: vec![(kolaghan_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with Dragon failed");
@@ -699,6 +703,7 @@ fn test_pbn_kolaghan_end_to_end() {
             player: p1,
             attackers: vec![(goblin_id_b, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with Goblin failed");
@@ -806,6 +811,7 @@ fn test_pbn_combat_damage_filter_not_consulted_on_attack_events() {
             player: p1,
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -892,6 +898,7 @@ fn test_utvara_hellkite_dragon_filter() {
             player: p1,
             attackers: vec![(utvara_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers (Dragon) failed");
@@ -935,6 +942,7 @@ fn test_utvara_hellkite_dragon_filter() {
             player: p1,
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers (Goblin) failed");
@@ -1039,6 +1047,7 @@ fn test_sanctum_seeker_flat_gain_4_player() {
             player: p1,
             attackers: vec![(vampire_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");

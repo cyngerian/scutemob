@@ -2,6 +2,7 @@
 // If it's not your turn, you may exile a green card from your hand rather than
 // pay this spell's mana cost.
 // Destroy up to two target artifacts and/or enchantments.
+// PB-AC5: Pitch alt cost implemented via AltCostKind::Pitch.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -12,10 +13,18 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "If it's not your turn, you may exile a green card from your hand rather than pay this spell's mana cost.\nDestroy up to two target artifacts and/or enchantments.".to_string(),
         abilities: vec![
-            // TODO: Pitch alt cost (exile green card from hand not in DSL — AltCostKind gap).
+            // CR 118.9: Pitch — exile a green card from hand instead of the mana cost,
+            // only legal when it's not the caster's turn.
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Pitch,
+                cost: ManaCost::default(),
+                details: Some(AltCastDetails::Pitch {
+                    costs: vec![Cost::ExileFromHand { color: Color::Green }],
+                    opponents_turn_only: true,
+                }),
+            },
             AbilityDefinition::Spell {
                 // CR 601.2c / 115.1b: "Destroy up to two target artifacts and/or enchantments."
-                // UpToN fixed; pitch-cost TODO retained separately.
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },

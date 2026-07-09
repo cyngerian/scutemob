@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                     // Mode 0: Counter target spell.
                     Effect::CounterSpell {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                        exile_instead: false,
                     },
                     // Mode 1: Target player draws two cards.
                     Effect::DrawCards {

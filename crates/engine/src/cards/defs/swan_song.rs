@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
             effect: Effect::Sequence(vec![
                 Effect::CounterSpell {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    exile_instead: false,
                 },
                 Effect::CreateToken {
                     spec: TokenSpec {

@@ -20,8 +20,8 @@
 //! is cast. Spells with no mana cost (e.g., `mana_cost: None`) are cast for free.
 use super::events::GameEvent;
 use crate::cards::card_definition::{
-    AbilityDefinition, CostModifierScope, SelfCostReduction, SpellAdditionalCost, SpellCostFilter,
-    TargetController, TargetRequirement,
+    AbilityDefinition, Cost, CostModifierScope, SelfCostReduction, SpellAdditionalCost,
+    SpellCostFilter, TargetController, TargetRequirement,
 };
 use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::calculate_characteristics;
@@ -88,6 +88,7 @@ pub fn handle_cast_spell(
     let mut gift_opponent: Option<crate::state::PlayerId> = None;
     let mut mutate_target: Option<ObjectId> = None;
     let mut _mutate_on_top: bool = false;
+    let mut exile_from_hand_card: Option<ObjectId> = None;
     for cost in &additional_costs {
         match cost {
             AdditionalCost::Discard(ids) => {
@@ -131,6 +132,9 @@ pub fn handle_cast_spell(
                 mutate_target = Some(*target);
                 _mutate_on_top = *on_top;
             }
+            AdditionalCost::ExileFromHand { card } => {
+                exile_from_hand_card = Some(*card);
+            }
             // Sacrifice: used for Bargain/Emerge/Casualty/Devour/SpellAdditionalCost —
             // extracted later by pattern-matching against `additional_costs` in the sections
             // that need it.
@@ -165,6 +169,12 @@ pub fn handle_cast_spell(
     let cast_with_commander_free = alt_cost == Some(AltCostKind::CommanderFreeCast);
     // PB-A: Bolas's Citadel: pay life equal to mana value instead of mana cost (CR 118.9).
     let cast_with_pay_life = alt_cost == Some(AltCostKind::PayLifeForManaValue);
+    // PB-AC5: CR 702.185a Warp -- alternative cost; cast from hand, or later recast from
+    // exile (after the delayed exile trigger) or graveyard (Timeline Culler only).
+    let cast_with_warp = alt_cost == Some(AltCostKind::Warp);
+    // PB-AC5: CR 118.9 Pitch -- alternative cost; exile a card from hand (+ optional other
+    // non-mana components) instead of paying the mana cost.
+    let cast_with_pitch = alt_cost == Some(AltCostKind::Pitch);
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
@@ -337,6 +347,118 @@ pub fn handle_cast_spell(
             if card_obj.plotted_turn >= state.turn.turn_number {
                 return Err(GameStateError::InvalidCommand(
                     "plot: cannot cast plotted card on the same turn it was plotted (CR 702.170d: 'any turn after the turn in which it became plotted')".into(),
+                ));
+            }
+        }
+        // CR 702.185a: Warp -- allowed from hand (normal cast), from exile (recast, after
+        // the delayed exile trigger warped it there on a prior turn), or from graveyard
+        // (only if the card's own warp ability grants that permission -- Timeline Culler).
+        if cast_with_warp {
+            if casting_from_hand {
+                // Normal warp-from-hand cast; nothing further to validate here.
+            } else if casting_from_exile {
+                if !card_obj.designations.contains(Designations::WARPED) {
+                    return Err(GameStateError::InvalidCommand(
+                        "warp: card was not warped into exile (CR 702.185a/b)".into(),
+                    ));
+                }
+                if card_obj.warped_turn >= state.turn.turn_number {
+                    return Err(GameStateError::InvalidCommand(
+                        "warp: cannot cast warped card on the same turn it was exiled (CR 702.185a: 'after the current turn has ended')".into(),
+                    ));
+                }
+            } else if casting_from_graveyard {
+                let allows_graveyard = card_obj
+                    .card_id
+                    .as_ref()
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .map(|def| {
+                        def.abilities.iter().any(|a| {
+                            matches!(
+                                a,
+                                crate::cards::card_definition::AbilityDefinition::AltCastAbility {
+                                    kind: AltCostKind::Warp,
+                                    details: Some(
+                                        crate::cards::card_definition::AltCastDetails::Warp {
+                                            from_graveyard: true,
+                                            ..
+                                        }
+                                    ),
+                                    ..
+                                }
+                            )
+                        })
+                    })
+                    .unwrap_or(false);
+                if !allows_graveyard {
+                    return Err(GameStateError::InvalidCommand(
+                        "warp: this card's warp ability does not permit casting from the graveyard (CR 702.185a)".into(),
+                    ));
+                }
+            } else {
+                return Err(GameStateError::InvalidCommand(
+                    "warp: card must be in hand, exile (if warped), or graveyard (if the warp ability grants graveyard casting) (CR 702.185a)".into(),
+                ));
+            }
+            // CR 118.9a: only one alternative cost may apply to a spell. Most alt-cost
+            // booleans are mutually exclusive by construction (they all derive from the
+            // single `alt_cost: Option<AltCostKind>` parameter), but flashback, escape,
+            // and madness are auto-detected from zone+keyword regardless of `alt_cost` --
+            // guard against those explicitly (mirrors the Dash/Blitz mutual-exclusion checks).
+            if casting_with_flashback {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine warp with flashback (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+            if casting_with_escape_auto {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine warp with escape (CR 118.9a: only one alternative cost)".into(),
+                ));
+            }
+            if casting_with_madness {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine warp with madness (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+        }
+        // CR 118.9: Pitch -- always cast from hand (the alt cost is exiling a card FROM
+        // hand + optional other components, not a zone change of the spell itself).
+        if cast_with_pitch {
+            if !casting_from_hand {
+                return Err(GameStateError::InvalidCommand(
+                    "pitch: card must be in your hand (CR 118.9)".into(),
+                ));
+            }
+            // Card-text gate: "If it's not your turn..." (Force of Vigor / Negation / Despair).
+            let opponents_turn_only = get_pitch_ability(&card_obj.card_id, &state.card_registry)
+                .map(|(_, opponents_turn_only)| opponents_turn_only)
+                .unwrap_or(false);
+            if opponents_turn_only && state.turn.active_player == player {
+                return Err(GameStateError::InvalidCommand(
+                    "pitch: this card's alternative cost may only be paid when it's not your turn"
+                        .into(),
+                ));
+            }
+            // CR 118.9a: only one alternative cost may apply to a spell (see Warp block
+            // above for why only the auto-detected flags need an explicit check here).
+            if casting_with_flashback {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine pitch with flashback (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+            if casting_with_escape_auto {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine pitch with escape (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+            if casting_with_madness {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine pitch with madness (CR 118.9a: only one alternative cost)"
+                        .into(),
                 ));
             }
         }
@@ -608,6 +730,9 @@ pub fn handle_cast_spell(
             && !has_cast_self_from_graveyard
             // PB-B: CR 601.3 — graveyard-play permission from another permanent
             && !casting_via_graveyard_permission
+            // CR 702.185a: Warp allows hand (default), exile (recast), or graveyard
+            // (Timeline Culler) casts -- already fully validated above.
+            && !cast_with_warp
         // CR 702.146a: Disturb allows graveyard cast
         // CR 702.127a: Aftermath allows graveyard cast
         {
@@ -2459,6 +2584,26 @@ pub fn handle_cast_spell(
         // CR 118.9: Cast without paying mana cost. Cost is zero.
         // CR 118.9d: Additional costs (kicker, splice, etc.) still apply on top.
         Some(ManaCost::default())
+    } else if cast_with_warp {
+        // CR 702.185a: Pay the warp mana cost instead of the printed mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        // The non-mana components (e.g. Pay 2 life) are paid separately below (Step 3).
+        let cost = get_warp_ability(&card_id, &state.card_registry).map(|(mana, _, _)| mana);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has no AltCastAbility { kind: Warp, .. } defined (CR 702.185a)".into(),
+            ));
+        }
+        cost
+    } else if cast_with_pitch {
+        // CR 118.9: Pitch — the mana cost is always {0}; the actual cost is the non-mana
+        // components (exile a card from hand, optionally pay life), paid separately below.
+        if get_pitch_ability(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has no AltCastAbility { kind: Pitch, .. } defined (CR 118.9)".into(),
+            ));
+        }
+        Some(ManaCost::default())
     } else if cast_with_pay_life {
         // PB-A: Bolas's Citadel — pay life equal to mana value instead of mana cost.
         // CR 118.9: Alternative cost. The mana cost is replaced by {0} (free).
@@ -3985,6 +4130,87 @@ pub fn handle_cast_spell(
             });
         }
     }
+    // CR 702.185a / CR 601.2h: Pay the warp cost's non-mana components (e.g. Pay 2 life
+    // for Timeline Culler). The mana component was already paid above via base_cost.
+    if cast_with_warp {
+        if let Some((_, warp_costs, _)) = get_warp_ability(&card_id, &state.card_registry) {
+            for wc in &warp_costs {
+                if let Cost::PayLife(n) = wc {
+                    let player_state = state.player_mut(player)?;
+                    if player_state.life_total < *n as i32 {
+                        return Err(GameStateError::InvalidCommand(
+                            "warp: not enough life to pay the warp cost's life payment (CR 119.4)"
+                                .into(),
+                        ));
+                    }
+                    player_state.life_total -= *n as i32;
+                    events.push(GameEvent::LifeLost { player, amount: *n });
+                }
+            }
+        }
+    }
+    // CR 118.9 / CR 601.2h: Pay the pitch alternative cost's non-mana components — pay
+    // life and/or exile a card of the required color from hand. CR 118.9a: this is the
+    // spell's ENTIRE cost (mana component is {0}); CR 118.9c: the spell's mana value is
+    // unaffected (nothing here touches `chars.mana_cost`).
+    if cast_with_pitch {
+        if let Some((pitch_costs, _)) = get_pitch_ability(&card_id, &state.card_registry) {
+            for pc in &pitch_costs {
+                match pc {
+                    Cost::PayLife(n) => {
+                        let player_state = state.player_mut(player)?;
+                        if player_state.life_total < *n as i32 {
+                            return Err(GameStateError::InvalidCommand(
+                                "pitch: not enough life to pay the alternative cost's life \
+                                 payment (CR 119.4)"
+                                    .into(),
+                            ));
+                        }
+                        player_state.life_total -= *n as i32;
+                        events.push(GameEvent::LifeLost { player, amount: *n });
+                    }
+                    Cost::ExileFromHand { color } => {
+                        let Some(pitch_card_id) = exile_from_hand_card else {
+                            return Err(GameStateError::InvalidCommand(
+                                "pitch: no card was chosen to exile from hand (CR 118.9)".into(),
+                            ));
+                        };
+                        if pitch_card_id == card {
+                            return Err(GameStateError::InvalidCommand(
+                                "pitch: the spell being cast cannot be its own pitch cost \
+                                 (it is on the stack, not in hand) (CR 118.9)"
+                                    .into(),
+                            ));
+                        }
+                        let pitch_obj = state.object(pitch_card_id)?;
+                        if pitch_obj.zone != ZoneId::Hand(player) {
+                            return Err(GameStateError::InvalidCommand(
+                                "pitch: the chosen card is not in your hand (CR 118.9)".into(),
+                            ));
+                        }
+                        let pitch_chars =
+                            crate::rules::layers::calculate_characteristics(state, pitch_card_id)
+                                .unwrap_or_else(|| pitch_obj.characteristics.clone());
+                        if !pitch_chars.colors.contains(color) {
+                            return Err(GameStateError::InvalidCommand(format!(
+                                "pitch: the chosen card is not {color:?} (CR 118.9)"
+                            )));
+                        }
+                        let (new_exile_id, _) =
+                            state.move_object_to_zone(pitch_card_id, ZoneId::Exile)?;
+                        events.push(GameEvent::ObjectExiled {
+                            player,
+                            object_id: pitch_card_id,
+                            new_exile_id,
+                            pre_lba_counters: im::OrdMap::new(),
+                            pre_lba_power: None,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
     // CR 118.8 / CR 601.2h: Pay the mandatory spell additional sacrifice cost.
     // The sacrifice is a real sacrifice (CR 701.21): the permanent goes from
     // battlefield to the owner's graveyard as part of cost payment.
@@ -4303,6 +4529,8 @@ pub fn handle_cast_spell(
         was_dashed: casting_with_dash,
         // CR 702.152a: Record whether this spell was cast by paying its blitz cost.
         was_blitzed: casting_with_blitz,
+        // CR 702.185a: Record whether this spell was cast by paying its warp cost.
+        was_warped: cast_with_warp,
         // CR 702.170d: Record whether this spell was cast from exile as a plotted card.
         was_plotted: casting_with_plot,
         // CR 718.3b: Record whether this spell was cast as a prototyped spell.
@@ -4665,6 +4893,71 @@ fn get_flashback_cost(
                 } = a
                 {
                     Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+/// CR 702.185a: Look up the warp ability's mana cost, non-mana cost components, and
+/// graveyard-cast permission from the card's `AbilityDefinition`.
+///
+/// Returns `Some((mana_cost, non_mana_costs, from_graveyard))`, or `None` if the card
+/// has no `AltCastAbility { kind: AltCostKind::Warp, .. }`.
+fn get_warp_ability(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<(ManaCost, Vec<Cost>, bool)> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Warp,
+                    cost,
+                    details,
+                } = a
+                {
+                    let (costs, from_graveyard) = match details {
+                        Some(crate::cards::card_definition::AltCastDetails::Warp {
+                            costs,
+                            from_graveyard,
+                        }) => (costs.clone(), *from_graveyard),
+                        _ => (vec![], false),
+                    };
+                    Some((cost.clone(), costs, from_graveyard))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+/// CR 118.9: Look up the pitch ability's non-mana cost components and the
+/// opponents'-turn-only gate from the card's `AbilityDefinition`.
+///
+/// Returns `Some((costs, opponents_turn_only))`, or `None` if the card has no
+/// `AltCastAbility { kind: AltCostKind::Pitch, .. }`.
+fn get_pitch_ability(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<(Vec<Cost>, bool)> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Pitch,
+                    details,
+                    ..
+                } = a
+                {
+                    match details {
+                        Some(crate::cards::card_definition::AltCastDetails::Pitch {
+                            costs,
+                            opponents_turn_only,
+                        }) => Some((costs.clone(), *opponents_turn_only)),
+                        _ => Some((vec![], false)),
+                    }
                 } else {
                     None
                 }
@@ -7570,6 +7863,7 @@ mod tests {
             cast_with_jump_start: false,
             cast_with_aftermath: false,
             was_dashed: false,
+            was_warped: false,
             was_blitzed: false,
             was_plotted: false,
             was_prototyped: false,
