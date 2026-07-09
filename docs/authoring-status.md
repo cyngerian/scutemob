@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-08 02:55 UTC  
-**Git:** `d771b795` on `feat/pb-ac3-dynamic-pt-count-amounts-cda-residual`  
+**Generated:** 2026-07-09 01:01 UTC  
+**Git:** `e9025936` on `feat/pb-ac4-modal-optional-targeting`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 54.4% | 951 | · |
-| With TODO markers | 616 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 54.6% | 954 | +3 |
+| With TODO markers | 613 | -3 |
 | Empty `abilities: vec![]` placeholders | 181 | · |
-| Total TODO lines across all defs | 1,107 | +1 |
+| Total TODO lines across all defs | 1,102 | -5 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 481 |
-| last 30 days | 0 | 481 |
-| last 90 days | 14 | 589 |
-| last 1 year | 1,773 | 1,236 |
+| last 7 days | 0 | 512 |
+| last 30 days | 0 | 512 |
+| last 90 days | 14 | 610 |
+| last 1 year | 1,773 | 1,252 |
 
 ## Bonus defs outside the plan
 
@@ -73,7 +73,7 @@ are blocked on engine primitives.
 | `other` | 108 / 131 | 82% | 65 | 43 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 27 | 41 | 0 |
 | `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
-| `body-only` | 55 / 70 | 79% | 23 | 10 | 22 |
+| `body-only` | 55 / 70 | 79% | 24 | 9 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 28 | 0 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
@@ -88,14 +88,14 @@ are blocked on engine primitives.
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 7 | 11 | 0 |
 | `removal-damage-each` | 17 / 17 | 100% | 10 | 7 | 0 |
-| `counter` | 16 / 16 | 100% | 6 | 6 | 4 |
+| `counter` | 16 / 16 | 100% | 7 | 5 | 4 |
 | `removal-exile` | 13 / 14 | 93% | 5 | 2 | 6 |
 | `untap-phase` | 1 / 13 | 8% | 0 | 1 | 0 |
 | `cost-reduction` | 12 / 12 | 100% | 4 | 0 | 8 |
 | `opponent-punish` | 12 / 12 | 100% | 3 | 9 | 0 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 6 | 4 | 1 |
-| `removal-bounce` | 10 / 10 | 100% | 5 | 4 | 1 |
+| `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
 | `static-enchantment` | 0 / 8 | 0% | 0 | 0 | 0 |
 | `discard-effect` | 0 / 7 | 0% | 0 | 0 | 0 |
 | `scry-surveil` | 7 / 7 | 100% | 4 | 2 | 1 |
@@ -169,14 +169,14 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 655 | +1 |
-| DSL gap (unspecified) | 140 | · |
+| OTHER (unclassified) | 651 | -4 |
+| DSL gap (unspecified) | 139 | -1 |
 | attack trigger (self / generic) | 28 | · |
-| Cost::* missing variant | 21 | -1 |
+| Cost::* missing variant | 21 | · |
 | TriggerCondition::* missing variant | 19 | · |
 | replacement effect missing | 18 | · |
 | dynamic hexproof / protection | 17 | · |
-| sacrifice as cost | 16 | +1 |
+| sacrifice as cost | 16 | · |
 | EffectAmount::* missing variant | 15 | · |
 | TargetFilter missing field | 12 | · |
 | interactive / hidden-info choice | 11 | · |
@@ -199,29 +199,32 @@ _…and 33 more buckets totaling 69 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 655 
+Showing 12 of 651 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bonecrusher_giant: // TODO(1): Trigger condition WhenBecomesTargetByOpponent is WRONG — should be
-dark_petition: // TODO: Spell mastery conditional mana bonus ({B}{B}{B} if 2+ instant/sorcery in
-enduring_curiosity: // TODO: Glimmer death return mechanic (becomes non-creature enchantment) not in DSL.
-glimmer_lens: // TODO: "Equipped creature + another attack" trigger not expressible.
-ixhel_scion_of_atraxa: // TODO: Corrupted trigger — "each opponent who has 3+ poison counters exiles top card face down;
-mana_vault: // ENGINE-BLOCKED: "At the beginning of your draw step, if this artifact is tapped, it deals
+bonecrusher_giant: // TODO(2): Effect target is WRONG — should deal 2 damage to "that spell's controller"
+dark_petition: // TODO: Condition::SpellMastery (2+ instant/sorcery in graveyard) not in DSL.
+enduring_vitality: // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
+glimmer_lens: // TODO: For Mirrodin! + equipped attack trigger not expressible.
+izoni_thousand_eyed: // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
+mana_vault: // ENGINE-BLOCKED: "{T}: Add {C}{C}{C}." — per W5 policy (KI-13 class), this mana ability's
 open_the_vaults: // TODO(M10+): Add Aura placement choice so Auras can attach to valid targets.
-rith_liberated_primeval: // TODO: "At the beginning of your end step, if a creature or planeswalker an
-smothering_abomination: // TODO: "At the beginning of your upkeep, sacrifice a creature" — forced sacrifice not expressible.
-teferi_master_of_time: // TODO: "Discard a card" after draw — WheneverYouDiscard gap. Using draw-only.
+roil_elemental: // TODO: Blocker — EffectDuration::WhileYouControlSource variant for "for as long as you
+smothering_tithe: // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
+teferi_master_of_time: // TODO: "−3: phases out" — no Effect::PhaseOut variant.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## Recent card-touching commits
 
 ```
+e9025936 W6-cards: PB-AC4 — fix 2 HIGH card review findings (golgari regenerate, abzan target filter)
+6947ec36 W6-cards: PB-AC4 backfill — migrate modal cards to per-mode targeting
+81fec080 W6-prim: PB-AC4 — per-mode target requirements on ModeSelection (CR 700.2c/700.2f)
 d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutions
 0d274517 W6-prim: PB-AC3 review fix — Mirror Entity AddAllCreatureTypes to Layer 4 (TypeChange)
 0f30d81e W6-prim: PB-AC3 card backfill — Keep Watch, Throne, Mirror Entity, Krenko, CDA residuals + tests
@@ -244,9 +247,6 @@ d7d8062e scutemob-24: PB-XA — card def cleanup + doc comment update
 2ca4c307 scutemob-23: OOS-EWC-2 — Golgari Grave-Troll dynamic ETB counters
 4d9862f6 scutemob-22: PB-XS-E — trigger-side exclude_self for "Whenever another permanent enters"
 9b679fb8 scutemob-21: PB-XS — TargetFilter.exclude_self for "another target X"
-37f77495 scutemob-20: PB-EWC — EntersWithCounters count u32→Box<EffectAmount> (CR 614.1c)
-e7a9a16c scutemob-19: PB-LKI-Power — LKI source-power snapshot for WhenDies/WhenLeavesBattlefield (CR 603.10a)
-f8d7cdf4 scutemob-18: PB-CD — counter-doubling replacement effects (CR 122.6/614.1)
 ```
 
 ## Missing card-defs sidecar
