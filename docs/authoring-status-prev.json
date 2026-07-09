@@ -1,21 +1,21 @@
 {
-  "generated": "2026-07-09 06:15 UTC",
-  "git_head": "bcc96cdf",
+  "generated": "2026-07-09 23:13 UTC",
+  "git_head": "9d98a2b8",
   "total_files": 1748,
-  "total_todos": 1072,
+  "total_todos": 1061,
   "file_buckets": {
-    "clean": 965,
-    "todo": 601,
-    "empty": 182
+    "clean": 970,
+    "todo": 597,
+    "empty": 181
   },
   "todo_classes": {
-    "OTHER (unclassified)": 646,
+    "OTHER (unclassified)": 637,
     "replacement effect missing": 18,
     "X-scaled tokens": 5,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 27,
     "compleated": 1,
-    "DSL gap (unspecified)": 134,
+    "DSL gap (unspecified)": 133,
     "can't / must block-attack": 8,
     "gain / exchange control": 1,
     "can't be countered": 7,
@@ -50,7 +50,6 @@
     "PB-TS (token-count \u2192 EffectAmount)": 1,
     "X-scaled counters": 2,
     "conditional counterspell": 2,
-    "lose-abilities / grant-keyword EOT": 1,
     "you-sacrifice trigger": 2,
     "copy / retained-ability": 2,
     "chosen-color protection": 1,

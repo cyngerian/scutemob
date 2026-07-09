@@ -80,8 +80,10 @@ are deleted, and reviewed by card-batch-reviewer.
 - [x] review (primitive-impl-reviewer → pb-review-AC7.md) — 1 HIGH, 2 MEDIUM, 2 LOW found
 - [x] fix (primitive-impl-runner) — H1, M1, M2 resolved; see "Fix progress" below and
   `memory/primitives/pb-review-AC7.md` "Fix pass" section
-- [ ] backfill (bulk-card-author + card-batch-reviewer)
-- [ ] close
+- [x] backfill (bulk-card-author + card-batch-reviewer) — 5 clean, 2 partial. Card review
+  0 HIGH / 1 MEDIUM (F-VR1) / 4 LOW; the MEDIUM was fixed.
+  `memory/card-authoring/review-pb-ac7-backfill.md`
+- [x] close (2026-07-09) — see "Close-out" at the bottom of this file
 
 ## Fix progress (2026-07-09, primitive-impl-runner)
 
@@ -186,3 +188,134 @@ type override with duration); only `SetCreatureTypes`/`SetCardTypes` and
 - Commit prefix: `W6-prim:` (engine) / `W6-cards:` (backfill)
 - Acceptance criteria: 4395 (primitives+tests), 4396 (review+hash), 4397 (backfill),
   4398 (gates+coverage delta)
+
+---
+
+## Close-out (2026-07-09)
+
+**Scope correction — 2 of the 4 brief-named primitives already existed.** Verified in code
+before implementing, per `feedback_verify_cr_before_implement`:
+- `Effect::LoseAbilities` → `LayerModification::RemoveAllAbilities` already existed
+  (Layer 6, `continuous_effect.rs:311`, applied `layers.rs:1093`). NOT re-added.
+- One-shot Layer-4 type override with duration → `Effect::ApplyContinuousEffect` is
+  already generic over layer + duration. NOT re-added.
+- `TargetFilter` subtype matching already worked (`SubType` is a `String` newtype).
+Net-new: `LayerModification::{SetCreatureTypes, SetCardTypes}` (Layer 4, disc 30/31) and
+`TriggerCondition::WheneverYouCastSpell.spell_subtype_filter`.
+
+**CR correction**: the brief's and plan's `205.1b` is WRONG. **205.1a** is the rule for
+*setting* subtypes/card types ("the new subtype(s) replaces any existing subtypes from the
+appropriate set"). 205.1b is the opposite — the "in addition to its other types" retention
+rule. The runner caught this independently; reviewer confirmed.
+
+**Why `SetTypeLine` was not reused**: it clobbers `chars.supertypes`. Both Darksteel Mutation
+and Kenrith's Transformation rulings explicitly state the enchanted creature KEEPS its
+supertypes (stays Legendary, stays a commander). `SetCreatureTypes`+`SetCardTypes` preserve them.
+
+### Review outcomes
+- Primitive review (`pb-review-AC7.md`): **1 HIGH, 2 MEDIUM, 2 LOW**. All HIGH/MEDIUM fixed.
+  - **H1** — `SetCardTypes` violated CR 205.1a correlated-subtype removal (bare
+    `chars.card_types = new_types.clone()`, never dropping subtypes whose correlated card
+    type was removed). Reachable by all 3 roster Auras. Fixed in the engine arm: added the
+    six CR 205.3 subtype-set statics (`ALL_{ARTIFACT,ENCHANTMENT,LAND,PLANESWALKER,SPELL,
+    BATTLE}_TYPES`) + `correlated_card_types()` classifier in `state/types.rs`; a subtype
+    now survives iff uncorrelated, or a correlated card type is still present.
+  - **M1** — missing CR 613.8 dependency arms. Counterexample: `SetCreatureTypes({Elk})` +
+    `AddSubtypes({Zombie})` is order-dependent. Added 3 payload-aware `depends_on` arms.
+  - **M2** — test gap masking H1 (target had no droppable subtypes). Strengthened.
+  - Verified independently by the worker: reverting the H1 arm makes both new tests FAIL.
+- Card review (`review-pb-ac7-backfill.md`): **0 HIGH, 1 MEDIUM, 4 LOW**. MEDIUM fixed.
+  - **F-VR1** — Vraska −2's `RemoveAllAbilities` + `AddManaAbility` share one timestamp
+    (`ApplyContinuousEffect` reads `state.timestamp_counter` without advancing it), so
+    ordering relied on stable-sort insertion order, untested. Traced and confirmed CORRECT,
+    not merely plausible; locked in with a regression test + comments at both sites warning
+    against replacing the stable sort.
+
+### Engine bug found and fixed (pre-existing, outside declared scope)
+**`ability_index` namespace desync silently skipped cast-trigger filters.** `PendingTrigger.
+ability_index` is a dense index into runtime `characteristics.triggered_abilities`
+(`abilities.rs` `collect_triggers_for_event`), but the cast-trigger post-filter resolved it
+against the raw `CardDefinition::abilities` Vec. They coincide only for single-ability cards.
+On multi-ability cards the lookup landed on a `Keyword`/`Static` ability, fell through the
+`_ => true` catch-all, and `spell_type_filter` / `noncreature_only` / `spell_subtype_filter`
+were **never enforced**.
+
+Shipped-code impact (wrong game state): `monastery_mentor` (`Keyword(Prowess)` at
+`abilities[0]`, `noncreature_only` trigger at `[1]`) created a Monk token on EVERY spell,
+including creature spells. Also broke PB-AC7's own `spell_subtype_filter` on
+`leaf_crowned_visionary`.
+
+Fixed by resolving the filter against the same dense runtime list the trigger was indexed
+from, and populating `TriggeredAbilityDef.triggering_creature_filter` from the CardDef's
+filter fields in `enrich_spec_from_def`. Reused the existing already-hashed field → **no
+HASH_SCHEMA_VERSION bump** for this fix. Regression tests independently verified to FAIL
+against the pre-fix engine.
+
+**User decision**: fix the mechanism in-batch (PB-AC7's primitive is non-functional without
+it); defer the blast-radius audit sweep of other affected cards to a separate task.
+
+### Numbers
+- Tests: 3009 baseline → **3035 passing / 0 failed** (+26).
+- Hash schema: 33 → **34** (the two new `LayerModification` variants). No further bump needed.
+- Clean coverage: **965 → 970 (+5)**, 55.2% → **55.5%**. Matches the 5 clean cards exactly.
+- Gates ALL GREEN, independently re-run by the worker (not taken from agent reports):
+  `cargo build --workspace`, `cargo test --all` (3035/0),
+  `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+- Commits: `1caa8cc1` (engine), `e90a3a2c` (desync fix), `cbcc02d8` (backfill),
+  `ebdbb1f5` (review fixes), `9d98a2b8` (F-VR1).
+
+### Cards
+- **Clean (5)**: kenriths_transformation, eaten_by_piranhas, darksteel_mutation,
+  sram_senior_edificer, leaf_crowned_visionary.
+- **Partial, narrowed markers (2)**: final_showdown (mode 0 authored; mode 1 blocked),
+  vraska_betrayals_sting (−2 authored; −9 and Compleated blocked).
+- Advisory yield was ~14; real discounted yield **5 clean** — consistent with
+  `feedback_pb_yield_calibration` (planners overcount 2-3x).
+
+## Process notes (for the next PB)
+- **Agent reports remain unreliable — verify every gate yourself.** The backfill agent died
+  mid-thought having written 7 card defs and a 17KB test file that had never been compiled;
+  2 of its 5 tests failed. `cargo build --workspace` was green the whole time because
+  **`cargo build` does not compile test targets**. Gate on `cargo test --all`.
+- **Negative-case assertions are what find real bugs.** The `ability_index` desync had gone
+  undetected because no test asserted that a filtered cast-trigger *fails to fire*. Both
+  engine bugs this batch were surfaced by adding negative cases.
+- **`GameStateBuilder` permanents never enter the battlefield**, so
+  `register_static_continuous_effects()` (called only at ETB sites) never runs and
+  `AbilityDefinition::Static` continuous effects silently don't apply. Call it manually in
+  tests. This cost one full debugging cycle; it is a sibling of the `enrich_spec_from_def`
+  naked-object gotcha.
+- **Revert-and-rerun is the cheapest way to prove a test isn't vacuous.** Used it three
+  times this batch (desync fix, H1 arm, F-VR1 ordering); every time it confirmed the test
+  genuinely bound the behavior.
+
+## Residual / follow-up seeds
+- **OOS-AC7-1 (HIGH PRIORITY — recommend a coordinator task at collection)**: blast-radius
+  audit of the `ability_index` desync. The mechanism is fixed, but every card combining a
+  filtered `WheneverYouCastSpell` with a non-Triggered ability earlier in `def.abilities`
+  should get a negative-case regression test: `monastery_mentor`, `vanquishers_banner`,
+  `chulane_teller_of_tales`, `storm_kiln_artist`, and any others found by sweeping.
+- **OOS-AC7-2**: the *same bug class* survives at four more sites, found but NOT fixed
+  (out of scope): (1) `abilities.rs` `WheneverYouSacrifice`/`ControllerSacrifices`
+  post-filter uses `def.abilities.get(t.ability_index)` against a dense-indexed trigger;
+  (2) `abilities.rs` `flush_pending_triggers` modal-mode auto-selection; (3)
+  `resolution.rs` the same modal lookup at resolution time; (4) `mana.rs`
+  `fire_mana_triggered_abilities` pushes a `PendingTriggerKind::Normal` whose
+  `ability_index` is a raw CardDef index. `PendingTriggerKind::Normal` being overloaded to
+  mean two different index spaces is a design smell worth a dedicated fix.
+- **OOS-AC7-3**: `Effect::ApplyContinuousEffect` reads `state.timestamp_counter` without
+  advancing it. Within one resolution this is correct (stable-sort insertion order). Across
+  two *separate* resolutions that land on the same counter value, ordering would fall back
+  to Vec insertion order rather than true CR 613.7 timestamp order. Not reachable today;
+  worth a future investigation.
+- **OOS-AC7-4**: `chosen_subtype_filter` remains unenforced — it is a dynamic per-source
+  condition, not a static `TargetFilter` predicate, so it could not ride the
+  `triggering_creature_filter` reuse. `vanquishers_banner` now correctly narrows to creature
+  spells but still not to the chosen type.
+- **OOS-AC7-5**: `SetCardTypes` ignores the CR 205.1a instant/sorcery retention clause
+  (unreachable for battlefield permanents). LOW.
+- **OOS-AC7-6**: no `Effect` grants poison counters to a player, and no
+  `KeywordAbility::Compleated` exists — together these block Vraska −9 and its Compleated
+  cost. (Related to OOS-AC6-8.)
+- **OOS-AC7-7**: `EffectTarget` has no resolution-time "choose a permanent you control"
+  variant, blocking Final Showdown mode 1.
