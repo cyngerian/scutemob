@@ -2,9 +2,11 @@
 // Flying
 // Whenever a Dragon you control becomes the target of a spell or ability an opponent controls,
 // destroy target nonland permanent that player controls.
-// TODO: DSL gap — "whenever a Dragon you control becomes the target of a spell or ability an
-// opponent controls" requires TriggerCondition::WhenPermanentYouControlBecomesTarget with a
-// subtype filter (Dragon) and opponent-controller restriction; no such trigger exists in DSL.
+// ENGINE-BLOCKED: the effect ("destroy target nonland permanent that player controls") must
+// restrict its target to permanents controlled by the *triggering* opponent. No TargetFilter
+// can scope to the controller of the triggering spell/ability.
+// (The trigger itself is now expressible as TriggerCondition::WhenBecomesTarget
+// { scope: Some(Dragon you control), by_opponent: true, include_abilities: true } — PB-AC6.)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,10 +20,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Whenever a Dragon you control becomes the target of a spell or ability an
-            // opponent controls, destroy target nonland permanent that player controls."
-            // DSL gap: no TriggerCondition for "permanent you control becomes target of opponent
-            // spell/ability". Requires trigger + subtype filter + opponent-scoped permanent target.
+            // ENGINE-BLOCKED: see file header — the trigger is expressible via PB-AC6's
+            // WhenBecomesTarget, but "destroy target nonland permanent THAT PLAYER controls"
+            // cannot scope its target to the triggering spell/ability's controller.
         ],
         ..Default::default()
     }

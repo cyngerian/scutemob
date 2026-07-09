@@ -17,10 +17,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Offspring {
                 cost: ManaCost { generic: 2, ..Default::default() },
             },
-            // TODO: Valiant — Whenever this creature becomes the target of a spell or ability
-            // you control for the first time each turn, Mice you control get +1/+0 until end of turn.
-            // Requires TriggerCondition::WhenBecomesTargetOfYourSpellOrAbility (first time per turn)
-            // and an Effect that buffs all creatures of subtype Mouse you control. Not yet in DSL.
+            // ENGINE-BLOCKED: Valiant needs "targeted by a spell or ability YOU control".
+            // PB-AC6's WhenBecomesTarget.by_opponent is a bool — false means "any controller",
+            // true means "opponent only". There is no you-control-only variant, so authoring
+            // this would also fire on opponents' spells (wrong game state). Needs a
+            // three-way controller scope on WhenBecomesTarget.
         ],
         color_indicator: None,
         back_face: None,

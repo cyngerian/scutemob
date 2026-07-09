@@ -251,7 +251,27 @@
 ///   `TriggerData::DelayedZoneChange` consolidation (RC-2) — no new SOK/PendingTriggerKind
 ///   variant. `#[serde(default)]` on all new struct fields ensures pre-bump serialized
 ///   states/defs deserialize cleanly.
-pub const HASH_SCHEMA_VERSION: u8 = 32;
+/// - 33: PB-AC6 (2026-07-09) — Phase & opponent-action conditions. New
+///   `TriggerCondition` variants `AtBeginningOfFirstMainPhase` (disc 45),
+///   `AtBeginningOfPostcombatMain` (disc 46), `WhenBecomesTarget { scope, by_opponent,
+///   include_abilities }` (disc 47, CR 601.2c/602.2b/603.2). New `Condition` variants
+///   `YouAttackedThisTurn` (disc 43, Raid/CR 508.1), `CreatedATokenThisTurn` (disc 44,
+///   CR 111.10), `OpponentCastNSpells(u32)` (disc 45), `SpellMastery` (disc 46, CR
+///   207.2c ability word), `OpponentControlsMoreLandsThanYou` (disc 47). New
+///   `TriggerEvent::PermanentBecomesTarget { scope, by_opponent, include_abilities }`
+///   (disc 47) dispatched inline from the `GameEvent::PermanentTargeted` handler
+///   (announcement-time, CR 601.2c), alongside the existing Ward dispatch. New
+///   `PlayerState` fields: `attacked_this_turn: bool` (set in
+///   `handle_declare_attackers`), `created_token_this_turn: bool` (set at the single
+///   `add_object` token chokepoint), `spells_cast_this_game_turn: u32` (incremented at
+///   all 5 sites that increment `spells_cast_this_turn` -- casting.rs, resolution.rs
+///   x2, copy.rs x2 -- but reset for ALL players each turn boundary, unlike
+///   `spells_cast_this_turn` which is deliberately reset only for the incoming active
+///   player for storm scoping; see OOS-AC6-1). All three fields hashed in `impl
+///   HashInto for PlayerState` and reset in the all-players loop of
+///   `reset_turn_state`. `#[serde(default)]` on all new fields ensures pre-bump
+///   serialized states/defs deserialize cleanly.
+pub const HASH_SCHEMA_VERSION: u8 = 33;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1414,6 +1434,12 @@ impl HashInto for PlayerState {
         self.ring_level.hash_into(hasher);
         // CR 701.54a: ring-bearer ObjectId for this player.
         self.ring_bearer_id.hash_into(hasher);
+        // PB-AC6 / CR 508.1 (Raid): whether this player attacked this turn.
+        self.attacked_this_turn.hash_into(hasher);
+        // PB-AC6 / CR 111.10: whether this player created a token this turn.
+        self.created_token_this_turn.hash_into(hasher);
+        // PB-AC6: spells cast this turn, reset for ALL players (unlike spells_cast_this_turn).
+        self.spells_cast_this_game_turn.hash_into(hasher);
     }
 }
 /// CR 309.4: Hash dungeon identifier as a stable discriminant byte.
@@ -2518,6 +2544,17 @@ impl HashInto for TriggerEvent {
             TriggerEvent::AnyPermanentUntaps => 45u8.hash_into(hasher),
             // CR 122.6/122.7: counter(s) placed on a permanent — discriminant 46 (PB-AC1)
             TriggerEvent::CounterPlaced => 46u8.hash_into(hasher),
+            // CR 601.2c/602.2b/603.2: permanent becomes the target of a spell/ability — discriminant 47 (PB-AC6)
+            TriggerEvent::PermanentBecomesTarget {
+                scope,
+                by_opponent,
+                include_abilities,
+            } => {
+                47u8.hash_into(hasher);
+                scope.hash_into(hasher);
+                by_opponent.hash_into(hasher);
+                include_abilities.hash_into(hasher);
+            }
         }
     }
 }
@@ -5063,6 +5100,21 @@ impl HashInto for TriggerCondition {
             }
             // CR 701.43d / CR 607.2h: linked "when you do" exert trigger — discriminant 44 (PB-AC5)
             TriggerCondition::WhenExertedAsAttacks => 44u8.hash_into(hasher),
+            // CR 505.1a/603.2b: "At the beginning of your first main phase" — discriminant 45 (PB-AC6)
+            TriggerCondition::AtBeginningOfFirstMainPhase => 45u8.hash_into(hasher),
+            // CR 505.1a/603.2b: "At the beginning of your postcombat main phase" — discriminant 46 (PB-AC6)
+            TriggerCondition::AtBeginningOfPostcombatMain => 46u8.hash_into(hasher),
+            // CR 601.2c/602.2b/603.2: "Whenever ~ becomes the target of a spell/ability" — discriminant 47 (PB-AC6)
+            TriggerCondition::WhenBecomesTarget {
+                scope,
+                by_opponent,
+                include_abilities,
+            } => {
+                47u8.hash_into(hasher);
+                scope.hash_into(hasher);
+                by_opponent.hash_into(hasher);
+                include_abilities.hash_into(hasher);
+            }
         }
     }
 }
@@ -5239,6 +5291,19 @@ impl HashInto for Condition {
             Condition::TopCardIsCreatureOfChosenType => 41u8.hash_into(hasher),
             // PB-B: "if you gained life this turn" — Oathsworn Vampire (discriminant 42)
             Condition::ControllerGainedLifeThisTurn => 42u8.hash_into(hasher),
+            // PB-AC6 / Raid, CR 508.1: "if you attacked this turn" (discriminant 43)
+            Condition::YouAttackedThisTurn => 43u8.hash_into(hasher),
+            // PB-AC6 / CR 111.10: "if you created a token this turn" (discriminant 44)
+            Condition::CreatedATokenThisTurn => 44u8.hash_into(hasher),
+            // PB-AC6: "if an opponent cast N or more spells this turn" (discriminant 45)
+            Condition::OpponentCastNSpells(n) => {
+                45u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // PB-AC6 / Spell mastery ability word, CR 207.2c (discriminant 46)
+            Condition::SpellMastery => 46u8.hash_into(hasher),
+            // PB-AC6: "if an opponent controls more lands than you" (discriminant 47)
+            Condition::OpponentControlsMoreLandsThanYou => 47u8.hash_into(hasher),
         }
     }
 }

@@ -1,224 +1,245 @@
 ---
-pb: PB-AC4
-title: Modal & optional targeting
+pb: PB-AC6
+title: Phase & opponent-action conditions
 phase: close
-plan_file: memory/primitives/pb-plan-AC4.md
-review_file: memory/primitives/pb-review-AC4.md
+plan_file: memory/primitives/pb-plan-AC6.md
+review_file: memory/primitives/pb-review-AC6.md
 ---
 
-# PB-AC4 — Modal & optional targeting
+# PB-AC6 — Phase & opponent-action conditions
 
-## Scope (from task brief, campaign-plan §2 PB-AC4 row)
-1. **Per-mode `TargetRequirement` on `ModeSelection`** — each mode carries its own
-   target requirements; targets are chosen only for the *chosen* modes (CR 601.2c).
-   Wire through casting (target selection at cast time) and resolution
-   (per-mode target lookup, illegal-target handling per CR 608.2b).
-2. **Optional / `UpToN` target slots** — `TargetRequirement::UpToN` ALREADY EXISTS
-   (shipped by PB-T, `card_definition.rs:2599`). **Do not re-implement.** Verify the
-   full chain (cast-time min/max enforcement → resolution → fizzle rules) and extend
-   only real residual gaps found by tracing that chain.
+## Scope (task scutemob-49, campaign-plan §2 PB-AC6 row)
 
-## Existing modal infra — STUDY BEFORE ADDING FIELDS
-- `ModeSelection { min_modes, max_modes, modes: Vec<Effect>, allow_duplicate_modes,
-  mode_costs: Option<Vec<ManaCost>> }` — `card_definition.rs:3397`
-- `modes_chosen` on `CastSpell` + `StackObject` (Batch 11, Modal Choice CR 700.2)
-- Spree `mode_costs`; Fuse; Escalate `escalate_modes`
+**3 new `TriggerCondition` variants:**
+1. `AtBeginningOfFirstMainPhase` — needs a generic CardDef sweep in turn
+   structure code, analogous to the existing `upkeep_actions()` /
+   `end_step_actions()` sweeps. **The B9 lesson**: hardcoded keyword-only sweeps
+   silently drop CardDef triggers.
+2. `AtBeginningOfPostcombatMain` — ditto. Must distinguish FIRST main from
+   postcombat main precisely (CR 505.1).
+3. `WhenBecomesTarget` — fires on **ANNOUNCEMENT** of the targeting spell/ability
+   (CR 603.2), NOT on resolution.
 
-## CR refs (VERIFY via mtg-rules MCP — advisory only)
-- 601.2c (announce targets; "up to N"), 700.2 (modal spells), 700.2d (duplicate modes),
-  608.2b (illegal targets on resolution), 115.x (targeting)
+**5 new `Condition` variants:**
+1. `YouAttackedThisTurn`
+2. `CreatedATokenThisTurn`
+3. `OpponentCastNSpells`
+4. `SpellMastery` — an **ability word** (two or more instants/sorceries in your
+   graveyard), not a keyword ability
+5. `OpponentControlsMoreLandsThanYou`
 
-## Roster (planner derives the REAL list)
-Grep card defs for BOTH `// TODO` and `// ENGINE-BLOCKED` markers citing modal /
-mode-target / up-to-N / optional-target patterns. Discounted yield ~20 cards.
-Card rosters in the plan doc are advisory — oracle text via MCP is authoritative.
+## CR refs — ADVISORY ONLY, verify each via mtg-rules MCP
+500 (turn structure), 505.1 (main phase), 603.2 (triggered abilities /
+becomes-target timing), 700.2 (modal). Do **not** grep the CR file: it has bare
+`\r` line endings, so rule-number greps silently match nothing. Use the
+mtg-rules MCP for all CR verification.
 
 ## Hazards (from task brief)
-1. Verify KW/AbilDef/SOK discriminant chain from *current code* before adding variants.
-2. New struct fields / mutable runtime fields MUST be added to `state/hash.rs` HashInto
-   impls (PB-AC1 review HIGH was exactly this — `ModeSelection` changes are hash-relevant;
-   bump `HASH_SCHEMA_VERSION` + update the sentinel in all test files).
-3. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs` AND
-   `tools/replay-viewer/src/view_model.rs` (StackObjectKind + KeywordAbility) —
-   verify with `cargo build --workspace` after every impl phase.
-4. Do NOT commit phantom `.claude/skills/*` deletions that appear in fresh worktrees.
-5. Harness: new cast/target actions may need `script_schema.rs` + `translate_player_action`
-   wiring.
-6. Load `memory/gotchas-rules.md` before planning — this batch touches casting/targeting.
+1. **NEW MUTABLE TRACKING FIELDS are the core of this batch.** Every one MUST be
+   added to `state/hash.rs` `HashInto` impls AND get a correct turn-boundary
+   reset. This exact omission was a review HIGH in **both PB-AC1 and PB-AC5**
+   (twice!). Mutation-verify the hash tests — flip each field, assert the hash
+   actually changes.
+2. Verify the KW/AbilDef/SOK discriminant chain from *current code* before adding
+   variants — do not trust remembered numbers.
+3. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs`
+   (`StackObjectKind`) and `tools/replay-viewer/src/view_model.rs`
+   (`StackObjectKind` + `KeywordAbility`). Run `cargo build --workspace` after
+   every impl phase — runners miss this ~50% of the time.
+4. Harness: new trigger conditions may need `script_schema.rs` /
+   `translate_player_action` wiring.
+5. Do NOT commit phantom `.claude/skills/*` deletions that appear in fresh
+   worktrees (restored at session start).
+6. Load `memory/gotchas-rules.md` before planning — this batch touches turn
+   structure, triggers, and targeting.
+
+## Implementation pointers
+- This-turn trackers need new `GameState`/`PlayerState` fields.
+  `previous_turn_spells_cast` (Daybound) already exists — study its reset pattern.
+- `OpponentControlsMoreLandsThanYou` battlefield counts must respect
+  `is_phased_in()` and W3-LC `calculate_characteristics()` discipline.
+
+## Roster
+Discounted yield ~18 cards. The **planner** identifies the real roster from
+oracle text — grep card defs for BOTH `// TODO` and `// ENGINE-BLOCKED` markers
+citing main-phase / becomes-target / spell-mastery / attacked-this-turn /
+token-this-turn / opponent-cast / land-count patterns. Card rosters in plan docs
+are advisory; oracle text via MCP is authoritative.
+
+## Close includes backfill
+PB is not done until every unblocked card is re-authored and its stale markers
+are deleted.
 
 ## Phases
-- [x] plan  (primitive-impl-planner → pb-plan-AC4.md, 2026-07-08)
-- [x] implement (primitive-impl-runner, 2026-07-08)
-  - **Engine field**: `ModeSelection.mode_targets: Option<Vec<Vec<TargetRequirement>>>`
-    added to `crates/engine/src/cards/card_definition.rs` (after `mode_costs`, with
-    `#[serde(default)]` + author-invariant doc comment: length == `modes.len()`,
-    `Spell.targets` must be empty when `Some`, no nested `UpToN`).
-  - **Hash**: `crates/engine/src/state/hash.rs` — `impl HashInto for ModeSelection` hashes
-    the new field (nested `Option<Vec<Vec<TargetRequirement>>>`, len-prefixed per inner
-    vec). `HASH_SCHEMA_VERSION` bumped 30→31 with changelog entry. Updated the
-    `HASH_SCHEMA_VERSION, 30u8` sentinel to `31u8` in all 20 test files that assert it
-    (mechanical `sed`, verified via grep afterward — 0 remaining `, 30u8` references).
-  - **Cast-time validation** (`crates/engine/src/rules/casting.rs`): moved the
-    `validated_modes_chosen` computation (previously ~line 4071, well after target
-    validation) to BEFORE the target-requirements lookup (~line 3341), since per-mode
-    target validation needs the fully-validated ascending-sorted chosen-mode list. Added
-    `mode_selection_opt` lookup (fetches `ModeSelection` regardless of whether
-    `modes_chosen` is empty, so `mode_targets` is available for the auto-select-mode-0 and
-    entwine paths too) and `mode_targets_active: Option<Vec<TargetRequirement>>` (computes
-    `concat(mode_targets[m] for m in chosen-mode order)` — covers Entwine [all modes],
-    explicit `validated_modes_chosen`, and auto-select-mode-0; Escalate + `mode_targets` is
-    an undocumented/unsupported combination, flagged in a code comment per
-    "implement-phase default-to-defer" — no AC4-scoped card uses it). When
-    `mode_targets_active` is `Some`, validates targets via a NEW positional path instead of
-    the flat best-fit path (author-invariant checks: `Spell.targets` must be empty, no
-    `UpToN` inside `mode_targets`).
-  - **New functions** (`casting.rs`): `validate_targets_positional` (exact-count +
-    positional req-for-target mapping — required because slice offsets depend on
-    declaration order matching `mode_targets` order, NOT best-fit reassignment) and
-    `validate_mapped_targets` (extracted shared tail of `validate_targets_inner`: the
-    per-target protection/hexproof/type-check loop, now reused by both the best-fit and
-    positional paths).
-  - **Resolution per-mode slicing** (`crates/engine/src/rules/resolution.rs`): refactored
-    the mode-dispatch block to first compute `chosen_mode_indices: Vec<usize>` (the
-    ascending index list itself, not resolved effects) via the same Entwine/explicit
-    `modes_chosen`/Escalate/auto-mode-0 priority order as before (byte-identical
-    selection semantics — verified via full regression pass). `effects_to_run` is now only
-    used when `mode_targets.is_none()` (legacy path, unchanged). When
-    `mode_targets.is_some()`, the effect-execution loop instead iterates
-    `chosen_mode_indices`, slicing the RAW `stack_obj.targets` (NOT the pre-filtered
-    `legal_targets`) per chosen mode using a running `offset`, setting `ctx.targets` to
-    each mode's local slice before executing `modes.modes[idx]`. This sidesteps the
-    pre-existing `legal_targets` compaction hazard (documented in the plan) — illegal
-    targets are instead skipped per-target inside `resolve_effect_target_list_indexed`'s
-    existing object/player-existence check, which is CR-equivalent to the CR 608.2b
-    zone-match check since any zone change kills the old `ObjectId` (CR 400.7). The
-    pre-existing whole-spell "all targets illegal → fizzle" check (earlier in
-    `resolve_top_of_stack`, on the flat `stack_obj.targets`) is untouched and still runs
-    first — full fizzle behaves identically for `mode_targets` spells.
-  - **Card defs (mechanical only, no card-logic changes)**: added `mode_targets: None,` to
-    all 36 existing `ModeSelection { ... }` struct literals in `crates/engine/src/cards/defs/`
-    (found via `grep -rl "ModeSelection {"`) so they keep compiling under the new required
-    field. Also fixed the same pattern in 6 pre-existing test files that construct
-    `ModeSelection` literals: `modal.rs` (4 sites), `entwine.rs`, `spree.rs`, `escalate.rs`
-    (1 site each). **No card oracle-text/DSL logic was changed** — `cryptic_command.rs`
-    (which uses `modes: None`, a stub) was untouched, confirming the mechanical-only scope
-    was respected. Card backfill (migrating `izzet_charm`, `casualties_of_war`,
-    `cryptic_command`, `abzan_charm`, `blessed_alliance`, etc. to actually USE
-    `mode_targets`) is deferred to the `backfill` phase per task scope.
-  - **Tests**: new file `crates/engine/tests/pb_ac4_per_mode_targeting.rs` — 10 tests, all
-    citing CR rules: `test_601_2c_modal_targets_only_for_chosen_mode` (Casualties-of-War
-    wrong-game-state fix — castable choosing 1 mode when other modes' target types don't
-    exist on the battlefield), `test_700_2c_unchosen_mode_targets_not_required`,
-    `test_601_2c_wrong_type_target_rejected_per_mode` (positional type check),
-    `test_700_2f_two_modes_two_targets_sliced_independently` (no cross-mode
-    contamination), `test_608_2b_modal_partial_illegal_target_skips_only_that_mode`,
-    `test_608_2b_modal_all_targets_illegal_fizzles`,
-    `test_700_2d_duplicate_modes_independent_target_slices`,
-    `test_ac4_hash_distinguishes_mode_targets` (+ live `HASH_SCHEMA_VERSION == 31`
-    sentinel), `test_ac4_backward_compat_mode_targets_none_unaffected`,
-    `test_700_2c_multiplayer_choose_subset_across_opponents` (4-player). All use synthetic
-    test-only `CardDefinition`s (`Modal Strike`, `Duplicate Destroy`, `Legacy Modal Spell`,
-    `Mandatory Destroy Creature`) per task scope (no real card defs modified beyond the
-    mechanical `mode_targets: None` backfill).
-  - **Deviations from plan**: none substantive. The plan's design (field-only, no new
-    discriminants, resolution-time per-mode slicing over raw `stack_obj.targets`) was
-    followed exactly, including the two rejected-alternative call-outs (no `Mode` struct
-    replacing `modes: Vec<Effect>`; no global-slot-index sparse representation). One
-    addition beyond the plan's literal step list: extracted `validate_mapped_targets` as a
-    shared helper (not explicitly named in the plan) to avoid duplicating the
-    protection/hexproof/type-check loop between the best-fit and positional validators —
-    a refactor-only, zero-behavior-change addition, not new primitive surface.
-  - **Gates**: `cargo build --workspace` clean (confirmed 0 new match arms needed in
-    `tools/tui/src/play/panels/stack_view.rs` / `tools/replay-viewer/src/view_model.rs`,
-    per the plan's prediction — no new enum variants were added). `cargo test --all`:
-    2950 passed / 0 failed (2940 baseline + 10 new; all pre-existing modal/entwine/
-    spree/escalate/UpToN regression suites re-verified green). `cargo clippy --all-targets
-    -- -D warnings` clean. `cargo fmt --check` clean.
-- [x] review (primitive-impl-reviewer → pb-review-AC4.md, 2026-07-08) — verdict needs-fix:
-  1 MEDIUM + 3 LOW findings (no HIGH).
-- [x] fix (primitive-impl-runner, 2026-07-08)
-  - **Finding 1 (MEDIUM)** — Escalate + `ModeSelection.mode_targets` not fail-safe (cast-time
-    `mode_targets_active` had no Escalate branch; resolution's `chosen_mode_indices` did,
-    which would silently under-resolve escalated modes past 0 with empty target slices).
-    **Fixed**: hard-rejected the combination at cast time
-    (`crates/engine/src/rules/casting.rs:3526-3530`) —
-    `if mode_targets_active.is_some() && escalate_modes > 0 { return
-    Err(GameStateError::InvalidCommand("Escalate combined with ModeSelection.mode_targets is
-    not supported (CR 700.2c/702.120a)")) }`, placed after `mode_targets_active` is computed
-    and before mana payment. New test
-    `test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast`
-    (`crates/engine/tests/pb_ac4_per_mode_targeting.rs`, new "Escalate Modal Strike" card def)
-    asserts the rejection AND that the identical card casts/resolves normally without
-    Escalate paid (proves the reject is scoped to the Escalate combination only).
-  - **Finding 2 (LOW)** — `.expect()` in engine logic at `resolution.rs:446` (provably
-    unreachable but violated the no-`expect()` convention). **Fixed**: restructured to
-    nested `if let Some(modes_ref) = spell_modes.as_ref() { if let Some(mode_targets) =
-    modes_ref.mode_targets.as_ref() { ... } else { <effects_to_run fallback> } } else {
-    <effects_to_run fallback> }` (`resolution.rs:441-486`) — both fallback arms preserve the
-    original `effects_to_run` loop behavior.
-  - **Finding 3 (LOW)** — `mode_targets.len() == modes.len()` author invariant documented but
-    unenforced at `casting.rs:3497` / `resolution.rs:450`. **Fixed**: added
-    `debug_assert_eq!(mt.len(), ms.modes.len(), ...)` at both the cast-time
-    (`casting.rs:3491-3498`) and resolution-time (`resolution.rs:449-456`) sites, matching
-    the engine's existing `debug_assert!`-plus-fail-safe-fallback pattern (e.g.
-    `layers.rs:1731`, `abilities.rs:8001`). Release builds keep the pre-existing
-    `unwrap_or_default()`/`unwrap_or(0)` fallback — no panic possible outside debug/test
-    builds.
-  - **Finding 4 (LOW)** — existence-vs-zone-match route-around; reviewer's own verdict was
-    "Fix (optional): none required." **Deferred/note-only** — no code change; documentation
-    already present in-code per the review.
-  - **Concern 5** (other author invariants: no nested `UpToN` in `mode_targets`;
-    `Spell.targets` empty when `mode_targets` is `Some`) — verified already hard-enforced at
-    cast time (`casting.rs:3513-3525`, pre-existing from the implement phase); no action
-    needed.
-  - **Gates**: `cargo build --workspace` clean (0 new match-arm gaps — no new enum variants
-    were introduced by the fix phase). `cargo test --all` (mtg-engine crate): **2951 passed /
-    0 failed** (2950 implement-phase baseline + 1 new Finding-1 regression test).
-    `cargo clippy --all-targets -- -D warnings` clean. `cargo fmt --check` clean.
-- [x] backfill (bulk-card-author + card-batch-reviewer, 2026-07-08)
-  - **Migrated to `mode_targets`** (11): `casualties_of_war` (was **UNCASTABLE** — the
-    flat-union validator demanded a target for all 5 modes), `cryptic_command` and
-    `archmages_charm` (both replaced `Effect::Nothing` stubs; `archmages_charm` mode 2
-    gain-control turned out to be fully expressible via existing `Effect::GainControl` +
-    `TargetFilter.max_cmc`/`.non_land`, contradicting the plan's "likely blocked" guess),
-    `izzet_charm`, `boros_charm`, `golgari_charm`, `rakdos_charm`, `evolution_charm`,
-    `archdruids_charm`, `abzan_charm`, `incendiary_command`.
-  - **UpToN stale-TODO cleanup, card-only** (2): `bridgeworks_battle`, `skullsnatcher`.
-  - **Deliberately NOT migrated** (2): `blessed_alliance`, `collective_resistance` — the
-    fix-phase Escalate + `mode_targets` hard-reject would make multi-mode Escalate casts
-    uncastable. Left on the flat-target path with precise `ENGINE-BLOCKED` markers. This
-    is the correct call, independently confirmed by the card-batch-reviewer.
-  - New `crates/engine/tests/pb_ac4_card_integration.rs` — 6 real-card tests (incl. the
-    `casualties_of_war` subset-castable regression guard).
-  - **card-batch-reviewer**: 2 HIGH / 0 MEDIUM / 5 LOW → `memory/card-authoring/review-pb-ac4-backfill.md`.
-    Both HIGH **FIXED**: (H1) `golgari_charm` mode 2 was a no-op `Sequence(vec![])` behind a
-    marker falsely claiming no bulk-regenerate variant exists — `Effect::Regenerate` resolves
-    a target *list*, so it was expressible all along (cast vs. a board wipe, it protected
-    nothing); (H2) `abzan_charm` mode 2 wrongly restricted "one or two target creatures" to
-    `TargetController::You`, making opponents' creatures illegal targets. Reviewer confirmed
-    the highest-risk class — stale GLOBAL `DeclaredTarget` indices after migration — is clean
-    across all 11 cards.
-  - Residual gaps documented, NOT approximated: abzan counter-split distribute,
-    incendiary wheel effect, skullsnatcher triggered-`UpToN` auto-select-0.
-  - Authoring-report: clean 951→954 (+3), 54.4%→54.6%. (Modest vs the ~20 discounted
-    estimate — most migrated charms keep honest residual markers, so they remain `todo`.)
-- [x] close (2026-07-08) — all 4 acceptance criteria satisfied; gates independently
-      re-verified by the worker rather than taken from agent reports: `cargo build
-      --workspace` clean, `cargo test --all` **2957 passed / 0 failed** (2940 baseline,
-      +17), `cargo clippy --all-targets -- -D warnings` clean (this caught a
-      `doc_lazy_continuation` error the backfill agent's own gate run missed),
+- [x] plan (primitive-impl-planner → pb-plan-AC6.md)
+- [x] implement (primitive-impl-runner, 2026-07-09)
+  - **PLAN CORRECTION APPLIED** (per task brief, overrides plan Change 10): added
+    a dedicated `PlayerState::spells_cast_this_game_turn: u32`, reset for ALL
+    players in `reset_turn_state` (NOT the storm-scoped `spells_cast_this_turn`,
+    which is deliberately reset only for the incoming active player). Verified in
+    code: `turn_actions.rs` resets `spells_cast_this_turn` only for the incoming
+    active player (storm scoping); reading it for a non-active opponent would
+    accumulate across intervening turns — rejected as wrong game state.
+  - **DEVIATION FROM PLAN**: the plan's correction cited 4 increment sites
+    (`resolution.rs:5133`, `resolution.rs:5787`, `copy.rs:462`, `copy.rs:688`).
+    Grepped ALL `spells_cast_this_turn +=`/`saturating_add` sites and found a
+    **5th, uncited site**: `casting.rs:4709` — the PRIMARY normal-cast path (every
+    ordinary `CastSpell`). The plan's 4 sites are all secondary/free-cast paths
+    (cipher, suspend, cascade, discover). Incremented
+    `spells_cast_this_game_turn` at all 5 sites; omitting `casting.rs:4709` would
+    have made `OpponentCastNSpells` never fire for ordinary spell casts — the
+    single most common case. Flagged for reviewer verification.
+  - **Engine changes**:
+    - `state/player.rs`: +3 `PlayerState` fields — `attacked_this_turn: bool`,
+      `created_token_this_turn: bool`, `spells_cast_this_game_turn: u32`.
+    - `state/builder.rs`: init all 3 fields to `false`/`false`/`0`.
+    - `state/hash.rs`: hash all 3 new `PlayerState` fields; `HASH_SCHEMA_VERSION`
+      32→33 + changelog entry; hash arms for `TriggerCondition` disc 45
+      (`AtBeginningOfFirstMainPhase`), 46 (`AtBeginningOfPostcombatMain`), 47
+      (`WhenBecomesTarget`); `Condition` disc 43-47 (`YouAttackedThisTurn`,
+      `CreatedATokenThisTurn`, `OpponentCastNSpells`, `SpellMastery`,
+      `OpponentControlsMoreLandsThanYou`); `TriggerEvent` disc 47
+      (`PermanentBecomesTarget`). Updated the `HASH_SCHEMA_VERSION, 32u8`
+      sentinel to `33u8` in 24 test files (grep-and-replace).
+    - `cards/card_definition.rs`: +3 `TriggerCondition` variants
+      (`AtBeginningOfFirstMainPhase`, `AtBeginningOfPostcombatMain`,
+      `WhenBecomesTarget { scope: Option<Box<TargetFilter>>, by_opponent,
+      include_abilities }` — `scope` boxed per clippy `large_enum_variant`); +5
+      `Condition` variants (`YouAttackedThisTurn`, `CreatedATokenThisTurn`,
+      `OpponentCastNSpells(u32)`, `SpellMastery`,
+      `OpponentControlsMoreLandsThanYou`).
+    - `state/game_object.rs`: +1 `TriggerEvent::PermanentBecomesTarget { scope:
+      Option<Box<TargetFilter>>, by_opponent, include_abilities }` (boxed, same
+      clippy reason).
+    - `rules/turn_actions.rs`: `execute_turn_based_actions` +
+      `Step::PostCombatMain => Ok(postcombat_main_actions(state))` arm (was
+      falling to `_ => Ok(Vec::new())`); generic CardDef sweep added to
+      `precombat_main_actions` for `AtBeginningOfFirstMainPhase` (mirrors the
+      B9/B14 upkeep/end-step sweep template, gated `controller == active`); new
+      `postcombat_main_actions` fn with the same sweep pattern for
+      `AtBeginningOfPostcombatMain` (fires on every `Step::PostCombatMain`
+      including extra mains — no per-turn dedup needed, CR 505.1a); all-players
+      loop in `reset_turn_state` resets the 3 new fields.
+    - `rules/combat.rs`: `handle_declare_attackers` sets `attacked_this_turn =
+      true` for the attacking player when `!attackers.is_empty()`, right after
+      attackers are recorded in combat state. Explicitly does NOT touch the
+      token-enters-attacking path (CR 508.4, Bloodsoaked Champion ruling).
+    - `state/mod.rs`: `add_object` sets `created_token_this_turn = true` inside
+      the existing `zone_id == Battlefield && object.is_token` block (single
+      chokepoint for all 13 `TokenCreated` emission sites).
+    - `rules/casting.rs`, `rules/copy.rs` (x2), `rules/resolution.rs` (x2):
+      increment `spells_cast_this_game_turn` alongside `spells_cast_this_turn` at
+      all 5 sites (see deviation note above).
+    - `effects/mod.rs`: 5 new `check_condition` arms. `OpponentControlsMoreLandsThanYou`
+      uses `calculate_characteristics` (layer-resolved, W3-LC discipline) +
+      `is_phased_in()` exclusion. `SpellMastery` uses printed graveyard
+      characteristics (CR 400.2), mirroring `CardTypesInGraveyardAtLeast`.
+      `check_static_condition`'s existing `_ =>` fallback covers all 5 with no
+      changes needed there.
+    - `rules/abilities.rs`: new `collect_permanent_becomes_target_triggers` fn,
+      called from the `GameEvent::PermanentTargeted` arm of `check_triggers`
+      immediately after the existing Ward block. Scans all battlefield
+      permanents' layer-resolved `triggered_abilities` for
+      `TriggerEvent::PermanentBecomesTarget`, applies per-card
+      scope/by_opponent/include_abilities gates (spell-vs-ability determined by
+      looking up `targeting_stack_id` in `state.stack_objects` and checking
+      `StackObjectKind::Spell`), tags `targeting_stack_id` on the pushed
+      `PendingTrigger` (same convention as Ward, enables
+      `DeclaredTarget{index:0}` to resolve to the targeting spell/ability).
+    - `testing/replay_harness.rs`: `enrich_spec_from_def` gains one new
+      conversion block for `TriggerCondition::WhenBecomesTarget` →
+      `TriggeredAbilityDef { trigger_on: TriggerEvent::PermanentBecomesTarget {
+      .. }, .. }`. `AtBeginningOfFirstMainPhase`/`AtBeginningOfPostcombatMain` do
+      NOT get enrich blocks (fire via registry-scan sweeps, like upkeep/end-step).
+  - **Tests**: new file `crates/engine/tests/pb_ac6_phase_action_conditions.rs`
+    — 19 tests (hash sentinel + 3 mutation-verified hash tests for all 3 new
+    fields; first-main/postcombat-main trigger firing + step-discrimination +
+    active-player-only; 4 becomes-target tests covering spell-vs-ability scope,
+    you-control scope, by-opponent gate, announcement-vs-resolution timing; 5
+    condition tests (YouAttackedThisTurn incl. CR 508.4 negative case,
+    CreatedATokenThisTurn, SpellMastery, OpponentControlsMoreLandsThanYou incl.
+    phased-out exclusion, OpponentCastNSpells); 1 multiplayer turn-boundary
+    reset test (4-player, verifies a NON-active player's trackers reset via
+    direct `reset_turn_state` call); 1 filter-discrimination sanity check).
+  - **Scope deviation (per task instructions)**: card-definition backfill
+    (Searslicer Goblin, Bloodsoaked Champion, Idol of Oblivion, Dark Petition,
+    Land Tax, Venerated Rotpriest, etc.) explicitly NOT done — that is a later
+    phase run by a different agent. Card-integration tests from the plan's test
+    list are replaced with synthetic `CardDefinition`/`TriggeredAbilityDef`
+    fixtures that validate the primitives directly.
+  - Gates: `cargo build --workspace` clean (0 new StackObjectKind/KeywordAbility
+    variants, as predicted — TUI/replay-viewer untouched, verified not just
+    assumed), `cargo test --all` 3003 passed / 0 failed (2984 baseline + 19
+    new), `cargo clippy --all-targets -- -D warnings` clean (1 `large_enum_variant`
+    finding self-fixed by boxing `scope` in both new enum variants),
+    `cargo fmt --check` clean (ran `cargo fmt` once to apply formatter output).
+- [ ] review (primitive-impl-reviewer → pb-review-AC6.md)
+- [ ] fix (primitive-impl-runner)
+- [ ] backfill (bulk-card-author + card-batch-reviewer)
+- [ ] close
+
+- [x] review (primitive-impl-reviewer -> pb-review-AC6.md, 2026-07-09) — verdict:
+      **0 HIGH, 0 MEDIUM, 2 LOW**. All three recurring-HIGH risk areas verified clean:
+      hash completeness (all 3 trackers in HashInto, 3 genuinely mutation-verified tests,
+      0 stale `32u8` sentinels), all-players turn-boundary reset, and
+      `spells_cast_this_game_turn` increment-site completeness (reviewer independently
+      grepped and confirmed exactly 5 sites, incl. the `casting.rs` primary-cast site the
+      plan omitted). No fix phase required.
+- [x] backfill (2026-07-09) — **6 clean**: searslicer_goblin, chart_a_course,
+      bloodsoaked_champion, idol_of_oblivion, dark_petition, land_tax. Plus black_market,
+      goldspan_dragon (becomes-target half), kaito_shizuki (+1).
+      `venerated_rotpriest` demoted CLEAN -> PARTIAL on oracle check: real text is
+      "**target** opponent gets a poison counter", not "each opponent". Marker narrowed.
+      Marker-correction sweep over 13 blocked/partial cards — every one blamed a primitive
+      PB-AC6 shipped, so all were stale and misleading.
+      New `crates/engine/tests/pb_ac6_card_integration.rs` (6 tests, real card defs).
+- [x] card review (card-batch-reviewer -> memory/card-authoring/review-pb-ac6-backfill.md)
+      — 2 HIGH + 1 MEDIUM, **all fixed**; 5 LOW (2 fixed, 3 wording nits left).
+- [x] close (2026-07-09) — clean coverage 960 -> 965 (+5), 54.9% -> 55.2%.
+      Gates independently re-verified by the worker, not taken from agent reports:
+      `cargo build --workspace` clean, `cargo test --all` **3009 passed / 0 failed**
+      (2984 baseline, +25), `cargo clippy --all-targets -- -D warnings` clean,
       `cargo fmt --check` clean.
 
+## Process notes (for the next PB)
+- **Agent reports were unreliable this batch.** The first backfill agent reported nothing
+  and wrote zero files; a second wrote 7 card defs then died before its tests, leaving all
+  6 integration tests FAILING while `cargo build --workspace` stayed green — because
+  **`cargo build --workspace` does not compile test targets**. Always run `cargo test --all`
+  before believing a gate report. Three agents in a row terminated mid-thought.
+- **The `ObjectSpec::card()` naked-object gotcha bit every integration test.** Unenriched
+  specs have `mana_cost: None`, so `mana_value() == 0` short-circuits payment and a cast pays
+  NOTHING; they also have no `activated_abilities`, so `ActivateAbility` returns
+  `InvalidAbilityIndex` (and a graveyard-activation card falls through to the battlefield
+  branch, yielding a confusing `ObjectNotOnBattlefield`). Route every spec through
+  `enrich_spec_from_def`.
+
 ## Residual / follow-up seeds
-- **OOS-AC4-1**: Escalate + `mode_targets` unsupported (hard-rejected at cast). Blocks
-  `blessed_alliance` and any future Escalate card with per-mode targets. Needs an
-  Escalate-aware `mode_targets_active` that maps escalated modes to their target slices.
-- **OOS-AC4-2**: triggered-ability `UpToN` with a non-player inner auto-selects 0 targets
-  (`abilities.rs:6996-6999`) — legal (0 is allowed) but never exercises the optional target.
-  Affects `skullsnatcher`, kogla, marang, `sword_of_*`. Needs player-declared trigger targeting.
-- **OOS-AC4-3**: variable-count / distribute target slots ("distribute two +1/+1 counters
-  among one or two target creatures", "untap up to two target creatures") — blocks
-  `abzan_charm` mode 2 and `blessed_alliance` mode 1.
-- **OOS-AC4-4**: wheel effect ("each player discards their hand, then draws that many
-  cards") — blocks `incendiary_command` mode 3. `EffectAmount::HandSize` (PB-AC3) is
-  evaluated at execution time, after the discard, so it reads 0.
+- **OOS-AC6-1**: `storm_count` is multiplayer-incorrect (pre-existing, NOT fixed).
+  CR 702.40a counts spells cast by ANY player this turn; `copy.rs` reads only the caster's
+  `spells_cast_this_turn`. Compounding, that field resets only for the incoming active
+  player, so an instant-speed storm spell (Brain Freeze) also over-counts the caster's stale
+  previous-turn spells. Fixing requires deciding reset semantics jointly with CR 730.2
+  (`previous_turn_spells_cast`, Daybound). PB-AC6 sidesteps it via a separate
+  all-players-reset `spells_cast_this_game_turn`.
+- **OOS-AC6-2**: CR 603.4 intervening-if is evaluated at RESOLUTION, not at trigger time.
+  The generic upkeep/end-step/main-phase sweeps queue the trigger unconditionally. Strictly,
+  such an ability should not trigger at all when the condition is false, so the trigger
+  should never hit the stack. Pre-existing, shared by every CardDef phase trigger.
+- **OOS-AC6-3**: no player-declared mode choice on triggered abilities —
+  `abilities.rs` hardcodes `stack_obj.modes_chosen = vec![0]`. Blocks
+  `black_market_connections` ("choose one or more") and `tectonic_giant`.
+- **OOS-AC6-4**: `EffectTarget` has no `ControllerOf` / `TriggeringPlayer` (both exist only
+  on `PlayerTarget`), so `Effect::DealDamage` cannot reach "that spell's controller".
+  Blocks `bonecrusher_giant`. Same family: no `TargetFilter` scoping to the triggering
+  spell's controller (blocks `scalelord_reckoner`).
+- **OOS-AC6-5**: `TargetRequirement` has `TargetPlayer` but no `TargetOpponent`
+  (blocks `raiders_wake`), and no variable/any-number target counts (blocks `mindbreak_trap`).
+- **OOS-AC6-6**: `WhenBecomesTarget.by_opponent` is a bool (any-controller / opponent-only).
+  No you-control-only scope, so Valiant (`flowerfoot_swordmaster`) is unauthorable.
+- **OOS-AC6-7**: no count/total-power attacked conditions — `YouAttackedThisTurn` is a bool.
+  Blocks `minas_tirith` (2+ creatures) and `battle_cry_goblin` (pack tactics, total power 6+).
+- **OOS-AC6-8**: no player-targeting poison-counter Effect (`Effect::AddCounter` ignores
+  `ResolvedTarget::Player`). Blocks `venerated_rotpriest`.
+- **OOS-AC6-9**: no dynamic `mana value <= source's power` TargetFilter comparison
+  (`max_cmc` is a fixed u32). Blocks `alesha_who_laughs_at_fate`.

@@ -4707,6 +4707,9 @@ pub fn handle_cast_spell(
     // count would be wrong.
     if let Some(ps) = state.players.get_mut(&player) {
         ps.spells_cast_this_turn += 1;
+        // PB-AC6: all-players-reset "this game turn" spell count (see PlayerState doc
+        // comment). Incremented alongside spells_cast_this_turn at every cast site.
+        ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
         // Track type-filtered spell counts for Deafening Silence / Ethersworn Canonist.
         if !chars.card_types.contains(&CardType::Creature) {
             ps.noncreature_spells_cast_this_turn += 1;

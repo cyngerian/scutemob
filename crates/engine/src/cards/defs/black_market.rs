@@ -28,8 +28,28 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: DSL gap — "At the beginning of your first main phase, add {B} for each
-            // charge counter." Needs main phase trigger + counter-scaled mana production.
+            // PB-AC6: "At the beginning of your first main phase, add {B} for each charge
+            // counter on Black Market." TriggerCondition::AtBeginningOfFirstMainPhase fires
+            // once per turn on Step::PreCombatMain for the active player only (CR 505.1a).
+            // Effect::AddManaScaled with EffectAmount::CounterCount reads the charge-counter
+            // count on the source at resolution time.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfFirstMainPhase,
+                effect: Effect::AddManaScaled {
+                    player: PlayerTarget::Controller,
+                    color: ManaColor::Black,
+                    count: EffectAmount::CounterCount {
+                        target: EffectTarget::Source,
+                        counter: CounterType::Charge,
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

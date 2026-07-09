@@ -420,4 +420,32 @@ pub struct PlayerState {
     /// Stored as `ObjectId` because the designation is lost on zone change (CR 400.7).
     #[serde(default)]
     pub ring_bearer_id: Option<crate::state::game_object::ObjectId>,
+    /// PB-AC6 / CR 508.1, Raid (ability word): true once this player has declared
+    /// one or more attackers this turn. Set in `handle_declare_attackers`. Reset for
+    /// ALL players at each turn boundary in `reset_turn_state`. Used by
+    /// `Condition::YouAttackedThisTurn`. Creatures put onto the battlefield attacking
+    /// (CR 508.4) do NOT set this -- only a declare-attackers action counts as "you
+    /// attacked" (Bloodsoaked Champion ruling).
+    #[serde(default)]
+    pub attacked_this_turn: bool,
+    /// PB-AC6 / CR 111.10: true once this player has created one or more tokens this
+    /// turn. Set in `GameState::add_object` (single chokepoint for all token creation
+    /// paths). Reset for ALL players at each turn boundary in `reset_turn_state`.
+    /// Used by `Condition::CreatedATokenThisTurn`.
+    #[serde(default)]
+    pub created_token_this_turn: bool,
+    /// PB-AC6: Number of spells cast by this player during the CURRENT game turn,
+    /// tracked independently of `spells_cast_this_turn`.
+    ///
+    /// `spells_cast_this_turn` is deliberately reset ONLY for the incoming active
+    /// player (storm scoping, see `reset_turn_state`), so for a non-active opponent it
+    /// accumulates across intervening turns and cannot answer "how many spells has
+    /// this opponent cast THIS turn." This field is reset for ALL players at each turn
+    /// boundary (alongside `cards_drawn_this_turn` / `life_lost_this_turn`), giving it
+    /// multiplayer-correct "this turn" semantics. Incremented at every site that
+    /// increments `spells_cast_this_turn`. Used by `Condition::OpponentCastNSpells`.
+    /// Do NOT read this for storm -- storm must keep using `spells_cast_this_turn`
+    /// (see OOS-AC6-1 in `memory/primitives/pb-plan-AC6.md`).
+    #[serde(default)]
+    pub spells_cast_this_game_turn: u32,
 }

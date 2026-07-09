@@ -49,10 +49,10 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
             once_per_turn: false,
             },
-            // TODO: Pack tactics — "Whenever this creature attacks, if you attacked with
-            // creatures with total power 6 or greater this combat, create a 1/1 red Goblin
-            // creature token that's tapped and attacking."
-            // Blocked: Condition::AttackedWithTotalPowerAtLeast(6) not in DSL.
+            // ENGINE-BLOCKED: Pack tactics — "if you attacked with creatures with total power
+            // 6 or greater this combat" needs Condition::AttackedWithTotalPowerAtLeast(6).
+            // PB-AC6's Condition::YouAttackedThisTurn is a bool and is insufficient: it cannot
+            // express a total-power threshold, and it is scoped to the turn, not the combat.
         ],
         ..Default::default()
     }

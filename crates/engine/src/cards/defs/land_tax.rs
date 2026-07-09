@@ -3,10 +3,12 @@
 // you may search your library for up to three basic land cards, reveal them,
 // put them into your hand, then shuffle."
 //
-// TODO: Condition::OpponentControlsMoreLandsThanYou does not exist in the DSL.
-// The intervening-if condition requires comparing two players' land counts at
-// trigger time and resolution. No Condition variant captures this comparison.
-// W5: wrong implementation omitted — abilities: vec![].
+// CR 508... (upkeep trigger) with PB-AC6's Condition::OpponentControlsMoreLandsThanYou
+// as the intervening-if. "You may search ... up to three" follows the established
+// engine convention (see farhaven_elf.rs, dark_petition.rs) of a deterministic
+// auto-search: each SearchLibrary call independently finds at most one matching
+// basic land (or none, if fewer than three remain), naturally implementing "up to
+// three" without a real interactive choice model.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,9 +19,41 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "At the beginning of your upkeep, if an opponent controls more lands than you, you may search your library for up to three basic land cards, reveal them, put them into your hand, then shuffle.".to_string(),
         abilities: vec![
-            // TODO: AtBeginningOfYourUpkeep trigger with intervening-if
-            // Condition::OpponentControlsMoreLandsThanYou not in DSL.
-            // Needs: compare count of lands controlled by any opponent vs. controller.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: basic_land_filter(),
+                        reveal: true,
+                        destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        shuffle_before_placing: false,
+                        also_search_graveyard: false,
+                    },
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: basic_land_filter(),
+                        reveal: true,
+                        destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        shuffle_before_placing: false,
+                        also_search_graveyard: false,
+                    },
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: basic_land_filter(),
+                        reveal: true,
+                        destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        shuffle_before_placing: false,
+                        also_search_graveyard: false,
+                    },
+                    Effect::Shuffle { player: PlayerTarget::Controller },
+                ]),
+                intervening_if: Some(Condition::OpponentControlsMoreLandsThanYou),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

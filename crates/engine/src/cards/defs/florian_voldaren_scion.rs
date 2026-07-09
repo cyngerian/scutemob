@@ -1,10 +1,10 @@
 // Florian, Voldaren Scion — {1}{B}{R}, Legendary Creature — Vampire Noble 3/3
 // First strike; at beginning of each postcombat main phase, look at top X cards where
 // X = total life opponents lost this turn; exile one, play it this turn.
-// TODO: Postcombat main phase trigger with variable X (life lost by opponents this turn)
-// and "exile one, play it this turn" effect. DSL gaps: no TriggerCondition for
-// AtBeginningOfPostcombatMainPhase; no EffectAmount tracking life-lost-this-turn across
-// all opponents; no look-at-top-X-and-exile-one pattern. Deferred.
+// ENGINE-BLOCKED: no EffectAmount tracks life lost by all opponents this turn, and there is
+// no "look at top X, exile one, you may play it this turn" (impulse-play) pattern.
+// (The postcombat-main trigger itself is now available as
+// TriggerCondition::AtBeginningOfPostcombatMain — PB-AC6.)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,9 +22,9 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
-            // TODO: Postcombat main phase trigger with X = opponents' life lost this turn.
-            // DSL gaps: no AtBeginningOfPostcombatMainPhase trigger condition;
-            // no EffectAmount variant for opponents' life lost; no look-top-X-exile-one effect.
+            // ENGINE-BLOCKED: see file header — needs an EffectAmount for opponents' life lost
+            // this turn, plus a look-top-X / exile-one / impulse-play effect.
+            // (AtBeginningOfPostcombatMain now exists — PB-AC6.)
         ],
         ..Default::default()
     }

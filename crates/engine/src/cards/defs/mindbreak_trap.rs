@@ -12,16 +12,16 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.\nExile any number of target spells.".to_string(),
         abilities: vec![
-            // TODO: Conditional free-cast (opponent cast 3+ spells) not in DSL.
-            // TODO: "any number of target spells" — variable targets not supported.
-            AbilityDefinition::Spell {
-                effect: Effect::ExileObject {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                },
-                targets: vec![TargetRequirement::TargetSpell],
-                modes: None,
-                cant_be_countered: false,
-            },
+            // ENGINE-BLOCKED: (1) Trap alternative cost — no AltCostKind::Trap, so the
+            // "if an opponent cast three or more spells this turn, you may pay {0}" alt-cost
+            // cannot be paid. (The condition itself is now available as
+            // Condition::OpponentCastNSpells(3) — PB-AC6. It is the alt-cost wrapper that is
+            // missing, not the count.)
+            // (2) "Exile any number of target spells" — variable target counts are not
+            // supported. This was previously authored as a single
+            // `TargetRequirement::TargetSpell`, which is wrong game state: it forces exactly
+            // one target, so a hardcast Mindbreak Trap could not exile the multi-spell storm
+            // turn it exists to answer, nor choose zero targets. Omitted, not approximated.
         ],
         ..Default::default()
     }

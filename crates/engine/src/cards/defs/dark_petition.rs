@@ -1,9 +1,8 @@
 // Dark Petition — {3}{B}{B}, Sorcery; search for a card to hand, then shuffle.
 // Spell mastery — if 2+ instant/sorcery cards in graveyard, add {B}{B}{B}.
-// TODO: Spell mastery conditional mana bonus ({B}{B}{B} if 2+ instant/sorcery in
-// graveyard) cannot be expressed. No Condition variant for "N or more instants and/or
-// sorceries in your graveyard" exists in the DSL. The base search effect is implemented;
-// the bonus mana is omitted per W5 policy.
+//
+// CR 207.2c: PB-AC6 added Condition::SpellMastery ("two or more instant and/or
+// sorcery cards in your graveyard"), used here in an Effect::Conditional.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,9 +27,14 @@ pub fn card() -> CardDefinition {
                     also_search_graveyard: false,
                 },
                 Effect::Shuffle { player: PlayerTarget::Controller },
-                // TODO: Condition::SpellMastery (2+ instant/sorcery in graveyard) not in DSL.
-                // If condition is met, add {B}{B}{B} to controller's mana pool.
-                // Omitting bonus mana — wrong for spell mastery games but base tutor is correct.
+                Effect::Conditional {
+                    condition: Condition::SpellMastery,
+                    if_true: Box::new(Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 3, 0, 0, 0),
+                    }),
+                    if_false: Box::new(Effect::Nothing),
+                },
             ]),
             targets: vec![],
             modes: None,

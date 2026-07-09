@@ -27,8 +27,30 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Becomes target of a spell" trigger not in DSL.
-            // TODO: "Treasures add two mana" static override not in DSL.
+            // "…or becomes the target of a spell" (PB-AC6). Modeled as a second triggered
+            // ability rather than one ability with two trigger events: the oracle ability
+            // triggers once per qualifying event, so the observable behavior is identical
+            // (attacking AND being targeted in one turn yields two Treasures either way).
+            // scope: None = the source itself; by_opponent: false = any controller;
+            // include_abilities: false = spells only, per the oracle.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenBecomesTarget {
+                    scope: None,
+                    by_opponent: false,
+                    include_abilities: false,
+                },
+                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
+            // ENGINE-BLOCKED: "Treasures you control have '{T}, Sacrifice: Add two mana of any
+            // one color.'" — a static ability-granting override that replaces the Treasure's
+            // own printed mana ability. No static grant to a filtered set of permanents that
+            // can override an existing activated ability's mana output.
         ],
         ..Default::default()
     }

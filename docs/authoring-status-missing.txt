@@ -1,5 +1,5 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-09 03:05 UTC  Git: 5920a5eb  Plan snapshot: 2026-03-10
+# Generated: 2026-07-09 06:15 UTC  Git: bcc96cdf  Plan snapshot: 2026-03-10
 # Format: <group>\t<card name>   (194 cards)
 
 activated-sacrifice	An Offer You Can't Refuse

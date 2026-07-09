@@ -553,6 +553,16 @@ pub fn handle_declare_attackers(
             combat.attackers.insert(*attacker_id, target.clone());
         }
     }
+    // PB-AC6 / Raid, CR 508.1: mark that this player attacked this turn (one or more
+    // attackers were declared). Only a declare-attackers action counts as "you
+    // attacked" -- creatures put onto the battlefield already attacking (CR 508.4,
+    // e.g. Ninjutsu, Aggravated Assault-style effects) do NOT set this flag
+    // (Bloodsoaked Champion ruling).
+    if !attackers.is_empty() {
+        if let Some(ps) = state.players.get_mut(&player) {
+            ps.attacked_this_turn = true;
+        }
+    }
     // CR 702.154a: Store enlist pairings for trigger collection in abilities.rs.
     if let Some(combat) = state.combat.as_mut() {
         combat.enlist_pairings = enlist_choices.clone();

@@ -3203,6 +3203,47 @@ pub fn enrich_spec_from_def(
     }
     // CR 603.2: WhenYouCastThisSpell is dispatched directly from the SpellCast arm
     // in check_triggers using the CardDef ability_index. No TriggeredAbilityDef needed.
+    // PB-AC6 / CR 601.2c / 602.2b / 603.2: Convert "Whenever [this permanent / a <filter>
+    // you control] becomes the target of a spell [or ability] [an opponent controls]"
+    // card-definition triggers into runtime TriggeredAbilityDef entries. Only `trigger_on`
+    // carries the scope/by_opponent/include_abilities params -- the inline dispatch in
+    // `check_triggers`'s `GameEvent::PermanentTargeted` arm reads them directly from the
+    // `TriggerEvent::PermanentBecomesTarget` variant (NOT via the generic equality-based
+    // `collect_triggers_for_event`, since each card's params differ).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WhenBecomesTarget {
+                    scope,
+                    by_opponent,
+                    include_abilities,
+                },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::PermanentBecomesTarget {
+                    scope: scope.clone(),
+                    by_opponent: *by_opponent,
+                    include_abilities: *include_abilities,
+                },
+                intervening_if: None,
+                description: "Whenever ~ becomes the target of a spell/ability (CR 601.2c/602.2b)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
     spec
 }
 // ── Private helpers ───────────────────────────────────────────────────────────
