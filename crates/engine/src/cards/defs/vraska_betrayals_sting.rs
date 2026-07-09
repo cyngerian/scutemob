@@ -43,13 +43,84 @@ pub fn card() -> CardDefinition {
                 ]),
                 targets: vec![],
             },
-            // -2: Target creature becomes a Treasure artifact.
-            // TODO: No "permanent changes type/loses abilities" effect in DSL.
-            // Effect::BecomeCopyOf or continuous type-modification layer effects
-            // don't cover "becomes a Treasure artifact with specific activated ability".
-            // -9: Poison counters equal to difference from 9.
+            // -2: Target creature becomes a Treasure artifact with "{T}, Sacrifice this
+            // artifact: Add one mana of any color" and loses all other card types and
+            // abilities. PB-AC7: unblocked. Per ruling: "The target of Vraska's second
+            // loyalty ability will lose any other subtypes and card types it previously
+            // had and will be only a Treasure artifact. It will retain any supertypes
+            // it had." — so SetCardTypes (not SetTypeLine) preserves supertypes;
+            // LoseAllSubtypes + AddSubtypes(Treasure) clears ALL subtypes (not just
+            // creature types) per the ruling. RemoveAllAbilities is listed BEFORE the
+            // AddManaAbility grant (CR 613.7 timestamp ordering — within a Sequence,
+            // Effect::ApplyContinuousEffect does not advance the timestamp counter, so
+            // push order = apply order for same-layer effects) so the granted mana
+            // ability survives the "loses all other abilities" removal.
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::Minus(2),
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::SetCardTypes(
+                                [CardType::Artifact].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::Indefinite,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::LoseAllSubtypes,
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::Indefinite,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddSubtypes(
+                                [SubType("Treasure".to_string())].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::Indefinite,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::RemoveAllAbilities,
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::Indefinite,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddManaAbility(ManaAbility {
+                                produces: Default::default(),
+                                requires_tap: true,
+                                sacrifice_self: true,
+                                any_color: true,
+                                damage_to_controller: 0,
+                            }),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::Indefinite,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                targets: vec![TargetRequirement::TargetCreature],
+            },
+            // -9: If target player has fewer than nine poison counters, they get a
+            // number of poison counters equal to the difference.
             // TODO: No "poison counters equal to difference" EffectAmount variant.
-            // Needs EffectAmount::PoisonDifference or similar.
+            // Needs EffectAmount::PoisonDifference or similar (OOS-AC7-1). Genuine
+            // remaining gap — not addressed by PB-AC7.
         ],
         ..Default::default()
     }

@@ -1,10 +1,8 @@
 // Sram, Senior Edificer — {1}{W}, Legendary Creature — Dwarf Advisor 2/2
 // Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.
 //
-// ENGINE-BLOCKED: "Aura, Equipment, or Vehicle" are spell subtypes, not CardTypes.
-// WheneverYouCastSpell.spell_type_filter accepts Vec<CardType> only. There is no
-// spell-subtype filter in the DSL. The unfiltered approximation (draw on every spell)
-// produces wrong game state and is omitted per W5 policy.
+// PB-AC7: unblocked by TriggerCondition::WheneverYouCastSpell.spell_subtype_filter
+// (Option<Vec<SubType>>, OR-semantics, CR 205.1a).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -17,9 +15,28 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // ENGINE-BLOCKED: WheneverYouCastSpell has no spell-subtype filter.
-            // Aura, Equipment, and Vehicle are subtypes (not CardTypes), so they cannot
-            // be expressed via spell_type_filter: Option<Vec<CardType>>.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                    during_opponent_turn: false,
+                    spell_type_filter: None,
+                    noncreature_only: false,
+                    chosen_subtype_filter: false,
+                    spell_subtype_filter: Some(vec![
+                        SubType("Aura".to_string()),
+                        SubType("Equipment".to_string()),
+                        SubType("Vehicle".to_string()),
+                    ]),
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

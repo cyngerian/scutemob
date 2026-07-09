@@ -4,10 +4,9 @@
 // Enchanted creature loses all abilities and is a black Skeleton creature with base
 // power and toughness 1/1. (It loses all other colors, card types, and creature types.)
 //
-// TODO: Color override (becomes black only) — needs LayerModification::SetColors.
-// TODO: Type override (becomes Skeleton only, loses other creature types) — needs
-//   LayerModification::SetSubtypes. The "loses all other card types" part means it
-//   becomes only a Creature, losing any other types.
+// PB-AC7: unblocked by LayerModification::SetCardTypes + SetCreatureTypes (Layer 4,
+// CR 205.1a) — preserves supertypes, unlike SetTypeLine. Colors set directly via
+// SetColors (Layer 5).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,6 +24,43 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::RemoveAllAbilities,
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // Card types become exactly {Creature} (Layer 4, CR 205.1a) — preserves
+            // supertypes (e.g. Legendary).
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::SetCardTypes(
+                        [CardType::Creature].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // Creature-type subtypes become exactly {Skeleton} (Layer 4, CR 205.1a).
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::TypeChange,
+                    modification: LayerModification::SetCreatureTypes(
+                        [SubType("Skeleton".to_string())].into_iter().collect(),
+                    ),
+                    filter: EffectFilter::AttachedCreature,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
+            // Colors become exactly {Black} (Layer 5).
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::ColorChange,
+                    modification: LayerModification::SetColors(
+                        [Color::Black].into_iter().collect(),
+                    ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
